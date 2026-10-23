@@ -42,8 +42,6 @@ Sign in with this link. It works once, within 15 minutes:
 Run `secondshift login` for a new link. Press Ctrl+C to stop.
 ```
 
-Your browser opens automatically. The token above is a placeholder.
-
 SecondShift is in alpha, distributed through
 [GitHub Releases](https://github.com/piotrekno1/second-shift/releases) until it is
 available on PyPI.
@@ -74,12 +72,20 @@ exported into the repository. MCP and API tool execution is not available yet.
 See [Repository configuration](docs/repository-configuration.md) to add your
 first skill, schedule, and webhook notification.
 
-## How it works
+## Who controls what
 
-- Skills run in isolated sandboxes.
-- Repository configuration declares schedules and requested capabilities.
-- The server controls models, credentials, and runtime policy.
-- Every run is tied to a Git commit.
+| Role | Controls |
+| --- | --- |
+| **Repository contributors** | Propose skills, schedules, and requested capabilities through Git changes. |
+| **Repository maintainers** | Review and merge those changes through the repository's normal process. |
+| **Workspace owners** | Connect model providers and services, approve each job's access, and enable jobs. |
+| **Server operators** | Define sandbox images, runtimes, resource limits, and network policy. |
+
+A committed skill does not grant itself access. Repository configuration cannot
+choose credentials, provider endpoints, sandbox images, mounts, or network
+settings. Expanding requested capabilities requires renewed approval.
+
+Skills run in isolated sandboxes. Every run is tied to a Git commit.
 
 ## Contributions welcome
 
