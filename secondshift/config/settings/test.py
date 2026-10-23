@@ -18,6 +18,11 @@ DATABASES = {"default": {"ENGINE": "django.db.backends.sqlite3", "NAME": ":memor
 DBOS_SYSTEM_DATABASE_URL = "sqlite:///:memory:"
 PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
 SIGNUP_ENABLED = False
+# Tests run without collectstatic, so they cannot use the manifest storage.
+STORAGES = {
+    **STORAGES,
+    "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+}
 
 # Tests install every first-party app in one Django process. Deployment settings
 # remain separate and are checked independently.
