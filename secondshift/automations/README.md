@@ -31,6 +31,9 @@ cannot select tools, credentials, images, mounts, networks, or runtime flags.
   `tool_policy.py`.
 - Durable orchestration: `agent.py`, `execution.py`, `model_gateway.py`,
   `workflows.py`, `dispatch.py`, and `dbos_runtime.py`.
+- External tools: `tool_broker.py` checks each MCP or API call against the
+  run's frozen plan. Each connection kind lives in
+  `secondshift/integrations/external.py`.
 - Isolation boundary: `runner_protocol.py` and `runner_client.py`. The `runner`
   Django app implements the other side of this contract.
 - Operations: `scheduling.py`, `reconciliation.py`, `retention.py`,

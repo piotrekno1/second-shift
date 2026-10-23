@@ -51,6 +51,9 @@ available on PyPI.
 - **Connect models and report destinations.** Add a model provider and webhook,
   then approve each job's notification access. Connections remain separately
   revocable.
+- **Give skills live data.** Connect GitHub, Sentry, any MCP server (OAuth or a
+  token), or an HTTP API from its OpenAPI spec. Choose which tools jobs may use,
+  then approve each job's request. Calls run outside the sandbox.
 - **Follow every run.** Inspect its Git revision, execution timeline, report,
   token usage, and model cost.
 
@@ -62,9 +65,9 @@ available on PyPI.
 - **Contributor recap:** recognize merged work and review contributions.
 - **Alert coverage review:** flag removed alerts, paused rules, and threshold changes.
 
-Skills review the inputs you provide. Export service data into the repository,
-or use the [engineering briefing example](examples/engineering-briefing/README.md)
-to review live service data through an approved MCP connection in source.
+Skills review the repository and the services you approve. The
+[engineering briefing example](examples/engineering-briefing/README.md) reads
+live GitHub data through an approved MCP connection.
 
 See [Repository configuration](docs/repository-configuration.md) to add your
 first skill, schedule, and webhook notification.

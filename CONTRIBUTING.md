@@ -92,7 +92,8 @@ The real environment wins over a checkout's `.env`, which wins over the data
 folder's. Development generates keys through `secondshift/config/first_run.py`.
 Production refuses to start until
 `DJANGO_SECRET_KEY`, `FIELD_ENCRYPTION_KEY` and
-`SECONDSHIFT_RUNNER_SERVICE_TOKEN` are set.
+`SECONDSHIFT_RUNNER_SERVICE_TOKEN` are set, and `FRONTEND_URL` is an HTTPS
+address.
 
 In development, the Repositories page can attach a local Git repository by
 path. SecondShift resolves its Git root, requires a committed root-level

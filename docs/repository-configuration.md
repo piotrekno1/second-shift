@@ -55,7 +55,7 @@ standard-library tests work without installing packages.
 | `jobs.<key>.schedule` | Yes | Cron schedule, such as `0 9 * * 1` for Monday at 09:00. |
 | `jobs.<key>.timezone` | No | IANA timezone, such as `Europe/Warsaw`. Defaults to `UTC`. |
 | `jobs.<key>.notify` | No | Webhook notification bindings requested by this job. |
-| `jobs.<key>.requires` | No | MCP and API capability declarations. See the support limits below. |
+| `jobs.<key>.requires` | No | MCP tools and HTTP API operations the job needs. See below. |
 
 Skill paths must stay inside the repository. Unknown fields are rejected.
 Use separate job definitions for skills with different schedules or access
@@ -99,33 +99,61 @@ settings and can revoke access independently.
 
 ## MCP and API declarations
 
-The source checkout supports a limited MCP integration. See the
-[engineering briefing example](../examples/engineering-briefing/README.md)
-for the supported provider, authentication, setup, and a working manifest.
-
-Need an MCP or HTTP API setup we do not support yet?
-[File an issue](https://github.com/piotrekno1/second-shift/issues/new) describing
-the service and workflow you want to automate.
-
-The following illustrates the declaration syntax:
+A job can ask for tools from an MCP server or operations from an HTTP API. The
+repository names only a logical binding and the tools it needs. The workspace
+owner connects the service, chooses which tools any job may use, and approves
+each job's request.
 
 ```yaml
 requires:
   mcps:
-    - binding: observability
+    - binding: github
       tools:
-        - search_dashboards
-        - query_metrics
+        - search_pull_requests
+        - get_commit
       required: true
   apis:
-    - binding: issue-tracker
+    - binding: billing
       tools:
-        - list_issues
+        - listCharges
       required: true
 ```
 
 Place `requires` inside a job definition. Each entry needs a logical `binding`
 and a nonempty list of unique `tools`. The `required` flag defaults to `true`.
 
-Follow [brokered MCP and API execution](https://github.com/piotrekno1/second-shift/issues/2)
-for implementation progress.
+### What a binding can connect to
+
+| Connection | Tool names | Sign-in | Scope |
+| --- | --- | --- | --- |
+| GitHub (built in) | `search_pull_requests`, `pull_request_read`, `list_commits`, `get_commit` | Fine-grained personal access token | The job's own repository |
+| Sentry (built in) | `find_projects`, `search_issues`, `search_errors`, `search_traces`, `get_sentry_resource` | Auth token with read scopes | The organization or project chosen when connecting |
+| Custom MCP server | The server's own tool names | OAuth sign-in, or a bearer token | Whatever the credential can reach |
+| HTTP API | The `operationId` of each operation in its OpenAPI 3 spec | Bearer token, or a named header | Whatever the credential can reach |
+
+GitHub and Sentry offer only read tools that SecondShift allowlists. For a
+custom MCP server, the owner chooses tools after connecting, and tools the
+server marks read-only start selected. For an HTTP API, GET operations start
+selected. The access review marks any requested tool that may change data.
+
+An operation without an `operationId` gets a name built from its method and
+path, such as `get_charges_chargeId`. The connection's edit form lists every
+name.
+
+### How calls run
+
+Tool calls never run in the sandbox. The broker makes each call after checking
+that the job's grant, the connection, and the tool definitions still match
+the run's plan. A change stops the run.
+
+For HTTP APIs, SecondShift builds every request from the spec. The model
+supplies only the path and query values the spec declares, plus a JSON body for
+operations that take one. Requests go only to the base URL the owner confirmed
+when connecting. Redirects are not followed.
+
+See the [engineering briefing example](../examples/engineering-briefing/README.md)
+for a working job that reads live GitHub data.
+
+Need a service that does not fit these options?
+[File an issue](https://github.com/piotrekno1/second-shift/issues/new) describing
+the service and workflow you want to automate.

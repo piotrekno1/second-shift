@@ -12,8 +12,9 @@ using live GitHub MCP data. Deliver the result through a webhook.
    job into an existing manifest if needed. The example directory is a template,
    not an independent Git repository.
 2. Connect a model provider and select its default model.
-3. In **Connections**, choose **GitHub MCP**. Use capability name `github` and
-   provide a fine-grained GitHub PAT that can read the repositories your jobs use.
+3. In **Connections**, choose **Add connection**, then **MCP server** and
+   **GitHub**. Use capability name `github` and provide a fine-grained GitHub
+   PAT that can read the repositories your jobs use. Classic tokens are refused.
    Under Repository permissions, grant read-only access to Pull requests,
    Commit statuses, and Contents. Check-run data may be unavailable with this
    token type. Your organization may
@@ -41,9 +42,13 @@ A checkout without a GitHub origin cannot use this capability.
 
 ## Supported boundary
 
-This implementation uses GitHub's hosted read-only MCP endpoint over Streamable
-HTTP with a bearer PAT. Connections can be reused across jobs. Each run freezes
-the job's GitHub repository as its scope. The broker enforces that scope and checks current grants before each call. Tokens remain outside
-command sandboxes. OAuth, arbitrary MCP servers, and generic API execution are
-not included in this first integration. Discovery proves the token can connect,
-not that it has every permission needed to read the chosen repository.
+This example uses GitHub's hosted read-only MCP endpoint over Streamable HTTP
+with a fine-grained PAT. Connections can be reused across jobs. Each run
+freezes the job's GitHub repository as its scope. The broker enforces that
+scope and checks current grants before each call. Tokens remain outside command
+sandboxes. Discovery proves the token can connect, not that it has every
+permission needed to read the chosen repository.
+
+Other services connect the same way. Sentry is built in. Custom MCP servers
+sign in with OAuth or a bearer token, and HTTP APIs connect from an OpenAPI 3
+spec. See [MCP and API declarations](../../docs/repository-configuration.md#mcp-and-api-declarations).

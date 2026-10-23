@@ -43,6 +43,17 @@ the configured model provider receives the context sent to it. An
 OpenAI-compatible local provider can be used where the entire execution path
 must remain within the operator's environment.
 
+## Public address and outbound calls
+
+Set `FRONTEND_URL` to the HTTPS address people use to open the dashboard.
+Production refuses to start without it. OAuth sign-in callbacks and run links
+use it.
+
+MCP and HTTP API calls leave from the worker, never from a sandbox. In
+production they reach only public HTTPS addresses. Local mode also allows local
+addresses for testing. Each address is checked again when the connection
+opens, so a host cannot pass the check and then resolve to a private address.
+
 ## Run artifact storage
 
 Full run output is stored outside Postgres in private storage, under
