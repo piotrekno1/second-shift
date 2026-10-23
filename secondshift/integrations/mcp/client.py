@@ -222,3 +222,47 @@ def create_mcp_connection(
     except IntegrityError:
         raise ConnectionConflict("This binding already has a connection.") from None
     return connection
+
+
+def update_mcp_connection(
+    connection: Connection,
+    display_name: str | None,
+    token: str | None,
+    settings: dict[str, str] | None,
+) -> Connection:
+    """Replace the token or scope, then rediscover tools before saving anything.
+
+    A blank token keeps the current one, unless the connection was revoked.
+    """
+    if connection.kind != Connection.Kind.MCP:
+        raise ConnectionConflict("Only MCP connections can be edited here.")
+    provider = mcp_provider(connection.provider)
+    if token:
+        if not re.fullmatch(provider.token_pattern, token):
+            raise MCPError(provider.token_hint)
+        connection.access_token = token
+    elif connection.status == Connection.Status.REVOKED or not connection.access_token:
+        raise MCPError("Enter a new token to reconnect.")
+    cleaned = provider.clean_settings(
+        connection_settings(connection) if settings is None else settings
+    )
+    if display_name is not None:
+        connection.display_name = display_name.strip() or provider.label
+    connection.endpoint_url = provider.endpoint(cleaned)
+    connection.status = Connection.Status.CONNECTED
+    connection.metadata = {
+        **connection.metadata,
+        "target": " · ".join(
+            part
+            for part in (f"{provider.label} MCP", "/".join(cleaned.values()))
+            if part
+        ),
+        "settings": cleaned,
+    }
+    # Raises before saving, so a bad token or scope leaves the stored one alone.
+    tools = discover_tools(connection)
+    connection.available_tools = sorted(tools)
+    connection.metadata["tools"] = tools
+    connection.full_clean()
+    connection.save()
+    return connection

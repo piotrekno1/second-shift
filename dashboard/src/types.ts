@@ -239,6 +239,8 @@ export interface Connection {
   last_check: { ok: boolean, message: string, checked_at: string } | null
   /** Present on the connections list only. */
   usage?: ConnectionUsage | null
+  /** MCP only: the organization or project the owner chose. */
+  settings?: Record<string, string>
 }
 
 export interface ConnectionUsage {

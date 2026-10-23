@@ -4,6 +4,7 @@ from typing import Any
 import httpx
 import pytest
 from django.contrib.auth import get_user_model
+from django.test import Client
 
 from secondshift.automations.models import CapabilityRequest, Job, JobGrant
 from secondshift.automations.planning import build_execution_plan
@@ -12,11 +13,13 @@ from secondshift.core.models import Workspace
 from secondshift.integrations.mcp.base import MCPError
 from secondshift.integrations.mcp.client import (
     create_mcp_connection,
+    update_mcp_connection,
     validate_mcp_connection,
 )
 from secondshift.integrations.mcp.providers import mcp_access
 from secondshift.integrations.mcp.sentry import SENTRY_MCP, scoped_sentry_arguments
 from secondshift.integrations.models import Connection
+from secondshift.integrations.services import revoke_connection
 from secondshift.repositories.models import Repository
 
 TOKEN = "sntryu_test_token"
@@ -275,3 +278,83 @@ def test_access_text_and_frozen_plan_follow_the_connection(
     connection.save()
     plan = build_execution_plan(job)
     assert plan["capabilities"][0]["reasons"] == ["sentry_organization_unknown"]
+
+
+def connect(workspace: Workspace, settings: dict[str, str] | None = None) -> Connection:
+    return create_mcp_connection(
+        workspace, "sentry", "sentry", "", TOKEN, settings or {"organization": "acme"}
+    )
+
+
+def test_reconnect_after_revoke_replaces_token(
+    workspace: Workspace, sentry_http: list[httpx.Request]
+) -> None:
+    connection = revoke_connection(connect(workspace))
+    with pytest.raises(MCPError, match="new token"):
+        update_mcp_connection(connection, None, "", None)
+
+    updated = update_mcp_connection(connection, None, "sntryu_new_token", None)
+
+    updated.refresh_from_db()
+    assert updated.status == Connection.Status.CONNECTED
+    assert updated.access_token == "sntryu_new_token"
+    assert updated.endpoint_url == f"{SENTRY_MCP_URL}/acme"
+    assert updated.metadata["target"] == "Sentry MCP · acme"
+    assert sentry_http[-1].headers["Authorization"] == "Sentry-Bearer sntryu_new_token"
+
+
+def test_blank_token_keeps_current_one_and_can_change_scope(
+    workspace: Workspace, sentry_http: list[httpx.Request]
+) -> None:
+    connection = connect(workspace)
+    updated = update_mcp_connection(
+        connection, "Sentry backend", None, {"organization": "acme", "project": "api"}
+    )
+    updated.refresh_from_db()
+    assert updated.access_token == TOKEN
+    assert updated.display_name == "Sentry backend"
+    assert updated.endpoint_url == f"{SENTRY_MCP_URL}/acme/api"
+    assert updated.metadata["settings"] == {"organization": "acme", "project": "api"}
+
+
+def test_failed_check_leaves_saved_connection_alone(
+    workspace: Workspace, sentry_http: list[httpx.Request], monkeypatch
+) -> None:
+    connection = connect(workspace)
+    monkeypatch.setattr(
+        "secondshift.integrations.mcp.client.MCPTransport",
+        lambda: httpx.MockTransport(lambda request: httpx.Response(401)),
+    )
+    with pytest.raises(MCPError, match="request failed"):
+        update_mcp_connection(
+            connection, None, "sntryu_bad_token", {"organization": "other"}
+        )
+    saved = Connection.objects.get(pk=connection.pk)
+    assert saved.access_token == TOKEN
+    assert saved.endpoint_url == f"{SENTRY_MCP_URL}/acme"
+
+
+def test_update_api_returns_settings_without_token(
+    client: Client, workspace: Workspace, sentry_http: list[httpx.Request]
+) -> None:
+    connection = connect(workspace)
+    client.force_login(workspace.owner)
+    response = client.post(
+        f"/api/connections/{connection.pk}/mcp",
+        data=json.dumps(
+            {
+                "token": "sntryu_new_token",
+                "settings": {"organization": "acme", "project": "api"},
+            }
+        ),
+        content_type="application/json",
+    )
+    assert response.status_code == 200, response.content
+    assert response.json()["settings"] == {"organization": "acme", "project": "api"}
+    assert "sntryu_new_token" not in response.content.decode()
+    bad = client.post(
+        f"/api/connections/{connection.pk}/mcp",
+        data=json.dumps({"settings": {"organization": "../x"}}),
+        content_type="application/json",
+    )
+    assert bad.status_code == 422

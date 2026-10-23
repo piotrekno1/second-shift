@@ -28,6 +28,7 @@ from secondshift.integrations.mcp.base import MCPError
 from secondshift.integrations.mcp.client import (
     create_mcp_connection,
     discover_tools,
+    update_mcp_connection,
     validate_mcp_connection,
 )
 from secondshift.integrations.mcp.providers import MCP_PROVIDERS
@@ -208,6 +209,8 @@ class ConnectionSchema(Schema):
     available_models: list[str]
     last_check: ConnectionCheckSchema | None = None
     usage: ConnectionUsageSchema | None = None
+    # MCP only: the organization or project an owner chose. Never secret.
+    settings: dict[str, str] = Field(default_factory=dict)
 
 
 class WebhookConnectionCreateSchema(Schema):
@@ -231,6 +234,12 @@ class MCPConnectionCreateSchema(Schema):
     display_name: str = Field(default="", max_length=200)
     token: str = Field(min_length=1, max_length=2000)
     settings: dict[str, str] = Field(default_factory=dict, max_length=10)
+
+
+class MCPConnectionUpdateSchema(Schema):
+    display_name: str | None = Field(default=None, max_length=200)
+    token: str | None = Field(default=None, max_length=2000)
+    settings: dict[str, str] | None = Field(default=None, max_length=10)
 
 
 class MCPSettingSchema(Schema):
@@ -622,6 +631,11 @@ def serialize_connection(
         is_default=connection.is_default,
         available_models=list(connection.metadata.get("available_models", [])),
         last_check=connection.metadata.get("last_check"),
+        settings=(
+            dict(connection.metadata.get("settings", {}))
+            if connection.kind == Connection.Kind.MCP
+            else {}
+        ),
         usage=None
         if usage is None
         else ConnectionUsageSchema(
@@ -684,6 +698,28 @@ def create_mcp(
             payload.display_name,
             payload.token,
             payload.settings,
+        )
+    except ConnectionConflict as error:
+        raise HttpError(409, str(error)) from error
+    except MCPError as error:
+        raise HttpError(422, str(error)) from error
+    except ValidationError as error:
+        raise HttpError(422, "The MCP connection configuration is invalid.") from error
+    return serialize_connection(connection)
+
+
+@api.post(
+    "/connections/{connection_id}/mcp",
+    response=ConnectionSchema,
+    auth=django_auth,
+)
+def update_mcp(
+    request: HttpRequest, connection_id: int, payload: MCPConnectionUpdateSchema
+) -> ConnectionSchema:
+    connection = owned_connection(request, connection_id, "edit connections")
+    try:
+        connection = update_mcp_connection(
+            connection, payload.display_name, payload.token, payload.settings
         )
     except ConnectionConflict as error:
         raise HttpError(409, str(error)) from error

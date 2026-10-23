@@ -20,7 +20,7 @@ const props = defineProps<{
 const emit = defineEmits<{ done: [notice: Notice, binding: string], cancel: [] }>()
 
 const app = useAppStore()
-const type = ref<ConnectionType>(props.connection?.kind === 'model' ? 'model' : 'webhook')
+const type = ref<ConnectionType>(props.connection?.kind === 'model' || props.connection?.kind === 'mcp' ? props.connection.kind : 'webhook')
 const bindingKey = ref(props.connection?.binding_key ?? props.binding ?? '')
 const displayName = ref(props.connection?.display_name ?? titleFromSlug(bindingKey.value))
 const url = ref('')
@@ -110,7 +110,7 @@ async function submit(): Promise<void> {
     </div>
 
     <ModelProviderForm v-if="type === 'model'" :connection="connection" @done="(notice, binding) => emit('done', notice, binding)" @cancel="emit('cancel')" />
-    <MCPConnectionForm v-else-if="type === 'mcp'" :binding="binding" @done="(notice, binding) => emit('done', notice, binding)" @cancel="emit('cancel')" />
+    <MCPConnectionForm v-else-if="type === 'mcp'" :binding="binding" :connection="connection" @done="(notice, binding) => emit('done', notice, binding)" @cancel="emit('cancel')" />
     <form v-else class="need-setup-fields" @submit.prevent="submit">
     <div class="need-setup-copy">
       <template v-if="type === 'webhook'">

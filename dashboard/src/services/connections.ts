@@ -56,6 +56,10 @@ export async function approveNeed(need: CapabilityNeed, connectionId: number): P
   }
 }
 
+export function updateMCPConnection(connectionId: number, input: { display_name?: string, token?: string, settings?: Record<string, string> }): Promise<Connection> {
+  return apiPost<Connection>(`/connections/${connectionId}/mcp`, input)
+}
+
 export function fetchMCPProviders(): Promise<MCPProviderInfo[]> {
   return apiGet<MCPProviderInfo[]>('/connections/mcp-providers')
 }
