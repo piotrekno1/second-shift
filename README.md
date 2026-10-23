@@ -7,9 +7,11 @@
 
 SecondShift turns committed repository skills into scheduled reviews and reports.
 
-[![Watch the 60-second SecondShift demo](docs/screenshots/demo-preview.jpg)](https://github.com/piotrekno1/second-shift/releases/download/v0.1.0a1/secondshift-final-demo-60s.mp4)
+<a href="https://github.com/piotrekno1/second-shift/issues/4#issuecomment-6370078337">
+  <img src="docs/screenshots/demo-preview.jpg" alt="Play the 60-second SecondShift demo" width="560">
+</a>
 
-[Watch the 60-second demo](https://github.com/piotrekno1/second-shift/releases/download/v0.1.0a1/secondshift-final-demo-60s.mp4):
+[▶ Play the 60-second demo on GitHub](https://github.com/piotrekno1/second-shift/issues/4#issuecomment-6370078337):
 connect a model, add a webhook, import a repository, and receive a skill's report.
 
 ## Try it out now
@@ -19,8 +21,9 @@ then run:
 
 ```bash
 # Install SecondShift
+release=https://github.com/piotrekno1/second-shift/releases
 uv tool install --python 3.13 \
-  https://github.com/piotrekno1/second-shift/releases/download/v0.1.0a1/secondshift-0.1.0a1-py3-none-any.whl
+  "$release/download/v0.1.0a1/secondshift-0.1.0a1-py3-none-any.whl"
 
 # Start SecondShift
 secondshift up
