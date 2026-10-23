@@ -102,8 +102,8 @@ function selectedConnection(capability: Capability): number | null {
     ?? null
 }
 
-function chooseConnection(capabilityId: number, event: Event): void {
-  connectionSelections[capabilityId] = Number((event.target as HTMLSelectElement).value)
+function chooseConnection(capabilityId: number, connectionId: number): void {
+  connectionSelections[capabilityId] = connectionId
 }
 
 function connectionSetupQuery(job: Job, capability: Capability): Record<string, string> {
@@ -208,15 +208,16 @@ async function toggleJob(job: Job): Promise<void> {
                 <small v-else>No tool-level access requested</small>
                 <small v-if="capability.kind === 'mcp'">{{ capability.repository_scope ? `Allow these tools to read ${capability.repository_scope}.` : 'No GitHub identity. Configure a GitHub origin and resync this repository.' }}</small>
               </div>
-              <select
+              <Select
                 v-if="matchingConnections(capability).length"
                 class="connection-select"
-                :value="selectedConnection(capability) ?? ''"
+                :model-value="selectedConnection(capability)"
+                :options="matchingConnections(capability)"
+                option-label="display_name"
+                option-value="id"
                 :aria-label="`Connection for ${capability.binding}`"
-                @change="chooseConnection(capability.id, $event)"
-              >
-                <option v-for="connection in matchingConnections(capability)" :key="connection.id" :value="connection.id">{{ connection.display_name }}</option>
-              </select>
+                @update:model-value="chooseConnection(capability.id, $event)"
+              />
               <div v-else class="connection-required">
                 <span class="step-label">Connection required before approval</span>
                 <strong>No workspace connection matches <code>{{ capability.binding }}</code>.</strong>
