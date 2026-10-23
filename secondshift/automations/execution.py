@@ -7,7 +7,7 @@ from typing import Annotated, Any
 
 from dbos import DBOS
 from pydantic import Field
-from pydantic_ai import RunContext, Tool
+from pydantic_ai import RunContext, Tool, ToolFailed
 from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.toolsets import FunctionToolset
 
@@ -18,6 +18,7 @@ from secondshift.automations.models import Run, RunEvent
 from secondshift.automations.runner_client import get_runner_client
 from secondshift.automations.runner_protocol import CommandRequest, CommandResult
 from secondshift.automations.tool_policy import LOCAL_TOOLS, authorized_tools
+from secondshift.integrations.github_mcp import GitHubMCPRequestError
 
 MODEL_TOOL_NAMES = {
     "workspace.list_files": "workspace_list_files",
@@ -228,9 +229,12 @@ def mcp_tools(run: Run) -> tuple[Tool[WorkspaceToolDeps], ...]:
             ) -> dict[str, Any]:
                 if not ctx.tool_call_id:
                     raise RuntimeError("The model tool call has no stable identifier.")
-                return call_mcp_tool_step(
-                    ctx.deps.run_id, name, arguments, ctx.tool_call_id
-                )
+                try:
+                    return call_mcp_tool_step(
+                        ctx.deps.run_id, name, arguments, ctx.tool_call_id
+                    )
+                except GitHubMCPRequestError as error:
+                    raise ToolFailed(str(error)) from None
 
             return call
 

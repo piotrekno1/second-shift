@@ -36,6 +36,10 @@ class GitHubMCPError(ValueError):
     pass
 
 
+class GitHubMCPRequestError(GitHubMCPError):
+    """A remote failure the agent may report as unavailable evidence."""
+
+
 class BoundedStream(httpx.AsyncByteStream):
     def __init__(self, inner: httpx.AsyncByteStream) -> None:
         self.inner = inner
@@ -146,7 +150,7 @@ async def github_mcp_request(
                     payload = tools
     except Exception:
         # SDK exception groups can embed request headers or remote response text.
-        raise GitHubMCPError(
+        raise GitHubMCPRequestError(
             "GitHub MCP request failed. Check the token, permissions, and service availability."
         ) from None
     encoded = json.dumps(payload)

@@ -7,10 +7,12 @@ import pytest
 from django.contrib.auth import get_user_model
 from django.core.files.storage import storages
 from django.utils import timezone
+from pydantic_ai import ToolFailed
 from pydantic_ai.models.test import TestModel
 
 from secondshift.automations.execution import (
     WORKSPACE_AGENT,
+    WorkspaceToolDeps,
     execute_agent_run,
     mcp_tools,
 )
@@ -22,10 +24,11 @@ from secondshift.automations.notifications import (
     run_report_payload,
 )
 from secondshift.automations.planning import build_execution_plan
+from secondshift.automations.tests.test_execution import tool_context
 from secondshift.automations.tool_policy import ToolPolicyError
 from secondshift.config.constants import GITHUB_MCP_URL
 from secondshift.core.models import Workspace
-from secondshift.integrations.github_mcp import GitHubMCPError
+from secondshift.integrations.github_mcp import GitHubMCPError, GitHubMCPRequestError
 from secondshift.integrations.models import Connection
 from secondshift.integrations.tests.test_github_mcp import TOOL_SCHEMAS
 from secondshift.integrations.tests.test_github_mcp import mcp_http as imported_mcp_http
@@ -341,3 +344,32 @@ def test_local_job_without_github_origin_is_not_ready(planned_run) -> None:
     plan = build_execution_plan(planned_run.job)
     assert not plan["ready"]
     assert "github_repository_unknown" in plan["capabilities"][0]["reasons"]
+
+
+@pytest.mark.django_db
+def test_remote_failures_are_reportable_but_policy_denials_still_stop_the_run(
+    planned_run, monkeypatch
+) -> None:
+
+    tool = mcp_tools(planned_run)[0]
+    context = tool_context(
+        WorkspaceToolDeps(
+            run_id=planned_run.pk, session_id="offline", max_output_chars=1000
+        )
+    )
+
+    def unavailable(*args, **kwargs) -> None:
+        raise GitHubMCPRequestError("GitHub evidence unavailable.")
+
+    monkeypatch.setattr(
+        "secondshift.automations.execution.call_mcp_tool_step", unavailable
+    )
+    with pytest.raises(ToolFailed, match="evidence unavailable"):
+        tool.function(context)
+
+    def denied(*args, **kwargs) -> None:
+        raise GitHubMCPError("Access is no longer approved.")
+
+    monkeypatch.setattr("secondshift.automations.execution.call_mcp_tool_step", denied)
+    with pytest.raises(GitHubMCPError, match="no longer approved"):
+        tool.function(context)

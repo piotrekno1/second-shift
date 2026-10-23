@@ -26,6 +26,9 @@ end. State explicitly when using this override.
 2. Search current open PRs. Use `pull_request_read` to inspect details, reviews,
    review requests, checks, and commit status where needed. Open PRs are a current
    snapshot, not a reconstruction of their state at the reporting window's end.
+   Read details only for PR numbers returned by a search. Never probe guessed PR
+   numbers. If both merged and open searches are empty, write the empty-activity
+   briefing immediately. Do not broaden the reporting window to find activity.
 3. Prioritize open PRs with failed checks, outstanding review requests, or no
    updates for at least five days. Pending, skipped, and unavailable checks are
    not failures. Draft PRs should be identified as drafts.
