@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import type { Run } from '../src/types'
 
-import { accessLabel, accessNeedsAction, connectionUsageLine, countLabel, describeCron, formatDate, formatSeconds, greeting, healthHeadline, jobOutcomes, spendTrend, formatRelative, formatScheduled, formatTime, utcTitle, zoneName, formatBytes, plainSummary, providerLabel, runStats, statusLabel, formatDuration, formatModelUsage, formatSchedule, titleFromSlug } from '../src/utils/format'
+import { accessLabel, accessNeedsAction, connectionUsageLine, countLabel, describeCron, formatDate, formatSeconds, greeting, healthHeadline, jobOutcomes, spendTrend, formatRelative, formatScheduled, formatTime, utcTitle, zoneName, formatBytes, plainSummary, providerLabel, runStats, statusLabel, formatDuration, formatModelUsage, formatSchedule, mcpAccess, titleFromSlug } from '../src/utils/format'
 
 test('formatSchedule keeps cron and timezone visible', () => {
   assert.equal(formatSchedule('0 9 * * 1', 'Europe/Warsaw'), 'Mondays at 09:00 · Europe/Warsaw')
@@ -184,4 +184,14 @@ test('connectionUsageLine says what uses a connection and what it cost', () => {
   )
   assert.equal(connectionUsageLine(usage, 'notification', now), 'No job uses it yet')
   assert.equal(connectionUsageLine({ ...usage, jobs: 1 }, 'notification', now), 'Used by 1 job')
+})
+
+test('mcpAccess names the scope or explains why a job cannot use the provider', () => {
+  const github = {
+    key: 'github', label: 'GitHub', description: '', default_binding: 'github', token_label: '', token_hint: '',
+    setup_url: '', setup_help: '', scope_label: 'repository', missing_scope_message: 'No GitHub identity.', tools: [],
+  }
+  assert.deepEqual(mcpAccess({ github: 'example/project' }, github), { ok: true, text: 'Allow these tools to read the example/project repository.' })
+  assert.deepEqual(mcpAccess({ github: null }, github), { ok: false, text: 'No GitHub identity.' })
+  assert.equal(mcpAccess({ github: 'example/project' }, undefined).ok, false)
 })

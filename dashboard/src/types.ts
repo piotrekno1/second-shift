@@ -123,7 +123,8 @@ export interface JobDetail extends Job {
 }
 
 export interface Capability {
-  repository_scope?: string | null
+  /** MCP only: provider key to the scope this job could reach through it. */
+  mcp_scopes?: Record<string, string | null>
   id: number
   binding: string
   kind: 'mcp' | 'api' | 'notification'
@@ -252,8 +253,23 @@ export interface ConnectionUsage {
 
 export type ModelProvider = 'anthropic' | 'openai' | 'openai_compatible'
 
+/** A built-in MCP server an owner can connect. */
+export interface MCPProviderInfo {
+  key: string
+  label: string
+  description: string
+  default_binding: string
+  token_label: string
+  token_hint: string
+  setup_url: string
+  setup_help: string
+  scope_label: string
+  missing_scope_message: string
+  tools: string[]
+}
+
 export interface CapabilityNeedJob {
-  repository_scope?: string | null
+  mcp_scopes?: Record<string, string | null>
   job_id: number
   job_name: string
   repository: string

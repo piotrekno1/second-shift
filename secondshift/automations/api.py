@@ -24,8 +24,8 @@ from secondshift.automations.run_queries import Period, RunFilters, RunSort, run
 from secondshift.core.models import Workspace
 from secondshift.core.services import workspace_for_user
 from secondshift.gateway.usage import with_model_usage
+from secondshift.integrations.mcp.providers import mcp_scopes, missing_scope_message
 from secondshift.integrations.models import Connection
-from secondshift.repositories.github import github_repository_scope
 
 router = Router(auth=django_auth, tags=["automations"])
 
@@ -39,7 +39,8 @@ class CapabilitySchema(Schema):
     grant_status: str
     connection_id: int | None
     connection_name: str | None
-    repository_scope: str | None = None
+    # Provider key to the scope a job could reach through it. MCP only.
+    mcp_scopes: dict[str, str | None] = Field(default_factory=dict)
 
 
 class JobSchema(Schema):
@@ -183,10 +184,10 @@ def serialize_job(job: Job) -> JobSchema:
                 kind=capability.kind,
                 requested_tools=capability.requested_tools,
                 required=capability.required,
-                repository_scope=(
-                    github_repository_scope(job.repository)
+                mcp_scopes=(
+                    mcp_scopes(job.repository)
                     if capability.kind == Connection.Kind.MCP
-                    else None
+                    else {}
                 ),
                 grant_status=grant.status if grant else "unconfigured",
                 connection_id=grant.connection_id if grant else None,
@@ -397,13 +398,9 @@ def review_job_capability(
         if (
             payload.decision == JobGrant.Status.APPROVED
             and connection.kind == Connection.Kind.MCP
-            and connection.provider == Connection.Provider.GITHUB
-            and not github_repository_scope(job.repository)
+            and (message := missing_scope_message(connection.provider, job.repository))
         ):
-            raise HttpError(
-                409,
-                "This job has no GitHub repository identity. For a local checkout, configure a GitHub origin and resync it.",
-            )
+            raise HttpError(409, message)
     if payload.decision == JobGrant.Status.APPROVED and connection is None:
         raise HttpError(422, "Choose a connection before approving the capability.")
 

@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
-import GitHubMCPForm from './GitHubMCPForm.vue'
+import MCPConnectionForm from './MCPConnectionForm.vue'
 import ModelProviderForm from './ModelProviderForm.vue'
 import { approveNeed, createWebhook, testConnection, updateWebhook } from '../services/connections'
 import { useAppStore } from '../stores/app'
@@ -33,7 +33,7 @@ const typeOptions = computed(() => ([
   ['webhook', 'Webhook', 'mdi-webhook'],
   // Model providers are workspace-wide, so they are never offered for a binding.
   ...(props.binding ? [] : [['model', 'Model provider', 'mdi-creation-outline']]),
-  ['mcp', 'GitHub MCP', 'mdi-server-network'],
+  ['mcp', 'MCP server', 'mdi-server-network'],
   ['api', 'HTTP API', 'mdi-api'],
 ] as [ConnectionType, string, string][]))
 const reconnecting = computed(() => props.connection?.status === 'revoked')
@@ -110,7 +110,7 @@ async function submit(): Promise<void> {
     </div>
 
     <ModelProviderForm v-if="type === 'model'" :connection="connection" @done="(notice, binding) => emit('done', notice, binding)" @cancel="emit('cancel')" />
-    <GitHubMCPForm v-else-if="type === 'mcp'" :binding="binding" @done="(notice, binding) => emit('done', notice, binding)" @cancel="emit('cancel')" />
+    <MCPConnectionForm v-else-if="type === 'mcp'" :binding="binding" @done="(notice, binding) => emit('done', notice, binding)" @cancel="emit('cancel')" />
     <form v-else class="need-setup-fields" @submit.prevent="submit">
     <div class="need-setup-copy">
       <template v-if="type === 'webhook'">
@@ -119,7 +119,7 @@ async function submit(): Promise<void> {
       </template>
       <template v-else>
         <h3>HTTP API</h3>
-        <p>HTTP API execution is not supported yet. GitHub MCP is available through the GitHub MCP connection type.</p>
+        <p>HTTP API execution is not supported yet. Use an MCP server connection where one is available.</p>
       </template>
     </div>
 

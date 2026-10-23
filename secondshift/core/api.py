@@ -29,6 +29,7 @@ from secondshift.integrations.mcp.client import (
     discover_tools,
     validate_mcp_connection,
 )
+from secondshift.integrations.mcp.providers import MCP_PROVIDERS
 from secondshift.integrations.model_providers import (
     ModelProviderError,
     check_model_connection,
@@ -221,12 +222,27 @@ class WebhookConnectionUpdateSchema(Schema):
     url: str | None = Field(default=None, max_length=2000)
 
 
-class GitHubMCPCreateSchema(Schema):
+class MCPConnectionCreateSchema(Schema):
+    provider: str = Field(min_length=1, max_length=40)
     binding_key: str = Field(
         min_length=1, max_length=120, pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$"
     )
-    display_name: str = Field(default="GitHub reviews", max_length=200)
+    display_name: str = Field(default="", max_length=200)
     token: str = Field(min_length=1, max_length=2000)
+
+
+class MCPProviderSchema(Schema):
+    key: str
+    label: str
+    description: str
+    default_binding: str
+    token_label: str
+    token_hint: str
+    setup_url: str
+    setup_help: str
+    scope_label: str
+    missing_scope_message: str
+    tools: list[str]
 
 
 class ModelConnectionCreateSchema(Schema):
@@ -262,7 +278,7 @@ class NeedJobSchema(Schema):
     capability_id: int
     required: bool
     grant_status: str
-    repository_scope: str | None = None
+    mcp_scopes: dict[str, str | None] = Field(default_factory=dict)
 
 
 class CapabilityNeedSchema(Schema):
@@ -623,15 +639,38 @@ def connections(request: HttpRequest) -> list[ConnectionSchema]:
     ]
 
 
-@api.post("/connections/github-mcp", response=ConnectionSchema, auth=django_auth)
-def create_github_mcp(
-    request: HttpRequest, payload: GitHubMCPCreateSchema
+@api.get(
+    "/connections/mcp-providers", response=list[MCPProviderSchema], auth=django_auth
+)
+def list_mcp_providers(request: HttpRequest) -> list[MCPProviderSchema]:
+    """The built-in MCP servers an owner can connect. Never includes secrets."""
+    return [
+        MCPProviderSchema(
+            key=provider.key,
+            label=provider.label,
+            description=provider.description,
+            default_binding=provider.default_binding,
+            token_label=provider.token_label,
+            token_hint=provider.token_hint,
+            setup_url=provider.setup_url,
+            setup_help=provider.setup_help,
+            scope_label=provider.scope_label,
+            missing_scope_message=provider.missing_scope_message,
+            tools=list(provider.tools),
+        )
+        for provider in MCP_PROVIDERS.values()
+    ]
+
+
+@api.post("/connections/mcp", response=ConnectionSchema, auth=django_auth)
+def create_mcp(
+    request: HttpRequest, payload: MCPConnectionCreateSchema
 ) -> ConnectionSchema:
     workspace = owner_workspace(request, "add MCP connections")
     try:
         connection = create_mcp_connection(
             workspace,
-            Connection.Provider.GITHUB,
+            payload.provider,
             payload.binding_key,
             payload.display_name,
             payload.token,

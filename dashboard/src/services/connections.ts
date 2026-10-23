@@ -1,5 +1,5 @@
-import { apiDelete, apiPost } from './api'
-import type { CapabilityNeed, Connection, ConnectionTest, Job, ModelProvider } from '../types'
+import { apiDelete, apiGet, apiPost } from './api'
+import type { CapabilityNeed, Connection, ConnectionTest, Job, MCPProviderInfo, ModelProvider } from '../types'
 
 export interface WebhookInput {
   binding_key: string
@@ -56,6 +56,10 @@ export async function approveNeed(need: CapabilityNeed, connectionId: number): P
   }
 }
 
-export function createGitHubMCP(input: { binding_key: string, display_name: string, token: string }): Promise<Connection> {
-  return apiPost<Connection>('/connections/github-mcp', input)
+export function fetchMCPProviders(): Promise<MCPProviderInfo[]> {
+  return apiGet<MCPProviderInfo[]>('/connections/mcp-providers')
+}
+
+export function createMCPConnection(input: { provider: string, binding_key: string, display_name: string, token: string }): Promise<Connection> {
+  return apiPost<Connection>('/connections/mcp', input)
 }

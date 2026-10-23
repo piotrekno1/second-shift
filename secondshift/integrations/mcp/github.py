@@ -66,5 +66,21 @@ GITHUB_MCP = MCPProvider(
     scope=github_repository_scope,
     scope_label="repository",
     missing_scope_reason="github_repository_unknown",
+    missing_scope_message=(
+        "This job has no GitHub repository identity. For a local checkout, "
+        "configure a GitHub origin and resync it."
+    ),
+    description=(
+        "Read pull requests, reviews, and commits through GitHub's hosted MCP "
+        "server. Each job can read only its own repository."
+    ),
+    default_binding="github",
+    token_label="Fine-grained personal access token",
+    setup_url="https://github.com/settings/personal-access-tokens/new",
+    setup_help=(
+        "Select the repositories your jobs use. Under Repository permissions, "
+        "grant read-only access to Pull requests, Commit statuses, and Contents. "
+        "Organization approval may be required."
+    ),
     scope_arguments=scoped_github_arguments,
 )

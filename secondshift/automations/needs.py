@@ -3,8 +3,8 @@ from typing import Literal
 
 from secondshift.automations.models import CapabilityRequest, JobGrant
 from secondshift.core.models import Workspace
+from secondshift.integrations.mcp.providers import mcp_scopes, missing_scope_message
 from secondshift.integrations.models import Connection
-from secondshift.repositories.github import github_repository_scope
 
 NeedStatus = Literal["missing", "unavailable", "needs_approval", "ready"]
 STATUS_ORDER: dict[str, int] = {
@@ -23,7 +23,7 @@ class NeedJob:
     capability_id: int
     required: bool
     grant_status: str
-    repository_scope: str | None = None
+    mcp_scopes: dict[str, str | None] = field(default_factory=dict)
 
 
 @dataclass
@@ -57,17 +57,12 @@ def need_status(
             "unavailable",
             f"The connection is {connection.get_status_display().lower()}.",
         )
-    if (
-        kind == Connection.Kind.MCP
-        and connection.provider == Connection.Provider.GITHUB
-        and any(
-            not github_repository_scope(request.job.repository) for request in requests
-        )
-    ):
-        return (
-            "unavailable",
-            "A job has no GitHub identity. Configure its GitHub origin and resync the repository.",
-        )
+    if kind == Connection.Kind.MCP:
+        for request in requests:
+            if message := missing_scope_message(
+                connection.provider, request.job.repository
+            ):
+                return "unavailable", message
     missing_tools = requested_tools - set(connection.available_tools)
     if missing_tools:
         return (
@@ -124,10 +119,10 @@ def capability_needs(workspace: Workspace) -> list[CapabilityNeed]:
                         job_id=item.job_id,
                         job_name=item.job.name,
                         repository=item.job.repository.display_name,
-                        repository_scope=(
-                            github_repository_scope(item.job.repository)
+                        mcp_scopes=(
+                            mcp_scopes(item.job.repository)
                             if kind == Connection.Kind.MCP
-                            else None
+                            else {}
                         ),
                         capability_id=item.pk,
                         required=item.required,

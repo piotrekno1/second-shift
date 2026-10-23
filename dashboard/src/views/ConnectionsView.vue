@@ -8,7 +8,7 @@ import StatusPill from '../components/StatusPill.vue'
 import { approveNeed, deleteConnection, revokeConnection, testConnection } from '../services/connections'
 import { useAppStore } from '../stores/app'
 import type { CapabilityNeed, Connection, Notice } from '../types'
-import { connectionUsageLine, countLabel, formatDate, formatRelative, providerLabel, utcTitle } from '../utils/format'
+import { connectionUsageLine, countLabel, formatDate, formatRelative, mcpAccess, providerLabel, utcTitle } from '../utils/format'
 
 /** Which form is open: the header "Add", a need row, or a connection row. */
 type OpenForm = { mode: 'add' } | { mode: 'need', binding: string } | { mode: 'edit', id: number }
@@ -74,6 +74,14 @@ function toggle(form: OpenForm): void {
 
 function pendingJobs(need: CapabilityNeed): number {
   return need.jobs.filter((job) => job.grant_status === 'pending' || job.grant_status === 'unconfigured').length
+}
+
+function needAccessLine(need: CapabilityNeed): string {
+  const provider = app.mcpProvider(need.connection?.provider)
+  return need.jobs.map((job) => {
+    const access = mcpAccess(job.mcp_scopes, provider)
+    return `${job.job_name} → ${access.ok ? job.mcp_scopes?.[provider?.key ?? ''] : 'unavailable'}`
+  }).join(' · ')
 }
 
 function jobSummary(need: CapabilityNeed): string {
@@ -235,7 +243,7 @@ onMounted(async () => {
       <div v-else class="empty-state compact"><i class="mdi mdi-power-plug-off-outline" /><strong>Nothing connected yet</strong><span>Use <strong>Add connection</strong> or connect a binding above.</span></div>
       <div class="provider-roadmap">
         <span><i class="mdi mdi-webhook" /> Webhooks <em>available</em></span>
-        <span><i class="mdi mdi-server-network" /> GitHub MCP <em>available</em></span>
+        <span><i class="mdi mdi-server-network" /> MCP: {{ app.mcpProviders.map((provider) => provider.label).join(', ') || 'none' }} <em>available</em></span>
         <span><i class="mdi mdi-slack" /> Slack app <em>soon</em></span>
         <span><i class="mdi mdi-creation-outline" /> Model providers <em>available</em></span>
       </div>
@@ -260,7 +268,7 @@ onMounted(async () => {
               <small v-if="need.connection && need.status !== 'missing'">
                 {{ need.connection.display_name }}<template v-if="need.connection.target"> → {{ need.connection.target }}</template>
               </small>
-              <small v-if="need.kind === 'mcp'">Tools: {{ need.requested_tools.join(', ') }}. Read access: {{ need.jobs.map((job) => `${job.job_name} → ${job.repository_scope ?? 'GitHub origin required'}`).join(' · ') }}.</small>
+              <small v-if="need.kind === 'mcp'">Tools: {{ need.requested_tools.join(', ') }}.<template v-if="need.connection"> Read access: {{ needAccessLine(need) }}.</template></small>
               <small v-if="need.status === 'unavailable'" class="need-detail">{{ need.detail }}</small>
             </div>
             <span class="status-pill" :class="!need.required && need.status === 'missing' ? 'optional' : needStatus[need.status].pill">{{ needStatus[need.status].label }}</span>

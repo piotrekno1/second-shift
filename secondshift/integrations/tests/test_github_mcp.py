@@ -264,9 +264,10 @@ def test_owner_setup_api_encrypts_token_and_does_not_return_it(
     Workspace.objects.create(name="MCP", slug="mcp", owner=owner)
     client.force_login(owner)
     response = client.post(
-        "/api/connections/github-mcp",
+        "/api/connections/mcp",
         data=json.dumps(
             {
+                "provider": "github",
                 "binding_key": "github",
                 "token": "github_pat_test_token",
             }
@@ -279,9 +280,10 @@ def test_owner_setup_api_encrypts_token_and_does_not_return_it(
     assert connection.access_token == "github_pat_test_token"
     assert connection.available_tools == sorted(TOOL_SCHEMAS)
     duplicate = client.post(
-        "/api/connections/github-mcp",
+        "/api/connections/mcp",
         data=json.dumps(
             {
+                "provider": "github",
                 "binding_key": "github",
                 "token": "github_pat_test_token",
             }
@@ -292,7 +294,7 @@ def test_owner_setup_api_encrypts_token_and_does_not_return_it(
     client.logout()
     assert (
         client.post(
-            "/api/connections/github-mcp", data={}, content_type="application/json"
+            "/api/connections/mcp", data={}, content_type="application/json"
         ).status_code
         == 401
     )
@@ -311,3 +313,34 @@ def test_commit_tools_are_scoped_to_the_job_repository(tool: str) -> None:
 def test_list_commits_cannot_select_another_branch() -> None:
     with pytest.raises(MCPError, match="default branch"):
         scoped_github_arguments("example/project", "list_commits", {"sha": "feature"})
+
+
+@pytest.mark.django_db
+def test_provider_list_describes_github_without_secrets(client: Client) -> None:
+    owner = get_user_model().objects.create_user(username="catalog-owner")
+    Workspace.objects.create(name="Catalog", slug="catalog", owner=owner)
+    client.force_login(owner)
+    response = client.get("/api/connections/mcp-providers")
+    assert response.status_code == 200
+    [github] = response.json()
+    assert github["key"] == "github"
+    assert github["scope_label"] == "repository"
+    assert github["default_binding"] == "github"
+    assert "token_pattern" not in github
+    assert "headers" not in github
+
+
+@pytest.mark.django_db
+def test_create_rejects_unknown_provider(client: Client) -> None:
+    owner = get_user_model().objects.create_user(username="custom-owner")
+    Workspace.objects.create(name="Custom", slug="custom", owner=owner)
+    client.force_login(owner)
+    response = client.post(
+        "/api/connections/mcp",
+        data=json.dumps(
+            {"provider": "mcp", "binding_key": "custom", "token": "secret"}
+        ),
+        content_type="application/json",
+    )
+    assert response.status_code == 422
+    assert not Connection.objects.filter(binding_key="custom").exists()

@@ -1,8 +1,9 @@
 import { defineStore } from 'pinia'
 
 import { apiGet, AuthenticationRequired } from '../services/api'
+import { fetchMCPProviders } from '../services/connections'
 import { fetchRuns } from '../services/runs'
-import type { CapabilityNeed, Connection, Job, Overview, Repository, Run, Secret, User } from '../types'
+import type { CapabilityNeed, Connection, Job, MCPProviderInfo, Overview, Repository, Run, Secret, User } from '../types'
 
 const RECENT_RUNS = 6
 
@@ -19,6 +20,8 @@ interface AppState {
   connections: Connection[]
   needs: CapabilityNeed[]
   secrets: Secret[]
+  /** Built-in MCP servers. Fixed by the server, so loaded once. */
+  mcpProviders: MCPProviderInfo[]
 }
 
 export const useAppStore = defineStore('app', {
@@ -34,13 +37,18 @@ export const useAppStore = defineStore('app', {
     connections: [],
     needs: [],
     secrets: [],
+    mcpProviders: [],
   }),
+  getters: {
+    mcpProvider: (state) => (key: string | undefined): MCPProviderInfo | undefined =>
+      state.mcpProviders.find((provider) => provider.key === key),
+  },
   actions: {
     async initialize(): Promise<void> {
       try {
         this.user = await apiGet<User>('/me')
         this.authenticated = true
-        await this.refresh()
+        await Promise.all([this.refresh(), this.loadMCPProviders()])
       } catch (error) {
         if (error instanceof AuthenticationRequired) {
           this.authenticated = false
@@ -71,6 +79,9 @@ export const useAppStore = defineStore('app', {
       this.connections = connections
       this.needs = needs
       this.secrets = secrets
+    },
+    async loadMCPProviders(): Promise<void> {
+      this.mcpProviders = await fetchMCPProviders()
     },
     async refreshRuns(): Promise<void> {
       const [overview, runs] = await Promise.all([
