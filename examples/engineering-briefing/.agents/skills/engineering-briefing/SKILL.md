@@ -54,7 +54,13 @@ end. State explicitly when using this override.
 
 ## Write the briefing
 
-Keep the main report under 600 words. Use short sections:
+Keep the main report under 600 words. Do not narrate following the skill or
+repeat raw search queries. Before stating commit totals, use Python through
+`workspace_run_command` to count unique SHAs and authors from the retrieved data.
+Do not estimate counts mentally. Omit counts in theme headings. Link one to three
+representative commits per theme rather than listing every commit.
+
+Use short sections:
 
 - **What shipped:** Group merged PRs into features, fixes, and maintenance.
   Every entry links to its PR. Explain uncertain classifications.
