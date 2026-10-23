@@ -117,9 +117,9 @@ function sendTest(connection: Connection, noticeKey: string): Promise<void> {
   return act(`test-${connection.id}`, noticeKey, async () => {
     const result = await testConnection(connection.id)
     // Model checks are saved on the connection; refresh so its pill reflects the result.
-    if (connection.kind === 'model') await app.refresh()
+    if (connection.kind === 'model' || connection.kind === 'mcp') await app.refresh()
     if (!result.ok) throw new Error(result.message)
-    if (connection.kind === 'model') return result.message
+    if (connection.kind === 'model' || connection.kind === 'mcp') return result.message
     return 'Test message delivered.'
   }, 'Unable to send a test message')
 }
@@ -204,6 +204,9 @@ onMounted(async () => {
             <StatusPill v-if="connection.status === 'connected' && connection.last_check && !connection.last_check.ok" status="error" label="Check failed" :title="connection.last_check.message" />
             <StatusPill v-else :status="connection.status" />
             <div v-if="connection.kind !== 'identity'" class="need-actions">
+              <template v-if="connection.kind === 'mcp' && connection.status === 'connected'">
+                <Button label="Check tools" icon="pi pi-refresh" severity="secondary" text size="small" :loading="busy === `test-${connection.id}`" @click="sendTest(connection, `connection-${connection.id}`)" />
+              </template>
               <template v-if="connection.provider === 'webhook' || connection.kind === 'model'">
                 <Button v-if="connection.status === 'connected'" :label="connection.kind === 'model' ? 'Check' : 'Send test'" :title="connection.kind === 'model' ? 'Lists models and sends one tiny request to the default model (a fraction of a cent)' : undefined" icon="pi pi-send" severity="secondary" text size="small" :loading="busy === `test-${connection.id}`" @click="sendTest(connection, `connection-${connection.id}`)" />
                 <Button :label="connection.status === 'revoked' ? 'Reconnect' : 'Edit'" icon="pi pi-pencil" severity="secondary" text size="small" @click="toggle({ mode: 'edit', id: connection.id })" />
@@ -232,7 +235,7 @@ onMounted(async () => {
       <div v-else class="empty-state compact"><i class="mdi mdi-power-plug-off-outline" /><strong>Nothing connected yet</strong><span>Use <strong>Add connection</strong> or connect a binding above.</span></div>
       <div class="provider-roadmap">
         <span><i class="mdi mdi-webhook" /> Webhooks <em>available</em></span>
-        <span><i class="mdi mdi-server-network" /> MCP servers &amp; HTTP APIs <em>via admin</em></span>
+        <span><i class="mdi mdi-server-network" /> GitHub MCP <em>available</em></span>
         <span><i class="mdi mdi-slack" /> Slack app <em>soon</em></span>
         <span><i class="mdi mdi-creation-outline" /> Model providers <em>available</em></span>
       </div>
@@ -257,6 +260,7 @@ onMounted(async () => {
               <small v-if="need.connection && need.status !== 'missing'">
                 {{ need.connection.display_name }}<template v-if="need.connection.target"> → {{ need.connection.target }}</template>
               </small>
+              <small v-if="need.kind === 'mcp'">Tools: {{ need.requested_tools.join(', ') }}. Read access: {{ need.jobs.map((job) => `${job.job_name} → ${job.repository_scope ?? 'GitHub origin required'}`).join(' · ') }}.</small>
               <small v-if="need.status === 'unavailable'" class="need-detail">{{ need.detail }}</small>
             </div>
             <span class="status-pill" :class="needStatus[need.status].pill">{{ needStatus[need.status].label }}</span>

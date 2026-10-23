@@ -55,7 +55,7 @@ standard-library tests work without installing packages.
 | `jobs.<key>.schedule` | Yes | Cron schedule, such as `0 9 * * 1` for Monday at 09:00. |
 | `jobs.<key>.timezone` | No | IANA timezone, such as `Europe/Warsaw`. Defaults to `UTC`. |
 | `jobs.<key>.notify` | No | Webhook notification bindings requested by this job. |
-| `jobs.<key>.requires` | No | MCP and API capability declarations. Execution is not supported yet. |
+| `jobs.<key>.requires` | No | MCP and API capability declarations. See the support limits below. |
 
 Skill paths must stay inside the repository. Unknown fields are rejected.
 Use separate job definitions for skills with different schedules or access
@@ -99,9 +99,15 @@ settings and can revoke access independently.
 
 ## MCP and API declarations
 
-The manifest can describe requested external tools, but the worker currently
-rejects their execution. These declarations are for planned integration work,
-not a working quickstart.
+The source checkout supports a limited MCP integration. See the
+[engineering briefing example](../examples/engineering-briefing/README.md)
+for the supported provider, authentication, setup, and a working manifest.
+
+Need an MCP or HTTP API setup we do not support yet?
+[File an issue](https://github.com/piotrekno1/second-shift/issues/new) describing
+the service and workflow you want to automate.
+
+The following illustrates the declaration syntax:
 
 ```yaml
 requires:
@@ -120,7 +126,6 @@ requires:
 
 Place `requires` inside a job definition. Each entry needs a logical `binding`
 and a nonempty list of unique `tools`. The `required` flag defaults to `true`.
-Approvals do not make these tools executable in the current worker.
 
 Follow [brokered MCP and API execution](https://github.com/piotrekno1/second-shift/issues/2)
 for implementation progress.

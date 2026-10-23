@@ -231,5 +231,5 @@ def test_execute_agent_run_stores_report_and_uses_native_limits(
             "effective_tools": ["query_metrics"],
         }
     ]
-    with pytest.raises(RuntimeError, match=r"does not yet support.*mcp"):
+    with pytest.raises(ValueError, match="no longer approved"):
         execute_agent_run(run, "run-1")

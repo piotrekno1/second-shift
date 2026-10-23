@@ -7,6 +7,7 @@ from secondshift.automations.models import Job, JobGrant
 from secondshift.automations.tool_policy import authorized_tools
 from secondshift.integrations.model_providers import provider_family
 from secondshift.integrations.models import Connection
+from secondshift.repositories.github import github_repository_scope
 
 
 def model_plan(job: Job) -> dict[str, Any] | None:
@@ -26,6 +27,17 @@ def model_plan(job: Job) -> dict[str, Any] | None:
         "family": provider_family(connection),
         "default_model": connection.default_model,
         "allowed_models": connection.allowed_models,
+    }
+
+
+def mcp_capability_plan(
+    connection: Connection, repository_scope: str | None, effective_tools: set[str]
+) -> dict[str, Any]:
+    """Freeze the approved scope and tool definitions without credentials."""
+    definitions = connection.metadata.get("tools", {})
+    return {
+        "repository": repository_scope,
+        "tools": {name: definitions.get(name) for name in sorted(effective_tools)},
     }
 
 
@@ -61,22 +73,34 @@ def build_execution_plan(job: Job) -> dict[str, Any]:
         if connection and requested - available:
             reasons.append("tools_unavailable")
 
+        repository_scope = github_repository_scope(job.repository)
+        if (
+            connection
+            and request.kind == Connection.Kind.MCP
+            and connection.provider == Connection.Provider.GITHUB
+            and not repository_scope
+        ):
+            reasons.append("github_repository_unknown")
+
         authorized = not reasons
         if request.required and not authorized:
             ready = False
-        capabilities.append(
-            {
-                "binding": request.binding,
-                "kind": request.kind,
-                "required": request.required,
-                "requested_tools": sorted(requested),
-                "connection_id": connection.pk if connection else None,
-                "connection_name": connection.display_name if connection else None,
-                "effective_tools": sorted(effective) if authorized else [],
-                "authorized": authorized,
-                "reasons": reasons,
-            }
-        )
+        capability = {
+            "binding": request.binding,
+            "kind": request.kind,
+            "required": request.required,
+            "requested_tools": sorted(requested),
+            "connection_id": connection.pk if connection else None,
+            "connection_name": connection.display_name if connection else None,
+            "effective_tools": sorted(effective) if authorized else [],
+            "authorized": authorized,
+            "reasons": reasons,
+        }
+        if connection and request.kind == Connection.Kind.MCP and authorized:
+            capability["mcp"] = mcp_capability_plan(
+                connection, repository_scope, effective
+            )
+        capabilities.append(capability)
 
     model = model_plan(job)
     if model is None:

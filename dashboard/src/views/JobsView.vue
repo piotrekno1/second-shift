@@ -193,7 +193,7 @@ async function toggleJob(job: Job): Promise<void> {
           </div>
           <section v-if="expandedJobId === job.id" class="job-review">
             <div class="job-review-heading">
-              <div><h3>Access review</h3><p>Repository code requests logical capabilities; you choose the workspace-owned connection.</p></div>
+              <div><h3>Access review</h3><p>Repository code requests capabilities. You choose the connection and approve access.</p></div>
               <Button :label="job.enabled ? 'Disable job' : 'Enable job'" :icon="job.enabled ? 'pi pi-pause' : 'pi pi-play'" severity="secondary" outlined :loading="action === `toggle-${job.id}`" @click="toggleJob(job)" />
             </div>
             <div v-for="capability in job.capabilities" :key="capability.id" class="capability-review-row">
@@ -202,6 +202,7 @@ async function toggleJob(job: Job): Promise<void> {
                 <span>{{ capability.kind.toUpperCase() }} · {{ capability.required ? 'Required' : 'Optional' }}</span>
                 <small v-if="capability.requested_tools.length">{{ capability.requested_tools.join(', ') }}</small>
                 <small v-else>No tool-level access requested</small>
+                <small v-if="capability.kind === 'mcp'">{{ capability.repository_scope ? `Allow these tools to read ${capability.repository_scope}.` : 'No GitHub identity. Configure a GitHub origin and resync this repository.' }}</small>
               </div>
               <select
                 v-if="matchingConnections(capability).length"
@@ -215,7 +216,7 @@ async function toggleJob(job: Job): Promise<void> {
               <div v-else class="connection-required">
                 <span class="step-label">Connection required before approval</span>
                 <strong>No workspace connection matches <code>{{ capability.binding }}</code>.</strong>
-                <small>Create a {{ capability.kind.toUpperCase() }} connection with this exact binding key, then return here to approve it.</small>
+                <small>Create a {{ capability.kind.toUpperCase() }} connection with this capability name, then return here to approve it.</small>
                 <RouterLink :to="{ path: '/connections', query: connectionSetupQuery(job, capability) }" class="primary-action connection-setup-action">
                   <i class="mdi mdi-link-plus" /> Set up {{ capability.binding }}
                 </RouterLink>
@@ -223,7 +224,7 @@ async function toggleJob(job: Job): Promise<void> {
               <StatusPill :status="capability.grant_status" />
               <div class="review-actions">
                 <Button label="Deny" severity="danger" text size="small" :loading="action === `denied-${capability.id}`" @click="reviewCapability(job, capability, 'denied')" />
-                <Button label="Approve" icon="pi pi-check" size="small" :disabled="!selectedConnection(capability)" :title="selectedConnection(capability) ? 'Approve this connection and scope' : 'Set up a matching connection first'" :loading="action === `approved-${capability.id}`" @click="reviewCapability(job, capability, 'approved')" />
+                <Button label="Approve" icon="pi pi-check" size="small" :disabled="!selectedConnection(capability) || (capability.kind === 'mcp' && !capability.repository_scope)" :title="selectedConnection(capability) ? 'Approve this connection and scope' : 'Set up a matching connection first'" :loading="action === `approved-${capability.id}`" @click="reviewCapability(job, capability, 'approved')" />
               </div>
             </div>
           </section>

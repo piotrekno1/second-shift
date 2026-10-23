@@ -25,6 +25,7 @@ from secondshift.core.models import Workspace
 from secondshift.core.services import workspace_for_user
 from secondshift.gateway.usage import with_model_usage
 from secondshift.integrations.models import Connection
+from secondshift.repositories.github import github_repository_scope
 
 router = Router(auth=django_auth, tags=["automations"])
 
@@ -38,6 +39,7 @@ class CapabilitySchema(Schema):
     grant_status: str
     connection_id: int | None
     connection_name: str | None
+    repository_scope: str | None = None
 
 
 class JobSchema(Schema):
@@ -181,6 +183,11 @@ def serialize_job(job: Job) -> JobSchema:
                 kind=capability.kind,
                 requested_tools=capability.requested_tools,
                 required=capability.required,
+                repository_scope=(
+                    github_repository_scope(job.repository)
+                    if capability.kind == Connection.Kind.MCP
+                    else None
+                ),
                 grant_status=grant.status if grant else "unconfigured",
                 connection_id=grant.connection_id if grant else None,
                 connection_name=(
@@ -387,6 +394,16 @@ def review_job_capability(
             raise HttpError(422, "Connection kind and binding must match capability.")
         if connection.status != Connection.Status.CONNECTED:
             raise HttpError(409, "The selected connection is not connected.")
+        if (
+            payload.decision == JobGrant.Status.APPROVED
+            and connection.kind == Connection.Kind.MCP
+            and connection.provider == Connection.Provider.GITHUB
+            and not github_repository_scope(job.repository)
+        ):
+            raise HttpError(
+                409,
+                "This job has no GitHub repository identity. For a local checkout, configure a GitHub origin and resync it.",
+            )
     if payload.decision == JobGrant.Status.APPROVED and connection is None:
         raise HttpError(422, "Choose a connection before approving the capability.")
 

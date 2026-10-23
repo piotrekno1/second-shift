@@ -11,7 +11,7 @@ class ConnectionConflict(ValueError):
 
 def connection_target(connection: Connection) -> str:
     if connection.provider == Connection.Provider.WEBHOOK or (
-        connection.kind == Connection.Kind.MODEL
+        connection.kind in {Connection.Kind.MODEL, Connection.Kind.MCP}
     ):
         return str(connection.metadata.get("target", ""))
     return ""

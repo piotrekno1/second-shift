@@ -123,6 +123,7 @@ export interface JobDetail extends Job {
 }
 
 export interface Capability {
+  repository_scope?: string | null
   id: number
   binding: string
   kind: 'mcp' | 'api' | 'notification'
@@ -252,6 +253,7 @@ export interface ConnectionUsage {
 export type ModelProvider = 'anthropic' | 'openai' | 'openai_compatible'
 
 export interface CapabilityNeedJob {
+  repository_scope?: string | null
   job_id: number
   job_name: string
   repository: string

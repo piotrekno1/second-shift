@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
+import GitHubMCPForm from './GitHubMCPForm.vue'
 import ModelProviderForm from './ModelProviderForm.vue'
 import { approveNeed, createWebhook, testConnection, updateWebhook } from '../services/connections'
 import { useAppStore } from '../stores/app'
@@ -32,7 +33,7 @@ const typeOptions = computed(() => ([
   ['webhook', 'Webhook', 'mdi-webhook'],
   // Model providers are workspace-wide, so they are never offered for a binding.
   ...(props.binding ? [] : [['model', 'Model provider', 'mdi-creation-outline']]),
-  ['mcp', 'MCP server', 'mdi-server-network'],
+  ['mcp', 'GitHub MCP', 'mdi-server-network'],
   ['api', 'HTTP API', 'mdi-api'],
 ] as [ConnectionType, string, string][]))
 const reconnecting = computed(() => props.connection?.status === 'revoked')
@@ -109,6 +110,7 @@ async function submit(): Promise<void> {
     </div>
 
     <ModelProviderForm v-if="type === 'model'" :connection="connection" @done="(notice, binding) => emit('done', notice, binding)" @cancel="emit('cancel')" />
+    <GitHubMCPForm v-else-if="type === 'mcp'" :binding="binding" @done="(notice, binding) => emit('done', notice, binding)" @cancel="emit('cancel')" />
     <form v-else class="need-setup-fields" @submit.prevent="submit">
     <div class="need-setup-copy">
       <template v-if="type === 'webhook'">
@@ -116,20 +118,20 @@ async function submit(): Promise<void> {
         <p>After every run, SecondShift POSTs a JSON report with a <code>text</code> summary. Slack and Mattermost incoming webhooks work as they are. For Discord, add <code>/slack</code> to the end of the webhook URL.</p>
       </template>
       <template v-else>
-        <h3>{{ type === 'mcp' ? 'MCP server' : 'HTTP API' }}</h3>
-        <p>These are still set up in admin: tool discovery isn't built yet, and runs can't reach them from the sandbox until the runner routes approved traffic. The admin form opens prefilled with this binding.</p>
+        <h3>HTTP API</h3>
+        <p>HTTP API execution is not supported yet. GitHub MCP is available through the GitHub MCP connection type.</p>
       </template>
     </div>
 
     <label>
-      <span>Binding key</span>
+      <span>Capability name</span>
       <InputText v-model.trim="bindingKey" :disabled="bindingFixed" list="binding-suggestions" placeholder="engineering-alerts" autocomplete="off" spellcheck="false" />
       <datalist id="binding-suggestions"><option v-for="item in suggestions" :key="item" :value="item" /></datalist>
       <small v-if="bindingKey && !bindingValid" class="field-error">Lowercase letters, numbers and single dashes.</small>
       <small v-else-if="taken" class="field-error">This binding already has a connection.</small>
       <small v-else-if="kindMismatch && need" class="field-error">Jobs request {{ need.binding }} as {{ need.kind === 'notification' ? 'a notification' : need.kind.toUpperCase() }}.</small>
       <small v-else-if="need && !editing">Used by {{ need.jobs.map((job) => job.job_name).join(', ') }}.</small>
-      <small v-else-if="!editing">Name it as your <code>.secondshift.yaml</code> will.</small>
+      <small v-else-if="!editing">Matches the <code>binding</code> in your repository configuration.</small>
     </label>
     <label>
       <span>Name</span>

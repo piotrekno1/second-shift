@@ -9,3 +9,18 @@ jobs:
     notify:
       - binding: engineering-alerts
         required: false
+
+  engineering-briefing:
+    name: Monday engineering briefing
+    skill: examples/engineering-briefing/.agents/skills/engineering-briefing/SKILL.md
+    schedule: "0 9 * * 1"
+    timezone: Europe/Warsaw
+    requires:
+      mcps:
+        - binding: github
+          tools:
+            - search_pull_requests
+            - pull_request_read
+    notify:
+      - binding: engineering-reports
+        required: true

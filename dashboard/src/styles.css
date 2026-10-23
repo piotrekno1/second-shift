@@ -412,6 +412,9 @@ a.runtime-note { color: inherit; }
 .need-setup { align-items: start; }
 .need-setup label { min-width: 0; align-content: start; }
 .need-setup .p-inputtext { min-width: 0; }
+.need-setup small a { color: var(--violet-soft); font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
+.need-setup small a:hover { color: var(--ink); }
+.need-setup small a:focus-visible { outline: 2px solid var(--violet-soft); outline-offset: 3px; border-radius: 2px; }
 .need-row { grid-template-columns: 40px minmax(0, 1fr) 100px 320px; }
 .need-row > .status-pill { justify-self: start; }
 .need-row > .need-actions { flex-wrap: nowrap; }

@@ -9,6 +9,19 @@ from enum import StrEnum
 ENVIRONMENT_VAR = "DJANGO_ENV"
 SETTINGS_MODULE_VAR = "DJANGO_SETTINGS_MODULE"
 SERVICE_VAR = "SECONDSHIFT_SERVICE"
+GITHUB_HOST = "github.com"
+GITHUB_BASE_URL = f"https://{GITHUB_HOST}"
+GITHUB_SSH_PREFIX = f"git@{GITHUB_HOST}:"
+GITHUB_REPOSITORY_PATTERN = r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+"
+GITHUB_MCP_URL = "https://api.githubcopilot.com/mcp/readonly"
+
+
+class GitHubMCPTool(StrEnum):
+    SEARCH_PULL_REQUESTS = "search_pull_requests"
+    PULL_REQUEST_READ = "pull_request_read"
+
+
+GITHUB_MCP_TOOLS = tuple(GitHubMCPTool)
 
 
 class Environment(StrEnum):

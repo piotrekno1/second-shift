@@ -55,3 +55,7 @@ export async function approveNeed(need: CapabilityNeed, connectionId: number): P
     })
   }
 }
+
+export function createGitHubMCP(input: { binding_key: string, display_name: string, token: string }): Promise<Connection> {
+  return apiPost<Connection>('/connections/github-mcp', input)
+}

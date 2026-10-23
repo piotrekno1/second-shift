@@ -151,13 +151,19 @@ LOGGING = {
     "formatters": {
         "console": {"format": "{levelname} {name}: {message}", "style": "{"}
     },
-    "handlers": {"console": {"class": "logging.StreamHandler", "formatter": "console"}},
+    "handlers": {
+        "console": {"class": "logging.StreamHandler", "formatter": "console"},
+        "null": {"class": "logging.NullHandler"},
+    },
     "root": {"handlers": ["console"], "level": env.str("LOG_LEVEL", default="INFO")},
     # httpx logs full request URLs at INFO; provider and webhook URLs can carry
     # credentials.
     "loggers": {
         "httpx": {"level": "WARNING"},
         "httpcore": {"level": "WARNING"},
+        # The SDK can log raw remote payloads and session identifiers. The
+        # broker emits bounded audit events and sanitized errors instead.
+        "mcp": {"handlers": ["null"], "propagate": False},
     },
 }
 

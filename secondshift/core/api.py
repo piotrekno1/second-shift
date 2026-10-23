@@ -23,6 +23,11 @@ from secondshift.core.workspace_settings import (
     sandbox_label,
     setting_groups,
 )
+from secondshift.integrations.github_mcp import (
+    GitHubMCPError,
+    create_github_mcp_connection,
+    discover_github_tools,
+)
 from secondshift.integrations.model_providers import (
     ModelProviderError,
     check_model_connection,
@@ -215,6 +220,14 @@ class WebhookConnectionUpdateSchema(Schema):
     url: str | None = Field(default=None, max_length=2000)
 
 
+class GitHubMCPCreateSchema(Schema):
+    binding_key: str = Field(
+        min_length=1, max_length=120, pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$"
+    )
+    display_name: str = Field(default="GitHub reviews", max_length=200)
+    token: str = Field(min_length=1, max_length=2000)
+
+
 class ModelConnectionCreateSchema(Schema):
     provider: Literal["anthropic", "openai", "openai_compatible"]
     display_name: str = Field(default="", max_length=200)
@@ -248,6 +261,7 @@ class NeedJobSchema(Schema):
     capability_id: int
     required: bool
     grant_status: str
+    repository_scope: str | None = None
 
 
 class CapabilityNeedSchema(Schema):
@@ -608,6 +622,27 @@ def connections(request: HttpRequest) -> list[ConnectionSchema]:
     ]
 
 
+@api.post("/connections/github-mcp", response=ConnectionSchema, auth=django_auth)
+def create_github_mcp(
+    request: HttpRequest, payload: GitHubMCPCreateSchema
+) -> ConnectionSchema:
+    workspace = owner_workspace(request, "add MCP connections")
+    try:
+        connection = create_github_mcp_connection(
+            workspace,
+            payload.binding_key,
+            payload.display_name,
+            payload.token,
+        )
+    except ConnectionConflict as error:
+        raise HttpError(409, str(error)) from error
+    except GitHubMCPError as error:
+        raise HttpError(422, str(error)) from error
+    except ValidationError as error:
+        raise HttpError(422, "The MCP connection configuration is invalid.") from error
+    return serialize_connection(connection)
+
+
 @api.post("/connections/webhook", response=ConnectionSchema, auth=django_auth)
 def create_webhook(
     request: HttpRequest,
@@ -746,6 +781,19 @@ def remove_connection(request: HttpRequest, connection_id: int) -> Status[None]:
 )
 def test_connection(request: HttpRequest, connection_id: int) -> ConnectionTestSchema:
     connection = owned_connection(request, connection_id, "test connections")
+    if connection.kind == Connection.Kind.MCP:
+        try:
+            tools = discover_github_tools(connection)
+        except GitHubMCPError as error:
+            return ConnectionTestSchema(ok=False, status_code=None, message=str(error))
+        connection.available_tools = sorted(tools)
+        connection.metadata = {**connection.metadata, "tools": tools}
+        connection.save(update_fields=["available_tools", "metadata", "updated_at"])
+        return ConnectionTestSchema(
+            ok=True,
+            status_code=None,
+            message=f"Discovered {len(tools)} supported GitHub tools.",
+        )
     if connection.kind == Connection.Kind.MODEL:
         check = check_model_connection(connection)
         return ConnectionTestSchema(

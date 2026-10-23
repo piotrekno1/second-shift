@@ -62,8 +62,9 @@ available on PyPI.
 - **Contributor recap:** recognize merged work and review contributions.
 - **Alert coverage review:** flag removed alerts, paused rules, and threshold changes.
 
-Skills review the inputs you provide. Service data currently needs to be
-exported into the repository. MCP and API tool execution is not available yet.
+Skills review the inputs you provide. Export service data into the repository,
+or use the [engineering briefing example](examples/engineering-briefing/README.md)
+to review live service data through an approved MCP connection in source.
 
 See [Repository configuration](docs/repository-configuration.md) to add your
 first skill, schedule, and webhook notification.

@@ -1,0 +1,16 @@
+version: 1
+jobs:
+  engineering-briefing:
+    name: Monday engineering briefing
+    skill: .agents/skills/engineering-briefing/SKILL.md
+    schedule: "0 9 * * 1"
+    timezone: Europe/Warsaw
+    requires:
+      mcps:
+        - binding: github
+          tools:
+            - search_pull_requests
+            - pull_request_read
+    notify:
+      - binding: engineering-reports
+        required: true

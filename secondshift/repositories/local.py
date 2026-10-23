@@ -7,8 +7,12 @@ import yaml
 from django.db import transaction
 
 from secondshift.automations.manifest import RepositoryManifest, load_manifest
+from secondshift.automations.models import JobGrant
 from secondshift.automations.sync import sync_manifest
+from secondshift.config.constants import GITHUB_BASE_URL
 from secondshift.core.models import Workspace
+from secondshift.integrations.models import Connection
+from secondshift.repositories.github import github_remote_name
 from secondshift.repositories.models import Repository
 
 
@@ -23,6 +27,7 @@ class LocalRepositoryMetadata:
     revision: str
     branch: str
     repository_name: str
+    clone_url: str = ""
 
 
 def git(root: Path, *arguments: str) -> str:
@@ -84,12 +89,17 @@ def inspect_local_repository(raw_path: str) -> LocalRepositoryMetadata:
         branch = git(root, "symbolic-ref", "--short", "HEAD")
     except (LocalRepositoryError, subprocess.TimeoutExpired):
         branch = "detached"
+    try:
+        github_name = github_remote_name(git(root, "remote", "get-url", "origin"))
+    except (LocalRepositoryError, subprocess.TimeoutExpired):
+        github_name = None
     return LocalRepositoryMetadata(
         root=root,
         manifest=resolved_manifest,
         revision=revision,
         branch=branch,
         repository_name=local_repository_name(root),
+        clone_url=f"{GITHUB_BASE_URL}/{github_name}" if github_name else "",
     )
 
 
@@ -118,12 +128,17 @@ def local_repository_name(root: Path) -> str:
 @transaction.atomic
 def attach_local_repository(workspace: Workspace, raw_path: str) -> Repository:
     metadata = inspect_local_repository(raw_path)
+    previous = Repository.objects.filter(
+        workspace=workspace, local_path=str(metadata.root)
+    ).first()
+    scope_changed = previous is not None and previous.clone_url != metadata.clone_url
     repository, _ = Repository.objects.update_or_create(
         workspace=workspace,
         local_path=str(metadata.root),
         defaults={
             "source_type": Repository.SourceType.LOCAL,
             "full_name": metadata.repository_name,
+            "clone_url": metadata.clone_url,
             "default_branch": metadata.branch,
             "config_path": ".secondshift.yaml",
             "config_sha": metadata.revision,
@@ -132,4 +147,11 @@ def attach_local_repository(workspace: Workspace, raw_path: str) -> Repository:
         },
     )
     sync_manifest(repository, metadata.manifest)
+    if scope_changed:
+        JobGrant.objects.filter(
+            capability_request__job__repository=repository,
+            capability_request__kind=Connection.Kind.MCP,
+            connection__provider=Connection.Provider.GITHUB,
+            status=JobGrant.Status.APPROVED,
+        ).update(status=JobGrant.Status.PENDING, reviewed_by=None, reviewed_at=None)
     return repository
