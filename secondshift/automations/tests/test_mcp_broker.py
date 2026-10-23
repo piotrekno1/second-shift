@@ -75,7 +75,7 @@ def planned_run() -> Run:
         binding_key="github",
         display_name="GitHub",
         endpoint_url=GITHUB_MCP_URL,
-        access_token="github_test_token",
+        access_token="github_pat_test_token",
         auth_strategy="api_key",
         available_tools=list(TOOL_SCHEMAS),
         metadata={"tools": TOOL_SCHEMAS},
@@ -107,10 +107,10 @@ def test_broker_calls_real_sdk_and_records_safe_evidence(planned_run, mcp_http) 
     result = call_mcp_tool_step(planned_run.pk, NAME, {"query": "is:merged"}, "call-1")
     call = next(message for message in mcp_http if message["method"] == "tools/call")
     assert call["params"]["arguments"]["query"] == "repo:example/project is:merged"
-    assert "github_test_token" not in json.dumps(result)
+    assert "github_pat_test_token" not in json.dumps(result)
     event = planned_run.events.get()
     assert event.metadata["ok"] is True
-    assert "github_test_token" not in json.dumps(event.metadata)
+    assert "github_pat_test_token" not in json.dumps(event.metadata)
     assert "query" not in event.metadata
 
 
@@ -276,7 +276,7 @@ def test_briefing_report_is_received_by_real_webhook(planned_run, settings) -> N
         assert result.ok
         assert received[0]["event"] == "run.finished"
         assert "PR #1" in received[0]["text"]
-        assert "github_test_token" not in json.dumps(received)
+        assert "github_pat_test_token" not in json.dumps(received)
     finally:
         server.shutdown()
         server.server_close()

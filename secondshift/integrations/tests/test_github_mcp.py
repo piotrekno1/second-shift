@@ -12,6 +12,7 @@ from secondshift.core.models import Workspace
 from secondshift.integrations.github_mcp import (
     BoundedStream,
     GitHubMCPError,
+    create_github_mcp_connection,
     discover_github_tools,
     github_mcp_request,
     scoped_github_arguments,
@@ -68,7 +69,7 @@ def mcp_http(monkeypatch) -> list[dict[str, Any]]:
 
     def handle(request: httpx.Request) -> httpx.Response:
         assert request.url == GITHUB_MCP_URL
-        assert request.headers["Authorization"] == "Bearer github_test_token"
+        assert request.headers["Authorization"] == "Bearer github_pat_test_token"
         assert request.headers["X-MCP-Readonly"] == "true"
         if request.method != "POST":
             return httpx.Response(405)
@@ -95,7 +96,7 @@ def mcp_http(monkeypatch) -> list[dict[str, Any]]:
                     "content": [
                         {
                             "type": "text",
-                            "text": "Merged PR #1 https://github.com/example/project/pull/1 github_test_token",
+                            "text": "Merged PR #1 https://github.com/example/project/pull/1 github_pat_test_token",
                         }
                     ],
                     "isError": False,
@@ -121,7 +122,7 @@ def github_connection() -> Connection:
         endpoint_url=GITHUB_MCP_URL,
         binding_key="github",
         auth_strategy=Connection.AuthStrategy.API_KEY,
-        access_token="github_test_token",
+        access_token="github_pat_test_token",
     )
 
 
@@ -136,7 +137,7 @@ def test_real_sdk_initialize_discover_call_and_redact(
         "search_pull_requests",
         {"query": "is:merged"},
     )
-    assert "github_test_token" not in json.dumps(result)
+    assert "github_pat_test_token" not in json.dumps(result)
     assert "[redacted]" in json.dumps(result)
     assert {call["method"] for call in mcp_http} >= {
         "initialize",
@@ -151,6 +152,7 @@ def test_real_sdk_initialize_discover_call_and_redact(
     [
         {"query": "repo:other/project is:merged"},
         {"query": "is:merged OR is:open"},
+        {"query": "x" * 257},
         {"query": "is:merged", "owner": "other"},
         {"query": "is:merged", "repo": "other"},
     ],
@@ -173,6 +175,23 @@ def test_scope_is_applied_to_every_search(github_connection) -> None:
     }
     with pytest.raises(GitHubMCPError):
         scoped_github_arguments("example/project", "update_pull_request", {})
+
+
+def test_lowercase_or_is_plain_search_text(github_connection) -> None:
+    result = scoped_github_arguments(
+        "example/project", "search_pull_requests", {"query": "login or signup"}
+    )
+    assert result["query"] == "repo:example/project login or signup"
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("token", ["ghp_classic_token", "github_test_token", ""])
+def test_only_fine_grained_tokens_are_accepted(token: str) -> None:
+    owner = get_user_model().objects.create_user(username="token-owner")
+    workspace = Workspace.objects.create(name="Tokens", slug="tokens", owner=owner)
+    with pytest.raises(GitHubMCPError, match="fine-grained"):
+        create_github_mcp_connection(workspace, "github", "GitHub", token)
+    assert not Connection.objects.filter(workspace=workspace).exists()
 
 
 def test_remote_schema_references_are_rejected() -> None:
@@ -198,7 +217,7 @@ def test_failures_do_not_expose_token_or_remote_error(
     monkeypatch, github_connection
 ) -> None:
     def handle(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(401, text="github_test_token secret remote detail")
+        return httpx.Response(401, text="github_pat_test_token secret remote detail")
 
     monkeypatch.setattr(
         "secondshift.integrations.github_mcp.MCPTransport",
@@ -206,7 +225,7 @@ def test_failures_do_not_expose_token_or_remote_error(
     )
     with pytest.raises(GitHubMCPError) as caught:
         discover_github_tools(github_connection)
-    assert "github_test_token" not in str(caught.value)
+    assert "github_pat_test_token" not in str(caught.value)
     assert "secret remote detail" not in str(caught.value)
 
 
@@ -222,22 +241,22 @@ def test_owner_setup_api_encrypts_token_and_does_not_return_it(
         data=json.dumps(
             {
                 "binding_key": "github",
-                "token": "github_test_token",
+                "token": "github_pat_test_token",
             }
         ),
         content_type="application/json",
     )
     assert response.status_code == 200, response.content
-    assert "github_test_token" not in response.content.decode()
+    assert "github_pat_test_token" not in response.content.decode()
     connection = Connection.objects.get(pk=response.json()["id"])
-    assert connection.access_token == "github_test_token"
+    assert connection.access_token == "github_pat_test_token"
     assert connection.available_tools == sorted(TOOL_SCHEMAS)
     duplicate = client.post(
         "/api/connections/github-mcp",
         data=json.dumps(
             {
                 "binding_key": "github",
-                "token": "github_test_token",
+                "token": "github_pat_test_token",
             }
         ),
         content_type="application/json",

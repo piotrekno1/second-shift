@@ -30,6 +30,10 @@ from secondshift.integrations.services import ConnectionConflict
 MCP_RESPONSE_MAX_BYTES = 2 * 1024 * 1024
 MCP_MAX_PAGES = 10
 MCP_SCHEMA_MAX_DEPTH = 30
+# Fine-grained tokens are limited to chosen repositories. Classic tokens are not.
+GITHUB_FINE_GRAINED_TOKEN_PATTERN = r"github_pat_[A-Za-z0-9_]+"
+# Search text is written by the model. A short limit keeps it a search.
+GITHUB_SEARCH_QUERY_MAX_CHARS = 256
 
 
 class GitHubMCPError(ValueError):
@@ -192,8 +196,10 @@ def create_github_mcp_connection(
     display_name: str,
     token: str,
 ) -> Connection:
-    if not re.fullmatch(r"[A-Za-z0-9_]+", token):
-        raise GitHubMCPError("Enter a GitHub personal access token without whitespace.")
+    if not re.fullmatch(GITHUB_FINE_GRAINED_TOKEN_PATTERN, token):
+        raise GitHubMCPError(
+            "Enter a fine-grained GitHub token. It starts with github_pat_."
+        )
     if Connection.objects.filter(workspace=workspace, binding_key=binding_key).exists():
         raise ConnectionConflict("This binding already has a connection.")
     connection = Connection(
@@ -237,9 +243,13 @@ def scoped_github_arguments(
         raise GitHubMCPError("List commits from the default branch by omitting sha.")
     if tool == GitHubMCPTool.SEARCH_PULL_REQUESTS:
         query = str(scoped.get("query", ""))
+        if len(query) > GITHUB_SEARCH_QUERY_MAX_CHARS:
+            raise GitHubMCPError(
+                f"Keep the search under {GITHUB_SEARCH_QUERY_MAX_CHARS} characters."
+            )
         # OR can widen a repo-qualified search. Disallow it rather than attempt
-        # to rewrite the provider's query language.
-        if re.search(r"\bOR\b", query, re.IGNORECASE):
+        # to rewrite the provider's query language. GitHub only reads it in capitals.
+        if re.search(r"\bOR\b", query):
             raise GitHubMCPError("Use separate searches instead of OR.")
         query = re.sub(rf"(?i)(?<!\S)repo:{re.escape(repository)}(?=\s|$)", "", query)
         if re.search(r"repo\s*:", query, re.IGNORECASE):
