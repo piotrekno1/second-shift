@@ -1,5 +1,8 @@
 # SecondShift
 
+[![CI](https://github.com/piotrekno1/second-shift/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/piotrekno1/second-shift/actions/workflows/ci.yml?query=branch%3Amain)
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
+
 **GitOps for recurring agent work.**
 
 SecondShift runs versioned agent skills on a schedule. Commit a skill beside
@@ -93,6 +96,14 @@ its state and human-readable outcome.
 Skills run in isolated sandboxes. Repository configuration declares schedules
 and requested capabilities; the server controls models, credentials, and runtime
 policy. Every run is tied to a Git commit.
+
+## Contributions welcome
+
+SecondShift is early, and contributions are welcome: bug reports, ideas,
+documentation improvements, and pull requests. See
+[CONTRIBUTING.md](CONTRIBUTING.md) to get started. For larger changes,
+[open an issue](https://github.com/piotrekno1/second-shift/issues) first so we can
+discuss the approach.
 
 ## Documentation
 
