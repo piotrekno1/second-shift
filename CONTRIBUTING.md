@@ -48,16 +48,16 @@ The Release workflow rejects tags outside `main` or versions that do not match
 wheel, verifies bundled assets, and smoke-tests the installed CLI outside the
 checkout. It then publishes the wheel and installation instructions to a
 GitHub release. Alpha, beta and release candidate tags become prereleases.
-No PyPI credentials or publishing are involved; GitHub's built-in token is used.
-Use a new version and tag for each build; do not move published tags.
+The workflow uses GitHub's built-in token. It does not publish to PyPI.
+Use a new version and tag for each build. Do not move published tags.
 
 ### Development environment
 
 Open the dashboard at <http://localhost:5173> and Django admin at
 <http://localhost:5173/-/admin/>. The development bootstrap creates
-`admin@secondshift.local` with password `secondshift`; override both through
+`admin@secondshift.local` with password `secondshift`. Override both through
 `DEV_ADMIN_EMAIL` and `DEV_ADMIN_PASSWORD`. A normal startup creates only this
-admin and its empty workspace—never sample repositories, jobs or runs.
+admin and an empty workspace. It creates no sample repositories, jobs or runs.
 
 To replace the development database with credential-free sample data for UI
 exploration, stop SecondShift processes, leave PostgreSQL running, and run:
@@ -72,7 +72,7 @@ and representative completed runs. Never use it for normal startup.
 
 The development stack also starts the separate runner API on port 8002. Before
 a local-repository run, the worker copies the frozen Git commit into
-`~/.secondshift/runner/repositories`; the runner never receives the
+`~/.secondshift/runner/repositories`. The runner never receives the
 repository's original host path.
 
 ### Data folder
@@ -89,8 +89,8 @@ Without explicit settings, SecondShift keeps its state in `~/.secondshift`
 | `secondshift/runner/` | The runner's database, sandbox workspaces and Git mirrors |
 
 The real environment wins over a checkout's `.env`, which wins over the data
-folder's. Only development generates keys (`secondshift/config/first_run.py`); production
-refuses to start until
+folder's. Development generates keys through `secondshift/config/first_run.py`.
+Production refuses to start until
 `DJANGO_SECRET_KEY`, `FIELD_ENCRYPTION_KEY` and
 `SECONDSHIFT_RUNNER_SERVICE_TOKEN` are set.
 
@@ -109,7 +109,7 @@ disables its jobs and hides the source while preserving historical runs.
 DBOS stores durable workflow, queue, and schedule state in PostgreSQL. The
 dedicated worker reconciles enabled Django jobs into DBOS schedules and resumes
 interrupted runs from their last completed step. Workflow arguments contain
-only database identifiers; decrypted secrets never enter DBOS state.
+only database identifiers. Decrypted secrets never enter DBOS state.
 
 ## Verification
 
@@ -129,7 +129,7 @@ npm --prefix dashboard run build
 ```
 
 Use focused tests while making changes, then run the full checks before
-submitting. Generate Django migrations with `makemigrations`; do not hand-edit
+submitting. Generate Django migrations with `makemigrations`. Do not hand-edit
 them.
 
 ## Installed builds and troubleshooting

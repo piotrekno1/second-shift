@@ -2,7 +2,15 @@ name: CI
 
 on:
   push:
+    paths-ignore:
+      - '**/README.md'
+      - 'CONTRIBUTING.md'
+      - 'docs/**'
   pull_request:
+    paths-ignore:
+      - '**/README.md'
+      - 'CONTRIBUTING.md'
+      - 'docs/**'
 
 jobs:
   backend:

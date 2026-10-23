@@ -16,8 +16,8 @@ SecondShift keeps four choices separate:
 The manifest selects a skill and requests capabilities. It cannot choose an
 agent executable, credential, image, mount or network. The server records all
 effective choices in an immutable execution plan. The first agent is
-provider-neutral; native Codex or Claude Code adapters can be added later by the
-server operator.
+provider-neutral. Server operators can add native Codex or Claude Code adapters
+later.
 
 ## Runtime architecture
 
@@ -45,10 +45,10 @@ workspace connection, and explicitly granted. Missing or incomplete required
 access stops the run before dispatch.
 
 Repository content and model output are untrusted. Commands stay inside the
-networkless sandbox; MCP and API calls go through the broker and are checked
+networkless sandbox. MCP and API calls go through the broker, which checks them
 against the frozen execution plan. External writes require a separate grant.
 
 Credentials remain in the gateway or broker. They never appear in repository
-configuration, workflow arguments, execution plans or command sandboxes. Shell
-allowlists are not considered a security boundary—the sandbox and broker are.
+configuration, workflow arguments, execution plans or command sandboxes. The
+sandbox and broker enforce the security boundary. Shell allowlists do not.
 

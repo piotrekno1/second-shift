@@ -93,9 +93,10 @@ its state and human-readable outcome.
 
 ## How it works
 
-Skills run in isolated sandboxes. Repository configuration declares schedules
-and requested capabilities; the server controls models, credentials, and runtime
-policy. Every run is tied to a Git commit.
+- Skills run in isolated sandboxes.
+- Repository configuration declares schedules and requested capabilities.
+- The server controls models, credentials, and runtime policy.
+- Every run is tied to a Git commit.
 
 ## Contributions welcome
 

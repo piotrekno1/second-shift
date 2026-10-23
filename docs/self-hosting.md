@@ -4,13 +4,11 @@
 
 ## Runner backends
 
-SecondShift is intended to be useful as a self-hosted control plane, not merely
-as a hosted sandbox. A small installation can connect trusted repositories and
-a bring-your-own model account, run committed skills on a schedule, and deliver
-their reports to existing team channels. The same repository contract can move
-to a more strongly isolated deployment without changing the skills.
+Self-host SecondShift to run committed skills against trusted repositories
+with your own model account and deliver reports to team channels. You can move
+to a deployment with stronger isolation without changing the skills.
 
-- `fake`: tests only; records requests without executing repository code.
+- `fake`: records requests without executing repository code. For tests only.
 - `local-docker`: hardened Docker for development and trusted, single-tenant
   self-hosting.
 - `isolated-runner`: a separate Linux runner using `runsc` for hosted or
@@ -32,9 +30,9 @@ Operators can set `SECONDSHIFT_RUNNER_IMAGE` to their own image, for example
 one built `FROM python:3.13-slim` with Node or Go added for skills that need
 them. Repositories can never choose the image. A custom image must:
 
-- provide `sleep`, `find`, `cat` and `grep` (any Debian or Alpine base does);
+- provide `sleep`, `find`, `cat` and `grep` (any Debian or Alpine base does)
 - work as an unprivileged user with a read-only root filesystem, no network,
-  `HOME=/tmp` and the repository mounted at `/workspace`;
+  `HOME=/tmp` and the repository mounted at `/workspace`
 - contain no credentials, Docker client or SecondShift code.
 
 Git is not needed in the image: the runner checks out the commit itself. Pin
@@ -55,8 +53,8 @@ Full run output is stored outside Postgres in private storage, under
   persistent volume there in production.
 - `s3`: any S3-compatible service. Configure the `SECONDSHIFT_ARTIFACT_*`
   variables in `.env.example`. To try it locally, set `COMPOSE_PROFILES=s3` and
-  `SECONDSHIFT_ARTIFACT_STORAGE=s3`; `process-compose up` then starts RustFS and
-  `bootstrap_dev` creates the bucket.
+  `SECONDSHIFT_ARTIFACT_STORAGE=s3`. Run `process-compose up` to start RustFS and
+  let `bootstrap_dev` create the bucket.
 
 Finished runs older than `SECONDSHIFT_RUN_RETENTION_DAYS` (default 90) are
 pruned daily by the worker, together with their output and DBOS records.
