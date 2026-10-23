@@ -35,15 +35,31 @@ new approval.
 
 ## Run it on your computer
 
-You need Python 3.13 and Docker. Skills run in Docker sandboxes.
+Install [uv](https://docs.astral.sh/uv/getting-started/installation/) and start
+Docker. Skills run in Docker sandboxes.
+
+SecondShift is not on PyPI yet. For a packaged build, download the `.whl` file
+from a [GitHub release](https://github.com/piotrekno1/second-shift/releases)
+(including prereleases), then run the following with the downloaded filename:
 
 ```bash
-uvx secondshift up
+uvx --python 3.13 --from ./secondshift-VERSION-py3-none-any.whl secondshift up
 ```
 
-SecondShift is not on PyPI yet. Until it is, run it from a checkout:
+uv downloads Python 3.13 if needed. Node.js and a checkout are not required for
+packaged builds. To install the command for repeated use or replace an earlier
+build:
 
 ```bash
+uv tool install --force --python 3.13 ./secondshift-VERSION-py3-none-any.whl
+secondshift up
+```
+
+To run from source instead (requires Node.js 24+):
+
+```bash
+git clone https://github.com/piotrekno1/second-shift.git
+cd second-shift
 npm --prefix dashboard install && npm --prefix dashboard run build
 uv run secondshift up
 ```
@@ -108,6 +124,33 @@ uv sync
 cd dashboard && npm install && cd ..
 process-compose up
 ```
+
+### Releasing a build
+
+Releases are created by pushing a version tag on a commit that belongs to
+`main`. Use Python version notation: `v0.1.0a1` for an alpha, `v0.1.0b1` for a
+beta, `v0.1.0rc1` for a release candidate, or `v0.1.0` for a stable release.
+
+1. Update `project.version` in `pyproject.toml`, run `uv lock`, and merge both
+   files into `main` with the release changes.
+2. Tag that commit and push the tag, for example:
+
+   ```bash
+   git switch main
+   git pull --ff-only
+   git tag -a v0.1.0a1 -m "SecondShift 0.1.0a1"
+   git push origin v0.1.0a1
+   ```
+
+The Release workflow rejects tags outside `main` or versions that do not match
+`pyproject.toml`. It runs backend and frontend checks, builds the dashboard and
+wheel, verifies bundled assets, and smoke-tests the installed CLI outside the
+checkout. It then publishes the wheel and installation instructions to a
+GitHub release. Alpha, beta and release candidate tags become prereleases.
+No PyPI credentials or publishing are involved; GitHub's built-in token is used.
+Use a new version and tag for each build; do not move published tags.
+
+### Development environment
 
 Open the dashboard at <http://localhost:5173> and Django admin at
 <http://localhost:5173/-/admin/>. The development bootstrap creates

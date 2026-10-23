@@ -1,0 +1,119 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Require a commit on main
+        run: git merge-base --is-ancestor HEAD origin/main
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: '3.13'
+          enable-cache: true
+      - name: Validate release version
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          uv run --no-project python - <<'PY'
+          import os
+          import re
+          import tomllib
+          from pathlib import Path
+
+          tag = os.environ['RELEASE_TAG']
+          if not re.fullmatch(r'v\d+\.\d+\.\d+(?:(?:a|b|rc)\d+)?', tag):
+              raise SystemExit('Use vX.Y.Z, vX.Y.ZaN, vX.Y.ZbN or vX.Y.ZrcN')
+          version = tomllib.loads(Path('pyproject.toml').read_text())['project']['version']
+          if tag != f'v{version}':
+              raise SystemExit(f'Tag {tag} must match project version {version}')
+          PY
+      - run: uv sync --frozen
+      - run: uv run ruff check .
+      - run: uv run pytest
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: dashboard/package-lock.json
+      - run: npm --prefix dashboard ci
+      - run: npm --prefix dashboard run typecheck
+      - run: npm --prefix dashboard run test
+      - run: npm --prefix dashboard run build
+      - run: uv build --wheel
+      - name: Verify bundled dashboard
+        run: |
+          uv run --no-project python - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+
+          wheel, = Path('dist').glob('*.whl')
+          with ZipFile(wheel) as archive:
+              names = archive.namelist()
+              assert 'secondshift/web/index.html' in names, 'Dashboard is missing'
+              assert any(name.startswith('secondshift/web/assets/') for name in names), 'Dashboard assets are missing'
+          PY
+      - name: Smoke-test installed CLI outside checkout
+        run: |
+          uv venv /tmp/secondshift-release-smoke --python 3.13
+          uv pip install --python /tmp/secondshift-release-smoke/bin/python dist/*.whl
+          cd /tmp
+          /tmp/secondshift-release-smoke/bin/secondshift --help
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-wheel
+          path: dist/*.whl
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-wheel
+          path: dist
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          wheel=$(basename dist/*.whl)
+          cat > release-notes.md <<EOF
+          Install uv and start Docker, then download the wheel below and run:
+
+          \`\`\`bash
+          uvx --python 3.13 --from ./$wheel secondshift up
+          \`\`\`
+
+          For a persistent installation:
+
+          \`\`\`bash
+          uv tool install --force --python 3.13 ./$wheel
+          secondshift up
+          \`\`\`
+          EOF
+          flags=()
+          if [[ "$RELEASE_TAG" =~ (a|b|rc)[0-9]+$ ]]; then
+            flags+=(--prerelease --latest=false)
+          fi
+          gh release create "$RELEASE_TAG" dist/*.whl \
+            --verify-tag --title "SecondShift $RELEASE_TAG" \
+            --notes-file release-notes.md --generate-notes "${flags[@]}"
