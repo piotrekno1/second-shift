@@ -35,11 +35,11 @@ async function submit(): Promise<void> {
   <form class="need-setup-fields" @submit.prevent="submit">
     <div class="need-setup-copy">
       <h3>Connect GitHub MCP</h3>
-      <p>Read pull requests, reviews, and checks through GitHub's hosted MCP server. Reuse this connection across jobs. Each job can read only its own repository after you approve its tools.</p>
+      <p>Read pull requests, reviews, and commits through GitHub's hosted MCP server. Reuse this connection across jobs. Each job can read only its own repository after you approve its tools.</p>
     </div>
     <label><span>Capability name</span><InputText v-model.trim="binding" :disabled="Boolean(props.binding)" required pattern="[a-z0-9]+(-[a-z0-9]+)*" maxlength="120" /><small>Matches the <code>binding</code> in your repository configuration.</small></label>
     <label><span>Name</span><InputText v-model.trim="name" required maxlength="200" /></label>
-    <label class="need-setup-wide"><span>Personal access token</span><InputText v-model="token" type="password" required autocomplete="new-password" maxlength="2000" /><small><a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener noreferrer">Create a fine-grained token on GitHub</a>. Select the repositories your jobs use and under Repository permissions, grant read-only access to Pull requests and Commit statuses. Copy the generated token here. Organization approval may be required.</small></label>
+    <label class="need-setup-wide"><span>Personal access token</span><InputText v-model="token" type="password" required autocomplete="new-password" maxlength="2000" /><small><a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener noreferrer">Create a fine-grained token on GitHub</a>. Select the repositories your jobs use and under Repository permissions, grant read-only access to Pull requests, Commit statuses, and Contents. Copy the generated token here. Organization approval may be required.</small></label>
     <p v-if="error" class="need-notice need-setup-wide">{{ error }}</p>
     <div class="need-setup-footer">
       <small><i class="mdi mdi-lock-outline" /> The token is encrypted at rest and stays outside command sandboxes.</small>

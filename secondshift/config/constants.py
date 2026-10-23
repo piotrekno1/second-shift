@@ -19,6 +19,8 @@ GITHUB_MCP_URL = "https://api.githubcopilot.com/mcp/readonly"
 class GitHubMCPTool(StrEnum):
     SEARCH_PULL_REQUESTS = "search_pull_requests"
     PULL_REQUEST_READ = "pull_request_read"
+    LIST_COMMITS = "list_commits"
+    GET_COMMIT = "get_commit"
 
 
 GITHUB_MCP_TOOLS = tuple(GitHubMCPTool)

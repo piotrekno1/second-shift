@@ -47,6 +47,20 @@ TOOL_SCHEMAS = {
     },
 }
 
+for tool_name in ("list_commits", "get_commit"):
+    TOOL_SCHEMAS[tool_name] = {
+        "description": tool_name,
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "owner": {"type": "string"},
+                "repo": {"type": "string"},
+                "sha": {"type": "string"},
+            },
+            "required": ["owner", "repo"],
+        },
+    }
+
 
 @pytest.fixture
 def mcp_http(monkeypatch) -> list[dict[str, Any]]:
@@ -236,3 +250,18 @@ def test_owner_setup_api_encrypts_token_and_does_not_return_it(
         ).status_code
         == 401
     )
+
+
+@pytest.mark.parametrize("tool", ["list_commits", "get_commit"])
+def test_commit_tools_are_scoped_to_the_job_repository(tool: str) -> None:
+    assert scoped_github_arguments("example/project", tool, {}) == {
+        "owner": "example",
+        "repo": "project",
+    }
+    with pytest.raises(GitHubMCPError, match="repository"):
+        scoped_github_arguments("example/project", tool, {"repo": "other"})
+
+
+def test_list_commits_cannot_select_another_branch() -> None:
+    with pytest.raises(GitHubMCPError, match="default branch"):
+        scoped_github_arguments("example/project", "list_commits", {"sha": "feature"})

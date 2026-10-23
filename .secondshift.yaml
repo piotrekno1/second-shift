@@ -21,6 +21,8 @@ jobs:
           tools:
             - search_pull_requests
             - pull_request_read
+            - list_commits
+            - get_commit
     notify:
       - binding: engineering-reports
         required: true

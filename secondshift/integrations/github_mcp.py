@@ -233,6 +233,8 @@ def scoped_github_arguments(
         if key in scoped and scoped[key] != value:
             raise GitHubMCPError("The tool must target the approved repository.")
         scoped[key] = value
+    if tool == GitHubMCPTool.LIST_COMMITS and scoped.get("sha"):
+        raise GitHubMCPError("List commits from the default branch by omitting sha.")
     if tool == GitHubMCPTool.SEARCH_PULL_REQUESTS:
         query = str(scoped.get("query", ""))
         # OR can widen a repo-qualified search. Disallow it rather than attempt

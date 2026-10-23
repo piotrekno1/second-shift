@@ -1,6 +1,6 @@
 # Monday engineering briefing
 
-Summarize merged PRs, open work needing attention, and contributor participation
+Summarize merged PRs, other default-branch commits, open work needing attention, and contributor participation
 using live GitHub MCP data. Deliver the result through a webhook.
 
 ## Try it
@@ -13,14 +13,16 @@ using live GitHub MCP data. Deliver the result through a webhook.
    not an independent Git repository.
 2. Connect a model provider and select its default model.
 3. In **Connections**, choose **GitHub MCP**. Use capability name `github` and
-   provide a fine-grained GitHub PAT that can read the repositories your jobs use. Under Repository permissions, grant read-only access to Pull requests and
-   Commit statuses. Check-run data may be unavailable with this token type. Your organization may
+   provide a fine-grained GitHub PAT that can read the repositories your jobs use.
+   Under Repository permissions, grant read-only access to Pull requests,
+   Commit statuses, and Contents. Check-run data may be unavailable with this
+   token type. Your organization may
    need to approve the token. See [GitHub's token documentation](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens).
 4. Add a webhook with binding `engineering-reports`. A local HTTP receiver works
    in local mode. Outside local mode, use a public HTTPS destination.
 5. Review and approve both capabilities for the job. Confirm that read access
    targets the job's GitHub repository. The MCP request should list
-   only `search_pull_requests` and `pull_request_read`.
+   `search_pull_requests`, `pull_request_read`, `list_commits`, and `get_commit`.
 6. Run the job manually. Check the run report, MCP events, and webhook delivery
    before enabling its Monday schedule.
 
