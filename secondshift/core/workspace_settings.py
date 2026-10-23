@@ -155,8 +155,8 @@ def setting_groups() -> list[SettingGroup]:
                     "Network",
                     "None",
                     "",
-                    "Skills cannot reach the network; model calls go through "
-                    "SecondShift's gateway.",
+                    "Skills cannot reach the network. Model and approved MCP "
+                    "calls go through SecondShift.",
                 ),
                 SettingValue(
                     "Image",
