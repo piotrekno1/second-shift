@@ -27,7 +27,7 @@ then run:
 # Install SecondShift
 release=https://github.com/piotrekno1/second-shift/releases
 uv tool install --python 3.13 \
-  "$release/download/v0.1.0a1/secondshift-0.1.0a1-py3-none-any.whl"
+  "$release/download/v0.1.0a2/secondshift-0.1.0a2-py3-none-any.whl"
 
 # Start SecondShift
 secondshift up
