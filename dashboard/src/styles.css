@@ -410,8 +410,12 @@ a.runtime-note { color: inherit; }
 
 /* Keep connection fields aligned when helper text wraps. */
 .need-setup { align-items: start; }
+.need.optional.missing .need-icon, .status-pill.optional { color: var(--muted); background: rgba(197,188,255,.07); }
 .need-setup label { min-width: 0; align-content: start; }
 .need-setup .p-inputtext { min-width: 0; }
+.need-setup .p-inputtext:enabled:focus { border-color: var(--violet); outline-color: var(--violet); }
+.need-setup .p-inputtext:disabled { background: var(--night-800); color: var(--muted); }
+.need-setup input[type="checkbox"] { accent-color: var(--violet); }
 .need-setup small a { color: var(--violet-soft); font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
 .need-setup small a:hover { color: var(--ink); }
 .need-setup small a:focus-visible { outline: 2px solid var(--violet-soft); outline-offset: 3px; border-radius: 2px; }

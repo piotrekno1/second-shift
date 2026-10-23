@@ -103,7 +103,7 @@ async function submit(): Promise<void> {
 
 <template>
   <div class="need-setup">
-    <div v-if="!editing" class="need-setup-type" role="radiogroup" aria-label="Connection type">
+    <div v-if="!editing && !binding" class="need-setup-type" role="radiogroup" aria-label="Connection type">
       <button v-for="option in typeOptions" :key="option[0]" type="button" role="radio" :aria-checked="type === option[0]" :class="{ active: type === option[0] }" @click="type = option[0]">
         <i class="mdi" :class="option[2]" /> {{ option[1] }}
       </button>

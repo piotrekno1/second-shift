@@ -77,7 +77,7 @@ function pendingJobs(need: CapabilityNeed): number {
 }
 
 function jobSummary(need: CapabilityNeed): string {
-  return need.jobs.map((job) => `${job.job_name}${job.required ? '' : ' (optional)'}`).join(', ')
+  return need.jobs.map((job) => `${job.job_name}${need.required && !job.required ? ' (optional)' : ''}`).join(', ')
 }
 
 function errorText(error: unknown, fallback: string): string {
@@ -251,7 +251,7 @@ onMounted(async () => {
       </div>
 
       <div class="need-list">
-        <article v-for="need in app.needs" :id="`need-${need.binding}`" :key="need.binding" class="need" :class="need.status">
+        <article v-for="need in app.needs" :id="`need-${need.binding}`" :key="need.binding" class="need" :class="[need.status, { optional: !need.required }]">
           <div class="need-row">
             <div class="need-icon"><i class="mdi" :class="needStatus[need.status].icon" /></div>
             <div class="need-primary">
@@ -263,7 +263,7 @@ onMounted(async () => {
               <small v-if="need.kind === 'mcp'">Tools: {{ need.requested_tools.join(', ') }}. Read access: {{ need.jobs.map((job) => `${job.job_name} → ${job.repository_scope ?? 'GitHub origin required'}`).join(' · ') }}.</small>
               <small v-if="need.status === 'unavailable'" class="need-detail">{{ need.detail }}</small>
             </div>
-            <span class="status-pill" :class="needStatus[need.status].pill">{{ needStatus[need.status].label }}</span>
+            <span class="status-pill" :class="!need.required && need.status === 'missing' ? 'optional' : needStatus[need.status].pill">{{ needStatus[need.status].label }}</span>
             <div class="need-actions">
               <Button v-if="need.status === 'missing'" :label="isOpen({ mode: 'need', binding: need.binding }) ? 'Cancel' : 'Connect'" :icon="isOpen({ mode: 'need', binding: need.binding }) ? undefined : 'pi pi-link'" size="small" :severity="isOpen({ mode: 'need', binding: need.binding }) ? 'secondary' : undefined" :text="isOpen({ mode: 'need', binding: need.binding })" @click="toggle({ mode: 'need', binding: need.binding })" />
               <template v-else-if="need.status === 'unavailable' && need.connection">
