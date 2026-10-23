@@ -275,20 +275,3 @@ Self-hosting the control plane does not by itself keep repository content local:
 the configured model provider receives the context sent to it. An
 OpenAI-compatible local provider can be used where the entire execution path
 must remain within the operator's environment.
-
-### Implementation status
-
-The frozen tool policy, Pydantic AI model adapters, runner-backed workspace
-tools, model gateway, and authenticated Django runner service are in place.
-The durable workflow now creates an offline sandbox, runs the selected skill,
-stores its report, and destroys the sandbox. Runs requesting MCP or API tools
-still fail closed until the capability broker is connected. Local development
-materializes immutable commits into the runner store; hosted GitHub ingestion
-is still pending. See
-`secondshift/automations/README.md` for the code map and `secondshift/runner/README.md` for the
-deployment boundary that must be preserved.
-
-## License
-
-GNU Affero General Public License v3.0. Commercial licensing can be offered
-separately by the copyright holder.
