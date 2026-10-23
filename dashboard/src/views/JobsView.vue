@@ -11,7 +11,7 @@ import { useListQuery } from '../composables/useListQuery'
 import { apiPost } from '../services/api'
 import { startJobRun } from '../services/runs'
 import { useAppStore } from '../stores/app'
-import type { Capability, Connection, Job, MCPAccess } from '../types'
+import type { Access, Capability, Connection, Job } from '../types'
 import { accessLabel, accessNeedsAction, countLabel, formatRelative, formatSchedule, formatScheduled, utcTitle } from '../utils/format'
 
 const app = useAppStore()
@@ -106,8 +106,8 @@ function chooseConnection(capabilityId: number, connectionId: number): void {
   connectionSelections[capabilityId] = connectionId
 }
 
-function mcpAccessFor(capability: Capability): MCPAccess | null {
-  return capability.kind === 'mcp' ? capability.mcp_access ?? null : null
+function accessFor(capability: Capability): Access | null {
+  return capability.access ?? null
 }
 
 function connectionSetupQuery(job: Job, capability: Capability): Record<string, string> {
@@ -208,9 +208,13 @@ async function toggleJob(job: Job): Promise<void> {
               <div class="capability-summary">
                 <strong>{{ capability.binding }}</strong>
                 <span>{{ capability.kind.toUpperCase() }} · {{ capability.required ? 'Required' : 'Optional' }}</span>
-                <small v-if="capability.requested_tools.length">{{ capability.requested_tools.join(', ') }}</small>
+                <small v-if="capability.requested_tools.length" class="requested-tools">
+                  <span v-for="tool in capability.requested_tools" :key="tool">
+                    {{ tool }}<span v-if="capability.changing_tools?.includes(tool)" class="mcp-flag" title="The service does not mark this as read-only">May change data</span>
+                  </span>
+                </small>
                 <small v-else>No tool-level access requested</small>
-                <small v-if="mcpAccessFor(capability)" :class="{ 'field-error': !mcpAccessFor(capability)?.ok }">{{ mcpAccessFor(capability)?.text }}</small>
+                <small v-if="accessFor(capability)" :class="{ 'field-error': !accessFor(capability)?.ok }">{{ accessFor(capability)?.text }}</small>
               </div>
               <Select
                 v-if="matchingConnections(capability).length"
@@ -233,7 +237,7 @@ async function toggleJob(job: Job): Promise<void> {
               <StatusPill :status="capability.grant_status" />
               <div class="review-actions">
                 <Button label="Deny" severity="danger" text size="small" :loading="action === `denied-${capability.id}`" @click="reviewCapability(job, capability, 'denied')" />
-                <Button label="Approve" icon="pi pi-check" size="small" :disabled="!selectedConnection(capability) || mcpAccessFor(capability)?.ok === false" :title="selectedConnection(capability) ? 'Approve this connection and scope' : 'Set up a matching connection first'" :loading="action === `approved-${capability.id}`" @click="reviewCapability(job, capability, 'approved')" />
+                <Button label="Approve" icon="pi pi-check" size="small" :disabled="!selectedConnection(capability) || accessFor(capability)?.ok === false" :title="selectedConnection(capability) ? 'Approve this connection and scope' : 'Set up a matching connection first'" :loading="action === `approved-${capability.id}`" @click="reviewCapability(job, capability, 'approved')" />
               </div>
             </div>
           </section>

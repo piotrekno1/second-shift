@@ -1,5 +1,6 @@
 import hashlib
 import logging
+import re
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from pathlib import PurePosixPath
@@ -13,12 +14,15 @@ from pydantic_ai.toolsets import FunctionToolset
 
 from secondshift.automations.agent import AgentLimits, build_agent
 from secondshift.automations.artifacts import store_run_input, store_run_text
-from secondshift.automations.mcp_broker import broker_connection, call_mcp_tool_step
 from secondshift.automations.models import Run, RunEvent
 from secondshift.automations.runner_client import get_runner_client
 from secondshift.automations.runner_protocol import CommandRequest, CommandResult
+from secondshift.automations.tool_broker import (
+    broker_connection,
+    call_external_tool_step,
+)
 from secondshift.automations.tool_policy import LOCAL_TOOLS, authorized_tools
-from secondshift.integrations.mcp.base import MCPRequestError
+from secondshift.integrations.errors import ExternalRequestError
 
 MODEL_TOOL_NAMES = {
     "workspace.list_files": "workspace_list_files",
@@ -216,7 +220,14 @@ def task_prompt(skill_path: str) -> str:
     return f"Read {skill_path} with workspace_read_file, then execute that skill."
 
 
-def mcp_tools(run: Run) -> tuple[Tool[WorkspaceToolDeps], ...]:
+def model_tool_name(prefix: str, provider_tool: str, name: str) -> str:
+    """Within the model's 64-character limit, stable for the same tool."""
+    safe = re.sub(r"[^A-Za-z0-9_]", "_", provider_tool)[:40]
+    digest = hashlib.sha256(name.encode()).hexdigest()[:MODEL_TOOL_NAME_HASH_LENGTH]
+    return f"{prefix}_{safe}_{digest}"
+
+
+def external_tools(run: Run) -> tuple[Tool[WorkspaceToolDeps], ...]:
     tools = []
     for tool in authorized_tools(run.execution_plan):
         if tool.is_local:
@@ -230,10 +241,10 @@ def mcp_tools(run: Run) -> tuple[Tool[WorkspaceToolDeps], ...]:
                 if not ctx.tool_call_id:
                     raise RuntimeError("The model tool call has no stable identifier.")
                 try:
-                    return call_mcp_tool_step(
+                    return call_external_tool_step(
                         ctx.deps.run_id, name, arguments, ctx.tool_call_id
                     )
-                except MCPRequestError as error:
+                except ExternalRequestError as error:
                     raise ToolFailed(str(error)) from None
 
             return call
@@ -241,15 +252,14 @@ def mcp_tools(run: Run) -> tuple[Tool[WorkspaceToolDeps], ...]:
         tools.append(
             Tool.from_schema(
                 wrapper(tool.name),
-                name=f"{authorization.provider.key}_{tool.provider_tool}_"
-                + hashlib.sha256(tool.name.encode()).hexdigest()[
-                    :MODEL_TOOL_NAME_HASH_LENGTH
-                ],
-                description=(
-                    f"{tool.name}. Approved {authorization.provider.scope_label}: "
-                    f"{authorization.scope}. {authorization.schema['description']}"
+                name=model_tool_name(
+                    authorization.name_prefix, str(tool.provider_tool), tool.name
                 ),
-                json_schema=authorization.schema["inputSchema"],
+                description=(
+                    f"{tool.name}. Approved {authorization.scope_label}: "
+                    f"{authorization.scope}. {authorization.definition['description']}"
+                ),
+                json_schema=authorization.definition["inputSchema"],
                 takes_ctx=True,
                 sequential=True,
             )
@@ -334,7 +344,7 @@ def execute_agent_run(run: Run, session_id: str) -> dict[str, Any]:
         max_tool_calls=int(limit_values["max_tool_calls"]),
         max_tool_result_chars=int(limit_values["max_tool_result_chars"]),
     )
-    external = mcp_tools(run)
+    external = external_tools(run)
     deps = WorkspaceToolDeps(
         run_id=run.pk,
         session_id=session_id,

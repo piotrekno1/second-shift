@@ -14,10 +14,9 @@ from secondshift.automations.execution import (
     WORKSPACE_AGENT,
     WorkspaceToolDeps,
     execute_agent_run,
-    mcp_tools,
+    external_tools,
 )
 from secondshift.automations.manifest import load_manifest
-from secondshift.automations.mcp_broker import call_mcp_tool_step
 from secondshift.automations.models import CapabilityRequest, Job, JobGrant, Run
 from secondshift.automations.notifications import (
     notification_targets,
@@ -25,9 +24,11 @@ from secondshift.automations.notifications import (
 )
 from secondshift.automations.planning import build_execution_plan
 from secondshift.automations.tests.test_execution import tool_context
+from secondshift.automations.tool_broker import call_external_tool_step
 from secondshift.automations.tool_policy import ToolPolicyError
 from secondshift.config.constants import GITHUB_MCP_URL
 from secondshift.core.models import Workspace
+from secondshift.integrations.errors import ExternalToolError
 from secondshift.integrations.mcp.base import MCPError, MCPRequestError
 from secondshift.integrations.models import Connection
 from secondshift.integrations.tests.test_github_mcp import TOOL_SCHEMAS
@@ -104,7 +105,9 @@ def planned_run() -> Run:
 
 @pytest.mark.django_db
 def test_broker_calls_real_sdk_and_records_safe_evidence(planned_run, mcp_http) -> None:
-    result = call_mcp_tool_step(planned_run.pk, NAME, {"query": "is:merged"}, "call-1")
+    result = call_external_tool_step(
+        planned_run.pk, NAME, {"query": "is:merged"}, "call-1"
+    )
     call = next(message for message in mcp_http if message["method"] == "tools/call")
     assert call["params"]["arguments"]["query"] == "repo:example/project is:merged"
     assert "github_pat_test_token" not in json.dumps(result)
@@ -160,8 +163,10 @@ def test_policy_changes_stop_active_run(planned_run, change, mcp_http) -> None:
     else:
         grant.allowed_tools = []
         grant.save()
-    with pytest.raises(MCPError):
-        call_mcp_tool_step(planned_run.pk, NAME, {"query": "is:merged"}, "call-denied")
+    with pytest.raises(ExternalToolError):
+        call_external_tool_step(
+            planned_run.pk, NAME, {"query": "is:merged"}, "call-denied"
+        )
     assert not mcp_http
 
 
@@ -170,13 +175,13 @@ def test_unapproved_names_and_invalid_arguments_never_reach_mcp(
     planned_run, mcp_http
 ) -> None:
     with pytest.raises(ToolPolicyError):
-        call_mcp_tool_step(
+        call_external_tool_step(
             planned_run.pk, "mcp.github.update_pull_request", {}, "denied"
         )
-    with pytest.raises(MCPError, match="schema"):
-        call_mcp_tool_step(planned_run.pk, NAME, {"query": 42}, "invalid")
-    with pytest.raises(MCPError, match="repository"):
-        call_mcp_tool_step(
+    with pytest.raises(ExternalToolError, match="schema"):
+        call_external_tool_step(planned_run.pk, NAME, {"query": 42}, "invalid")
+    with pytest.raises(ExternalToolError, match="repository"):
+        call_external_tool_step(
             planned_run.pk, NAME, {"query": "repo:other/private"}, "outside"
         )
     assert not mcp_http
@@ -196,7 +201,7 @@ def test_agent_mcp_report_and_webhook_payload_flow(
     storages._storages.clear()
     tool_name = next(
         tool.name
-        for tool in mcp_tools(planned_run)
+        for tool in external_tools(planned_run)
         if tool.description.startswith(NAME)
     )
     model = TestModel(
@@ -209,7 +214,7 @@ def test_agent_mcp_report_and_webhook_payload_flow(
     with WORKSPACE_AGENT.override(model=model):
         result = execute_agent_run(planned_run, "offline-sandbox")
     assert result["succeeded"]
-    assert planned_run.events.filter(message__startswith="MCP tool completed").exists()
+    assert planned_run.events.filter(message__startswith="Tool completed").exists()
     with storages["run_artifacts"].open(result["output"]["path"]) as artifact:
         assert b"What shipped" in artifact.read()
     webhook = Connection.objects.create(
@@ -318,8 +323,8 @@ def test_one_connection_is_reused_with_independent_job_scopes(
         scheduled_for=timezone.now(),
         execution_plan=build_execution_plan(job),
     )
-    call_mcp_tool_step(planned_run.pk, NAME, {"query": "is:merged"}, "first")
-    call_mcp_tool_step(other_run.pk, NAME, {"query": "is:merged"}, "second")
+    call_external_tool_step(planned_run.pk, NAME, {"query": "is:merged"}, "first")
+    call_external_tool_step(other_run.pk, NAME, {"query": "is:merged"}, "second")
     queries = [
         message["params"]["arguments"]["query"]
         for message in mcp_http
@@ -329,8 +334,8 @@ def test_one_connection_is_reused_with_independent_job_scopes(
         "repo:example/project is:merged",
         "repo:example/another is:merged",
     ]
-    with pytest.raises(MCPError, match="repository"):
-        call_mcp_tool_step(
+    with pytest.raises(ExternalToolError, match="repository"):
+        call_external_tool_step(
             planned_run.pk, NAME, {"query": "repo:example/another"}, "cross-repo"
         )
 
@@ -351,7 +356,7 @@ def test_remote_failures_are_reportable_but_policy_denials_still_stop_the_run(
     planned_run, monkeypatch
 ) -> None:
 
-    tool = mcp_tools(planned_run)[0]
+    tool = external_tools(planned_run)[0]
     context = tool_context(
         WorkspaceToolDeps(
             run_id=planned_run.pk, session_id="offline", max_output_chars=1000
@@ -362,7 +367,7 @@ def test_remote_failures_are_reportable_but_policy_denials_still_stop_the_run(
         raise MCPRequestError("GitHub evidence unavailable.")
 
     monkeypatch.setattr(
-        "secondshift.automations.execution.call_mcp_tool_step", unavailable
+        "secondshift.automations.execution.call_external_tool_step", unavailable
     )
     with pytest.raises(ToolFailed, match="evidence unavailable"):
         tool.function(context)
@@ -370,6 +375,8 @@ def test_remote_failures_are_reportable_but_policy_denials_still_stop_the_run(
     def denied(*args, **kwargs) -> None:
         raise MCPError("Access is no longer approved.")
 
-    monkeypatch.setattr("secondshift.automations.execution.call_mcp_tool_step", denied)
-    with pytest.raises(MCPError, match="no longer approved"):
+    monkeypatch.setattr(
+        "secondshift.automations.execution.call_external_tool_step", denied
+    )
+    with pytest.raises(ExternalToolError, match="no longer approved"):
         tool.function(context)

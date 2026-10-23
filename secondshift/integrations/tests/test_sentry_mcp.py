@@ -10,13 +10,13 @@ from secondshift.automations.models import CapabilityRequest, Job, JobGrant
 from secondshift.automations.planning import build_execution_plan
 from secondshift.config.constants import SENTRY_MCP_URL
 from secondshift.core.models import Workspace
+from secondshift.integrations.external import external_access
 from secondshift.integrations.mcp.base import MCPError
 from secondshift.integrations.mcp.client import (
     create_mcp_connection,
     update_mcp_connection,
     validate_mcp_connection,
 )
-from secondshift.integrations.mcp.providers import mcp_access
 from secondshift.integrations.mcp.sentry import SENTRY_MCP, scoped_sentry_arguments
 from secondshift.integrations.models import Connection
 from secondshift.integrations.services import revoke_connection
@@ -265,16 +265,16 @@ def test_access_text_and_frozen_plan_follow_the_connection(
         allowed_tools=["get_sentry_resource"],
     )
 
-    access = mcp_access(connection, repository)
+    access = external_access(connection, repository)
     assert access.ok
     assert access.text == "Allow these tools to read all Sentry projects in acme."
     plan = build_execution_plan(job)
     assert plan["ready"] is True
-    assert plan["capabilities"][0]["mcp"]["provider"] == "sentry"
-    assert plan["capabilities"][0]["mcp"]["scope"] == "acme"
+    assert plan["capabilities"][0]["external"]["provider"] == "sentry"
+    assert plan["capabilities"][0]["external"]["scope"] == "acme"
 
     connection.metadata = {**connection.metadata, "settings": {}}
-    assert not mcp_access(connection, repository).ok
+    assert not external_access(connection, repository).ok
     connection.save()
     plan = build_execution_plan(job)
     assert plan["capabilities"][0]["reasons"] == ["sentry_organization_unknown"]

@@ -88,3 +88,36 @@ export function fetchMCPProviders(): Promise<MCPProviderInfo[]> {
 export function createMCPConnection(input: { provider: string, binding_key: string, display_name: string, token: string, settings: Record<string, string> }): Promise<Connection> {
   return apiPost<Connection>('/connections/mcp', input)
 }
+
+export interface APISpecSummary {
+  title: string
+  servers: string[]
+  operations: number
+  read_only: number
+}
+
+export interface APISpecInput {
+  spec_url?: string
+  spec_text?: string
+}
+
+export function inspectAPISpec(input: APISpecInput): Promise<APISpecSummary> {
+  return apiPost<APISpecSummary>('/connections/api/inspect', input)
+}
+
+export interface APIConnectionInput extends APISpecInput {
+  binding_key: string
+  display_name: string
+  base_url: string
+  auth: 'bearer' | 'header'
+  header?: string
+  token: string
+}
+
+export function createAPIConnection(input: APIConnectionInput): Promise<Connection> {
+  return apiPost<Connection>('/connections/api', input)
+}
+
+export function updateAPIConnection(connectionId: number, input: { display_name?: string, token?: string, base_url?: string, operations?: string[] }): Promise<Connection> {
+  return apiPost<Connection>(`/connections/${connectionId}/api`, input)
+}

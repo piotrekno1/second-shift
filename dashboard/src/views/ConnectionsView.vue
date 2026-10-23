@@ -112,7 +112,7 @@ function pendingJobs(need: CapabilityNeed): number {
 }
 
 function needAccessLine(need: CapabilityNeed): string {
-  return need.jobs.map((job) => `${job.job_name} → ${job.mcp_access?.ok ? job.mcp_access.scope : 'unavailable'}`).join(' · ')
+  return need.jobs.map((job) => `${job.job_name} → ${job.access?.ok ? job.access.scope : 'unavailable'}`).join(' · ')
 }
 
 function jobSummary(need: CapabilityNeed): string {
@@ -156,9 +156,9 @@ function sendTest(connection: Connection, noticeKey: string): Promise<void> {
   return act(`test-${connection.id}`, noticeKey, async () => {
     const result = await testConnection(connection.id)
     // Model checks are saved on the connection; refresh so its pill reflects the result.
-    if (connection.kind === 'model' || connection.kind === 'mcp') await app.refresh()
+    if (connection.kind === 'model' || connection.kind === 'mcp' || connection.kind === 'api') await app.refresh()
     if (!result.ok) throw new Error(result.message)
-    if (connection.kind === 'model' || connection.kind === 'mcp') return result.message
+    if (connection.kind === 'model' || connection.kind === 'mcp' || connection.kind === 'api') return result.message
     return 'Test message delivered.'
   }, 'Unable to send a test message')
 }
@@ -252,8 +252,8 @@ onMounted(async () => {
             <StatusPill v-if="connection.status === 'connected' && connection.last_check && !connection.last_check.ok" status="error" label="Check failed" :title="connection.last_check.message" />
             <StatusPill v-else :status="connection.status" />
             <div v-if="connection.kind !== 'identity'" class="need-actions">
-              <template v-if="connection.kind === 'mcp'">
-                <Button v-if="connection.status === 'connected'" label="Check tools" icon="pi pi-refresh" severity="secondary" text size="small" :loading="busy === `test-${connection.id}`" @click="sendTest(connection, `connection-${connection.id}`)" />
+              <template v-if="connection.kind === 'mcp' || connection.kind === 'api'">
+                <Button v-if="connection.status === 'connected'" :label="connection.kind === 'api' ? 'Check operations' : 'Check tools'" icon="pi pi-refresh" severity="secondary" text size="small" :loading="busy === `test-${connection.id}`" @click="sendTest(connection, `connection-${connection.id}`)" />
                 <Button :label="connection.status === 'connected' ? 'Edit' : 'Reconnect'" icon="pi pi-pencil" severity="secondary" text size="small" @click="toggle({ mode: 'edit', id: connection.id })" />
               </template>
               <template v-else-if="connection.provider === 'webhook' || connection.kind === 'model'">
@@ -303,14 +303,14 @@ onMounted(async () => {
               <small v-if="need.connection && need.status !== 'missing'">
                 {{ need.connection.display_name }}<template v-if="need.connection.target"> → {{ need.connection.target }}</template>
               </small>
-              <small v-if="need.kind === 'mcp'">Tools: {{ need.requested_tools.join(', ') }}.<template v-if="need.connection"> Read access: {{ needAccessLine(need) }}.</template></small>
+              <small v-if="need.kind === 'mcp' || need.kind === 'api'">{{ need.kind === 'api' ? 'Operations' : 'Tools' }}: {{ need.requested_tools.join(', ') }}.<template v-if="need.connection"> Access: {{ needAccessLine(need) }}.</template></small>
               <small v-if="need.status === 'unavailable'" class="need-detail">{{ need.detail }}</small>
             </div>
             <span class="status-pill" :class="!need.required && need.status === 'missing' ? 'optional' : needStatus[need.status].pill">{{ needStatus[need.status].label }}</span>
             <div class="need-actions">
               <Button v-if="need.status === 'missing'" :label="isOpen({ mode: 'need', binding: need.binding }) ? 'Cancel' : 'Connect'" :icon="isOpen({ mode: 'need', binding: need.binding }) ? undefined : 'pi pi-link'" size="small" :severity="isOpen({ mode: 'need', binding: need.binding }) ? 'secondary' : undefined" :text="isOpen({ mode: 'need', binding: need.binding })" @click="toggle({ mode: 'need', binding: need.binding })" />
               <template v-else-if="need.status === 'unavailable' && need.connection">
-                <Button v-if="need.connection.provider === 'webhook' || need.connection.kind === 'mcp'" :label="isOpen({ mode: 'need', binding: need.binding }) ? 'Cancel' : 'Reconnect'" icon="pi pi-pencil" size="small" @click="toggle({ mode: 'need', binding: need.binding })" />
+                <Button v-if="need.connection.provider === 'webhook' || need.connection.kind === 'mcp' || need.connection.kind === 'api'" :label="isOpen({ mode: 'need', binding: need.binding }) ? 'Cancel' : 'Reconnect'" icon="pi pi-pencil" size="small" @click="toggle({ mode: 'need', binding: need.binding })" />
                 <a v-else :href="`/-/admin/integrations/connection/${need.connection.id}/change/`" target="_blank" rel="noopener" class="secondary-action compact"><i class="mdi mdi-wrench-outline" /> Fix in admin</a>
               </template>
               <template v-else-if="need.connection">

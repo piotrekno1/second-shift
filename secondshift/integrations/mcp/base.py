@@ -3,16 +3,17 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
+from secondshift.integrations.errors import ExternalRequestError, ExternalToolError
 from secondshift.repositories.models import Repository
 
 MCPSettings = dict[str, str]
 
 
-class MCPError(ValueError):
+class MCPError(ExternalToolError):
     pass
 
 
-class MCPRequestError(MCPError):
+class MCPRequestError(MCPError, ExternalRequestError):
     """A remote failure the agent may report as unavailable evidence."""
 
 

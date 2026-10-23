@@ -5,8 +5,7 @@ from django.conf import settings
 from secondshift.automations.agent import AgentLimits, agent_plan
 from secondshift.automations.models import Job, JobGrant
 from secondshift.automations.tool_policy import authorized_tools
-from secondshift.integrations.mcp.base import MCPProvider
-from secondshift.integrations.mcp.providers import MCP_PROVIDERS, connection_settings
+from secondshift.integrations.external import EXTERNAL_KINDS
 from secondshift.integrations.model_providers import provider_family
 from secondshift.integrations.models import Connection
 
@@ -28,21 +27,6 @@ def model_plan(job: Job) -> dict[str, Any] | None:
         "family": provider_family(connection),
         "default_model": connection.default_model,
         "allowed_models": connection.allowed_models,
-    }
-
-
-def mcp_capability_plan(
-    connection: Connection,
-    provider: MCPProvider,
-    scope: str | None,
-    effective_tools: set[str],
-) -> dict[str, Any]:
-    """Freeze the approved scope and tool definitions without credentials."""
-    definitions = connection.metadata.get("tools", {})
-    return {
-        "provider": provider.key,
-        "scope": scope,
-        "tools": {name: definitions.get(name) for name in sorted(effective_tools)},
     }
 
 
@@ -78,16 +62,14 @@ def build_execution_plan(job: Job) -> dict[str, Any]:
         if connection and requested - available:
             reasons.append("tools_unavailable")
 
-        provider = None
-        scope = None
-        if connection and request.kind == Connection.Kind.MCP:
-            provider = MCP_PROVIDERS.get(connection.provider)
-            if provider is None:
-                reasons.append("mcp_provider_unsupported")
-            else:
-                scope = provider.scope(connection_settings(connection), job.repository)
-                if not scope:
-                    reasons.append(provider.missing_scope_reason)
+        adapter = EXTERNAL_KINDS.get(request.kind)
+        access = (
+            adapter.access(connection, job.repository)
+            if adapter and connection and connection.kind == request.kind
+            else None
+        )
+        if access and not access.ok:
+            reasons.append(access.reason)
 
         authorized = not reasons
         if request.required and not authorized:
@@ -103,17 +85,15 @@ def build_execution_plan(job: Job) -> dict[str, Any]:
             "authorized": authorized,
             "reasons": reasons,
         }
-        if connection and provider and authorized:
-            capability["mcp"] = mcp_capability_plan(
-                connection, provider, scope, effective
-            )
+        if adapter and connection and access and access.scope and authorized:
+            capability["external"] = adapter.freeze(connection, access.scope, effective)
         capabilities.append(capability)
 
     model = model_plan(job)
     if model is None:
         ready = False
     plan = {
-        "version": 2,
+        "version": 3,
         "ready": ready,
         "agent": agent_plan(
             AgentLimits(

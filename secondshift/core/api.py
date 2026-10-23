@@ -12,7 +12,7 @@ from ninja.errors import HttpError
 from ninja.security import django_auth
 from pydantic import Field
 
-from secondshift.automations.api import MCPAccessSchema
+from secondshift.automations.api import AccessSchema
 from secondshift.automations.connection_usage import ConnectionUsage, connection_usage
 from secondshift.automations.health import failing_jobs, spend_by_job, week_summary
 from secondshift.automations.models import Job, Run
@@ -25,6 +25,13 @@ from secondshift.core.workspace_settings import (
     sandbox_label,
     setting_groups,
 )
+from secondshift.integrations.http_api.connections import (
+    create_api_connection,
+    recheck_api_connection,
+    summarize,
+    update_api_connection,
+)
+from secondshift.integrations.http_api.spec import APIError
 from secondshift.integrations.mcp.base import MCPError
 from secondshift.integrations.mcp.client import (
     create_mcp_connection,
@@ -261,6 +268,36 @@ class MCPConnectionUpdateSchema(Schema):
     tools: list[str] | None = Field(default=None, max_length=200)
 
 
+class APISpecSchema(Schema):
+    spec_url: str = Field(default="", max_length=2000)
+    spec_text: str = Field(default="", max_length=5 * 1024 * 1024)
+
+
+class APISpecSummarySchema(Schema):
+    title: str
+    servers: list[str]
+    operations: int
+    read_only: int
+
+
+class APIConnectionCreateSchema(APISpecSchema):
+    binding_key: str = Field(
+        min_length=1, max_length=120, pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$"
+    )
+    display_name: str = Field(default="", max_length=200)
+    base_url: str = Field(min_length=1, max_length=200)
+    auth: str = Field(default="bearer", max_length=20)
+    header: str = Field(default="", max_length=64)
+    token: str = Field(min_length=1, max_length=2000)
+
+
+class APIConnectionUpdateSchema(Schema):
+    display_name: str | None = Field(default=None, max_length=200)
+    token: str | None = Field(default=None, max_length=2000)
+    base_url: str | None = Field(default=None, max_length=200)
+    operations: list[str] | None = Field(default=None, max_length=500)
+
+
 class MCPInspectSchema(Schema):
     provider: str = Field(min_length=1, max_length=40)
     settings: dict[str, str] = Field(default_factory=dict, max_length=10)
@@ -344,7 +381,7 @@ class NeedJobSchema(Schema):
     capability_id: int
     required: bool
     grant_status: str
-    mcp_access: MCPAccessSchema | None = None
+    access: AccessSchema | None = None
 
 
 class CapabilityNeedSchema(Schema):
@@ -660,6 +697,19 @@ def remove_repository(request: HttpRequest, repository_id: int) -> Status[None]:
     return Status(204, None)
 
 
+def connection_settings_view(connection: Connection) -> dict[str, str]:
+    """Owner-chosen settings that are safe to show. Never a credential."""
+    if connection.kind == Connection.Kind.MCP:
+        return dict(connection.metadata.get("settings", {}))
+    if connection.kind == Connection.Kind.API:
+        return {
+            **connection.metadata.get("settings", {}),
+            "base_url": connection.metadata.get("base_url", ""),
+            "spec_url": connection.metadata.get("spec_url", ""),
+        }
+    return {}
+
+
 def serialize_connection(
     connection: Connection, usage: ConnectionUsage | None = None
 ) -> ConnectionSchema:
@@ -678,18 +728,14 @@ def serialize_connection(
         is_default=connection.is_default,
         available_models=list(connection.metadata.get("available_models", [])),
         last_check=connection.metadata.get("last_check"),
-        settings=(
-            dict(connection.metadata.get("settings", {}))
-            if connection.kind == Connection.Kind.MCP
-            else {}
-        ),
+        settings=connection_settings_view(connection),
         auth=(
             (
                 "oauth"
                 if connection.auth_strategy == Connection.AuthStrategy.OAUTH
                 else "token"
             )
-            if connection.kind == Connection.Kind.MCP
+            if connection.kind in {Connection.Kind.MCP, Connection.Kind.API}
             else ""
         ),
         scopes=list(connection.scopes)
@@ -812,6 +858,74 @@ def update_mcp(
         raise HttpError(422, str(error)) from error
     except ValidationError as error:
         raise HttpError(422, "The MCP connection configuration is invalid.") from error
+    return serialize_connection(connection)
+
+
+@api.post("/connections/api/inspect", response=APISpecSummarySchema, auth=django_auth)
+def inspect_api_spec(
+    request: HttpRequest, payload: APISpecSchema
+) -> APISpecSummarySchema:
+    """The spec's title, servers, and operation counts, before connecting."""
+    owner_workspace(request, "add API connections")
+    try:
+        summary = summarize(payload.spec_url.strip(), payload.spec_text)
+    except APIError as error:
+        raise HttpError(422, str(error)) from error
+    return APISpecSummarySchema(
+        title=summary.title,
+        servers=list(summary.servers),
+        operations=summary.operations,
+        read_only=summary.read_only,
+    )
+
+
+@api.post("/connections/api", response=ConnectionSchema, auth=django_auth)
+def create_api(
+    request: HttpRequest, payload: APIConnectionCreateSchema
+) -> ConnectionSchema:
+    workspace = owner_workspace(request, "add API connections")
+    try:
+        connection = create_api_connection(
+            workspace,
+            payload.binding_key,
+            payload.display_name,
+            payload.spec_url.strip(),
+            payload.spec_text,
+            payload.base_url,
+            payload.auth,
+            payload.header.strip(),
+            payload.token,
+        )
+    except ConnectionConflict as error:
+        raise HttpError(409, str(error)) from error
+    except APIError as error:
+        raise HttpError(422, str(error)) from error
+    except ValidationError as error:
+        raise HttpError(422, "The API connection configuration is invalid.") from error
+    return serialize_connection(connection)
+
+
+@api.post(
+    "/connections/{connection_id}/api", response=ConnectionSchema, auth=django_auth
+)
+def update_api(
+    request: HttpRequest, connection_id: int, payload: APIConnectionUpdateSchema
+) -> ConnectionSchema:
+    connection = owned_connection(request, connection_id, "edit connections")
+    try:
+        connection = update_api_connection(
+            connection,
+            payload.display_name,
+            payload.token,
+            payload.base_url,
+            payload.operations,
+        )
+    except ConnectionConflict as error:
+        raise HttpError(409, str(error)) from error
+    except APIError as error:
+        raise HttpError(422, str(error)) from error
+    except ValidationError as error:
+        raise HttpError(422, "The API connection configuration is invalid.") from error
     return serialize_connection(connection)
 
 
@@ -1050,6 +1164,12 @@ def test_connection(request: HttpRequest, connection_id: int) -> ConnectionTestS
             status_code=None,
             message=f"Discovered {len(tools)} supported {provider.label} tools.",
         )
+    if connection.kind == Connection.Kind.API:
+        try:
+            message = recheck_api_connection(connection)
+        except APIError as error:
+            return ConnectionTestSchema(ok=False, status_code=None, message=str(error))
+        return ConnectionTestSchema(ok=True, status_code=None, message=message)
     if connection.kind == Connection.Kind.MODEL:
         check = check_model_connection(connection)
         return ConnectionTestSchema(
@@ -1085,7 +1205,7 @@ def needs(request: HttpRequest) -> list[CapabilityNeedSchema]:
                 NeedJobSchema(
                     **{
                         **vars(job),
-                        "mcp_access": vars(job.mcp_access) if job.mcp_access else None,
+                        "access": vars(job.access) if job.access else None,
                     }
                 )
                 for job in need.jobs

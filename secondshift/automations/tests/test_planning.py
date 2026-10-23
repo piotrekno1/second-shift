@@ -163,4 +163,4 @@ def test_plan_fails_closed_for_unsupported_mcp_providers(db) -> None:
 
     assert plan["ready"] is False
     assert plan["capabilities"][0]["reasons"] == ["mcp_provider_unsupported"]
-    assert "mcp" not in plan["capabilities"][0]
+    assert "external" not in plan["capabilities"][0]

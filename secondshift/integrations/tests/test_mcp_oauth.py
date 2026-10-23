@@ -12,13 +12,13 @@ from django.test import Client
 from django.utils import timezone
 
 from secondshift.core.models import Workspace
+from secondshift.integrations.external import external_access
 from secondshift.integrations.mcp.base import MCPError, MCPRequestError
 from secondshift.integrations.mcp.client import (
     create_mcp_connection,
     update_mcp_connection,
 )
 from secondshift.integrations.mcp.oauth import fresh_connection, redirect_uri
-from secondshift.integrations.mcp.providers import mcp_access
 from secondshift.integrations.mcp.signin import (
     SignInError,
     complete_authorization,
@@ -202,7 +202,7 @@ def test_full_sign_in_flow(fake: FakeServer, workspace: Workspace, owner: Any) -
     }
     assert fake.mcp_auth[-1] == "Bearer at-1"
     repository = Repository.objects.create(workspace=workspace, full_name="a/b")
-    assert mcp_access(connection, repository).text == (
+    assert external_access(connection, repository).text == (
         "Allow these tools to use anything the credential can reach on mcp.example.com."
     )
 

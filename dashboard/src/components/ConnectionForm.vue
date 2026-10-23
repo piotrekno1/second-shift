@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
+import APIConnectionForm from './APIConnectionForm.vue'
 import MCPConnectionForm from './MCPConnectionForm.vue'
 import ModelProviderForm from './ModelProviderForm.vue'
 import { approveNeed, createWebhook, testConnection, updateWebhook } from '../services/connections'
@@ -24,7 +25,7 @@ const app = useAppStore()
 // Model provider from the header, or what the binding's jobs request.
 const type = ref<ConnectionType>(
   props.connection
-    ? (props.connection.kind === 'model' || props.connection.kind === 'mcp' ? props.connection.kind : 'webhook')
+    ? (props.connection.kind === 'model' || props.connection.kind === 'mcp' || props.connection.kind === 'api' ? props.connection.kind : 'webhook')
     : (props.binding ? 'webhook' : 'model'),
 )
 const bindingKey = ref(props.connection?.binding_key ?? props.binding ?? '')
@@ -52,15 +53,6 @@ const pendingJobs = computed(() => need.value?.jobs.filter((job) => job.grant_st
 const suggestions = computed(() => app.needs.filter((item) => item.status === 'missing').map((item) => item.binding))
 const urlRequired = computed(() => !editing.value || reconnecting.value)
 const canSubmit = computed(() => bindingValid.value && !taken.value && !kindMismatch.value && (!urlRequired.value || url.value.trim() !== ''))
-const adminUrl = computed(() => {
-  const params = new URLSearchParams({
-    binding_key: bindingKey.value,
-    kind: type.value,
-    provider: type.value,
-    display_name: displayName.value || titleFromSlug(bindingKey.value),
-  })
-  return `/-/admin/integrations/connection/add/?${params.toString()}`
-})
 
 function kindFor(value: ConnectionType): string {
   return value === 'webhook' ? 'notification' : value
@@ -122,17 +114,12 @@ async function submit(): Promise<void> {
     </div>
 
     <ModelProviderForm v-if="type === 'model'" :connection="connection" @done="(notice, binding) => emit('done', notice, binding)" @cancel="emit('cancel')" />
+    <APIConnectionForm v-else-if="type === 'api'" :binding="binding" :connection="connection" @done="(notice, binding) => emit('done', notice, binding)" @cancel="emit('cancel')" />
     <MCPConnectionForm v-else-if="type === 'mcp'" :binding="binding" :connection="connection" @done="(notice, binding) => emit('done', notice, binding)" @cancel="emit('cancel')" />
     <form v-else class="need-setup-fields" @submit.prevent="submit">
     <div class="need-setup-copy">
-      <template v-if="type === 'webhook'">
-        <h3>{{ editing ? (reconnecting ? 'Reconnect webhook' : 'Edit webhook') : 'Send run reports to a webhook' }}</h3>
-        <p>After every run, SecondShift POSTs a JSON report with a <code>text</code> summary. Slack and Mattermost incoming webhooks work as they are. For Discord, add <code>/slack</code> to the end of the webhook URL.</p>
-      </template>
-      <template v-else>
-        <h3>HTTP API</h3>
-        <p>HTTP API execution is not supported yet. Use an MCP server connection where one is available.</p>
-      </template>
+      <h3>{{ editing ? (reconnecting ? 'Reconnect webhook' : 'Edit webhook') : 'Send run reports to a webhook' }}</h3>
+      <p>After every run, SecondShift POSTs a JSON report with a <code>text</code> summary. Slack and Mattermost incoming webhooks work as they are. For Discord, add <code>/slack</code> to the end of the webhook URL.</p>
     </div>
 
     <label>
@@ -150,8 +137,7 @@ async function submit(): Promise<void> {
       <InputText v-model="displayName" maxlength="200" />
     </label>
 
-    <template v-if="type === 'webhook'">
-      <label class="need-setup-wide">
+    <label class="need-setup-wide">
         <span>Webhook URL</span>
         <InputText v-model="url" type="url" :required="urlRequired" autocomplete="off" spellcheck="false" :placeholder="editing && !reconnecting ? `Leave blank to keep the current URL (${connection?.target})` : 'https://hooks.slack.com/services/…'" />
       </label>
@@ -167,14 +153,6 @@ async function submit(): Promise<void> {
           <Button type="submit" :label="url.trim() ? (editing ? 'Save and send test' : 'Connect and send test') : 'Save'" icon="pi pi-send" :loading="saving" :disabled="!canSubmit" />
         </div>
       </div>
-    </template>
-    <div v-else class="need-setup-footer">
-      <span />
-      <div class="need-actions">
-        <Button label="Cancel" severity="secondary" text size="small" @click="emit('cancel')" />
-        <a :href="adminUrl" target="_blank" rel="noopener" class="primary-action connection-setup-action" :class="{ disabled: !bindingValid }"><i class="mdi mdi-open-in-new" /> Continue in admin</a>
-      </div>
-    </div>
     </form>
   </div>
 </template>

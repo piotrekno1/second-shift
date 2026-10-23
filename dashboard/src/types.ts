@@ -123,8 +123,10 @@ export interface JobDetail extends Job {
 }
 
 export interface Capability {
-  /** MCP only: what this job could read through the binding's connection. */
-  mcp_access?: MCPAccess | null
+  /** External tools only: what this job could reach through the binding. */
+  access?: Access | null
+  /** Requested tools that may change data on the service. */
+  changing_tools?: string[]
   id: number
   binding: string
   kind: 'mcp' | 'api' | 'notification'
@@ -300,14 +302,14 @@ export interface MCPSettingInfo {
   placeholder: string
 }
 
-export interface MCPAccess {
+export interface Access {
   ok: boolean
   scope: string | null
   text: string
 }
 
 export interface CapabilityNeedJob {
-  mcp_access?: MCPAccess | null
+  access?: Access | null
   job_id: number
   job_name: string
   repository: string

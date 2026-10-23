@@ -3,7 +3,7 @@ from typing import Literal
 
 from secondshift.automations.models import CapabilityRequest, JobGrant
 from secondshift.core.models import Workspace
-from secondshift.integrations.mcp.providers import MCPAccess, mcp_access
+from secondshift.integrations.external import EXTERNAL_KINDS, Access, external_access
 from secondshift.integrations.models import Connection
 
 NeedStatus = Literal["missing", "unavailable", "needs_approval", "ready"]
@@ -23,7 +23,7 @@ class NeedJob:
     capability_id: int
     required: bool
     grant_status: str
-    mcp_access: MCPAccess | None = None
+    access: Access | None = None
 
 
 @dataclass
@@ -57,10 +57,10 @@ def need_status(
             "unavailable",
             f"The connection is {connection.get_status_display().lower()}.",
         )
-    if kind == Connection.Kind.MCP:
+    if kind in EXTERNAL_KINDS:
         for request in requests:
-            access = mcp_access(connection, request.job.repository)
-            if not access.ok:
+            access = external_access(connection, request.job.repository)
+            if access and not access.ok:
                 return "unavailable", access.text
     missing_tools = requested_tools - set(connection.available_tools)
     if missing_tools:
@@ -118,11 +118,9 @@ def capability_needs(workspace: Workspace) -> list[CapabilityNeed]:
                         job_id=item.job_id,
                         job_name=item.job.name,
                         repository=item.job.repository.display_name,
-                        mcp_access=(
-                            mcp_access(connection, item.job.repository)
-                            if kind == Connection.Kind.MCP
-                            and connection
-                            and connection.kind == kind
+                        access=(
+                            external_access(connection, item.job.repository)
+                            if connection and connection.kind == kind
                             else None
                         ),
                         capability_id=item.pk,

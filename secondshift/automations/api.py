@@ -24,13 +24,13 @@ from secondshift.automations.run_queries import Period, RunFilters, RunSort, run
 from secondshift.core.models import Workspace
 from secondshift.core.services import workspace_for_user
 from secondshift.gateway.usage import with_model_usage
-from secondshift.integrations.mcp.providers import mcp_access
+from secondshift.integrations.external import changing_tools, external_access
 from secondshift.integrations.models import Connection
 
 router = Router(auth=django_auth, tags=["automations"])
 
 
-class MCPAccessSchema(Schema):
+class AccessSchema(Schema):
     ok: bool
     scope: str | None
     text: str
@@ -45,8 +45,10 @@ class CapabilitySchema(Schema):
     grant_status: str
     connection_id: int | None
     connection_name: str | None
-    # MCP only: what the job could read through this binding's connection.
-    mcp_access: MCPAccessSchema | None = None
+    # External tools only: what the job could reach through this binding.
+    access: AccessSchema | None = None
+    # Requested tools that may change data on the service.
+    changing_tools: list[str] = Field(default_factory=list)
 
 
 class JobSchema(Schema):
@@ -192,9 +194,7 @@ def serialize_job(
 ) -> JobSchema:
     """`connections` maps binding keys to connections, to share one query."""
     requests = list(job.capability_requests.all())
-    if connections is None and any(
-        item.kind == Connection.Kind.MCP for item in requests
-    ):
+    if connections is None and requests:
         connections = binding_connections(job.workspace_id)
     capabilities: list[CapabilitySchema] = []
     for capability in requests:
@@ -207,11 +207,16 @@ def serialize_job(
                 kind=capability.kind,
                 requested_tools=capability.requested_tools,
                 required=capability.required,
-                mcp_access=(
-                    MCPAccessSchema(**vars(mcp_access(connection, job.repository)))
-                    if capability.kind == Connection.Kind.MCP
-                    and connection
-                    and connection.kind == Connection.Kind.MCP
+                changing_tools=(
+                    changing_tools(connection, capability.requested_tools)
+                    if connection and connection.kind == capability.kind
+                    else []
+                ),
+                access=(
+                    AccessSchema(**vars(access))
+                    if connection
+                    and connection.kind == capability.kind
+                    and (access := external_access(connection, job.repository))
                     else None
                 ),
                 grant_status=grant.status if grant else "unconfigured",
@@ -423,8 +428,8 @@ def review_job_capability(
             raise HttpError(409, "The selected connection is not connected.")
         if (
             payload.decision == JobGrant.Status.APPROVED
-            and connection.kind == Connection.Kind.MCP
-            and not (access := mcp_access(connection, job.repository)).ok
+            and (access := external_access(connection, job.repository))
+            and not access.ok
         ):
             raise HttpError(409, access.text)
     if payload.decision == JobGrant.Status.APPROVED and connection is None:
