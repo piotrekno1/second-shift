@@ -7,12 +7,14 @@
 
 SecondShift turns committed repository skills into scheduled reviews and reports.
 
-<a href="https://github.com/piotrekno1/second-shift/issues/4#issuecomment-6370078337">
-  <img src="docs/screenshots/demo-preview.jpg" alt="Play the 60-second SecondShift demo" width="560">
-</a>
+<p align="center">
+  <a href="https://github.com/user-attachments/assets/b4b0576c-80dc-4335-a7d6-89bf36cd8692">
+    <img src="docs/screenshots/demo-preview.jpg" alt="Play the 60-second SecondShift demo" width="440"><br>
+    <strong>▶ Play the 60-second demo</strong>
+  </a>
+</p>
 
-[▶ Play the 60-second demo on GitHub](https://github.com/piotrekno1/second-shift/issues/4#issuecomment-6370078337):
-connect a model, add a webhook, import a repository, and receive a skill's report.
+Connect a model, add a webhook, import a repository, and receive a skill's report.
 
 ## Try it out now
 
