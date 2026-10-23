@@ -146,7 +146,7 @@ def test_plan_fails_closed_for_unsupported_mcp_providers(db) -> None:
     )
     connection = Connection.objects.create(
         workspace=job.workspace,
-        provider=Connection.Provider.MCP,
+        provider=Connection.Provider.API,
         kind=Connection.Kind.MCP,
         binding_key="observability",
         display_name="Custom server",

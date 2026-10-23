@@ -11,7 +11,6 @@ from secondshift.config.constants import GITHUB_MCP_URL
 from secondshift.core.models import Workspace
 from secondshift.integrations.mcp.base import MCPError
 from secondshift.integrations.mcp.client import (
-    BoundedStream,
     create_mcp_connection,
     discover_tools,
     mcp_request,
@@ -19,6 +18,7 @@ from secondshift.integrations.mcp.client import (
     validate_tool_schema,
 )
 from secondshift.integrations.mcp.github import scoped_github_arguments
+from secondshift.integrations.mcp.transport import BoundedStream
 from secondshift.integrations.models import Connection
 
 TOOL_SCHEMAS = {
@@ -200,10 +200,10 @@ def test_unknown_mcp_providers_fail_closed() -> None:
     owner = get_user_model().objects.create_user(username="provider-owner")
     workspace = Workspace.objects.create(name="Other", slug="other", owner=owner)
     with pytest.raises(MCPError, match="not supported"):
-        create_mcp_connection(workspace, "mcp", "custom", "Custom", "token")
+        create_mcp_connection(workspace, "api", "custom", "Custom", "token")
     connection = Connection.objects.create(
         workspace=workspace,
-        provider=Connection.Provider.MCP,
+        provider=Connection.Provider.API,
         kind=Connection.Kind.MCP,
         binding_key="custom",
         display_name="Custom",
@@ -229,7 +229,9 @@ def test_remote_schema_references_are_rejected() -> None:
 
 
 def test_response_limit(monkeypatch) -> None:
-    monkeypatch.setattr("secondshift.integrations.mcp.client.MCP_RESPONSE_MAX_BYTES", 5)
+    monkeypatch.setattr(
+        "secondshift.integrations.mcp.transport.MCP_RESPONSE_MAX_BYTES", 5
+    )
 
     async def read() -> None:
         stream = BoundedStream(httpx.ByteStream(b"too much"))
@@ -323,7 +325,7 @@ def test_provider_list_describes_github_without_secrets(client: Client) -> None:
     response = client.get("/api/connections/mcp-providers")
     assert response.status_code == 200
     providers = {item["key"]: item for item in response.json()}
-    assert set(providers) == {"github", "sentry"}
+    assert set(providers) == {"github", "sentry", "mcp"}
     github = providers["github"]
     assert github["default_binding"] == "github"
     assert github["settings"] == []

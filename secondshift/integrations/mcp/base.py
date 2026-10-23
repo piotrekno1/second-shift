@@ -27,6 +27,9 @@ class MCPSetting:
     required: bool = True
     help: str = ""
     placeholder: str = ""
+    max_length: int = 64
+    # Extra check after the pattern, such as an outbound URL check.
+    validate: Callable[[str], str] | None = None
 
 
 @dataclass(frozen=True)
@@ -48,6 +51,7 @@ class MCPProvider:
     scope_arguments: Callable[[str, str, dict[str, Any]], dict[str, Any]]
     # Completes "Allow these tools to read ...".
     describe_scope: Callable[[str], str]
+    access_verb: str = "read"
     scope_label: str = "scope"
     missing_scope_reason: str = "mcp_scope_unknown"
     missing_scope_message: str = "This job has no scope for this provider."
@@ -59,6 +63,11 @@ class MCPProvider:
     headers: dict[str, str] = field(default_factory=dict)
     # Drop tools the server does not mark read-only.
     require_read_only_hint: bool = False
+    # Custom servers: keep every tool and let the owner choose. Read-only
+    # tools start selected.
+    owner_selects_tools: bool = False
+    # "token" for a pasted bearer token, "oauth" for a browser sign-in.
+    auth_methods: tuple[str, ...] = ("token",)
     token_pattern: str = r"\S+"
     token_hint: str = "Enter a token without whitespace."
     # Shown when an owner sets up a connection.
@@ -83,7 +92,11 @@ class MCPProvider:
                 if setting.required:
                     raise MCPError(f"Enter the {setting.label.lower()}.")
                 continue
-            if not re.fullmatch(setting.pattern, value):
+            if len(value) > setting.max_length or not re.fullmatch(
+                setting.pattern, value
+            ):
                 raise MCPError(f"The {setting.label.lower()} is not valid.")
+            if setting.validate:
+                value = setting.validate(value)
             cleaned[setting.key] = value
         return cleaned

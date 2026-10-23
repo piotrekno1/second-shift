@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import type { Run } from '../src/types'
 
-import { accessLabel, accessNeedsAction, connectionUsageLine, countLabel, describeCron, formatDate, formatSeconds, greeting, healthHeadline, jobOutcomes, spendTrend, formatRelative, formatScheduled, formatTime, utcTitle, zoneName, formatBytes, plainSummary, providerLabel, runStats, statusLabel, formatDuration, formatModelUsage, formatSchedule, titleFromSlug } from '../src/utils/format'
+import { accessLabel, accessNeedsAction, connectionUsageLine, countLabel, describeCron, formatDate, formatSeconds, greeting, healthHeadline, jobOutcomes, spendTrend, formatRelative, formatScheduled, formatTime, utcTitle, zoneName, formatBytes, plainSummary, providerLabel, runStats, statusLabel, formatDuration, formatModelUsage, finishedBinding, formatSchedule, titleFromSlug, typingBinding } from '../src/utils/format'
 
 test('formatSchedule keeps cron and timezone visible', () => {
   assert.equal(formatSchedule('0 9 * * 1', 'Europe/Warsaw'), 'Mondays at 09:00 · Europe/Warsaw')
@@ -184,4 +184,12 @@ test('connectionUsageLine says what uses a connection and what it cost', () => {
   )
   assert.equal(connectionUsageLine(usage, 'notification', now), 'No job uses it yet')
   assert.equal(connectionUsageLine({ ...usage, jobs: 1 }, 'notification', now), 'Used by 1 job')
+})
+
+test('binding names are shaped as people type', () => {
+  assert.equal(typingBinding('Grafana'), 'grafana')
+  assert.equal(typingBinding('Engineering Alerts'), 'engineering-alerts')
+  assert.equal(typingBinding('ops_team--2!'), 'ops-team-2')
+  assert.equal(typingBinding('alerts-'), 'alerts-')
+  assert.equal(finishedBinding('alerts-'), 'alerts')
 })

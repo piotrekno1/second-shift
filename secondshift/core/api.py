@@ -1,9 +1,10 @@
 from datetime import datetime
 from typing import Literal
+from urllib.parse import urlencode
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.http import HttpRequest
+from django.http import HttpRequest, HttpResponseRedirect
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from ninja import NinjaAPI, Schema, Status
@@ -28,10 +29,16 @@ from secondshift.integrations.mcp.base import MCPError
 from secondshift.integrations.mcp.client import (
     create_mcp_connection,
     discover_tools,
+    select_tools,
     update_mcp_connection,
-    validate_mcp_connection,
 )
-from secondshift.integrations.mcp.providers import MCP_PROVIDERS
+from secondshift.integrations.mcp.oauth import inspect_server
+from secondshift.integrations.mcp.providers import MCP_PROVIDERS, mcp_provider
+from secondshift.integrations.mcp.signin import (
+    SignInError,
+    complete_authorization,
+    start_authorization,
+)
 from secondshift.integrations.model_providers import (
     ModelProviderError,
     check_model_connection,
@@ -193,6 +200,12 @@ class ConnectionUsageSchema(Schema):
     last_used_at: datetime | None
 
 
+class OfferedToolSchema(Schema):
+    name: str
+    description: str
+    read_only: bool
+
+
 class ConnectionSchema(Schema):
     id: int
     provider: str
@@ -211,6 +224,11 @@ class ConnectionSchema(Schema):
     usage: ConnectionUsageSchema | None = None
     # MCP only: the organization or project an owner chose. Never secret.
     settings: dict[str, str] = Field(default_factory=dict)
+    # MCP only: "oauth" for a browser sign-in, "token" for a pasted token.
+    auth: str = ""
+    scopes: list[str] = Field(default_factory=list)
+    # Custom MCP servers: every tool the server offers, for the owner to choose.
+    offered_tools: list[OfferedToolSchema] = Field(default_factory=list)
 
 
 class WebhookConnectionCreateSchema(Schema):
@@ -240,6 +258,33 @@ class MCPConnectionUpdateSchema(Schema):
     display_name: str | None = Field(default=None, max_length=200)
     token: str | None = Field(default=None, max_length=2000)
     settings: dict[str, str] | None = Field(default=None, max_length=10)
+    tools: list[str] | None = Field(default=None, max_length=200)
+
+
+class MCPInspectSchema(Schema):
+    provider: str = Field(min_length=1, max_length=40)
+    settings: dict[str, str] = Field(default_factory=dict, max_length=10)
+
+
+class MCPInspectResultSchema(Schema):
+    oauth: bool
+    scopes: list[str]
+
+
+class MCPSignInSchema(Schema):
+    provider: str = Field(min_length=1, max_length=40)
+    binding_key: str = Field(
+        default="", max_length=120, pattern=r"^([a-z0-9]+(?:-[a-z0-9]+)*)?$"
+    )
+    display_name: str = Field(default="", max_length=200)
+    settings: dict[str, str] = Field(default_factory=dict, max_length=10)
+    scopes: list[str] = Field(default_factory=list, max_length=20)
+    # Reconnect this connection instead of creating one.
+    connection_id: int | None = None
+
+
+class MCPSignInStartSchema(Schema):
+    authorize_url: str
 
 
 class MCPSettingSchema(Schema):
@@ -262,6 +307,8 @@ class MCPProviderSchema(Schema):
     setup_help: str
     settings: list[MCPSettingSchema]
     tools: list[str]
+    auth_methods: list[str]
+    owner_selects_tools: bool
 
 
 class ModelConnectionCreateSchema(Schema):
@@ -636,6 +683,28 @@ def serialize_connection(
             if connection.kind == Connection.Kind.MCP
             else {}
         ),
+        auth=(
+            (
+                "oauth"
+                if connection.auth_strategy == Connection.AuthStrategy.OAUTH
+                else "token"
+            )
+            if connection.kind == Connection.Kind.MCP
+            else ""
+        ),
+        scopes=list(connection.scopes)
+        if connection.kind == Connection.Kind.MCP
+        else [],
+        offered_tools=[
+            OfferedToolSchema(
+                name=name,
+                description=str(tool.get("description", ""))[:500],
+                read_only=bool(tool.get("readOnly")),
+            )
+            for name, tool in sorted(
+                (connection.metadata.get("offered_tools") or {}).items()
+            )
+        ],
         usage=None
         if usage is None
         else ConnectionUsageSchema(
@@ -678,8 +747,20 @@ def list_mcp_providers(request: HttpRequest) -> list[MCPProviderSchema]:
             token_hint=provider.token_hint,
             setup_url=provider.setup_url,
             setup_help=provider.setup_help,
-            settings=[MCPSettingSchema(**vars(item)) for item in provider.settings],
+            settings=[
+                MCPSettingSchema(
+                    key=item.key,
+                    label=item.label,
+                    pattern=item.pattern,
+                    required=item.required,
+                    help=item.help,
+                    placeholder=item.placeholder,
+                )
+                for item in provider.settings
+            ],
             tools=list(provider.tools),
+            auth_methods=list(provider.auth_methods),
+            owner_selects_tools=provider.owner_selects_tools,
         )
         for provider in MCP_PROVIDERS.values()
     ]
@@ -719,7 +800,11 @@ def update_mcp(
     connection = owned_connection(request, connection_id, "edit connections")
     try:
         connection = update_mcp_connection(
-            connection, payload.display_name, payload.token, payload.settings
+            connection,
+            payload.display_name,
+            payload.token,
+            payload.settings,
+            payload.tools,
         )
     except ConnectionConflict as error:
         raise HttpError(409, str(error)) from error
@@ -728,6 +813,84 @@ def update_mcp(
     except ValidationError as error:
         raise HttpError(422, "The MCP connection configuration is invalid.") from error
     return serialize_connection(connection)
+
+
+@api.post("/connections/mcp/inspect", response=MCPInspectResultSchema, auth=django_auth)
+def inspect_mcp(
+    request: HttpRequest, payload: MCPInspectSchema
+) -> MCPInspectResultSchema:
+    """Whether a server offers sign-in, and which scopes it lists."""
+    owner_workspace(request, "add MCP connections")
+    try:
+        server = inspect_server(payload.provider, payload.settings)
+    except MCPError as error:
+        raise HttpError(422, str(error)) from error
+    if server is None:
+        return MCPInspectResultSchema(oauth=False, scopes=[])
+    return MCPInspectResultSchema(oauth=True, scopes=list(server.scopes_supported))
+
+
+@api.post(
+    "/connections/mcp/oauth/start", response=MCPSignInStartSchema, auth=django_auth
+)
+def start_mcp_sign_in(
+    request: HttpRequest, payload: MCPSignInSchema
+) -> MCPSignInStartSchema:
+    workspace = owner_workspace(request, "add MCP connections")
+    connection = (
+        get_object_or_404(
+            Connection,
+            pk=payload.connection_id,
+            workspace=workspace,
+            kind=Connection.Kind.MCP,
+        )
+        if payload.connection_id
+        else None
+    )
+    if connection is None and not payload.binding_key:
+        raise HttpError(422, "Enter a capability name.")
+    try:
+        url = start_authorization(
+            workspace,
+            request.user,
+            connection.provider if connection else payload.provider,
+            payload.binding_key,
+            payload.display_name,
+            dict(connection.metadata.get("settings", {}))
+            if connection
+            else payload.settings,
+            list(connection.scopes) if connection else payload.scopes,
+            connection,
+        )
+    except ConnectionConflict as error:
+        raise HttpError(409, str(error)) from error
+    except MCPError as error:
+        raise HttpError(422, str(error)) from error
+    return MCPSignInStartSchema(authorize_url=url)
+
+
+@api.get("/connections/oauth/callback", auth=None, include_in_schema=False)
+def finish_mcp_sign_in(request: HttpRequest) -> HttpResponseRedirect:
+    """The browser lands here from the sign-in page. Always redirect back."""
+    back = f"{settings.FRONTEND_URL.rstrip('/')}/connections"
+    if not request.user.is_authenticated:
+        return HttpResponseRedirect(f"{back}?{urlencode({'oauth': 'invalid'})}")
+    try:
+        connection = complete_authorization(
+            request.user,
+            request.GET.get("state", "")[:200],
+            request.GET.get("code", "")[:2000],
+            request.GET.get("error", "")[:200],
+        )
+    # Only fixed codes go in the URL, so a crafted link cannot show any text.
+    except SignInError as error:
+        return HttpResponseRedirect(f"{back}?{urlencode({'oauth': error.code})}")
+    except ConnectionConflict:
+        return HttpResponseRedirect(f"{back}?{urlencode({'oauth': 'taken'})}")
+    except (MCPError, ValidationError):
+        return HttpResponseRedirect(f"{back}?{urlencode({'oauth': 'failed'})}")
+    query = {"oauth": "connected", "capability": connection.binding_key}
+    return HttpResponseRedirect(f"{back}?{urlencode(query)}")
 
 
 @api.post("/connections/webhook", response=ConnectionSchema, auth=django_auth)
@@ -870,12 +1033,17 @@ def test_connection(request: HttpRequest, connection_id: int) -> ConnectionTestS
     connection = owned_connection(request, connection_id, "test connections")
     if connection.kind == Connection.Kind.MCP:
         try:
-            provider = validate_mcp_connection(connection)
+            provider = mcp_provider(connection.provider)
             tools = discover_tools(connection)
+            kept = [name for name in connection.available_tools if name in tools]
+            select_tools(
+                connection,
+                provider,
+                tools,
+                kept if provider.owner_selects_tools else None,
+            )
         except MCPError as error:
             return ConnectionTestSchema(ok=False, status_code=None, message=str(error))
-        connection.available_tools = sorted(tools)
-        connection.metadata = {**connection.metadata, "tools": tools}
         connection.save(update_fields=["available_tools", "metadata", "updated_at"])
         return ConnectionTestSchema(
             ok=True,

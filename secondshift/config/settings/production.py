@@ -26,6 +26,9 @@ if DEBUG:
     errors.append("DJANGO_DEBUG must be off")
 if not CSRF_TRUSTED_ORIGINS:
     errors.append("CSRF_TRUSTED_ORIGINS must be set")
+# Sign-in callbacks and run links use this address.
+if not FRONTEND_URL.startswith("https://"):
+    errors.append("FRONTEND_URL must be the public HTTPS address")
 if ARTIFACT_STORAGE == "s3" and not ARTIFACT_STORAGES["s3"]["OPTIONS"]["bucket_name"]:
     errors.append("SECONDSHIFT_ARTIFACT_BUCKET must be set for s3 storage")
 if RUNNER_RUNTIME != SandboxRuntime.GVISOR:

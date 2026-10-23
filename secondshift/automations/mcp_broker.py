@@ -13,6 +13,7 @@ from secondshift.automations.models import JobGrant, Run, RunEvent
 from secondshift.automations.tool_policy import resolve_tool
 from secondshift.integrations.mcp.base import MCPError, MCPProvider
 from secondshift.integrations.mcp.client import mcp_request, validate_mcp_connection
+from secondshift.integrations.mcp.oauth import fresh_connection
 from secondshift.integrations.mcp.providers import connection_settings
 from secondshift.integrations.models import Connection
 
@@ -57,6 +58,8 @@ def broker_connection(run: Run, name: str) -> MCPAuthorization:
     ):
         raise MCPError("Access to this MCP tool is no longer approved.")
     connection = grant.connection
+    # Signed-in connections renew their token here, before the checks below.
+    fresh_connection(connection)
     provider = validate_mcp_connection(connection)
     frozen = capability.get("mcp", {})
     if (

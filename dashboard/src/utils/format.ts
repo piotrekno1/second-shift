@@ -366,3 +366,19 @@ export function connectionUsageLine(usage: ConnectionUsage | null | undefined, k
   }
   return usage.jobs ? `Used by ${countLabel(usage.jobs, 'job')}` : 'No job uses it yet'
 }
+
+/** Shapes typed text into a binding name: lowercase, numbers, single dashes.
+ *  A trailing dash is kept so people can keep typing. */
+export function typingBinding(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[\s_]+/g, '-')
+    .replace(/[^a-z0-9-]/g, '')
+    .replace(/-{2,}/g, '-')
+    .replace(/^-/, '')
+}
+
+/** The finished binding name, without a trailing dash. */
+export function finishedBinding(value: string): string {
+  return typingBinding(value).replace(/-+$/, '')
+}

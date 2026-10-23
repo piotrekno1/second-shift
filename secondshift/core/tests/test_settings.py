@@ -16,6 +16,7 @@ PRODUCTION_ENV = {
     "FIELD_ENCRYPTION_KEY": "x2Ce3x8qg2ZDiZ0T3W2WXZkCw5rN0p8D2kMlcV1Wq3E=",
     "DATABASE_URL": "postgres://user:pass@db:5432/app",
     "CSRF_TRUSTED_ORIGINS": "https://app.example",
+    "FRONTEND_URL": "https://app.example",
     "SECONDSHIFT_RUNNER_RUNTIME": "runsc",
     "SECONDSHIFT_RUNNER_SERVICE_URL": "http://runner:8002",
     "SECONDSHIFT_RUNNER_SERVICE_TOKEN": "runner-service-token",
@@ -62,12 +63,25 @@ def test_production_reports_every_missing_value_at_once(tmp_path: Path) -> None:
         "FIELD_ENCRYPTION_KEY",
         "DATABASE_URL",
         "CSRF_TRUSTED_ORIGINS",
+        "FRONTEND_URL",
         "SECONDSHIFT_RUNNER_RUNTIME",
         "SECONDSHIFT_RUNNER_SERVICE_URL",
         "SECONDSHIFT_RUNNER_SERVICE_TOKEN",
         "SECONDSHIFT_MODEL_GATEWAY_URL",
     ):
         assert f"{name} must be" in result.stderr
+
+
+def test_production_requires_an_https_frontend_url(tmp_path: Path) -> None:
+    result = load_settings(
+        "secondshift.config.settings.production",
+        tmp_path,
+        DJANGO_ENV="production",
+        **{**PRODUCTION_ENV, "FRONTEND_URL": "http://app.example"},
+    )
+
+    assert result.returncode != 0
+    assert "FRONTEND_URL must be the public HTTPS address" in result.stderr
 
 
 def test_production_loads_with_required_values_and_ignores_dev_flags(

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, reactive, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import Button from 'primevue/button'
 import ConnectionForm from '../components/ConnectionForm.vue'
 import PageHeader from '../components/PageHeader.vue'
@@ -16,12 +16,45 @@ type OpenForm = { mode: 'add' } | { mode: 'need', binding: string } | { mode: 'e
 
 const app = useAppStore()
 const route = useRoute()
+const router = useRouter()
 const requestedBinding = typeof route.query.binding === 'string' ? route.query.binding : null
 const openForm = ref<OpenForm | null>(requestedBinding ? { mode: 'need', binding: requestedBinding } : null)
 const busy = ref<string | null>(null)
 const confirmDelete = ref<number | null>(null)
 const confirmRevoke = ref<number | null>(null)
 const notices = reactive<Record<string, Notice>>({})
+// Rows list a few tools. Servers like Grafana offer dozens.
+const TOOLS_SHOWN = 6
+const expandedTools = ref<number[]>([])
+
+function shownTools(connection: Connection): string[] {
+  return expandedTools.value.includes(connection.id) ? connection.available_tools : connection.available_tools.slice(0, TOOLS_SHOWN)
+}
+
+function toggleTools(id: number): void {
+  expandedTools.value = expandedTools.value.includes(id) ? expandedTools.value.filter((item) => item !== id) : [...expandedTools.value, id]
+}
+
+// The sign-in callback sends a fixed code back. Only these texts are ever shown.
+const SIGN_IN_RESULTS: Record<string, string> = {
+  invalid: 'That sign-in is no longer valid. Start again.',
+  expired: 'The sign-in took too long. Start again.',
+  refused: 'Sign-in was cancelled.',
+  scope: 'The server granted more access than you asked for, so nothing was saved. On its consent page, leave only that access selected (for Grafana: Read access, with Query and Write cleared).',
+  taken: 'That capability name already has a connection.',
+  failed: 'Sign-in did not finish. Check the server and try again.',
+}
+const signInResult = typeof route.query.oauth === 'string' ? route.query.oauth : ''
+const signInCapability = typeof route.query.capability === 'string' ? route.query.capability : ''
+const pageNotice = ref<Notice | null>(
+  signInResult === 'connected'
+    ? { ok: true, text: `Connected ${signInCapability || 'the server'}. Use Edit to choose which tools jobs may use.` }
+    : signInResult ? { ok: false, text: SIGN_IN_RESULTS[signInResult] ?? SIGN_IN_RESULTS.failed } : null,
+)
+if (signInResult) {
+  const rest = Object.fromEntries(Object.entries(route.query).filter(([key]) => key !== 'oauth' && key !== 'capability'))
+  void router.replace({ query: rest })
+}
 
 const returnReview = typeof route.query.review === 'string' ? route.query.review : ''
 const returnJob = typeof route.query.job === 'string' ? route.query.job : ''
@@ -184,6 +217,10 @@ onMounted(async () => {
       <Button label="Add connection" icon="pi pi-plus" @click="toggle({ mode: 'add' })" />
     </PageHeader>
 
+    <p v-if="pageNotice" class="page-notice" :class="{ ok: pageNotice.ok }" role="status">
+      <i class="mdi" :class="pageNotice.ok ? 'mdi-check-circle-outline' : 'mdi-alert-circle-outline'" /> {{ pageNotice.text }}
+    </p>
+
     <section v-if="isOpen({ mode: 'add' })" class="panel add-connection-panel">
       <ConnectionForm @done="formDone" @cancel="openForm = null" />
     </section>
@@ -205,14 +242,19 @@ onMounted(async () => {
               <small v-if="connectionUsageLine(connection.usage, connection.kind)" class="connection-usage" :title="connection.usage?.last_used_at ? `Last used ${formatDate(connection.usage.last_used_at)}` : undefined">
                 <i class="mdi mdi-chart-timeline-variant" /> {{ connectionUsageLine(connection.usage, connection.kind) }}
               </small>
-              <div v-if="connection.available_tools.length" class="tool-list"><span v-for="tool in connection.available_tools" :key="tool">{{ tool }}</span></div>
+              <div v-if="connection.available_tools.length" class="tool-list">
+                <span v-for="tool in shownTools(connection)" :key="tool">{{ tool }}</span>
+                <button v-if="connection.available_tools.length > TOOLS_SHOWN" type="button" class="link-button tool-more" @click="toggleTools(connection.id)">
+                  {{ expandedTools.includes(connection.id) ? 'Show fewer' : `+${connection.available_tools.length - TOOLS_SHOWN} more` }}
+                </button>
+              </div>
             </div>
             <StatusPill v-if="connection.status === 'connected' && connection.last_check && !connection.last_check.ok" status="error" label="Check failed" :title="connection.last_check.message" />
             <StatusPill v-else :status="connection.status" />
             <div v-if="connection.kind !== 'identity'" class="need-actions">
               <template v-if="connection.kind === 'mcp'">
                 <Button v-if="connection.status === 'connected'" label="Check tools" icon="pi pi-refresh" severity="secondary" text size="small" :loading="busy === `test-${connection.id}`" @click="sendTest(connection, `connection-${connection.id}`)" />
-                <Button :label="connection.status === 'revoked' ? 'Reconnect' : 'Edit'" icon="pi pi-pencil" severity="secondary" text size="small" @click="toggle({ mode: 'edit', id: connection.id })" />
+                <Button :label="connection.status === 'connected' ? 'Edit' : 'Reconnect'" icon="pi pi-pencil" severity="secondary" text size="small" @click="toggle({ mode: 'edit', id: connection.id })" />
               </template>
               <template v-else-if="connection.provider === 'webhook' || connection.kind === 'model'">
                 <Button v-if="connection.status === 'connected'" :label="connection.kind === 'model' ? 'Check' : 'Send test'" :title="connection.kind === 'model' ? 'Lists models and sends one tiny request to the default model (a fraction of a cent)' : undefined" icon="pi pi-send" severity="secondary" text size="small" :loading="busy === `test-${connection.id}`" @click="sendTest(connection, `connection-${connection.id}`)" />

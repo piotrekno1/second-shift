@@ -7,7 +7,7 @@ import ModelProviderForm from './ModelProviderForm.vue'
 import { approveNeed, createWebhook, testConnection, updateWebhook } from '../services/connections'
 import { useAppStore } from '../stores/app'
 import type { Connection, Notice } from '../types'
-import { countLabel, titleFromSlug } from '../utils/format'
+import { countLabel, finishedBinding, titleFromSlug, typingBinding } from '../utils/format'
 
 type ConnectionType = 'webhook' | 'model' | 'mcp' | 'api'
 
@@ -60,6 +60,11 @@ function kindFor(value: ConnectionType): string {
   return value === 'webhook' ? 'notification' : value
 }
 
+// Binding names are lowercase slugs, like the repository configuration.
+watch(bindingKey, (value) => {
+  const shaped = typingBinding(value)
+  if (shaped !== value) bindingKey.value = shaped
+})
 // Follow the binding with a readable default name until the user types their own.
 watch(bindingKey, (next, previous) => {
   if (!editing.value && (displayName.value === '' || displayName.value === titleFromSlug(previous))) {
@@ -69,6 +74,7 @@ watch(bindingKey, (next, previous) => {
 if (need.value && need.value.kind !== 'notification') type.value = need.value.kind
 
 async function submit(): Promise<void> {
+  bindingKey.value = finishedBinding(bindingKey.value)
   if (!canSubmit.value) return
   saving.value = true
   error.value = null
@@ -125,9 +131,9 @@ async function submit(): Promise<void> {
 
     <label>
       <span>Capability name</span>
-      <InputText v-model.trim="bindingKey" :disabled="bindingFixed" list="binding-suggestions" placeholder="engineering-alerts" autocomplete="off" spellcheck="false" />
+      <InputText v-model="bindingKey" :disabled="bindingFixed" list="binding-suggestions" placeholder="engineering-alerts" autocomplete="off" spellcheck="false" @blur="bindingKey = finishedBinding(bindingKey)" />
       <datalist id="binding-suggestions"><option v-for="item in suggestions" :key="item" :value="item" /></datalist>
-      <small v-if="bindingKey && !bindingValid" class="field-error">Lowercase letters, numbers and single dashes.</small>
+      <small v-if="bindingKey && !bindingValid && !bindingKey.endsWith('-')" class="field-error">Lowercase letters, numbers and single dashes.</small>
       <small v-else-if="taken" class="field-error">This binding already has a connection.</small>
       <small v-else-if="kindMismatch && need" class="field-error">Jobs request {{ need.binding }} as {{ need.kind === 'notification' ? 'a notification' : need.kind.toUpperCase() }}.</small>
       <small v-else-if="need && !editing">Used by {{ need.jobs.map((job) => job.job_name).join(', ') }}.</small>

@@ -1,13 +1,14 @@
 from dataclasses import dataclass
 
 from secondshift.integrations.mcp.base import MCPError, MCPProvider
+from secondshift.integrations.mcp.custom import CUSTOM_MCP
 from secondshift.integrations.mcp.github import GITHUB_MCP
 from secondshift.integrations.mcp.sentry import SENTRY_MCP
 from secondshift.integrations.models import Connection
 from secondshift.repositories.models import Repository
 
 MCP_PROVIDERS: dict[str, MCPProvider] = {
-    provider.key: provider for provider in (GITHUB_MCP, SENTRY_MCP)
+    provider.key: provider for provider in (GITHUB_MCP, SENTRY_MCP, CUSTOM_MCP)
 }
 
 
@@ -44,5 +45,7 @@ def mcp_access(connection: Connection, repository: Repository) -> MCPAccess:
     if not scope:
         return MCPAccess(False, None, provider.missing_scope_message)
     return MCPAccess(
-        True, scope, f"Allow these tools to read {provider.describe_scope(scope)}."
+        True,
+        scope,
+        f"Allow these tools to {provider.access_verb} {provider.describe_scope(scope)}.",
     )

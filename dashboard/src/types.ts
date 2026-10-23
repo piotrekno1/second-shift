@@ -241,6 +241,12 @@ export interface Connection {
   usage?: ConnectionUsage | null
   /** MCP only: the organization or project the owner chose. */
   settings?: Record<string, string>
+  /** MCP only: how it signs in. */
+  auth?: 'oauth' | 'token' | ''
+  /** MCP only: OAuth scopes the server granted. */
+  scopes?: string[]
+  /** Custom MCP servers: every tool the server offers. */
+  offered_tools?: OfferedTool[]
 }
 
 export interface ConnectionUsage {
@@ -268,6 +274,21 @@ export interface MCPProviderInfo {
   /** Values entered when connecting, such as a Sentry organization. */
   settings: MCPSettingInfo[]
   tools: string[]
+  /** "token" for a pasted token, "oauth" for a browser sign-in. */
+  auth_methods: string[]
+  /** Custom servers: the owner chooses tools after connecting. */
+  owner_selects_tools: boolean
+}
+
+export interface MCPServerInfo {
+  oauth: boolean
+  scopes: string[]
+}
+
+export interface OfferedTool {
+  name: string
+  description: string
+  read_only: boolean
 }
 
 export interface MCPSettingInfo {

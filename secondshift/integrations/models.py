@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 from encrypted_model_fields.fields import EncryptedTextField
@@ -163,3 +164,40 @@ class Secret(models.Model):
 
     def __str__(self) -> str:
         return self.name
+
+
+class OAuthAuthorization(models.Model):
+    """One browser sign-in in progress. Single use, and short-lived."""
+
+    workspace = models.ForeignKey(
+        Workspace,
+        on_delete=models.CASCADE,
+        related_name="oauth_authorizations",
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="oauth_authorizations",
+    )
+    # Set when reconnecting an existing connection.
+    connection = models.ForeignKey(
+        Connection,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="oauth_authorizations",
+    )
+    state = models.CharField(max_length=64, unique=True)
+    code_verifier = EncryptedTextField()
+    provider = models.CharField(max_length=24, choices=Connection.Provider.choices)
+    binding_key = models.SlugField(max_length=120, blank=True)
+    display_name = models.CharField(max_length=200, blank=True)
+    connection_settings = models.JSONField(default=dict, blank=True)
+    scopes = models.JSONField(default=list, blank=True)
+    # Issuer, token endpoint, client ID, and resource. None of these are secret.
+    oauth = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    used_at = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self) -> str:
+        return f"OAuth sign-in for {self.binding_key or self.provider}"

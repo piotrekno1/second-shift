@@ -1,5 +1,5 @@
 import { apiDelete, apiGet, apiPost } from './api'
-import type { CapabilityNeed, Connection, ConnectionTest, Job, MCPProviderInfo, ModelProvider } from '../types'
+import type { CapabilityNeed, Connection, ConnectionTest, Job, MCPProviderInfo, MCPServerInfo, ModelProvider } from '../types'
 
 export interface WebhookInput {
   binding_key: string
@@ -56,8 +56,29 @@ export async function approveNeed(need: CapabilityNeed, connectionId: number): P
   }
 }
 
-export function updateMCPConnection(connectionId: number, input: { display_name?: string, token?: string, settings?: Record<string, string> }): Promise<Connection> {
+export function updateMCPConnection(connectionId: number, input: { display_name?: string, token?: string, settings?: Record<string, string>, tools?: string[] }): Promise<Connection> {
   return apiPost<Connection>(`/connections/${connectionId}/mcp`, input)
+}
+
+/** Whether a server offers sign-in, and which scopes it lists. */
+export function inspectMCPServer(provider: string, settings: Record<string, string>): Promise<MCPServerInfo> {
+  return apiPost<MCPServerInfo>('/connections/mcp/inspect', { provider, settings })
+}
+
+export interface MCPSignInInput {
+  provider: string
+  binding_key?: string
+  display_name?: string
+  settings?: Record<string, string>
+  scopes?: string[]
+  /** Sign in again for this connection instead of creating one. */
+  connection_id?: number
+}
+
+/** Returns the address to send the browser to. The server redirects back to Connections. */
+export async function startMCPSignIn(input: MCPSignInInput): Promise<string> {
+  const result = await apiPost<{ authorize_url: string }>('/connections/mcp/oauth/start', input)
+  return result.authorize_url
 }
 
 export function fetchMCPProviders(): Promise<MCPProviderInfo[]> {
