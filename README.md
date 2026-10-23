@@ -5,91 +5,67 @@
 
 **GitOps for recurring agent work.**
 
-SecondShift runs versioned agent skills on a schedule. Commit a skill beside
-your code, connect a model, approve the services it may use, and get an audited
-result tied to an exact repository revision.
+SecondShift turns committed repository skills into scheduled reviews and reports.
 
-A root-level `.secondshift.yaml` says **what** to run and **when**. The server
-controls **how** it runs, including credentials, models, sandboxes and network
-access.
+[![Watch the 60-second SecondShift demo](docs/screenshots/demo-preview.jpg)](https://github.com/piotrekno1/second-shift/releases/download/v0.1.0a1/secondshift-final-demo-60s.mp4)
 
-```yaml
-version: 1
-jobs:
-  infrastructure-review:
-    name: Infrastructure review
-    skill: .agents/skills/infrastructure-review/SKILL.md
-    schedule: "0 9 * * 1"
-    timezone: Europe/Warsaw
-    requires:
-      mcps:
-        - binding: observability
-          tools:
-            - search_dashboards
-            - query_metrics
-          required: true
-    notify:
-      - binding: engineering-alerts
-```
+[Watch the 60-second demo](https://github.com/piotrekno1/second-shift/releases/download/v0.1.0a1/secondshift-final-demo-60s.mp4):
+connect a model, add a webhook, import a repository, and receive a skill's report.
 
-Here, `observability` is a logical name. The workspace maps it to a real
-connection and approves the requested tools. Expanding the request requires a
-new approval.
-
-## Install
+## Try it out now
 
 Install [uv](https://docs.astral.sh/uv/getting-started/installation/) and start Docker,
 then run:
 
 ```bash
+# Install SecondShift
 uv tool install --python 3.13 \
   https://github.com/piotrekno1/second-shift/releases/download/v0.1.0a1/secondshift-0.1.0a1-py3-none-any.whl
+
+# Start SecondShift
 secondshift up
 ```
 
-Your browser opens with a one-time sign-in link. uv downloads Python 3.13 if
-needed. No Node.js or repository checkout is required. Press Ctrl+C to stop.
+Once started, the console shows:
+
+```text
+SecondShift is running at http://127.0.0.1:8000
+Sign in with this link. It works once, within 15 minutes:
+  http://127.0.0.1:8000/-/sign-in/<one-time-token>/
+Run `secondshift login` for a new link. Press Ctrl+C to stop.
+```
+
+Your browser opens automatically. The token above is a placeholder.
 
 SecondShift is in alpha, distributed through
 [GitHub Releases](https://github.com/piotrekno1/second-shift/releases) until it is
 available on PyPI.
 
-## Product walkthrough
+## What you can do
 
-### 1. Sign in and hand over the shift
+- **See what is on duty.** The control room shows upcoming shifts, recent runs,
+  failures, and model spend.
+- **Manage schedules from Git.** Discover jobs from `.secondshift.yaml`, review
+  their skills and schedules, and enable or run them manually.
+- **Connect models and report destinations.** Add a model provider and webhook,
+  then approve each job's notification access. Connections remain separately
+  revocable.
+- **Follow every run.** Inspect its Git revision, execution timeline, report,
+  token usage, and model cost.
 
-GitHub provides identity, while repository installations and service
-connections remain separately scoped and revocable.
+## Put recurring reviews on duty
 
-![SecondShift sign-in screen](docs/screenshots/01-sign-in.png)
+- **Release recap:** summarize merged features, fixes, and rollout questions.
+- **CI failure review:** group test failures and suggest fixes from logs.
+- **Repository health:** find defects, test gaps, and outdated documentation.
+- **Contributor recap:** recognize merged work and review contributions.
+- **Alert coverage review:** flag removed alerts, paused rules, and threshold changes.
 
-### 2. See what is on duty
+Skills review the inputs you provide. Service data currently needs to be
+exported into the repository. MCP and API tool execution is not available yet.
 
-The control room summarizes enabled repositories and schedules, today's runs,
-failures that need attention, recent activity, and the next scheduled shift.
-
-![SecondShift control room](docs/screenshots/02-overview.png)
-
-### 3. Review Git-backed schedules
-
-Jobs are discovered from `.secondshift.yaml`. Owners can review their skill,
-schedule, timezone, next execution, and enabled state before running them.
-
-![SecondShift jobs and schedules](docs/screenshots/03-jobs.png)
-
-### 4. Connect services and approve capabilities
-
-GitHub, ChatGPT, and Slack are authorized independently. Logical bindings map
-repository intent to workspace-owned MCPs, APIs, and notification targets.
-
-![SecondShift connections and encrypted secrets](docs/screenshots/04-connections.png)
-
-### 5. Follow the durable audit trail
-
-Every scheduled or manual execution is tied to a repository commit and records
-its state and human-readable outcome.
-
-![SecondShift run audit trail](docs/screenshots/05-runs.png)
+See [Repository configuration](docs/repository-configuration.md) to add your
+first skill, schedule, and webhook notification.
 
 ## How it works
 
@@ -108,6 +84,7 @@ discuss the approach.
 
 ## Documentation
 
+- [Repository configuration](docs/repository-configuration.md): skills, YAML syntax, schedules, and notifications.
 - [Architecture](docs/architecture.md): execution design and capability boundaries.
 - [Self-hosting](docs/self-hosting.md): runner backends, sandbox images, and artifact storage.
 - [Contributing](CONTRIBUTING.md): source setup, development, verification, and releases.

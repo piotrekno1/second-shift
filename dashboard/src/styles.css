@@ -387,3 +387,62 @@ a.runtime-note { color: inherit; }
 .runtime-note.production .status-dot { background: var(--mint); box-shadow: 0 0 0 4px rgba(113,219,182,.12); }
 .need-primary .connection-usage { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); }
 .need-primary .connection-usage i { color: var(--subtle); }
+/* Scattered example shifts on the sign-in page */
+.login-atmosphere > .shift-preview {
+  width: min(330px, 70%);
+  padding: 22px 24px;
+  transform: rotate(var(--card-angle, -2deg));
+}
+.login-atmosphere > .shift-preview > strong {
+  margin: 10px 0 8px;
+  font-size: 20px;
+}
+.shift-preview > p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.login-atmosphere > .shift-release { top: 7%; left: 10%; --card-angle: -5deg; }
+.login-atmosphere > .shift-ci { top: 25%; left: 32%; --card-angle: 4deg; }
+.login-atmosphere > .shift-health { top: 43%; left: 8%; --card-angle: -3deg; z-index: 1; }
+.login-atmosphere > .shift-contributors { top: 61%; left: 30%; --card-angle: 5deg; }
+.login-atmosphere > .shift-alerts { top: 79%; left: 12%; --card-angle: -4deg; }
+@media (min-width: 901px) and (max-height: 760px) {
+  .login-atmosphere > .shift-preview { padding: 16px 20px; }
+  .login-atmosphere > .shift-preview > strong { font-size: 18px; margin: 8px 0 6px; }
+}
+
+/* Keep connection fields aligned when helper text wraps. */
+.need-setup { align-items: start; }
+.need-setup label { min-width: 0; align-content: start; }
+.need-setup .p-inputtext { min-width: 0; }
+.need-row { grid-template-columns: 40px minmax(0, 1fr) 100px 320px; }
+.need-row > .status-pill { justify-self: start; }
+.need-row > .need-actions { flex-wrap: nowrap; }
+.need-primary > span, .need-primary > small { overflow-wrap: anywhere; }
+.need-actions { flex-wrap: wrap; }
+.need-setup-footer > small { min-width: 0; line-height: 1.5; }
+.need-setup-footer > .need-actions { flex-shrink: 0; }
+
+/* Reserve identical status and action columns for every job row. */
+.job-row { grid-template-columns: 38px minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr) 108px 88px; }
+.job-row > div { min-width: 0; }
+.job-actions { justify-content: flex-end; }
+.job-name-link { max-width: 100%; }
+.job-name-link > strong { overflow-wrap: anywhere; }
+.job-primary > span { white-space: nowrap; }
+.capability-chip { max-width: 100%; flex-wrap: wrap; overflow-wrap: anywhere; }
+.capability-chip small { flex-shrink: 0; }
+.capability-summary, .connection-select { min-width: 0; }
+.capability-summary strong { overflow-wrap: anywhere; }
+@media (max-width: 1200px) and (min-width: 801px) {
+  .job-row { grid-template-columns: 38px minmax(0, 1.5fr) minmax(0, 1fr) 108px 88px; }
+  .job-row > div:nth-child(4) { display: none; }
+}
+@media (max-width: 800px) {
+  .job-row { grid-template-columns: 38px minmax(0, 1fr) 88px; }
+  .job-row > div:nth-child(3), .job-row > div:nth-child(4) { display: none; }
+  .job-row > .job-statuses { grid-column: 2; grid-row: 2; }
+  .job-row > .job-actions { grid-column: 3; grid-row: 1 / span 2; }
+  .need-setup { grid-template-columns: 1fr; }
+  .need-setup-footer { align-items: stretch; flex-direction: column; }
+  .need-row { grid-template-columns: 36px minmax(0, 1fr); }
+  .need-row > .status-pill, .need-row > .need-actions { grid-column: 2; justify-self: start; }
+  .need-row > .need-actions { flex-wrap: wrap; }
+}

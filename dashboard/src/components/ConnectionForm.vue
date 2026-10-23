@@ -38,7 +38,7 @@ const typeOptions = computed(() => ([
 const reconnecting = computed(() => props.connection?.status === 'revoked')
 const bindingFixed = computed(() => editing.value || Boolean(props.binding))
 const bindingValid = computed(() => /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(bindingKey.value))
-const taken = computed(() => !editing.value && app.connections.some((item) => item.binding_key === bindingKey.value))
+const taken = computed(() => Boolean(bindingKey.value) && !editing.value && app.connections.some((item) => item.binding_key === bindingKey.value))
 const need = computed(() => app.needs.find((item) => item.binding === bindingKey.value))
 const kindMismatch = computed(() => Boolean(need.value && need.value.kind !== kindFor(type.value)))
 const pendingJobs = computed(() => need.value?.jobs.filter((job) => job.grant_status === 'pending' || job.grant_status === 'unconfigured') ?? [])

@@ -14,15 +14,34 @@
       <a class="admin-link" href="/-/admin/login/">Use local administrator</a>
       <small>GitHub identifies you. Repository installations and service connections remain separately revocable.</small>
     </section>
-    <aside class="login-atmosphere" aria-hidden="true">
+    <aside class="login-atmosphere" aria-label="Example scheduled reviews">
       <div class="orbit orbit-one" />
       <div class="orbit orbit-two" />
-      <div class="shift-preview">
-        <span>Next shift</span>
-        <strong>Weekly infrastructure review</strong>
-        <div><i class="mdi mdi-clock-outline" /> Monday, 09:00 · Europe/Warsaw</div>
-        <div><i class="mdi mdi-shield-key-outline" /> 2 approved secrets</div>
-      </div>
+      <article class="shift-preview shift-release">
+        <span>Monday · 09:00</span>
+        <strong>Weekly release recap</strong>
+        <p>Merged features, fixes, and what comes next.</p>
+      </article>
+      <article class="shift-preview shift-ci">
+        <span>Every morning · 08:00</span>
+        <strong>CI failure review</strong>
+        <p>Recurring failures and suggested fixes.</p>
+      </article>
+      <article class="shift-preview shift-health">
+        <span>Monday · 09:15</span>
+        <strong>Repository health review</strong>
+        <p>Defects, test gaps, and docs that drifted.</p>
+      </article>
+      <article class="shift-preview shift-contributors">
+        <span>Friday · 16:00</span>
+        <strong>Contributor recap</strong>
+        <p>The people behind the work and reviews.</p>
+      </article>
+      <article class="shift-preview shift-alerts">
+        <span>Monday · 09:30</span>
+        <strong>Alert coverage review</strong>
+        <p>Removed alerts, paused rules, and changed thresholds.</p>
+      </article>
     </aside>
   </main>
 </template>

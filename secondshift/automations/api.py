@@ -406,17 +406,14 @@ def review_job_capability(
         if connection and requested_tools - set(connection.available_tools):
             raise HttpError(409, "The connection lacks a requested tool.")
 
-    grant = JobGrant(
-        capability_request=capability,
-        connection=connection,
-        status=payload.decision,
-        allowed_tools=sorted(allowed_tools),
-        reviewed_by=request.user,
-        reviewed_at=timezone.now(),
+    grant = JobGrant.objects.filter(capability_request=capability).first() or JobGrant(
+        capability_request=capability
     )
-    existing = JobGrant.objects.filter(capability_request=capability).first()
-    if existing:
-        grant.pk = existing.pk
+    grant.connection = connection
+    grant.status = payload.decision
+    grant.allowed_tools = sorted(allowed_tools)
+    grant.reviewed_by = request.user
+    grant.reviewed_at = timezone.now()
     grant.full_clean()
     grant.save()
     return serialize_job(job_for_request(request, job_id))

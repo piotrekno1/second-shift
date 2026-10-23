@@ -70,9 +70,11 @@ def test_optional_unconfigured_capability_does_not_require_approval(
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("existing_grant", [False, True])
 def test_owner_can_approve_required_capability_and_enable_job(
     client: Client,
     approval_setup: tuple[AbstractUser, Workspace, Job],
+    existing_grant: bool,
 ) -> None:
     user, workspace, job = approval_setup
     capability = CapabilityRequest.objects.create(
@@ -91,6 +93,12 @@ def test_owner_can_approve_required_capability_and_enable_job(
         status=Connection.Status.CONNECTED,
         available_tools=["query_metrics"],
     )
+    if existing_grant:
+        JobGrant.objects.create(
+            capability_request=capability,
+            connection=connection,
+            allowed_tools=["query_metrics"],
+        )
     client.force_login(user)
 
     blocked = client.post(
