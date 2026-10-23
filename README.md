@@ -1,5 +1,5 @@
 <h1>
-  <img src="dashboard/public/secondshift-mark.svg" alt="" width="48" height="48" align="middle">
+  <img src="dashboard/public/secondshift-mark.svg" alt="" width="40" height="40" align="absmiddle">
   SecondShift
 </h1>
 
