@@ -1,0 +1,159 @@
+# Contributing to SecondShift
+
+## Running from source
+
+For the single-person local mode, install Python 3.13, uv, Node.js 24+, and
+Docker, then run:
+
+```bash
+git clone https://github.com/piotrekno1/second-shift.git
+cd second-shift
+npm --prefix dashboard ci
+npm --prefix dashboard run build
+uv run secondshift up
+```
+
+For the development stack with live frontend updates, follow the setup below.
+
+## Development
+
+Requirements: Python 3.13, `uv`, Node.js 24+, Docker, and process-compose.
+
+```bash
+cp .env.example .env
+uv sync
+cd dashboard && npm install && cd ..
+process-compose up
+```
+
+### Releasing a build
+
+Releases are created by pushing a version tag on a commit that belongs to
+`main`. Use Python version notation: `v0.1.0a1` for an alpha, `v0.1.0b1` for a
+beta, `v0.1.0rc1` for a release candidate, or `v0.1.0` for a stable release.
+
+1. Update `project.version` in `pyproject.toml`, run `uv lock`, and merge both
+   files into `main` with the release changes.
+2. Tag that commit and push the tag, for example:
+
+   ```bash
+   git switch main
+   git pull --ff-only
+   git tag -a v0.1.0a1 -m "SecondShift 0.1.0a1"
+   git push origin v0.1.0a1
+   ```
+
+The Release workflow rejects tags outside `main` or versions that do not match
+`pyproject.toml`. It runs backend and frontend checks, builds the dashboard and
+wheel, verifies bundled assets, and smoke-tests the installed CLI outside the
+checkout. It then publishes the wheel and installation instructions to a
+GitHub release. Alpha, beta and release candidate tags become prereleases.
+No PyPI credentials or publishing are involved; GitHub's built-in token is used.
+Use a new version and tag for each build; do not move published tags.
+
+### Development environment
+
+Open the dashboard at <http://localhost:5173> and Django admin at
+<http://localhost:5173/-/admin/>. The development bootstrap creates
+`admin@secondshift.local` with password `secondshift`; override both through
+`DEV_ADMIN_EMAIL` and `DEV_ADMIN_PASSWORD`. A normal startup creates only this
+admin and its empty workspace—never sample repositories, jobs or runs.
+
+To replace the development database with credential-free sample data for UI
+exploration, stop SecondShift processes, leave PostgreSQL running, and run:
+
+```bash
+DJANGO_ENV=dev uv run python manage.py dev_reset_db --yes
+```
+
+This deliberately drops and recreates the configured development database,
+applies migrations, runs the base bootstrap, and then adds disabled demo jobs
+and representative completed runs. Never use it for normal startup.
+
+The development stack also starts the separate runner API on port 8002. Before
+a local-repository run, the worker copies the frozen Git commit into
+`~/.secondshift/runner/repositories`; the runner never receives the
+repository's original host path.
+
+### Data folder
+
+Without explicit settings, SecondShift keeps its state in `~/.secondshift`
+(set `SECONDSHIFT_DATA_DIR` to move it):
+
+| Path | Contents |
+|---|---|
+| `.env` | Settings, read after a checkout's `.env`. In development, the first start writes fresh keys here. Back it up: `FIELD_ENCRYPTION_KEY` decrypts stored connection credentials |
+| `runner.env` | The runner's token. The runner reads only this file |
+| `secondshift.sqlite3` | The database, unless `DATABASE_URL` is set |
+| `artifacts/`, `work/` | Run input and output files, and scratch space |
+| `secondshift/runner/` | The runner's database, sandbox workspaces and Git mirrors |
+
+The real environment wins over a checkout's `.env`, which wins over the data
+folder's. Only development generates keys (`secondshift/config/first_run.py`); production
+refuses to start until
+`DJANGO_SECRET_KEY`, `FIELD_ENCRYPTION_KEY` and
+`SECONDSHIFT_RUNNER_SERVICE_TOKEN` are set.
+
+In development, the Repositories page can attach a local Git repository by
+path. SecondShift resolves its Git root, requires a committed root-level
+`.secondshift.yaml` and committed referenced `SKILL.md` files, records the HEAD
+revision, and synchronizes its jobs. The feature is enabled only by dev settings
+and can be hidden with `SECONDSHIFT_LOCAL_REPOSITORIES_ENABLED=false`.
+
+Repository cards use the human-readable directory name and link to a detail
+view with the owner-visible local path, branch, synchronized and current
+revisions, manifest health, discovered jobs, and grant state. Local owners can
+validate, resync, enable or disable, and remove a source. Removal is soft: it
+disables its jobs and hides the source while preserving historical runs.
+
+DBOS stores durable workflow, queue, and schedule state in PostgreSQL. The
+dedicated worker reconciles enabled Django jobs into DBOS schedules and resumes
+interrupted runs from their last completed step. Workflow arguments contain
+only database identifiers; decrypted secrets never enter DBOS state.
+
+## Verification
+
+Run backend checks from the repository root:
+
+```bash
+uv run pytest
+uv run ruff check .
+```
+
+Run frontend checks:
+
+```bash
+npm --prefix dashboard run typecheck
+npm --prefix dashboard run test
+npm --prefix dashboard run build
+```
+
+Use focused tests while making changes, then run the full checks before
+submitting. Generate Django migrations with `makemigrations`; do not hand-edit
+them.
+
+## Installed builds and troubleshooting
+
+If uv reports that its tool directory is missing from your `PATH`, run
+`uv tool update-shell` and restart your terminal.
+
+To upgrade an installed build, download the new release's wheel and run the
+following with its filename:
+
+```bash
+uv tool install --force --python 3.13 ./secondshift-VERSION-py3-none-any.whl
+```
+
+The release notes include the exact filename and installation commands.
+
+Local mode opens <http://127.0.0.1:8000> and signs you in with a one-time link.
+The link is also printed in the terminal, works once, and expires after 15
+minutes. Run `secondshift login` for a new one. Everything is kept in
+`~/.secondshift`. Add `--port` to `secondshift up` to use another port.
+
+To reach it from other machines, add `--host 0.0.0.0`. The first time, it asks
+for an owner email and password because the network can now reach it.
+
+Local mode is for one person on their own machine. It uses plain Docker and
+can read Git repositories from disk. For a shared server, see
+[self-hosting guide](docs/self-hosting.md).
