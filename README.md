@@ -1,4 +1,7 @@
-# SecondShift
+<h1>
+  <img src="dashboard/public/secondshift-mark.svg" alt="" width="48" height="48" align="middle">
+  SecondShift
+</h1>
 
 [![CI](https://github.com/piotrekno1/second-shift/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/piotrekno1/second-shift/actions/workflows/ci.yml?query=branch%3Amain)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
