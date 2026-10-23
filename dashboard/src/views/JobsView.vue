@@ -187,11 +187,15 @@ async function toggleJob(job: Job): Promise<void> {
               <StatusPill v-if="accessNeedsAction(job.grant_status)" :status="job.grant_status" :label="accessLabel(job.grant_status)" />
             </div>
             <div class="job-actions">
-              <Button v-if="job.capabilities.length" icon="pi pi-shield" severity="secondary" text rounded aria-label="Review access" @click="expandedJobId = expandedJobId === job.id ? null : job.id" />
-              <Button icon="pi pi-play" severity="secondary" text rounded aria-label="Run now" :loading="action === `run-${job.id}`" :disabled="!job.enabled" @click="runNow(job.id)" />
+              <button v-if="job.capabilities.length" type="button" class="job-action" :class="{ active: expandedJobId === job.id }" aria-label="Review access" title="Review access" :aria-expanded="expandedJobId === job.id" :aria-controls="`job-access-${job.id}`" @click="expandedJobId = expandedJobId === job.id ? null : job.id">
+                <i class="mdi mdi-shield-check-outline" aria-hidden="true" />
+              </button>
+              <button type="button" class="job-action" :class="{ 'is-loading': action === `run-${job.id}` }" aria-label="Run now" :title="job.enabled ? 'Run now' : 'Enable this job to run it'" :aria-busy="action === `run-${job.id}`" :disabled="!job.enabled || action === `run-${job.id}`" @click="runNow(job.id)">
+                <i class="mdi" :class="action === `run-${job.id}` ? 'mdi-loading' : 'mdi-play-outline'" aria-hidden="true" />
+              </button>
             </div>
           </div>
-          <section v-if="expandedJobId === job.id" class="job-review">
+          <section v-if="expandedJobId === job.id" :id="`job-access-${job.id}`" class="job-review">
             <div class="job-review-heading">
               <div><h3>Access review</h3><p>Repository code requests capabilities. You choose the connection and approve access.</p></div>
               <Button :label="job.enabled ? 'Disable job' : 'Enable job'" :icon="job.enabled ? 'pi pi-pause' : 'pi pi-play'" severity="secondary" outlined :loading="action === `toggle-${job.id}`" @click="toggleJob(job)" />

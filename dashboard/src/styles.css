@@ -430,7 +430,35 @@ a.runtime-note { color: inherit; }
 /* Reserve identical status and action columns for every job row. */
 .job-row { grid-template-columns: 38px minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr) 108px 88px; }
 .job-row > div { min-width: 0; }
-.job-actions { justify-content: flex-end; }
+.job-actions { justify-content: flex-end; gap: 8px; }
+.job-action { display: inline-flex; flex: 0 0 34px; align-items: center; justify-content: center; width: 34px; height: 34px; padding: 0; border: 1px solid var(--border); border-radius: 8px; background: transparent; color: var(--muted); cursor: pointer; transition: color .15s, border-color .15s, background .15s; }
+.job-action > .mdi { display: block; font-size: 19px; line-height: 1; }
+.job-action:hover:not(:disabled), .job-action.active { color: var(--violet-soft); border-color: var(--violet); background: rgba(139,124,255,.08); }
+.job-action:focus-visible { outline: 2px solid var(--violet-soft); outline-offset: 3px; }
+.job-action:disabled { opacity: .4; cursor: not-allowed; }
+.job-action.is-loading > .mdi { animation: job-action-spin 1s linear infinite; }
+@keyframes job-action-spin { to { transform: rotate(360deg); } }
+.job-review { padding: 20px 24px 24px; }
+.job-review-heading { align-items: flex-start; margin-bottom: 16px; }
+.job-review-heading p { margin-bottom: 0; line-height: 1.5; }
+.job-review-heading > .p-button { flex-shrink: 0; }
+.capability-review-row { grid-template-columns: minmax(0, 1fr) minmax(180px, 1fr) auto auto; gap: 16px; padding: 16px 0; }
+.capability-review-row > * { min-width: 0; }
+.capability-summary { gap: 3px; overflow-wrap: anywhere; }
+.capability-summary span, .capability-summary small { margin-top: 0; line-height: 1.5; }
+.connection-required { overflow-wrap: anywhere; }
+.review-actions { align-items: center; justify-content: flex-end; gap: 8px; }
+.review-actions > .p-button { flex-shrink: 0; gap: 8px; white-space: nowrap; }
+@media (min-width: 801px) and (max-width: 1200px) {
+  .capability-review-row { grid-template-columns: minmax(0, 1fr) minmax(180px, 1fr) auto; }
+  .capability-review-row .review-actions { grid-column: 2 / -1; }
+}
+@media (max-width: 800px) {
+  .job-review { padding: 18px; }
+  .capability-review-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .capability-review-row > .capability-summary, .capability-review-row > .connection-select, .capability-review-row > .connection-required { grid-column: 1 / -1; }
+  .capability-review-row > .review-actions { grid-column: 2; }
+}
 .job-name-link { max-width: 100%; }
 .job-name-link > strong { overflow-wrap: anywhere; }
 .job-primary > span { white-space: nowrap; }
