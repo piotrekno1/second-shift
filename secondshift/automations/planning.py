@@ -5,9 +5,10 @@ from django.conf import settings
 from secondshift.automations.agent import AgentLimits, agent_plan
 from secondshift.automations.models import Job, JobGrant
 from secondshift.automations.tool_policy import authorized_tools
+from secondshift.integrations.mcp.base import MCPProvider
+from secondshift.integrations.mcp.providers import MCP_PROVIDERS
 from secondshift.integrations.model_providers import provider_family
 from secondshift.integrations.models import Connection
-from secondshift.repositories.github import github_repository_scope
 
 
 def model_plan(job: Job) -> dict[str, Any] | None:
@@ -31,12 +32,16 @@ def model_plan(job: Job) -> dict[str, Any] | None:
 
 
 def mcp_capability_plan(
-    connection: Connection, repository_scope: str | None, effective_tools: set[str]
+    connection: Connection,
+    provider: MCPProvider,
+    scope: str | None,
+    effective_tools: set[str],
 ) -> dict[str, Any]:
     """Freeze the approved scope and tool definitions without credentials."""
     definitions = connection.metadata.get("tools", {})
     return {
-        "repository": repository_scope,
+        "provider": provider.key,
+        "scope": scope,
         "tools": {name: definitions.get(name) for name in sorted(effective_tools)},
     }
 
@@ -73,14 +78,16 @@ def build_execution_plan(job: Job) -> dict[str, Any]:
         if connection and requested - available:
             reasons.append("tools_unavailable")
 
-        repository_scope = github_repository_scope(job.repository)
-        if (
-            connection
-            and request.kind == Connection.Kind.MCP
-            and connection.provider == Connection.Provider.GITHUB
-            and not repository_scope
-        ):
-            reasons.append("github_repository_unknown")
+        provider = None
+        scope = None
+        if connection and request.kind == Connection.Kind.MCP:
+            provider = MCP_PROVIDERS.get(connection.provider)
+            if provider is None:
+                reasons.append("mcp_provider_unsupported")
+            else:
+                scope = provider.scope(job.repository)
+                if not scope:
+                    reasons.append(provider.missing_scope_reason)
 
         authorized = not reasons
         if request.required and not authorized:
@@ -96,9 +103,9 @@ def build_execution_plan(job: Job) -> dict[str, Any]:
             "authorized": authorized,
             "reasons": reasons,
         }
-        if connection and request.kind == Connection.Kind.MCP and authorized:
+        if connection and provider and authorized:
             capability["mcp"] = mcp_capability_plan(
-                connection, repository_scope, effective
+                connection, provider, scope, effective
             )
         capabilities.append(capability)
 

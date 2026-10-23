@@ -70,7 +70,7 @@ def test_plan_contains_only_effective_approved_tools(db) -> None:
     )
     connection = Connection.objects.create(
         workspace=job.workspace,
-        provider=Connection.Provider.MCP,
+        provider=Connection.Provider.GITHUB,
         kind=Connection.Kind.MCP,
         binding_key="observability",
         display_name="Grafana production",
@@ -134,3 +134,33 @@ def test_plan_fails_closed_when_requested_tool_was_not_discovered(db) -> None:
 
     assert plan["ready"] is False
     assert "tools_unavailable" in plan["capabilities"][0]["reasons"]
+
+
+def test_plan_fails_closed_for_unsupported_mcp_providers(db) -> None:
+    job = create_job(db)
+    request = CapabilityRequest.objects.create(
+        job=job,
+        binding="observability",
+        kind=CapabilityRequest.Kind.MCP,
+        requested_tools=["query_metrics"],
+    )
+    connection = Connection.objects.create(
+        workspace=job.workspace,
+        provider=Connection.Provider.MCP,
+        kind=Connection.Kind.MCP,
+        binding_key="observability",
+        display_name="Custom server",
+        available_tools=["query_metrics"],
+    )
+    JobGrant.objects.create(
+        capability_request=request,
+        connection=connection,
+        status=JobGrant.Status.APPROVED,
+        allowed_tools=["query_metrics"],
+    )
+
+    plan = build_execution_plan(job)
+
+    assert plan["ready"] is False
+    assert plan["capabilities"][0]["reasons"] == ["mcp_provider_unsupported"]
+    assert "mcp" not in plan["capabilities"][0]

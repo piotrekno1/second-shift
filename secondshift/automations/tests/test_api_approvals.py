@@ -21,6 +21,7 @@ def approval_setup(db: object) -> tuple[AbstractUser, Workspace, Job]:
         full_name="local/project",
         source_type=Repository.SourceType.LOCAL,
         local_path="/tmp/project",
+        clone_url="https://github.com/local/project.git",
         enabled=True,
         config_sha="abc123",
     )
@@ -86,7 +87,7 @@ def test_owner_can_approve_required_capability_and_enable_job(
     )
     connection = Connection.objects.create(
         workspace=workspace,
-        provider=Connection.Provider.MCP,
+        provider=Connection.Provider.GITHUB,
         kind=Connection.Kind.MCP,
         binding_key="observability",
         display_name="Local Grafana",
@@ -166,7 +167,7 @@ def test_approval_rejects_connection_that_does_not_match_binding(
     )
     connection = Connection.objects.create(
         workspace=workspace,
-        provider=Connection.Provider.MCP,
+        provider=Connection.Provider.GITHUB,
         kind=Connection.Kind.MCP,
         binding_key="other-service",
         display_name="Other MCP",

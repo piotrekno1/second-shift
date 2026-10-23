@@ -28,7 +28,7 @@ from secondshift.automations.tests.test_execution import tool_context
 from secondshift.automations.tool_policy import ToolPolicyError
 from secondshift.config.constants import GITHUB_MCP_URL
 from secondshift.core.models import Workspace
-from secondshift.integrations.github_mcp import GitHubMCPError, GitHubMCPRequestError
+from secondshift.integrations.mcp.base import MCPError, MCPRequestError
 from secondshift.integrations.models import Connection
 from secondshift.integrations.tests.test_github_mcp import TOOL_SCHEMAS
 from secondshift.integrations.tests.test_github_mcp import mcp_http as imported_mcp_http
@@ -160,7 +160,7 @@ def test_policy_changes_stop_active_run(planned_run, change, mcp_http) -> None:
     else:
         grant.allowed_tools = []
         grant.save()
-    with pytest.raises(GitHubMCPError):
+    with pytest.raises(MCPError):
         call_mcp_tool_step(planned_run.pk, NAME, {"query": "is:merged"}, "call-denied")
     assert not mcp_http
 
@@ -173,9 +173,9 @@ def test_unapproved_names_and_invalid_arguments_never_reach_mcp(
         call_mcp_tool_step(
             planned_run.pk, "mcp.github.update_pull_request", {}, "denied"
         )
-    with pytest.raises(GitHubMCPError, match="schema"):
+    with pytest.raises(MCPError, match="schema"):
         call_mcp_tool_step(planned_run.pk, NAME, {"query": 42}, "invalid")
-    with pytest.raises(GitHubMCPError, match="repository"):
+    with pytest.raises(MCPError, match="repository"):
         call_mcp_tool_step(
             planned_run.pk, NAME, {"query": "repo:other/private"}, "outside"
         )
@@ -329,7 +329,7 @@ def test_one_connection_is_reused_with_independent_job_scopes(
         "repo:example/project is:merged",
         "repo:example/another is:merged",
     ]
-    with pytest.raises(GitHubMCPError, match="repository"):
+    with pytest.raises(MCPError, match="repository"):
         call_mcp_tool_step(
             planned_run.pk, NAME, {"query": "repo:example/another"}, "cross-repo"
         )
@@ -359,7 +359,7 @@ def test_remote_failures_are_reportable_but_policy_denials_still_stop_the_run(
     )
 
     def unavailable(*args, **kwargs) -> None:
-        raise GitHubMCPRequestError("GitHub evidence unavailable.")
+        raise MCPRequestError("GitHub evidence unavailable.")
 
     monkeypatch.setattr(
         "secondshift.automations.execution.call_mcp_tool_step", unavailable
@@ -368,8 +368,8 @@ def test_remote_failures_are_reportable_but_policy_denials_still_stop_the_run(
         tool.function(context)
 
     def denied(*args, **kwargs) -> None:
-        raise GitHubMCPError("Access is no longer approved.")
+        raise MCPError("Access is no longer approved.")
 
     monkeypatch.setattr("secondshift.automations.execution.call_mcp_tool_step", denied)
-    with pytest.raises(GitHubMCPError, match="no longer approved"):
+    with pytest.raises(MCPError, match="no longer approved"):
         tool.function(context)

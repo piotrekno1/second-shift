@@ -11,27 +11,23 @@ from jsonschema import ValidationError, validate
 
 from secondshift.automations.models import JobGrant, Run, RunEvent
 from secondshift.automations.tool_policy import resolve_tool
-from secondshift.integrations.github_mcp import (
-    GitHubMCPError,
-    github_mcp_request,
-    scoped_github_arguments,
-    validate_mcp_connection,
-)
+from secondshift.integrations.mcp.base import MCPError, MCPProvider
+from secondshift.integrations.mcp.client import mcp_request, validate_mcp_connection
 from secondshift.integrations.models import Connection
-from secondshift.repositories.github import github_repository_scope
 
 
 @dataclass(frozen=True)
 class MCPAuthorization:
     connection: Connection
+    provider: MCPProvider
     schema: dict[str, Any]
-    repository_scope: str
+    scope: str
 
 
 def broker_connection(run: Run, name: str) -> MCPAuthorization:
     tool = resolve_tool(run.execution_plan, name)
     if tool.kind != Connection.Kind.MCP:
-        raise GitHubMCPError("This external tool is not supported.")
+        raise MCPError("This external tool is not supported.")
     capability = next(
         item
         for item in run.execution_plan["capabilities"]
@@ -58,20 +54,24 @@ def broker_connection(run: Run, name: str) -> MCPAuthorization:
         or tool.provider_tool not in grant.capability_request.requested_tools
         or tool.provider_tool not in grant.connection.available_tools
     ):
-        raise GitHubMCPError("Access to this MCP tool is no longer approved.")
+        raise MCPError("Access to this MCP tool is no longer approved.")
     connection = grant.connection
-    validate_mcp_connection(connection)
+    provider = validate_mcp_connection(connection)
     frozen = capability.get("mcp", {})
-    if not frozen.get("repository") or frozen["repository"] != github_repository_scope(
-        run.job.repository
+    if (
+        frozen.get("provider") != provider.key
+        or not frozen.get("scope")
+        or frozen["scope"] != provider.scope(run.job.repository)
     ):
-        raise GitHubMCPError("The job repository scope changed. Start a new run.")
+        raise MCPError(
+            f"The job {provider.scope_label} scope changed. Start a new run."
+        )
     schema = frozen.get("tools", {}).get(tool.provider_tool)
     if not schema or schema != connection.metadata.get("tools", {}).get(
         tool.provider_tool
     ):
-        raise GitHubMCPError("The MCP tool definition changed. Start a new run.")
-    return MCPAuthorization(connection, schema, frozen["repository"])
+        raise MCPError("The MCP tool definition changed. Start a new run.")
+    return MCPAuthorization(connection, provider, schema, frozen["scope"])
 
 
 @DBOS.step(name="secondshift.call_mcp_tool")
@@ -84,11 +84,9 @@ def call_mcp_tool_step(
     try:
         validate(arguments, authorization.schema["inputSchema"])
     except ValidationError:
-        raise GitHubMCPError(
-            "The MCP tool arguments do not match its schema."
-        ) from None
-    scoped = scoped_github_arguments(
-        authorization.repository_scope, str(tool.provider_tool), arguments
+        raise MCPError("The MCP tool arguments do not match its schema.") from None
+    scoped = authorization.provider.scope_arguments(
+        authorization.scope, str(tool.provider_tool), arguments
     )
     evidence = {
         "tool": name,
@@ -96,10 +94,10 @@ def call_mcp_tool_step(
         "call_id": hashlib.sha256(call_id.encode()).hexdigest(),
     }
     try:
-        result = async_to_sync(github_mcp_request)(
+        result = async_to_sync(mcp_request)(
             authorization.connection, tool.provider_tool, scoped
         )
-    except GitHubMCPError:
+    except MCPError:
         RunEvent.objects.create(
             run=run,
             level="warning",

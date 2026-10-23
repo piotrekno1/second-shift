@@ -23,10 +23,11 @@ from secondshift.core.workspace_settings import (
     sandbox_label,
     setting_groups,
 )
-from secondshift.integrations.github_mcp import (
-    GitHubMCPError,
-    create_github_mcp_connection,
-    discover_github_tools,
+from secondshift.integrations.mcp.base import MCPError
+from secondshift.integrations.mcp.client import (
+    create_mcp_connection,
+    discover_tools,
+    validate_mcp_connection,
 )
 from secondshift.integrations.model_providers import (
     ModelProviderError,
@@ -628,15 +629,16 @@ def create_github_mcp(
 ) -> ConnectionSchema:
     workspace = owner_workspace(request, "add MCP connections")
     try:
-        connection = create_github_mcp_connection(
+        connection = create_mcp_connection(
             workspace,
+            Connection.Provider.GITHUB,
             payload.binding_key,
             payload.display_name,
             payload.token,
         )
     except ConnectionConflict as error:
         raise HttpError(409, str(error)) from error
-    except GitHubMCPError as error:
+    except MCPError as error:
         raise HttpError(422, str(error)) from error
     except ValidationError as error:
         raise HttpError(422, "The MCP connection configuration is invalid.") from error
@@ -783,8 +785,9 @@ def test_connection(request: HttpRequest, connection_id: int) -> ConnectionTestS
     connection = owned_connection(request, connection_id, "test connections")
     if connection.kind == Connection.Kind.MCP:
         try:
-            tools = discover_github_tools(connection)
-        except GitHubMCPError as error:
+            provider = validate_mcp_connection(connection)
+            tools = discover_tools(connection)
+        except MCPError as error:
             return ConnectionTestSchema(ok=False, status_code=None, message=str(error))
         connection.available_tools = sorted(tools)
         connection.metadata = {**connection.metadata, "tools": tools}
@@ -792,7 +795,7 @@ def test_connection(request: HttpRequest, connection_id: int) -> ConnectionTestS
         return ConnectionTestSchema(
             ok=True,
             status_code=None,
-            message=f"Discovered {len(tools)} supported GitHub tools.",
+            message=f"Discovered {len(tools)} supported {provider.label} tools.",
         )
     if connection.kind == Connection.Kind.MODEL:
         check = check_model_connection(connection)

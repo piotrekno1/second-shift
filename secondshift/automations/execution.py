@@ -18,7 +18,7 @@ from secondshift.automations.models import Run, RunEvent
 from secondshift.automations.runner_client import get_runner_client
 from secondshift.automations.runner_protocol import CommandRequest, CommandResult
 from secondshift.automations.tool_policy import LOCAL_TOOLS, authorized_tools
-from secondshift.integrations.github_mcp import GitHubMCPRequestError
+from secondshift.integrations.mcp.base import MCPRequestError
 
 MODEL_TOOL_NAMES = {
     "workspace.list_files": "workspace_list_files",
@@ -233,7 +233,7 @@ def mcp_tools(run: Run) -> tuple[Tool[WorkspaceToolDeps], ...]:
                     return call_mcp_tool_step(
                         ctx.deps.run_id, name, arguments, ctx.tool_call_id
                     )
-                except GitHubMCPRequestError as error:
+                except MCPRequestError as error:
                     raise ToolFailed(str(error)) from None
 
             return call
@@ -241,13 +241,13 @@ def mcp_tools(run: Run) -> tuple[Tool[WorkspaceToolDeps], ...]:
         tools.append(
             Tool.from_schema(
                 wrapper(tool.name),
-                name=f"github_{tool.provider_tool}_"
+                name=f"{authorization.provider.key}_{tool.provider_tool}_"
                 + hashlib.sha256(tool.name.encode()).hexdigest()[
                     :MODEL_TOOL_NAME_HASH_LENGTH
                 ],
                 description=(
-                    f"{tool.name}. Approved repository: "
-                    f"{authorization.repository_scope}. {authorization.schema['description']}"
+                    f"{tool.name}. Approved {authorization.provider.scope_label}: "
+                    f"{authorization.scope}. {authorization.schema['description']}"
                 ),
                 json_schema=authorization.schema["inputSchema"],
                 takes_ctx=True,
