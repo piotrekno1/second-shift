@@ -8,6 +8,7 @@ from secondshift.core.models import Workspace
 class Connection(models.Model):
     class Provider(models.TextChoices):
         GITHUB = "github", "GitHub"
+        SENTRY = "sentry", "Sentry"
         CHATGPT = "chatgpt", "ChatGPT"
         SLACK = "slack", "Slack"
         MCP = "mcp", "MCP server"

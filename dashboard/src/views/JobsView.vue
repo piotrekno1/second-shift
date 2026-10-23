@@ -11,8 +11,8 @@ import { useListQuery } from '../composables/useListQuery'
 import { apiPost } from '../services/api'
 import { startJobRun } from '../services/runs'
 import { useAppStore } from '../stores/app'
-import type { Capability, Connection, Job } from '../types'
-import { accessLabel, accessNeedsAction, countLabel, formatRelative, mcpAccess, formatSchedule, formatScheduled, utcTitle } from '../utils/format'
+import type { Capability, Connection, Job, MCPAccess } from '../types'
+import { accessLabel, accessNeedsAction, countLabel, formatRelative, formatSchedule, formatScheduled, utcTitle } from '../utils/format'
 
 const app = useAppStore()
 const route = useRoute()
@@ -106,10 +106,8 @@ function chooseConnection(capabilityId: number, connectionId: number): void {
   connectionSelections[capabilityId] = connectionId
 }
 
-function mcpAccessFor(capability: Capability): { ok: boolean, text: string } | null {
-  if (capability.kind !== 'mcp') return null
-  const connection = app.connections.find((item) => item.id === selectedConnection(capability))
-  return connection ? mcpAccess(capability.mcp_scopes, app.mcpProvider(connection.provider)) : null
+function mcpAccessFor(capability: Capability): MCPAccess | null {
+  return capability.kind === 'mcp' ? capability.mcp_access ?? null : null
 }
 
 function connectionSetupQuery(job: Job, capability: Capability): Record<string, string> {

@@ -24,10 +24,16 @@ from secondshift.automations.run_queries import Period, RunFilters, RunSort, run
 from secondshift.core.models import Workspace
 from secondshift.core.services import workspace_for_user
 from secondshift.gateway.usage import with_model_usage
-from secondshift.integrations.mcp.providers import mcp_scopes, missing_scope_message
+from secondshift.integrations.mcp.providers import mcp_access
 from secondshift.integrations.models import Connection
 
 router = Router(auth=django_auth, tags=["automations"])
+
+
+class MCPAccessSchema(Schema):
+    ok: bool
+    scope: str | None
+    text: str
 
 
 class CapabilitySchema(Schema):
@@ -39,8 +45,8 @@ class CapabilitySchema(Schema):
     grant_status: str
     connection_id: int | None
     connection_name: str | None
-    # Provider key to the scope a job could reach through it. MCP only.
-    mcp_scopes: dict[str, str | None] = Field(default_factory=dict)
+    # MCP only: what the job could read through this binding's connection.
+    mcp_access: MCPAccessSchema | None = None
 
 
 class JobSchema(Schema):
@@ -172,11 +178,28 @@ def job_for_request(request: HttpRequest, job_id: int) -> Job:
     )
 
 
-def serialize_job(job: Job) -> JobSchema:
+def binding_connections(workspace_id: int) -> dict[str, Connection]:
+    return {
+        connection.binding_key: connection
+        for connection in Connection.objects.filter(workspace_id=workspace_id).exclude(
+            binding_key=""
+        )
+    }
+
+
+def serialize_job(
+    job: Job, connections: dict[str, Connection] | None = None
+) -> JobSchema:
+    """`connections` maps binding keys to connections, to share one query."""
     requests = list(job.capability_requests.all())
+    if connections is None and any(
+        item.kind == Connection.Kind.MCP for item in requests
+    ):
+        connections = binding_connections(job.workspace_id)
     capabilities: list[CapabilitySchema] = []
     for capability in requests:
         grant = getattr(capability, "grant", None)
+        connection = (connections or {}).get(capability.binding)
         capabilities.append(
             CapabilitySchema(
                 id=capability.pk,
@@ -184,10 +207,12 @@ def serialize_job(job: Job) -> JobSchema:
                 kind=capability.kind,
                 requested_tools=capability.requested_tools,
                 required=capability.required,
-                mcp_scopes=(
-                    mcp_scopes(job.repository)
+                mcp_access=(
+                    MCPAccessSchema(**vars(mcp_access(connection, job.repository)))
                     if capability.kind == Connection.Kind.MCP
-                    else {}
+                    and connection
+                    and connection.kind == Connection.Kind.MCP
+                    else None
                 ),
                 grant_status=grant.status if grant else "unconfigured",
                 connection_id=grant.connection_id if grant else None,
@@ -340,8 +365,9 @@ def jobs(request: HttpRequest) -> list[JobSchema]:
         workspace=workspace,
         repository__removed_at__isnull=True,
     ).select_related("repository")
+    connections = binding_connections(workspace.pk)
     return [
-        serialize_job(item)
+        serialize_job(item, connections)
         for item in queryset.prefetch_related("capability_requests__grant__connection")
     ]
 
@@ -398,9 +424,9 @@ def review_job_capability(
         if (
             payload.decision == JobGrant.Status.APPROVED
             and connection.kind == Connection.Kind.MCP
-            and (message := missing_scope_message(connection.provider, job.repository))
+            and not (access := mcp_access(connection, job.repository)).ok
         ):
-            raise HttpError(409, message)
+            raise HttpError(409, access.text)
     if payload.decision == JobGrant.Status.APPROVED and connection is None:
         raise HttpError(422, "Choose a connection before approving the capability.")
 

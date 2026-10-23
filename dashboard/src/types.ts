@@ -123,8 +123,8 @@ export interface JobDetail extends Job {
 }
 
 export interface Capability {
-  /** MCP only: provider key to the scope this job could reach through it. */
-  mcp_scopes?: Record<string, string | null>
+  /** MCP only: what this job could read through the binding's connection. */
+  mcp_access?: MCPAccess | null
   id: number
   binding: string
   kind: 'mcp' | 'api' | 'notification'
@@ -222,7 +222,7 @@ export interface RunQuery {
 
 export interface Connection {
   id: number
-  provider: 'github' | 'chatgpt' | 'slack' | 'mcp' | 'api' | 'webhook' | ModelProvider
+  provider: 'github' | 'sentry' | 'chatgpt' | 'slack' | 'mcp' | 'api' | 'webhook' | ModelProvider
   kind: 'identity' | 'mcp' | 'api' | 'notification' | 'model'
   binding_key: string
   display_name: string
@@ -263,13 +263,28 @@ export interface MCPProviderInfo {
   token_hint: string
   setup_url: string
   setup_help: string
-  scope_label: string
-  missing_scope_message: string
+  /** Values entered when connecting, such as a Sentry organization. */
+  settings: MCPSettingInfo[]
   tools: string[]
 }
 
+export interface MCPSettingInfo {
+  key: string
+  label: string
+  pattern: string
+  required: boolean
+  help: string
+  placeholder: string
+}
+
+export interface MCPAccess {
+  ok: boolean
+  scope: string | null
+  text: string
+}
+
 export interface CapabilityNeedJob {
-  mcp_scopes?: Record<string, string | null>
+  mcp_access?: MCPAccess | null
   job_id: number
   job_name: string
   repository: string

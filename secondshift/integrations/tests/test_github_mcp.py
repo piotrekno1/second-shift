@@ -322,12 +322,19 @@ def test_provider_list_describes_github_without_secrets(client: Client) -> None:
     client.force_login(owner)
     response = client.get("/api/connections/mcp-providers")
     assert response.status_code == 200
-    [github] = response.json()
-    assert github["key"] == "github"
-    assert github["scope_label"] == "repository"
+    providers = {item["key"]: item for item in response.json()}
+    assert set(providers) == {"github", "sentry"}
+    github = providers["github"]
     assert github["default_binding"] == "github"
-    assert "token_pattern" not in github
-    assert "headers" not in github
+    assert github["settings"] == []
+    assert [item["key"] for item in providers["sentry"]["settings"]] == [
+        "organization",
+        "project",
+    ]
+    for item in providers.values():
+        assert "token_pattern" not in item
+        assert "headers" not in item
+        assert "auth_scheme" not in item
 
 
 @pytest.mark.django_db

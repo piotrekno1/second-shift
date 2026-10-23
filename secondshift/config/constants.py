@@ -25,6 +25,27 @@ class GitHubMCPTool(StrEnum):
 
 GITHUB_MCP_TOOLS = tuple(GitHubMCPTool)
 
+SENTRY_MCP_URL = "https://mcp.sentry.dev/mcp"
+# Sentry organization and project slugs.
+SENTRY_SLUG_PATTERN = r"[a-z0-9][a-z0-9_\-]{0,63}"
+
+
+class SentryMCPTool(StrEnum):
+    """Read tools for errors, issues, and traces.
+
+    The search tools pass their query to Sentry's own search agent. Replays,
+    logs, and profiles are left out because they often hold personal data.
+    """
+
+    FIND_PROJECTS = "find_projects"
+    SEARCH_ISSUES = "search_issues"
+    SEARCH_ERRORS = "search_errors"
+    SEARCH_TRACES = "search_traces"
+    GET_SENTRY_RESOURCE = "get_sentry_resource"
+
+
+SENTRY_MCP_TOOLS = tuple(SentryMCPTool)
+
 
 class Environment(StrEnum):
     """Where SecondShift runs. Each one has a settings module of the same name."""

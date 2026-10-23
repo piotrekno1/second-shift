@@ -11,6 +11,7 @@ from ninja.errors import HttpError
 from ninja.security import django_auth
 from pydantic import Field
 
+from secondshift.automations.api import MCPAccessSchema
 from secondshift.automations.connection_usage import ConnectionUsage, connection_usage
 from secondshift.automations.health import failing_jobs, spend_by_job, week_summary
 from secondshift.automations.models import Job, Run
@@ -229,6 +230,16 @@ class MCPConnectionCreateSchema(Schema):
     )
     display_name: str = Field(default="", max_length=200)
     token: str = Field(min_length=1, max_length=2000)
+    settings: dict[str, str] = Field(default_factory=dict, max_length=10)
+
+
+class MCPSettingSchema(Schema):
+    key: str
+    label: str
+    pattern: str
+    required: bool
+    help: str
+    placeholder: str
 
 
 class MCPProviderSchema(Schema):
@@ -240,8 +251,7 @@ class MCPProviderSchema(Schema):
     token_hint: str
     setup_url: str
     setup_help: str
-    scope_label: str
-    missing_scope_message: str
+    settings: list[MCPSettingSchema]
     tools: list[str]
 
 
@@ -278,7 +288,7 @@ class NeedJobSchema(Schema):
     capability_id: int
     required: bool
     grant_status: str
-    mcp_scopes: dict[str, str | None] = Field(default_factory=dict)
+    mcp_access: MCPAccessSchema | None = None
 
 
 class CapabilityNeedSchema(Schema):
@@ -654,8 +664,7 @@ def list_mcp_providers(request: HttpRequest) -> list[MCPProviderSchema]:
             token_hint=provider.token_hint,
             setup_url=provider.setup_url,
             setup_help=provider.setup_help,
-            scope_label=provider.scope_label,
-            missing_scope_message=provider.missing_scope_message,
+            settings=[MCPSettingSchema(**vars(item)) for item in provider.settings],
             tools=list(provider.tools),
         )
         for provider in MCP_PROVIDERS.values()
@@ -674,6 +683,7 @@ def create_mcp(
             payload.binding_key,
             payload.display_name,
             payload.token,
+            payload.settings,
         )
     except ConnectionConflict as error:
         raise HttpError(409, str(error)) from error
@@ -867,7 +877,15 @@ def needs(request: HttpRequest) -> list[CapabilityNeedSchema]:
             connection=(
                 serialize_connection(need.connection) if need.connection else None
             ),
-            jobs=[NeedJobSchema(**vars(job)) for job in need.jobs],
+            jobs=[
+                NeedJobSchema(
+                    **{
+                        **vars(job),
+                        "mcp_access": vars(job.mcp_access) if job.mcp_access else None,
+                    }
+                )
+                for job in need.jobs
+            ],
         )
         for need in capability_needs(workspace)
     ]

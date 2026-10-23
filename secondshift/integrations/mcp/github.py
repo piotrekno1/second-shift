@@ -9,9 +9,10 @@ from secondshift.config.constants import (
     GITHUB_REPOSITORY_PATTERN,
     GitHubMCPTool,
 )
-from secondshift.integrations.mcp.base import MCPError, MCPProvider
+from secondshift.integrations.mcp.base import MCPError, MCPProvider, MCPSettings
 from secondshift.integrations.models import Connection
 from secondshift.repositories.github import github_repository_scope
+from secondshift.repositories.models import Repository
 
 # Fine-grained tokens are limited to chosen repositories. Classic tokens are not.
 GITHUB_FINE_GRAINED_TOKEN_PATTERN = r"github_pat_[A-Za-z0-9_]+"
@@ -52,6 +53,16 @@ def scoped_github_arguments(
     return scoped
 
 
+def github_scope(settings: MCPSettings, repository: Repository) -> str | None:
+    """A job reads only its own repository, whatever the token can reach."""
+    del settings
+    return github_repository_scope(repository)
+
+
+def describe_github_scope(scope: str) -> str:
+    return f"the {scope} repository"
+
+
 GITHUB_MCP = MCPProvider(
     key=Connection.Provider.GITHUB,
     label="GitHub",
@@ -63,24 +74,21 @@ GITHUB_MCP = MCPProvider(
     },
     token_pattern=GITHUB_FINE_GRAINED_TOKEN_PATTERN,
     token_hint="Enter a fine-grained GitHub token. It starts with github_pat_.",
-    scope=github_repository_scope,
+    scope=github_scope,
+    describe_scope=describe_github_scope,
     scope_label="repository",
     missing_scope_reason="github_repository_unknown",
     missing_scope_message=(
         "This job has no GitHub repository identity. For a local checkout, "
         "configure a GitHub origin and resync it."
     ),
-    description=(
-        "Read pull requests, reviews, and commits through GitHub's hosted MCP "
-        "server. Each job can read only its own repository."
-    ),
+    description="Read pull requests and commits. Each job reads only its own repository.",
     default_binding="github",
     token_label="Fine-grained personal access token",
     setup_url="https://github.com/settings/personal-access-tokens/new",
     setup_help=(
-        "Select the repositories your jobs use. Under Repository permissions, "
-        "grant read-only access to Pull requests, Commit statuses, and Contents. "
-        "Organization approval may be required."
+        "Pick your jobs' repositories and grant read-only Pull requests, "
+        "Commit statuses, and Contents."
     ),
     scope_arguments=scoped_github_arguments,
 )

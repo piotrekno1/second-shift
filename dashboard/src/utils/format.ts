@@ -1,4 +1,4 @@
-import type { ConnectionUsage, MCPProviderInfo, Run } from '../types'
+import type { ConnectionUsage, Run } from '../types'
 
 // Dates read in English like the rest of the UI, always with their timezone.
 const LOCALE = 'en-GB'
@@ -138,6 +138,7 @@ const PROVIDER_LABELS: Record<string, string> = {
   openai: 'OpenAI',
   openai_compatible: 'OpenAI-compatible',
   github: 'GitHub',
+  sentry: 'Sentry',
   chatgpt: 'ChatGPT',
   slack: 'Slack',
   mcp: 'MCP server',
@@ -364,15 +365,4 @@ export function connectionUsageLine(usage: ConnectionUsage | null | undefined, k
     return `${countLabel(usage.runs_7d, 'run')} · ${formatCost(usage.spend_7d_usd, usage.spend_partial)} this week · last used ${formatRelative(usage.last_used_at, now)}`
   }
   return usage.jobs ? `Used by ${countLabel(usage.jobs, 'job')}` : 'No job uses it yet'
-}
-
-/** What a job may read through an MCP provider, or why it cannot. */
-export function mcpAccess(
-  scopes: Record<string, string | null> | undefined,
-  provider: MCPProviderInfo | undefined,
-): { ok: boolean, text: string } {
-  if (!provider) return { ok: false, text: 'This MCP provider is not supported.' }
-  const scope = scopes?.[provider.key]
-  if (!scope) return { ok: false, text: provider.missing_scope_message }
-  return { ok: true, text: `Allow these tools to read the ${scope} ${provider.scope_label}.` }
 }

@@ -13,6 +13,7 @@ from secondshift.automations.models import JobGrant, Run, RunEvent
 from secondshift.automations.tool_policy import resolve_tool
 from secondshift.integrations.mcp.base import MCPError, MCPProvider
 from secondshift.integrations.mcp.client import mcp_request, validate_mcp_connection
+from secondshift.integrations.mcp.providers import connection_settings
 from secondshift.integrations.models import Connection
 
 
@@ -61,7 +62,8 @@ def broker_connection(run: Run, name: str) -> MCPAuthorization:
     if (
         frozen.get("provider") != provider.key
         or not frozen.get("scope")
-        or frozen["scope"] != provider.scope(run.job.repository)
+        or frozen["scope"]
+        != provider.scope(connection_settings(connection), run.job.repository)
     ):
         raise MCPError(
             f"The job {provider.scope_label} scope changed. Start a new run."

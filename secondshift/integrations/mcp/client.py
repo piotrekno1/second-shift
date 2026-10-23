@@ -18,7 +18,7 @@ from mcp.client.streamable_http import streamable_http_client
 
 from secondshift.core.models import Workspace
 from secondshift.integrations.mcp.base import MCPError, MCPProvider, MCPRequestError
-from secondshift.integrations.mcp.providers import mcp_provider
+from secondshift.integrations.mcp.providers import connection_settings, mcp_provider
 from secondshift.integrations.models import Connection
 from secondshift.integrations.outbound import PinnedTransport
 from secondshift.integrations.services import ConnectionConflict
@@ -59,7 +59,8 @@ def validate_mcp_connection(connection: Connection) -> MCPProvider:
     provider = mcp_provider(connection.provider)
     if (
         connection.kind != Connection.Kind.MCP
-        or connection.endpoint_url != provider.endpoint_url
+        or connection.endpoint_url
+        != provider.endpoint(provider.clean_settings(connection_settings(connection)))
         or connection.auth_strategy != Connection.AuthStrategy.API_KEY
         or connection.status != Connection.Status.CONNECTED
         or not connection.access_token
@@ -83,14 +84,16 @@ async def mcp_request(
                     transport=MCPTransport(),
                     headers={
                         **provider.headers,
-                        "Authorization": f"Bearer {connection.access_token}",
+                        "Authorization": (
+                            f"{provider.auth_scheme} {connection.access_token}"
+                        ),
                         "Accept-Encoding": "identity",
                     },
                     timeout=settings.OUTBOUND_TIMEOUT_SECONDS,
                     follow_redirects=False,
                     trust_env=False,
                 ) as client,
-                streamable_http_client(provider.endpoint_url, http_client=client) as (
+                streamable_http_client(connection.endpoint_url, http_client=client) as (
                     reader,
                     writer,
                     session_id,
@@ -120,7 +123,12 @@ async def mcp_request(
                         page_count += 1
                         page = await session.list_tools(cursor=cursor)
                         for item in page.tools:
-                            if item.name in provider.tools:
+                            read_only = bool(
+                                item.annotations and item.annotations.readOnlyHint
+                            )
+                            if item.name in provider.tools and (
+                                read_only or not provider.require_read_only_hint
+                            ):
                                 tools[item.name] = {
                                     "description": item.description or item.name,
                                     "inputSchema": item.inputSchema,
@@ -178,10 +186,12 @@ def create_mcp_connection(
     binding_key: str,
     display_name: str,
     token: str,
+    settings: dict[str, str] | None = None,
 ) -> Connection:
     provider = mcp_provider(provider_key)
     if not re.fullmatch(provider.token_pattern, token):
         raise MCPError(provider.token_hint)
+    cleaned = provider.clean_settings(settings or {})
     if Connection.objects.filter(workspace=workspace, binding_key=binding_key).exists():
         raise ConnectionConflict("This binding already has a connection.")
     connection = Connection(
@@ -190,10 +200,17 @@ def create_mcp_connection(
         kind=Connection.Kind.MCP,
         binding_key=binding_key,
         display_name=display_name.strip() or provider.label,
-        endpoint_url=provider.endpoint_url,
+        endpoint_url=provider.endpoint(cleaned),
         auth_strategy=Connection.AuthStrategy.API_KEY,
         access_token=token,
-        metadata={"target": f"{provider.label} MCP"},
+        metadata={
+            "target": " · ".join(
+                part
+                for part in (f"{provider.label} MCP", "/".join(cleaned.values()))
+                if part
+            ),
+            "settings": cleaned,
+        },
     )
     tools = discover_tools(connection)
     connection.available_tools = sorted(tools)

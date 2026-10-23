@@ -2,9 +2,11 @@
 import { computed, ref, watch } from 'vue'
 import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
+import ProviderIcon from './ProviderIcon.vue'
 import { createMCPConnection } from '../services/connections'
 import { useAppStore } from '../stores/app'
 import type { Notice } from '../types'
+import { countLabel } from '../utils/format'
 
 const PROVIDER_ICONS: Record<string, string> = {
   github: 'mdi-github',
@@ -18,6 +20,7 @@ const provider = computed(() => app.mcpProvider(providerKey.value))
 const binding = ref(props.binding ?? provider.value?.default_binding ?? '')
 const name = ref(provider.value?.label ?? '')
 const token = ref('')
+const settings = ref<Record<string, string>>({})
 const saving = ref(false)
 const error = ref('')
 
@@ -26,6 +29,7 @@ watch(provider, (next, previous) => {
   if (!next) return
   if (!props.binding && (!binding.value || binding.value === previous?.default_binding)) binding.value = next.default_binding
   if (!name.value || name.value === previous?.label) name.value = next.label
+  settings.value = {}
   error.value = ''
 })
 
@@ -38,7 +42,8 @@ async function submit(): Promise<void> {
   saving.value = true
   error.value = ''
   try {
-    const connection = await createMCPConnection({ provider: provider.value.key, binding_key: binding.value, display_name: name.value, token: token.value })
+    const values = Object.fromEntries(Object.entries(settings.value).map(([key, value]) => [key, value.trim()]).filter(([, value]) => value))
+    const connection = await createMCPConnection({ provider: provider.value.key, binding_key: binding.value, display_name: name.value, token: token.value, settings: values })
     token.value = ''
     await app.refresh()
     emit('done', { ok: true, text: `Connected ${provider.value.label}. Discovered ${connection.available_tools.length} tools. Review job approvals before running.` }, connection.binding_key)
@@ -54,8 +59,8 @@ async function submit(): Promise<void> {
   <form class="need-setup-fields" @submit.prevent="submit">
     <div class="mcp-provider-grid" role="radiogroup" aria-label="MCP server">
       <button v-for="item in app.mcpProviders" :key="item.key" type="button" role="radio" class="mcp-provider-card" :class="{ active: providerKey === item.key }" :aria-checked="providerKey === item.key" @click="providerKey = item.key">
-        <i class="mdi" :class="iconFor(item.key)" aria-hidden="true" />
-        <span><strong>{{ item.label }}</strong><small>{{ item.tools.length }} read-only tools</small></span>
+        <ProviderIcon :provider="item.key" :fallback="iconFor(item.key)" />
+        <span><strong>{{ item.label }}</strong><small>{{ countLabel(item.tools.length, 'read-only tool') }}</small></span>
       </button>
       <button type="button" role="radio" class="mcp-provider-card" aria-checked="false" disabled title="Custom MCP servers are not supported yet">
         <i class="mdi mdi-server-plus-outline" aria-hidden="true" />
@@ -66,10 +71,15 @@ async function submit(): Promise<void> {
     <template v-if="provider">
       <div class="need-setup-copy">
         <h3>Connect {{ provider.label }} MCP</h3>
-        <p>{{ provider.description }} Reuse this connection across jobs. Each job gets access only after you approve its tools.</p>
+        <p>{{ provider.description }}</p>
       </div>
       <label><span>Capability name</span><InputText v-model.trim="binding" :disabled="Boolean(props.binding)" required pattern="[a-z0-9]+(-[a-z0-9]+)*" maxlength="120" /><small>Matches the <code>binding</code> in your repository configuration.</small></label>
       <label><span>Name</span><InputText v-model.trim="name" required maxlength="200" /></label>
+      <label v-for="setting in provider.settings" :key="setting.key">
+        <span>{{ setting.label }}<template v-if="!setting.required"> (optional)</template></span>
+        <InputText v-model.trim="settings[setting.key]" :required="setting.required" :pattern="setting.pattern" :placeholder="setting.placeholder" autocomplete="off" spellcheck="false" maxlength="64" />
+        <small>{{ setting.help }}</small>
+      </label>
       <label class="need-setup-wide">
         <span>{{ provider.token_label }}</span>
         <InputText v-model="token" type="password" required autocomplete="new-password" maxlength="2000" />

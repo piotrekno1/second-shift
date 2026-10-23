@@ -6,7 +6,7 @@ from secondshift.automations.agent import AgentLimits, agent_plan
 from secondshift.automations.models import Job, JobGrant
 from secondshift.automations.tool_policy import authorized_tools
 from secondshift.integrations.mcp.base import MCPProvider
-from secondshift.integrations.mcp.providers import MCP_PROVIDERS
+from secondshift.integrations.mcp.providers import MCP_PROVIDERS, connection_settings
 from secondshift.integrations.model_providers import provider_family
 from secondshift.integrations.models import Connection
 
@@ -85,7 +85,7 @@ def build_execution_plan(job: Job) -> dict[str, Any]:
             if provider is None:
                 reasons.append("mcp_provider_unsupported")
             else:
-                scope = provider.scope(job.repository)
+                scope = provider.scope(connection_settings(connection), job.repository)
                 if not scope:
                     reasons.append(provider.missing_scope_reason)
 

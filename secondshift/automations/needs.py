@@ -3,7 +3,7 @@ from typing import Literal
 
 from secondshift.automations.models import CapabilityRequest, JobGrant
 from secondshift.core.models import Workspace
-from secondshift.integrations.mcp.providers import mcp_scopes, missing_scope_message
+from secondshift.integrations.mcp.providers import MCPAccess, mcp_access
 from secondshift.integrations.models import Connection
 
 NeedStatus = Literal["missing", "unavailable", "needs_approval", "ready"]
@@ -23,7 +23,7 @@ class NeedJob:
     capability_id: int
     required: bool
     grant_status: str
-    mcp_scopes: dict[str, str | None] = field(default_factory=dict)
+    mcp_access: MCPAccess | None = None
 
 
 @dataclass
@@ -59,10 +59,9 @@ def need_status(
         )
     if kind == Connection.Kind.MCP:
         for request in requests:
-            if message := missing_scope_message(
-                connection.provider, request.job.repository
-            ):
-                return "unavailable", message
+            access = mcp_access(connection, request.job.repository)
+            if not access.ok:
+                return "unavailable", access.text
     missing_tools = requested_tools - set(connection.available_tools)
     if missing_tools:
         return (
@@ -119,10 +118,12 @@ def capability_needs(workspace: Workspace) -> list[CapabilityNeed]:
                         job_id=item.job_id,
                         job_name=item.job.name,
                         repository=item.job.repository.display_name,
-                        mcp_scopes=(
-                            mcp_scopes(item.job.repository)
+                        mcp_access=(
+                            mcp_access(connection, item.job.repository)
                             if kind == Connection.Kind.MCP
-                            else {}
+                            and connection
+                            and connection.kind == kind
+                            else None
                         ),
                         capability_id=item.pk,
                         required=item.required,

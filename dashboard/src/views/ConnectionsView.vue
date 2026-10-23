@@ -4,11 +4,12 @@ import { useRoute } from 'vue-router'
 import Button from 'primevue/button'
 import ConnectionForm from '../components/ConnectionForm.vue'
 import PageHeader from '../components/PageHeader.vue'
+import ProviderIcon from '../components/ProviderIcon.vue'
 import StatusPill from '../components/StatusPill.vue'
 import { approveNeed, deleteConnection, revokeConnection, testConnection } from '../services/connections'
 import { useAppStore } from '../stores/app'
 import type { CapabilityNeed, Connection, Notice } from '../types'
-import { connectionUsageLine, countLabel, formatDate, formatRelative, mcpAccess, providerLabel, utcTitle } from '../utils/format'
+import { connectionUsageLine, countLabel, formatDate, formatRelative, providerLabel, utcTitle } from '../utils/format'
 
 /** Which form is open: the header "Add", a need row, or a connection row. */
 type OpenForm = { mode: 'add' } | { mode: 'need', binding: string } | { mode: 'edit', id: number }
@@ -39,6 +40,7 @@ const kindIcon: Record<string, string> = {
 }
 const providerIcon: Record<Connection['provider'], string> = {
   github: 'mdi-github',
+  sentry: 'mdi-server-network',
   chatgpt: 'mdi-creation-outline',
   slack: 'mdi-slack',
   mcp: 'mdi-server-network',
@@ -77,11 +79,7 @@ function pendingJobs(need: CapabilityNeed): number {
 }
 
 function needAccessLine(need: CapabilityNeed): string {
-  const provider = app.mcpProvider(need.connection?.provider)
-  return need.jobs.map((job) => {
-    const access = mcpAccess(job.mcp_scopes, provider)
-    return `${job.job_name} → ${access.ok ? job.mcp_scopes?.[provider?.key ?? ''] : 'unavailable'}`
-  }).join(' · ')
+  return need.jobs.map((job) => `${job.job_name} → ${job.mcp_access?.ok ? job.mcp_access.scope : 'unavailable'}`).join(' · ')
 }
 
 function jobSummary(need: CapabilityNeed): string {
@@ -197,7 +195,7 @@ onMounted(async () => {
       <div v-if="app.connections.length" class="need-list">
         <article v-for="connection in app.connections" :key="connection.id" class="need" :class="{ unavailable: connection.status !== 'connected' }">
           <div class="need-row">
-            <div class="connection-icon small"><i class="mdi" :class="providerIcon[connection.provider] ?? kindIcon[connection.kind]" /></div>
+            <div class="connection-icon small"><ProviderIcon :provider="connection.provider" :fallback="providerIcon[connection.provider] ?? kindIcon[connection.kind]" /></div>
             <div class="need-primary">
               <strong>{{ connection.display_name }}<span v-if="connection.is_default" class="default-badge">Default</span></strong>
               <span>{{ connection.binding_key || (connection.kind === 'model' ? 'Model provider' : 'Sign-in') }} · {{ providerLabel(connection.provider) }}<template v-if="connection.target"> → {{ connection.target }}</template></span>
@@ -241,12 +239,6 @@ onMounted(async () => {
         </article>
       </div>
       <div v-else class="empty-state compact"><i class="mdi mdi-power-plug-off-outline" /><strong>Nothing connected yet</strong><span>Use <strong>Add connection</strong> or connect a binding above.</span></div>
-      <div class="provider-roadmap">
-        <span><i class="mdi mdi-webhook" /> Webhooks <em>available</em></span>
-        <span><i class="mdi mdi-server-network" /> MCP: {{ app.mcpProviders.map((provider) => provider.label).join(', ') || 'none' }} <em>available</em></span>
-        <span><i class="mdi mdi-slack" /> Slack app <em>soon</em></span>
-        <span><i class="mdi mdi-creation-outline" /> Model providers <em>available</em></span>
-      </div>
     </section>
 
     <section v-if="app.needs.length" class="panel needs-panel">
