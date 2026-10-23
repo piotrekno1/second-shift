@@ -1,0 +1,105 @@
+version: "3"
+
+processes:
+  stack:
+    description: PostgreSQL is healthy
+    command: docker compose up -d --wait
+
+  stack_logs:
+    description: Docker service logs
+    command: docker compose logs --follow
+    depends_on:
+      stack:
+        condition: process_completed_successfully
+    shutdown:
+      command: docker compose down
+      timeout_seconds: 30
+
+  migrate:
+    command: uv run python manage.py migrate
+    environment:
+      - DJANGO_ENV=dev
+    depends_on:
+      stack:
+        condition: process_completed_successfully
+
+  bootstrap:
+    command: uv run python manage.py bootstrap_dev
+    environment:
+      - DJANGO_ENV=dev
+    depends_on:
+      migrate:
+        condition: process_completed_successfully
+
+  runner_migrate:
+    command: uv run python manage.py migrate
+    environment:
+      - DJANGO_SETTINGS_MODULE=secondshift.config.settings.runner
+
+  runner:
+    description: Isolated command-runner API
+    command: uv run gunicorn "secondshift.config.app:wsgi('runner')" --bind 127.0.0.1:8002 --workers 1 --reload --access-logfile -
+    environment:
+      - DJANGO_SETTINGS_MODULE=secondshift.config.settings.runner
+    depends_on:
+      runner_migrate:
+        condition: process_completed_successfully
+      bootstrap:
+        condition: process_completed_successfully
+    availability:
+      restart: always
+
+  backend:
+    command: uv run gunicorn "secondshift.config.app:wsgi('web')" --bind 127.0.0.1:8000 --workers 2 --reload --access-logfile -
+    environment:
+      - DJANGO_ENV=dev
+      # macOS kills forked workers that make outbound HTTP (system proxy lookup).
+      - OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
+    depends_on:
+      bootstrap:
+        condition: process_completed_successfully
+    availability:
+      restart: always
+
+  gateway:
+    description: Model gateway for the trusted agent orchestrator
+    command: uv run gunicorn "secondshift.config.app:asgi('gateway')" --bind 127.0.0.1:8001 --worker-class uvicorn_worker.UvicornWorker --workers 1 --reload --access-logfile -
+    environment:
+      - DJANGO_ENV=dev
+      - OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
+    depends_on:
+      bootstrap:
+        condition: process_completed_successfully
+    availability:
+      restart: always
+
+  worker:
+    command: uv run python manage.py run_dbos_worker
+    environment:
+      - DJANGO_ENV=dev
+    depends_on:
+      bootstrap:
+        condition: process_completed_successfully
+      gateway:
+        condition: process_started
+      runner:
+        condition: process_started
+    availability:
+      restart: always
+    watch:
+      debounce: 500ms
+      paths:
+        - path: secondshift
+          include: ["**/*.py"]
+
+  frontend:
+    command: npm run dev
+    working_dir: dashboard
+    depends_on:
+      backend:
+        condition: process_started
+
+  runner_gvisor_check:
+    description: Optional Linux production-runtime smoke test
+    command: docker run --rm --runtime=runsc hello-world
+    disabled: true

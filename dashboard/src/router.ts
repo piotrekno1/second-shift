@@ -1,0 +1,37 @@
+import { createRouter, createWebHistory } from 'vue-router'
+
+import ConnectionsView from './views/ConnectionsView.vue'
+import JobsView from './views/JobsView.vue'
+import JobDetailView from './views/JobDetailView.vue'
+import LoginView from './views/LoginView.vue'
+import OverviewView from './views/OverviewView.vue'
+import RepositoriesView from './views/RepositoriesView.vue'
+import RepositoryDetailView from './views/RepositoryDetailView.vue'
+import RunDetailView from './views/RunDetailView.vue'
+import RunFileView from './views/RunFileView.vue'
+import RunsView from './views/RunsView.vue'
+import SettingsView from './views/SettingsView.vue'
+
+export default createRouter({
+  history: createWebHistory(),
+  routes: [
+    { path: '/login', component: LoginView },
+    { path: '/', component: OverviewView },
+    { path: '/repositories', component: RepositoriesView },
+    { path: '/repositories/:id', component: RepositoryDetailView },
+    { path: '/jobs', component: JobsView },
+    { path: '/jobs/:id', component: JobDetailView },
+    { path: '/runs', component: RunsView },
+    { path: '/runs/:id', component: RunDetailView },
+    { path: '/runs/:id/files/:name(input|output)', component: RunFileView },
+    { path: '/connections', component: ConnectionsView },
+    { path: '/settings', component: SettingsView },
+  ],
+  scrollBehavior(to, from, savedPosition) {
+    if (savedPosition) return savedPosition
+    if (to.hash) return { el: to.hash, top: 16, behavior: 'smooth' }
+    // Filter changes replace the query on the same page; keep the reader's place.
+    if (to.path === from.path) return false
+    return { top: 0 }
+  },
+})

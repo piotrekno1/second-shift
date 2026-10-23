@@ -1,0 +1,17 @@
+.DS_Store
+.env
+.venv/
+.pytest_cache/
+.ruff_cache/
+__pycache__/
+*.py[cod]
+*.sqlite3
+db.sqlite3
+staticfiles/
+secondshift/web/
+dashboard/node_modules/
+.secondshift-work/
+.secondshift-artifacts/
+.secondshift-runner/
+coverage.xml
+htmlcov/

@@ -1,0 +1,157 @@
+<script setup lang="ts">
+import { computed, onMounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import Button from 'primevue/button'
+import PageHeader from '../components/PageHeader.vue'
+import RunOutcomes from '../components/RunOutcomes.vue'
+import RunRow from '../components/RunRow.vue'
+import StatusPill from '../components/StatusPill.vue'
+import { apiGet, apiPost } from '../services/api'
+import { useLiveRefresh } from '../composables/useLiveRefresh'
+import { isRunActive, startJobRun } from '../services/runs'
+import { useAppStore } from '../stores/app'
+import type { Job, JobDetail } from '../types'
+import { accessLabel, accessNeedsAction, countLabel, formatDate, formatRelative, formatSchedule, formatScheduled, utcTitle } from '../utils/format'
+
+const route = useRoute()
+const router = useRouter()
+const app = useAppStore()
+const job = ref<JobDetail | null>(null)
+const loading = ref(true)
+const action = ref<string | null>(null)
+const error = ref<string | null>(null)
+const jobId = Number(route.params.id)
+
+const requiredCapabilities = computed(() => job.value?.capabilities.filter((capability) => capability.required) ?? [])
+const optionalCapabilities = computed(() => job.value?.capabilities.filter((capability) => !capability.required) ?? [])
+const detailSubtitle = computed(() => {
+  if (!job.value) return 'Loading job…'
+  return `${job.value.repository} · ${formatSchedule(job.value.cron, job.value.timezone)}`
+})
+const lastRun = computed(() => job.value?.recent_runs[0] ?? null)
+
+async function loadJob(): Promise<void> {
+  try {
+    job.value = await apiGet<JobDetail>(`/jobs/${jobId}`)
+    error.value = null
+  } catch (loadError) {
+    error.value = loadError instanceof Error ? loadError.message : 'Unable to load job'
+  } finally {
+    loading.value = false
+  }
+}
+
+async function toggleJob(): Promise<void> {
+  if (!job.value) return
+  action.value = 'toggle'
+  error.value = null
+  try {
+    await apiPost<Job>(`/jobs/${jobId}/enabled`, { enabled: !job.value.enabled })
+    await Promise.all([loadJob(), app.refresh()])
+  } catch (toggleError) {
+    error.value = toggleError instanceof Error ? toggleError.message : 'Unable to change job state'
+  } finally {
+    action.value = null
+  }
+}
+
+async function runNow(): Promise<void> {
+  action.value = 'run'
+  error.value = null
+  try {
+    const run = await startJobRun(jobId)
+    // Starting a run from its job means "show me this run".
+    await router.push(`/runs/${run.id}`)
+    void app.refreshRuns()
+  } catch (runError) {
+    error.value = runError instanceof Error ? runError.message : 'Unable to run job'
+  } finally {
+    action.value = null
+  }
+}
+
+onMounted(loadJob)
+useLiveRefresh(loadJob, () => (job.value?.recent_runs ?? []).some((run) => isRunActive(run.status)))
+</script>
+
+<template>
+  <div class="page">
+    <PageHeader :title="job?.name ?? 'Job'" :description="detailSubtitle">
+      <RouterLink to="/jobs" class="secondary-action"><i class="mdi mdi-arrow-left" /> Jobs</RouterLink>
+      <Button v-if="job" :label="job.enabled ? 'Disable' : 'Enable'" :icon="job.enabled ? 'pi pi-pause' : 'pi pi-play'" severity="secondary" outlined :loading="action === 'toggle'" @click="toggleJob" />
+      <Button v-if="job" label="Run now" icon="pi pi-play" :disabled="!job.enabled" :title="job.enabled ? 'Start a run and open it' : 'Enable the job to run it'" :loading="action === 'run'" @click="runNow" />
+    </PageHeader>
+
+    <div v-if="loading" class="panel empty-state"><i class="mdi mdi-loading mdi-spin" /><strong>Loading job</strong></div>
+    <div v-else-if="!job" class="panel empty-state"><i class="mdi mdi-alert-outline" /><strong>Job unavailable</strong><span>{{ error }}</span></div>
+    <template v-else>
+      <p v-if="error" class="page-error">{{ error }}</p>
+
+      <section class="panel job-status-strip" :class="{ disabled: !job.enabled }">
+        <StatusPill :status="job.enabled ? 'enabled' : 'disabled'" />
+        <div v-if="job.enabled" class="job-status-item">
+          <span>Next run</span>
+          <strong :title="utcTitle(job.next_run_at)">{{ formatScheduled(job.next_run_at, job.timezone) }}</strong>
+          <small>{{ formatRelative(job.next_run_at) }}</small>
+        </div>
+        <div v-else class="job-status-item"><span>Schedule paused</span><strong>Enable the job to resume runs</strong></div>
+        <div class="job-status-item">
+          <span>Last run</span>
+          <RouterLink v-if="lastRun" :to="`/runs/${lastRun.id}`" class="job-last-run" :title="`${formatDate(lastRun.scheduled_for)} · ${utcTitle(lastRun.scheduled_for)}`">
+            <StatusPill :status="lastRun.status" /> #{{ lastRun.id }} · {{ formatRelative(lastRun.scheduled_for) }}
+          </RouterLink>
+          <strong v-else>Not yet</strong>
+        </div>
+        <RouterLink v-if="accessNeedsAction(job.grant_status)" :to="{ path: '/jobs', query: { review: String(job.id) } }" class="job-status-action">
+          <StatusPill :status="job.grant_status" :label="accessLabel(job.grant_status)" /> Review access <i class="mdi mdi-arrow-right" />
+        </RouterLink>
+        <span v-if="!job.repository_enabled" class="job-status-warning"><i class="mdi mdi-alert-outline" /> Repository disabled</span>
+      </section>
+
+      <div class="run-layout">
+        <div class="run-main">
+          <RunOutcomes v-if="job.recent_runs.length" :runs="job.recent_runs" />
+
+          <section class="panel job-runs-panel">
+            <div class="panel-heading">
+              <h2>Recent runs</h2>
+              <RouterLink :to="{ path: '/runs', query: { job: job.id } }">All runs</RouterLink>
+            </div>
+            <div v-if="job.recent_runs.length" class="data-list">
+              <RunRow v-for="run in job.recent_runs" :key="run.id" :run="run" :show-job="false" />
+            </div>
+            <div v-else class="empty-state compact"><i class="mdi mdi-history" /><strong>No runs yet</strong><span>Use Run now to try the job, or wait for its schedule.</span></div>
+          </section>
+
+          <section v-if="job.capabilities.length" class="panel job-access-panel">
+            <div class="panel-heading">
+              <div><h2>Access and connections</h2><p>{{ countLabel(requiredCapabilities.length, 'required capability', 'required capabilities') }} · {{ countLabel(optionalCapabilities.length, 'optional capability', 'optional capabilities') }}</p></div>
+              <RouterLink :to="{ path: '/jobs', query: { review: String(job.id) } }">Review permissions</RouterLink>
+            </div>
+            <div class="job-capability-details">
+              <div v-for="capability in job.capabilities" :key="capability.id" class="job-capability-detail">
+                <div><strong>{{ capability.binding }}</strong><span>{{ capability.kind.toUpperCase() }} · {{ capability.required ? 'Required' : 'Optional' }}</span></div>
+                <div class="tool-list"><span v-for="tool in capability.requested_tools" :key="tool">{{ tool }}</span><small v-if="!capability.requested_tools.length">No tool-level scope</small></div>
+                <span class="capability-connection">{{ capability.connection_name || 'No connection selected' }}</span>
+                <StatusPill :status="capability.grant_status" />
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <aside class="panel run-details">
+          <h2>Details</h2>
+          <dl>
+            <div><dt>Repository</dt><dd><RouterLink :to="`/repositories/${job.repository_id}`" class="detail-link">{{ job.repository }}</RouterLink></dd></div>
+            <div><dt>Skill</dt><dd><code>{{ job.skill_path }}</code></dd></div>
+            <div><dt>Schedule</dt><dd><code>{{ job.cron }}</code> <span class="run-details-muted">· {{ job.timezone }}</span></dd></div>
+            <div><dt>Job key</dt><dd><code>{{ job.key }}</code></dd></div>
+            <div><dt>Revision</dt><dd><code>{{ job.repository_revision.slice(0, 12) }}</code></dd></div>
+            <div><dt>Config hash</dt><dd><code>{{ job.config_hash.slice(0, 12) }}</code></dd></div>
+            <div><dt>External access</dt><dd>{{ job.capabilities.length ? countLabel(job.capabilities.length, 'binding') : 'None requested' }}</dd></div>
+          </dl>
+        </aside>
+      </div>
+    </template>
+  </div>
+</template>

@@ -1,0 +1,11 @@
+version: 1
+
+jobs:
+  repository-health:
+    name: Repository health
+    skill: .agents/skills/repository-health/SKILL.md
+    schedule: "0 9 * * 1"
+    timezone: Europe/Warsaw
+    notify:
+      - binding: engineering-alerts
+        required: false

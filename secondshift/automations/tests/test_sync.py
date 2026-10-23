@@ -1,0 +1,57 @@
+from pathlib import Path
+
+from django.contrib.auth import get_user_model
+
+from secondshift.automations.models import JobGrant
+from secondshift.automations.sync import sync_manifest
+from secondshift.core.models import Workspace
+from secondshift.integrations.models import Connection
+from secondshift.repositories.models import Repository
+
+
+def write_manifest(path: Path, tools: list[str]) -> None:
+    rendered_tools = ", ".join(tools)
+    path.write_text(
+        f"""
+version: 1
+jobs:
+  review:
+    name: Review
+    skill: .agents/skills/review/SKILL.md
+    schedule: "0 9 * * 1"
+    requires:
+      mcps:
+        - binding: observability
+          tools: [{rendered_tools}]
+""".strip()
+    )
+
+
+def test_expanding_tools_returns_existing_grant_to_pending(db, tmp_path: Path) -> None:
+    user = get_user_model().objects.create_user(username="owner")
+    workspace = Workspace.objects.create(name="Test", slug="test", owner=user)
+    repository = Repository.objects.create(
+        workspace=workspace,
+        full_name="example/project",
+    )
+    connection = Connection.objects.create(
+        workspace=workspace,
+        provider=Connection.Provider.MCP,
+        kind=Connection.Kind.MCP,
+        binding_key="observability",
+        display_name="Grafana",
+    )
+    path = tmp_path / ".secondshift.yaml"
+    write_manifest(path, ["query_metrics"])
+    job = sync_manifest(repository, path)[0]
+    request = job.capability_requests.get()
+    grant = JobGrant.objects.get(capability_request=request, connection=connection)
+    grant.status = JobGrant.Status.APPROVED
+    grant.save(update_fields=["status"])
+
+    write_manifest(path, ["query_metrics", "search_dashboards"])
+    sync_manifest(repository, path)
+
+    grant.refresh_from_db()
+    assert grant.status == JobGrant.Status.PENDING
+    assert grant.allowed_tools == ["query_metrics", "search_dashboards"]

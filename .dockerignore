@@ -1,0 +1,11 @@
+.git
+.env
+.venv
+.pytest_cache
+.ruff_cache
+**/__pycache__
+dashboard/node_modules
+secondshift/web
+.secondshift-work
+.secondshift-artifacts
+.secondshift-runner

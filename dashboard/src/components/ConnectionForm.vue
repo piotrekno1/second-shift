@@ -1,0 +1,166 @@
+<script setup lang="ts">
+import { computed, ref, watch } from 'vue'
+import Button from 'primevue/button'
+import InputText from 'primevue/inputtext'
+import ModelProviderForm from './ModelProviderForm.vue'
+import { approveNeed, createWebhook, testConnection, updateWebhook } from '../services/connections'
+import { useAppStore } from '../stores/app'
+import type { Connection, Notice } from '../types'
+import { countLabel, titleFromSlug } from '../utils/format'
+
+type ConnectionType = 'webhook' | 'model' | 'mcp' | 'api'
+
+const props = defineProps<{
+  /** Fixed binding when opened from a need. */
+  binding?: string
+  /** Edit or reconnect an existing webhook or model provider. */
+  connection?: Connection
+}>()
+const emit = defineEmits<{ done: [notice: Notice, binding: string], cancel: [] }>()
+
+const app = useAppStore()
+const type = ref<ConnectionType>(props.connection?.kind === 'model' ? 'model' : 'webhook')
+const bindingKey = ref(props.connection?.binding_key ?? props.binding ?? '')
+const displayName = ref(props.connection?.display_name ?? titleFromSlug(bindingKey.value))
+const url = ref('')
+const approve = ref(true)
+const saving = ref(false)
+const error = ref<string | null>(null)
+
+const editing = computed(() => Boolean(props.connection))
+const typeOptions = computed(() => ([
+  ['webhook', 'Webhook', 'mdi-webhook'],
+  // Model providers are workspace-wide, so they are never offered for a binding.
+  ...(props.binding ? [] : [['model', 'Model provider', 'mdi-creation-outline']]),
+  ['mcp', 'MCP server', 'mdi-server-network'],
+  ['api', 'HTTP API', 'mdi-api'],
+] as [ConnectionType, string, string][]))
+const reconnecting = computed(() => props.connection?.status === 'revoked')
+const bindingFixed = computed(() => editing.value || Boolean(props.binding))
+const bindingValid = computed(() => /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(bindingKey.value))
+const taken = computed(() => !editing.value && app.connections.some((item) => item.binding_key === bindingKey.value))
+const need = computed(() => app.needs.find((item) => item.binding === bindingKey.value))
+const kindMismatch = computed(() => Boolean(need.value && need.value.kind !== kindFor(type.value)))
+const pendingJobs = computed(() => need.value?.jobs.filter((job) => job.grant_status === 'pending' || job.grant_status === 'unconfigured') ?? [])
+const suggestions = computed(() => app.needs.filter((item) => item.status === 'missing').map((item) => item.binding))
+const urlRequired = computed(() => !editing.value || reconnecting.value)
+const canSubmit = computed(() => bindingValid.value && !taken.value && !kindMismatch.value && (!urlRequired.value || url.value.trim() !== ''))
+const adminUrl = computed(() => {
+  const params = new URLSearchParams({
+    binding_key: bindingKey.value,
+    kind: type.value,
+    provider: type.value,
+    display_name: displayName.value || titleFromSlug(bindingKey.value),
+  })
+  return `/-/admin/integrations/connection/add/?${params.toString()}`
+})
+
+function kindFor(value: ConnectionType): string {
+  return value === 'webhook' ? 'notification' : value
+}
+
+// Follow the binding with a readable default name until the user types their own.
+watch(bindingKey, (next, previous) => {
+  if (!editing.value && (displayName.value === '' || displayName.value === titleFromSlug(previous))) {
+    displayName.value = titleFromSlug(next)
+  }
+})
+if (need.value && need.value.kind !== 'notification') type.value = need.value.kind
+
+async function submit(): Promise<void> {
+  if (!canSubmit.value) return
+  saving.value = true
+  error.value = null
+  let outcome: { notice: Notice, binding: string } | null = null
+  try {
+    const saved = props.connection
+      ? await updateWebhook(props.connection.id, { display_name: displayName.value.trim(), url: url.value.trim() || undefined })
+      : await createWebhook({ binding_key: bindingKey.value, display_name: displayName.value.trim(), url: url.value.trim() })
+    const approved = !editing.value && approve.value && need.value && pendingJobs.value.length > 0
+    if (approved && need.value) await approveNeed(need.value, saved.id)
+    const result = url.value.trim() ? await testConnection(saved.id) : null
+    const parts = [editing.value ? (reconnecting.value ? 'Reconnected' : 'Saved') : 'Connected']
+    if (result?.ok) parts.push('a test message was delivered')
+    if (approved) parts.push(`approved for ${countLabel(pendingJobs.value.length, 'job')}`)
+    outcome = {
+      notice: {
+        ok: !result || result.ok,
+        text: result && !result.ok ? `${parts[0]}, but the test message failed: ${result.message}` : `${parts.join(', ')}.`,
+      },
+      binding: saved.binding_key,
+    }
+  } catch (submitError) {
+    error.value = submitError instanceof Error ? submitError.message : 'Unable to save the connection'
+  } finally {
+    // Refresh first so the parent can find a newly created connection.
+    await app.refresh()
+    saving.value = false
+  }
+  if (outcome) emit('done', outcome.notice, outcome.binding)
+}
+</script>
+
+<template>
+  <div class="need-setup">
+    <div v-if="!editing" class="need-setup-type" role="radiogroup" aria-label="Connection type">
+      <button v-for="option in typeOptions" :key="option[0]" type="button" role="radio" :aria-checked="type === option[0]" :class="{ active: type === option[0] }" @click="type = option[0]">
+        <i class="mdi" :class="option[2]" /> {{ option[1] }}
+      </button>
+    </div>
+
+    <ModelProviderForm v-if="type === 'model'" :connection="connection" @done="(notice, binding) => emit('done', notice, binding)" @cancel="emit('cancel')" />
+    <form v-else class="need-setup-fields" @submit.prevent="submit">
+    <div class="need-setup-copy">
+      <template v-if="type === 'webhook'">
+        <h3>{{ editing ? (reconnecting ? 'Reconnect webhook' : 'Edit webhook') : 'Send run reports to a webhook' }}</h3>
+        <p>After every run, SecondShift POSTs a JSON report with a <code>text</code> summary. Slack and Mattermost incoming webhooks work as they are. For Discord, add <code>/slack</code> to the end of the webhook URL.</p>
+      </template>
+      <template v-else>
+        <h3>{{ type === 'mcp' ? 'MCP server' : 'HTTP API' }}</h3>
+        <p>These are still set up in admin: tool discovery isn't built yet, and runs can't reach them from the sandbox until the runner routes approved traffic. The admin form opens prefilled with this binding.</p>
+      </template>
+    </div>
+
+    <label>
+      <span>Binding key</span>
+      <InputText v-model.trim="bindingKey" :disabled="bindingFixed" list="binding-suggestions" placeholder="engineering-alerts" autocomplete="off" spellcheck="false" />
+      <datalist id="binding-suggestions"><option v-for="item in suggestions" :key="item" :value="item" /></datalist>
+      <small v-if="bindingKey && !bindingValid" class="field-error">Lowercase letters, numbers and single dashes.</small>
+      <small v-else-if="taken" class="field-error">This binding already has a connection.</small>
+      <small v-else-if="kindMismatch && need" class="field-error">Jobs request {{ need.binding }} as {{ need.kind === 'notification' ? 'a notification' : need.kind.toUpperCase() }}.</small>
+      <small v-else-if="need && !editing">Used by {{ need.jobs.map((job) => job.job_name).join(', ') }}.</small>
+      <small v-else-if="!editing">Name it as your <code>.secondshift.yaml</code> will.</small>
+    </label>
+    <label>
+      <span>Name</span>
+      <InputText v-model="displayName" maxlength="200" />
+    </label>
+
+    <template v-if="type === 'webhook'">
+      <label class="need-setup-wide">
+        <span>Webhook URL</span>
+        <InputText v-model="url" type="url" :required="urlRequired" autocomplete="off" spellcheck="false" :placeholder="editing && !reconnecting ? `Leave blank to keep the current URL (${connection?.target})` : 'https://hooks.slack.com/services/…'" />
+      </label>
+      <label v-if="!editing && pendingJobs.length" class="need-setup-check">
+        <input v-model="approve" type="checkbox">
+        <span>Also approve it for {{ countLabel(pendingJobs.length, 'job') }}: {{ pendingJobs.map((job) => job.job_name).join(', ') }}</span>
+      </label>
+      <p v-if="error" class="need-notice need-setup-wide">{{ error }}</p>
+      <div class="need-setup-footer">
+        <small><i class="mdi mdi-lock-outline" /> The URL is encrypted at rest and never shown again. Only its host is displayed.</small>
+        <div class="need-actions">
+          <Button label="Cancel" severity="secondary" text size="small" @click="emit('cancel')" />
+          <Button type="submit" :label="url.trim() ? (editing ? 'Save and send test' : 'Connect and send test') : 'Save'" icon="pi pi-send" :loading="saving" :disabled="!canSubmit" />
+        </div>
+      </div>
+    </template>
+    <div v-else class="need-setup-footer">
+      <span />
+      <div class="need-actions">
+        <Button label="Cancel" severity="secondary" text size="small" @click="emit('cancel')" />
+        <a :href="adminUrl" target="_blank" rel="noopener" class="primary-action connection-setup-action" :class="{ disabled: !bindingValid }"><i class="mdi mdi-open-in-new" /> Continue in admin</a>
+      </div>
+    </div>
+    </form>
+  </div>
+</template>

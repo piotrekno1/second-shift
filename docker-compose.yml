@@ -1,0 +1,41 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: secondshift
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d secondshift"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+  # Local S3-compatible storage for run artifacts. Started only with
+  # COMPOSE_PROFILES=s3. Console: http://localhost:9001/rustfs/console/
+  # (sign in with the artifact access key and secret).
+  rustfs:
+    image: rustfs/rustfs:1.0.1
+    profiles: ["s3"]
+    environment:
+      RUSTFS_ACCESS_KEY: ${SECONDSHIFT_ARTIFACT_ACCESS_KEY_ID:-secondshift}
+      RUSTFS_SECRET_KEY: ${SECONDSHIFT_ARTIFACT_SECRET_ACCESS_KEY:-secondshift-dev-secret}
+      RUSTFS_CONSOLE_ENABLE: "true"
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+    volumes:
+      - rustfs_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:9000/health"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  postgres_data:
+  rustfs_data:

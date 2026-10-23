@@ -1,0 +1,113 @@
+from django.db import IntegrityError, transaction
+
+from secondshift.core.models import Workspace
+from secondshift.integrations.models import Connection
+from secondshift.integrations.webhooks import validate_webhook_url, webhook_target_label
+
+
+class ConnectionConflict(ValueError):
+    pass
+
+
+def connection_target(connection: Connection) -> str:
+    if connection.provider == Connection.Provider.WEBHOOK or (
+        connection.kind == Connection.Kind.MODEL
+    ):
+        return str(connection.metadata.get("target", ""))
+    return ""
+
+
+def create_webhook_connection(
+    workspace: Workspace,
+    binding_key: str,
+    display_name: str,
+    url: str,
+) -> Connection:
+    url = validate_webhook_url(url)
+    if Connection.objects.filter(workspace=workspace, binding_key=binding_key).exists():
+        raise ConnectionConflict(
+            f"A connection for {binding_key} already exists in this workspace."
+        )
+    connection = Connection(
+        workspace=workspace,
+        provider=Connection.Provider.WEBHOOK,
+        kind=Connection.Kind.NOTIFICATION,
+        binding_key=binding_key,
+        display_name=display_name.strip() or binding_key,
+        auth_strategy=Connection.AuthStrategy.NONE,
+        delivery_url=url,
+        metadata={"target": webhook_target_label(url)},
+    )
+    connection.full_clean()
+    try:
+        with transaction.atomic():
+            connection.save()
+    except IntegrityError as error:
+        raise ConnectionConflict(
+            f"A connection for {binding_key} already exists in this workspace."
+        ) from error
+    return connection
+
+
+def update_webhook_connection(
+    connection: Connection,
+    display_name: str | None,
+    url: str | None,
+) -> Connection:
+    if connection.provider != Connection.Provider.WEBHOOK:
+        raise ConnectionConflict("Only webhook connections can be edited here.")
+    if display_name is not None:
+        connection.display_name = display_name.strip() or connection.binding_key
+    if url:
+        url = validate_webhook_url(url)
+        connection.delivery_url = url
+        connection.metadata = {
+            **connection.metadata,
+            "target": webhook_target_label(url),
+        }
+        connection.status = Connection.Status.CONNECTED
+    elif connection.status == Connection.Status.REVOKED:
+        raise ConnectionConflict("Enter a new URL to reconnect this webhook.")
+    connection.full_clean()
+    connection.save()
+    return connection
+
+
+def revoke_connection(connection: Connection) -> Connection:
+    """Stop all use immediately and discard stored credentials; keep the record."""
+    connection.status = Connection.Status.REVOKED
+    connection.is_default = False
+    connection.delivery_url = ""
+    connection.access_token = ""
+    connection.refresh_token = ""
+    connection.metadata = {
+        key: value for key, value in connection.metadata.items() if key != "target"
+    }
+    connection.save(
+        update_fields=[
+            "status",
+            "delivery_url",
+            "access_token",
+            "refresh_token",
+            "metadata",
+            "is_default",
+            "updated_at",
+        ]
+    )
+    return connection
+
+
+@transaction.atomic
+def delete_connection(connection: Connection) -> None:
+    if connection.kind == Connection.Kind.IDENTITY:
+        raise ConnectionConflict("Sign-in connections are managed by their provider.")
+    # Grants are review records: they return to pending instead of disappearing,
+    # so the jobs show up again under "Needed by your jobs".
+    connection.job_grants.update(
+        connection=None,
+        status="pending",
+        allowed_tools=[],
+        reviewed_by=None,
+        reviewed_at=None,
+    )
+    connection.delete()

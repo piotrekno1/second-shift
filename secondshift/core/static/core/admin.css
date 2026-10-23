@@ -1,0 +1,125 @@
+/* SecondShift theme for Django admin. The dashboard is dark-only, so the
+   palette is applied regardless of the admin's light/dark/auto setting. */
+:root,
+html[data-theme] {
+  --primary: #4d43a8;
+  --secondary: #252746;
+  --accent: #ffb454;
+  --primary-fg: #ffffff;
+
+  --body-fg: #e9e9f6;
+  --body-bg: #111227;
+  --body-quiet-color: #9899b2;
+  --body-medium-color: #c4c5d8;
+  --body-loud-color: #ffffff;
+
+  --header-color: #eeeefa;
+  --header-branding-color: #eeeefa;
+  --header-bg: #16172e;
+  --header-link-color: #eeeefa;
+
+  --breadcrumbs-fg: #9899b2;
+  --breadcrumbs-link-fg: #c5bcff;
+  --breadcrumbs-bg: #1d1e39;
+
+  --link-fg: #c5bcff;
+  --link-hover-color: #ffd38c;
+  --link-selected-fg: #ffb454;
+
+  --hairline-color: rgba(197, 188, 255, 0.10);
+  --border-color: rgba(197, 188, 255, 0.20);
+
+  --error-fg: #ff778b;
+
+  --message-debug-bg: #252746;
+  --message-debug-icon: url(../admin/img/icon-debug-dark.svg);
+  --message-info-bg: #2c2a5e;
+  --message-info-icon: url(../admin/img/icon-info-dark.svg);
+  --message-success-bg: #17463d;
+  --message-success-icon: url(../admin/img/icon-yes-dark.svg);
+  --message-warning-bg: #4f3714;
+  --message-warning-icon: url(../admin/img/icon-alert-dark.svg);
+  --message-error-bg: #4f1f2a;
+  --message-error-icon: url(../admin/img/icon-no-dark.svg);
+
+  --darkened-bg: #0d0e1d;
+  --selected-bg: #252746;
+  --selected-row: rgba(139, 124, 255, 0.14);
+
+  --button-fg: #ffffff;
+  --button-bg: #4d43a8;
+  --button-hover-bg: #6d5ee8;
+  --default-button-bg: #6d5ee8;
+  --default-button-hover-bg: #8b7cff;
+  --close-button-bg: #3a3c62;
+  --close-button-hover-bg: #4d4f7a;
+  --delete-button-bg: #b8394f;
+  --delete-button-hover-bg: #d0465e;
+
+  --object-tools-fg: var(--button-fg);
+  --object-tools-bg: var(--close-button-bg);
+  --object-tools-hover-bg: var(--close-button-hover-bg);
+
+  --font-family-primary: 'DM Sans', system-ui, sans-serif;
+
+  color-scheme: dark;
+}
+
+/* Only one theme, so the toggle has nothing to do. */
+.theme-toggle { display: none; }
+
+body {
+  background:
+    radial-gradient(circle at 73% -10%, rgba(104, 86, 230, .16), transparent 28rem),
+    var(--darkened-bg);
+  background-attachment: fixed;
+}
+
+h1, h2, #site-name, .module caption { font-family: 'Manrope', system-ui, sans-serif; }
+
+#header { border-bottom: 1px solid var(--hairline-color); }
+.ss-brand { display: inline-flex; align-items: center; gap: 10px; }
+.ss-brand img { width: 32px; height: 32px; }
+#site-name .ss-brand span { font-weight: 800; letter-spacing: -.03em; color: var(--header-branding-color); }
+#user-tools a { border-bottom-color: rgba(197, 188, 255, .3); }
+
+div.breadcrumbs { border-bottom: 1px solid var(--hairline-color); }
+
+#content-main .module,
+#content-related .module,
+.dashboard .module,
+fieldset.module {
+  border: 1px solid var(--hairline-color);
+  border-radius: 14px;
+  overflow: hidden;
+  background: rgba(36, 37, 69, .55);
+}
+.module h2, .module caption, .inline-group h2 {
+  background: linear-gradient(105deg, rgba(139, 124, 255, .22), rgba(139, 124, 255, .08));
+  color: #c5bcff;
+}
+
+input[type=text], input[type=password], input[type=email], input[type=url],
+input[type=number], input[type=tel], input[type=search], textarea, select, .vTextField {
+  background: #0d0e1d;
+  color: var(--body-fg);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+}
+input:focus, textarea:focus, select:focus { border-color: #8b7cff; outline: 2px solid rgba(139, 124, 255, .25); }
+
+.button, input[type=submit], input[type=button], .submit-row input, a.button, button { border-radius: 8px; }
+
+/* Login page: a centered card like the dashboard sign-in. */
+body.login { background: transparent; }
+body.login #container {
+  border: 1px solid var(--border-color);
+  border-radius: 18px;
+  background: linear-gradient(145deg, rgba(36, 37, 69, .92), rgba(24, 25, 49, .92));
+  box-shadow: 0 22px 60px rgba(5, 6, 20, .34);
+}
+body.login #header { padding: 24px 16px 12px; background: transparent; border-bottom: 0; }
+body.login #site-name .ss-brand { flex-direction: column; gap: 12px; }
+body.login .ss-brand img { width: 56px; height: 56px; }
+body.login #site-name .ss-brand span { font-size: 1.35rem; }
+body.login .submit-row input { width: 100%; padding: 11px; background: linear-gradient(120deg, #8b7cff, #6d5ee8); font-weight: 700; }
