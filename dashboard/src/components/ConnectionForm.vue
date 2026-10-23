@@ -20,7 +20,13 @@ const props = defineProps<{
 const emit = defineEmits<{ done: [notice: Notice, binding: string], cancel: [] }>()
 
 const app = useAppStore()
-const type = ref<ConnectionType>(props.connection?.kind === 'model' || props.connection?.kind === 'mcp' ? props.connection.kind : 'webhook')
+// Editing keeps the connection's type. A new one starts on the first option:
+// Model provider from the header, or what the binding's jobs request.
+const type = ref<ConnectionType>(
+  props.connection
+    ? (props.connection.kind === 'model' || props.connection.kind === 'mcp' ? props.connection.kind : 'webhook')
+    : (props.binding ? 'webhook' : 'model'),
+)
 const bindingKey = ref(props.connection?.binding_key ?? props.binding ?? '')
 const displayName = ref(props.connection?.display_name ?? titleFromSlug(bindingKey.value))
 const url = ref('')
@@ -30,11 +36,11 @@ const error = ref<string | null>(null)
 
 const editing = computed(() => Boolean(props.connection))
 const typeOptions = computed(() => ([
-  ['webhook', 'Webhook', 'mdi-webhook'],
   // Model providers are workspace-wide, so they are never offered for a binding.
   ...(props.binding ? [] : [['model', 'Model provider', 'mdi-creation-outline']]),
   ['mcp', 'MCP server', 'mdi-server-network'],
   ['api', 'HTTP API', 'mdi-api'],
+  ['webhook', 'Webhook', 'mdi-webhook'],
 ] as [ConnectionType, string, string][]))
 const reconnecting = computed(() => props.connection?.status === 'revoked')
 const bindingFixed = computed(() => editing.value || Boolean(props.binding))
