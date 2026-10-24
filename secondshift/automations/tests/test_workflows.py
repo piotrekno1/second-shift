@@ -2,6 +2,7 @@ import pytest
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 
+from secondshift.automations import workflows
 from secondshift.automations.models import Job, Run
 from secondshift.automations.runner_protocol import RunnerSessionSpec
 from secondshift.automations.workflows import (
@@ -132,3 +133,43 @@ def test_local_materialization_uses_frozen_name_and_revision(
             "repository_root": tmp_path / "runner-repositories",
         }
     ]
+
+
+@pytest.mark.django_db
+def test_a_failed_run_still_notifies(
+    db, monkeypatch: pytest.MonkeyPatch, fake_stages: list[str]
+) -> None:
+    run = execution_run(db)
+    notified: list[int] = []
+
+    def fail(run: Run, session_id: str) -> None:
+        raise RuntimeError("The agent returned an empty report.")
+
+    monkeypatch.setattr(workflows, "execute_agent_run", fail)
+    monkeypatch.setattr(workflows, "notify", notified.append)
+
+    with pytest.raises(RuntimeError):
+        workflows.execute_run(run.pk)
+
+    run.refresh_from_db()
+    assert run.status == Run.Status.FAILED
+    assert notified == [run.pk]
+
+
+@pytest.mark.django_db
+def test_a_notification_error_keeps_the_run_failure(
+    db, monkeypatch: pytest.MonkeyPatch, fake_stages: list[str]
+) -> None:
+    run = execution_run(db)
+
+    def fail(run: Run, session_id: str) -> None:
+        raise RuntimeError("The agent returned an empty report.")
+
+    def broken_notify(run_id: int) -> None:
+        raise ConnectionError("database went away")
+
+    monkeypatch.setattr(workflows, "execute_agent_run", fail)
+    monkeypatch.setattr(workflows, "notify", broken_notify)
+
+    with pytest.raises(RuntimeError, match="empty report"):
+        workflows.execute_run(run.pk)

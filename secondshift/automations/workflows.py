@@ -281,6 +281,11 @@ def execute_run(run_id: int) -> None:
         else:
             summary = failure_summary(stage, error)
         fail_run_step(run_id, summary, details)
+        # A failed run notifies too, so a scheduled job never fails silently.
+        try:
+            notify(run_id)
+        except Exception:
+            logger.exception("could not notify about failed run %s", run_id)
         raise
     notify(run_id)
 

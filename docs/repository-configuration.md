@@ -88,8 +88,9 @@ jobs:
 3. Sync the committed manifest and approve the job's notification access.
 4. Start a run with **Run now**. Enable the job when you want it to run on schedule.
 
-The server posts the run status, report summary, and a link back to SecondShift
-after the run finishes. Delivery happens outside the offline sandbox.
+The server posts the run status, report summary, and a link to the run in
+SecondShift after the run finishes. Failed runs are sent too, with the reason
+they failed. Delivery happens outside the offline sandbox.
 
 Each notification needs a `binding`. Its `required` flag defaults to `true`.
 Set it to `false` if a missing notification approval should not block the job.

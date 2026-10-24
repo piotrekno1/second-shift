@@ -39,7 +39,7 @@ def notification_targets(run: Run) -> list[int]:
 def run_report_payload(run: Run) -> dict[str, Any]:
     job = run.job
     status = STATUS_LABELS.get(run.status, run.status)
-    run_url = f"{settings.FRONTEND_URL.rstrip('/')}/jobs/{job.pk}"
+    run_url = f"{settings.FRONTEND_URL.rstrip('/')}/runs/{run.pk}"
     summary = run.summary or "No summary."
     return {
         "event": "run.finished",
