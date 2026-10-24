@@ -1,7 +1,7 @@
 [project]
 name = "secondshift"
 version = "0.1.0a3"
-description = "Run repository agent skills safely, on schedule."
+description = "Scheduled agent reviews for your repositories, defined in Git."
 readme = "README.md"
 license = "Apache-2.0"
 requires-python = ">=3.13,<3.14"

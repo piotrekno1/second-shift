@@ -6,9 +6,10 @@
 [![CI](https://github.com/piotrekno1/second-shift/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/piotrekno1/second-shift/actions/workflows/ci.yml?query=branch%3Amain)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
 
-**GitOps for recurring agent work.**
+**Scheduled agent reviews for your repositories.**
 
-SecondShift turns committed repository skills into scheduled reviews and reports.
+Commit a skill and a schedule. SecondShift runs it in a sandbox with only the
+access you approve, and sends you the report.
 
 https://github.com/user-attachments/assets/139dc763-e7eb-4e1f-ac27-c2f44bac452c
 
@@ -102,5 +103,6 @@ discuss the approach.
 
 - [Repository configuration](docs/repository-configuration.md): skills, YAML syntax, schedules, and notifications.
 - [Architecture](docs/architecture.md): execution design and capability boundaries.
-- [Self-hosting](docs/self-hosting.md): runner backends, sandbox images, and artifact storage.
+- [Security model](docs/security-model.md): what a run can reach, where secrets live, and remaining risks.
+- [Self-hosting](docs/self-hosting.md) (work in progress): runner backends, sandbox images, and artifact storage.
 - [Contributing](CONTRIBUTING.md): source setup, development, verification, and releases.

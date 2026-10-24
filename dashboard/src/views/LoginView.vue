@@ -5,8 +5,8 @@
       <span class="eyebrow">Your agents, safely on duty</span>
       <h1>The work continues<br />after you sign off.</h1>
       <p>
-        Connect a repository, approve its skills and secrets, and let SecondShift
-        handle the recurring work.
+        Connect a repository and approve what its skills may access. SecondShift
+        runs scheduled reviews in a sandbox and sends you the report.
       </p>
       <a class="primary-action" href="/accounts/github/login/">
         <i class="mdi mdi-github" /> Continue with GitHub

@@ -1,6 +1,6 @@
 # Repository configuration
 
-[README](../README.md) · [Architecture](architecture.md) · [Self-hosting](self-hosting.md)
+[README](../README.md) · [Architecture](architecture.md) · [Security model](security-model.md) · [Self-hosting](self-hosting.md)
 
 A root-level `.secondshift.yaml` declares what runs and when. The server
 controls models, credentials, sandbox settings, and runtime policy.
@@ -150,6 +150,10 @@ For HTTP APIs, SecondShift builds every request from the spec. The model
 supplies only the path and query values the spec declares, plus a JSON body for
 operations that take one. Requests go only to the base URL the owner confirmed
 when connecting. Redirects are not followed.
+
+An approved tool can still be misused by a prompt injection. See
+[remaining risks](security-model.md#remaining-risks) before approving tools
+that change data.
 
 See the [engineering briefing example](../examples/engineering-briefing/README.md)
 for a working job that reads live GitHub data.

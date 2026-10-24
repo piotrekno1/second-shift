@@ -1,6 +1,11 @@
 # Self-hosting
 
-[README](../README.md) · [Architecture](architecture.md)
+[README](../README.md) · [Architecture](architecture.md) · [Security model](security-model.md)
+
+> **Work in progress.** A production deployment is not yet documented or
+> verified end to end. Follow
+> [issue #1](https://github.com/piotrekno1/second-shift/issues/1) for progress.
+> Local mode (`secondshift up`) is the supported way to try SecondShift today.
 
 ## Runner backends
 
