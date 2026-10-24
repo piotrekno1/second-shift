@@ -9,7 +9,7 @@
 **Scheduled agent reviews for your repositories.**
 
 Commit a skill and a schedule. SecondShift runs it in a sandbox with only the
-access you approve, and sends you the report.
+access you approve, and tells you what it found or did.
 
 https://github.com/user-attachments/assets/139dc763-e7eb-4e1f-ac27-c2f44bac452c
 

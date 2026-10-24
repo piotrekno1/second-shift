@@ -6,7 +6,7 @@
       <h1>The work continues<br />after you sign off.</h1>
       <p>
         Connect a repository and approve what its skills may access. SecondShift
-        runs scheduled reviews in a sandbox and sends you the report.
+        runs scheduled reviews in a sandbox and tells you what they found or did.
       </p>
       <a class="primary-action" href="/accounts/github/login/">
         <i class="mdi mdi-github" /> Continue with GitHub
