@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -29,10 +30,13 @@ from secondshift.automations.tool_policy import LOCAL_TOOLS
 from secondshift.core.models import Workspace
 from secondshift.repositories.models import Repository
 
+LATER = datetime(2100, 1, 1, tzinfo=UTC)
+
 
 def tool_context(
     deps: WorkspaceToolDeps, call_id: str = "model-call-1"
 ) -> RunContext[WorkspaceToolDeps]:
+
     return RunContext(
         deps=deps,
         model=TestModel(),
@@ -46,6 +50,7 @@ def test_workspace_tools_come_only_from_the_frozen_plan() -> None:
         run_id=1,
         session_id="run-1",
         max_output_chars=100,
+        deadline=LATER,
         allowed_tools=("workspace.read_file", "workspace.run_command"),
     )
     ctx = tool_context(deps)
@@ -59,7 +64,9 @@ def test_workspace_tools_come_only_from_the_frozen_plan() -> None:
 
 
 def test_file_tools_reject_paths_outside_the_workspace() -> None:
-    deps = WorkspaceToolDeps(run_id=1, session_id="run-1", max_output_chars=100)
+    deps = WorkspaceToolDeps(
+        run_id=1, session_id="run-1", max_output_chars=100, deadline=LATER
+    )
     ctx = tool_context(deps)
 
     with pytest.raises(ValueError, match="inside the repository"):
@@ -84,7 +91,9 @@ def test_runner_call_is_stable_bounded_and_contains_no_runtime_configuration(
     monkeypatch.setattr(
         "secondshift.automations.execution.execute_runner_command_step", execute
     )
-    deps = WorkspaceToolDeps(run_id=7, session_id="run-7", max_output_chars=80)
+    deps = WorkspaceToolDeps(
+        run_id=7, session_id="run-7", max_output_chars=80, deadline=LATER
+    )
     ctx = tool_context(deps)
 
     result = run_command(ctx, ["python", "-m", "pytest"], "src", 30)
@@ -145,6 +154,7 @@ def test_pydantic_agent_calls_the_runner_backed_tool(monkeypatch) -> None:
                 run_id=9,
                 session_id=session_id,
                 max_output_chars=1_000,
+                deadline=LATER,
             ),
             run_id="test-runner-tool",
         )

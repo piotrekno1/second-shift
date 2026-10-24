@@ -9,6 +9,7 @@ from secondshift.automations.workflows import (
     start_runner_session_step,
     stop_runner_session_step,
 )
+from secondshift.config.constants import RunSandbox
 from secondshift.core.models import Workspace
 from secondshift.repositories.models import Repository
 
@@ -82,7 +83,7 @@ def test_runner_session_uses_only_the_frozen_server_plan(db, monkeypatch) -> Non
     ]
     assert client.stopped == [session_id]
     run.refresh_from_db()
-    assert run.sandbox_runtime == "isolated-runner"
+    assert run.sandbox_runtime == RunSandbox.ISOLATED_RUNNER
 
 
 @pytest.mark.django_db

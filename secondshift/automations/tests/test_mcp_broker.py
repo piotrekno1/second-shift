@@ -1,4 +1,5 @@
 import json
+from datetime import UTC, datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from threading import Thread
@@ -35,6 +36,8 @@ from secondshift.integrations.tests.test_github_mcp import TOOL_SCHEMAS
 from secondshift.integrations.tests.test_github_mcp import mcp_http as imported_mcp_http
 from secondshift.integrations.webhooks import deliver_webhook
 from secondshift.repositories.models import Repository
+
+LATER = datetime(2100, 1, 1, tzinfo=UTC)
 
 
 @pytest.fixture
@@ -359,7 +362,10 @@ def test_remote_failures_are_reportable_but_policy_denials_still_stop_the_run(
     tool = external_tools(planned_run)[0]
     context = tool_context(
         WorkspaceToolDeps(
-            run_id=planned_run.pk, session_id="offline", max_output_chars=1000
+            run_id=planned_run.pk,
+            session_id="offline",
+            max_output_chars=1000,
+            deadline=LATER,
         )
     )
 

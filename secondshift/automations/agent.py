@@ -8,6 +8,7 @@ from pydantic_ai.capabilities import ResolveModelId
 from pydantic_ai.durable_exec.dbos import DBOSDurability
 from pydantic_ai.models import Model, ModelResolutionContext
 
+from secondshift.automations.deadlines import check_deadline
 from secondshift.automations.model_gateway import (
     issue_model_gateway_access,
     pydantic_model,
@@ -52,6 +53,7 @@ async def resolve_run_model(
     """
     if model_id != RUN_MODEL_ID:
         return None
+    check_deadline(context.deps.deadline)
     # Pydantic AI resolves models inside its event loop, where Django refuses
     # synchronous database access.
     return await sync_to_async(run_model)(int(context.deps.run_id))

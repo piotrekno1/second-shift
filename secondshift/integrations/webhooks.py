@@ -2,12 +2,13 @@ import logging
 from dataclasses import dataclass
 from typing import Any
 
-import requests
+import httpx
 from django.conf import settings
 
 from secondshift.integrations.models import Connection
 from secondshift.integrations.outbound import (
     OutboundUrlError,
+    PinnedSyncTransport,
     host_label,
     validate_outbound_url,
 )
@@ -36,6 +37,12 @@ def webhook_target_label(url: str) -> str:
     return host_label(url)
 
 
+def webhook_transport() -> httpx.BaseTransport:
+    # Connects only to the addresses it checked, so DNS cannot rebind
+    # between the check and the request.
+    return PinnedSyncTransport()
+
+
 def deliver_webhook(connection: Connection, payload: dict[str, Any]) -> WebhookDelivery:
     if (
         connection.provider != Connection.Provider.WEBHOOK
@@ -48,16 +55,17 @@ def deliver_webhook(connection: Connection, payload: dict[str, Any]) -> WebhookD
     except WebhookError as error:
         return WebhookDelivery(False, None, str(error))
     try:
-        response = requests.post(
-            url,
-            json=payload,
-            headers={"User-Agent": USER_AGENT},
+        with httpx.Client(
+            transport=webhook_transport(),
             timeout=settings.OUTBOUND_TIMEOUT_SECONDS,
-            allow_redirects=False,
-        )
-    except requests.Timeout:
+            follow_redirects=False,
+        ) as client:
+            response = client.post(
+                url, json=payload, headers={"User-Agent": USER_AGENT}
+            )
+    except httpx.TimeoutException:
         return WebhookDelivery(False, None, "The webhook timed out.", retryable=True)
-    except requests.RequestException as error:
+    except httpx.HTTPError as error:
         # Exception text includes the URL, which may embed a token.
         logger.warning(
             "webhook delivery to connection %s failed: %s",

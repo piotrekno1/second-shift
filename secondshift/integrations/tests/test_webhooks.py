@@ -1,10 +1,10 @@
 import json
 import socket
-from types import SimpleNamespace
 from typing import Any
 
+import httpcore
+import httpx
 import pytest
-import requests
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 from django.db import connection as db_connection
@@ -12,6 +12,7 @@ from django.test import Client
 
 from secondshift.automations.models import CapabilityRequest, Job, JobGrant
 from secondshift.core.models import Workspace
+from secondshift.integrations import webhooks
 from secondshift.integrations.models import Connection
 from secondshift.integrations.webhooks import (
     WebhookError,
@@ -90,27 +91,107 @@ def test_development_allows_local_http(settings: Any) -> None:
     assert validate_webhook_url(url) == url
 
 
+def use_transport(monkeypatch: pytest.MonkeyPatch, handler: Any) -> list[httpx.Request]:
+    sent: list[httpx.Request] = []
+
+    def record(request: httpx.Request) -> httpx.Response:
+        sent.append(request)
+        return handler(request)
+
+    monkeypatch.setattr(
+        webhooks, "webhook_transport", lambda: httpx.MockTransport(record)
+    )
+    return sent
+
+
 @pytest.mark.django_db
-def test_delivery_does_not_follow_redirects_or_leak_url(
+def test_delivery_does_not_follow_redirects(
     settings: Any,
     monkeypatch: pytest.MonkeyPatch,
     owner: tuple[AbstractUser, Workspace],
 ) -> None:
     settings.OUTBOUND_ALLOW_LOCAL = True
-    calls: list[dict[str, Any]] = []
-
-    def fake_post(url: str, **kwargs: Any) -> SimpleNamespace:
-        calls.append(kwargs)
-        raise requests.ConnectionError(f"cannot connect to {url}")
-
-    monkeypatch.setattr(requests, "post", fake_post)
+    sent = use_transport(
+        monkeypatch,
+        lambda request: httpx.Response(302, headers={"Location": "http://10.0.0.5/"}),
+    )
 
     delivery = deliver_webhook(webhook(owner[1]), {"text": "hi"})
 
-    assert calls[0]["allow_redirects"] is False
+    assert len(sent) == 1
+    assert delivery.ok is False
+    assert delivery.status_code == 302
+    assert "redirects are not followed" in delivery.message
+
+
+@pytest.mark.django_db
+def test_failed_delivery_does_not_leak_url(
+    settings: Any,
+    monkeypatch: pytest.MonkeyPatch,
+    owner: tuple[AbstractUser, Workspace],
+) -> None:
+    settings.OUTBOUND_ALLOW_LOCAL = True
+
+    def refuse(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError(f"cannot connect to {request.url}")
+
+    use_transport(monkeypatch, refuse)
+
+    delivery = deliver_webhook(webhook(owner[1]), {"text": "hi"})
+
     assert delivery.ok is False
     assert delivery.retryable is True
     assert "secret-token" not in delivery.message
+
+
+@pytest.mark.django_db
+def test_delivery_connects_to_the_checked_address(
+    settings: Any,
+    monkeypatch: pytest.MonkeyPatch,
+    owner: tuple[AbstractUser, Workspace],
+) -> None:
+    settings.OUTBOUND_ALLOW_LOCAL = False
+    monkeypatch.setattr(socket, "getaddrinfo", resolve_to("93.184.216.34"))
+    connected: list[str] = []
+
+    def fake_connect(self: object, host: str, port: int, **kwargs: Any) -> None:
+        connected.append(host)
+        raise httpcore.ConnectError("test stops here")
+
+    monkeypatch.setattr(httpcore.SyncBackend, "connect_tcp", fake_connect)
+
+    delivery = deliver_webhook(webhook(owner[1]), {"text": "hi"})
+
+    # The socket opens to the vetted IP, not to a second lookup of the name.
+    assert connected == ["93.184.216.34"]
+    assert delivery.ok is False
+
+
+@pytest.mark.django_db
+def test_delivery_refuses_a_host_that_rebinds_after_the_check(
+    settings: Any,
+    monkeypatch: pytest.MonkeyPatch,
+    owner: tuple[AbstractUser, Workspace],
+) -> None:
+    settings.OUTBOUND_ALLOW_LOCAL = False
+    answers = iter(["93.184.216.34", "10.0.0.5"])
+
+    def rebinding_getaddrinfo(*args: Any, **kwargs: Any) -> list[tuple[Any, ...]]:
+        return resolve_to(next(answers))()
+
+    monkeypatch.setattr(socket, "getaddrinfo", rebinding_getaddrinfo)
+    connected: list[str] = []
+    monkeypatch.setattr(
+        httpcore.SyncBackend,
+        "connect_tcp",
+        lambda self, host, port, **kwargs: connected.append(host),
+    )
+
+    delivery = deliver_webhook(webhook(owner[1]), {"text": "hi"})
+
+    assert connected == []
+    assert delivery.ok is False
+    assert delivery.message == "The webhook could not be reached."
 
 
 @pytest.mark.django_db
@@ -181,13 +262,7 @@ def test_connection_test_sends_message(
     settings.OUTBOUND_ALLOW_LOCAL = True
     user, workspace = owner
     connection = webhook(workspace)
-    sent: list[dict[str, Any]] = []
-
-    def fake_post(url: str, **kwargs: Any) -> SimpleNamespace:
-        sent.append(kwargs["json"])
-        return SimpleNamespace(status_code=204)
-
-    monkeypatch.setattr(requests, "post", fake_post)
+    sent = use_transport(monkeypatch, lambda request: httpx.Response(204))
     client.force_login(user)
 
     response = client.post(f"/api/connections/{connection.pk}/test")
@@ -199,7 +274,7 @@ def test_connection_test_sends_message(
         "message": "Delivered (HTTP 204).",
         "models": [],
     }
-    assert sent[0]["event"] == "connection.test"
+    assert json.loads(sent[0].content)["event"] == "connection.test"
 
 
 @pytest.mark.django_db

@@ -62,6 +62,18 @@ def host_label(url: str) -> str:
     return f"{host}:{parts.port}" if parts.port else host
 
 
+def vetted_addresses(infos: Iterable[tuple[object, ...]]) -> list[str]:
+    """The addresses from one DNS answer, if every one of them may be called."""
+    addresses = list(dict.fromkeys(str(info[4][0]) for info in infos))  # type: ignore[index]
+    if not addresses:
+        raise httpcore.ConnectError("The host could not be resolved.")
+    if not settings.OUTBOUND_ALLOW_LOCAL and not all(
+        public_address(address) for address in addresses
+    ):
+        raise httpcore.ConnectError("The host does not resolve to a public address.")
+    return addresses
+
+
 class PinnedNetworkBackend(httpcore.AsyncNetworkBackend):
     """Connects only to addresses that pass the outbound check.
 
@@ -78,14 +90,7 @@ class PinnedNetworkBackend(httpcore.AsyncNetworkBackend):
             infos = await anyio.getaddrinfo(host, port, proto=socket.IPPROTO_TCP)
         except (OSError, UnicodeError) as error:
             raise httpcore.ConnectError("The host could not be resolved.") from error
-        addresses = list(dict.fromkeys(str(info[4][0]) for info in infos))
-        if not settings.OUTBOUND_ALLOW_LOCAL and not all(
-            public_address(address) for address in addresses
-        ):
-            raise httpcore.ConnectError(
-                "The host does not resolve to a public address."
-            )
-        return addresses
+        return vetted_addresses(infos)
 
     async def connect_tcp(
         self,
@@ -95,11 +100,8 @@ class PinnedNetworkBackend(httpcore.AsyncNetworkBackend):
         local_address: str | None = None,
         socket_options: Iterable[httpcore.SOCKET_OPTION] | None = None,
     ) -> httpcore.AsyncNetworkStream:
-        addresses = await self.public_addresses(host, port)
-        if not addresses:
-            raise httpcore.ConnectError("The host could not be resolved.")
         last_error: Exception | None = None
-        for address in addresses:
+        for address in await self.public_addresses(host, port):
             try:
                 return await self.inner.connect_tcp(
                     address,
@@ -125,6 +127,54 @@ class PinnedNetworkBackend(httpcore.AsyncNetworkBackend):
         await self.inner.sleep(seconds)
 
 
+class PinnedSyncNetworkBackend(httpcore.NetworkBackend):
+    """The blocking twin of PinnedNetworkBackend, for code that is not async."""
+
+    def __init__(self) -> None:
+        self.inner = httpcore.SyncBackend()
+
+    def public_addresses(self, host: str, port: int) -> list[str]:
+        try:
+            infos = socket.getaddrinfo(host, port, proto=socket.IPPROTO_TCP)
+        except (OSError, UnicodeError) as error:
+            raise httpcore.ConnectError("The host could not be resolved.") from error
+        return vetted_addresses(infos)
+
+    def connect_tcp(
+        self,
+        host: str,
+        port: int,
+        timeout: float | None = None,
+        local_address: str | None = None,
+        socket_options: Iterable[httpcore.SOCKET_OPTION] | None = None,
+    ) -> httpcore.NetworkStream:
+        last_error: Exception | None = None
+        for address in self.public_addresses(host, port):
+            try:
+                return self.inner.connect_tcp(
+                    address,
+                    port,
+                    timeout=timeout,
+                    local_address=local_address,
+                    socket_options=socket_options,
+                )
+            except (httpcore.ConnectError, httpcore.ConnectTimeout) as error:
+                last_error = error
+        assert last_error is not None
+        raise last_error
+
+    def connect_unix_socket(
+        self,
+        path: str,
+        timeout: float | None = None,
+        socket_options: Iterable[httpcore.SOCKET_OPTION] | None = None,
+    ) -> httpcore.NetworkStream:
+        raise httpcore.ConnectError("Unix sockets are not allowed.")
+
+    def sleep(self, seconds: float) -> None:
+        self.inner.sleep(seconds)
+
+
 class PinnedTransport(httpx.AsyncHTTPTransport):
     """An httpx transport that ignores proxy settings and pins vetted addresses."""
 
@@ -138,4 +188,18 @@ class PinnedTransport(httpx.AsyncHTTPTransport):
             max_keepalive_connections=limits.max_keepalive_connections,
             keepalive_expiry=limits.keepalive_expiry,
             network_backend=PinnedNetworkBackend(),
+        )
+
+
+class PinnedSyncTransport(httpx.HTTPTransport):
+    """The blocking twin of PinnedTransport."""
+
+    def __init__(self, limits: httpx.Limits = httpx.Limits()) -> None:
+        super().__init__(trust_env=False, limits=limits)
+        self._pool = httpcore.ConnectionPool(
+            ssl_context=httpx.create_ssl_context(trust_env=False),
+            max_connections=limits.max_connections,
+            max_keepalive_connections=limits.max_keepalive_connections,
+            keepalive_expiry=limits.keepalive_expiry,
+            network_backend=PinnedSyncNetworkBackend(),
         )

@@ -76,6 +76,13 @@ class SandboxRuntime(StrEnum):
     GVISOR = "runsc"
 
 
+class RunSandbox(StrEnum):
+    """What a run records as its sandbox."""
+
+    PENDING = "pending-runner-service"
+    ISOLATED_RUNNER = "isolated-runner"
+
+
 RUNNER_SETTINGS = settings_module(Service.RUNNER)
 
 # Docker's official Python image, pinned by digest so a rebuilt tag can't change

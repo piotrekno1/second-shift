@@ -45,7 +45,10 @@ def size_label(value: int) -> str:
 
 
 def duration_label(seconds: int) -> str:
-    return f"{seconds // 60} minutes" if seconds % 60 == 0 else f"{seconds} seconds"
+    if seconds % 60 == 0:
+        minutes = seconds // 60
+        return f"{minutes} minute" if minutes == 1 else f"{minutes} minutes"
+    return f"{seconds} seconds"
 
 
 def environment_label() -> str:
@@ -95,7 +98,7 @@ def setting_groups() -> list[SettingGroup]:
                     "Run time limit",
                     duration_label(settings.RUN_TIMEOUT_SECONDS),
                     "SECONDSHIFT_RUN_TIMEOUT_SECONDS",
-                    "A run's model access expires 5 minutes after this, so longer runs fail.",
+                    "A run that takes longer stops and is marked as timed out.",
                 ),
                 SettingValue(
                     "History kept for",

@@ -8,6 +8,7 @@ from django.conf import settings
 from django.utils import timezone
 
 from secondshift.automations.artifacts import job_input_snapshot, read_output_excerpt
+from secondshift.automations.deadlines import run_deadline, timeout_summary
 from secondshift.automations.execution import execute_agent_run
 from secondshift.automations.failures import failure_metadata, failure_summary
 from secondshift.automations.models import Job, Run, RunEvent
@@ -20,6 +21,7 @@ from secondshift.automations.reconciliation import mark_run_terminal
 from secondshift.automations.runner_client import get_runner_client
 from secondshift.automations.runner_protocol import RunnerSessionSpec
 from secondshift.automations.scheduling import next_occurrence
+from secondshift.config.constants import RunSandbox
 from secondshift.gateway.tokens import revoke_run_tokens
 from secondshift.integrations.models import Connection
 from secondshift.integrations.webhooks import deliver_webhook
@@ -64,7 +66,7 @@ def mark_run_started_step(run_id: int) -> None:
     started = Run.objects.filter(pk=run_id, status=Run.Status.QUEUED).update(
         status=Run.Status.RUNNING,
         started_at=timezone.now(),
-        sandbox_runtime="pending-runner-service",
+        sandbox_runtime=RunSandbox.PENDING,
         dbos_workflow_id=DBOS.workflow_id,
     )
     if started:
@@ -123,7 +125,7 @@ def start_runner_session_step(run_id: int) -> str:
             image=str(runner_plan["image"]),
         )
     )
-    Run.objects.filter(pk=run.pk).update(sandbox_runtime="isolated-runner")
+    Run.objects.filter(pk=run.pk).update(sandbox_runtime=RunSandbox.ISOLATED_RUNNER)
     RunEvent.objects.create(run=run, message="Sandbox started without network access.")
     return session_id
 
@@ -245,6 +247,7 @@ def fail_run_step(run_id: int, summary: str, details: dict[str, object]) -> None
 
 def execute_run(run_id: int) -> None:
     session_id: str | None = None
+    deadline: datetime | None = None
     stage = "starting"
     try:
         mark_run_started_step(run_id)
@@ -257,6 +260,7 @@ def execute_run(run_id: int) -> None:
         record_run_event_step(
             run_id, f"Running {run.input_snapshot.get('skill_path') or 'the skill'}."
         )
+        deadline = run_deadline(run.started_at)
         result = execute_agent_run(run, session_id)
         stage = "finishing"
         stop_runner_session_step(session_id)
@@ -268,9 +272,15 @@ def execute_run(run_id: int) -> None:
                 stop_runner_session_step(session_id)
             except Exception:
                 logger.exception("failed to stop runner session %s", session_id)
-        fail_run_step(
-            run_id, failure_summary(stage, error), failure_metadata(stage, error)
-        )
+        details = failure_metadata(stage, error)
+        if stage == "skill" and deadline is not None and timezone.now() >= deadline:
+            # The skill stopped after its time limit, so the error is the model
+            # call or tool call that hit the deadline.
+            summary = timeout_summary()
+            details["timed_out"] = True
+        else:
+            summary = failure_summary(stage, error)
+        fail_run_step(run_id, summary, details)
         raise
     notify(run_id)
 

@@ -6,6 +6,7 @@ from typing import Literal
 import requests
 from pydantic_ai.exceptions import ModelHTTPError
 
+from secondshift.automations.deadlines import TIMEOUT_HEADLINE
 from secondshift.automations.runner_protocol import RunnerProtocolError
 
 RunStage = Literal["starting", "checkout", "sandbox", "skill", "finishing"]
@@ -116,6 +117,8 @@ def describe_failure(summary: str) -> FailureView:
     existing runs display the same way.
     """
     text = " ".join(summary.split())
+    if text.startswith(f"{TIMEOUT_HEADLINE}: "):
+        return FailureView(TIMEOUT_HEADLINE, text[len(TIMEOUT_HEADLINE) + 2 :])
     for stage, headline in STAGE_FAILURES.items():
         if text.startswith(f"{headline}: "):
             detail = text[len(headline) + 2 :]

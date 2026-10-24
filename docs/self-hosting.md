@@ -75,3 +75,9 @@ Full run output is stored outside Postgres in private storage, under
 Finished runs older than `SECONDSHIFT_RUN_RETENTION_DAYS` (default 90) are
 pruned daily by the worker, together with their output and DBOS records.
 
+A run stops after `SECONDSHIFT_RUN_TIMEOUT_SECONDS` (default 900, so 15
+minutes). The clock starts when the run starts, so time in the queue does not
+count. The run checks the limit before each model request and each tool call,
+and its model access ends at the limit. A run that passes it fails with the
+reason **Timed out**. Each sandbox command also has its own limit,
+`SECONDSHIFT_RUNNER_COMMAND_TIMEOUT_SECONDS` (default 120).

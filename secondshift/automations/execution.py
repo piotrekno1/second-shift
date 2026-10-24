@@ -3,6 +3,7 @@ import logging
 import re
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import PurePosixPath
 from typing import Annotated, Any
 
@@ -14,6 +15,7 @@ from pydantic_ai.toolsets import FunctionToolset
 
 from secondshift.automations.agent import AgentLimits, build_agent
 from secondshift.automations.artifacts import store_run_input, store_run_text
+from secondshift.automations.deadlines import check_deadline, run_deadline
 from secondshift.automations.models import Run, RunEvent
 from secondshift.automations.runner_client import get_runner_client
 from secondshift.automations.runner_protocol import CommandRequest, CommandResult
@@ -57,6 +59,7 @@ class WorkspaceToolDeps:
     run_id: int
     session_id: str
     max_output_chars: int
+    deadline: datetime
     allowed_tools: tuple[str, ...] = LOCAL_TOOLS
 
     def execute(
@@ -69,6 +72,7 @@ class WorkspaceToolDeps:
     ) -> dict[str, Any]:
         if not tool_call_id:
             raise RuntimeError("The model tool call has no stable identifier.")
+        check_deadline(self.deadline)
         call_id = hashlib.sha256(f"{self.run_id}:{tool_call_id}".encode()).hexdigest()
         result = execute_runner_command_step(
             self.session_id,
@@ -240,6 +244,7 @@ def external_tools(run: Run) -> tuple[Tool[WorkspaceToolDeps], ...]:
             ) -> dict[str, Any]:
                 if not ctx.tool_call_id:
                     raise RuntimeError("The model tool call has no stable identifier.")
+                check_deadline(ctx.deps.deadline)
                 try:
                     return call_external_tool_step(
                         ctx.deps.run_id, name, arguments, ctx.tool_call_id
@@ -349,6 +354,7 @@ def execute_agent_run(run: Run, session_id: str) -> dict[str, Any]:
         run_id=run.pk,
         session_id=session_id,
         max_output_chars=limits.max_tool_result_chars,
+        deadline=run_deadline(run.started_at),
         allowed_tools=tuple(plan["agent"]["tools"]),
     )
     skill_path = str(run.input_snapshot["skill_path"])

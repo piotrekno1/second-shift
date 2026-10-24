@@ -1,9 +1,9 @@
+import json
 from datetime import UTC, datetime
-from types import SimpleNamespace
 from typing import Any
 
+import httpx
 import pytest
-import requests
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 from django.test import Client
@@ -20,6 +20,7 @@ from secondshift.automations.notifications import notification_targets
 from secondshift.automations.planning import build_execution_plan
 from secondshift.automations.workflows import notify
 from secondshift.core.models import Workspace
+from secondshift.integrations import webhooks
 from secondshift.integrations.models import Connection
 from secondshift.repositories.models import Repository
 
@@ -176,11 +177,13 @@ def test_finished_run_notifies_only_still_approved_webhooks(
     )
     sent: list[dict[str, Any]] = []
 
-    def fake_post(url: str, **kwargs: Any) -> SimpleNamespace:
-        sent.append(kwargs["json"])
-        return SimpleNamespace(status_code=200)
+    def receive(request: httpx.Request) -> httpx.Response:
+        sent.append(json.loads(request.content))
+        return httpx.Response(200)
 
-    monkeypatch.setattr(requests, "post", fake_post)
+    monkeypatch.setattr(
+        webhooks, "webhook_transport", lambda: httpx.MockTransport(receive)
+    )
 
     notify(run.pk)
 

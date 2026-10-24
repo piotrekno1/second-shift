@@ -1,4 +1,5 @@
 import asyncio
+from datetime import UTC, datetime
 from types import SimpleNamespace
 
 import pytest
@@ -18,6 +19,9 @@ def test_agent_limits_use_pydantic_ai_limits() -> None:
 
     assert usage_limits.request_limit == 12
     assert usage_limits.tool_calls_limit == 30
+
+
+LATER = datetime(2100, 1, 1, tzinfo=UTC)
 
 
 @pytest.mark.parametrize(
@@ -68,7 +72,7 @@ def test_run_model_resolves_from_inside_an_event_loop(monkeypatch) -> None:
         agent, "issue_model_gateway_access", lambda r: issued.append(r.pk) or "access"
     )
     monkeypatch.setattr(agent, "pydantic_model", lambda access: f"model:{access}")
-    context = SimpleNamespace(deps=SimpleNamespace(run_id=run.pk))
+    context = SimpleNamespace(deps=SimpleNamespace(run_id=run.pk, deadline=LATER))
 
     # Pydantic AI awaits the resolver on its event loop, where Django forbids
     # synchronous queries; this used to raise SynchronousOnlyOperation.
