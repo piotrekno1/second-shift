@@ -37,8 +37,11 @@ jobs:
 ```
 
 Commit both files, add the repository in SecondShift, and connect a default
-model provider. Review and enable the discovered job, then choose **Run now**
-to try it without waiting for the schedule.
+model provider. Open the discovered job and choose **Run now** to try it. Enable
+the job when you want it to run on schedule.
+
+For a ready-made skill that needs only a model, see the
+[documentation drift example](../examples/docs-drift/README.md).
 
 The sandbox has no network access or provider credentials. Dependencies must
 already be available in the sandbox image. Reading files and running
@@ -52,7 +55,7 @@ standard-library tests work without installing packages.
 | `jobs` | Yes | Mapping of job keys to job definitions. |
 | `jobs.<key>.name` | Yes | Display name in SecondShift. |
 | `jobs.<key>.skill` | Yes | Repository-relative path to a `SKILL.md` file. |
-| `jobs.<key>.schedule` | Yes | Cron schedule, such as `0 9 * * 1` for Monday at 09:00. |
+| `jobs.<key>.schedule` | No | Cron schedule, such as `0 9 * * 1` for Monday at 09:00. Leave it out for a job that runs only with **Run now**. |
 | `jobs.<key>.timezone` | No | IANA timezone, such as `Europe/Warsaw`. Defaults to `UTC`. |
 | `jobs.<key>.notify` | No | Webhook notification bindings requested by this job. |
 | `jobs.<key>.requires` | No | MCP tools and HTTP API operations the job needs. See below. |
@@ -83,7 +86,7 @@ jobs:
    `engineering-reports` and your destination URL.
 2. Send a test message to verify delivery.
 3. Sync the committed manifest and approve the job's notification access.
-4. Enable the job and start a run.
+4. Start a run with **Run now**. Enable the job when you want it to run on schedule.
 
 The server posts the run status, report summary, and a link back to SecondShift
 after the run finishes. Delivery happens outside the offline sandbox.

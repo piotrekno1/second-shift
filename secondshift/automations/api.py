@@ -390,6 +390,8 @@ def set_job_enabled(
     if job.workspace.owner_id != request.user.pk:
         raise HttpError(403, "Only the workspace owner can enable jobs.")
     if payload.enabled:
+        if not job.cron:
+            raise HttpError(409, "This job has no schedule. Use Run now to run it.")
         if not job.repository.enabled:
             raise HttpError(409, "Enable the repository before enabling this job.")
         if not build_execution_plan(job)["ready"]:
@@ -530,8 +532,9 @@ def run_file(
 @router.post("/jobs/{job_id}/run", response=RunSchema)
 def run_job(request: HttpRequest, job_id: int) -> RunSchema:
     job = job_for_request(request, job_id)
-    if not job.enabled or not job.repository.enabled:
-        raise HttpError(409, "Enable the repository and job before running it.")
+    # A manual run does not need the schedule. It still needs the repository.
+    if not job.repository.enabled:
+        raise HttpError(409, "Enable the repository before running its jobs.")
     execution_plan = build_execution_plan(job)
     if not execution_plan["ready"]:
         raise HttpError(

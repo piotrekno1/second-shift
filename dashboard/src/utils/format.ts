@@ -108,11 +108,19 @@ export function describeCron(cron: string): string {
 }
 
 export function formatSchedule(cron: string, timezone: string): string {
+  if (!cron) return 'Manual only'
   return `${describeCron(cron)} · ${timezone}`
+}
+
+/** A job without a schedule runs only when started with Run now. */
+export function jobState(job: { cron: string, enabled: boolean }): 'enabled' | 'disabled' | 'manual' {
+  if (!job.cron) return 'manual'
+  return job.enabled ? 'enabled' : 'disabled'
 }
 
 const STATUS_LABELS: Record<string, string> = {
   not_required: 'No access needed',
+  manual: 'Manual only',
   'policy-ready': 'Policy ready',
   'policy-blocked': 'Policy blocked',
 }

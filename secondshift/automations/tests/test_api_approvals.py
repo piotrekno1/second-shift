@@ -245,3 +245,63 @@ def test_workspace_member_cannot_review_or_enable_jobs(
 
     assert reviewed.status_code == 403
     assert enabled.status_code == 403
+
+
+@pytest.mark.django_db
+def test_run_now_works_while_the_schedule_is_off(
+    client: Client,
+    approval_setup: tuple[AbstractUser, Workspace, Job],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    user, _, job = approval_setup
+    queued: list[int] = []
+    monkeypatch.setattr(
+        "secondshift.automations.api.enqueue_run", lambda run: queued.append(run.pk)
+    )
+    client.force_login(user)
+
+    response = client.post(f"/api/jobs/{job.pk}/run")
+
+    assert response.status_code == 200
+    job.refresh_from_db()
+    assert job.enabled is False
+    assert queued == [response.json()["id"]]
+
+
+@pytest.mark.django_db
+def test_run_now_needs_an_enabled_repository(
+    client: Client,
+    approval_setup: tuple[AbstractUser, Workspace, Job],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    user, _, job = approval_setup
+    Repository.objects.filter(pk=job.repository_id).update(enabled=False)
+    monkeypatch.setattr("secondshift.automations.api.enqueue_run", lambda run: None)
+    client.force_login(user)
+
+    response = client.post(f"/api/jobs/{job.pk}/run")
+
+    assert response.status_code == 409
+    assert response.json()["detail"] == "Enable the repository before running its jobs."
+    assert not Run.objects.filter(job=job).exists()
+
+
+@pytest.mark.django_db
+def test_job_without_a_schedule_cannot_be_enabled(
+    client: Client,
+    approval_setup: tuple[AbstractUser, Workspace, Job],
+) -> None:
+    user, _, job = approval_setup
+    Job.objects.filter(pk=job.pk).update(cron="")
+    client.force_login(user)
+
+    response = client.post(
+        f"/api/jobs/{job.pk}/enabled",
+        data=json.dumps({"enabled": True}),
+        content_type="application/json",
+    )
+
+    assert response.status_code == 409
+    assert response.json()["detail"] == (
+        "This job has no schedule. Use Run now to run it."
+    )

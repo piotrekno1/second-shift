@@ -1,4 +1,6 @@
+import difflib
 import logging
+import re
 from dataclasses import dataclass
 from typing import Any
 
@@ -316,6 +318,22 @@ def try_model_call(connection: Connection) -> str | None:
     return call_openai_family(connection, model)
 
 
+def comparable_model(name: str) -> str:
+    """Drop a vendor prefix and punctuation, so close IDs compare equal."""
+    return re.sub(r"[^a-z0-9]+", "-", name.lower().rsplit("/", 1)[-1]).strip("-")
+
+
+def closest_model(model: str, models: list[str]) -> str | None:
+    """The listed model the owner most likely meant, if one is close."""
+    by_key: dict[str, str] = {}
+    for item in models:
+        by_key.setdefault(comparable_model(item), item)
+    matches = difflib.get_close_matches(
+        comparable_model(model), list(by_key), n=1, cutoff=0.8
+    )
+    return by_key[matches[0]] if matches else None
+
+
 def record_check(connection: Connection, ok: bool, message: str) -> None:
     connection.metadata = {
         **connection.metadata,
@@ -393,6 +411,13 @@ def run_model_check(connection: Connection) -> ModelProviderCheck:
         )
         failure = "The provider could not be reached for a test call."
     if failure:
+        if connection.default_model not in models:
+            suggestion = closest_model(connection.default_model, models)
+            failure += (
+                f" The provider lists it as {suggestion}."
+                if suggestion
+                else " It is not in the provider's model list."
+            )
         return ModelProviderCheck(False, failure, models)
     return ModelProviderCheck(
         True,

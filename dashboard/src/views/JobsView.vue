@@ -12,7 +12,7 @@ import { apiPost } from '../services/api'
 import { startJobRun } from '../services/runs'
 import { useAppStore } from '../stores/app'
 import type { Access, Capability, Connection, Job } from '../types'
-import { accessLabel, accessNeedsAction, countLabel, formatRelative, formatSchedule, formatScheduled, utcTitle } from '../utils/format'
+import { accessLabel, accessNeedsAction, countLabel, formatRelative, formatSchedule, formatScheduled, jobState, utcTitle } from '../utils/format'
 
 const app = useAppStore()
 const route = useRoute()
@@ -187,14 +187,14 @@ async function toggleJob(job: Job): Promise<void> {
             <div><span class="cell-label">Schedule</span><strong :title="job.cron">{{ formatSchedule(job.cron, job.timezone) }}</strong></div>
             <div><span class="cell-label">Next run</span><strong :title="utcTitle(job.next_run_at)">{{ formatScheduled(job.next_run_at, job.timezone) }}</strong><small class="cell-sub">{{ formatRelative(job.next_run_at) }}</small></div>
             <div class="job-statuses">
-              <StatusPill :status="job.enabled ? 'enabled' : 'disabled'" />
+              <StatusPill :status="jobState(job)" />
               <StatusPill v-if="accessNeedsAction(job.grant_status)" :status="job.grant_status" :label="accessLabel(job.grant_status)" />
             </div>
             <div class="job-actions">
               <button v-if="job.capabilities.length" type="button" class="job-action" :class="{ active: expandedJobId === job.id }" aria-label="Review access" title="Review access" :aria-expanded="expandedJobId === job.id" :aria-controls="`job-access-${job.id}`" @click="expandedJobId = expandedJobId === job.id ? null : job.id">
                 <i class="mdi mdi-shield-check-outline" aria-hidden="true" />
               </button>
-              <button type="button" class="job-action" :class="{ 'is-loading': action === `run-${job.id}` }" aria-label="Run now" :title="job.enabled ? 'Run now' : 'Enable this job to run it'" :aria-busy="action === `run-${job.id}`" :disabled="!job.enabled || action === `run-${job.id}`" @click="runNow(job.id)">
+              <button type="button" class="job-action" :class="{ 'is-loading': action === `run-${job.id}` }" aria-label="Run now" :title="job.enabled || !job.cron ? 'Run now' : 'Run once. The schedule stays off'" :aria-busy="action === `run-${job.id}`" :disabled="action === `run-${job.id}`" @click="runNow(job.id)">
                 <i class="mdi" :class="action === `run-${job.id}` ? 'mdi-loading' : 'mdi-play-outline'" aria-hidden="true" />
               </button>
             </div>
@@ -202,7 +202,7 @@ async function toggleJob(job: Job): Promise<void> {
           <section v-if="expandedJobId === job.id" :id="`job-access-${job.id}`" class="job-review">
             <div class="job-review-heading">
               <div><h3>Access review</h3><p>Repository code requests capabilities. You choose the connection and approve access.</p></div>
-              <Button :label="job.enabled ? 'Disable job' : 'Enable job'" :icon="job.enabled ? 'pi pi-pause' : 'pi pi-play'" severity="secondary" outlined :loading="action === `toggle-${job.id}`" @click="toggleJob(job)" />
+              <Button v-if="job.cron" :label="job.enabled ? 'Disable job' : 'Enable job'" :icon="job.enabled ? 'pi pi-pause' : 'pi pi-play'" severity="secondary" outlined :loading="action === `toggle-${job.id}`" @click="toggleJob(job)" />
             </div>
             <div v-for="capability in job.capabilities" :key="capability.id" class="capability-review-row">
               <div class="capability-summary">

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import type { Run } from '../src/types'
 
-import { accessLabel, accessNeedsAction, connectionUsageLine, countLabel, describeCron, formatDate, formatSeconds, greeting, healthHeadline, jobOutcomes, spendTrend, formatRelative, formatScheduled, formatTime, utcTitle, zoneName, formatBytes, plainSummary, providerLabel, runStats, statusLabel, formatDuration, formatModelUsage, finishedBinding, formatSchedule, titleFromSlug, typingBinding } from '../src/utils/format'
+import { accessLabel, accessNeedsAction, connectionUsageLine, countLabel, describeCron, formatDate, formatSeconds, greeting, healthHeadline, jobOutcomes, spendTrend, formatRelative, formatScheduled, formatTime, utcTitle, zoneName, formatBytes, plainSummary, providerLabel, runStats, statusLabel, formatDuration, formatModelUsage, finishedBinding, formatSchedule, jobState, titleFromSlug, typingBinding } from '../src/utils/format'
 
 test('formatSchedule keeps cron and timezone visible', () => {
   assert.equal(formatSchedule('0 9 * * 1', 'Europe/Warsaw'), 'Mondays at 09:00 · Europe/Warsaw')
@@ -192,4 +192,11 @@ test('binding names are shaped as people type', () => {
   assert.equal(typingBinding('ops_team--2!'), 'ops-team-2')
   assert.equal(typingBinding('alerts-'), 'alerts-')
   assert.equal(finishedBinding('alerts-'), 'alerts')
+})
+
+test('a job without a schedule reads as manual only', () => {
+  assert.equal(formatSchedule('', 'UTC'), 'Manual only')
+  assert.equal(jobState({ cron: '', enabled: false }), 'manual')
+  assert.equal(jobState({ cron: '0 9 * * 1', enabled: false }), 'disabled')
+  assert.equal(jobState({ cron: '0 9 * * 1', enabled: true }), 'enabled')
 })

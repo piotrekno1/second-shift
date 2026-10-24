@@ -1,0 +1,7 @@
+version: 1
+jobs:
+  docs-drift:
+    name: Documentation drift
+    skill: .agents/skills/docs-drift/SKILL.md
+    schedule: "0 8 * * 1"
+    timezone: UTC

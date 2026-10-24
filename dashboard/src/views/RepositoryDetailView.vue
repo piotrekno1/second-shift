@@ -7,7 +7,7 @@ import StatusPill from '../components/StatusPill.vue'
 import { apiDelete, apiGet, apiPost } from '../services/api'
 import { useAppStore } from '../stores/app'
 import type { Capability, Job, RepositoryDetail, RepositoryValidation } from '../types'
-import { accessLabel, accessNeedsAction, countLabel, formatDate, formatRelative, formatSchedule, utcTitle } from '../utils/format'
+import { accessLabel, accessNeedsAction, countLabel, formatDate, formatRelative, formatSchedule, jobState, utcTitle } from '../utils/format'
 
 const route = useRoute()
 const router = useRouter()
@@ -35,7 +35,7 @@ const optionalSetups = computed(() => detailedJobs.value.flatMap((job) =>
     .map((capability) => ({ job, capability })),
 ))
 const readyDisabledJobs = computed(() => detailedJobs.value.filter((job) =>
-  !job.enabled && (job.grant_status === 'approved' || job.grant_status === 'not_required'),
+  Boolean(job.cron) && !job.enabled && (job.grant_status === 'approved' || job.grant_status === 'not_required'),
 ))
 const setupComplete = computed(() => requiredReviews.value.length === 0 && readyDisabledJobs.value.length === 0)
 const repositorySubtitle = computed(() => {
@@ -242,7 +242,7 @@ onMounted(loadRepository)
             <div class="job-glyph"><i class="mdi mdi-calendar-clock-outline" /></div>
             <div class="job-primary"><strong>{{ job.name }}</strong><span>{{ job.skill_path }}</span></div>
             <div><span class="cell-label">Schedule</span><strong :title="job.cron">{{ formatSchedule(job.cron, job.timezone) }}</strong></div>
-            <StatusPill :status="job.enabled ? 'enabled' : 'disabled'" />
+            <StatusPill :status="jobState(job)" />
             <StatusPill v-if="accessNeedsAction(job.grant_status)" :status="job.grant_status" :label="accessLabel(job.grant_status)" />
             <span v-else />
             <RouterLink v-if="accessNeedsAction(job.grant_status)" :to="{ path: '/jobs', query: { review: String(job.id) } }" class="job-row-action">Review access <i class="mdi mdi-arrow-right" /></RouterLink>

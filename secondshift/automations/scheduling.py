@@ -37,9 +37,9 @@ def desired_schedules() -> list[dict[str, object]]:
             "queue_name": settings.DBOS_QUEUE_NAME,
             "application_name": settings.DBOS_APPLICATION_NAME,
         }
-        for job in Job.objects.filter(enabled=True, repository__enabled=True).order_by(
-            "pk"
-        )
+        for job in Job.objects.filter(enabled=True, repository__enabled=True)
+        .exclude(cron="")
+        .order_by("pk")
     ]
 
 

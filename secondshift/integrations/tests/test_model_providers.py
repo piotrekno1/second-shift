@@ -372,3 +372,36 @@ def test_check_without_default_model_makes_no_call_and_edits_clear_old_results(
         content_type="application/json",
     )
     assert client.get("/api/connections").json()[0]["last_check"] is None
+
+
+@pytest.mark.django_db
+def test_failed_check_suggests_the_listed_model_id(
+    client: Client,
+    monkeypatch: pytest.MonkeyPatch,
+    owner: tuple[AbstractUser, Workspace],
+) -> None:
+    # OpenRouter names models with a vendor prefix and dots.
+    client.force_login(owner[0])
+    connection_id = compatible_provider(
+        client, monkeypatch, default_model="claude-haiku-5-5"
+    )
+    fake_provider(
+        monkeypatch,
+        FakeResponse(400, {"error": {"message": "not a valid model ID"}}),
+    )
+
+    response = client.post(f"/api/connections/{connection_id}/test").json()
+
+    assert response["ok"] is False
+    assert response["message"].endswith(
+        "The provider lists it as anthropic/claude-haiku-5.5."
+    )
+
+
+def test_closest_model_ignores_unrelated_names() -> None:
+    models = ["openai/gpt-5", "anthropic/claude-haiku-5.5"]
+
+    assert model_providers.closest_model("Claude_Haiku_5.5", models) == (
+        "anthropic/claude-haiku-5.5"
+    )
+    assert model_providers.closest_model("llama-3-70b", models) is None

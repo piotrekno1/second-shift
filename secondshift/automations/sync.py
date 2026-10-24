@@ -23,12 +23,17 @@ def sync_manifest(repository: Repository, path: Path) -> list[Job]:
                 "workspace": repository.workspace,
                 "name": item.name,
                 "skill_path": item.skill,
-                "cron": item.schedule,
+                "cron": item.schedule or "",
                 "timezone": item.timezone,
                 "config_hash": manifest_hash(item),
             },
         )
-        if job.next_run_at is None:
+        if not job.cron:
+            # A job without a schedule is never on the scheduler.
+            job.next_run_at = None
+            job.enabled = False
+            job.save(update_fields=["next_run_at", "enabled", "updated_at"])
+        elif job.next_run_at is None:
             job.next_run_at = next_occurrence(job)
             job.save(update_fields=["next_run_at", "updated_at"])
         sync_capability_requests(job, item)

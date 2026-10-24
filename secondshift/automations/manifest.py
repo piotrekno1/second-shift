@@ -45,7 +45,8 @@ class JobManifest(BaseModel):
 
     name: str = Field(min_length=1, max_length=200)
     skill: str = Field(min_length=1, max_length=500)
-    schedule: str = Field(min_length=1, max_length=100)
+    # Without a schedule, the job runs only when started with Run now.
+    schedule: str | None = Field(default=None, min_length=1, max_length=100)
     timezone: str = "UTC"
     requires: RequirementsManifest = Field(default_factory=RequirementsManifest)
     notify: list[NotificationManifest] = Field(default_factory=list)
@@ -62,8 +63,8 @@ class JobManifest(BaseModel):
 
     @field_validator("schedule")
     @classmethod
-    def validate_schedule(cls, value: str) -> str:
-        if not croniter.is_valid(value):
+    def validate_schedule(cls, value: str | None) -> str | None:
+        if value is not None and not croniter.is_valid(value):
             raise ValueError("schedule must be a valid five-field cron expression")
         return value
 

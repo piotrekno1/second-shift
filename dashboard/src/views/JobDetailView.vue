@@ -11,7 +11,7 @@ import { useLiveRefresh } from '../composables/useLiveRefresh'
 import { isRunActive, startJobRun } from '../services/runs'
 import { useAppStore } from '../stores/app'
 import type { Job, JobDetail } from '../types'
-import { accessLabel, accessNeedsAction, countLabel, formatDate, formatRelative, formatSchedule, formatScheduled, utcTitle } from '../utils/format'
+import { accessLabel, accessNeedsAction, countLabel, formatDate, formatRelative, formatSchedule, formatScheduled, jobState, utcTitle } from '../utils/format'
 
 const route = useRoute()
 const router = useRouter()
@@ -78,8 +78,8 @@ useLiveRefresh(loadJob, () => (job.value?.recent_runs ?? []).some((run) => isRun
   <div class="page">
     <PageHeader :title="job?.name ?? 'Job'" :description="detailSubtitle">
       <RouterLink to="/jobs" class="secondary-action"><i class="mdi mdi-arrow-left" /> Jobs</RouterLink>
-      <Button v-if="job" :label="job.enabled ? 'Disable' : 'Enable'" :icon="job.enabled ? 'pi pi-pause' : 'pi pi-play'" severity="secondary" outlined :loading="action === 'toggle'" @click="toggleJob" />
-      <Button v-if="job" label="Run now" icon="pi pi-play" :disabled="!job.enabled" :title="job.enabled ? 'Start a run and open it' : 'Enable the job to run it'" :loading="action === 'run'" @click="runNow" />
+      <Button v-if="job && job.cron" :label="job.enabled ? 'Disable' : 'Enable'" :icon="job.enabled ? 'pi pi-pause' : 'pi pi-play'" severity="secondary" outlined :loading="action === 'toggle'" @click="toggleJob" />
+      <Button v-if="job" label="Run now" icon="pi pi-play" :disabled="!job.repository_enabled" :title="job.repository_enabled ? 'Start a run and open it' : 'Enable the repository to run its jobs'" :loading="action === 'run'" @click="runNow" />
     </PageHeader>
 
     <div v-if="loading" class="panel empty-state"><i class="mdi mdi-loading mdi-spin" /><strong>Loading job</strong></div>
@@ -88,13 +88,14 @@ useLiveRefresh(loadJob, () => (job.value?.recent_runs ?? []).some((run) => isRun
       <p v-if="error" class="page-error">{{ error }}</p>
 
       <section class="panel job-status-strip" :class="{ disabled: !job.enabled }">
-        <StatusPill :status="job.enabled ? 'enabled' : 'disabled'" />
+        <StatusPill :status="jobState(job)" />
         <div v-if="job.enabled" class="job-status-item">
           <span>Next run</span>
           <strong :title="utcTitle(job.next_run_at)">{{ formatScheduled(job.next_run_at, job.timezone) }}</strong>
           <small>{{ formatRelative(job.next_run_at) }}</small>
         </div>
-        <div v-else class="job-status-item"><span>Schedule paused</span><strong>Enable the job to resume runs</strong></div>
+        <div v-else-if="!job.cron" class="job-status-item"><span>No schedule</span><strong>Runs only when you choose Run now</strong></div>
+        <div v-else class="job-status-item"><span>Schedule paused</span><strong>Run now still works. Enable the job to run on schedule</strong></div>
         <div class="job-status-item">
           <span>Last run</span>
           <RouterLink v-if="lastRun" :to="`/runs/${lastRun.id}`" class="job-last-run" :title="`${formatDate(lastRun.scheduled_for)} · ${utcTitle(lastRun.scheduled_for)}`">

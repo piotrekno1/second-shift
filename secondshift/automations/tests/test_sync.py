@@ -3,6 +3,7 @@ from pathlib import Path
 from django.contrib.auth import get_user_model
 
 from secondshift.automations.models import JobGrant
+from secondshift.automations.scheduling import desired_schedules
 from secondshift.automations.sync import sync_manifest
 from secondshift.core.models import Workspace
 from secondshift.integrations.models import Connection
@@ -55,3 +56,41 @@ def test_expanding_tools_returns_existing_grant_to_pending(db, tmp_path: Path) -
     grant.refresh_from_db()
     assert grant.status == JobGrant.Status.PENDING
     assert grant.allowed_tools == ["query_metrics", "search_dashboards"]
+
+
+def test_job_without_a_schedule_is_manual_only(db, tmp_path: Path) -> None:
+    user = get_user_model().objects.create_user(username="owner")
+    workspace = Workspace.objects.create(name="Test", slug="test", owner=user)
+    repository = Repository.objects.create(
+        workspace=workspace, full_name="example/project", enabled=True
+    )
+    path = tmp_path / ".secondshift.yaml"
+    path.write_text(
+        """
+jobs:
+  review:
+    name: Review
+    skill: .agents/skills/review/SKILL.md
+    schedule: "0 9 * * 1"
+""".strip()
+    )
+    job = sync_manifest(repository, path)[0]
+    job.enabled = True
+    job.save(update_fields=["enabled"])
+    assert job.next_run_at is not None
+
+    path.write_text(
+        """
+jobs:
+  review:
+    name: Review
+    skill: .agents/skills/review/SKILL.md
+""".strip()
+    )
+    sync_manifest(repository, path)
+
+    job.refresh_from_db()
+    assert job.cron == ""
+    assert job.next_run_at is None
+    assert job.enabled is False
+    assert desired_schedules() == []

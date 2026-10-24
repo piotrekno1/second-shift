@@ -39,7 +39,14 @@ const canSubmit = computed(() =>
   && (!compatible.value || editing.value || baseUrl.value.trim() !== '')
   && !defaultOutsideAllowed.value,
 )
-const defaultPlaceholder = computed(() => provider.value === 'anthropic' ? 'claude-opus-5-5' : 'model id')
+const defaultPlaceholder = computed(() => {
+  if (provider.value === 'anthropic') return 'claude-opus-5-5'
+  if (provider.value === 'openai') return 'gpt-5'
+  return 'anthropic/claude-haiku-5.5'
+})
+const defaultHint = computed(() => compatible.value
+  ? "Use the ID exactly as the provider lists it. OpenRouter IDs start with the vendor, like anthropic/."
+  : "Used when a job doesn't choose a model.")
 
 async function submit(): Promise<void> {
   if (!canSubmit.value) return
@@ -118,7 +125,7 @@ async function submit(): Promise<void> {
       <InputText v-model="defaultModel" list="model-suggestions" autocomplete="off" spellcheck="false" :placeholder="defaultPlaceholder" />
       <datalist id="model-suggestions"><option v-for="item in modelSuggestions" :key="item" :value="item" /></datalist>
       <small v-if="defaultOutsideAllowed" class="field-error">Must be one of the allowed models.</small>
-      <small v-else>Used when a job doesn't choose a model.</small>
+      <small v-else>{{ defaultHint }}</small>
     </label>
     <label class="need-setup-check">
       <input v-model="isDefault" type="checkbox">

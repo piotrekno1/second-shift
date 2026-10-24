@@ -69,9 +69,13 @@ available on PyPI.
 - **Contributor recap:** recognize merged work and review contributions.
 - **Alert coverage review:** flag removed alerts, paused rules, and threshold changes.
 
-Skills review the repository and the services you approve. The
-[engineering briefing example](examples/engineering-briefing/README.md) reads
-live GitHub data through an approved MCP connection.
+Skills review the repository and the services you approve. Two examples to
+start from:
+
+- [Documentation drift](examples/docs-drift/README.md) finds broken links and
+  stale commands in your docs. It needs only a model provider.
+- [Engineering briefing](examples/engineering-briefing/README.md) summarizes the
+  week from live GitHub data through an approved MCP connection.
 
 See [Repository configuration](docs/repository-configuration.md) to add your
 first skill, schedule, and webhook notification.
