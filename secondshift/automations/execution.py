@@ -8,14 +8,31 @@ from pathlib import PurePosixPath
 from typing import Annotated, Any
 
 from dbos import DBOS
+from django.conf import settings
+from django.utils import timezone
 from pydantic import Field
-from pydantic_ai import RunContext, Tool, ToolFailed
+from pydantic_ai import RunContext, Tool, ToolFailed, capture_run_messages
+from pydantic_ai.exceptions import UsageLimitExceeded
+from pydantic_ai.messages import ModelMessage
 from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.toolsets import FunctionToolset
 
 from secondshift.automations.agent import AgentLimits, build_agent
 from secondshift.automations.artifacts import store_run_input, store_run_text
-from secondshift.automations.deadlines import check_deadline, run_deadline
+from secondshift.automations.budgets import (
+    Budget,
+    budget_summary,
+    exhausted_budget,
+    is_token_budget_refusal,
+    partial_report,
+    reached_budget,
+)
+from secondshift.automations.deadlines import (
+    check_deadline,
+    run_deadline,
+    timeout_summary,
+)
+from secondshift.automations.failures import root_error
 from secondshift.automations.models import Run, RunEvent
 from secondshift.automations.runner_client import get_runner_client
 from secondshift.automations.runner_protocol import CommandRequest, CommandResult
@@ -359,14 +376,33 @@ def execute_agent_run(run: Run, session_id: str) -> dict[str, Any]:
     )
     skill_path = str(run.input_snapshot["skill_path"])
     capture_run_input_step(run.pk, session_id)
-    result = WORKSPACE_AGENT.run_sync(
-        task_prompt(skill_path)
-        + f"\nReporting time (UTC): {run.scheduled_for.isoformat()}",
-        deps=deps,
-        usage_limits=limits.usage_limits(),
-        run_id=f"secondshift-run-{run.pk}",
-        **({"toolsets": [FunctionToolset(external)]} if external else {}),
-    )
+    with capture_run_messages() as messages:
+        try:
+            result = WORKSPACE_AGENT.run_sync(
+                task_prompt(skill_path)
+                + f"\nReporting time (UTC): {run.scheduled_for.isoformat()}",
+                deps=deps,
+                usage_limits=limits.usage_limits(),
+                run_id=f"secondshift-run-{run.pk}",
+                **({"toolsets": [FunctionToolset(external)]} if external else {}),
+            )
+        except UsageLimitExceeded:
+            budget = exhausted_budget(messages, limits.max_turns)
+            limit = (
+                limits.max_turns if budget == Budget.REQUESTS else limits.max_tool_calls
+            )
+            return budget_result(run, budget, limit, messages)
+        except Exception as error:
+            # Retries wrap the error, so the deadline itself tells a timeout.
+            if timezone.now() >= deps.deadline:
+                return stopped_result(
+                    run, timeout_summary(), {"timed_out": True}, messages
+                )
+            if not is_token_budget_refusal(root_error(error)):
+                raise
+            return budget_result(
+                run, Budget.TOKENS, settings.MODEL_RUN_TOKEN_BUDGET, messages
+            )
     report = str(result.output).strip()
     if not report:
         raise RuntimeError("The agent returned an empty report.")
@@ -374,9 +410,38 @@ def execute_agent_run(run: Run, session_id: str) -> dict[str, Any]:
     summary = report[:SUMMARY_MAX_CHARS]
     if len(report) > SUMMARY_MAX_CHARS:
         summary += "\n[... full report stored as a run artifact ...]"
+    details: dict[str, Any] = {}
+    if reached := reached_budget(result.usage, limits.max_turns, limits.max_tool_calls):
+        details["budget_reached"] = str(reached)
     return {
         "exit_code": 0,
         "output": stored.as_dict(),
         "summary": summary,
         "succeeded": True,
+        "details": details,
+    }
+
+
+def budget_result(
+    run: Run, budget: Budget, limit: int, messages: list[ModelMessage]
+) -> dict[str, Any]:
+    return stopped_result(
+        run,
+        budget_summary(budget, limit),
+        {"budget_exhausted": str(budget)},
+        messages,
+    )
+
+
+def stopped_result(
+    run: Run, summary: str, details: dict[str, Any], messages: list[ModelMessage]
+) -> dict[str, Any]:
+    """A failed result that keeps whatever the agent produced before a limit."""
+    report = partial_report(messages)
+    return {
+        "exit_code": 1,
+        "output": store_run_text(run, report).as_dict() if report else None,
+        "summary": summary,
+        "succeeded": False,
+        "details": {**details, "partial_report": bool(report)},
     }

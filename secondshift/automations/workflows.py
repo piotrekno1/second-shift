@@ -8,6 +8,7 @@ from django.conf import settings
 from django.utils import timezone
 
 from secondshift.automations.artifacts import job_input_snapshot, read_output_excerpt
+from secondshift.automations.budgets import Budget, budget_reached_message
 from secondshift.automations.deadlines import run_deadline, timeout_summary
 from secondshift.automations.execution import execute_agent_run
 from secondshift.automations.failures import failure_metadata, failure_summary
@@ -144,9 +145,18 @@ def finish_run_step(run_id: int, result: dict[str, Any]) -> None:
     revoke_run_tokens(run_id)
     status = Run.Status.SUCCEEDED if result["succeeded"] else Run.Status.FAILED
     run = Run.objects.get(pk=run_id)
+    details = result.get("details") or {}
+    if reached := details.get("budget_reached"):
+        RunEvent.objects.create(
+            run=run,
+            level="warning",
+            message=budget_reached_message(Budget(reached)),
+            metadata=details,
+        )
     RunEvent.objects.create(
         run=run,
         level="info" if result["succeeded"] else "error",
+        metadata=details,
         # The report itself is the run's output file; the timeline stays short.
         message=(
             "Run succeeded. The report is stored as the run's output."

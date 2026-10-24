@@ -8,6 +8,7 @@ from pydantic_ai.capabilities import ResolveModelId
 from pydantic_ai.durable_exec.dbos import DBOSDurability
 from pydantic_ai.models import Model, ModelResolutionContext
 
+from secondshift.automations.budgets import FinishWithinBudget
 from secondshift.automations.deadlines import check_deadline
 from secondshift.automations.model_gateway import (
     issue_model_gateway_access,
@@ -84,6 +85,7 @@ def build_agent(
         defer_model_check=True,
         capabilities=[
             ResolveModelId(resolve_run_model),
+            FinishWithinBudget(),
             DBOSDurability(name="secondshift"),
         ],
     )

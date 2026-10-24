@@ -18,6 +18,7 @@ from asgiref.sync import sync_to_async
 from django.conf import settings
 from django.http import HttpRequest, HttpResponse, StreamingHttpResponse
 
+from secondshift.config.constants import TOKEN_BUDGET_MESSAGE
 from secondshift.gateway.metering import StreamMeter, record_usage, usage_from_json
 from secondshift.gateway.models import RunToken
 from secondshift.gateway.tokens import aauthenticate, request_token
@@ -174,12 +175,10 @@ async def forward(request: HttpRequest, family: str, path: str) -> HttpResponse:
         )
     metered = path in METERED_PATHS[family]
     if metered and run_token.used_tokens >= run_token.budget_tokens:
-        return error_response(
-            family,
-            429,
-            "rate_limit_error",
-            "This run has used its token budget.",
-        )
+        refusal = error_response(family, 429, "rate_limit_error", TOKEN_BUDGET_MESSAGE)
+        # Provider SDKs retry a 429 unless told not to. Waiting never helps here.
+        refusal["x-should-retry"] = "false"
+        return refusal
     if family == "openai" and path == "chat/completions" and payload.get("stream"):
         # Without this, streamed chat completions never report usage.
         options = payload.get("stream_options")

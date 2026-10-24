@@ -14,6 +14,8 @@ GITHUB_BASE_URL = f"https://{GITHUB_HOST}"
 GITHUB_SSH_PREFIX = f"git@{GITHUB_HOST}:"
 GITHUB_REPOSITORY_PATTERN = r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+"
 GITHUB_MCP_URL = "https://api.githubcopilot.com/mcp/readonly"
+# The model gateway refuses a run past its token budget with this message.
+TOKEN_BUDGET_MESSAGE = "This run has used its token budget."
 
 
 class GitHubMCPTool(StrEnum):

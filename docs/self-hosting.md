@@ -79,5 +79,21 @@ A run stops after `SECONDSHIFT_RUN_TIMEOUT_SECONDS` (default 900, so 15
 minutes). The clock starts when the run starts, so time in the queue does not
 count. The run checks the limit before each model request and each tool call,
 and its model access ends at the limit. A run that passes it fails with the
-reason **Timed out**. Each sandbox command also has its own limit,
+reason **Timed out** and keeps what the agent wrote so far as a partial report. Each sandbox command also has its own limit,
 `SECONDSHIFT_RUNNER_COMMAND_TIMEOUT_SECONDS` (default 120).
+
+Each run also has a budget:
+
+- `SECONDSHIFT_AGENT_MAX_TURNS` (default 24) counts model requests, not tool
+  actions. One request can ask for several tool calls.
+- `SECONDSHIFT_AGENT_MAX_TOOL_CALLS` (default 64) counts file reads, searches
+  and commands.
+- `SECONDSHIFT_MODEL_RUN_TOKEN_BUDGET` (default 2,000,000) counts input and
+  output tokens. The model gateway enforces it.
+
+When the agent reaches its last model request, or has no tool calls left, its
+tools are taken away and it is asked to write the report with what it has. The
+run then succeeds and its timeline notes that the budget ran out. A run that
+still goes past a limit, or hits the token budget, fails with the reason
+**Budget used up**. It names the limit and keeps what the agent wrote so far as
+a partial report.

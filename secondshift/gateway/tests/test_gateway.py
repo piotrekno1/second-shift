@@ -229,6 +229,8 @@ def test_gateway_enforces_auth_paths_models_and_budget(
     assert other_path.status_code == 404
     assert other_model.status_code == 403
     assert over_budget.status_code == 429
+    # The provider SDK must not retry a run that has used its budget.
+    assert over_budget["x-should-retry"] == "false"
     assert calls == []
 
 

@@ -216,7 +216,9 @@ def test_execute_agent_run_stores_report_and_uses_native_limits(
         def run_sync(self, prompt: str, **kwargs: Any):
             captured["prompt"] = prompt
             captured.update(kwargs)
-            return SimpleNamespace(output="Repository health is good.")
+            return SimpleNamespace(
+                output="Repository health is good.", usage=RunUsage(requests=2)
+            )
 
     monkeypatch.setattr(
         "secondshift.automations.execution.WORKSPACE_AGENT", FakeAgent()

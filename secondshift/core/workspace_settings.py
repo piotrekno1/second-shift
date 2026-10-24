@@ -129,7 +129,7 @@ def setting_groups() -> list[SettingGroup]:
                     "Model calls per run",
                     str(settings.AGENT_MAX_TURNS),
                     "SECONDSHIFT_AGENT_MAX_TURNS",
-                    "Shown on runs as turns, e.g. 5/24.",
+                    "Shown on runs as turns, e.g. 5/24. The last one writes the report.",
                 ),
                 SettingValue(
                     "Tool calls per run",
