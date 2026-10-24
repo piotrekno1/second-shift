@@ -22,12 +22,15 @@ then run:
 ```bash
 # Install SecondShift
 release=https://github.com/piotrekno1/second-shift/releases
-uv tool install --python 3.13 \
-  "$release/download/v0.1.0a2/secondshift-0.1.0a2-py3-none-any.whl"
+uv tool install --force --python 3.13 \
+  "$release/download/v0.1.0a3/secondshift-0.1.0a3-py3-none-any.whl"
 
 # Start SecondShift
 secondshift up
 ```
+
+Upgrading from an earlier alpha? Read
+[installed builds](CONTRIBUTING.md#installed-builds-and-troubleshooting) first.
 
 Once started, the console shows:
 

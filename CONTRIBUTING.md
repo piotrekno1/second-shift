@@ -147,6 +147,12 @@ uv tool install --force --python 3.13 ./secondshift-VERSION-py3-none-any.whl
 
 The release notes include the exact filename and installation commands.
 
+Alpha releases can replace their database migrations, so an upgrade between
+alphas may not start on an existing `~/.secondshift`. Back up that folder
+before upgrading. If the new version reports a migration error, stop it, move
+`~/.secondshift` aside, and run `secondshift up` again to start fresh.
+Connections and approvals then need to be set up again.
+
 Local mode opens <http://127.0.0.1:8000> and signs you in with a one-time link.
 The link is also printed in the terminal, works once, and expires after 15
 minutes. Run `secondshift login` for a new one. Everything is kept in
