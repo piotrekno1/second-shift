@@ -34,7 +34,9 @@ beta, `v0.1.0rc1` for a release candidate, or `v0.1.0` for a stable release.
 
 1. Update `project.version` in `pyproject.toml`, run `uv lock`, and merge both
    files into `main` with the release changes.
-2. Tag that commit and push the tag, for example:
+2. Run the **Release smoke test** workflow on `main` from the Actions tab. It
+   is the same test the release runs, so a problem shows up before you tag.
+3. Tag that commit and push the tag, for example:
 
    ```bash
    git switch main
@@ -45,11 +47,24 @@ beta, `v0.1.0rc1` for a release candidate, or `v0.1.0` for a stable release.
 
 The Release workflow rejects tags outside `main` or versions that do not match
 `pyproject.toml`. It runs backend and frontend checks, builds the dashboard and
-wheel, verifies bundled assets, and smoke-tests the installed CLI outside the
-checkout. It then publishes the wheel and installation instructions to a
-GitHub release. Alpha, beta and release candidate tags become prereleases.
+wheel, verifies bundled assets, and runs the release smoke test. It then
+publishes the wheel and installation instructions to a GitHub release. Alpha, beta and release candidate tags become prereleases.
 The workflow uses GitHub's built-in token. It does not publish to PyPI.
 Use a new version and tag for each build. Do not move published tags.
+
+The release smoke test installs the wheel into a clean environment outside the
+checkout and starts `secondshift up` with its own data folder. A fake model
+and a webhook receiver stand in for real services. It runs one skill that must
+read a file in the sandbox and deliver its report, and one that the fake model
+rejects, which must fail with a readable reason and still notify. On failure
+it keeps the logs in `smoke-diagnostics`. To run it locally, Docker must be
+running:
+
+```bash
+npm --prefix dashboard run build
+uv build --wheel
+uv run --no-project python scripts/release_smoke/run.py dist/*.whl
+```
 
 ### Development environment
 

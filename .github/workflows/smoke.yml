@@ -1,0 +1,36 @@
+name: Release smoke test
+
+# Run by hand before tagging a release. The release workflow runs the same
+# test on the wheel it publishes.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: '3.13'
+          enable-cache: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: dashboard/package-lock.json
+      - run: npm --prefix dashboard ci
+      - run: npm --prefix dashboard run build
+      - run: uv build --wheel
+      - name: Smoke-test the installed wheel
+        run: uv run --no-project python scripts/release_smoke/run.py dist/*.whl --diagnostics smoke-diagnostics
+      - name: Keep smoke test diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-diagnostics
+          path: smoke-diagnostics
+          if-no-files-found: ignore

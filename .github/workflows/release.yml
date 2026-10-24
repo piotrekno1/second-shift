@@ -67,12 +67,17 @@ jobs:
               assert 'secondshift/web/index.html' in names, 'Dashboard is missing'
               assert any(name.startswith('secondshift/web/assets/') for name in names), 'Dashboard assets are missing'
           PY
-      - name: Smoke-test installed CLI outside checkout
-        run: |
-          uv venv /tmp/secondshift-release-smoke --python 3.13
-          uv pip install --python /tmp/secondshift-release-smoke/bin/python dist/*.whl
-          cd /tmp
-          /tmp/secondshift-release-smoke/bin/secondshift --help
+      # Installs the wheel outside the checkout, runs a skill end to end and
+      # checks the report and webhook. A failure blocks publishing.
+      - name: Smoke-test the installed release
+        run: uv run --no-project python scripts/release_smoke/run.py dist/*.whl --diagnostics smoke-diagnostics
+      - name: Keep smoke test diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-diagnostics
+          path: smoke-diagnostics
+          if-no-files-found: ignore
       - uses: actions/upload-artifact@v4
         with:
           name: release-wheel

@@ -1,0 +1,14 @@
+# The release smoke test copies this repository, commits it and adds it to a
+# fresh install. Both jobs run only with Run now.
+version: 1
+jobs:
+  smoke-report:
+    name: Smoke report
+    skill: .agents/skills/smoke-report/SKILL.md
+    notify:
+      - binding: smoke-reports
+  smoke-failure:
+    name: Smoke failure
+    skill: .agents/skills/smoke-failure/SKILL.md
+    notify:
+      - binding: smoke-reports
