@@ -10,6 +10,12 @@ STATUS_LABELS = {
     Run.Status.FAILED: "failed",
     Run.Status.CANCELED: "was canceled",
 }
+# Plain emoji, so the marker shows the same in Slack, Mattermost and Discord.
+STATUS_MARKS = {
+    Run.Status.SUCCEEDED: "✅",
+    Run.Status.FAILED: "❌",
+    Run.Status.CANCELED: "⏹️",
+}
 
 
 def notification_targets(run: Run) -> list[int]:
@@ -38,13 +44,11 @@ def notification_targets(run: Run) -> list[int]:
 
 def run_report_payload(run: Run) -> dict[str, Any]:
     job = run.job
-    status = STATUS_LABELS.get(run.status, run.status)
     run_url = f"{settings.FRONTEND_URL.rstrip('/')}/runs/{run.pk}"
-    summary = run.summary or "No summary."
     return {
         "event": "run.finished",
         # Slack, Mattermost and Discord (/slack URLs) render this field directly.
-        "text": f"{job.name} {status} — {summary}\n{run_url}",
+        "text": run_report_text(run, run_url),
         "run": {
             "id": run.pk,
             "status": run.status,
@@ -57,3 +61,19 @@ def run_report_payload(run: Run) -> dict[str, Any]:
         "job": {"key": job.key, "name": job.name},
         "repository": {"full_name": job.repository.full_name},
     }
+
+
+def run_report_text(run: Run, run_url: str) -> str:
+    """Status first on its own line, then the summary, then the link."""
+    job = run.job
+    status = STATUS_LABELS.get(run.status, run.status)
+    mark = STATUS_MARKS.get(run.status, "•")
+    summary = run.summary.strip() or "No summary."
+    return "\n".join(
+        (
+            f"{mark} {job.name} {status} · {job.repository.full_name}",
+            summary,
+            # Slack link syntax. Mattermost and Discord /slack webhooks accept it.
+            f"<{run_url}|Open run #{run.pk}>",
+        )
+    )
