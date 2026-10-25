@@ -203,8 +203,11 @@ def plan_limit(plan: Mapping[str, Any], limit: RunLimit) -> int:
 
 
 def raise_hint(limit: RunLimit, value: int) -> str:
-    """How to allow more than `value`, for messages about a stopped run."""
-    spec = LIMIT_SPECS[limit]
-    if value < spec.ceiling():
+    """How to allow more than `value`, for messages about a stopped run.
+
+    The message is stored with the run and shown to every member, so it does
+    not name the server variable. Only staff can set it.
+    """
+    if value < LIMIT_SPECS[limit].ceiling():
         return "Raise it in the job's limits."
-    return f"That is the server maximum. Set {spec.ceiling_env} to allow more."
+    return "That is the server maximum. Whoever runs this server can raise it."

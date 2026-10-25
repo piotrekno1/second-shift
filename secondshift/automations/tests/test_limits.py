@@ -257,8 +257,9 @@ def test_a_limit_at_the_maximum_points_to_the_server(ceilings: Any) -> None:
     summary = budget_summary(Budget.TOOL_CALLS, 64)
 
     assert summary.endswith(
-        "Set SECONDSHIFT_AGENT_MAX_TOOL_CALLS_CEILING to allow more."
+        "That is the server maximum. Whoever runs this server can raise it."
     )
+    assert "SECONDSHIFT" not in summary
 
 
 def test_every_limit_has_a_maximum_setting(ceilings: Any) -> None:

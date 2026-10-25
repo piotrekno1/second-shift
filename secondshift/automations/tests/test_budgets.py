@@ -199,7 +199,7 @@ def test_the_gateway_token_budget_ends_the_run_with_its_work(
     assert result["succeeded"] is False
     assert result["summary"].startswith("Budget used up: Stopped at 50,000 tokens")
     # At the server maximum only the server can allow more.
-    assert "Set SECONDSHIFT_MODEL_RUN_TOKEN_BUDGET_CEILING" in result["summary"]
+    assert "That is the server maximum." in result["summary"]
     assert "Started on the README." in stored_report(result)
 
 
