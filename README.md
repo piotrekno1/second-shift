@@ -128,11 +128,16 @@ Skills run in isolated sandboxes. Every run is tied to a Git commit.
 
 ### How is this different from Hermes Agent?
 
-[Hermes Agent](https://hermes-agent.nousresearch.com/docs/user-guide/features/cron/)
-already supports scheduled skills and report delivery. SecondShift puts
-recurring engineering tasks under a team's repository and access controls.
-Review the skill and schedule in Git, approve its service access separately,
-and inspect each run's revision, tool activity, report, and cost.
+[Hermes Agent](https://hermes-agent.nousresearch.com/docs) is individual-first,
+centered on an agent that remembers your context and works across your tools.
+SecondShift is team-first, built around recurring engineering tasks managed
+through Git, explicit permissions, and shared run history. Both can serve
+individuals or teams.
+
+Hermes already supports scheduled skills and report delivery. In SecondShift,
+review the skill and schedule in Git, approve its service access separately,
+and inspect each run's revision, tool activity, report, and cost. Workspace
+roles separate who can grant access, operate jobs, and view results.
 
 A merged skill cannot grant itself credentials or expand its approved access.
 Commands run in a networkless sandbox. External tool calls go through a broker
