@@ -424,6 +424,11 @@ RUN_OUTPUT_MAX_BYTES = env.int(
 RUN_OUTPUT_EXCERPT_BYTES = 16 * 1024
 # Finished runs, their output and DBOS records are deleted after this. 0 keeps them.
 RUN_RETENTION_DAYS = env.int("SECONDSHIFT_RUN_RETENTION_DAYS", default=90)
+# How often the worker syncs local repositories whose branch has new commits.
+# 0 turns automatic sync off.
+REPOSITORY_SYNC_INTERVAL_SECONDS = env.int(
+    "SECONDSHIFT_REPOSITORY_SYNC_INTERVAL_SECONDS", default=300
+)
 
 # --- Outbound calls and model gateway ----------------------------------------
 

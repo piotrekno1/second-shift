@@ -77,6 +77,14 @@ def current_branch(root: Path) -> str:
         ) from error
 
 
+def branch_revision(root: Path, branch: str) -> str:
+    """The newest commit on a branch."""
+    try:
+        return git(root, "rev-parse", "--verify", f"refs/heads/{branch}^{{commit}}")
+    except LocalRepositoryError as error:
+        raise LocalRepositoryError(f"The branch {branch} does not exist.") from error
+
+
 def inspect_local_repository(
     raw_path: str, branch: str | None = None
 ) -> LocalRepositoryMetadata:
@@ -97,10 +105,7 @@ def inspect_local_repository(
         ) from error
 
     branch = branch or current_branch(root)
-    try:
-        revision = git(root, "rev-parse", "--verify", f"refs/heads/{branch}^{{commit}}")
-    except LocalRepositoryError as error:
-        raise LocalRepositoryError(f"The branch {branch} does not exist.") from error
+    revision = branch_revision(root, branch)
 
     try:
         text = committed_file(root, revision, MANIFEST_FILE)

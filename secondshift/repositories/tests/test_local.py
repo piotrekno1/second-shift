@@ -44,12 +44,6 @@ jobs:
     return skill
 
 
-@pytest.fixture
-def workspace(db) -> Workspace:
-    user = get_user_model().objects.create_user(username="owner")
-    return create_workspace(name="Test", slug="test", owner=user)
-
-
 def test_attach_local_repository_discovers_and_syncs_jobs(
     workspace: Workspace,
     tmp_path: Path,
