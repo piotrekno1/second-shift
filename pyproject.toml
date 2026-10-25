@@ -1,6 +1,6 @@
 [project]
 name = "secondshift"
-version = "0.1.0a4"
+version = "0.1.0a5"
 description = "Scheduled agent reviews for your repositories, defined in Git."
 readme = "README.md"
 license = "Apache-2.0"
