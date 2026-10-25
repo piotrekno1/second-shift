@@ -30,8 +30,7 @@ from secondshift.automations.models import (
 )
 from secondshift.automations.planning import build_execution_plan
 from secondshift.automations.run_queries import Period, RunFilters, RunSort, run_page
-from secondshift.core.models import Workspace
-from secondshift.core.services import workspace_for_user
+from secondshift.core.access import Action, allows, current_workspace, require
 from secondshift.gateway.usage import with_model_usage
 from secondshift.integrations.external import changing_tools, external_access
 from secondshift.integrations.models import Connection
@@ -210,17 +209,13 @@ class RunPageSchema(Schema):
     status_counts: dict[str, int]
 
 
-def request_workspace(request: HttpRequest) -> Workspace | None:
-    return workspace_for_user(request.user)
-
-
 def job_for_request(request: HttpRequest, job_id: int) -> Job:
     return get_object_or_404(
         Job.objects.select_related("repository", "workspace").prefetch_related(
             "capability_requests__grant__connection"
         ),
         pk=job_id,
-        workspace=request_workspace(request),
+        workspace=current_workspace(request),
         repository__removed_at__isnull=True,
     )
 
@@ -396,10 +391,6 @@ def serialize_run_detail(run: Run) -> RunDetailSchema:
     )
 
 
-def is_owner(request: HttpRequest, workspace: Workspace) -> bool:
-    return workspace.owner_id == request.user.pk
-
-
 def serialize_job_detail(job: Job, can_edit_limits: bool) -> JobDetailSchema:
     summary = serialize_job(job)
     # Aggregation drops Meta.ordering, so order explicitly: newest first.
@@ -420,7 +411,7 @@ def serialize_job_detail(job: Job, can_edit_limits: bool) -> JobDetailSchema:
 
 @router.get("/jobs", response=list[JobSchema])
 def jobs(request: HttpRequest) -> list[JobSchema]:
-    workspace = request_workspace(request)
+    workspace = current_workspace(request)
     if not workspace:
         return []
     queryset = Job.objects.filter(
@@ -437,7 +428,7 @@ def jobs(request: HttpRequest) -> list[JobSchema]:
 @router.get("/jobs/{job_id}", response=JobDetailSchema)
 def job_detail(request: HttpRequest, job_id: int) -> JobDetailSchema:
     job = job_for_request(request, job_id)
-    return serialize_job_detail(job, is_owner(request, job.workspace))
+    return serialize_job_detail(job, allows(request, Action.CHANGE_RUN_LIMITS))
 
 
 @router.post("/jobs/{job_id}/limits", response=JobDetailSchema)
@@ -446,8 +437,7 @@ def set_job_limits(
 ) -> JobDetailSchema:
     """Change the run limits of one job. Runs already created keep theirs."""
     job = job_for_request(request, job_id)
-    if not is_owner(request, job.workspace):
-        raise HttpError(403, "Only the workspace owner can change run limits.")
+    require(request, Action.CHANGE_RUN_LIMITS)
     try:
         save_overrides(job, limit_updates(payload))
     except LimitError as error:
@@ -460,8 +450,7 @@ def set_job_enabled(
     request: HttpRequest, job_id: int, payload: JobEnabledSchema
 ) -> JobSchema:
     job = job_for_request(request, job_id)
-    if job.workspace.owner_id != request.user.pk:
-        raise HttpError(403, "Only the workspace owner can enable jobs.")
+    require(request, Action.ENABLE_JOBS)
     if payload.enabled:
         if not job.cron:
             raise HttpError(409, "This job has no schedule. Use Run now to run it.")
@@ -486,8 +475,7 @@ def review_job_capability(
     payload: GrantDecisionSchema,
 ) -> JobSchema:
     job = job_for_request(request, job_id)
-    if job.workspace.owner_id != request.user.pk:
-        raise HttpError(403, "Only the workspace owner can review capabilities.")
+    require(request, Action.REVIEW_CAPABILITIES)
     capability = get_object_or_404(CapabilityRequest, pk=capability_id, job=job)
     connection = None
     if payload.connection_id is not None:
@@ -541,7 +529,7 @@ def review_job_capability(
 
 @router.get("/runs", response=RunPageSchema)
 def runs(request: HttpRequest, query: Query[RunListQuery]) -> RunPageSchema:
-    workspace = request_workspace(request)
+    workspace = current_workspace(request)
     if not workspace:
         return RunPageSchema(
             items=[], count=0, page=1, page_size=query.page_size, status_counts={}
@@ -573,7 +561,7 @@ def run_detail(request: HttpRequest, run_id: int) -> RunDetailSchema:
     run = get_object_or_404(
         with_model_usage(Run.objects.select_related("job__repository")),
         pk=run_id,
-        job__workspace=request_workspace(request),
+        job__workspace=current_workspace(request),
     )
     return serialize_run_detail(run)
 
@@ -587,7 +575,7 @@ def run_file(
     Always served as plain text, so a browser never renders repository or model
     content as HTML; the dashboard renders Markdown itself, sanitized.
     """
-    run = get_object_or_404(Run, pk=run_id, job__workspace=request_workspace(request))
+    run = get_object_or_404(Run, pk=run_id, job__workspace=current_workspace(request))
     path = run_file_path(run, name)
     if not path:
         raise Http404

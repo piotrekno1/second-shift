@@ -4,7 +4,7 @@ from urllib.parse import urlencode
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.http import HttpRequest, HttpResponseRedirect
+from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from ninja import NinjaAPI, Schema, Status
@@ -24,8 +24,14 @@ from secondshift.automations.health import failing_jobs, spend_by_job, week_summ
 from secondshift.automations.limits import LimitError, limit_views, save_overrides
 from secondshift.automations.models import Job, Run
 from secondshift.automations.needs import capability_needs
+from secondshift.core.access import (
+    AccessDenied,
+    Action,
+    allows,
+    current_workspace,
+    require,
+)
 from secondshift.core.models import Workspace
-from secondshift.core.services import workspace_for_user
 from secondshift.core.workspace_settings import (
     environment_label,
     members,
@@ -82,6 +88,11 @@ from secondshift.repositories.models import Repository
 
 api = NinjaAPI(title="SecondShift API", version="1.0")
 api.add_router("", "secondshift.automations.api.router")
+
+
+@api.exception_handler(AccessDenied)
+def access_denied(request: HttpRequest, error: AccessDenied) -> HttpResponse:
+    return api.create_response(request, {"detail": str(error)}, status=403)
 
 
 class UserSchema(Schema):
@@ -411,12 +422,8 @@ class SecretSchema(Schema):
     last_used_at: datetime | None
 
 
-def user_workspace(request: HttpRequest) -> Workspace | None:
-    return workspace_for_user(request.user)
-
-
 def repository_for_request(request: HttpRequest, repository_id: int) -> Repository:
-    workspace = user_workspace(request)
+    workspace = current_workspace(request)
     return get_object_or_404(
         Repository,
         pk=repository_id,
@@ -425,10 +432,9 @@ def repository_for_request(request: HttpRequest, repository_id: int) -> Reposito
     )
 
 
-def owner_local_path(request: HttpRequest, repository: Repository) -> str | None:
-    if (
-        repository.source_type == Repository.SourceType.LOCAL
-        and repository.workspace.owner_id == request.user.pk
+def visible_local_path(request: HttpRequest, repository: Repository) -> str | None:
+    if repository.source_type == Repository.SourceType.LOCAL and allows(
+        request, Action.VIEW_LOCAL_PATHS
     ):
         return repository.local_path
     return None
@@ -447,7 +453,7 @@ def serialize_repository(
         job_count=repository.jobs.count(),
         last_synced_at=repository.last_synced_at,
         source_type=repository.source_type,
-        local_path=owner_local_path(request, repository),
+        local_path=visible_local_path(request, repository),
         revision=repository.config_sha,
     )
 
@@ -512,7 +518,7 @@ def serialize_repository_detail(
 
 @api.get("/settings", response=WorkspaceSettingsSchema, auth=django_auth)
 def workspace_settings(request: HttpRequest) -> WorkspaceSettingsSchema:
-    return serialize_settings(request, user_workspace(request))
+    return serialize_settings(request, current_workspace(request))
 
 
 @api.post("/settings/limits", response=WorkspaceSettingsSchema, auth=django_auth)
@@ -520,7 +526,7 @@ def set_workspace_limits(
     request: HttpRequest, payload: RunLimitsUpdateSchema
 ) -> WorkspaceSettingsSchema:
     """Change the workspace's run limits. Runs already created keep theirs."""
-    workspace = owner_workspace(request, "change run limits")
+    workspace = require(request, Action.CHANGE_RUN_LIMITS)
     try:
         save_overrides(workspace, limit_updates(payload))
     except LimitError as error:
@@ -544,13 +550,13 @@ def serialize_settings(
             for group in setting_groups()
         ],
         limits=serialize_limits(limit_views(workspace)) if workspace else [],
-        can_edit_limits=bool(workspace and workspace.owner_id == request.user.pk),
+        can_edit_limits=allows(request, Action.CHANGE_RUN_LIMITS),
     )
 
 
 @api.get("/me", response=UserSchema, auth=django_auth)
 def me(request: HttpRequest) -> UserSchema:
-    workspace = user_workspace(request)
+    workspace = current_workspace(request)
     return UserSchema(
         email=request.user.email or request.user.get_username(),
         workspace_name=workspace.name if workspace else None,
@@ -563,7 +569,7 @@ def me(request: HttpRequest) -> UserSchema:
 
 @api.get("/overview", response=OverviewSchema, auth=django_auth)
 def overview(request: HttpRequest) -> OverviewSchema:
-    workspace = user_workspace(request)
+    workspace = current_workspace(request)
     if not workspace:
         return OverviewSchema(
             repositories=0,
@@ -614,7 +620,7 @@ def overview(request: HttpRequest) -> OverviewSchema:
 
 @api.get("/repositories", response=list[RepositorySchema], auth=django_auth)
 def repositories(request: HttpRequest) -> list[RepositorySchema]:
-    workspace = user_workspace(request)
+    workspace = current_workspace(request)
     if not workspace:
         return []
     queryset = Repository.objects.filter(
@@ -629,11 +635,9 @@ def create_local_repository(
     request: HttpRequest,
     payload: LocalRepositoryCreateSchema,
 ) -> RepositorySchema:
-    workspace = user_workspace(request)
     if not settings.LOCAL_REPOSITORIES_ENABLED:
         raise HttpError(404, "Local repositories are disabled.")
-    if not workspace or workspace.owner_id != request.user.pk:
-        raise HttpError(403, "Only the workspace owner can add local repositories.")
+    workspace = require(request, Action.ADD_LOCAL_REPOSITORIES)
     try:
         repository = attach_local_repository(workspace, payload.path)
     except LocalRepositoryError as error:
@@ -676,8 +680,7 @@ def resync_repository(
     repository_id: int,
 ) -> RepositoryDetailSchema:
     repository = repository_for_request(request, repository_id)
-    if repository.workspace.owner_id != request.user.pk:
-        raise HttpError(403, "Only the workspace owner can resync repositories.")
+    require(request, Action.RESYNC_REPOSITORIES)
     if repository.source_type != Repository.SourceType.LOCAL:
         raise HttpError(400, "Only local repositories support manual resync.")
     try:
@@ -700,8 +703,7 @@ def set_repository_enabled(
     payload: RepositoryEnabledSchema,
 ) -> RepositoryDetailSchema:
     repository = repository_for_request(request, repository_id)
-    if repository.workspace.owner_id != request.user.pk:
-        raise HttpError(403, "Only the workspace owner can change repository state.")
+    require(request, Action.CHANGE_REPOSITORY_STATE)
     if payload.enabled:
         validation = validate_repository(repository)
         if validation.status != "valid":
@@ -718,8 +720,7 @@ def set_repository_enabled(
 )
 def remove_repository(request: HttpRequest, repository_id: int) -> Status[None]:
     repository = repository_for_request(request, repository_id)
-    if repository.workspace.owner_id != request.user.pk:
-        raise HttpError(403, "Only the workspace owner can remove repositories.")
+    require(request, Action.REMOVE_REPOSITORIES)
     repository.enabled = False
     repository.removed_at = timezone.now()
     repository.save(update_fields=["enabled", "removed_at", "updated_at"])
@@ -789,16 +790,9 @@ def serialize_connection(
     )
 
 
-def owner_workspace(request: HttpRequest, action: str) -> Workspace:
-    workspace = user_workspace(request)
-    if not workspace or workspace.owner_id != request.user.pk:
-        raise HttpError(403, f"Only the workspace owner can {action}.")
-    return workspace
-
-
 @api.get("/connections", response=list[ConnectionSchema], auth=django_auth)
 def connections(request: HttpRequest) -> list[ConnectionSchema]:
-    workspace = user_workspace(request)
+    workspace = current_workspace(request)
     if not workspace:
         return []
     usage = connection_usage(workspace)
@@ -846,7 +840,7 @@ def list_mcp_providers(request: HttpRequest) -> list[MCPProviderSchema]:
 def create_mcp(
     request: HttpRequest, payload: MCPConnectionCreateSchema
 ) -> ConnectionSchema:
-    workspace = owner_workspace(request, "add MCP connections")
+    workspace = require(request, Action.ADD_MCP_CONNECTIONS)
     try:
         connection = create_mcp_connection(
             workspace,
@@ -873,7 +867,7 @@ def create_mcp(
 def update_mcp(
     request: HttpRequest, connection_id: int, payload: MCPConnectionUpdateSchema
 ) -> ConnectionSchema:
-    connection = owned_connection(request, connection_id, "edit connections")
+    connection = owned_connection(request, connection_id, Action.EDIT_CONNECTIONS)
     try:
         connection = update_mcp_connection(
             connection,
@@ -896,7 +890,7 @@ def inspect_api_spec(
     request: HttpRequest, payload: APISpecSchema
 ) -> APISpecSummarySchema:
     """The spec's title, servers, and operation counts, before connecting."""
-    owner_workspace(request, "add API connections")
+    require(request, Action.ADD_API_CONNECTIONS)
     try:
         summary = summarize(payload.spec_url.strip(), payload.spec_text)
     except APIError as error:
@@ -913,7 +907,7 @@ def inspect_api_spec(
 def create_api(
     request: HttpRequest, payload: APIConnectionCreateSchema
 ) -> ConnectionSchema:
-    workspace = owner_workspace(request, "add API connections")
+    workspace = require(request, Action.ADD_API_CONNECTIONS)
     try:
         connection = create_api_connection(
             workspace,
@@ -941,7 +935,7 @@ def create_api(
 def update_api(
     request: HttpRequest, connection_id: int, payload: APIConnectionUpdateSchema
 ) -> ConnectionSchema:
-    connection = owned_connection(request, connection_id, "edit connections")
+    connection = owned_connection(request, connection_id, Action.EDIT_CONNECTIONS)
     try:
         connection = update_api_connection(
             connection,
@@ -964,7 +958,7 @@ def inspect_mcp(
     request: HttpRequest, payload: MCPInspectSchema
 ) -> MCPInspectResultSchema:
     """Whether a server offers sign-in, and which scopes it lists."""
-    owner_workspace(request, "add MCP connections")
+    require(request, Action.ADD_MCP_CONNECTIONS)
     try:
         server = inspect_server(payload.provider, payload.settings)
     except MCPError as error:
@@ -980,7 +974,7 @@ def inspect_mcp(
 def start_mcp_sign_in(
     request: HttpRequest, payload: MCPSignInSchema
 ) -> MCPSignInStartSchema:
-    workspace = owner_workspace(request, "add MCP connections")
+    workspace = require(request, Action.ADD_MCP_CONNECTIONS)
     connection = (
         get_object_or_404(
             Connection,
@@ -1042,7 +1036,7 @@ def create_webhook(
     request: HttpRequest,
     payload: WebhookConnectionCreateSchema,
 ) -> ConnectionSchema:
-    workspace = owner_workspace(request, "add connections")
+    workspace = require(request, Action.ADD_CONNECTIONS)
     try:
         connection = create_webhook_connection(
             workspace,
@@ -1060,9 +1054,9 @@ def create_webhook(
 
 
 def owned_connection(
-    request: HttpRequest, connection_id: int, action: str
+    request: HttpRequest, connection_id: int, action: Action
 ) -> Connection:
-    workspace = owner_workspace(request, action)
+    workspace = require(request, action)
     return get_object_or_404(Connection, pk=connection_id, workspace=workspace)
 
 
@@ -1076,7 +1070,7 @@ def update_webhook(
     connection_id: int,
     payload: WebhookConnectionUpdateSchema,
 ) -> ConnectionSchema:
-    connection = owned_connection(request, connection_id, "edit connections")
+    connection = owned_connection(request, connection_id, Action.EDIT_CONNECTIONS)
     try:
         connection = update_webhook_connection(
             connection, payload.display_name, payload.url
@@ -1095,7 +1089,7 @@ def create_model_provider(
     request: HttpRequest,
     payload: ModelConnectionCreateSchema,
 ) -> ConnectionSchema:
-    workspace = owner_workspace(request, "add model providers")
+    workspace = require(request, Action.ADD_MODEL_PROVIDERS)
     try:
         connection = create_model_connection(
             workspace,
@@ -1124,7 +1118,7 @@ def update_model_provider(
     connection_id: int,
     payload: ModelConnectionUpdateSchema,
 ) -> ConnectionSchema:
-    connection = owned_connection(request, connection_id, "edit model providers")
+    connection = owned_connection(request, connection_id, Action.EDIT_MODEL_PROVIDERS)
     try:
         connection = update_model_connection(
             connection,
@@ -1148,7 +1142,7 @@ def update_model_provider(
     auth=django_auth,
 )
 def revoke(request: HttpRequest, connection_id: int) -> ConnectionSchema:
-    connection = owned_connection(request, connection_id, "disconnect connections")
+    connection = owned_connection(request, connection_id, Action.DISCONNECT_CONNECTIONS)
     if connection.kind == Connection.Kind.IDENTITY:
         raise HttpError(409, "Sign-in connections are managed by their provider.")
     return serialize_connection(revoke_connection(connection))
@@ -1160,7 +1154,7 @@ def revoke(request: HttpRequest, connection_id: int) -> ConnectionSchema:
     auth=django_auth,
 )
 def remove_connection(request: HttpRequest, connection_id: int) -> Status[None]:
-    connection = owned_connection(request, connection_id, "delete connections")
+    connection = owned_connection(request, connection_id, Action.DELETE_CONNECTIONS)
     try:
         delete_connection(connection)
     except ConnectionConflict as error:
@@ -1174,7 +1168,7 @@ def remove_connection(request: HttpRequest, connection_id: int) -> Status[None]:
     auth=django_auth,
 )
 def test_connection(request: HttpRequest, connection_id: int) -> ConnectionTestSchema:
-    connection = owned_connection(request, connection_id, "test connections")
+    connection = owned_connection(request, connection_id, Action.TEST_CONNECTIONS)
     if connection.kind == Connection.Kind.MCP:
         try:
             provider = mcp_provider(connection.provider)
@@ -1217,7 +1211,7 @@ def test_connection(request: HttpRequest, connection_id: int) -> ConnectionTestS
 
 @api.get("/capability-needs", response=list[CapabilityNeedSchema], auth=django_auth)
 def needs(request: HttpRequest) -> list[CapabilityNeedSchema]:
-    workspace = user_workspace(request)
+    workspace = current_workspace(request)
     if not workspace:
         return []
     return [
@@ -1247,7 +1241,7 @@ def needs(request: HttpRequest) -> list[CapabilityNeedSchema]:
 
 @api.get("/secrets", response=list[SecretSchema], auth=django_auth)
 def secrets(request: HttpRequest) -> list[SecretSchema]:
-    workspace = user_workspace(request)
+    workspace = current_workspace(request)
     if not workspace:
         return []
     return [
