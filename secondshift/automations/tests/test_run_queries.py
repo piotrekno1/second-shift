@@ -212,6 +212,7 @@ def test_run_list_splits_failures_into_label_and_reason(
     assert items[runs["health_failed"].pk]["failure"] == {  # type: ignore[attr-defined]
         "label": "Sandbox",
         "reason": "Runner answered HTTP 500.",
+        "limit": False,
     }
     assert items[runs["health_ok"].pk]["failure"] is None  # type: ignore[attr-defined]
 

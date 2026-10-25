@@ -11,8 +11,17 @@ from ninja.security import django_auth
 from pydantic import Field
 
 from secondshift.automations.artifacts import artifact_storage, job_input_snapshot
+from secondshift.automations.budgets import BUDGET_HEADLINE
+from secondshift.automations.deadlines import TIMEOUT_HEADLINE
 from secondshift.automations.dispatch import enqueue_run
 from secondshift.automations.failures import describe_failure
+from secondshift.automations.limits import (
+    LimitError,
+    LimitView,
+    RunLimit,
+    limit_views,
+    save_overrides,
+)
 from secondshift.automations.models import (
     CapabilityRequest,
     Job,
@@ -79,6 +88,39 @@ class GrantDecisionSchema(Schema):
 class RunFailureSchema(Schema):
     label: str
     reason: str
+    # The run stopped at one of its limits, which an owner can change.
+    limit: bool = False
+
+
+class LimitSchema(Schema):
+    key: str
+    label: str
+    help: str
+    unit: str
+    value: int
+    override: int | None
+    inherited: int
+    minimum: int
+    maximum: int
+    env: str
+    maximum_env: str
+
+
+class RunLimitsUpdateSchema(Schema):
+    """Fields left out stay as they are. Null uses the inherited value."""
+
+    max_turns: int | None = None
+    max_tool_calls: int | None = None
+    token_budget: int | None = None
+    timeout_seconds: int | None = None
+
+
+def serialize_limits(views: list[LimitView]) -> list[LimitSchema]:
+    return [LimitSchema(**vars(view)) for view in views]
+
+
+def limit_updates(payload: RunLimitsUpdateSchema) -> dict[str, int | None]:
+    return payload.model_dump(exclude_unset=True)
 
 
 class RunSchema(Schema):
@@ -96,6 +138,7 @@ class RunSchema(Schema):
     commit_sha: str = ""
     model: str | None = None
     max_turns: int | None = None
+    token_budget: int | None = None
     model_requests: int = 0
     model_input_tokens: int = 0
     model_output_tokens: int = 0
@@ -144,6 +187,8 @@ class JobDetailSchema(JobSchema):
     repository_revision: str
     repository_enabled: bool
     recent_runs: list[RunSchema]
+    limits: list[LimitSchema]
+    can_edit_limits: bool
 
 
 class RunListQuery(Schema):
@@ -171,7 +216,7 @@ def request_workspace(request: HttpRequest) -> Workspace | None:
 
 def job_for_request(request: HttpRequest, job_id: int) -> Job:
     return get_object_or_404(
-        Job.objects.select_related("repository").prefetch_related(
+        Job.objects.select_related("repository", "workspace").prefetch_related(
             "capability_requests__grant__connection"
         ),
         pk=job_id,
@@ -244,9 +289,10 @@ def serialize_job(
     )
 
 
-def run_max_turns(run: Run) -> int | None:
+def run_limit(run: Run, limit: RunLimit) -> int | None:
+    """A limit frozen into the run's plan. Older plans may not have it."""
     limits = (run.execution_plan.get("agent") or {}).get("limits") or {}
-    value = limits.get("max_turns")
+    value = limits.get(str(limit))
     return int(value) if isinstance(value, int) else None
 
 
@@ -258,7 +304,11 @@ def run_failure(run: Run) -> RunFailureSchema | None:
     if run.status != Run.Status.FAILED:
         return None
     view = describe_failure(run.summary)
-    return RunFailureSchema(label=view.label, reason=view.reason)
+    return RunFailureSchema(
+        label=view.label,
+        reason=view.reason,
+        limit=view.label in (BUDGET_HEADLINE, TIMEOUT_HEADLINE),
+    )
 
 
 def serialize_run(run: Run) -> RunSchema:
@@ -276,7 +326,8 @@ def serialize_run(run: Run) -> RunSchema:
         plan_ready=bool(run.execution_plan.get("ready", False)),
         commit_sha=run.commit_sha,
         model=(run.execution_plan.get("model") or {}).get("default_model") or None,
-        max_turns=run_max_turns(run),
+        max_turns=run_limit(run, RunLimit.MAX_TURNS),
+        token_budget=run_limit(run, RunLimit.TOKEN_BUDGET),
         model_requests=getattr(run, "model_requests", None) or 0,
         model_input_tokens=getattr(run, "model_input_tokens", None) or 0,
         model_output_tokens=getattr(run, "model_output_tokens", None) or 0,
@@ -345,7 +396,11 @@ def serialize_run_detail(run: Run) -> RunDetailSchema:
     )
 
 
-def serialize_job_detail(job: Job) -> JobDetailSchema:
+def is_owner(request: HttpRequest, workspace: Workspace) -> bool:
+    return workspace.owner_id == request.user.pk
+
+
+def serialize_job_detail(job: Job, can_edit_limits: bool) -> JobDetailSchema:
     summary = serialize_job(job)
     # Aggregation drops Meta.ordering, so order explicitly: newest first.
     recent_runs = with_model_usage(
@@ -358,6 +413,8 @@ def serialize_job_detail(job: Job) -> JobDetailSchema:
         repository_revision=job.repository.config_sha,
         repository_enabled=job.repository.enabled,
         recent_runs=[serialize_run(run) for run in recent_runs],
+        limits=serialize_limits(limit_views(job.workspace, job)),
+        can_edit_limits=can_edit_limits,
     )
 
 
@@ -379,7 +436,23 @@ def jobs(request: HttpRequest) -> list[JobSchema]:
 
 @router.get("/jobs/{job_id}", response=JobDetailSchema)
 def job_detail(request: HttpRequest, job_id: int) -> JobDetailSchema:
-    return serialize_job_detail(job_for_request(request, job_id))
+    job = job_for_request(request, job_id)
+    return serialize_job_detail(job, is_owner(request, job.workspace))
+
+
+@router.post("/jobs/{job_id}/limits", response=JobDetailSchema)
+def set_job_limits(
+    request: HttpRequest, job_id: int, payload: RunLimitsUpdateSchema
+) -> JobDetailSchema:
+    """Change the run limits of one job. Runs already created keep theirs."""
+    job = job_for_request(request, job_id)
+    if not is_owner(request, job.workspace):
+        raise HttpError(403, "Only the workspace owner can change run limits.")
+    try:
+        save_overrides(job, limit_updates(payload))
+    except LimitError as error:
+        raise HttpError(422, str(error)) from error
+    return serialize_job_detail(job_for_request(request, job_id), True)
 
 
 @router.post("/jobs/{job_id}/enabled", response=JobSchema)
