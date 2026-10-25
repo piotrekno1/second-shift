@@ -124,6 +124,31 @@ async function toggleRepository(): Promise<void> {
   }
 }
 
+async function toggleAutoSync(): Promise<void> {
+  if (!repository.value) return
+  action.value = 'auto-sync'
+  error.value = null
+  try {
+    repository.value = await apiPost<RepositoryDetail>(`/repositories/${repositoryId}/auto-sync`, {
+      enabled: !repository.value.auto_sync,
+    })
+  } catch (toggleError) {
+    error.value = toggleError instanceof Error ? toggleError.message : 'Unable to change auto-sync'
+  } finally {
+    action.value = null
+  }
+}
+
+const autoSyncLabel = computed(() => {
+  if (!repository.value?.auto_sync) return 'Off'
+  return repository.value.server_syncs ? 'On' : 'Off on this server'
+})
+const autoSyncHelp = computed(() => {
+  if (!repository.value?.auto_sync) return 'Press Resync to apply new commits.'
+  if (!repository.value.server_syncs) return 'Whoever runs this server has turned background sync off.'
+  return `New commits on ${repository.value.default_branch} apply within minutes.`
+})
+
 async function removeRepository(): Promise<void> {
   if (!repository.value) return
   // Two clicks instead of a browser dialog: the first asks, the second removes.
@@ -230,6 +255,13 @@ onMounted(loadRepository)
           <div v-if="repository.local_path"><dt>Path</dt><dd><code>{{ repository.local_path }}</code><button class="copy-button" type="button" :aria-label="copied ? 'Copied' : 'Copy path'" @click="copyPath"><i class="mdi" :class="copied ? 'mdi-check' : 'mdi-content-copy'" /></button></dd></div>
           <div v-else><dt>Type</dt><dd>GitHub</dd></div>
           <div><dt>Branch</dt><dd>{{ repository.default_branch }}</dd></div>
+          <div v-if="repository.source_type === 'local'">
+            <dt>Auto-sync</dt>
+            <dd class="auto-sync" :title="autoSyncHelp">
+              <span>{{ autoSyncLabel }}</span>
+              <button v-if="app.can(Action.ChangeRepositoryState)" type="button" class="link-button" :disabled="action === 'auto-sync'" @click="toggleAutoSync">{{ repository.auto_sync ? 'Turn off' : 'Turn on' }}</button>
+            </dd>
+          </div>
           <div><dt>Synced revision</dt><dd><code>{{ repository.revision.slice(0, 12) || '—' }}</code></dd></div>
           <div><dt>Manifest</dt><dd><code>{{ repository.config_path }}</code></dd></div>
           <div><dt>Last synced</dt><dd :title="`${formatDate(repository.last_synced_at)} · ${utcTitle(repository.last_synced_at)}`">{{ formatRelative(repository.last_synced_at) }}</dd></div>

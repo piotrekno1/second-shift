@@ -7,6 +7,8 @@ requests still waits for an owner's approval.
 import logging
 from pathlib import Path
 
+from django.conf import settings
+
 from secondshift.repositories.local import (
     LocalRepositoryError,
     attach_local_repository,
@@ -17,11 +19,20 @@ from secondshift.repositories.models import Repository
 logger = logging.getLogger(__name__)
 
 
+def server_syncs() -> bool:
+    """Whether the worker syncs at all on this server."""
+    return bool(
+        settings.LOCAL_REPOSITORIES_ENABLED
+        and settings.REPOSITORY_SYNC_INTERVAL_SECONDS > 0
+    )
+
+
 def repositories_to_check() -> list[Repository]:
     return list(
         Repository.objects.filter(
             source_type=Repository.SourceType.LOCAL,
             enabled=True,
+            auto_sync=True,
             removed_at__isnull=True,
         ).select_related("workspace")
     )

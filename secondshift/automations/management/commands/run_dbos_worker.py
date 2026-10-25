@@ -10,7 +10,7 @@ from secondshift.automations.dbos_runtime import launch_dbos_worker, new_dbos_cl
 from secondshift.automations.reconciliation import reconcile_terminal_workflows
 from secondshift.automations.retention import prune_runs
 from secondshift.automations.scheduling import synchronize_schedules
-from secondshift.repositories.autosync import sync_moved_repositories
+from secondshift.repositories.autosync import server_syncs, sync_moved_repositories
 
 logger = logging.getLogger(__name__)
 
@@ -56,13 +56,9 @@ def command(sync_interval: int) -> None:
                     )
                 except Exception:
                     logger.exception("failed to prune old runs")
-            if (
-                settings.LOCAL_REPOSITORIES_ENABLED
-                and repository_interval > 0
-                and (
-                    last_repository_sync is None
-                    or time.monotonic() - last_repository_sync >= repository_interval
-                )
+            if server_syncs() and (
+                last_repository_sync is None
+                or time.monotonic() - last_repository_sync >= repository_interval
             ):
                 last_repository_sync = time.monotonic()
                 try:

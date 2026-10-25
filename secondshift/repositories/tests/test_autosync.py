@@ -1,6 +1,9 @@
 import subprocess
 from pathlib import Path
 
+from django.contrib.auth import get_user_model
+from django.test import Client, override_settings
+
 from secondshift.repositories.autosync import sync_moved_repositories
 from secondshift.repositories.local import attach_local_repository
 from secondshift.repositories.tests.test_local import create_local_repository, run_git
@@ -71,3 +74,49 @@ def test_disabled_repositories_are_left_alone(
 
     assert sync_moved_repositories() == 0
     assert repository.jobs.get().name == "Review"
+
+
+def test_a_repository_can_turn_auto_sync_off(
+    workspace: Workspace,
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "project"
+    create_local_repository(root)
+    repository = attach_local_repository(workspace, str(root))
+    repository.auto_sync = False
+    repository.save(update_fields=["auto_sync"])
+    rename_job(root, "Weekly review")
+
+    assert sync_moved_repositories() == 0
+    # Resync still works by hand, and keeps the choice.
+    resynced = attach_local_repository(workspace, str(root), "main")
+    assert resynced.jobs.get().name == "Weekly review"
+    assert resynced.auto_sync is False
+
+
+@override_settings(LOCAL_REPOSITORIES_ENABLED=True)
+def test_admins_switch_auto_sync_and_members_cannot(
+    client: Client,
+    workspace: Workspace,
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "project"
+    create_local_repository(root)
+    repository = attach_local_repository(workspace, str(root))
+    users = get_user_model().objects
+    admin = users.create_user(username="admin")
+    member = users.create_user(username="member")
+    workspace.memberships.create(user=admin, role="admin")
+    workspace.memberships.create(user=member, role="member")
+    path = f"/api/repositories/{repository.pk}/auto-sync"
+
+    client.force_login(member)
+    refused = client.post(path, {"enabled": False}, content_type="application/json")
+    client.force_login(admin)
+    switched = client.post(path, {"enabled": False}, content_type="application/json")
+
+    assert refused.status_code == 403
+    assert switched.status_code == 200
+    assert switched.json()["auto_sync"] is False
+    repository.refresh_from_db()
+    assert repository.auto_sync is False
