@@ -1,20 +1,31 @@
+from datetime import datetime
+from typing import Literal
+
 from django.http import HttpRequest
+from django.shortcuts import get_object_or_404
 from ninja import Router, Schema, Status
 from ninja.errors import HttpError
 from ninja.security import django_auth
+from pydantic import Field
 
 from secondshift.workspaces.access import (
+    Action,
     current_workspace,
+    require,
     select_workspace,
     user_memberships,
 )
 from secondshift.workspaces.invites import (
     InviteError,
+    create_invite,
     forget_invite,
+    invite_path,
     join_pending_invite,
     pending_invite,
+    pending_invites,
+    revoke_invite,
 )
-from secondshift.workspaces.models import WorkspaceMembership
+from secondshift.workspaces.models import WorkspaceInvite, WorkspaceMembership
 
 router = Router(auth=django_auth, tags=["workspaces"])
 
@@ -29,6 +40,25 @@ class WorkspaceChoiceSchema(Schema):
 
 class WorkspaceSelectSchema(Schema):
     workspace_id: int
+
+
+class InviteCreateSchema(Schema):
+    role: Literal["owner", "admin", "member"] = "member"
+    note: str = Field("", max_length=160)
+
+
+class InviteSchema(Schema):
+    id: int
+    role: str
+    note: str
+    created_by: str | None
+    created_at: datetime
+    expires_at: datetime
+
+
+class NewInviteSchema(InviteSchema):
+    # Shown once, right after creating it. It cannot be looked up later.
+    link: str
 
 
 class PendingInviteSchema(Schema):
@@ -102,4 +132,46 @@ def accept_pending_invite(request: HttpRequest) -> WorkspaceChoiceSchema:
 @router.post("/invites/pending/dismiss", response={204: None})
 def dismiss_pending_invite(request: HttpRequest) -> Status[None]:
     forget_invite(request)
+    return Status(204, None)
+
+
+def person_label(user: object | None) -> str | None:
+    if user is None:
+        return None
+    return getattr(user, "email", "") or user.get_username()  # type: ignore[attr-defined]
+
+
+def serialize_invite(invite: WorkspaceInvite) -> InviteSchema:
+    return InviteSchema(
+        id=invite.pk,
+        role=invite.role,
+        note=invite.note,
+        created_by=person_label(invite.created_by),
+        created_at=invite.created_at,
+        expires_at=invite.expires_at,
+    )
+
+
+@router.get("/invites", response=list[InviteSchema])
+def invites(request: HttpRequest) -> list[InviteSchema]:
+    """Invites in the current workspace that can still be accepted."""
+    workspace = require(request, Action.INVITE_PEOPLE)
+    queryset = pending_invites(workspace).select_related("created_by")
+    return [serialize_invite(invite) for invite in queryset]
+
+
+@router.post("/invites", response=NewInviteSchema)
+def invite_person(request: HttpRequest, payload: InviteCreateSchema) -> NewInviteSchema:
+    workspace = require(request, Action.INVITE_PEOPLE)
+    new = create_invite(workspace, payload.role, request.user, payload.note.strip())
+    return NewInviteSchema(
+        **serialize_invite(new.invite).model_dump(),
+        link=request.build_absolute_uri(invite_path(new.token)),
+    )
+
+
+@router.delete("/invites/{invite_id}", response={204: None})
+def cancel_invite(request: HttpRequest, invite_id: int) -> Status[None]:
+    workspace = require(request, Action.INVITE_PEOPLE)
+    revoke_invite(get_object_or_404(pending_invites(workspace), pk=invite_id))
     return Status(204, None)
