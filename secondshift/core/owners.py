@@ -11,7 +11,9 @@ LOCAL_OWNER_USERNAME = "owner"
 
 
 def has_owner() -> bool:
-    return get_user_model().objects.exists()
+    return WorkspaceMembership.objects.filter(
+        workspace__slug=WORKSPACE_SLUG, role=WorkspaceMembership.Role.OWNER
+    ).exists()
 
 
 def get_owner() -> AbstractUser:
