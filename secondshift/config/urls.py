@@ -6,6 +6,7 @@ from health_check.views import HealthCheckView
 
 from secondshift.core.api import api
 from secondshift.core.signin import sign_in
+from secondshift.workspaces.views import open_invite
 
 
 def spa(request: HttpRequest, path: str = "") -> FileResponse:
@@ -21,6 +22,7 @@ urlpatterns = [
     path("-/admin/", admin.site.urls),
     path("accounts/", include("allauth.urls")),
     path("-/sign-in/<str:token>/", sign_in, name="sign-in"),
+    path("-/invite/<str:token>/", open_invite, name="invite"),
     path("api/", api.urls),
     path(
         "-/health/",

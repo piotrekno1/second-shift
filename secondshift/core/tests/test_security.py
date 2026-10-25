@@ -34,6 +34,7 @@ def test_health_check_reports_database_and_cache(client) -> None:
 @pytest.mark.parametrize("enabled", [True, False])
 def test_signup_follows_setting(rf, enabled: bool) -> None:
     request = rf.get("/accounts/signup/")
+    request.session = {}
     with override_settings(SIGNUP_ENABLED=enabled):
         assert AccountAdapter(request).is_open_for_signup(request) is enabled
         assert (

@@ -14,6 +14,8 @@ from datetime import timedelta
 from django.contrib.auth.models import AbstractBaseUser
 from django.db import transaction
 from django.db.models import QuerySet
+from django.http import HttpRequest
+from django.urls import reverse
 from django.utils import timezone
 
 from secondshift.workspaces.models import (
@@ -23,6 +25,9 @@ from secondshift.workspaces.models import (
 )
 
 INVITE_LIFETIME = timedelta(days=7)
+# An opened invite link waits in the session under this key until the person
+# confirms or dismisses it.
+PENDING_INVITE_SESSION_KEY = "secondshift.invite"
 INVITE_UNUSABLE_MESSAGE = (
     "This invitation has expired or was already used. "
     "Ask a workspace owner for a new one."
@@ -42,6 +47,10 @@ class NewInvite:
 
 def token_hash(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
+
+
+def invite_path(token: str) -> str:
+    return reverse("invite", args=[token])
 
 
 def usable_invites() -> QuerySet[WorkspaceInvite]:
@@ -115,3 +124,17 @@ def accept_invite(token: str, user: AbstractBaseUser) -> WorkspaceMembership:
 def revoke_invite(invite: WorkspaceInvite) -> None:
     invite.revoked_at = timezone.now()
     invite.save(update_fields=["revoked_at"])
+
+
+def remember_invite(request: HttpRequest, token: str) -> None:
+    request.session[PENDING_INVITE_SESSION_KEY] = token
+
+
+def pending_invite(request: HttpRequest) -> WorkspaceInvite | None:
+    """The invite this browser opened, while it can still be accepted."""
+    token = request.session.get(PENDING_INVITE_SESSION_KEY)
+    return find_invite(token) if token else None
+
+
+def forget_invite(request: HttpRequest) -> None:
+    request.session.pop(PENDING_INVITE_SESSION_KEY, None)
