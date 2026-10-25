@@ -236,6 +236,76 @@ def test_gateway_enforces_auth_paths_models_and_budget(
 
 
 @pytest.mark.django_db
+def test_gateway_refuses_bodies_it_cannot_check(
+    client: Client,
+    monkeypatch: pytest.MonkeyPatch,
+    settings: Any,
+    workspace: Workspace,
+) -> None:
+    settings.GATEWAY_MAX_BODY_BYTES = 200
+    token = issue_run_token(make_run(workspace), provider(workspace))
+    calls = capture_post(monkeypatch, fake_upstream())
+    path = "/gateway/anthropic/v1/messages"
+    headers = {"HTTP_X_API_KEY": token}
+
+    def send(body: bytes) -> Any:
+        return client.post(path, data=body, content_type="application/json", **headers)
+
+    too_large = send(json.dumps({"model": "m", "pad": "x" * 300}).encode())
+    not_json = send(b"{not json")
+    no_model = send(json.dumps({"messages": []}).encode())
+
+    assert (too_large.status_code, too_large.json()["error"]["type"]) == (
+        413,
+        "request_too_large",
+    )
+    assert (not_json.status_code, not_json.json()["error"]["message"]) == (
+        400,
+        "The body must be JSON.",
+    )
+    assert (no_model.status_code, no_model.json()["error"]["message"]) == (
+        400,
+        "The request must name a model.",
+    )
+    assert calls == []
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("failure", "status", "message"),
+    [
+        (httpx.ConnectTimeout("slow"), 504, "The provider timed out."),
+        (httpx.ConnectError("down"), 502, "The provider could not be reached."),
+    ],
+)
+def test_provider_failures_become_gateway_errors(
+    client: Client,
+    monkeypatch: pytest.MonkeyPatch,
+    workspace: Workspace,
+    failure: Exception,
+    status: int,
+    message: str,
+) -> None:
+    token = issue_run_token(make_run(workspace), provider(workspace))
+
+    def fail(request: httpx.Request) -> httpx.Response:
+        raise failure
+
+    capture_post(monkeypatch, fail)
+    response = post(
+        client,
+        "/gateway/anthropic/v1/messages",
+        {"model": "claude-sonnet-5-5", "messages": []},
+        **{"x-api-key": token},
+    )
+
+    assert (response.status_code, response.json()["error"]["message"]) == (
+        status,
+        message,
+    )
+
+
+@pytest.mark.django_db
 def test_anthropic_stream_passes_through_and_is_metered(
     client: Client, monkeypatch: pytest.MonkeyPatch, workspace: Workspace
 ) -> None:
