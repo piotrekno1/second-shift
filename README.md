@@ -71,16 +71,22 @@ the services it needs through MCP or an HTTP API, then approve the job's access.
 
 | Review | What the skill can investigate | Data it needs |
 | --- | --- | --- |
-| **Recurring CI failures** | Which failures keep blocking builds, when they started, and which changes may explain them. | Build history and failure logs through an API or MCP connection, plus repository code. |
-| **Production errors** | Which Sentry errors are new or worsening and which recent code changes may be related. | Issues, events, or traces through the built-in Sentry connection, plus repository code. |
-| **Monitoring coverage** | Whether removed alerts, paused rules, or changed thresholds leave important failure paths uncovered. | Monitoring rules and their change history through an API or MCP connection, or configuration committed to the repository. |
-| **Release readiness** | Whether a planned release needs migration steps, configuration changes, or rollout instructions that are missing. | Repository changes and release plans, with an API or MCP connection for plans kept outside Git. |
-| **Incident follow-up** | Whether completed incident action items have the promised code changes, regression tests, or monitoring. | Incident records and action items through an API or MCP connection, or documents committed to the repository. |
+| [**Recurring CI failures**](.agents/skills/ci-failure-review/SKILL.md) | Which failures keep blocking builds, when they started, and which changes may explain them. | Build history and failure logs through an API or MCP connection, plus repository code. |
+| [**Production errors**](.agents/skills/production-error-review/SKILL.md) | Which Sentry errors are new or worsening and which recent code changes may be related. | Issues, events, or traces through the built-in Sentry connection, plus repository code. |
+| [**Monitoring coverage**](.agents/skills/monitoring-coverage-review/SKILL.md) | Whether removed alerts, paused rules, or changed thresholds leave important failure paths uncovered. | Monitoring rules and their change history through an API or MCP connection, or configuration committed to the repository. |
+| [**Release readiness**](.agents/skills/release-readiness-review/SKILL.md) | Whether a planned release needs migration steps, configuration changes, or rollout instructions that are missing. | Repository changes and release plans, with an API or MCP connection for plans kept outside Git. |
+| [**Incident follow-up**](.agents/skills/incident-follow-up-review/SKILL.md) | Whether completed incident action items have the promised code changes, regression tests, or monitoring. | Incident records and action items through an API or MCP connection, or documents committed to the repository. |
 
 These are workflows you can define with skills and approved connections. Each
 review depends on the data exposed by the connected service. The built-in GitHub
 connection reads pull requests and commits. CI logs need a separate API or MCP
 connection that exposes them.
+
+The linked skills live in [`.agents/skills`](.agents/skills) so they can also be
+used while working on SecondShift. See [Engineering tasks](docs/engineering-tasks.md)
+for setup and reuse in another repository. Release readiness is included as a
+manual job in this repository's manifest. Add the other jobs after choosing
+their data sources and requested tools.
 
 Ask skills to explain what changed, who is affected, why it needs attention, and
 what to check next. Findings should cite their evidence and say when the
@@ -145,6 +151,7 @@ discuss the approach.
 ## Documentation
 
 - [Repository configuration](docs/repository-configuration.md): skills, YAML syntax, schedules, and notifications.
+- [Engineering tasks](docs/engineering-tasks.md): review skills, required data, and setup for use in this repository or your own.
 - [Architecture](docs/architecture.md): execution design and capability boundaries.
 - [Security model](docs/security-model.md): what a run can reach, where secrets live, and remaining risks.
 - [Self-hosting](docs/self-hosting.md) (work in progress): runner backends, sandbox images, and artifact storage.

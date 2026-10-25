@@ -1,6 +1,11 @@
 version: 1
 
 jobs:
+  # No schedule: choose Run now when preparing a release.
+  release-readiness-review:
+    name: Release readiness review
+    skill: .agents/skills/release-readiness-review/SKILL.md
+
   # No schedule: this job runs only when started with Run now.
   repository-health:
     name: Repository health
