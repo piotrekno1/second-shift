@@ -11,6 +11,7 @@ import { useListQuery } from '../composables/useListQuery'
 import { apiPost } from '../services/api'
 import { useAppStore } from '../stores/app'
 import type { Repository } from '../types'
+import { Action } from '../utils/permissions'
 import { countLabel, formatDate, formatRelative, utcTitle } from '../utils/format'
 
 const app = useAppStore()
@@ -103,8 +104,9 @@ async function addLocalRepository(): Promise<void> {
         <Button label="Clear filters" severity="secondary" text size="small" @click="list.update({ q: null, state: null })" />
       </article>
       <article v-if="!app.repositories.length" class="panel empty-state wide">
-        <i class="mdi mdi-source-branch-plus" /><strong>Connect your first repository</strong>
-        <span>{{ app.user?.local_repositories_enabled ? 'Add a local Git repository or install the GitHub App.' : 'Install the GitHub App, then approve a repository containing `.secondshift.yaml`.' }}</span>
+        <i class="mdi mdi-source-branch-plus" /><strong>{{ app.can(Action.AddLocalRepositories) ? 'Connect your first repository' : 'No repositories yet' }}</strong>
+        <span v-if="!app.can(Action.AddLocalRepositories)">Workspace owners add repositories.</span>
+        <span v-else>{{ app.user?.local_repositories_enabled ? 'Add a local Git repository or install the GitHub App.' : 'Install the GitHub App, then approve a repository containing `.secondshift.yaml`.' }}</span>
       </article>
     </section>
   </div>
