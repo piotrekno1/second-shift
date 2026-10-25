@@ -4,7 +4,7 @@ import pytest
 from django.contrib.auth import get_user_model
 from django.test import Client
 
-from secondshift.core.workspace_settings import image_label
+from secondshift.core.workspace_settings import image_label, setting_groups
 from secondshift.workspaces.models import WorkspaceMembership
 from secondshift.workspaces.services import create_workspace
 
@@ -85,3 +85,18 @@ def test_only_staff_see_the_server_variables(client: Client) -> None:
     assert limit_error().endswith(
         "Set SECONDSHIFT_AGENT_MAX_TURNS_CEILING to allow more."
     )
+
+
+def test_background_sync_is_listed_with_local_repositories(settings: object) -> None:
+    settings.LOCAL_REPOSITORIES_ENABLED = True  # type: ignore[attr-defined]
+    settings.REPOSITORY_SYNC_INTERVAL_SECONDS = 300  # type: ignore[attr-defined]
+    values = {item.label: item.value for g in setting_groups() for item in g.items}
+    assert values["Background sync"] == "Every 5 minutes"
+
+    settings.REPOSITORY_SYNC_INTERVAL_SECONDS = 0  # type: ignore[attr-defined]
+    values = {item.label: item.value for g in setting_groups() for item in g.items}
+    assert values["Background sync"] == "Off"
+
+    settings.LOCAL_REPOSITORIES_ENABLED = False  # type: ignore[attr-defined]
+    values = {item.label: item.value for g in setting_groups() for item in g.items}
+    assert "Background sync" not in values

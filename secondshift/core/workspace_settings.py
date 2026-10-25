@@ -64,6 +64,27 @@ def image_label(image: str) -> str:
     return f"{name} @ {digest[:12]}" if digest else image
 
 
+def repository_groups() -> list[SettingGroup]:
+    """Background sync applies only to local repositories."""
+    if not settings.LOCAL_REPOSITORIES_ENABLED:
+        return []
+    interval = settings.REPOSITORY_SYNC_INTERVAL_SECONDS
+    return [
+        SettingGroup(
+            "Repositories",
+            [
+                SettingValue(
+                    "Background sync",
+                    f"Every {duration_label(interval)}" if interval > 0 else "Off",
+                    "SECONDSHIFT_REPOSITORY_SYNC_INTERVAL_SECONDS",
+                    "New commits on a repository's branch apply on their own. "
+                    "Each repository can turn this off.",
+                ),
+            ],
+        )
+    ]
+
+
 def setting_groups() -> list[SettingGroup]:
     retention = settings.RUN_RETENTION_DAYS
     return [
@@ -92,6 +113,7 @@ def setting_groups() -> list[SettingGroup]:
                 ),
             ],
         ),
+        *repository_groups(),
         SettingGroup(
             "Sandbox",
             [
