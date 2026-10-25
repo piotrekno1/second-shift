@@ -80,7 +80,6 @@ async function addLocalRepository(): Promise<void> {
 function chooseDirectory(path: string): void {
   localPath.value = path
   localError.value = null
-  browsing.value = false
 }
 </script>
 

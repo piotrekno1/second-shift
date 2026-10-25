@@ -7,6 +7,7 @@ export const useLocalDirectoriesStore = defineStore('localDirectories', () => {
   const listing = ref<LocalRepositoryDirectoryList | null>(null)
   const loading = ref(false)
   const error = ref<string | null>(null)
+  // Ignore responses from older navigation requests or a closed picker.
   let request = 0
 
   function reset(): void {
@@ -17,8 +18,8 @@ export const useLocalDirectoriesStore = defineStore('localDirectories', () => {
   }
 
   async function load(path: string): Promise<void> {
-    reset()
-    const current = request
+    const current = ++request
+    error.value = null
     loading.value = true
     try {
       const result = await fetchLocalDirectories(path)

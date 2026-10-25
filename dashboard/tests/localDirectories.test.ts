@@ -40,3 +40,25 @@ test('a newer navigation wins when responses arrive out of order', async () => {
     assert.equal(store.loading, false)
   } finally { globalThis.fetch = originalFetch }
 })
+
+
+test('failed navigation preserves the last folder and allows recovery', async () => {
+  setActivePinia(createPinia())
+  const store = useLocalDirectoriesStore()
+  const originalFetch = globalThis.fetch
+  try {
+    globalThis.fetch = async () => Response.json(listing)
+    await store.load('/projects')
+    globalThis.fetch = async () => Response.json({ detail: 'Unable to read /projects/private.' }, { status: 422 })
+    await store.load('/projects/private')
+    assert.equal(store.listing?.path, '/projects')
+    assert.equal(store.listing?.parent, '/')
+    assert.equal(store.error, 'Unable to read /projects/private.')
+    assert.equal(store.loading, false)
+
+    globalThis.fetch = async () => Response.json({ ...listing, path: '/' })
+    await store.load('/')
+    assert.equal(store.listing?.path, '/')
+    assert.equal(store.error, null)
+  } finally { globalThis.fetch = originalFetch }
+})
