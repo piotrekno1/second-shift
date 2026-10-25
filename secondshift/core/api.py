@@ -26,7 +26,6 @@ from secondshift.automations.models import Job, Run
 from secondshift.automations.needs import capability_needs
 from secondshift.core.workspace_settings import (
     environment_label,
-    members,
     sandbox_label,
     setting_groups,
 )
@@ -132,17 +131,11 @@ class SettingGroupSchema(Schema):
     items: list[SettingValueSchema]
 
 
-class MemberSchema(Schema):
-    email: str
-    role: str
-
-
 class WorkspaceSettingsSchema(Schema):
     workspace_name: str | None
     workspace_slug: str | None
     environment: str
     sandbox: str
-    members: list[MemberSchema]
     groups: list[SettingGroupSchema]
     # Run limits for the whole workspace. Each job can choose its own.
     limits: list[LimitSchema]
@@ -548,7 +541,6 @@ def serialize_settings(
         workspace_slug=workspace.slug if workspace else None,
         environment=environment_label(),
         sandbox=sandbox_label(),
-        members=[vars(member) for member in members(workspace)] if workspace else [],
         groups=[
             SettingGroupSchema(
                 title=group.title, items=[vars(item) for item in group.items]

@@ -65,7 +65,6 @@ export interface WorkspaceSettings {
   workspace_slug: string | null
   environment: string
   sandbox: string
-  members: { email: string, role: string }[]
   groups: { title: string, items: SettingValue[] }[]
   /** Run limits for the whole workspace. Each job can choose its own. */
   limits: RunLimitItem[]

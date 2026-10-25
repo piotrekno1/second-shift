@@ -47,6 +47,19 @@ def test_everyone_sees_members_owners_first(client: Client, team: dict) -> None:
     ]
 
 
+@pytest.mark.django_db
+def test_an_owner_who_joined_later_still_comes_first(client: Client) -> None:
+    early, founder = user("early"), user("founder")
+    workspace = create_workspace("Team", "team", early)
+    workspace.memberships.filter(user=early).update(role="member")
+    workspace.memberships.create(user=founder, role="owner")
+    client.force_login(founder)
+
+    members = client.get("/api/members").json()
+
+    assert [member["role"] for member in members] == ["owner", "member"]
+
+
 def test_owners_change_roles_and_remove_people(client: Client, team: dict) -> None:
     workspace = team["workspace"]
     client.force_login(team["owner"])

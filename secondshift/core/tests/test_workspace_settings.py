@@ -10,7 +10,7 @@ from secondshift.workspaces.services import create_workspace
 
 
 @pytest.mark.django_db
-def test_settings_show_members_and_effective_limits_without_secrets(
+def test_settings_show_effective_limits_without_secrets(
     client: Client, settings: object
 ) -> None:
     settings.RUN_TIMEOUT_SECONDS = 900  # type: ignore[attr-defined]
@@ -27,10 +27,6 @@ def test_settings_show_members_and_effective_limits_without_secrets(
     body = client.get("/api/settings").json()
 
     assert body["workspace_name"] == "Team"
-    assert body["members"] == [
-        {"email": "owner@example.com", "role": "Owner"},
-        {"email": "team@example.com", "role": "Admin"},
-    ]
     values = {
         item["label"]: (item["value"], item["env"])
         for group in body["groups"]
@@ -60,17 +56,3 @@ def test_image_label_shortens_a_pinned_digest() -> None:
         "python:3.13-slim @ aaaaaaaaaaaa"
     )
     assert image_label("registry.example/sandbox:1") == "registry.example/sandbox:1"
-
-
-@pytest.mark.django_db
-def test_settings_list_owners_first(client: Client) -> None:
-    users = get_user_model().objects
-    founder = users.create_user(username="founder", email="founder@example.com")
-    workspace = create_workspace("Team", "team", users.create_user(username="early"))
-    WorkspaceMembership.objects.filter(workspace=workspace).update(role="member")
-    workspace.memberships.create(user=founder, role="owner")
-    client.force_login(founder)
-
-    members = client.get("/api/settings").json()["members"]
-
-    assert [member["role"] for member in members] == ["Owner", "Member"]
