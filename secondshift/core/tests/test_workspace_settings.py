@@ -60,3 +60,17 @@ def test_image_label_shortens_a_pinned_digest() -> None:
         "python:3.13-slim @ aaaaaaaaaaaa"
     )
     assert image_label("registry.example/sandbox:1") == "registry.example/sandbox:1"
+
+
+@pytest.mark.django_db
+def test_settings_list_owners_first(client: Client) -> None:
+    users = get_user_model().objects
+    founder = users.create_user(username="founder", email="founder@example.com")
+    workspace = create_workspace("Team", "team", users.create_user(username="early"))
+    WorkspaceMembership.objects.filter(workspace=workspace).update(role="member")
+    workspace.memberships.create(user=founder, role="owner")
+    client.force_login(founder)
+
+    members = client.get("/api/settings").json()["members"]
+
+    assert [member["role"] for member in members] == ["Owner", "Member"]

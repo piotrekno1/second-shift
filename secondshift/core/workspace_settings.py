@@ -15,7 +15,8 @@ from secondshift.config.constants import (
     Environment,
     SandboxRuntime,
 )
-from secondshift.core.models import Workspace, WorkspaceMembership
+from secondshift.core.access import ROLE_RANK, Role
+from secondshift.core.models import Workspace
 
 
 @dataclass(frozen=True)
@@ -72,17 +73,15 @@ def image_label(image: str) -> str:
 
 
 def members(workspace: Workspace) -> list[Member]:
-    """The owner first, then everyone with a membership."""
-    found = [Member(user_email(workspace.owner), WorkspaceMembership.Role.OWNER.label)]
-    seen = {workspace.owner_id}
-    for membership in workspace.memberships.select_related("user").order_by(
-        "created_at"
-    ):
-        if membership.user_id in seen:
-            continue
-        seen.add(membership.user_id)
-        found.append(Member(user_email(membership.user), membership.get_role_display()))
-    return found
+    """Owners first, then admins, then members, each in the order they joined."""
+    memberships = sorted(
+        workspace.memberships.select_related("user").order_by("created_at", "pk"),
+        key=lambda membership: -ROLE_RANK[Role(membership.role)],
+    )
+    return [
+        Member(user_email(membership.user), membership.get_role_display())
+        for membership in memberships
+    ]
 
 
 def user_email(user: object) -> str:
