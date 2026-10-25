@@ -13,7 +13,7 @@ approved services, then reports what it found or did. Commands run in
 an isolated sandbox. Each run records its Git revision, tool activity, and model
 cost.
 
-https://github.com/user-attachments/assets/139dc763-e7eb-4e1f-ac27-c2f44bac452c
+[Download the product walkthrough (60 seconds, 4K, 22 MB)](https://github.com/piotrekno1/second-shift/releases/download/v0.1.0a6/secondshift-product-demo-60s-4k.mp4)
 
 Connect a model and import a repository to run your first task. Add a webhook
 to receive reports in your team's existing tools.
