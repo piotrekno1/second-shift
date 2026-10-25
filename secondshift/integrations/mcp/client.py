@@ -59,7 +59,7 @@ def validate_mcp_connection(connection: Connection) -> MCPProvider:
     return provider
 
 
-async def mcp_request(  # noqa: C901
+async def mcp_request(
     connection: Connection,
     tool: str | None = None,
     arguments: dict[str, Any] | None = None,
@@ -98,45 +98,9 @@ async def mcp_request(  # noqa: C901
                 del session_id
                 await session.initialize()
                 if tool is not None:
-                    result = await session.call_tool(tool, arguments)
-                    if result.isError:
-                        raise MCPError(
-                            f"{provider.label} could not complete this tool call."
-                        )
-                    payload = result.model_dump(mode="json", by_alias=True)
+                    payload = await call_tool(session, provider, tool, arguments)
                 else:
-                    tools: dict[str, Any] = {}
-                    cursor = None
-                    page_count = 0
-                    while page_count < MCP_MAX_PAGES:
-                        page_count += 1
-                        page = await session.list_tools(cursor=cursor)
-                        for item in page.tools:
-                            read_only = bool(
-                                item.annotations and item.annotations.readOnlyHint
-                            )
-                            allowed = (
-                                provider.owner_selects_tools
-                                or item.name in provider.tools
-                            )
-                            if allowed and (
-                                read_only or not provider.require_read_only_hint
-                            ):
-                                tools[item.name] = {
-                                    "description": item.description or item.name,
-                                    "inputSchema": item.inputSchema,
-                                    "readOnly": read_only,
-                                }
-                        if len(tools) > MCP_MAX_OFFERED_TOOLS:
-                            raise MCPError("The MCP server offers too many tools.")
-                        cursor = page.nextCursor
-                        if not cursor:
-                            break
-                    else:
-                        raise MCPError("MCP tool discovery exceeded the page limit.")
-                    if not tools:
-                        raise MCPError(f"{provider.label} exposed no supported tools.")
-                    payload = tools
+                    payload = await offered_tools(session, provider)
     except Exception:
         # SDK exception groups can embed request headers or remote response text.
         raise MCPRequestError(
@@ -147,6 +111,54 @@ async def mcp_request(  # noqa: C901
     if len(encoded.encode()) > MCP_RESPONSE_MAX_BYTES:
         raise MCPError("The MCP result exceeded the size limit.")
     return json.loads(encoded.replace(connection.access_token, "[redacted]"))
+
+
+async def call_tool(
+    session: ClientSession,
+    provider: MCPProvider,
+    tool: str,
+    arguments: dict[str, Any] | None,
+) -> dict[str, Any]:
+    result = await session.call_tool(tool, arguments)
+    if result.isError:
+        raise MCPError(f"{provider.label} could not complete this tool call.")
+    return result.model_dump(mode="json", by_alias=True)
+
+
+def offered_tool(item: Any, provider: MCPProvider) -> dict[str, Any] | None:
+    """A listed tool the provider lets jobs use, or None to skip it."""
+    read_only = bool(item.annotations and item.annotations.readOnlyHint)
+    allowed = provider.owner_selects_tools or item.name in provider.tools
+    if not allowed or (provider.require_read_only_hint and not read_only):
+        return None
+    return {
+        "description": item.description or item.name,
+        "inputSchema": item.inputSchema,
+        "readOnly": read_only,
+    }
+
+
+async def offered_tools(
+    session: ClientSession, provider: MCPProvider
+) -> dict[str, Any]:
+    """Every usable tool, page by page, within the page and tool limits."""
+    tools: dict[str, Any] = {}
+    cursor = None
+    for _ in range(MCP_MAX_PAGES):
+        page = await session.list_tools(cursor=cursor)
+        for item in page.tools:
+            if (tool := offered_tool(item, provider)) is not None:
+                tools[item.name] = tool
+        if len(tools) > MCP_MAX_OFFERED_TOOLS:
+            raise MCPError("The MCP server offers too many tools.")
+        cursor = page.nextCursor
+        if not cursor:
+            break
+    else:
+        raise MCPError("MCP tool discovery exceeded the page limit.")
+    if not tools:
+        raise MCPError(f"{provider.label} exposed no supported tools.")
+    return tools
 
 
 def validate_tool_schema(value: Any, depth: int = 0) -> None:
@@ -251,7 +263,28 @@ def create_mcp_connection(
     return connection
 
 
-def update_mcp_connection(  # noqa: C901
+def apply_credentials(
+    connection: Connection,
+    provider: MCPProvider,
+    token: str | None,
+    settings: dict[str, str] | None,
+    current: dict[str, str],
+) -> None:
+    """Take a new token, or refuse when the edit needs one or a new sign-in."""
+    if connection.auth_strategy == Connection.AuthStrategy.OAUTH:
+        if token or (settings is not None and settings != current):
+            raise MCPError("Sign in again to change the server or credentials.")
+        if connection.status != Connection.Status.CONNECTED:
+            raise MCPError("Sign in again to reconnect.")
+    elif token:
+        if not re.fullmatch(provider.token_pattern, token):
+            raise MCPError(provider.token_hint)
+        connection.access_token = token
+    elif connection.status == Connection.Status.REVOKED or not connection.access_token:
+        raise MCPError("Enter a new token to reconnect.")
+
+
+def update_mcp_connection(
     connection: Connection,
     display_name: str | None,
     token: str | None,
@@ -268,19 +301,8 @@ def update_mcp_connection(  # noqa: C901
     provider = mcp_provider(connection.provider)
     if tools is not None and not provider.owner_selects_tools:
         raise MCPError(f"{provider.label} tools are fixed by SecondShift.")
-    signed_in = connection.auth_strategy == Connection.AuthStrategy.OAUTH
     current = connection_settings(connection)
-    if signed_in:
-        if token or (settings is not None and settings != current):
-            raise MCPError("Sign in again to change the server or credentials.")
-        if connection.status != Connection.Status.CONNECTED:
-            raise MCPError("Sign in again to reconnect.")
-    elif token:
-        if not re.fullmatch(provider.token_pattern, token):
-            raise MCPError(provider.token_hint)
-        connection.access_token = token
-    elif connection.status == Connection.Status.REVOKED or not connection.access_token:
-        raise MCPError("Enter a new token to reconnect.")
+    apply_credentials(connection, provider, token, settings, current)
     cleaned = provider.clean_settings(current if settings is None else settings)
     if display_name is not None:
         connection.display_name = display_name.strip() or provider.label
