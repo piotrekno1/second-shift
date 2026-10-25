@@ -1,8 +1,8 @@
 """Who may do what in a workspace.
 
 Access comes only from WorkspaceMembership. Each request works in one
-workspace: the first one the person joined. Every check names an Action, and
-POLICY says which role it needs.
+workspace: the one the person chose in this session, or else the first one
+they joined. Every check names an Action, and POLICY says which role it needs.
 """
 
 from enum import StrEnum
@@ -16,6 +16,8 @@ Role = WorkspaceMembership.Role
 
 # Higher roles can do everything lower roles can.
 ROLE_RANK = {Role.MEMBER: 1, Role.ADMIN: 2, Role.OWNER: 3}
+# The chosen workspace's id is kept in the session under this key.
+CURRENT_WORKSPACE_SESSION_KEY = "secondshift.workspace"
 # The resolved membership is kept on the request under this name.
 MEMBERSHIP_ATTRIBUTE = "secondshift_membership"
 
@@ -89,7 +91,12 @@ def current_membership(request: HttpRequest) -> WorkspaceMembership | None:
         return getattr(request, MEMBERSHIP_ATTRIBUTE)
     membership = None
     if request.user.is_authenticated:
-        membership = user_memberships(request).first()
+        memberships = user_memberships(request)
+        chosen = request.session.get(CURRENT_WORKSPACE_SESSION_KEY)
+        if chosen is not None:
+            membership = memberships.filter(workspace_id=chosen).first()
+        # A workspace the person has left falls back to their first one.
+        membership = membership or memberships.first()
     setattr(request, MEMBERSHIP_ATTRIBUTE, membership)
     return membership
 
@@ -117,4 +124,14 @@ def require(request: HttpRequest, action: Action) -> Workspace:
     membership = current_membership(request)
     if membership is None or not role_allows(membership.role, action):
         raise AccessDenied(denial_message(action))
+    return membership.workspace
+
+
+def select_workspace(request: HttpRequest, workspace_id: int) -> Workspace | None:
+    """Work in another of the person's workspaces. None when not a member."""
+    membership = user_memberships(request).filter(workspace_id=workspace_id).first()
+    if membership is None:
+        return None
+    request.session[CURRENT_WORKSPACE_SESSION_KEY] = workspace_id
+    setattr(request, MEMBERSHIP_ATTRIBUTE, membership)
     return membership.workspace

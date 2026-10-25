@@ -8,7 +8,7 @@ from django.test import Client
 
 from secondshift.automations.models import Job
 from secondshift.core.access import ADMIN_ACTIONS, POLICY, Action, Role, role_allows
-from secondshift.core.models import Workspace
+from secondshift.core.models import Workspace, WorkspaceMembership
 from secondshift.core.services import create_workspace
 from secondshift.repositories.models import Repository
 
@@ -113,6 +113,7 @@ def test_a_person_without_a_workspace_can_do_nothing(client: Client) -> None:
     assert body["workspace_slug"] is None
     assert body["role"] is None
     assert body["permissions"] == []
+    assert client.get("/api/workspaces").json() == []
     assert post(client, "/api/settings/limits", {"max_turns": 5}).status_code == 403
 
 
@@ -127,3 +128,64 @@ def test_members_cannot_start_runs(client: Client, team: dict[str, object]) -> N
     assert response.json()["detail"] == (
         "Only workspace owners and admins can run jobs."
     )
+
+
+@pytest.mark.django_db
+def test_a_person_works_in_one_workspace_at_a_time(client: Client) -> None:
+    person = user("person")
+    first = create_workspace("First", "first", person)
+    second = create_workspace("Second", "second", user("other"))
+    second.memberships.create(user=person, role=Role.MEMBER)
+    job_in(first)
+    job_in(second)
+    client.force_login(person)
+
+    # The first workspace joined is the default.
+    assert client.get("/api/me").json()["workspace_slug"] == "first"
+    assert [repo["full_name"] for repo in client.get("/api/repositories").json()] == [
+        "local/first"
+    ]
+    choices = client.get("/api/workspaces").json()
+    assert [(item["slug"], item["role"], item["current"]) for item in choices] == [
+        ("first", "owner", True),
+        ("second", "member", False),
+    ]
+
+    chosen = post(client, "/api/workspaces/current", {"workspace_id": second.pk})
+
+    assert chosen.status_code == 200
+    assert chosen.json()["workspace_slug"] == "second"
+    assert chosen.json()["role"] == "member"
+    assert chosen.json()["permissions"] == []
+    assert [repo["full_name"] for repo in client.get("/api/repositories").json()] == [
+        "local/second"
+    ]
+    # The role follows the workspace: the person owns First but not Second.
+    assert post(client, "/api/settings/limits", {"max_turns": 5}).status_code == 403
+
+
+@pytest.mark.django_db
+def test_only_members_can_choose_a_workspace(client: Client) -> None:
+    person = user("person")
+    create_workspace("Mine", "mine", person)
+    theirs = create_workspace("Theirs", "theirs", user("stranger"))
+    client.force_login(person)
+
+    response = post(client, "/api/workspaces/current", {"workspace_id": theirs.pk})
+
+    assert response.status_code == 404
+    assert client.get("/api/me").json()["workspace_slug"] == "mine"
+
+
+@pytest.mark.django_db
+def test_leaving_the_chosen_workspace_falls_back_to_the_first(client: Client) -> None:
+    person = user("person")
+    create_workspace("Mine", "mine", person)
+    other = create_workspace("Other", "other", user("other"))
+    other.memberships.create(user=person, role=Role.ADMIN)
+    client.force_login(person)
+    post(client, "/api/workspaces/current", {"workspace_id": other.pk})
+
+    WorkspaceMembership.objects.filter(workspace=other, user=person).delete()
+
+    assert client.get("/api/me").json()["workspace_slug"] == "mine"
