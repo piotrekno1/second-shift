@@ -12,6 +12,7 @@ import { apiPost } from '../services/api'
 import { startJobRun } from '../services/runs'
 import { useAppStore } from '../stores/app'
 import type { Access, Capability, Connection, Job } from '../types'
+import { Action } from '../utils/permissions'
 import { accessLabel, accessNeedsAction, countLabel, formatRelative, formatSchedule, formatScheduled, jobState, utcTitle } from '../utils/format'
 
 const app = useAppStore()
@@ -194,7 +195,7 @@ async function toggleJob(job: Job): Promise<void> {
               <button v-if="job.capabilities.length" type="button" class="job-action" :class="{ active: expandedJobId === job.id }" aria-label="Review access" title="Review access" :aria-expanded="expandedJobId === job.id" :aria-controls="`job-access-${job.id}`" @click="expandedJobId = expandedJobId === job.id ? null : job.id">
                 <i class="mdi mdi-shield-check-outline" aria-hidden="true" />
               </button>
-              <button type="button" class="job-action" :class="{ 'is-loading': action === `run-${job.id}` }" aria-label="Run now" :title="job.enabled || !job.cron ? 'Run now' : 'Run once. The schedule stays off'" :aria-busy="action === `run-${job.id}`" :disabled="action === `run-${job.id}`" @click="runNow(job.id)">
+              <button v-if="app.can(Action.RunJobs)" type="button" class="job-action" :class="{ 'is-loading': action === `run-${job.id}` }" aria-label="Run now" :title="job.enabled || !job.cron ? 'Run now' : 'Run once. The schedule stays off'" :aria-busy="action === `run-${job.id}`" :disabled="action === `run-${job.id}`" @click="runNow(job.id)">
                 <i class="mdi" :class="action === `run-${job.id}` ? 'mdi-loading' : 'mdi-play-outline'" aria-hidden="true" />
               </button>
             </div>
@@ -202,7 +203,7 @@ async function toggleJob(job: Job): Promise<void> {
           <section v-if="expandedJobId === job.id" :id="`job-access-${job.id}`" class="job-review">
             <div class="job-review-heading">
               <div><h3>Access review</h3><p>Repository code requests capabilities. You choose the connection and approve access.</p></div>
-              <Button v-if="job.cron" :label="job.enabled ? 'Disable job' : 'Enable job'" :icon="job.enabled ? 'pi pi-pause' : 'pi pi-play'" severity="secondary" outlined :loading="action === `toggle-${job.id}`" @click="toggleJob(job)" />
+              <Button v-if="job.cron && app.can(Action.EnableJobs)" :label="job.enabled ? 'Disable job' : 'Enable job'" :icon="job.enabled ? 'pi pi-pause' : 'pi pi-play'" severity="secondary" outlined :loading="action === `toggle-${job.id}`" @click="toggleJob(job)" />
             </div>
             <div v-for="capability in job.capabilities" :key="capability.id" class="capability-review-row">
               <div class="capability-summary">
@@ -217,7 +218,7 @@ async function toggleJob(job: Job): Promise<void> {
                 <small v-if="accessFor(capability)" :class="{ 'field-error': !accessFor(capability)?.ok }">{{ accessFor(capability)?.text }}</small>
               </div>
               <Select
-                v-if="matchingConnections(capability).length"
+                v-if="matchingConnections(capability).length && app.can(Action.ReviewCapabilities)"
                 class="connection-select"
                 :model-value="selectedConnection(capability)"
                 :options="matchingConnections(capability)"
@@ -226,16 +227,16 @@ async function toggleJob(job: Job): Promise<void> {
                 :aria-label="`Connection for ${capability.binding}`"
                 @update:model-value="chooseConnection(capability.id, $event)"
               />
-              <div v-else class="connection-required">
+              <div v-else-if="!matchingConnections(capability).length" class="connection-required">
                 <span class="step-label">Connection required before approval</span>
                 <strong>No workspace connection matches <code>{{ capability.binding }}</code>.</strong>
                 <small>Create a {{ capability.kind.toUpperCase() }} connection with this capability name, then return here to approve it.</small>
-                <RouterLink :to="{ path: '/connections', query: connectionSetupQuery(job, capability) }" class="primary-action connection-setup-action">
+                <RouterLink v-if="app.can(Action.AddConnections)" :to="{ path: '/connections', query: connectionSetupQuery(job, capability) }" class="primary-action connection-setup-action">
                   <i class="mdi mdi-link-plus" /> Set up {{ capability.binding }}
                 </RouterLink>
               </div>
               <StatusPill :status="capability.grant_status" />
-              <div class="review-actions">
+              <div v-if="app.can(Action.ReviewCapabilities)" class="review-actions">
                 <Button label="Deny" severity="danger" text size="small" :loading="action === `denied-${capability.id}`" @click="reviewCapability(job, capability, 'denied')" />
                 <Button label="Approve" icon="pi pi-check" size="small" :disabled="!selectedConnection(capability) || accessFor(capability)?.ok === false" :title="selectedConnection(capability) ? 'Approve this connection and scope' : 'Set up a matching connection first'" :loading="action === `approved-${capability.id}`" @click="reviewCapability(job, capability, 'approved')" />
               </div>
