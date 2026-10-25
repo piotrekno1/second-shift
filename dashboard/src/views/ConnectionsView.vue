@@ -15,6 +15,7 @@ import { connectionUsageLine, countLabel, formatDate, formatRelative, providerLa
 type OpenForm = { mode: 'add' } | { mode: 'need', binding: string } | { mode: 'edit', id: number }
 
 const app = useAppStore()
+const canUseAdmin = computed(() => app.user?.can_use_admin ?? false)
 const route = useRoute()
 const router = useRouter()
 const requestedBinding = typeof route.query.binding === 'string' ? route.query.binding : null
@@ -260,7 +261,7 @@ onMounted(async () => {
                 <Button v-if="connection.status === 'connected'" :label="connection.kind === 'model' ? 'Check' : 'Send test'" :title="connection.kind === 'model' ? 'Lists models and sends one tiny request to the default model (a fraction of a cent)' : undefined" icon="pi pi-send" severity="secondary" text size="small" :loading="busy === `test-${connection.id}`" @click="sendTest(connection, `connection-${connection.id}`)" />
                 <Button :label="connection.status === 'revoked' ? 'Reconnect' : 'Edit'" icon="pi pi-pencil" severity="secondary" text size="small" @click="toggle({ mode: 'edit', id: connection.id })" />
               </template>
-              <a v-else :href="`/-/admin/integrations/connection/${connection.id}/change/`" target="_blank" rel="noopener" class="secondary-action compact"><i class="mdi mdi-open-in-new" /> Admin</a>
+              <a v-else-if="canUseAdmin" :href="`/-/admin/integrations/connection/${connection.id}/change/`" target="_blank" rel="noopener" class="secondary-action compact"><i class="mdi mdi-open-in-new" /> Admin</a>
               <Button v-if="connection.status !== 'revoked'" :label="confirmRevoke === connection.id ? 'Confirm disconnect' : 'Disconnect'" severity="danger" :text="confirmRevoke !== connection.id" size="small" :loading="busy === `revoke-${connection.id}`" @click="disconnect(connection)" />
               <Button v-if="confirmRevoke === connection.id" label="Cancel" severity="secondary" text size="small" @click="confirmRevoke = null" />
               <Button v-if="connection.status === 'revoked'" :label="confirmDelete === connection.id ? 'Confirm delete' : 'Delete'" severity="danger" :text="confirmDelete !== connection.id" size="small" :loading="busy === `delete-${connection.id}`" @click="remove(connection)" />
@@ -311,7 +312,7 @@ onMounted(async () => {
               <Button v-if="need.status === 'missing'" :label="isOpen({ mode: 'need', binding: need.binding }) ? 'Cancel' : 'Connect'" :icon="isOpen({ mode: 'need', binding: need.binding }) ? undefined : 'pi pi-link'" size="small" :severity="isOpen({ mode: 'need', binding: need.binding }) ? 'secondary' : undefined" :text="isOpen({ mode: 'need', binding: need.binding })" @click="toggle({ mode: 'need', binding: need.binding })" />
               <template v-else-if="need.status === 'unavailable' && need.connection">
                 <Button v-if="need.connection.provider === 'webhook' || need.connection.kind === 'mcp' || need.connection.kind === 'api'" :label="isOpen({ mode: 'need', binding: need.binding }) ? 'Cancel' : 'Reconnect'" icon="pi pi-pencil" size="small" @click="toggle({ mode: 'need', binding: need.binding })" />
-                <a v-else :href="`/-/admin/integrations/connection/${need.connection.id}/change/`" target="_blank" rel="noopener" class="secondary-action compact"><i class="mdi mdi-wrench-outline" /> Fix in admin</a>
+                <a v-else-if="canUseAdmin" :href="`/-/admin/integrations/connection/${need.connection.id}/change/`" target="_blank" rel="noopener" class="secondary-action compact"><i class="mdi mdi-wrench-outline" /> Fix in admin</a>
               </template>
               <template v-else-if="need.connection">
                 <Button v-if="need.connection.provider === 'webhook'" label="Send test" icon="pi pi-send" severity="secondary" text size="small" :loading="busy === `test-${need.connection.id}`" @click="sendTest(need.connection, need.binding)" />
@@ -333,14 +334,14 @@ onMounted(async () => {
     </p>
 
     <section v-if="app.secrets.length" class="panel secrets-panel">
-      <div class="panel-heading"><div><h2>Credential fallback</h2><p>Prefer opaque Vault/KMS references on connections. Encrypted local values remain available for development.</p></div><a href="/-/admin/integrations/secret/add/">Manage in admin</a></div>
+      <div class="panel-heading"><div><h2>Credential fallback</h2><p>Prefer opaque Vault/KMS references on connections. Encrypted local values remain available for development.</p></div><a v-if="canUseAdmin" href="/-/admin/integrations/secret/add/">Manage in admin</a></div>
       <div class="secret-list">
         <div v-for="secret in app.secrets" :key="secret.name"><i class="mdi mdi-key-variant" /><strong>{{ secret.name }}</strong><span>{{ secret.description || 'No description' }}</span></div>
       </div>
     </section>
     <p v-else class="quiet-line">
       <i class="mdi mdi-shield-key-outline" /> No fallback secrets stored. Connections should prefer Vault/KMS references.
-      <a href="/-/admin/integrations/secret/add/" class="detail-link">Add one in admin</a>
+      <a v-if="canUseAdmin" href="/-/admin/integrations/secret/add/" class="detail-link">Add one in admin</a>
     </p>
   </div>
 </template>

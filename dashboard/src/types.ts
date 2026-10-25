@@ -6,6 +6,8 @@ export interface User {
   role: string | null
   /** The actions that role allows, e.g. "run jobs". */
   permissions: string[]
+  /** Staff only. Django admin turns everyone else away. */
+  can_use_admin: boolean
   local_repositories_enabled: boolean
   /** "Development" or "Production". */
   environment: string

@@ -104,6 +104,8 @@ class UserSchema(Schema):
     # The person's role in the current workspace and what it lets them do.
     role: str | None
     permissions: list[str]
+    # Django admin only lets staff in, so links to it are shown only to them.
+    can_use_admin: bool
     local_repositories_enabled: bool
     environment: str = "Production"
     sandbox: str = "gVisor sandbox"
@@ -562,6 +564,7 @@ def me(request: HttpRequest) -> UserSchema:
         workspace_slug=workspace.slug if workspace else None,
         role=membership.role if membership else None,
         permissions=permitted_actions(request),
+        can_use_admin=request.user.is_staff,
         local_repositories_enabled=settings.LOCAL_REPOSITORIES_ENABLED,
         environment=environment_label(),
         sandbox=sandbox_label(),

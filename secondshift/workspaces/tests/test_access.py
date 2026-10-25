@@ -110,6 +110,17 @@ def test_objects_in_another_workspace_are_not_found(client: Client) -> None:
     assert client.get(f"/api/repositories/{theirs.repository_id}").status_code == 404
 
 
+def test_only_staff_are_offered_admin(client: Client, team: dict) -> None:
+    owner = team["owner"]
+    client.force_login(owner)
+    assert client.get("/api/me").json()["can_use_admin"] is False
+
+    owner.is_staff = True
+    owner.save(update_fields=["is_staff"])
+
+    assert client.get("/api/me").json()["can_use_admin"] is True
+
+
 @pytest.mark.django_db
 def test_a_person_without_a_workspace_can_do_nothing(client: Client) -> None:
     client.force_login(user("newcomer"))
@@ -119,6 +130,7 @@ def test_a_person_without_a_workspace_can_do_nothing(client: Client) -> None:
     assert body["workspace_slug"] is None
     assert body["role"] is None
     assert body["permissions"] == []
+    assert body["can_use_admin"] is False
     assert client.get("/api/workspaces").json() == []
     assert post(client, "/api/settings/limits", {"max_turns": 5}).status_code == 403
 
