@@ -538,3 +538,12 @@ a.runtime-note { color: inherit; }
 .invite-prompt > div > span { color: var(--muted); font-size: 12px; }
 .invite-prompt > div > .invite-prompt-error { color: var(--danger); }
 @media (max-width: 640px) { .invite-prompt-wrap { padding: 72px 18px 0; } .invite-prompt { flex-wrap: wrap; } .invite-prompt > div { flex-basis: calc(100% - 32px); } }
+.invites { display: grid; gap: 12px; margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(197,188,255,.08); }
+.invite-form { display: flex; flex-wrap: wrap; gap: 10px; }
+.invite-form .invite-role { min-width: 240px; }
+.invite-form .p-inputtext { flex: 1; min-width: 200px; }
+.invite-link { display: grid; gap: 8px; justify-items: start; padding: 12px 14px; border: 1px solid rgba(113,219,182,.22); border-radius: 12px; background: rgba(113,219,182,.07); font-size: 12px; }
+.invite-link code { max-width: 100%; overflow-wrap: anywhere; font-size: 12px; }
+.invite-list li:first-child { border-top: 0; }
+.member-email small { display: block; color: var(--subtle); font-size: 11px; }
+

@@ -20,6 +20,21 @@ export interface PendingInvite {
   invited_by: string | null
 }
 
+/** An invite that can still be accepted. Its link is never shown again. */
+export interface Invite {
+  id: number
+  role: string
+  note: string
+  created_by: string | null
+  created_at: string
+  expires_at: string
+}
+
+export interface NewInvite extends Invite {
+  /** Shown once, right after creating the invite. */
+  link: string
+}
+
 export interface WorkspaceChoice {
   id: number
   name: string
