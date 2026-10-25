@@ -1,7 +1,6 @@
 from datetime import datetime
 from typing import Literal
 
-from django.db import transaction
 from django.http import FileResponse, Http404, HttpRequest
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -15,6 +14,7 @@ from secondshift.automations.budgets import BUDGET_HEADLINE
 from secondshift.automations.deadlines import TIMEOUT_HEADLINE
 from secondshift.automations.dispatch import enqueue_run
 from secondshift.automations.failures import describe_failure
+from secondshift.automations.grants import GrantError, decide_grant
 from secondshift.automations.limits import (
     LimitError,
     LimitView,
@@ -25,7 +25,6 @@ from secondshift.automations.limits import (
 from secondshift.automations.models import (
     CapabilityRequest,
     Job,
-    JobGrant,
     Run,
 )
 from secondshift.automations.planning import build_execution_plan
@@ -478,8 +477,7 @@ def set_job_enabled(
 
 
 @router.post("/jobs/{job_id}/capabilities/{capability_id}/grant", response=JobSchema)
-@transaction.atomic
-def review_job_capability(  # noqa: C901
+def review_job_capability(
     request: HttpRequest,
     job_id: int,
     capability_id: int,
@@ -488,53 +486,23 @@ def review_job_capability(  # noqa: C901
     job = job_for_request(request, job_id)
     require(request, Action.REVIEW_CAPABILITIES)
     capability = get_object_or_404(CapabilityRequest, pk=capability_id, job=job)
-    connection = None
-    if payload.connection_id is not None:
-        connection = get_object_or_404(
+    connection = (
+        None
+        if payload.connection_id is None
+        else get_object_or_404(
             Connection, pk=payload.connection_id, workspace=job.workspace
         )
-        if (
-            connection.kind != capability.kind
-            or connection.binding_key != capability.binding
-        ):
-            raise HttpError(422, "Connection kind and binding must match capability.")
-        if connection.status != Connection.Status.CONNECTED:
-            raise HttpError(409, "The selected connection is not connected.")
-        if (
-            payload.decision == JobGrant.Status.APPROVED
-            and (access := external_access(connection, job.repository))
-            and not access.ok
-        ):
-            raise HttpError(409, access.text)
-    if payload.decision == JobGrant.Status.APPROVED and connection is None:
-        raise HttpError(422, "Choose a connection before approving the capability.")
-
-    requested_tools = set(capability.requested_tools)
-    allowed_tools = set(
-        capability.requested_tools
-        if payload.allowed_tools is None
-        else payload.allowed_tools
     )
-    if payload.decision == JobGrant.Status.DENIED:
-        allowed_tools = set()
-    elif allowed_tools - requested_tools:
-        raise HttpError(422, "Allowed tools must be requested by the job.")
-    if payload.decision == JobGrant.Status.APPROVED:
-        if allowed_tools != requested_tools:
-            raise HttpError(422, "Approve every requested tool or deny the capability.")
-        if connection and requested_tools - set(connection.available_tools):
-            raise HttpError(409, "The connection lacks a requested tool.")
-
-    grant = JobGrant.objects.filter(capability_request=capability).first() or JobGrant(
-        capability_request=capability
-    )
-    grant.connection = connection
-    grant.status = payload.decision
-    grant.allowed_tools = sorted(allowed_tools)
-    grant.reviewed_by = request.user
-    grant.reviewed_at = timezone.now()
-    grant.full_clean()
-    grant.save()
+    try:
+        decide_grant(
+            capability,
+            payload.decision,
+            connection,
+            payload.allowed_tools,
+            request.user,
+        )
+    except GrantError as error:
+        raise HttpError(error.status, str(error)) from error
     return serialize_job(job_for_request(request, job_id))
 
 
