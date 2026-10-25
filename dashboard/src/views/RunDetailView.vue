@@ -124,6 +124,7 @@ onUnmounted(stopPolling)
         <p v-if="run.failure" class="run-headline run-failure-headline">
           <span class="failure-label"><i class="mdi" :class="run.status === 'canceled' ? 'mdi-cancel' : 'mdi-alert-circle-outline'" />{{ run.failure.label }}</span>
           <span>{{ run.failure.reason }}</span>
+          <RouterLink v-if="run.failure.limit" :to="{ path: `/jobs/${run.job_id}`, hash: '#limits' }" class="detail-link">Change this job's limits <i class="mdi mdi-arrow-right" /></RouterLink>
         </p>
         <p v-else-if="active" class="run-headline run-active-note"><i class="mdi mdi-loading mdi-spin" /> {{ activeNote }}</p>
       </section>
