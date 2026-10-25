@@ -8,6 +8,8 @@ export interface User {
   permissions: string[]
   /** Staff only. Django admin turns everyone else away. */
   can_use_admin: boolean
+  /** Anyone when sign-up is open, otherwise staff only. */
+  can_create_workspace: boolean
   local_repositories_enabled: boolean
   /** "Development" or "Production". */
   environment: string

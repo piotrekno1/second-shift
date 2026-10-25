@@ -41,6 +41,21 @@ h1, h2, .brand strong, .stat-card strong { font-family: 'Manrope', system-ui, sa
 .brand div { display: flex; flex-direction: column; }
 .brand strong { font-size: 18px; letter-spacing: -.03em; }
 .brand span { margin-top: 2px; color: var(--subtle); font-size: 11px; text-transform: uppercase; letter-spacing: .12em; }
+.workspace-switcher { width: 100%; margin: 0 0 18px; display: flex; align-items: center; gap: 10px; padding: 10px 13px; border: 1px solid var(--border); border-radius: 12px; background: rgba(255,255,255,.025); color: var(--ink); font: inherit; text-align: left; cursor: pointer; transition: .18s ease; }
+.workspace-switcher:hover { background: rgba(139,124,255,.08); }
+.workspace-switcher.static { cursor: default; }
+.workspace-switcher.static:hover { background: rgba(255,255,255,.025); }
+.workspace-switcher i { color: var(--subtle); font-size: 18px; }
+.workspace-name { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.workspace-name strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+.workspace-name small { color: var(--subtle); font-size: 11px; }
+.workspace-menu { min-width: 220px; }
+.workspace-menu .p-menu-item-icon { width: 16px; text-align: center; }
+.workspace-menu .current .p-menu-item-label { color: var(--violet-soft); font-weight: 600; }
+.create-workspace { display: grid; gap: 10px; width: 100%; }
+.create-workspace-row { display: flex; gap: 10px; flex-wrap: wrap; }
+.create-workspace-row .p-inputtext { flex: 1 1 220px; }
+.dialog-lead { margin: 0 0 16px; color: var(--muted); line-height: 1.6; }
 .sidebar nav { display: grid; gap: 5px; }
 .sidebar nav a { display: flex; align-items: center; gap: 13px; padding: 11px 13px; border-radius: 11px; color: var(--muted); font-weight: 600; font-size: 14px; transition: .18s ease; }
 .sidebar nav a i { font-size: 21px; }

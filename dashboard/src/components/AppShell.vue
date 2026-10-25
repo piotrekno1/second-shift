@@ -5,6 +5,7 @@ import { signOut } from '../services/api'
 import { SIGN_IN_PATH } from '../utils/signIn'
 import { useAppStore } from '../stores/app'
 import InvitePrompt from './InvitePrompt.vue'
+import WorkspaceSwitcher from './WorkspaceSwitcher.vue'
 
 const route = useRoute()
 const app = useAppStore()
@@ -48,6 +49,8 @@ async function handleSignOut(): Promise<void> {
         </div>
       </RouterLink>
 
+      <WorkspaceSwitcher />
+
       <nav aria-label="Primary navigation">
         <RouterLink
           v-for="item in navigation"
@@ -68,7 +71,7 @@ async function handleSignOut(): Promise<void> {
         </RouterLink>
         <div class="account">
           <span class="avatar">{{ initials }}</span>
-          <div><strong>{{ app.user?.workspace_name ?? 'Workspace' }}</strong><small>{{ app.user?.email }}</small></div>
+          <div><strong>{{ app.user?.email }}</strong><small>Signed in</small></div>
           <button
             class="sign-out"
             type="button"
