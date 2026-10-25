@@ -7,6 +7,7 @@ from secondshift.automations.connection_usage import connection_usage
 from secondshift.automations.models import CapabilityRequest, JobGrant, Run
 from secondshift.automations.tests.test_health import NOW, add_run, add_usage
 from secondshift.automations.tests.test_run_queries import make_job, make_workspace
+from secondshift.core.services import workspace_owner
 from secondshift.gateway.models import ModelUsage
 from secondshift.integrations.models import Connection
 
@@ -67,7 +68,7 @@ def test_connections_api_includes_usage(client: Client) -> None:
     workspace = make_workspace("team")
     alerts = make_connection(workspace, "alerts", Connection.Kind.NOTIFICATION)
     grant(make_job(workspace, "acme/api", "a"), alerts, JobGrant.Status.APPROVED)
-    client.force_login(workspace.owner)
+    client.force_login(workspace_owner(workspace))
 
     [body] = client.get("/api/connections").json()
 

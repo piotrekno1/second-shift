@@ -12,6 +12,7 @@ from django.test import Client
 from django.utils import timezone
 
 from secondshift.core.models import Workspace
+from secondshift.core.services import create_workspace
 from secondshift.integrations.external import external_access
 from secondshift.integrations.mcp.base import MCPError, MCPRequestError
 from secondshift.integrations.mcp.client import (
@@ -158,7 +159,7 @@ def owner(db) -> Any:
 
 @pytest.fixture
 def workspace(owner) -> Workspace:
-    return Workspace.objects.create(name="OAuth", slug="oauth", owner=owner)
+    return create_workspace(name="OAuth", slug="oauth", owner=owner)
 
 
 def begin(fake: FakeServer, workspace: Workspace, owner: Any, scopes=("read",)) -> str:

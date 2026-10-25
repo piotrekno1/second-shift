@@ -9,6 +9,7 @@ from django.contrib.auth.models import AbstractUser
 from django.test import Client
 
 from secondshift.core.models import Workspace
+from secondshift.core.services import create_workspace
 from secondshift.integrations import model_providers
 from secondshift.integrations.models import Connection
 
@@ -18,7 +19,7 @@ KEY = "sk-provider-secret-key"
 @pytest.fixture
 def owner(db: object) -> tuple[AbstractUser, Workspace]:
     user = get_user_model().objects.create_user(username="owner")
-    return user, Workspace.objects.create(name="Test", slug="test", owner=user)
+    return user, create_workspace(name="Test", slug="test", owner=user)
 
 
 def create(client: Client, **body: Any) -> Any:

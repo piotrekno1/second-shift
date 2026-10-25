@@ -79,6 +79,8 @@ def test_bootstrap_dev_creates_admin_and_empty_workspace_only() -> None:
     admin = get_user_model().objects.get(username="admin@secondshift.local")
     assert admin.is_staff is True
     assert admin.is_superuser is True
-    assert Workspace.objects.filter(owner=admin, slug="secondshift").exists()
+    assert Workspace.objects.filter(
+        slug="secondshift", memberships__user=admin, memberships__role="owner"
+    ).exists()
     assert Repository.objects.count() == 0
     assert Job.objects.count() == 0

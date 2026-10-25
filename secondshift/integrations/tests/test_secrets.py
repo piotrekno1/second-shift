@@ -2,14 +2,14 @@ import pytest
 from django.contrib.auth import get_user_model
 from django.db import connection
 
-from secondshift.core.models import Workspace
+from secondshift.core.services import create_workspace
 from secondshift.integrations.models import Secret
 
 
 @pytest.mark.django_db
 def test_secret_value_is_encrypted_at_rest() -> None:
     user = get_user_model().objects.create_user(username="owner", password="password")
-    workspace = Workspace.objects.create(name="Acme", slug="acme", owner=user)
+    workspace = create_workspace(name="Acme", slug="acme", owner=user)
     secret = Secret.objects.create(
         workspace=workspace,
         name="GRAFANA_TOKEN",

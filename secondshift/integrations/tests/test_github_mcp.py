@@ -8,7 +8,7 @@ from django.contrib.auth import get_user_model
 from django.test import Client
 
 from secondshift.config.constants import GITHUB_MCP_URL
-from secondshift.core.models import Workspace
+from secondshift.core.services import create_workspace
 from secondshift.integrations.mcp.base import MCPError
 from secondshift.integrations.mcp.client import (
     create_mcp_connection,
@@ -189,7 +189,7 @@ def test_lowercase_or_is_plain_search_text(github_connection) -> None:
 @pytest.mark.parametrize("token", ["ghp_classic_token", "github_test_token", ""])
 def test_only_fine_grained_tokens_are_accepted(token: str) -> None:
     owner = get_user_model().objects.create_user(username="token-owner")
-    workspace = Workspace.objects.create(name="Tokens", slug="tokens", owner=owner)
+    workspace = create_workspace(name="Tokens", slug="tokens", owner=owner)
     with pytest.raises(MCPError, match="fine-grained"):
         create_mcp_connection(workspace, "github", "github", "GitHub", token)
     assert not Connection.objects.filter(workspace=workspace).exists()
@@ -198,7 +198,7 @@ def test_only_fine_grained_tokens_are_accepted(token: str) -> None:
 @pytest.mark.django_db
 def test_unknown_mcp_providers_fail_closed() -> None:
     owner = get_user_model().objects.create_user(username="provider-owner")
-    workspace = Workspace.objects.create(name="Other", slug="other", owner=owner)
+    workspace = create_workspace(name="Other", slug="other", owner=owner)
     with pytest.raises(MCPError, match="not supported"):
         create_mcp_connection(workspace, "api", "custom", "Custom", "token")
     connection = Connection.objects.create(
@@ -263,7 +263,7 @@ def test_owner_setup_api_encrypts_token_and_does_not_return_it(
     client: Client, mcp_http
 ) -> None:
     owner = get_user_model().objects.create_user(username="mcp-owner")
-    Workspace.objects.create(name="MCP", slug="mcp", owner=owner)
+    create_workspace(name="MCP", slug="mcp", owner=owner)
     client.force_login(owner)
     response = client.post(
         "/api/connections/mcp",
@@ -320,7 +320,7 @@ def test_list_commits_cannot_select_another_branch() -> None:
 @pytest.mark.django_db
 def test_provider_list_describes_github_without_secrets(client: Client) -> None:
     owner = get_user_model().objects.create_user(username="catalog-owner")
-    Workspace.objects.create(name="Catalog", slug="catalog", owner=owner)
+    create_workspace(name="Catalog", slug="catalog", owner=owner)
     client.force_login(owner)
     response = client.get("/api/connections/mcp-providers")
     assert response.status_code == 200
@@ -342,7 +342,7 @@ def test_provider_list_describes_github_without_secrets(client: Client) -> None:
 @pytest.mark.django_db
 def test_create_rejects_unknown_provider(client: Client) -> None:
     owner = get_user_model().objects.create_user(username="custom-owner")
-    Workspace.objects.create(name="Custom", slug="custom", owner=owner)
+    create_workspace(name="Custom", slug="custom", owner=owner)
     client.force_login(owner)
     response = client.post(
         "/api/connections/mcp",

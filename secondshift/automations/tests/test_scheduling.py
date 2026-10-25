@@ -2,7 +2,7 @@ from django.contrib.auth import get_user_model
 
 from secondshift.automations.models import Job
 from secondshift.automations.scheduling import schedule_name, synchronize_schedules
-from secondshift.core.models import Workspace
+from secondshift.core.services import create_workspace
 from secondshift.repositories.models import Repository
 
 
@@ -33,7 +33,7 @@ def test_synchronize_schedules_applies_enabled_jobs_and_removes_orphans(
     monkeypatch,
 ) -> None:
     user = get_user_model().objects.create_user(username="owner")
-    workspace = Workspace.objects.create(name="Test", slug="test", owner=user)
+    workspace = create_workspace(name="Test", slug="test", owner=user)
     repository = Repository.objects.create(
         workspace=workspace,
         full_name="example/project",

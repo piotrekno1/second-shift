@@ -17,6 +17,7 @@ from django.utils import timezone
 from secondshift.automations.models import Job, Run
 from secondshift.automations.reconciliation import mark_run_terminal
 from secondshift.core.models import Workspace
+from secondshift.core.services import create_workspace, workspace_owner
 from secondshift.gateway.metering import StreamMeter, Usage, record_usage
 from secondshift.gateway.models import ModelUsage, RunToken
 from secondshift.gateway.pricing import request_cost
@@ -54,7 +55,7 @@ def fake_upstream(
 @pytest.fixture
 def workspace(db: object) -> Workspace:
     user = get_user_model().objects.create_user(username="owner")
-    return Workspace.objects.create(name="Test", slug="test", owner=user)
+    return create_workspace(name="Test", slug="test", owner=user)
 
 
 def make_run(workspace: Workspace, status: str = Run.Status.RUNNING) -> Run:
@@ -149,7 +150,7 @@ def test_expired_and_foreign_tokens_are_rejected(workspace: Workspace) -> None:
     assert authenticate(token) is None
 
     other_user = get_user_model().objects.create_user(username="other")
-    other = Workspace.objects.create(name="Other", slug="other", owner=other_user)
+    other = create_workspace(name="Other", slug="other", owner=other_user)
     with pytest.raises(GatewayUnavailable):
         issue_run_token(run, provider(other))
 
@@ -362,7 +363,7 @@ def test_cost_is_priced_per_provider_and_summed_per_run(
         )
         async_to_sync(record_usage)(token, "anthropic", model, 200, usage)
 
-    client.force_login(workspace.owner)
+    client.force_login(workspace_owner(workspace))
     listed = client.get("/api/runs").json()["items"][0]
     assert listed["model_tokens"] == 2_200
     assert listed["model_cost_usd"] == pytest.approx(float(priced))

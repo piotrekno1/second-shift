@@ -11,7 +11,7 @@ from secondshift.automations.model_gateway import (
 )
 from secondshift.automations.models import Job, Run
 from secondshift.automations.planning import build_execution_plan
-from secondshift.core.models import Workspace
+from secondshift.core.services import create_workspace
 from secondshift.gateway.tokens import authenticate
 from secondshift.integrations.models import Connection
 from secondshift.repositories.models import Repository
@@ -23,7 +23,7 @@ PROVIDER_KEY = "sk-ant-provider-secret"
 def model_run(db, settings) -> Run:
     settings.MODEL_GATEWAY_URL = "http://gateway:8001/"
     user = get_user_model().objects.create_user(username="owner")
-    workspace = Workspace.objects.create(name="Test", slug="test", owner=user)
+    workspace = create_workspace(name="Test", slug="test", owner=user)
     repository = Repository.objects.create(
         workspace=workspace, full_name="example/project"
     )

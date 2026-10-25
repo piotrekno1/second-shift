@@ -8,6 +8,7 @@ from django.utils import timezone
 
 from secondshift.automations.models import CapabilityRequest, Job, JobGrant, Run
 from secondshift.core.models import Workspace, WorkspaceMembership
+from secondshift.core.services import create_workspace
 from secondshift.integrations.models import Connection
 from secondshift.repositories.models import Repository
 
@@ -15,7 +16,7 @@ from secondshift.repositories.models import Repository
 @pytest.fixture
 def approval_setup(db: object) -> tuple[AbstractUser, Workspace, Job]:
     user = get_user_model().objects.create_user(username="owner")
-    workspace = Workspace.objects.create(name="Test", slug="test", owner=user)
+    workspace = create_workspace(name="Test", slug="test", owner=user)
     repository = Repository.objects.create(
         workspace=workspace,
         full_name="local/project",

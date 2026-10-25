@@ -4,7 +4,8 @@ import pytest
 from django.contrib.auth import get_user_model
 from django.test import Client
 
-from secondshift.core.models import Workspace, WorkspaceMembership
+from secondshift.core.models import WorkspaceMembership
+from secondshift.core.services import create_workspace
 from secondshift.core.workspace_settings import image_label
 
 
@@ -19,8 +20,7 @@ def test_settings_show_members_and_effective_limits_without_secrets(
     users = get_user_model().objects
     owner = users.create_user(username="owner", email="owner@example.com")
     teammate = users.create_user(username="teammate", email="team@example.com")
-    workspace = Workspace.objects.create(name="Team", slug="team", owner=owner)
-    WorkspaceMembership.objects.create(workspace=workspace, user=owner, role="owner")
+    workspace = create_workspace(name="Team", slug="team", owner=owner)
     WorkspaceMembership.objects.create(workspace=workspace, user=teammate, role="admin")
     client.force_login(owner)
 

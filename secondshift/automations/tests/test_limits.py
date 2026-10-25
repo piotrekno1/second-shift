@@ -19,6 +19,7 @@ from secondshift.automations.models import Job, Run
 from secondshift.automations.planning import build_execution_plan
 from secondshift.automations.tests.test_planning import create_job
 from secondshift.core.models import WorkspaceMembership
+from secondshift.core.services import workspace_owner
 from secondshift.gateway.models import RunToken
 from secondshift.gateway.tokens import issue_run_token
 from secondshift.integrations.models import Connection
@@ -123,7 +124,7 @@ def test_repository_config_cannot_set_limits() -> None:
 
 @pytest.mark.django_db
 def test_the_owner_changes_workspace_limits(client: Client, job: Job) -> None:
-    client.force_login(job.workspace.owner)
+    client.force_login(workspace_owner(job.workspace))
 
     response = post(client, "/api/settings/limits", {"max_turns": 50})
 
@@ -148,7 +149,7 @@ def test_the_owner_changes_workspace_limits(client: Client, job: Job) -> None:
 
 @pytest.mark.django_db
 def test_out_of_range_limits_are_refused(client: Client, job: Job) -> None:
-    client.force_login(job.workspace.owner)
+    client.force_login(workspace_owner(job.workspace))
 
     too_many = post(client, "/api/settings/limits", {"max_tool_calls": 65})
     negative = post(client, f"/api/jobs/{job.pk}/limits", {"max_turns": -1})
@@ -181,7 +182,7 @@ def test_only_the_owner_changes_limits(client: Client, job: Job) -> None:
 def test_job_limits_inherit_from_the_workspace(client: Client, job: Job) -> None:
     job.workspace.timeout_seconds = 1200
     job.workspace.save()
-    client.force_login(job.workspace.owner)
+    client.force_login(workspace_owner(job.workspace))
 
     response = post(client, f"/api/jobs/{job.pk}/limits", {"max_turns": 80})
 
@@ -198,7 +199,7 @@ def test_a_created_run_keeps_its_limits(
     client: Client, job: Job, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr("secondshift.automations.api.enqueue_run", lambda run: None)
-    client.force_login(job.workspace.owner)
+    client.force_login(workspace_owner(job.workspace))
     first = client.post(f"/api/jobs/{job.pk}/run").json()
 
     post(client, f"/api/jobs/{job.pk}/limits", {"token_budget": 6_000_000})
@@ -240,7 +241,7 @@ def test_a_run_stopped_by_a_limit_says_so(client: Client, job: Job) -> None:
         summary=budget_summary(Budget.TOKENS, 2_000_000),
         execution_plan=build_execution_plan(job),
     )
-    client.force_login(job.workspace.owner)
+    client.force_login(workspace_owner(job.workspace))
 
     body = client.get(f"/api/runs/{run.pk}").json()
 

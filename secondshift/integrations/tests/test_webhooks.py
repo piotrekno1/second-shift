@@ -12,6 +12,7 @@ from django.test import Client
 
 from secondshift.automations.models import CapabilityRequest, Job, JobGrant
 from secondshift.core.models import Workspace
+from secondshift.core.services import create_workspace
 from secondshift.integrations import webhooks
 from secondshift.integrations.models import Connection
 from secondshift.integrations.webhooks import (
@@ -34,7 +35,7 @@ def resolve_to(address: str) -> Any:
 @pytest.fixture
 def owner(db: object) -> tuple[AbstractUser, Workspace]:
     user = get_user_model().objects.create_user(username="owner")
-    workspace = Workspace.objects.create(name="Test", slug="test", owner=user)
+    workspace = create_workspace(name="Test", slug="test", owner=user)
     return user, workspace
 
 

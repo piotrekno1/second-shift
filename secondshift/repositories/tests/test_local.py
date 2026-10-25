@@ -7,6 +7,7 @@ from django.contrib.auth import get_user_model
 from django.test import override_settings
 
 from secondshift.core.models import Workspace
+from secondshift.core.services import create_workspace
 from secondshift.repositories.local import LocalRepositoryError, attach_local_repository
 from secondshift.repositories.models import Repository
 
@@ -46,7 +47,7 @@ jobs:
 @pytest.fixture
 def workspace(db) -> Workspace:
     user = get_user_model().objects.create_user(username="owner")
-    return Workspace.objects.create(name="Test", slug="test", owner=user)
+    return create_workspace(name="Test", slug="test", owner=user)
 
 
 def test_attach_local_repository_discovers_and_syncs_jobs(
@@ -94,7 +95,7 @@ def test_attach_local_repository_rejects_non_repository(
 @override_settings(LOCAL_REPOSITORIES_ENABLED=False)
 def test_local_repository_api_is_hidden_when_disabled(client) -> None:
     user = get_user_model().objects.create_user(username="owner")
-    Workspace.objects.create(name="Test", slug="test", owner=user)
+    create_workspace(name="Test", slug="test", owner=user)
     client.force_login(user)
 
     response = client.post(
@@ -113,7 +114,7 @@ def test_workspace_owner_can_attach_local_repository_through_api(
     tmp_path: Path,
 ) -> None:
     user = get_user_model().objects.create_user(username="owner")
-    Workspace.objects.create(name="Test", slug="test", owner=user)
+    create_workspace(name="Test", slug="test", owner=user)
     root = tmp_path / "project"
     create_local_repository(root)
     client.force_login(user)
@@ -143,7 +144,7 @@ def test_invalid_manifest_returns_validation_error_instead_of_server_error(
     tmp_path: Path,
 ) -> None:
     user = get_user_model().objects.create_user(username="owner")
-    Workspace.objects.create(name="Test", slug="test", owner=user)
+    create_workspace(name="Test", slug="test", owner=user)
     root = tmp_path / "project"
     create_local_repository(root)
     (root / ".secondshift.yaml").write_text(
@@ -175,7 +176,7 @@ jobs:
 @override_settings(LOCAL_REPOSITORIES_ENABLED=True)
 def test_resync_and_soft_remove_local_repository(client, tmp_path: Path) -> None:
     user = get_user_model().objects.create_user(username="owner")
-    Workspace.objects.create(name="Test", slug="test", owner=user)
+    create_workspace(name="Test", slug="test", owner=user)
     root = tmp_path / "project"
     create_local_repository(root)
     client.force_login(user)

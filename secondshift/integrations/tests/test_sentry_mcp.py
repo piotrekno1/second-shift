@@ -10,6 +10,7 @@ from secondshift.automations.models import CapabilityRequest, Job, JobGrant
 from secondshift.automations.planning import build_execution_plan
 from secondshift.config.constants import SENTRY_MCP_URL
 from secondshift.core.models import Workspace
+from secondshift.core.services import create_workspace, workspace_owner
 from secondshift.integrations.external import external_access
 from secondshift.integrations.mcp.base import MCPError
 from secondshift.integrations.mcp.client import (
@@ -85,7 +86,7 @@ def sentry_http(monkeypatch) -> list[httpx.Request]:
 @pytest.fixture
 def workspace(db) -> Workspace:
     owner = get_user_model().objects.create_user(username="sentry-owner")
-    return Workspace.objects.create(name="Sentry", slug="sentry", owner=owner)
+    return create_workspace(name="Sentry", slug="sentry", owner=owner)
 
 
 def test_connect_scopes_endpoint_auth_and_read_only_tools(
@@ -338,7 +339,7 @@ def test_update_api_returns_settings_without_token(
     client: Client, workspace: Workspace, sentry_http: list[httpx.Request]
 ) -> None:
     connection = connect(workspace)
-    client.force_login(workspace.owner)
+    client.force_login(workspace_owner(workspace))
     response = client.post(
         f"/api/connections/{connection.pk}/mcp",
         data=json.dumps(

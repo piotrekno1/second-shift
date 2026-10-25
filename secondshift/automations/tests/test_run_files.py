@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import pytest
+from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.test import Client
 
@@ -14,6 +15,7 @@ from secondshift.automations.execution import capture_run_input_step
 from secondshift.automations.models import Run
 from secondshift.automations.runner_protocol import CommandRequest, CommandResult
 from secondshift.automations.tests.test_workflows import execution_run
+from secondshift.core.services import workspace_owner
 
 SKILL = "# Review\n\nList the files and report.\n"
 
@@ -62,7 +64,7 @@ def stored_run(db: object) -> Run:
 @pytest.mark.django_db
 def test_run_detail_lists_both_files(client: Client, storage: str, db) -> None:
     run = stored_run(db)
-    client.force_login(run.job.workspace.owner)
+    client.force_login(workspace_owner(run.job.workspace))
 
     files = client.get(f"/api/runs/{run.pk}").json()["files"]
 
@@ -84,7 +86,7 @@ def test_run_files_stream_from_any_storage_as_plain_text(
     client: Client, storage: str, db, name: str, content: bytes
 ) -> None:
     run = stored_run(db)
-    client.force_login(run.job.workspace.owner)
+    client.force_login(workspace_owner(run.job.workspace))
 
     inline = client.get(f"/api/runs/{run.pk}/files/{name}")
     download = client.get(f"/api/runs/{run.pk}/files/{name}", {"download": "true"})
@@ -101,11 +103,11 @@ def test_run_files_stream_from_any_storage_as_plain_text(
 @pytest.mark.django_db
 def test_run_files_are_scoped_and_validated(client: Client, storage: str, db) -> None:
     run = stored_run(db)
-    outsider = run.job.workspace.owner.__class__.objects.create_user(username="x")
+    outsider = get_user_model().objects.create_user(username="x")
     client.force_login(outsider)
     assert client.get(f"/api/runs/{run.pk}/files/output").status_code == 404
 
-    client.force_login(run.job.workspace.owner)
+    client.force_login(workspace_owner(run.job.workspace))
     assert client.get(f"/api/runs/{run.pk}/files/secrets").status_code == 422
     Run.objects.filter(pk=run.pk).update(input_path="")
     assert client.get(f"/api/runs/{run.pk}/files/input").status_code == 404
@@ -167,7 +169,7 @@ def test_deleting_a_run_removes_its_input_and_output(storage: str, db) -> None:
 @pytest.mark.django_db
 def test_run_list_flags_which_files_exist(client: Client, storage: str, db) -> None:
     run = stored_run(db)
-    client.force_login(run.job.workspace.owner)
+    client.force_login(workspace_owner(run.job.workspace))
 
     item = client.get("/api/runs").json()["items"][0]
 
