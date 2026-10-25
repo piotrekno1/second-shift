@@ -108,6 +108,10 @@ def allows(request: HttpRequest, action: Action) -> bool:
     return role_allows(current_role(request), action)
 
 
+def permitted_actions(request: HttpRequest) -> list[Action]:
+    return [action for action in Action if allows(request, action)]
+
+
 def require(request: HttpRequest, action: Action) -> Workspace:
     """The current workspace, when the person's role allows the action."""
     membership = current_membership(request)

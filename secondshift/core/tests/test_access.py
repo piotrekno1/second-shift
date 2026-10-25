@@ -61,6 +61,19 @@ def test_every_action_needs_a_role_and_members_can_only_view() -> None:
 
 
 @pytest.mark.django_db
+def test_me_reports_the_role_and_what_it_allows(
+    client: Client, team: dict[str, object]
+) -> None:
+    client.force_login(team[Role.ADMIN])
+
+    body = client.get("/api/me").json()
+
+    assert body["workspace_slug"] == "team"
+    assert body["role"] == "admin"
+    assert set(body["permissions"]) == set(ADMIN_ACTIONS)
+
+
+@pytest.mark.django_db
 def test_admins_run_the_work_but_cannot_touch_credentials(
     client: Client, team: dict[str, object]
 ) -> None:
@@ -98,6 +111,8 @@ def test_a_person_without_a_workspace_can_do_nothing(client: Client) -> None:
     body = client.get("/api/me").json()
 
     assert body["workspace_slug"] is None
+    assert body["role"] is None
+    assert body["permissions"] == []
     assert post(client, "/api/settings/limits", {"max_turns": 5}).status_code == 403
 
 

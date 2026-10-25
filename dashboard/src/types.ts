@@ -2,6 +2,10 @@ export interface User {
   email: string
   workspace_name: string | null
   workspace_slug: string | null
+  /** The role in the current workspace: owner, admin or member. */
+  role: string | null
+  /** The actions that role allows, e.g. "run jobs". */
+  permissions: string[]
   local_repositories_enabled: boolean
   /** "Development" or "Production". */
   environment: string

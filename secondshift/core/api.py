@@ -28,7 +28,9 @@ from secondshift.core.access import (
     AccessDenied,
     Action,
     allows,
+    current_membership,
     current_workspace,
+    permitted_actions,
     require,
 )
 from secondshift.core.models import Workspace
@@ -99,6 +101,9 @@ class UserSchema(Schema):
     email: str
     workspace_name: str | None
     workspace_slug: str | None
+    # The person's role in the current workspace and what it lets them do.
+    role: str | None
+    permissions: list[str]
     local_repositories_enabled: bool
     environment: str = "Production"
     sandbox: str = "gVisor sandbox"
@@ -556,11 +561,14 @@ def serialize_settings(
 
 @api.get("/me", response=UserSchema, auth=django_auth)
 def me(request: HttpRequest) -> UserSchema:
-    workspace = current_workspace(request)
+    membership = current_membership(request)
+    workspace = membership.workspace if membership else None
     return UserSchema(
         email=request.user.email or request.user.get_username(),
         workspace_name=workspace.name if workspace else None,
         workspace_slug=workspace.slug if workspace else None,
+        role=membership.role if membership else None,
+        permissions=permitted_actions(request),
         local_repositories_enabled=settings.LOCAL_REPOSITORIES_ENABLED,
         environment=environment_label(),
         sandbox=sandbox_label(),
