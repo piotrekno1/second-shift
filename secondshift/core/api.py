@@ -7,7 +7,7 @@ from django.core.exceptions import ValidationError
 from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
-from ninja import NinjaAPI, Schema, Status
+from ninja import NinjaAPI, Query, Schema, Status
 from ninja.errors import HttpError
 from ninja.security import django_auth
 from pydantic import Field
@@ -80,6 +80,7 @@ from secondshift.repositories.local import (
     LocalRepositoryError,
     attach_local_repository,
     inspect_local_repository,
+    local_directories,
 )
 from secondshift.repositories.models import Repository
 from secondshift.workspaces.access import (
@@ -194,6 +195,17 @@ class RepositorySchema(Schema):
 
 class LocalRepositoryCreateSchema(Schema):
     path: str = Field(min_length=1, max_length=1000)
+
+
+class LocalRepositoryDirectorySchema(Schema):
+    name: str
+    path: str
+
+
+class LocalRepositoryDirectoryListSchema(Schema):
+    path: str
+    parent: str | None
+    directories: list[LocalRepositoryDirectorySchema]
 
 
 class RepositoryEnabledSchema(Schema):
@@ -671,6 +683,32 @@ def create_local_repository(
     except LocalRepositoryError as error:
         raise HttpError(422, str(error)) from error
     return serialize_repository(request, repository)
+
+
+@api.get(
+    "/repositories/local/directories",
+    response=LocalRepositoryDirectoryListSchema,
+    auth=django_auth,
+)
+def local_repository_directories(
+    request: HttpRequest,
+    path: str = Query(""),
+) -> LocalRepositoryDirectoryListSchema:
+    if not settings.LOCAL_REPOSITORIES_ENABLED:
+        raise HttpError(404, "Local repositories are disabled.")
+    require(request, Action.ADD_LOCAL_REPOSITORIES)
+    try:
+        candidate, parent, directories = local_directories(path)
+    except LocalRepositoryError as error:
+        raise HttpError(422, str(error)) from error
+    return LocalRepositoryDirectoryListSchema(
+        path=str(candidate),
+        parent=str(parent) if parent else None,
+        directories=[
+            LocalRepositoryDirectorySchema(name=item.name, path=str(item))
+            for item in directories
+        ],
+    )
 
 
 @api.get(
