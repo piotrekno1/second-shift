@@ -12,6 +12,7 @@ from secondshift.automations.runner_protocol import (
 def spec() -> RunnerSessionSpec:
     return RunnerSessionSpec(
         run_id=42,
+        session_key="0123456789abcdef0123456789abcdef",
         repository="example/project",
         commit_sha="a" * 40,
         image="secondshift-runner@sha256:abc",
@@ -61,6 +62,7 @@ def test_runner_session_cannot_be_replaced_with_another_spec() -> None:
         runner.start(
             RunnerSessionSpec(
                 run_id=42,
+                session_key="0123456789abcdef0123456789abcdef",
                 repository="attacker/project",
                 commit_sha="b" * 40,
                 image="attacker/image",
@@ -73,7 +75,37 @@ def test_repository_name_must_be_a_normalized_relative_path(repository: str) -> 
     with pytest.raises(ValueError, match="normalized owner/name"):
         RunnerSessionSpec(
             run_id=42,
+            session_key="0123456789abcdef0123456789abcdef",
             repository=repository,
+            commit_sha="a" * 40,
+            image="secondshift-runner:test",
+        )
+
+
+def test_a_reused_run_id_with_a_new_key_gets_its_own_session() -> None:
+    runner = FakeRunnerBackend()
+    old = runner.start(spec())
+
+    new = runner.start(
+        RunnerSessionSpec(
+            run_id=42,
+            session_key="f" * 32,
+            repository="other/project",
+            commit_sha="b" * 40,
+            image="secondshift-runner@sha256:abc",
+        )
+    )
+
+    assert new != old
+
+
+@pytest.mark.parametrize("session_key", ["", "A" * 32, "0" * 31, "g" * 32])
+def test_session_key_must_be_lowercase_hex(session_key: str) -> None:
+    with pytest.raises(ValueError, match="session_key"):
+        RunnerSessionSpec(
+            run_id=42,
+            session_key=session_key,
+            repository="example/project",
             commit_sha="a" * 40,
             image="secondshift-runner:test",
         )

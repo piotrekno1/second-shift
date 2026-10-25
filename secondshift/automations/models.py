@@ -1,3 +1,5 @@
+import uuid
+
 from django.core.exceptions import ValidationError
 from django.db import models
 
@@ -193,6 +195,9 @@ class Run(models.Model):
     output_sha256 = models.CharField(max_length=64, blank=True)
     output_truncated = models.BooleanField(default=False)
     dbos_workflow_id = models.CharField(max_length=200, blank=True, db_index=True)
+    # Sent to the runner so its session can never match one from an older run
+    # that had the same ID, for example after a database reset or restore.
+    runner_session_key = models.UUIDField(default=uuid.uuid4, editable=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

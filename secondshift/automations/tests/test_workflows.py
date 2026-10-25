@@ -77,6 +77,7 @@ def test_runner_session_uses_only_the_frozen_server_plan(db, monkeypatch) -> Non
     assert client.started == [
         RunnerSessionSpec(
             run_id=run.pk,
+            session_key=run.runner_session_key.hex,
             repository="frozen/project",
             commit_sha="a" * 40,
             image="server-owned:test",

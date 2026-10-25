@@ -74,7 +74,7 @@ class DockerRunnerService(RunnerBackend):
             raise RunnerProtocolError(
                 "The requested image is not enabled by this runner."
             )
-        session_id = f"run-{spec.run_id}"
+        session_id = spec.session_id
         container_name = f"secondshift-{session_id}"
         session_root = (settings.RUNNER_WORK_ROOT / "sessions" / session_id).resolve()
         self.require_owned_path(session_root)

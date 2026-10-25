@@ -121,6 +121,7 @@ def test_pydantic_agent_calls_the_runner_backed_tool(monkeypatch) -> None:
     session_id = backend.start(
         RunnerSessionSpec(
             run_id=9,
+            session_key="0123456789abcdef0123456789abcdef",
             repository="example/project",
             commit_sha="a" * 40,
             image="server-owned:test",

@@ -15,6 +15,7 @@ def test_runner_api_requires_service_auth(settings, monkeypatch) -> None:
     monkeypatch.setattr("secondshift.runner.api.get_runner_service", lambda: service)
     payload = {
         "run_id": 7,
+        "session_key": "0123456789abcdef0123456789abcdef",
         "repository": "example/project",
         "commit_sha": "a" * 40,
         "image": settings.RUNNER_IMAGE,
@@ -52,6 +53,7 @@ def test_runner_api_rejects_repository_runtime_configuration(
         "/v1/sessions",
         {
             "run_id": 7,
+            "session_key": "0123456789abcdef0123456789abcdef",
             "repository": "example/project",
             "commit_sha": "a" * 40,
             "image": settings.RUNNER_IMAGE,
