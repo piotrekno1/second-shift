@@ -1,4 +1,6 @@
 import json
+import re
+from pathlib import Path
 
 import pytest
 from django.contrib.auth import get_user_model
@@ -211,3 +213,15 @@ def test_leaving_the_chosen_workspace_falls_back_to_the_first(client: Client) ->
     WorkspaceMembership.objects.filter(workspace=other, user=person).delete()
 
     assert client.get("/api/me").json()["workspace_slug"] == "mine"
+
+
+def test_the_dashboard_names_only_real_actions() -> None:
+    # The dashboard hides controls by these names, so a typo would hide a
+    # control from everyone.
+    source = (
+        Path(__file__).resolve().parents[3] / "dashboard/src/utils/permissions.ts"
+    ).read_text()
+    names = set(re.findall(r"^  \w+: '([^']+)',$", source, re.MULTILINE))
+
+    assert names
+    assert names <= {action.value for action in Action}

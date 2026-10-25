@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 
 import { apiGet, AuthenticationRequired } from '../services/api'
 import { signInUrl } from '../utils/signIn'
+import { allows, type Action } from '../utils/permissions'
 import { fetchMCPProviders } from '../services/connections'
 import { fetchPendingInvite } from '../services/invites'
 import { fetchRuns } from '../services/runs'
@@ -45,6 +46,8 @@ export const useAppStore = defineStore('app', {
     pendingInvite: null,
   }),
   getters: {
+    /** Whether the person's role in the current workspace allows the action. */
+    can: (state) => (action: Action): boolean => allows(state.user, action),
     mcpProvider: (state) => (key: string | undefined): MCPProviderInfo | undefined =>
       state.mcpProviders.find((provider) => provider.key === key),
   },

@@ -7,10 +7,11 @@ import RunLimitsPanel from '../components/RunLimitsPanel.vue'
 import { fetchSettings, saveWorkspaceLimits } from '../services/settings'
 import { useAppStore } from '../stores/app'
 import type { RunLimitUpdate, WorkspaceSettings } from '../types'
+import { Action } from '../utils/permissions'
 
 const app = useAppStore()
-const canInvite = computed(() => app.user?.permissions.includes('invite people') ?? false)
-const canManageMembers = computed(() => app.user?.permissions.includes('change roles or remove people') ?? false)
+const canInvite = computed(() => app.can(Action.InvitePeople))
+const canManageMembers = computed(() => app.can(Action.ManageMembers))
 const data = ref<WorkspaceSettings | null>(null)
 const error = ref<string | null>(null)
 const copied = ref<string | null>(null)
