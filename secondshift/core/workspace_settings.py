@@ -15,8 +15,8 @@ from secondshift.config.constants import (
     Environment,
     SandboxRuntime,
 )
-from secondshift.workspaces.access import ROLE_RANK, Role
 from secondshift.workspaces.models import Workspace
+from secondshift.workspaces.services import members_in_order
 
 
 @dataclass(frozen=True)
@@ -74,13 +74,9 @@ def image_label(image: str) -> str:
 
 def members(workspace: Workspace) -> list[Member]:
     """Owners first, then admins, then members, each in the order they joined."""
-    memberships = sorted(
-        workspace.memberships.select_related("user").order_by("created_at", "pk"),
-        key=lambda membership: -ROLE_RANK[Role(membership.role)],
-    )
     return [
         Member(user_email(membership.user), membership.get_role_display())
-        for membership in memberships
+        for membership in members_in_order(workspace)
     ]
 
 

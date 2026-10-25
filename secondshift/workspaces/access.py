@@ -39,6 +39,7 @@ class Action(StrEnum):
     TEST_CONNECTIONS = "test connections"
     REVIEW_CAPABILITIES = "review capabilities"
     INVITE_PEOPLE = "invite people"
+    MANAGE_MEMBERS = "change roles or remove people"
     # Admins: running the work that owners approved.
     RESYNC_REPOSITORIES = "resync repositories"
     CHANGE_REPOSITORY_STATE = "change repository state"

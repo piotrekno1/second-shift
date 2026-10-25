@@ -26,6 +26,12 @@ from secondshift.workspaces.invites import (
     revoke_invite,
 )
 from secondshift.workspaces.models import WorkspaceInvite, WorkspaceMembership
+from secondshift.workspaces.services import (
+    MembershipError,
+    change_role,
+    members_in_order,
+    remove_member,
+)
 
 router = Router(auth=django_auth, tags=["workspaces"])
 
@@ -42,8 +48,23 @@ class WorkspaceSelectSchema(Schema):
     workspace_id: int
 
 
+RoleName = Literal["owner", "admin", "member"]
+
+
+class MemberSchema(Schema):
+    id: int
+    email: str
+    role: str
+    joined_at: datetime
+    you: bool
+
+
+class RoleChangeSchema(Schema):
+    role: RoleName
+
+
 class InviteCreateSchema(Schema):
-    role: Literal["owner", "admin", "member"] = "member"
+    role: RoleName = "member"
     note: str = Field("", max_length=160)
 
 
@@ -174,4 +195,58 @@ def invite_person(request: HttpRequest, payload: InviteCreateSchema) -> NewInvit
 def cancel_invite(request: HttpRequest, invite_id: int) -> Status[None]:
     workspace = require(request, Action.INVITE_PEOPLE)
     revoke_invite(get_object_or_404(pending_invites(workspace), pk=invite_id))
+    return Status(204, None)
+
+
+def serialize_member(
+    request: HttpRequest, membership: WorkspaceMembership
+) -> MemberSchema:
+    return MemberSchema(
+        id=membership.pk,
+        email=person_label(membership.user) or "",
+        role=membership.role,
+        joined_at=membership.created_at,
+        you=membership.user_id == request.user.pk,
+    )
+
+
+def membership_for_request(
+    request: HttpRequest, membership_id: int
+) -> WorkspaceMembership:
+    workspace = require(request, Action.MANAGE_MEMBERS)
+    return get_object_or_404(
+        WorkspaceMembership.objects.select_related("user"),
+        pk=membership_id,
+        workspace=workspace,
+    )
+
+
+@router.get("/members", response=list[MemberSchema])
+def members(request: HttpRequest) -> list[MemberSchema]:
+    """Everyone in the current workspace. Any member can see who belongs."""
+    workspace = current_workspace(request)
+    if workspace is None:
+        return []
+    return [serialize_member(request, item) for item in members_in_order(workspace)]
+
+
+@router.post("/members/{membership_id}/role", response=MemberSchema)
+def set_member_role(
+    request: HttpRequest, membership_id: int, payload: RoleChangeSchema
+) -> MemberSchema:
+    membership = membership_for_request(request, membership_id)
+    try:
+        change_role(membership, payload.role)
+    except MembershipError as error:
+        raise HttpError(409, str(error)) from error
+    return serialize_member(request, membership)
+
+
+@router.delete("/members/{membership_id}", response={204: None})
+def remove_person(request: HttpRequest, membership_id: int) -> Status[None]:
+    membership = membership_for_request(request, membership_id)
+    try:
+        remove_member(membership)
+    except MembershipError as error:
+        raise HttpError(409, str(error)) from error
     return Status(204, None)
