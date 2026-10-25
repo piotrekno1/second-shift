@@ -14,8 +14,8 @@ class MembershipInline(admin.TabularInline):
 
 @admin.register(Workspace)
 class WorkspaceAdmin(admin.ModelAdmin):
-    list_display = ("name", "slug", "owner", "created_at")
-    search_fields = ("name", "slug", "owner__email")
+    list_display = ("name", "slug", "created_at")
+    search_fields = ("name", "slug", "memberships__user__email")
     prepopulated_fields = {"slug": ("name",)}
     inlines = [MembershipInline]
 

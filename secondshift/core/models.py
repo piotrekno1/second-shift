@@ -19,13 +19,10 @@ class RunLimitOverrides(models.Model):
 
 
 class Workspace(RunLimitOverrides):
+    """Who belongs and with which role is kept in WorkspaceMembership only."""
+
     name = models.CharField(max_length=160)
     slug = models.SlugField(unique=True)
-    owner = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.PROTECT,
-        related_name="owned_workspaces",
-    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
