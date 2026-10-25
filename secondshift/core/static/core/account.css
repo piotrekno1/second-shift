@@ -93,3 +93,4 @@ button {
 
 .account-messages { margin: 0 0 18px; padding: 10px 14px; border-radius: 11px; color: var(--mint); background: rgba(113, 219, 182, 0.07); list-style: none; font-size: 13px; }
 .account-back { display: inline-block; margin-top: 18px; font-size: 13px; }
+.account-invite { margin: 0 0 18px; padding: 10px 14px; border: 1px solid rgba(197, 188, 255, 0.28); border-radius: 11px; color: var(--ink); background: rgba(124, 108, 242, 0.1); font-size: 13px; }

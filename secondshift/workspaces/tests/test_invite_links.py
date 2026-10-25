@@ -71,3 +71,21 @@ def test_a_link_revoked_after_opening_closes_sign_up_again(
     revoke_invite(new.invite)
 
     assert b"Sign Up Closed" in client.get("/accounts/signup/").content
+
+
+@pytest.mark.parametrize("page", ["/accounts/signup/", "/accounts/login/"])
+def test_sign_in_pages_name_the_workspace_being_joined(
+    client: Client, workspace: Workspace, page: str
+) -> None:
+    new = create_invite(workspace, "admin", None)
+    client.get(invite_path(new.token))
+
+    content = client.get(page).content.decode()
+
+    assert "join <strong>Team</strong> as Admin" in content
+
+
+def test_sign_in_pages_say_nothing_without_an_invite(
+    client: Client, db: object
+) -> None:
+    assert "account-invite" not in client.get("/accounts/login/").content.decode()

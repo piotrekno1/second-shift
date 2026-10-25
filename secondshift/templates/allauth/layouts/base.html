@@ -25,6 +25,11 @@
               {% for message in messages %}<li>{{ message }}</li>{% endfor %}
             </ul>
           {% endif %}
+          {% if pending_invite and not user.is_authenticated %}
+            <p class="account-invite">
+              {% blocktrans with workspace=pending_invite.workspace.name role=pending_invite.get_role_display %}Sign in or sign up to join <strong>{{ workspace }}</strong> as {{ role }}.{% endblocktrans %}
+            </p>
+          {% endif %}
           {% block content %}{% endblock content %}
           {% if user.is_authenticated %}
             <a href="/" class="account-back">{% trans "Back to SecondShift" %}</a>
