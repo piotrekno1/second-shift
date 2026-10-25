@@ -172,6 +172,17 @@ export interface RepositoryDetail extends Repository {
   jobs: RepositoryJob[]
 }
 
+export interface LocalRepositoryDirectory {
+  name: string
+  path: string
+}
+
+export interface LocalRepositoryDirectoryList {
+  path: string
+  parent: string | null
+  directories: LocalRepositoryDirectory[]
+}
+
 export interface Job {
   id: number
   name: string

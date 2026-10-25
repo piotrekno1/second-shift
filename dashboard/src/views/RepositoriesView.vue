@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
+import LocalDirectoryPicker from '../components/LocalDirectoryPicker.vue'
 import FilterChips from '../components/FilterChips.vue'
 import PageHeader from '../components/PageHeader.vue'
 import SearchInput from '../components/SearchInput.vue'
@@ -48,6 +49,7 @@ const addingLocal = ref(false)
 const localPath = ref('')
 const localError = ref<string | null>(null)
 const saving = ref(false)
+const browsing = ref(false)
 const repositoriesSubtitle = computed(() => {
   const total = app.repositories.length
   if (total === 0) return 'No repositories connected yet.'
@@ -62,10 +64,11 @@ async function addLocalRepository(): Promise<void> {
   saving.value = true
   localError.value = null
   try {
-    const repository = await apiPost<Repository>('/repositories/local', { path: localPath.value.trim() })
+    const repository = await apiPost<Repository>('/repositories/local', { path: localPath.value })
     await app.refresh()
     localPath.value = ''
     addingLocal.value = false
+    browsing.value = false
     await router.push({ path: `/repositories/${repository.id}`, query: { added: '1' } })
   } catch (error) {
     localError.value = error instanceof Error ? error.message : 'Unable to add repository'
@@ -73,20 +76,29 @@ async function addLocalRepository(): Promise<void> {
     saving.value = false
   }
 }
+
+function chooseDirectory(path: string): void {
+  localPath.value = path
+  localError.value = null
+}
 </script>
 
 <template>
   <div class="page">
     <PageHeader title="Repositories" :description="repositoriesSubtitle">
-      <Button v-if="app.canAddLocalRepositories" label="Add local repository" icon="pi pi-folder-open" severity="secondary" outlined @click="addingLocal = !addingLocal" />
+      <Button v-if="app.canAddLocalRepositories" label="Add local repository" icon="pi pi-folder-open" severity="secondary" outlined @click="addingLocal = !addingLocal; browsing = false" />
       <Button label="Install GitHub App" icon="pi pi-github" />
     </PageHeader>
     <form v-if="addingLocal" class="panel local-repository-form" @submit.prevent="addLocalRepository">
       <div><h2>Add a local Git repository</h2><p>Its committed `.secondshift.yaml` and referenced skills will be validated and synchronized.</p></div>
       <InputText v-model="localPath" aria-label="Local repository path" placeholder="/Users/you/Projects/my-repository" autofocus />
-      <Button type="submit" label="Validate and add" icon="pi pi-check" :loading="saving" :disabled="!localPath.trim()" />
+      <div class="local-repository-actions">
+        <Button type="button" icon="pi pi-folder-open" severity="secondary" outlined aria-label="Browse directories" :aria-expanded="browsing" aria-controls="local-directory-picker" aria-haspopup="dialog" title="Browse directories" @click="browsing = true" />
+        <Button type="submit" label="Validate and add" icon="pi pi-check" :loading="saving" :disabled="!localPath.trim()" />
+      </div>
       <p v-if="localError" class="form-error">{{ localError }}</p>
     </form>
+    <LocalDirectoryPicker v-if="browsing" :path="localPath" @choose="chooseDirectory" @close="browsing = false" />
     <div v-if="app.repositories.length > 1" class="list-toolbar">
       <SearchInput :model-value="search" placeholder="Search repositories" @update:model-value="list.update({ q: $event })" />
       <FilterChips :model-value="state" :options="stateOptions" label="Repository state" @update:model-value="list.update({ state: $event })" />

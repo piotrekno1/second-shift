@@ -10,7 +10,7 @@ export async function apiGet<T>(path: string): Promise<T> {
     throw new AuthenticationRequired('Sign in required')
   }
   if (!response.ok) {
-    throw new Error(`Request failed with status ${response.status}`)
+    throw await responseError(response)
   }
   return response.json() as Promise<T>
 }
@@ -25,7 +25,7 @@ export async function apiText(path: string): Promise<string> {
     throw new AuthenticationRequired('Sign in required')
   }
   if (!response.ok) {
-    throw new Error(`Request failed with status ${response.status}`)
+    throw await responseError(response)
   }
   return response.text()
 }
@@ -41,8 +41,8 @@ function csrfToken(): string {
 
 async function responseError(response: Response): Promise<Error> {
   try {
-    const payload = (await response.json()) as { detail?: string }
-    if (payload.detail) return new Error(payload.detail)
+    const payload = (await response.json()) as { detail?: unknown }
+    if (typeof payload.detail === 'string' && payload.detail) return new Error(payload.detail)
   } catch {
     // The status fallback below is sufficient for non-JSON responses.
   }

@@ -172,3 +172,32 @@ def attach_local_repository(
             status=JobGrant.Status.APPROVED,
         ).update(status=JobGrant.Status.PENDING, reviewed_by=None, reviewed_at=None)
     return repository
+
+
+def local_directories(raw_path: str) -> tuple[Path, Path | None, list[Path]]:
+    requested = raw_path if raw_path.strip() else ""
+    try:
+        candidate = (
+            Path(requested).expanduser().resolve()
+            if requested
+            else Path.home().resolve()
+        )
+    except (OSError, RuntimeError, ValueError) as error:
+        target = "selected path" if requested else "home directory"
+        raise LocalRepositoryError(f"Unable to open the {target}.") from error
+    try:
+        is_directory = candidate.is_dir()
+    except (OSError, RuntimeError, ValueError) as error:
+        raise LocalRepositoryError(f"Unable to access {candidate}.") from error
+    if not is_directory:
+        raise LocalRepositoryError(f"{candidate} is not a directory.")
+    try:
+        entries = list(candidate.iterdir())
+        directories = sorted(
+            (item for item in entries if item.is_dir()),
+            key=lambda item: item.name.lower(),
+        )
+    except (OSError, RuntimeError, ValueError) as error:
+        raise LocalRepositoryError(f"Unable to read {candidate}.") from error
+    parent = None if candidate.parent == candidate else candidate.parent
+    return candidate, parent, directories
