@@ -285,6 +285,8 @@ elif SINGLE_HOST:
 else:
     # Nowhere to send them. They are dropped so reset links never reach logs.
     EMAIL_BACKEND = "django.core.mail.backends.dummy.EmailBackend"
+# Whether an email reaches anyone. Password resets are offered only then.
+EMAIL_DELIVERED = bool(EMAIL_URL) or SINGLE_HOST
 # Ask people to confirm their address only when an email can reach them.
 ACCOUNT_EMAIL_VERIFICATION = "optional" if EMAIL_URL or DEV else "none"
 

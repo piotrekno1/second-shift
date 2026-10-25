@@ -31,3 +31,16 @@ def test_signing_in_leaves_no_message_for_a_later_page(client: Client) -> None:
 
     assert "account-messages" not in page
     assert "signed in" not in page.lower()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("delivered", [True, False])
+def test_password_resets_are_offered_only_when_email_arrives(
+    client: Client, delivered: bool
+) -> None:
+    with override_settings(EMAIL_DELIVERED=delivered):
+        login = client.get("/accounts/login/").content.decode()
+        reset = client.get("/accounts/password/reset/")
+
+    assert ("Forgot your password?" in login) is delivered
+    assert reset.status_code == (200 if delivered else 404)
