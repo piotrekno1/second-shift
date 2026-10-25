@@ -6,14 +6,17 @@
 [![CI](https://github.com/piotrekno1/second-shift/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/piotrekno1/second-shift/actions/workflows/ci.yml?query=branch%3Amain)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
 
-**Scheduled agent reviews for your repositories.**
+**Put recurring engineering tasks on duty, with access your team controls.**
 
-Commit a skill and a schedule. SecondShift runs it in a sandbox with only the
-access you approve, and tells you what it found or did.
+Commit a skill and a schedule. SecondShift runs it against your repository and
+approved services, then reports what it found or did. Commands run in
+an isolated sandbox. Each run records its Git revision, tool activity, and model
+cost.
 
 https://github.com/user-attachments/assets/139dc763-e7eb-4e1f-ac27-c2f44bac452c
 
-Connect a model, add a webhook, import a repository, and receive a skill's report.
+Connect a model and import a repository to run your first task. Add a webhook
+to receive reports in your team's existing tools.
 
 ## Try it out now
 
@@ -63,11 +66,25 @@ available on PyPI.
 
 ## Put recurring reviews on duty
 
-- **Release recap:** summarize merged features, fixes, and rollout questions.
-- **CI failure review:** group test failures and suggest fixes from logs.
-- **Repository health:** find defects, test gaps, and outdated documentation.
-- **Contributor recap:** recognize merged work and review contributions.
-- **Alert coverage review:** flag removed alerts, paused rules, and threshold changes.
+Write a skill for a recurring problem your team needs to investigate. Connect
+the services it needs through MCP or an HTTP API, then approve the job's access.
+
+| Review | What the skill can investigate | Data it needs |
+| --- | --- | --- |
+| **Recurring CI failures** | Which failures keep blocking builds, when they started, and which changes may explain them. | Build history and failure logs through an API or MCP connection, plus repository code. |
+| **Production errors** | Which Sentry errors are new or worsening and which recent code changes may be related. | Issues, events, or traces through the built-in Sentry connection, plus repository code. |
+| **Monitoring coverage** | Whether removed alerts, paused rules, or changed thresholds leave important failure paths uncovered. | Monitoring rules and their change history through an API or MCP connection, or configuration committed to the repository. |
+| **Release readiness** | Whether a planned release needs migration steps, configuration changes, or rollout instructions that are missing. | Repository changes and release plans, with an API or MCP connection for plans kept outside Git. |
+| **Incident follow-up** | Whether completed incident action items have the promised code changes, regression tests, or monitoring. | Incident records and action items through an API or MCP connection, or documents committed to the repository. |
+
+These are workflows you can define with skills and approved connections. Each
+review depends on the data exposed by the connected service. The built-in GitHub
+connection reads pull requests and commits. CI logs need a separate API or MCP
+connection that exposes them.
+
+Ask skills to explain what changed, who is affected, why it needs attention, and
+what to check next. Findings should cite their evidence and say when the
+available data is insufficient to draw a conclusion.
 
 Skills review the repository and the services you approve. Two examples to
 start from:
@@ -94,6 +111,28 @@ choose credentials, provider endpoints, sandbox images, mounts, or network
 settings. Expanding requested capabilities requires renewed approval.
 
 Skills run in isolated sandboxes. Every run is tied to a Git commit.
+
+## Why use SecondShift?
+
+### How is this different from Hermes Agent?
+
+[Hermes Agent](https://hermes-agent.nousresearch.com/docs/user-guide/features/cron/)
+already supports scheduled skills and report delivery. SecondShift puts
+recurring engineering tasks under a team's repository and access controls.
+Review the skill and schedule in Git, approve its service access separately,
+and inspect each run's revision, tool activity, report, and cost.
+
+A merged skill cannot grant itself credentials or expand its approved access.
+Commands run in a networkless sandbox. External tool calls go through a broker
+that checks the job's approved permissions. See the
+[security model](docs/security-model.md) for the boundaries and remaining risks.
+
+### Why not use an existing scheduler?
+
+An existing scheduler can start an agent on a timer. SecondShift also handles
+job discovery from Git, access approvals, sandbox execution, run history, model
+cost tracking, and report delivery. It gives teams one place to manage that work
+across repositories.
 
 ## Contributions welcome
 
