@@ -1,4 +1,4 @@
-"""The settings page: who is in the workspace and what the server enforces.
+"""The settings page: what the server enforces.
 
 Runner settings are server-owned (see AGENTS.md), so they are shown with the
 environment variable that changes them rather than edited here. Run limits are
@@ -15,7 +15,6 @@ from secondshift.config.constants import (
     Environment,
     SandboxRuntime,
 )
-from secondshift.core.models import Workspace, WorkspaceMembership
 
 
 @dataclass(frozen=True)
@@ -30,12 +29,6 @@ class SettingValue:
 class SettingGroup:
     title: str
     items: list[SettingValue]
-
-
-@dataclass(frozen=True)
-class Member:
-    email: str
-    role: str
 
 
 def size_label(value: int) -> str:
@@ -69,24 +62,6 @@ def image_label(image: str) -> str:
     """The image name with a short digest, e.g. python:3.13-slim @ 57b29a7c050c."""
     name, _, digest = image.partition("@sha256:")
     return f"{name} @ {digest[:12]}" if digest else image
-
-
-def members(workspace: Workspace) -> list[Member]:
-    """The owner first, then everyone with a membership."""
-    found = [Member(user_email(workspace.owner), WorkspaceMembership.Role.OWNER.label)]
-    seen = {workspace.owner_id}
-    for membership in workspace.memberships.select_related("user").order_by(
-        "created_at"
-    ):
-        if membership.user_id in seen:
-            continue
-        seen.add(membership.user_id)
-        found.append(Member(user_email(membership.user), membership.get_role_display()))
-    return found
-
-
-def user_email(user: object) -> str:
-    return getattr(user, "email", "") or user.get_username()  # type: ignore[attr-defined]
 
 
 def setting_groups() -> list[SettingGroup]:

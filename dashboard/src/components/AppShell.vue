@@ -2,7 +2,10 @@
 import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { signOut } from '../services/api'
+import { SIGN_IN_PATH } from '../utils/signIn'
 import { useAppStore } from '../stores/app'
+import InvitePrompt from './InvitePrompt.vue'
+import WorkspaceSwitcher from './WorkspaceSwitcher.vue'
 
 const route = useRoute()
 const app = useAppStore()
@@ -25,7 +28,7 @@ async function handleSignOut(): Promise<void> {
   try {
     await signOut()
     // A full reload drops all in-memory workspace data with the session.
-    window.location.assign('/login')
+    window.location.assign(SIGN_IN_PATH)
   } catch {
     signingOut.value = false
   }
@@ -45,6 +48,8 @@ async function handleSignOut(): Promise<void> {
           <span>Always on duty</span>
         </div>
       </RouterLink>
+
+      <WorkspaceSwitcher />
 
       <nav aria-label="Primary navigation">
         <RouterLink
@@ -66,7 +71,7 @@ async function handleSignOut(): Promise<void> {
         </RouterLink>
         <div class="account">
           <span class="avatar">{{ initials }}</span>
-          <div><strong>{{ app.user?.workspace_name ?? 'Workspace' }}</strong><small>{{ app.user?.email }}</small></div>
+          <div :title="app.user?.email"><strong>{{ app.user?.email }}</strong><small>Signed in</small></div>
           <button
             class="sign-out"
             type="button"
@@ -81,6 +86,7 @@ async function handleSignOut(): Promise<void> {
       </div>
     </aside>
     <main>
+      <InvitePrompt />
       <slot />
     </main>
   </div>

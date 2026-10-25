@@ -1,9 +1,12 @@
 import { defineStore } from 'pinia'
 
 import { apiGet, AuthenticationRequired } from '../services/api'
+import { signInUrl } from '../utils/signIn'
+import { Action, allows } from '../utils/permissions'
 import { fetchMCPProviders } from '../services/connections'
+import { fetchPendingInvite } from '../services/invites'
 import { fetchRuns } from '../services/runs'
-import type { CapabilityNeed, Connection, Job, MCPProviderInfo, Overview, Repository, Run, Secret, User } from '../types'
+import type { CapabilityNeed, Connection, Job, MCPProviderInfo, Overview, PendingInvite, Repository, Run, Secret, User } from '../types'
 
 const RECENT_RUNS = 6
 
@@ -22,6 +25,8 @@ interface AppState {
   secrets: Secret[]
   /** Built-in MCP servers. Fixed by the server, so loaded once. */
   mcpProviders: MCPProviderInfo[]
+  /** An invite link this browser opened, until the person joins or dismisses it. */
+  pendingInvite: PendingInvite | null
 }
 
 export const useAppStore = defineStore('app', {
@@ -38,8 +43,14 @@ export const useAppStore = defineStore('app', {
     needs: [],
     secrets: [],
     mcpProviders: [],
+    pendingInvite: null,
   }),
   getters: {
+    /** Whether the person's role in the current workspace allows the action. */
+    can: (state) => (action: Action): boolean => allows(state.user, action),
+    /** The server must allow local repositories and the role must allow adding them. */
+    canAddLocalRepositories: (state): boolean =>
+      Boolean(state.user?.local_repositories_enabled) && allows(state.user, Action.AddLocalRepositories),
     mcpProvider: (state) => (key: string | undefined): MCPProviderInfo | undefined =>
       state.mcpProviders.find((provider) => provider.key === key),
   },
@@ -48,13 +59,15 @@ export const useAppStore = defineStore('app', {
       try {
         this.user = await apiGet<User>('/me')
         this.authenticated = true
-        await Promise.all([this.refresh(), this.loadMCPProviders()])
+        // Without a workspace there is nothing to load but an invite to join one.
+        await Promise.all(this.user.workspace_slug
+          ? [this.refresh(), this.loadMCPProviders(), this.loadPendingInvite()]
+          : [this.loadPendingInvite()])
       } catch (error) {
         if (error instanceof AuthenticationRequired) {
           this.authenticated = false
-          if (window.location.pathname !== '/login') {
-            window.history.replaceState({}, '', '/login')
-          }
+          const { pathname, search } = window.location
+          window.location.replace(signInUrl(pathname + search))
         } else {
           this.error = error instanceof Error ? error.message : 'Unable to start SecondShift'
         }
@@ -79,6 +92,9 @@ export const useAppStore = defineStore('app', {
       this.connections = connections
       this.needs = needs
       this.secrets = secrets
+    },
+    async loadPendingInvite(): Promise<void> {
+      this.pendingInvite = await fetchPendingInvite()
     },
     async loadMCPProviders(): Promise<void> {
       this.mcpProviders = await fetchMCPProviders()

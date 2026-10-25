@@ -53,11 +53,18 @@ def runner_env(parent: dict[str, str]) -> dict[str, str]:
     return env
 
 
+def public_url(host: str, port: int) -> str:
+    """Where people open the app. 0.0.0.0 listens everywhere, so use loopback."""
+    return f"http://{'127.0.0.1' if host == '0.0.0.0' else host}:{port}"
+
+
 def services(
     host: str, port: int, parent: dict[str, str], python: str = sys.executable
 ) -> list[Process]:
     gateway_port, runner_port = port + 1, port + 2
     control = {
+        # Links in notifications, invites and OAuth callbacks use it.
+        "FRONTEND_URL": public_url(host, port),
         **parent,
         ENVIRONMENT_VAR: Environment.LOCAL,
         SETTINGS_MODULE_VAR: CONTROL_SETTINGS,

@@ -59,6 +59,52 @@ production they reach only public HTTPS addresses. Local mode also allows local
 addresses for testing. Each address is checked again when the connection
 opens, so a host cannot pass the check and then resolve to a private address.
 
+## First owner and invites
+
+Sign-up is closed in production unless `SECONDSHIFT_SIGNUP_ENABLED` is set.
+People join through invite links instead.
+
+Create the first workspace on the server:
+
+```bash
+secondshift create_workspace "Acme"
+```
+
+It prints a one-time link. Whoever opens it can sign in or sign up, even with
+sign-up closed, and becomes the workspace's owner after confirming. The link
+works for seven days. If it expires unused, run the command again for a new
+one. Once the workspace has an owner, the command refuses to make another.
+
+Staff accounts can also create workspaces from the dashboard, with the
+workspace menu under the logo. They own each workspace they create. The account
+`secondshift up` makes is staff. With sign-up open, anyone can create
+workspaces this way, up to three each. Staff have no limit. With sign-up
+closed, people who are not staff can only join through invites.
+
+People in more than one workspace switch between them with the same menu.
+
+Owners invite everyone else from the Settings page. Each invite has a role:
+
+- **Owner** connects services, approves access, invites people and manages
+  their roles.
+- **Admin** enables, runs and schedules approved jobs, manages repositories
+  and changes run limits.
+- **Member** can view.
+
+People can sign in with GitHub when `GITHUB_CLIENT_ID` and
+`GITHUB_CLIENT_SECRET` are set, or with an email and password. Set `EMAIL_URL`
+(for example `smtp://user:password@mail.example.com:587`) to send address
+confirmations and password resets. Without it SecondShift sends no email, does
+not ask people to confirm their address, and cannot reset passwords.
+
+An invite link works once and is shown only when it is created. The server
+stores a hash of it, not the link itself. Opening a link never adds anyone by
+itself. The person confirms in the dashboard while signed in. Owners can
+revoke pending invites from the Settings page.
+
+Owners also change roles and remove people on the Settings page. A workspace
+always keeps at least one owner, so the last owner cannot step down or leave.
+
 ## Run artifact storage
 
 Full run output is stored outside Postgres in private storage, under

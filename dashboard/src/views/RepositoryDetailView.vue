@@ -7,6 +7,7 @@ import StatusPill from '../components/StatusPill.vue'
 import { apiDelete, apiGet, apiPost } from '../services/api'
 import { useAppStore } from '../stores/app'
 import type { Capability, Job, RepositoryDetail, RepositoryValidation } from '../types'
+import { Action } from '../utils/permissions'
 import { accessLabel, accessNeedsAction, countLabel, formatDate, formatRelative, formatSchedule, jobState, utcTitle } from '../utils/format'
 
 const route = useRoute()
@@ -163,8 +164,8 @@ onMounted(loadRepository)
       <RouterLink to="/repositories" class="secondary-action"><i class="mdi mdi-arrow-left" /> Repositories</RouterLink>
       <template v-if="repository">
         <Button label="Validate" icon="pi pi-check-circle" severity="secondary" outlined :loading="action === 'validate'" title="Read-only check of the manifest and skills" @click="validateRepository" />
-        <Button :label="repository.enabled ? 'Disable' : 'Enable'" :icon="repository.enabled ? 'pi pi-pause' : 'pi pi-play'" severity="secondary" outlined :loading="action === 'toggle'" @click="toggleRepository" />
-        <Button v-if="repository.source_type === 'local'" label="Resync" icon="pi pi-refresh" :loading="action === 'resync'" title="Import the committed manifest and skill definitions" @click="resyncRepository" />
+        <Button v-if="app.can(Action.ChangeRepositoryState)" :label="repository.enabled ? 'Disable' : 'Enable'" :icon="repository.enabled ? 'pi pi-pause' : 'pi pi-play'" severity="secondary" outlined :loading="action === 'toggle'" @click="toggleRepository" />
+        <Button v-if="repository.source_type === 'local' && app.can(Action.ResyncRepositories)" label="Resync" icon="pi pi-refresh" :loading="action === 'resync'" title="Import the committed manifest and skill definitions" @click="resyncRepository" />
       </template>
     </PageHeader>
 
@@ -185,19 +186,19 @@ onMounted(loadRepository)
         </div>
         <div class="repository-setup-actions">
           <RouterLink
-            v-if="requiredReviews[0]"
+            v-if="requiredReviews[0] && app.can(Action.ReviewCapabilities)"
             :to="{ path: '/jobs', query: { review: String(requiredReviews[0].job.id) } }"
             class="primary-action"
           ><i class="mdi mdi-shield-key-outline" /> Review required access</RouterLink>
           <Button
-            v-else-if="readyDisabledJobs.length"
+            v-else-if="readyDisabledJobs.length && app.can(Action.EnableJobs)"
             :label="`Enable ${countLabel(readyDisabledJobs.length, 'job')}`"
             icon="pi pi-play"
             :loading="action === 'enable-jobs'"
             @click="enableReadyJobs"
           />
           <RouterLink
-            v-if="optionalSetups[0]"
+            v-if="optionalSetups[0] && app.can(Action.AddConnections)"
             :to="{ path: '/connections', query: connectionSetupQuery(optionalSetups[0].job, optionalSetups[0].capability) }"
             class="secondary-action"
           ><i class="mdi mdi-link-plus" /> Configure {{ optionalSetups[0].capability.binding }}</RouterLink>
@@ -210,7 +211,7 @@ onMounted(loadRepository)
           <strong>New commits since the last sync</strong>
           <span>Runs still use <code>{{ repository.validation.synced_revision.slice(0, 7) }}</code>; the repository is at <code>{{ repository.validation.current_revision?.slice(0, 7) }}</code>.</span>
         </div>
-        <Button label="Resync" icon="pi pi-refresh" size="small" :loading="action === 'resync'" @click="resyncRepository" />
+        <Button v-if="app.can(Action.ResyncRepositories)" label="Resync" icon="pi pi-refresh" size="small" :loading="action === 'resync'" @click="resyncRepository" />
       </section>
       <section v-else-if="repository.validation.status !== 'valid'" class="panel repository-alert" :class="repository.validation.status">
         <i class="mdi" :class="repository.validation.status === 'warning' ? 'mdi-alert-outline' : 'mdi-close-octagon-outline'" />
@@ -246,13 +247,13 @@ onMounted(loadRepository)
               <StatusPill :status="jobState(job)" />
               <StatusPill v-if="accessNeedsAction(job.grant_status)" :status="job.grant_status" :label="accessLabel(job.grant_status)" />
             </div>
-            <RouterLink v-if="accessNeedsAction(job.grant_status)" :to="{ path: '/jobs', query: { review: String(job.id) } }" class="job-row-action">Review access <i class="mdi mdi-arrow-right" /></RouterLink>
+            <RouterLink v-if="accessNeedsAction(job.grant_status) && app.can(Action.ReviewCapabilities)" :to="{ path: '/jobs', query: { review: String(job.id) } }" class="job-row-action">Review access <i class="mdi mdi-arrow-right" /></RouterLink>
             <RouterLink v-else :to="`/jobs/${job.id}`" class="job-row-action">Open job <i class="mdi mdi-arrow-right" /></RouterLink>
           </div>
         </div>
         <div v-else class="empty-state compact"><i class="mdi mdi-calendar-search" /><strong>No jobs discovered</strong></div>
       </section>
-      <section class="repository-danger">
+      <section v-if="app.can(Action.RemoveRepositories)" class="repository-danger">
         <span v-if="confirmRemove">Remove {{ repository.display_name }} from SecondShift? Its jobs stop running; run history is kept.</span>
         <Button :label="confirmRemove ? 'Confirm remove' : 'Remove repository'" icon="pi pi-trash" severity="danger" :text="!confirmRemove" size="small" :loading="action === 'remove'" @click="removeRepository" />
         <Button v-if="confirmRemove" label="Cancel" severity="secondary" text size="small" @click="confirmRemove = false" />

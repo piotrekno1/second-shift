@@ -1,0 +1,153 @@
+/* SecondShift theme for the sign-in, sign-up and account pages that
+   allauth renders. Its elements are plain HTML, so they are styled by tag. */
+:root {
+  color-scheme: dark;
+  --night-950: #0d0e1d;
+  --night-850: #16172e;
+  --ink: #eeeefa;
+  --muted: #9899b2;
+  --subtle: #6f718d;
+  --violet: #8b7cff;
+  --violet-soft: #c5bcff;
+  --amber: #ffb454;
+  --mint: #71dbb6;
+  --danger: #ff778b;
+  --border: rgba(197, 188, 255, 0.13);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  color: var(--ink);
+  background: radial-gradient(circle at 20% 0%, rgba(139, 124, 255, 0.16), transparent 45%), var(--night-950);
+  font: 14px/1.5 'DM Sans', system-ui, sans-serif;
+}
+
+/* The form on the left, example shifts on the right. */
+.account-page {
+  display: grid;
+  grid-template-columns: minmax(380px, 0.82fr) minmax(420px, 1.18fr);
+  min-height: 100vh;
+}
+
+.account-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 48px clamp(28px, 6vw, 72px);
+}
+
+.account-brand { display: inline-flex; align-items: center; gap: 10px; margin-bottom: 10px; color: var(--ink); font: 800 16px 'Manrope', sans-serif; text-decoration: none; }
+.account-eyebrow { margin-bottom: 28px; color: var(--amber); font-size: 10px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; }
+
+h1, h2 { margin: 0 0 8px; font-family: 'Manrope', sans-serif; }
+h1 { font-size: 28px; letter-spacing: -0.03em; }
+h2 { font-size: 15px; }
+p { margin: 0 0 14px; color: var(--muted); }
+a { color: var(--violet-soft); }
+hr { margin: 22px 0; border: 0; border-top: 1px solid var(--border); }
+
+form { display: grid; gap: 4px; margin: 18px 0 0; }
+form p { display: grid; gap: 6px; margin: 0 0 10px; color: var(--ink); }
+label { color: var(--muted); font-size: 12px; }
+input[type="email"], input[type="password"], input[type="text"] {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.04);
+  font: inherit;
+}
+input:focus { outline: 2px solid var(--violet); outline-offset: 1px; }
+form p > span, form p ul { color: var(--subtle); font-size: 11px; }
+form p > .helptext a { font-size: 12px; }
+/* Password tips. Browsers move a list out of its paragraph into the form. */
+form > ul { margin: -4px 0 10px; padding-left: 16px; color: var(--subtle); font-size: 11px; }
+form p:has(> input[type="checkbox"]) { display: flex; align-items: center; gap: 8px; }
+input[type="checkbox"] { order: -1; width: 16px; height: 16px; margin: 0; accent-color: var(--violet); }
+form p ul { margin: 0; padding-left: 16px; }
+.errorlist { margin: 0 0 6px; padding: 0; list-style: none; color: var(--danger); font-size: 12px; }
+
+button {
+  min-height: 42px;
+  padding: 0 17px;
+  border: 0;
+  border-radius: 10px;
+  color: white;
+  background: linear-gradient(120deg, var(--violet), #6d5ee8);
+  font: 700 13px 'DM Sans', sans-serif;
+  cursor: pointer;
+}
+
+/* Third-party sign-in, e.g. GitHub. */
+.account-card ul:has(> li > a[title]) { display: grid; gap: 8px; margin: 10px 0 0; padding: 0; list-style: none; }
+.account-card li > a[title] {
+  display: block;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.035);
+  font-weight: 700;
+  text-align: center;
+  text-decoration: none;
+}
+
+.account-messages { margin: 0 0 18px; padding: 10px 14px; border-radius: 11px; color: var(--mint); background: rgba(113, 219, 182, 0.07); list-style: none; font-size: 13px; }
+.account-back { display: inline-block; margin-top: 18px; font-size: 13px; }
+.account-invite { margin: 0 0 18px; padding: 10px 14px; border: 1px solid rgba(197, 188, 255, 0.28); border-radius: 11px; color: var(--ink); background: rgba(124, 108, 242, 0.1); font-size: 13px; }
+
+.account-atmosphere {
+  position: relative;
+  overflow: hidden;
+  background: radial-gradient(circle at 50% 48%, rgba(139, 124, 255, 0.22), transparent 25%), linear-gradient(145deg, #17182f, #0c0d1c);
+}
+.account-atmosphere::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0.22;
+  background-image: radial-gradient(circle, #a8a1e0 1px, transparent 1px);
+  background-size: 38px 38px;
+  mask-image: linear-gradient(to bottom, black, transparent 86%);
+}
+.orbit { position: absolute; left: 50%; top: 50%; border: 1px solid rgba(139, 124, 255, 0.13); border-radius: 50%; transform: translate(-50%, -50%); }
+.orbit-one { width: 520px; height: 520px; }
+.orbit-two { width: 760px; height: 760px; }
+
+.shift-preview {
+  position: absolute;
+  width: min(330px, 70%);
+  padding: 22px 24px;
+  border: 1px solid rgba(197, 188, 255, 0.2);
+  border-radius: 20px;
+  background: rgba(25, 26, 52, 0.8);
+  box-shadow: 0 32px 100px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(20px);
+  transform: rotate(var(--card-angle, -2deg));
+}
+.shift-preview > span { color: var(--amber); font-size: 10px; font-weight: 800; letter-spacing: 0.15em; text-transform: uppercase; }
+.shift-preview > strong { display: block; margin: 10px 0 8px; font: 700 20px 'Manrope', sans-serif; }
+.shift-preview > p { margin: 0; font-size: 12px; }
+.shift-release { top: 7%; left: 10%; --card-angle: -5deg; }
+.shift-ci { top: 25%; left: 32%; --card-angle: 4deg; }
+.shift-health { top: 43%; left: 8%; --card-angle: -3deg; z-index: 1; }
+.shift-contributors { top: 61%; left: 30%; --card-angle: 5deg; }
+.shift-alerts { top: 79%; left: 12%; --card-angle: -4deg; }
+
+@media (min-width: 901px) and (max-height: 760px) {
+  .shift-preview { padding: 16px 20px; }
+  .shift-preview > strong { margin: 8px 0 6px; font-size: 18px; }
+}
+
+@media (max-width: 900px) {
+  .account-page { grid-template-columns: 1fr; }
+  .account-card { padding: 40px 16px; }
+  .account-atmosphere { display: none; }
+}

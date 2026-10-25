@@ -3,8 +3,8 @@ from pathlib import Path
 from django.core.exceptions import ValidationError
 from django.db import models
 
-from secondshift.core.models import Workspace
 from secondshift.integrations.models import Connection
+from secondshift.workspaces.models import Workspace
 
 
 class Repository(models.Model):

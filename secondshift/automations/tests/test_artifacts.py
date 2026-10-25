@@ -22,8 +22,8 @@ from secondshift.automations.artifacts import (
 )
 from secondshift.automations.models import Job, Run
 from secondshift.automations.retention import prune_runs
-from secondshift.core.models import Workspace
 from secondshift.repositories.models import Repository
+from secondshift.workspaces.services import create_workspace
 
 SECRET = "hunter2-token+/="
 
@@ -45,7 +45,7 @@ def artifact_root(settings, tmp_path: Path) -> Path:
 @pytest.fixture
 def job(db) -> Job:
     user = get_user_model().objects.create_user(username="owner")
-    workspace = Workspace.objects.create(name="Test", slug="test", owner=user)
+    workspace = create_workspace(name="Test", slug="test", owner=user)
     repository = Repository.objects.create(
         workspace=workspace, full_name="example/project"
     )

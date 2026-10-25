@@ -2,9 +2,9 @@ from dataclasses import dataclass, field
 from typing import Literal
 
 from secondshift.automations.models import CapabilityRequest, JobGrant
-from secondshift.core.models import Workspace
 from secondshift.integrations.external import EXTERNAL_KINDS, Access, external_access
 from secondshift.integrations.models import Connection
+from secondshift.workspaces.models import Workspace
 
 NeedStatus = Literal["missing", "unavailable", "needs_approval", "ready"]
 STATUS_ORDER: dict[str, int] = {

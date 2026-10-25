@@ -2,14 +2,14 @@ from django.contrib.auth import get_user_model
 
 from secondshift.automations.models import CapabilityRequest, Job, JobGrant
 from secondshift.automations.planning import build_execution_plan
-from secondshift.core.models import Workspace
 from secondshift.integrations.models import Connection
 from secondshift.repositories.models import Repository
+from secondshift.workspaces.services import create_workspace
 
 
 def create_job(db) -> Job:
     user = get_user_model().objects.create_user(username="owner")
-    workspace = Workspace.objects.create(name="Test", slug="test", owner=user)
+    workspace = create_workspace(name="Test", slug="test", owner=user)
     repository = Repository.objects.create(
         workspace=workspace,
         full_name="example/project",

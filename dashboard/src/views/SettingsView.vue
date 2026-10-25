@@ -1,10 +1,17 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import InvitesPanel from '../components/InvitesPanel.vue'
+import MembersPanel from '../components/MembersPanel.vue'
 import PageHeader from '../components/PageHeader.vue'
 import RunLimitsPanel from '../components/RunLimitsPanel.vue'
 import { fetchSettings, saveWorkspaceLimits } from '../services/settings'
+import { useAppStore } from '../stores/app'
 import type { RunLimitUpdate, WorkspaceSettings } from '../types'
+import { Action } from '../utils/permissions'
 
+const app = useAppStore()
+const canInvite = computed(() => app.can(Action.InvitePeople))
+const canManageMembers = computed(() => app.can(Action.ManageMembers))
 const data = ref<WorkspaceSettings | null>(null)
 const error = ref<string | null>(null)
 const copied = ref<string | null>(null)
@@ -50,16 +57,10 @@ onMounted(async () => {
     <template v-else-if="data">
       <section class="panel settings-members">
         <div class="panel-heading">
-          <div><h2>Members</h2><p>Invitations come later; manage memberships in admin for now.</p></div>
-          <a href="/-/admin/core/workspacemembership/" class="detail-link">Manage in admin <i class="mdi mdi-open-in-new" /></a>
+          <div><h2>Members</h2><p>People join with an invite link.</p></div>
         </div>
-        <ul class="member-list">
-          <li v-for="member in data.members" :key="member.email">
-            <span class="avatar small">{{ member.email.slice(0, 2).toUpperCase() }}</span>
-            <span class="member-email">{{ member.email }}</span>
-            <span class="status-pill">{{ member.role }}</span>
-          </li>
-        </ul>
+        <MembersPanel :can-manage="canManageMembers" />
+        <InvitesPanel v-if="canInvite" />
       </section>
 
       <RunLimitsPanel
@@ -74,7 +75,7 @@ onMounted(async () => {
       />
 
       <p class="quiet-line settings-note">
-        <i class="mdi mdi-server-outline" /> Settings below and the limit maximums are set by whoever runs this server, through environment variables, and apply after a restart. Repositories cannot change them.
+        <i class="mdi mdi-server-outline" /> Settings below and the limit maximums are set by whoever runs this server<template v-if="app.user?.can_use_admin">, through environment variables, and apply after a restart</template>. Repositories cannot change them.
       </p>
 
       <div class="settings-groups">

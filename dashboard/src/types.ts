@@ -2,11 +2,58 @@ export interface User {
   email: string
   workspace_name: string | null
   workspace_slug: string | null
+  /** The role in the current workspace: owner, admin or member. */
+  role: string | null
+  /** The actions that role allows, e.g. "run jobs". */
+  permissions: string[]
+  /** Staff only. Django admin turns everyone else away. */
+  can_use_admin: boolean
+  /** Anyone when sign-up is open, otherwise staff only. */
+  can_create_workspace: boolean
   local_repositories_enabled: boolean
   /** "Development" or "Production". */
   environment: string
   /** How command sandboxes are isolated, e.g. "Trusted Docker". */
   sandbox: string
+}
+
+/** An invite this browser opened, waiting for the person to confirm. */
+export interface PendingInvite {
+  workspace_name: string
+  role: string
+  invited_by: string | null
+}
+
+export interface Member {
+  id: number
+  email: string
+  role: string
+  joined_at: string
+  /** The signed-in person. */
+  you: boolean
+}
+
+/** An invite that can still be accepted. Its link is never shown again. */
+export interface Invite {
+  id: number
+  role: string
+  note: string
+  created_by: string | null
+  created_at: string
+  expires_at: string
+}
+
+export interface NewInvite extends Invite {
+  /** Shown once, right after creating the invite. */
+  link: string
+}
+
+export interface WorkspaceChoice {
+  id: number
+  name: string
+  slug: string
+  role: string
+  current: boolean
 }
 
 export interface SettingValue {
@@ -22,7 +69,6 @@ export interface WorkspaceSettings {
   workspace_slug: string | null
   environment: string
   sandbox: string
-  members: { email: string, role: string }[]
   groups: { title: string, items: SettingValue[] }[]
   /** Run limits for the whole workspace. Each job can choose its own. */
   limits: RunLimitItem[]
@@ -45,8 +91,6 @@ export interface RunLimitItem {
   inherited: number
   minimum: number
   maximum: number
-  env: string
-  maximum_env: string
 }
 
 export type RunLimitUpdate = Partial<Record<RunLimitKey, number | null>>

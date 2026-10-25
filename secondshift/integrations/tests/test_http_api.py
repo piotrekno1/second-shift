@@ -14,7 +14,6 @@ from secondshift.automations.execution import external_tools
 from secondshift.automations.models import CapabilityRequest, Job, JobGrant, Run
 from secondshift.automations.planning import build_execution_plan
 from secondshift.automations.tool_broker import call_external_tool_step
-from secondshift.core.models import Workspace
 from secondshift.integrations.errors import ExternalToolError
 from secondshift.integrations.external import external_access
 from secondshift.integrations.http_api.client import APIRequest, build_request, send
@@ -26,6 +25,8 @@ from secondshift.integrations.http_api.connections import (
 from secondshift.integrations.http_api.spec import APIError, load_spec, read_spec
 from secondshift.integrations.models import Connection
 from secondshift.repositories.models import Repository
+from secondshift.workspaces.models import Workspace
+from secondshift.workspaces.services import create_workspace
 
 SPEC_URL = "https://docs.example.com/openapi.json"
 BASE = "https://api.example.com/v1"
@@ -165,7 +166,7 @@ def owner(db) -> Any:
 
 @pytest.fixture
 def workspace(owner) -> Workspace:
-    return Workspace.objects.create(name="API", slug="api", owner=owner)
+    return create_workspace(name="API", slug="api", owner=owner)
 
 
 def connect(workspace: Workspace, **overrides: str) -> Connection:

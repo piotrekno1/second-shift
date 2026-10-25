@@ -7,8 +7,8 @@ from django.urls import reverse
 
 from secondshift.automations.models import Job
 from secondshift.core.adapters import AccountAdapter, SocialAccountAdapter
-from secondshift.core.models import Workspace
 from secondshift.repositories.models import Repository
+from secondshift.workspaces.models import Workspace
 
 
 def test_admin_is_served_under_internal_prefix() -> None:
@@ -34,11 +34,31 @@ def test_health_check_reports_database_and_cache(client) -> None:
 @pytest.mark.parametrize("enabled", [True, False])
 def test_signup_follows_setting(rf, enabled: bool) -> None:
     request = rf.get("/accounts/signup/")
+    request.session = {}
     with override_settings(SIGNUP_ENABLED=enabled):
         assert AccountAdapter(request).is_open_for_signup(request) is enabled
         assert (
             SocialAccountAdapter(request).is_open_for_signup(request, None) is enabled
         )
+
+
+@pytest.mark.django_db
+@override_settings(
+    SIGNUP_ENABLED=True,
+    ACCOUNT_EMAIL_VERIFICATION="none",
+    EMAIL_BACKEND="django.core.mail.backends.smtp.EmailBackend",
+    EMAIL_HOST="127.0.0.1",
+    EMAIL_PORT=1,
+)
+def test_signing_up_sends_no_email_when_none_can_be_sent(client) -> None:
+    password = "Zq8-long-enough"
+    response = client.post(
+        "/accounts/signup/",
+        {"email": "new@example.test", "password1": password, "password2": password},
+    )
+
+    assert response.status_code == 302
+    assert get_user_model().objects.filter(email="new@example.test").exists()
 
 
 @pytest.mark.django_db
@@ -79,6 +99,8 @@ def test_bootstrap_dev_creates_admin_and_empty_workspace_only() -> None:
     admin = get_user_model().objects.get(username="admin@secondshift.local")
     assert admin.is_staff is True
     assert admin.is_superuser is True
-    assert Workspace.objects.filter(owner=admin, slug="secondshift").exists()
+    assert Workspace.objects.filter(
+        slug="secondshift", memberships__user=admin, memberships__role="owner"
+    ).exists()
     assert Repository.objects.count() == 0
     assert Job.objects.count() == 0

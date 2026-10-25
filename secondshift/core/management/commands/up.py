@@ -10,13 +10,13 @@ from django.core.management import call_command
 
 from secondshift.config.constants import Environment, Service
 from secondshift.core import launcher
-from secondshift.core.owners import (
+from secondshift.core.signin import SIGN_IN_LINK_SECONDS, sign_in_url
+from secondshift.workspaces.owners import (
     ensure_owner,
     get_owner,
     has_owner,
     set_owner_credentials,
 )
-from secondshift.core.signin import SIGN_IN_LINK_SECONDS, sign_in_url
 
 
 @click.command()
@@ -76,7 +76,7 @@ def command(
             ),
         )
 
-    url = f"http://{'127.0.0.1' if host == '0.0.0.0' else host}:{port}"
+    url = launcher.public_url(host, port)
 
     def ready() -> None:
         link = sign_in_url(url, get_owner())

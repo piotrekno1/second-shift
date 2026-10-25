@@ -3,19 +3,23 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 
-from secondshift.core.models import Workspace, WorkspaceMembership
+from secondshift.workspaces.models import Workspace, WorkspaceMembership
+from secondshift.workspaces.services import create_workspace, workspace_owner
 
 WORKSPACE_SLUG = "secondshift"
+WORKSPACE_NAME = "SecondShift"
 # The owner's username when `secondshift up` creates it without asking.
 LOCAL_OWNER_USERNAME = "owner"
 
 
 def has_owner() -> bool:
-    return get_user_model().objects.exists()
+    return WorkspaceMembership.objects.filter(
+        workspace__slug=WORKSPACE_SLUG, role=WorkspaceMembership.Role.OWNER
+    ).exists()
 
 
 def get_owner() -> AbstractUser:
-    return Workspace.objects.select_related("owner").get(slug=WORKSPACE_SLUG).owner
+    return workspace_owner(Workspace.objects.get(slug=WORKSPACE_SLUG))  # type: ignore[return-value]
 
 
 def ensure_owner(email: str = "", password: str | None = None) -> Workspace:
@@ -34,10 +38,9 @@ def ensure_owner(email: str = "", password: str | None = None) -> Workspace:
         else:
             user.set_unusable_password()
         user.save()
-    workspace, _ = Workspace.objects.get_or_create(
-        slug=WORKSPACE_SLUG,
-        defaults={"name": "SecondShift", "owner": user},
-    )
+    workspace = Workspace.objects.filter(slug=WORKSPACE_SLUG).first()
+    if workspace is None:
+        return create_workspace(WORKSPACE_NAME, WORKSPACE_SLUG, user)
     WorkspaceMembership.objects.get_or_create(
         workspace=workspace,
         user=user,

@@ -18,10 +18,11 @@ from secondshift.automations.manifest import RepositoryManifest
 from secondshift.automations.models import Job, Run
 from secondshift.automations.planning import build_execution_plan
 from secondshift.automations.tests.test_planning import create_job
-from secondshift.core.models import WorkspaceMembership
 from secondshift.gateway.models import RunToken
 from secondshift.gateway.tokens import issue_run_token
 from secondshift.integrations.models import Connection
+from secondshift.workspaces.models import WorkspaceMembership
+from secondshift.workspaces.services import workspace_owner
 
 
 @pytest.fixture
@@ -101,8 +102,9 @@ def test_owner_input_must_stay_within_the_server_bounds(ceilings: Any) -> None:
         "max_turns": 100,
         "token_budget": None,
     }
-    with pytest.raises(LimitError, match="SECONDSHIFT_AGENT_MAX_TURNS_CEILING"):
+    with pytest.raises(LimitError, match="between 1 and 100") as refused:
         validate_overrides({"max_turns": 101})
+    assert refused.value.ceiling_env == "SECONDSHIFT_AGENT_MAX_TURNS_CEILING"
     with pytest.raises(LimitError, match="between 60"):
         validate_overrides({"timeout_seconds": 30})
     with pytest.raises(LimitError, match="Unknown limit"):
@@ -123,7 +125,7 @@ def test_repository_config_cannot_set_limits() -> None:
 
 @pytest.mark.django_db
 def test_the_owner_changes_workspace_limits(client: Client, job: Job) -> None:
-    client.force_login(job.workspace.owner)
+    client.force_login(workspace_owner(job.workspace))
 
     response = post(client, "/api/settings/limits", {"max_turns": 50})
 
@@ -148,13 +150,14 @@ def test_the_owner_changes_workspace_limits(client: Client, job: Job) -> None:
 
 @pytest.mark.django_db
 def test_out_of_range_limits_are_refused(client: Client, job: Job) -> None:
-    client.force_login(job.workspace.owner)
+    client.force_login(workspace_owner(job.workspace))
 
     too_many = post(client, "/api/settings/limits", {"max_tool_calls": 65})
     negative = post(client, f"/api/jobs/{job.pk}/limits", {"max_turns": -1})
 
     assert too_many.status_code == 422
-    assert "SECONDSHIFT_AGENT_MAX_TOOL_CALLS_CEILING" in too_many.json()["detail"]
+    # The owner is not staff, so the message does not name a server variable.
+    assert too_many.json()["detail"] == "Tool calls must be between 0 and 64."
     assert negative.status_code == 422
     job.refresh_from_db()
     job.workspace.refresh_from_db()
@@ -181,7 +184,7 @@ def test_only_the_owner_changes_limits(client: Client, job: Job) -> None:
 def test_job_limits_inherit_from_the_workspace(client: Client, job: Job) -> None:
     job.workspace.timeout_seconds = 1200
     job.workspace.save()
-    client.force_login(job.workspace.owner)
+    client.force_login(workspace_owner(job.workspace))
 
     response = post(client, f"/api/jobs/{job.pk}/limits", {"max_turns": 80})
 
@@ -198,7 +201,7 @@ def test_a_created_run_keeps_its_limits(
     client: Client, job: Job, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr("secondshift.automations.api.enqueue_run", lambda run: None)
-    client.force_login(job.workspace.owner)
+    client.force_login(workspace_owner(job.workspace))
     first = client.post(f"/api/jobs/{job.pk}/run").json()
 
     post(client, f"/api/jobs/{job.pk}/limits", {"token_budget": 6_000_000})
@@ -240,7 +243,7 @@ def test_a_run_stopped_by_a_limit_says_so(client: Client, job: Job) -> None:
         summary=budget_summary(Budget.TOKENS, 2_000_000),
         execution_plan=build_execution_plan(job),
     )
-    client.force_login(job.workspace.owner)
+    client.force_login(workspace_owner(job.workspace))
 
     body = client.get(f"/api/runs/{run.pk}").json()
 
@@ -254,8 +257,9 @@ def test_a_limit_at_the_maximum_points_to_the_server(ceilings: Any) -> None:
     summary = budget_summary(Budget.TOOL_CALLS, 64)
 
     assert summary.endswith(
-        "Set SECONDSHIFT_AGENT_MAX_TOOL_CALLS_CEILING to allow more."
+        "That is the server maximum. Whoever runs this server can raise it."
     )
+    assert "SECONDSHIFT" not in summary
 
 
 def test_every_limit_has_a_maximum_setting(ceilings: Any) -> None:

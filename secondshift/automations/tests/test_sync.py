@@ -5,9 +5,9 @@ from django.contrib.auth import get_user_model
 from secondshift.automations.models import JobGrant
 from secondshift.automations.scheduling import desired_schedules
 from secondshift.automations.sync import sync_manifest
-from secondshift.core.models import Workspace
 from secondshift.integrations.models import Connection
 from secondshift.repositories.models import Repository
+from secondshift.workspaces.services import create_workspace
 
 
 def write_manifest(path: Path, tools: list[str]) -> None:
@@ -30,7 +30,7 @@ jobs:
 
 def test_expanding_tools_returns_existing_grant_to_pending(db, tmp_path: Path) -> None:
     user = get_user_model().objects.create_user(username="owner")
-    workspace = Workspace.objects.create(name="Test", slug="test", owner=user)
+    workspace = create_workspace(name="Test", slug="test", owner=user)
     repository = Repository.objects.create(
         workspace=workspace,
         full_name="example/project",
@@ -60,7 +60,7 @@ def test_expanding_tools_returns_existing_grant_to_pending(db, tmp_path: Path) -
 
 def test_job_without_a_schedule_is_manual_only(db, tmp_path: Path) -> None:
     user = get_user_model().objects.create_user(username="owner")
-    workspace = Workspace.objects.create(name="Test", slug="test", owner=user)
+    workspace = create_workspace(name="Test", slug="test", owner=user)
     repository = Repository.objects.create(
         workspace=workspace, full_name="example/project", enabled=True
     )

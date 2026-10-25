@@ -1,7 +1,7 @@
 import djclick as click
 
-from secondshift.core.owners import get_owner, has_owner
 from secondshift.core.signin import SIGN_IN_LINK_SECONDS, sign_in_url
+from secondshift.workspaces.owners import get_owner, has_owner
 
 
 @click.command()

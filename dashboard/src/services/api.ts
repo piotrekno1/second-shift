@@ -5,7 +5,8 @@ export async function apiGet<T>(path: string): Promise<T> {
     credentials: 'include',
     headers: { Accept: 'application/json' },
   })
-  if (response.status === 401 || response.status === 403) {
+  // 403 means signed in but not allowed, so it stays an ordinary error.
+  if (response.status === 401) {
     throw new AuthenticationRequired('Sign in required')
   }
   if (!response.ok) {
@@ -19,7 +20,8 @@ export async function apiText(path: string): Promise<string> {
     credentials: 'include',
     headers: { Accept: 'text/plain' },
   })
-  if (response.status === 401 || response.status === 403) {
+  // 403 means signed in but not allowed, so it stays an ordinary error.
+  if (response.status === 401) {
     throw new AuthenticationRequired('Sign in required')
   }
   if (!response.ok) {
@@ -61,6 +63,7 @@ export async function apiPost<T>(path: string, body?: unknown): Promise<T> {
   if (!response.ok) {
     throw await responseError(response)
   }
+  if (response.status === 204) return undefined as T
   return response.json() as Promise<T>
 }
 
@@ -80,7 +83,7 @@ export async function apiDelete(path: string): Promise<void> {
 
 export async function signOut(): Promise<void> {
   // allauth only logs out on POST. It answers with a redirect, which is not
-  // followed here: the caller reloads into the sign-in screen instead.
+  // followed here: the caller goes to the sign-in page instead.
   const response = await fetch('/accounts/logout/', {
     method: 'POST',
     credentials: 'include',

@@ -1,9 +1,10 @@
 from django.core.exceptions import ValidationError
 from django.db import models
 
-from secondshift.core.models import RunLimitOverrides, Workspace
+from secondshift.core.models import RunLimitOverrides
 from secondshift.integrations.models import Connection
 from secondshift.repositories.models import Repository
+from secondshift.workspaces.models import Workspace
 
 
 class Job(RunLimitOverrides):

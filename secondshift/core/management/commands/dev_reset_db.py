@@ -7,9 +7,9 @@ from django.utils import timezone
 
 from secondshift.automations.models import Job, Run, RunEvent
 from secondshift.config.constants import SandboxRuntime
-from secondshift.core.models import Workspace
 from secondshift.integrations.models import Connection
 from secondshift.repositories.models import Repository
+from secondshift.workspaces.models import Workspace
 
 
 @click.command()

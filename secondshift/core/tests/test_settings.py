@@ -238,7 +238,8 @@ def test_sqlite_waits_for_writers_instead_of_failing(tmp_path: Path) -> None:
 def test_local_is_a_single_host_install_without_debug(tmp_path: Path) -> None:
     script = (
         "print(s.DEBUG, s.LOCAL_REPOSITORIES_ENABLED, s.OUTBOUND_ALLOW_LOCAL, "
-        "s.STATIC_ROOT, s.RUNNER_SERVICE_URL, bool(s.FIELD_ENCRYPTION_KEY))"
+        "s.STATIC_ROOT, s.RUNNER_SERVICE_URL, bool(s.FIELD_ENCRYPTION_KEY), "
+        "s.FRONTEND_URL)"
     )
     result = load_settings(
         "secondshift.config.settings.local", tmp_path, script=script, DJANGO_ENV="local"
@@ -252,6 +253,7 @@ def test_local_is_a_single_host_install_without_debug(tmp_path: Path) -> None:
         "None",
         "http://127.0.0.1:8002",
         "True",
+        "http://127.0.0.1:8000",
     ]
     assert (tmp_path / ".env").exists()
 
@@ -312,3 +314,39 @@ def test_local_ignores_the_checkout_env(
 
     assert result.returncode == 0, result.stderr
     assert result.stdout.strip() == str(reads_checkout_env)
+
+
+EMAIL_SCRIPT = "print(s.EMAIL_BACKEND.rsplit('.', 2)[-2], s.ACCOUNT_EMAIL_VERIFICATION)"
+
+
+@pytest.mark.parametrize(
+    ("module", "environment", "variables", "expected"),
+    [
+        ("production", "production", PRODUCTION_ENV, ["dummy", "none"]),
+        ("local", "local", {}, ["console", "none"]),
+        ("dev", "dev", {}, ["console", "optional"]),
+        (
+            "production",
+            "production",
+            {**PRODUCTION_ENV, "EMAIL_URL": "smtp://user:pw@mail.example:587"},
+            ["smtp", "optional"],
+        ),
+    ],
+)
+def test_email_is_sent_and_confirmed_only_with_an_email_url(
+    tmp_path: Path,
+    module: str,
+    environment: str,
+    variables: dict[str, str],
+    expected: list[str],
+) -> None:
+    result = load_settings(
+        f"secondshift.config.settings.{module}",
+        tmp_path,
+        script=EMAIL_SCRIPT,
+        DJANGO_ENV=environment,
+        **variables,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.split() == expected

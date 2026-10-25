@@ -27,8 +27,8 @@ from secondshift.automations.runner_protocol import (
     RunnerSessionSpec,
 )
 from secondshift.automations.tool_policy import LOCAL_TOOLS
-from secondshift.core.models import Workspace
 from secondshift.repositories.models import Repository
+from secondshift.workspaces.services import create_workspace
 
 LATER = datetime(2100, 1, 1, tzinfo=UTC)
 
@@ -178,7 +178,7 @@ def test_execute_agent_run_stores_report_and_uses_native_limits(
     }
     storages._storages.clear()
     user = get_user_model().objects.create_user(username="owner")
-    workspace = Workspace.objects.create(name="Test", slug="test", owner=user)
+    workspace = create_workspace(name="Test", slug="test", owner=user)
     repository = Repository.objects.create(
         workspace=workspace,
         full_name="example/project",

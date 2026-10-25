@@ -5,7 +5,7 @@ from botocore.exceptions import ClientError
 from django.conf import settings
 
 from secondshift.automations.artifacts import artifact_storage
-from secondshift.core.owners import ensure_owner
+from secondshift.workspaces.owners import ensure_owner
 
 
 @click.command()

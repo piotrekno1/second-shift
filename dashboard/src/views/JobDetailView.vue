@@ -13,6 +13,7 @@ import { isRunActive, startJobRun } from '../services/runs'
 import { saveJobLimits } from '../services/settings'
 import { useAppStore } from '../stores/app'
 import type { Job, JobDetail, RunLimitUpdate } from '../types'
+import { Action } from '../utils/permissions'
 import { accessLabel, accessNeedsAction, countLabel, formatDate, formatRelative, formatSchedule, formatScheduled, jobState, utcTitle } from '../utils/format'
 
 const route = useRoute()
@@ -103,8 +104,8 @@ useLiveRefresh(loadJob, () => (job.value?.recent_runs ?? []).some((run) => isRun
   <div class="page">
     <PageHeader :title="job?.name ?? 'Job'" :description="detailSubtitle">
       <RouterLink to="/jobs" class="secondary-action"><i class="mdi mdi-arrow-left" /> Jobs</RouterLink>
-      <Button v-if="job && job.cron" :label="job.enabled ? 'Disable' : 'Enable'" :icon="job.enabled ? 'pi pi-pause' : 'pi pi-play'" severity="secondary" outlined :loading="action === 'toggle'" @click="toggleJob" />
-      <Button v-if="job" label="Run now" icon="pi pi-play" :disabled="!job.repository_enabled" :title="job.repository_enabled ? 'Start a run and open it' : 'Enable the repository to run its jobs'" :loading="action === 'run'" @click="runNow" />
+      <Button v-if="job && job.cron && app.can(Action.EnableJobs)" :label="job.enabled ? 'Disable' : 'Enable'" :icon="job.enabled ? 'pi pi-pause' : 'pi pi-play'" severity="secondary" outlined :loading="action === 'toggle'" @click="toggleJob" />
+      <Button v-if="job && app.can(Action.RunJobs)" label="Run now" icon="pi pi-play" :disabled="!job.repository_enabled" :title="job.repository_enabled ? 'Start a run and open it' : 'Enable the repository to run its jobs'" :loading="action === 'run'" @click="runNow" />
     </PageHeader>
 
     <div v-if="loading" class="panel empty-state"><i class="mdi mdi-loading mdi-spin" /><strong>Loading job</strong></div>
@@ -152,7 +153,7 @@ useLiveRefresh(loadJob, () => (job.value?.recent_runs ?? []).some((run) => isRun
           <section v-if="job.capabilities.length" class="panel job-access-panel">
             <div class="panel-heading">
               <div><h2>Access and connections</h2><p>{{ countLabel(requiredCapabilities.length, 'required capability', 'required capabilities') }} · {{ countLabel(optionalCapabilities.length, 'optional capability', 'optional capabilities') }}</p></div>
-              <RouterLink :to="{ path: '/jobs', query: { review: String(job.id) } }">Review permissions</RouterLink>
+              <RouterLink v-if="app.can(Action.ReviewCapabilities)" :to="{ path: '/jobs', query: { review: String(job.id) } }">Review permissions</RouterLink>
             </div>
             <div class="job-capability-details">
               <div v-for="capability in job.capabilities" :key="capability.id" class="job-capability-detail">

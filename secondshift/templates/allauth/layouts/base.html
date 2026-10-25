@@ -1,0 +1,72 @@
+{% load i18n static %}
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block head_title %}{% endblock head_title %} · SecondShift</title>
+    <link rel="icon" type="image/svg+xml" href="{% static 'secondshift-mark.svg' %}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap">
+    <link rel="stylesheet" href="{% static 'core/account.css' %}">
+    {% block extra_head %}{% endblock extra_head %}
+  </head>
+  <body>
+    {% block body %}
+      <main class="account-page">
+        <section class="account-card">
+          <a href="/" class="account-brand">
+            <img src="{% static 'secondshift-mark.svg' %}" alt="" width="32" height="32">
+            <span>SecondShift</span>
+          </a>
+          <span class="account-eyebrow">{% trans "Your agents, safely on duty" %}</span>
+          {% if messages %}
+            <ul class="account-messages">
+              {% for message in messages %}<li>{{ message }}</li>{% endfor %}
+            </ul>
+          {% endif %}
+          {% if pending_invite and not user.is_authenticated %}
+            <p class="account-invite">
+              {% blocktrans with workspace=pending_invite.workspace.name role=pending_invite.get_role_display %}Sign in or sign up to join <strong>{{ workspace }}</strong> as {{ role }}.{% endblocktrans %}
+            </p>
+          {% endif %}
+          {% block content %}{% endblock content %}
+          {% if user.is_authenticated %}
+            <a href="/" class="account-back">{% trans "Back to SecondShift" %}</a>
+          {% endif %}
+        </section>
+        <aside class="account-atmosphere" aria-label="{% trans "Example scheduled reviews" %}">
+          <div class="orbit orbit-one"></div>
+          <div class="orbit orbit-two"></div>
+          <article class="shift-preview shift-release">
+            <span>Monday · 09:00</span>
+            <strong>Weekly release recap</strong>
+            <p>Merged features, fixes, and what comes next.</p>
+          </article>
+          <article class="shift-preview shift-ci">
+            <span>Every morning · 08:00</span>
+            <strong>CI failure review</strong>
+            <p>Recurring failures and suggested fixes.</p>
+          </article>
+          <article class="shift-preview shift-health">
+            <span>Monday · 09:15</span>
+            <strong>Repository health review</strong>
+            <p>Defects, test gaps, and docs that drifted.</p>
+          </article>
+          <article class="shift-preview shift-contributors">
+            <span>Friday · 16:00</span>
+            <strong>Contributor recap</strong>
+            <p>The people behind the work and reviews.</p>
+          </article>
+          <article class="shift-preview shift-alerts">
+            <span>Monday · 09:30</span>
+            <strong>Alert coverage review</strong>
+            <p>Removed alerts, paused rules, and changed thresholds.</p>
+          </article>
+        </aside>
+      </main>
+    {% endblock body %}
+    {% block extra_body %}{% endblock extra_body %}
+  </body>
+</html>

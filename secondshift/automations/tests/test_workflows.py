@@ -11,8 +11,8 @@ from secondshift.automations.workflows import (
     stop_runner_session_step,
 )
 from secondshift.config.constants import RunSandbox
-from secondshift.core.models import Workspace
 from secondshift.repositories.models import Repository
+from secondshift.workspaces.services import create_workspace
 
 
 class FakeRunnerClient:
@@ -30,7 +30,7 @@ class FakeRunnerClient:
 
 def execution_run(db) -> Run:
     user = get_user_model().objects.create_user(username="owner")
-    workspace = Workspace.objects.create(name="Test", slug="test", owner=user)
+    workspace = create_workspace(name="Test", slug="test", owner=user)
     repository = Repository.objects.create(
         workspace=workspace,
         full_name="current/project",

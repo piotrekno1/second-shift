@@ -10,10 +10,10 @@ from secondshift.automations.manifest import RepositoryManifest, load_manifest
 from secondshift.automations.models import JobGrant
 from secondshift.automations.sync import sync_manifest
 from secondshift.config.constants import GITHUB_BASE_URL
-from secondshift.core.models import Workspace
 from secondshift.integrations.models import Connection
 from secondshift.repositories.github import github_remote_name
 from secondshift.repositories.models import Repository
+from secondshift.workspaces.models import Workspace
 
 
 class LocalRepositoryError(ValueError):

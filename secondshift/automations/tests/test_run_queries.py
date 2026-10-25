@@ -7,14 +7,15 @@ from django.test import Client
 from django.utils import timezone
 
 from secondshift.automations.models import Job, Run
-from secondshift.core.models import Workspace
 from secondshift.gateway.models import ModelUsage
 from secondshift.repositories.models import Repository
+from secondshift.workspaces.models import Workspace
+from secondshift.workspaces.services import create_workspace, workspace_owner
 
 
 def make_workspace(slug: str) -> Workspace:
     user = get_user_model().objects.create_user(username=f"{slug}-owner")
-    return Workspace.objects.create(name=slug, slug=slug, owner=user)
+    return create_workspace(name=slug, slug=slug, owner=user)
 
 
 def make_job(workspace: Workspace, repository: str, key: str) -> Job:
@@ -66,7 +67,7 @@ def ids(response: object) -> set[int]:
 def test_runs_are_scoped_filtered_and_counted(
     client: Client, runs: dict[str, object]
 ) -> None:
-    client.force_login(runs["workspace"].owner)  # type: ignore[attr-defined]
+    client.force_login(workspace_owner(runs["workspace"]))  # type: ignore[attr-defined]
 
     everything = client.get("/api/runs")
     failed = client.get("/api/runs", {"status": ["failed", "running"]})
@@ -99,14 +100,14 @@ def test_runs_are_scoped_filtered_and_counted(
 def test_runs_search_job_repository_and_summary(
     client: Client, runs: dict[str, object], q: str, expected: set[str]
 ) -> None:
-    client.force_login(runs["workspace"].owner)  # type: ignore[attr-defined]
+    client.force_login(workspace_owner(runs["workspace"]))  # type: ignore[attr-defined]
     response = client.get("/api/runs", {"q": q})
     assert ids(response) == {runs[name].pk for name in expected}  # type: ignore[attr-defined]
 
 
 @pytest.mark.django_db
 def test_runs_search_by_number(client: Client, runs: dict[str, object]) -> None:
-    client.force_login(runs["workspace"].owner)  # type: ignore[attr-defined]
+    client.force_login(workspace_owner(runs["workspace"]))  # type: ignore[attr-defined]
     target = runs["health_ok"].pk  # type: ignore[attr-defined]
     assert target in ids(client.get("/api/runs", {"q": f"#{target}"}))
 
@@ -115,7 +116,7 @@ def test_runs_search_by_number(client: Client, runs: dict[str, object]) -> None:
 def test_runs_paginate_newest_first_and_clamp_the_page(
     client: Client, runs: dict[str, object]
 ) -> None:
-    client.force_login(runs["workspace"].owner)  # type: ignore[attr-defined]
+    client.force_login(workspace_owner(runs["workspace"]))  # type: ignore[attr-defined]
 
     first = client.get("/api/runs", {"page_size": 3}).json()
     second = client.get("/api/runs", {"page_size": 3, "page": 2}).json()
@@ -128,7 +129,7 @@ def test_runs_paginate_newest_first_and_clamp_the_page(
 
 @pytest.mark.django_db
 def test_runs_reject_invalid_queries(client: Client, runs: dict[str, object]) -> None:
-    client.force_login(runs["workspace"].owner)  # type: ignore[attr-defined]
+    client.force_login(workspace_owner(runs["workspace"]))  # type: ignore[attr-defined]
     assert client.get("/api/runs", {"status": "exploded"}).status_code == 422
     assert client.get("/api/runs", {"page_size": 500}).status_code == 422
     assert client.get("/api/runs", {"page": 0}).status_code == 422
@@ -147,7 +148,7 @@ def test_run_detail_includes_events_output_and_frozen_inputs(
     run.save()  # type: ignore[attr-defined]
     run.events.create(message="Run started.")  # type: ignore[attr-defined]
     run.events.create(level="error", message="Timed out", metadata={"stage": "skill"})  # type: ignore[attr-defined]
-    client.force_login(runs["workspace"].owner)  # type: ignore[attr-defined]
+    client.force_login(workspace_owner(runs["workspace"]))  # type: ignore[attr-defined]
 
     body = client.get(f"/api/runs/{run.pk}").json()  # type: ignore[attr-defined]
 
@@ -169,7 +170,7 @@ def test_run_detail_is_scoped_to_the_workspace(
     client: Client, runs: dict[str, object]
 ) -> None:
     foreign = Run.objects.exclude(job__workspace=runs["workspace"]).get()
-    client.force_login(runs["workspace"].owner)  # type: ignore[attr-defined]
+    client.force_login(workspace_owner(runs["workspace"]))  # type: ignore[attr-defined]
 
     assert client.get(f"/api/runs/{foreign.pk}").status_code == 404
     assert client.get("/api/runs/999999").status_code == 404
@@ -186,7 +187,7 @@ def test_run_list_includes_stats_from_the_frozen_plan(
         "model": {"default_model": "m-1"},
     }
     run.save()  # type: ignore[attr-defined]
-    client.force_login(runs["workspace"].owner)  # type: ignore[attr-defined]
+    client.force_login(workspace_owner(runs["workspace"]))  # type: ignore[attr-defined]
 
     items = client.get("/api/runs").json()["items"]
     item = next(i for i in items if i["id"] == run.pk)  # type: ignore[attr-defined]
@@ -205,7 +206,7 @@ def test_run_list_splits_failures_into_label_and_reason(
     Run.objects.filter(pk=runs["health_failed"].pk).update(  # type: ignore[attr-defined]
         summary="Couldn't start the sandbox: Runner answered HTTP 500."
     )
-    client.force_login(runs["workspace"].owner)  # type: ignore[attr-defined]
+    client.force_login(workspace_owner(runs["workspace"]))  # type: ignore[attr-defined]
 
     items = {i["id"]: i for i in client.get("/api/runs").json()["items"]}
 
@@ -222,7 +223,7 @@ def test_job_detail_lists_recent_runs_newest_first(
     client: Client, runs: dict[str, object]
 ) -> None:
     health = runs["health"]
-    client.force_login(runs["workspace"].owner)  # type: ignore[attr-defined]
+    client.force_login(workspace_owner(runs["workspace"]))  # type: ignore[attr-defined]
 
     recent = client.get(f"/api/jobs/{health.pk}").json()["recent_runs"]  # type: ignore[attr-defined]
 
@@ -253,7 +254,7 @@ def test_runs_filter_by_period_and_sort_by_cost(
     record_usage(runs["health_ok"], "0.0200")  # type: ignore[arg-type]
     record_usage(runs["triage_ok"], "0.0500")  # type: ignore[arg-type]
     record_usage(runs["triage_running"], None)  # type: ignore[arg-type]
-    client.force_login(runs["workspace"].owner)  # type: ignore[attr-defined]
+    client.force_login(workspace_owner(runs["workspace"]))  # type: ignore[attr-defined]
 
     week = client.get("/api/runs", {"period": "7d"})
     month = client.get("/api/runs", {"period": "30d"})

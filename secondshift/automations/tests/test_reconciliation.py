@@ -8,8 +8,8 @@ from django.utils import timezone
 
 from secondshift.automations.models import Job, Run
 from secondshift.automations.reconciliation import reconcile_terminal_workflows
-from secondshift.core.models import Workspace
 from secondshift.repositories.models import Repository
+from secondshift.workspaces.services import create_workspace
 
 
 class FakeDBOSClient:
@@ -25,7 +25,7 @@ class FakeDBOSClient:
 
 def create_run(*, status: str, workflow_id: str) -> Run:
     user = get_user_model().objects.create_user(username=f"owner-{workflow_id}")
-    workspace = Workspace.objects.create(
+    workspace = create_workspace(
         name=f"Workspace {workflow_id}",
         slug=f"workspace-{workflow_id}",
         owner=user,

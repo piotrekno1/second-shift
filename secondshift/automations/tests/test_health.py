@@ -8,6 +8,7 @@ from secondshift.automations.health import failing_jobs, spend_by_job, week_summ
 from secondshift.automations.models import Run
 from secondshift.automations.tests.test_run_queries import make_job, make_workspace
 from secondshift.gateway.models import ModelUsage
+from secondshift.workspaces.services import workspace_owner
 
 NOW = datetime(2026, 10, 23, 12, 0, tzinfo=UTC)
 
@@ -105,7 +106,7 @@ def test_overview_reports_failing_jobs_and_weekly_numbers(client: Client) -> Non
         summary="Couldn't start the sandbox: Runner answered HTTP 500.",
         scheduled_for=datetime.now(UTC),
     )
-    client.force_login(workspace.owner)
+    client.force_login(workspace_owner(workspace))
 
     body = client.get("/api/overview").json()
 

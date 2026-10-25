@@ -109,8 +109,14 @@ first skill, schedule, and webhook notification.
 | --- | --- |
 | **Repository contributors** | Propose skills, schedules, and requested capabilities through Git changes. |
 | **Repository maintainers** | Review and merge those changes through the repository's normal process. |
-| **Workspace owners** | Connect model providers and services, approve each job's access, and enable jobs. |
+| **Workspace owners** | Connect model providers and services, approve each job's access, add local repositories, and invite people and manage their roles. |
+| **Workspace admins** | Enable, run and schedule approved jobs, manage repositories, and change run limits. |
+| **Workspace members** | View repositories, jobs and runs. |
 | **Server operators** | Define sandbox images, runtimes, resource limits, and network policy. |
+
+Each workspace role can also do everything the roles below it can. The full
+list of actions and the role each needs is `POLICY` in
+`secondshift/workspaces/access.py`.
 
 A committed skill does not grant itself access. Repository configuration cannot
 choose credentials, provider endpoints, sandbox images, mounts, or network
@@ -122,11 +128,16 @@ Skills run in isolated sandboxes. Every run is tied to a Git commit.
 
 ### How is this different from Hermes Agent?
 
-[Hermes Agent](https://hermes-agent.nousresearch.com/docs/user-guide/features/cron/)
-already supports scheduled skills and report delivery. SecondShift puts
-recurring engineering tasks under a team's repository and access controls.
-Review the skill and schedule in Git, approve its service access separately,
-and inspect each run's revision, tool activity, report, and cost.
+[Hermes Agent](https://hermes-agent.nousresearch.com/docs) is individual-first,
+centered on an agent that remembers your context and works across your tools.
+SecondShift is team-first, built around recurring engineering tasks managed
+through Git, explicit permissions, and shared run history. Both can serve
+individuals or teams.
+
+Hermes already supports scheduled skills and report delivery. In SecondShift,
+review the skill and schedule in Git, approve its service access separately,
+and inspect each run's revision, tool activity, report, and cost. Workspace
+roles separate who can grant access, operate jobs, and view results.
 
 A merged skill cannot grant itself credentials or expand its approved access.
 Commands run in a networkless sandbox. External tool calls go through a broker

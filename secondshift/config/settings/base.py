@@ -92,6 +92,7 @@ INSTALLED_APPS = [
     "axes",
     "health_check",
     "secondshift.core",
+    "secondshift.workspaces",
     "secondshift.integrations",
     "secondshift.repositories",
     "secondshift.automations",
@@ -133,6 +134,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "secondshift.workspaces.context_processors.invite",
             ]
         },
     }
@@ -271,6 +273,22 @@ AUTHENTICATION_BACKENDS = [
     "django.contrib.auth.backends.ModelBackend",
     "allauth.account.auth_backends.AuthenticationBackend",
 ]
+
+# Email goes out only through EMAIL_URL, e.g. smtp://user:pass@host:587.
+EMAIL_URL = env.str("EMAIL_URL", default="")
+DEFAULT_FROM_EMAIL = env.str("DEFAULT_FROM_EMAIL", default="webmaster@localhost")
+if EMAIL_URL:
+    globals().update(env.email_url("EMAIL_URL"))
+elif SINGLE_HOST:
+    # One person at the terminal reads them there.
+    EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+else:
+    # Nowhere to send them. They are dropped so reset links never reach logs.
+    EMAIL_BACKEND = "django.core.mail.backends.dummy.EmailBackend"
+# Whether an email reaches anyone. Password resets are offered only then.
+EMAIL_DELIVERED = bool(EMAIL_URL) or SINGLE_HOST
+# Ask people to confirm their address only when an email can reach them.
+ACCOUNT_EMAIL_VERIFICATION = "optional" if EMAIL_URL or DEV else "none"
 
 ACCOUNT_LOGIN_METHODS = {"email"}
 ACCOUNT_SIGNUP_FIELDS = ["email*", "password1*", "password2*"]

@@ -28,7 +28,6 @@ from secondshift.automations.tests.test_execution import tool_context
 from secondshift.automations.tool_broker import call_external_tool_step
 from secondshift.automations.tool_policy import ToolPolicyError
 from secondshift.config.constants import GITHUB_MCP_URL
-from secondshift.core.models import Workspace
 from secondshift.integrations.errors import ExternalToolError
 from secondshift.integrations.mcp.base import MCPError, MCPRequestError
 from secondshift.integrations.models import Connection
@@ -36,6 +35,7 @@ from secondshift.integrations.tests.test_github_mcp import TOOL_SCHEMAS
 from secondshift.integrations.tests.test_github_mcp import mcp_http as imported_mcp_http
 from secondshift.integrations.webhooks import deliver_webhook
 from secondshift.repositories.models import Repository
+from secondshift.workspaces.services import create_workspace, workspace_owner
 
 LATER = datetime(2100, 1, 1, tzinfo=UTC)
 
@@ -51,7 +51,7 @@ NAME = "mcp.github.search_pull_requests"
 @pytest.fixture
 def planned_run() -> Run:
     owner = get_user_model().objects.create_user(username="broker-owner")
-    workspace = Workspace.objects.create(name="Broker", slug="broker", owner=owner)
+    workspace = create_workspace(name="Broker", slug="broker", owner=owner)
     repository = Repository.objects.create(
         workspace=workspace, full_name="example/project", config_sha="a" * 40
     )
@@ -152,8 +152,8 @@ def test_policy_changes_stop_active_run(planned_run, change, mcp_http) -> None:
         connection.metadata = {**connection.metadata, "tools": {}}
         connection.save()
     elif change == "workspace":
-        other = Workspace.objects.create(
-            name="Other", slug="other", owner=planned_run.job.workspace.owner
+        other = create_workspace(
+            name="Other", slug="other", owner=workspace_owner(planned_run.job.workspace)
         )
         connection.workspace = other
         connection.save()

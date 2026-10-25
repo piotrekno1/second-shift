@@ -11,7 +11,6 @@ from django.db import connection as db_connection
 from django.test import Client
 
 from secondshift.automations.models import CapabilityRequest, Job, JobGrant
-from secondshift.core.models import Workspace
 from secondshift.integrations import webhooks
 from secondshift.integrations.models import Connection
 from secondshift.integrations.webhooks import (
@@ -20,6 +19,8 @@ from secondshift.integrations.webhooks import (
     validate_webhook_url,
 )
 from secondshift.repositories.models import Repository
+from secondshift.workspaces.models import Workspace
+from secondshift.workspaces.services import create_workspace
 
 SECRET_URL = "https://hooks.example.com/services/T000/B000/secret-token"
 
@@ -34,7 +35,7 @@ def resolve_to(address: str) -> Any:
 @pytest.fixture
 def owner(db: object) -> tuple[AbstractUser, Workspace]:
     user = get_user_model().objects.create_user(username="owner")
-    workspace = Workspace.objects.create(name="Test", slug="test", owner=user)
+    workspace = create_workspace(name="Test", slug="test", owner=user)
     return user, workspace
 
 

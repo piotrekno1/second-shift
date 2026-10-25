@@ -9,16 +9,21 @@ import StatusPill from '../components/StatusPill.vue'
 import { approveNeed, deleteConnection, revokeConnection, testConnection } from '../services/connections'
 import { useAppStore } from '../stores/app'
 import type { CapabilityNeed, Connection, Notice } from '../types'
+import { Action } from '../utils/permissions'
 import { connectionUsageLine, countLabel, formatDate, formatRelative, providerLabel, utcTitle } from '../utils/format'
 
 /** Which form is open: the header "Add", a need row, or a connection row. */
 type OpenForm = { mode: 'add' } | { mode: 'need', binding: string } | { mode: 'edit', id: number }
 
 const app = useAppStore()
+const canUseAdmin = computed(() => app.user?.can_use_admin ?? false)
+// Adding, editing and reconnecting all open the same form.
+const canEdit = computed(() => app.can(Action.AddConnections) && app.can(Action.EditConnections))
+const canTest = computed(() => app.can(Action.TestConnections))
 const route = useRoute()
 const router = useRouter()
 const requestedBinding = typeof route.query.binding === 'string' ? route.query.binding : null
-const openForm = ref<OpenForm | null>(requestedBinding ? { mode: 'need', binding: requestedBinding } : null)
+const openForm = ref<OpenForm | null>(requestedBinding && canEdit.value ? { mode: 'need', binding: requestedBinding } : null)
 const busy = ref<string | null>(null)
 const confirmDelete = ref<number | null>(null)
 const confirmRevoke = ref<number | null>(null)
@@ -214,7 +219,7 @@ onMounted(async () => {
       <RouterLink v-if="returnReview" :to="{ path: '/jobs', query: { review: returnReview } }" class="secondary-action">
         <i class="mdi mdi-arrow-left" /> Back to {{ returnJob || 'job review' }}
       </RouterLink>
-      <Button label="Add connection" icon="pi pi-plus" @click="toggle({ mode: 'add' })" />
+      <Button v-if="canEdit" label="Add connection" icon="pi pi-plus" @click="toggle({ mode: 'add' })" />
     </PageHeader>
 
     <p v-if="pageNotice" class="page-notice" :class="{ ok: pageNotice.ok }" role="status">
@@ -253,17 +258,17 @@ onMounted(async () => {
             <StatusPill v-else :status="connection.status" />
             <div v-if="connection.kind !== 'identity'" class="need-actions">
               <template v-if="connection.kind === 'mcp' || connection.kind === 'api'">
-                <Button v-if="connection.status === 'connected'" :label="connection.kind === 'api' ? 'Check operations' : 'Check tools'" icon="pi pi-refresh" severity="secondary" text size="small" :loading="busy === `test-${connection.id}`" @click="sendTest(connection, `connection-${connection.id}`)" />
-                <Button :label="connection.status === 'connected' ? 'Edit' : 'Reconnect'" icon="pi pi-pencil" severity="secondary" text size="small" @click="toggle({ mode: 'edit', id: connection.id })" />
+                <Button v-if="connection.status === 'connected' && canTest" :label="connection.kind === 'api' ? 'Check operations' : 'Check tools'" icon="pi pi-refresh" severity="secondary" text size="small" :loading="busy === `test-${connection.id}`" @click="sendTest(connection, `connection-${connection.id}`)" />
+                <Button v-if="canEdit" :label="connection.status === 'connected' ? 'Edit' : 'Reconnect'" icon="pi pi-pencil" severity="secondary" text size="small" @click="toggle({ mode: 'edit', id: connection.id })" />
               </template>
               <template v-else-if="connection.provider === 'webhook' || connection.kind === 'model'">
-                <Button v-if="connection.status === 'connected'" :label="connection.kind === 'model' ? 'Check' : 'Send test'" :title="connection.kind === 'model' ? 'Lists models and sends one tiny request to the default model (a fraction of a cent)' : undefined" icon="pi pi-send" severity="secondary" text size="small" :loading="busy === `test-${connection.id}`" @click="sendTest(connection, `connection-${connection.id}`)" />
-                <Button :label="connection.status === 'revoked' ? 'Reconnect' : 'Edit'" icon="pi pi-pencil" severity="secondary" text size="small" @click="toggle({ mode: 'edit', id: connection.id })" />
+                <Button v-if="connection.status === 'connected' && canTest" :label="connection.kind === 'model' ? 'Check' : 'Send test'" :title="connection.kind === 'model' ? 'Lists models and sends one tiny request to the default model (a fraction of a cent)' : undefined" icon="pi pi-send" severity="secondary" text size="small" :loading="busy === `test-${connection.id}`" @click="sendTest(connection, `connection-${connection.id}`)" />
+                <Button v-if="canEdit" :label="connection.status === 'revoked' ? 'Reconnect' : 'Edit'" icon="pi pi-pencil" severity="secondary" text size="small" @click="toggle({ mode: 'edit', id: connection.id })" />
               </template>
-              <a v-else :href="`/-/admin/integrations/connection/${connection.id}/change/`" target="_blank" rel="noopener" class="secondary-action compact"><i class="mdi mdi-open-in-new" /> Admin</a>
-              <Button v-if="connection.status !== 'revoked'" :label="confirmRevoke === connection.id ? 'Confirm disconnect' : 'Disconnect'" severity="danger" :text="confirmRevoke !== connection.id" size="small" :loading="busy === `revoke-${connection.id}`" @click="disconnect(connection)" />
+              <a v-else-if="canUseAdmin" :href="`/-/admin/integrations/connection/${connection.id}/change/`" target="_blank" rel="noopener" class="secondary-action compact"><i class="mdi mdi-open-in-new" /> Admin</a>
+              <Button v-if="connection.status !== 'revoked' && app.can(Action.DisconnectConnections)" :label="confirmRevoke === connection.id ? 'Confirm disconnect' : 'Disconnect'" severity="danger" :text="confirmRevoke !== connection.id" size="small" :loading="busy === `revoke-${connection.id}`" @click="disconnect(connection)" />
               <Button v-if="confirmRevoke === connection.id" label="Cancel" severity="secondary" text size="small" @click="confirmRevoke = null" />
-              <Button v-if="connection.status === 'revoked'" :label="confirmDelete === connection.id ? 'Confirm delete' : 'Delete'" severity="danger" :text="confirmDelete !== connection.id" size="small" :loading="busy === `delete-${connection.id}`" @click="remove(connection)" />
+              <Button v-if="connection.status === 'revoked' && app.can(Action.DeleteConnections)" :label="confirmDelete === connection.id ? 'Confirm delete' : 'Delete'" severity="danger" :text="confirmDelete !== connection.id" size="small" :loading="busy === `delete-${connection.id}`" @click="remove(connection)" />
             </div>
           </div>
           <p v-if="notices[`connection-${connection.id}`]" class="need-notice" :class="{ ok: notices[`connection-${connection.id}`].ok }">
@@ -281,7 +286,7 @@ onMounted(async () => {
           <ConnectionForm v-if="isOpen({ mode: 'edit', id: connection.id })" class="inset" :connection="connection" @done="formDone" @cancel="openForm = null" />
         </article>
       </div>
-      <div v-else class="empty-state compact"><i class="mdi mdi-power-plug-off-outline" /><strong>Nothing connected yet</strong><span>Use <strong>Add connection</strong> or connect a binding above.</span></div>
+      <div v-else class="empty-state compact"><i class="mdi mdi-power-plug-off-outline" /><strong>Nothing connected yet</strong><span v-if="canEdit">Use <strong>Add connection</strong> or connect a binding above.</span><span v-else>Workspace owners add connections.</span></div>
     </section>
 
     <section v-if="app.needs.length" class="panel needs-panel">
@@ -308,14 +313,14 @@ onMounted(async () => {
             </div>
             <span class="status-pill" :class="!need.required && need.status === 'missing' ? 'optional' : needStatus[need.status].pill">{{ needStatus[need.status].label }}</span>
             <div class="need-actions">
-              <Button v-if="need.status === 'missing'" :label="isOpen({ mode: 'need', binding: need.binding }) ? 'Cancel' : 'Connect'" :icon="isOpen({ mode: 'need', binding: need.binding }) ? undefined : 'pi pi-link'" size="small" :severity="isOpen({ mode: 'need', binding: need.binding }) ? 'secondary' : undefined" :text="isOpen({ mode: 'need', binding: need.binding })" @click="toggle({ mode: 'need', binding: need.binding })" />
+              <Button v-if="need.status === 'missing' && canEdit" :label="isOpen({ mode: 'need', binding: need.binding }) ? 'Cancel' : 'Connect'" :icon="isOpen({ mode: 'need', binding: need.binding }) ? undefined : 'pi pi-link'" size="small" :severity="isOpen({ mode: 'need', binding: need.binding }) ? 'secondary' : undefined" :text="isOpen({ mode: 'need', binding: need.binding })" @click="toggle({ mode: 'need', binding: need.binding })" />
               <template v-else-if="need.status === 'unavailable' && need.connection">
-                <Button v-if="need.connection.provider === 'webhook' || need.connection.kind === 'mcp' || need.connection.kind === 'api'" :label="isOpen({ mode: 'need', binding: need.binding }) ? 'Cancel' : 'Reconnect'" icon="pi pi-pencil" size="small" @click="toggle({ mode: 'need', binding: need.binding })" />
-                <a v-else :href="`/-/admin/integrations/connection/${need.connection.id}/change/`" target="_blank" rel="noopener" class="secondary-action compact"><i class="mdi mdi-wrench-outline" /> Fix in admin</a>
+                <Button v-if="canEdit && (need.connection.provider === 'webhook' || need.connection.kind === 'mcp' || need.connection.kind === 'api')" :label="isOpen({ mode: 'need', binding: need.binding }) ? 'Cancel' : 'Reconnect'" icon="pi pi-pencil" size="small" @click="toggle({ mode: 'need', binding: need.binding })" />
+                <a v-else-if="canUseAdmin" :href="`/-/admin/integrations/connection/${need.connection.id}/change/`" target="_blank" rel="noopener" class="secondary-action compact"><i class="mdi mdi-wrench-outline" /> Fix in admin</a>
               </template>
               <template v-else-if="need.connection">
-                <Button v-if="need.connection.provider === 'webhook'" label="Send test" icon="pi pi-send" severity="secondary" text size="small" :loading="busy === `test-${need.connection.id}`" @click="sendTest(need.connection, need.binding)" />
-                <Button v-if="need.status === 'needs_approval'" :label="`Approve for ${countLabel(pendingJobs(need), 'job')}`" icon="pi pi-check" size="small" :loading="busy === `approve-${need.binding}`" @click="approve(need)" />
+                <Button v-if="need.connection.provider === 'webhook' && canTest" label="Send test" icon="pi pi-send" severity="secondary" text size="small" :loading="busy === `test-${need.connection.id}`" @click="sendTest(need.connection, need.binding)" />
+                <Button v-if="need.status === 'needs_approval' && app.can(Action.ReviewCapabilities)" :label="`Approve for ${countLabel(pendingJobs(need), 'job')}`" icon="pi pi-check" size="small" :loading="busy === `approve-${need.binding}`" @click="approve(need)" />
               </template>
             </div>
           </div>
@@ -333,14 +338,14 @@ onMounted(async () => {
     </p>
 
     <section v-if="app.secrets.length" class="panel secrets-panel">
-      <div class="panel-heading"><div><h2>Credential fallback</h2><p>Prefer opaque Vault/KMS references on connections. Encrypted local values remain available for development.</p></div><a href="/-/admin/integrations/secret/add/">Manage in admin</a></div>
+      <div class="panel-heading"><div><h2>Credential fallback</h2><p>Prefer opaque Vault/KMS references on connections. Encrypted local values remain available for development.</p></div><a v-if="canUseAdmin" href="/-/admin/integrations/secret/add/">Manage in admin</a></div>
       <div class="secret-list">
         <div v-for="secret in app.secrets" :key="secret.name"><i class="mdi mdi-key-variant" /><strong>{{ secret.name }}</strong><span>{{ secret.description || 'No description' }}</span></div>
       </div>
     </section>
     <p v-else class="quiet-line">
       <i class="mdi mdi-shield-key-outline" /> No fallback secrets stored. Connections should prefer Vault/KMS references.
-      <a href="/-/admin/integrations/secret/add/" class="detail-link">Add one in admin</a>
+      <a v-if="canUseAdmin" href="/-/admin/integrations/secret/add/" class="detail-link">Add one in admin</a>
     </p>
   </div>
 </template>

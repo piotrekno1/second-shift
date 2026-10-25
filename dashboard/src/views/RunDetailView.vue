@@ -5,12 +5,15 @@ import Button from 'primevue/button'
 import PageHeader from '../components/PageHeader.vue'
 import StatusPill from '../components/StatusPill.vue'
 import { fetchRun, isRunActive, runFileUrl, startJobRun } from '../services/runs'
+import { useAppStore } from '../stores/app'
 import type { RunDetail } from '../types'
+import { Action } from '../utils/permissions'
 import { formatBytes, formatDate, formatTime, runStats, utcTitle, zoneName } from '../utils/format'
 import { renderMarkdown } from '../utils/markdown'
 
 const POLL_MS = 2000
 
+const app = useAppStore()
 const route = useRoute()
 const router = useRouter()
 const run = ref<RunDetail | null>(null)
@@ -106,7 +109,7 @@ onUnmounted(stopPolling)
   <div class="page">
     <PageHeader :title="`Run #${runId}`" :description="subtitle">
       <RouterLink to="/runs" class="secondary-action"><i class="mdi mdi-arrow-left" /> Runs</RouterLink>
-      <Button v-if="run && !active" label="Run again" icon="pi pi-replay" :loading="rerunning" @click="runAgain" />
+      <Button v-if="run && !active && app.can(Action.RunJobs)" label="Run again" icon="pi pi-replay" :loading="rerunning" @click="runAgain" />
     </PageHeader>
 
     <div v-if="loading" class="panel empty-state"><i class="mdi mdi-loading mdi-spin" /><strong>Loading run</strong></div>

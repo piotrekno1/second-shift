@@ -4,7 +4,6 @@ import pytest
 from django.contrib.auth import get_user_model
 
 from secondshift.automations.models import JobGrant
-from secondshift.core.models import Workspace
 from secondshift.integrations.models import Connection
 from secondshift.repositories.github import github_remote_name, github_repository_scope
 from secondshift.repositories.local import (
@@ -14,6 +13,7 @@ from secondshift.repositories.local import (
 )
 from secondshift.repositories.models import Repository
 from secondshift.repositories.tests.test_local import create_local_repository
+from secondshift.workspaces.services import create_workspace
 
 
 @pytest.mark.parametrize(
@@ -79,7 +79,7 @@ def test_inspection_records_sanitized_github_origin(tmp_path: Path) -> None:
 def test_changing_origin_requires_a_new_approval(tmp_path: Path) -> None:
 
     owner = get_user_model().objects.create_user(username="origin-owner")
-    workspace = Workspace.objects.create(name="Origin", slug="origin", owner=owner)
+    workspace = create_workspace(name="Origin", slug="origin", owner=owner)
     Connection.objects.create(
         workspace=workspace,
         provider="github",

@@ -6,7 +6,6 @@ from typing import Any
 
 from django.db import IntegrityError, transaction
 
-from secondshift.core.models import Workspace
 from secondshift.integrations.http_api.client import (
     AUTH_TYPES,
     BEARER,
@@ -22,6 +21,7 @@ from secondshift.integrations.outbound import (
     validate_outbound_url,
 )
 from secondshift.integrations.services import ConnectionConflict
+from secondshift.workspaces.models import Workspace
 
 TOKEN_PATTERN = r"\S{1,2000}"
 # Connection.endpoint_url is a URLField with Django's default limit.

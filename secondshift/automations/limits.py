@@ -18,7 +18,8 @@ from typing import Any
 from django.conf import settings
 
 from secondshift.automations.models import Job
-from secondshift.core.models import RunLimitOverrides, Workspace
+from secondshift.core.models import RunLimitOverrides
+from secondshift.workspaces.models import Workspace
 
 
 class RunLimit(StrEnum):
@@ -91,7 +92,10 @@ LIMIT_SPECS = {
 
 
 class LimitError(ValueError):
-    pass
+    def __init__(self, message: str, ceiling_env: str = "") -> None:
+        super().__init__(message)
+        # The variable that raises the maximum, for people who run the server.
+        self.ceiling_env = ceiling_env
 
 
 @dataclass(frozen=True)
@@ -110,8 +114,6 @@ class LimitView:
     inherited: int
     minimum: int
     maximum: int
-    env: str
-    maximum_env: str
 
 
 def server_default(limit: RunLimit) -> int:
@@ -161,8 +163,6 @@ def limit_views(workspace: Workspace, job: Job | None = None) -> list[LimitView]
                 inherited=inherited,
                 minimum=spec.minimum,
                 maximum=spec.ceiling(),
-                env=spec.env,
-                maximum_env=spec.ceiling_env,
             )
         )
     return views
@@ -179,7 +179,8 @@ def validate_overrides(values: Mapping[str, int | None]) -> dict[str, int | None
         if value is not None and not spec.minimum <= value <= spec.ceiling():
             raise LimitError(
                 f"{spec.label} must be between {spec.minimum:,} and "
-                f"{spec.ceiling():,}. Set {spec.ceiling_env} to allow more."
+                f"{spec.ceiling():,}.",
+                ceiling_env=spec.ceiling_env,
             )
         checked[key] = value
     return checked
@@ -202,8 +203,11 @@ def plan_limit(plan: Mapping[str, Any], limit: RunLimit) -> int:
 
 
 def raise_hint(limit: RunLimit, value: int) -> str:
-    """How to allow more than `value`, for messages about a stopped run."""
-    spec = LIMIT_SPECS[limit]
-    if value < spec.ceiling():
+    """How to allow more than `value`, for messages about a stopped run.
+
+    The message is stored with the run and shown to every member, so it does
+    not name the server variable. Only staff can set it.
+    """
+    if value < LIMIT_SPECS[limit].ceiling():
         return "Raise it in the job's limits."
-    return f"That is the server maximum. Set {spec.ceiling_env} to allow more."
+    return "That is the server maximum. Whoever runs this server can raise it."

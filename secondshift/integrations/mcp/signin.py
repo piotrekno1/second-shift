@@ -10,7 +10,6 @@ from django.contrib.auth.models import AbstractBaseUser
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
-from secondshift.core.models import Workspace
 from secondshift.integrations.mcp.base import MCPError
 from secondshift.integrations.mcp.client import (
     connection_target,
@@ -33,6 +32,7 @@ from secondshift.integrations.mcp.oauth import (
 from secondshift.integrations.mcp.providers import mcp_provider
 from secondshift.integrations.models import Connection, OAuthAuthorization
 from secondshift.integrations.services import ConnectionConflict
+from secondshift.workspaces.models import Workspace
 
 logger = logging.getLogger(__name__)
 

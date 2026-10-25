@@ -15,7 +15,6 @@ from jsonschema import Draft202012Validator
 from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
 
-from secondshift.core.models import Workspace
 from secondshift.integrations.mcp.base import (
     MCPError,
     MCPProvider,
@@ -31,6 +30,7 @@ from secondshift.integrations.mcp.transport import (
 from secondshift.integrations.models import Connection
 from secondshift.integrations.outbound import host_label
 from secondshift.integrations.services import ConnectionConflict
+from secondshift.workspaces.models import Workspace
 
 MCP_MAX_PAGES = 10
 MCP_SCHEMA_MAX_DEPTH = 30
