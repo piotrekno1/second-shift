@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 
 import { apiGet, AuthenticationRequired } from '../services/api'
+import { signInUrl } from '../utils/signIn'
 import { fetchMCPProviders } from '../services/connections'
 import { fetchPendingInvite } from '../services/invites'
 import { fetchRuns } from '../services/runs'
@@ -59,9 +60,8 @@ export const useAppStore = defineStore('app', {
       } catch (error) {
         if (error instanceof AuthenticationRequired) {
           this.authenticated = false
-          if (window.location.pathname !== '/login') {
-            window.history.replaceState({}, '', '/login')
-          }
+          const { pathname, search } = window.location
+          window.location.replace(signInUrl(pathname + search))
         } else {
           this.error = error instanceof Error ? error.message : 'Unable to start SecondShift'
         }

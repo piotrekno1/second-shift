@@ -3,7 +3,6 @@ import { createRouter, createWebHistory } from 'vue-router'
 import ConnectionsView from './views/ConnectionsView.vue'
 import JobsView from './views/JobsView.vue'
 import JobDetailView from './views/JobDetailView.vue'
-import LoginView from './views/LoginView.vue'
 import OverviewView from './views/OverviewView.vue'
 import RepositoriesView from './views/RepositoriesView.vue'
 import RepositoryDetailView from './views/RepositoryDetailView.vue'
@@ -15,7 +14,8 @@ import SettingsView from './views/SettingsView.vue'
 export default createRouter({
   history: createWebHistory(),
   routes: [
-    { path: '/login', component: LoginView },
+    // Signing in happens on the server's pages. Old links still land home.
+    { path: '/login', redirect: '/' },
     { path: '/', component: OverviewView },
     { path: '/repositories', component: RepositoriesView },
     { path: '/repositories/:id', component: RepositoryDetailView },

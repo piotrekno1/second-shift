@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import Button from 'primevue/button'
 import InvitePrompt from '../components/InvitePrompt.vue'
 import { signOut } from '../services/api'
+import { SIGN_IN_PATH } from '../utils/signIn'
 import { useAppStore } from '../stores/app'
 
 const app = useAppStore()
@@ -12,7 +13,7 @@ async function handleSignOut(): Promise<void> {
   signingOut.value = true
   try {
     await signOut()
-    window.location.assign('/login')
+    window.location.assign(SIGN_IN_PATH)
   } catch {
     signingOut.value = false
   }

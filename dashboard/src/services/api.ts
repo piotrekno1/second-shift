@@ -83,7 +83,7 @@ export async function apiDelete(path: string): Promise<void> {
 
 export async function signOut(): Promise<void> {
   // allauth only logs out on POST. It answers with a redirect, which is not
-  // followed here: the caller reloads into the sign-in screen instead.
+  // followed here: the caller goes to the sign-in page instead.
   const response = await fetch('/accounts/logout/', {
     method: 'POST',
     credentials: 'include',

@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { signOut } from '../services/api'
+import { SIGN_IN_PATH } from '../utils/signIn'
 import { useAppStore } from '../stores/app'
 import InvitePrompt from './InvitePrompt.vue'
 
@@ -26,7 +27,7 @@ async function handleSignOut(): Promise<void> {
   try {
     await signOut()
     // A full reload drops all in-memory workspace data with the session.
-    window.location.assign('/login')
+    window.location.assign(SIGN_IN_PATH)
   } catch {
     signingOut.value = false
   }
