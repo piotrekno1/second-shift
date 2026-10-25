@@ -75,15 +75,10 @@ Full run output is stored outside Postgres in private storage, under
 Finished runs older than `SECONDSHIFT_RUN_RETENTION_DAYS` (default 90) are
 pruned daily by the worker, together with their output and DBOS records.
 
-A run stops after `SECONDSHIFT_RUN_TIMEOUT_SECONDS` (default 900, so 15
-minutes). The clock starts when the run starts, so time in the queue does not
-count. The run checks the limit before each model request and each tool call,
-and its model access ends at the limit. A run that passes it fails with the
-reason **Timed out** and keeps what the agent wrote so far as a partial report. Each sandbox command also has its own limit,
-`SECONDSHIFT_RUNNER_COMMAND_TIMEOUT_SECONDS` (default 120).
+Each run has four limits. Each has a default and a maximum:
 
-Each run also has a budget:
-
+- `SECONDSHIFT_RUN_TIMEOUT_SECONDS` (default 900, so 15 minutes) limits time.
+  The clock starts when the run starts, so time in the queue does not count.
 - `SECONDSHIFT_AGENT_MAX_TURNS` (default 24) counts model requests, not tool
   actions. One request can ask for several tool calls.
 - `SECONDSHIFT_AGENT_MAX_TOOL_CALLS` (default 64) counts file reads, searches
@@ -91,9 +86,28 @@ Each run also has a budget:
 - `SECONDSHIFT_MODEL_RUN_TOKEN_BUDGET` (default 2,000,000) counts input and
   output tokens. The model gateway enforces it.
 
+The workspace owner can change these limits on the Settings page for the whole
+workspace, and on a job's page for that job. A job's limit wins over the
+workspace's, and the workspace's wins over the default. No value can go above
+its maximum. Set the maximum with the same variable plus `_CEILING`, for
+example `SECONDSHIFT_AGENT_MAX_TURNS_CEILING`. Each maximum defaults to its
+limit, so owners can only lower a limit until you raise the maximum. Lowering a
+maximum later also caps values owners already chose. `.secondshift.yaml` cannot
+set limits.
+
+A run's limits are fixed when it is created and stored in its execution plan.
+Changing a limit affects the next run, not one that is queued or running.
+
+The run checks the time limit before each model request and each tool call,
+and its model access ends at the limit. A run that passes it fails with the
+reason **Timed out** and keeps what the agent wrote so far as a partial report.
+Each sandbox command also has its own limit,
+`SECONDSHIFT_RUNNER_COMMAND_TIMEOUT_SECONDS` (default 120).
+
 When the agent reaches its last model request, or has no tool calls left, its
 tools are taken away and it is asked to write the report with what it has. The
 run then succeeds and its timeline notes that the budget ran out. A run that
 still goes past a limit, or hits the token budget, fails with the reason
 **Budget used up**. It names the limit and keeps what the agent wrote so far as
-a partial report.
+a partial report. The run page links to the job's limits, and runs show their
+token use against the budget, for example `12.3k / 2m tok`.
