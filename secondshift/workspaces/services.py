@@ -1,14 +1,27 @@
+from django.conf import settings
 from django.contrib.auth.models import AbstractBaseUser
 from django.db import transaction
+from django.utils.text import slugify
 
 from secondshift.workspaces.access import ROLE_RANK, Role
 from secondshift.workspaces.models import Workspace, WorkspaceMembership
 
 LAST_OWNER_MESSAGE = "A workspace needs at least one owner."
+# How many workspaces someone who is not staff may own, so open sign-up
+# cannot be used to fill the database.
+OWNED_WORKSPACE_LIMIT = 3
 
 
 class MembershipError(Exception):
     pass
+
+
+class WorkspaceCreationError(Exception):
+    pass
+
+
+class WorkspaceCreationRefused(WorkspaceCreationError):
+    """The person may not create one, as opposed to asking for a bad one."""
 
 
 @transaction.atomic
@@ -19,6 +32,38 @@ def create_workspace(name: str, slug: str, owner: AbstractBaseUser) -> Workspace
         workspace=workspace, user=owner, role=WorkspaceMembership.Role.OWNER
     )
     return workspace
+
+
+def can_create_workspace(user: AbstractBaseUser) -> bool:
+    """Anyone may when sign-up is open. Otherwise only staff, who run the server."""
+    return bool(settings.SIGNUP_ENABLED or getattr(user, "is_staff", False))
+
+
+def free_slug(name: str) -> str:
+    """A slug from the name, with a number added when it is taken."""
+    base = slugify(name)[:40].strip("-") or "workspace"
+    slug, number = base, 1
+    while Workspace.objects.filter(slug=slug).exists():
+        number += 1
+        slug = f"{base}-{number}"
+    return slug
+
+
+def create_workspace_for(user: AbstractBaseUser, name: str) -> Workspace:
+    """A workspace someone made for themselves from the dashboard."""
+    if not can_create_workspace(user):
+        raise WorkspaceCreationRefused(
+            "Only server staff can create workspaces. Ask an owner for an invite."
+        )
+    name = name.strip()
+    if not name:
+        raise WorkspaceCreationError("Give the workspace a name.")
+    owned = WorkspaceMembership.objects.filter(user=user, role=Role.OWNER).count()
+    if not getattr(user, "is_staff", False) and owned >= OWNED_WORKSPACE_LIMIT:
+        raise WorkspaceCreationRefused(
+            f"You can own up to {OWNED_WORKSPACE_LIMIT} workspaces."
+        )
+    return create_workspace(name, free_slug(name), user)
 
 
 def workspace_owner(workspace: Workspace) -> AbstractBaseUser:

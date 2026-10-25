@@ -86,6 +86,7 @@ from secondshift.workspaces.access import (
     require,
 )
 from secondshift.workspaces.models import Workspace
+from secondshift.workspaces.services import can_create_workspace
 
 api = NinjaAPI(title="SecondShift API", version="1.0")
 api.add_router("", "secondshift.automations.api.router")
@@ -106,6 +107,7 @@ class UserSchema(Schema):
     permissions: list[str]
     # Django admin only lets staff in, so links to it are shown only to them.
     can_use_admin: bool
+    can_create_workspace: bool
     local_repositories_enabled: bool
     environment: str = "Production"
     sandbox: str = "gVisor sandbox"
@@ -565,6 +567,7 @@ def me(request: HttpRequest) -> UserSchema:
         role=membership.role if membership else None,
         permissions=permitted_actions(request),
         can_use_admin=request.user.is_staff,
+        can_create_workspace=can_create_workspace(request.user),
         local_repositories_enabled=settings.LOCAL_REPOSITORIES_ENABLED,
         environment=environment_label(),
         sandbox=sandbox_label(),

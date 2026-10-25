@@ -28,7 +28,10 @@ from secondshift.workspaces.invites import (
 from secondshift.workspaces.models import WorkspaceInvite, WorkspaceMembership
 from secondshift.workspaces.services import (
     MembershipError,
+    WorkspaceCreationError,
+    WorkspaceCreationRefused,
     change_role,
+    create_workspace_for,
     members_in_order,
     remove_member,
 )
@@ -46,6 +49,10 @@ class WorkspaceChoiceSchema(Schema):
 
 class WorkspaceSelectSchema(Schema):
     workspace_id: int
+
+
+class WorkspaceCreateSchema(Schema):
+    name: str = Field(max_length=160)
 
 
 RoleName = Literal["owner", "admin", "member"]
@@ -107,6 +114,22 @@ def workspaces(request: HttpRequest) -> list[WorkspaceChoiceSchema]:
     current = current_workspace(request)
     current_id = current.pk if current else None
     return [serialize_choice(item, current_id) for item in user_memberships(request)]
+
+
+@router.post("/workspaces", response=WorkspaceChoiceSchema)
+def new_workspace(
+    request: HttpRequest, payload: WorkspaceCreateSchema
+) -> WorkspaceChoiceSchema:
+    """Create a workspace owned by the person and switch to it."""
+    try:
+        workspace = create_workspace_for(request.user, payload.name)
+    except WorkspaceCreationRefused as error:
+        raise HttpError(403, str(error)) from error
+    except WorkspaceCreationError as error:
+        raise HttpError(400, str(error)) from error
+    select_workspace(request, workspace.pk)
+    membership = user_memberships(request).get(workspace=workspace)
+    return serialize_choice(membership, workspace.pk)
 
 
 @router.post("/workspaces/current", response=WorkspaceChoiceSchema)
