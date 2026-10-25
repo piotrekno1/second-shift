@@ -9,10 +9,10 @@ from django.contrib.auth import get_user_model
 from django.test import Client
 from django.utils import timezone
 
-from secondshift.automations.api import serialize_job
 from secondshift.automations.execution import external_tools
 from secondshift.automations.models import CapabilityRequest, Job, JobGrant, Run
 from secondshift.automations.planning import build_execution_plan
+from secondshift.automations.serialization import serialize_job
 from secondshift.automations.tool_broker import call_external_tool_step
 from secondshift.integrations.errors import ExternalToolError
 from secondshift.integrations.external import external_access

@@ -34,6 +34,10 @@ docker build .
   short (`core`, `automations`), so migrations and tables keep their names.
 - `manage.py` and the installed `secondshift` command run the same thing.
 - Keep Ninja views thin. Put behavior in adjacent service modules.
+- Each app owns its HTTP surface: `api.py` defines endpoints, `schemas.py`
+  defines request/response/query schemas, and `serialization.py` builds
+  responses when needed. Import shared schemas directly, never through API
+  modules. `secondshift/config/api.py` composes the public app routers.
 - No leading underscores in names. Use them only to override a library's own
   private attribute.
 - No magic strings for names used in more than one place. Shared names

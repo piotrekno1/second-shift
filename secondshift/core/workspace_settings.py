@@ -15,6 +15,7 @@ from secondshift.config.constants import (
     Environment,
     SandboxRuntime,
 )
+from secondshift.core.formatting import duration_label
 
 
 @dataclass(frozen=True)
@@ -36,13 +37,6 @@ def size_label(value: int) -> str:
         if value >= factor and value % factor == 0:
             return f"{value // factor} {unit}"
     return f"{value:,} bytes"
-
-
-def duration_label(seconds: int) -> str:
-    if seconds % 60 == 0:
-        minutes = seconds // 60
-        return f"{minutes} minute" if minutes == 1 else f"{minutes} minutes"
-    return f"{seconds} seconds"
 
 
 def environment_label() -> str:

@@ -1,13 +1,15 @@
-from datetime import datetime
-from typing import Literal
-
 from django.http import HttpRequest
 from django.shortcuts import get_object_or_404
-from ninja import Router, Schema, Status
+from ninja import Router, Status
 from ninja.errors import HttpError
 from ninja.security import django_auth
-from pydantic import Field
 
+from secondshift.automations.api_limits import (
+    limit_error_detail,
+    limit_updates,
+)
+from secondshift.automations.limits import LimitError, save_overrides
+from secondshift.automations.schemas import RunLimitsUpdateSchema
 from secondshift.workspaces.access import (
     Action,
     current_workspace,
@@ -25,7 +27,27 @@ from secondshift.workspaces.invites import (
     pending_invites,
     revoke_invite,
 )
-from secondshift.workspaces.models import WorkspaceInvite, WorkspaceMembership
+from secondshift.workspaces.models import (
+    WorkspaceMembership,
+)
+from secondshift.workspaces.schemas import (
+    InviteCreateSchema,
+    InviteSchema,
+    MemberSchema,
+    NewInviteSchema,
+    PendingInviteSchema,
+    RoleChangeSchema,
+    WorkspaceChoiceSchema,
+    WorkspaceCreateSchema,
+    WorkspaceSelectSchema,
+    WorkspaceSettingsSchema,
+)
+from secondshift.workspaces.serialization import (
+    serialize_choice,
+    serialize_invite,
+    serialize_member,
+    serialize_settings,
+)
 from secondshift.workspaces.services import (
     MembershipError,
     WorkspaceCreationError,
@@ -39,73 +61,22 @@ from secondshift.workspaces.services import (
 router = Router(auth=django_auth, tags=["workspaces"])
 
 
-class WorkspaceChoiceSchema(Schema):
-    id: int
-    name: str
-    slug: str
-    role: str
-    current: bool
+@router.get("/settings", response=WorkspaceSettingsSchema, auth=django_auth)
+def workspace_settings(request: HttpRequest) -> WorkspaceSettingsSchema:
+    return serialize_settings(request, current_workspace(request))
 
 
-class WorkspaceSelectSchema(Schema):
-    workspace_id: int
-
-
-class WorkspaceCreateSchema(Schema):
-    name: str = Field(max_length=160)
-
-
-RoleName = Literal["owner", "admin", "member"]
-
-
-class MemberSchema(Schema):
-    id: int
-    email: str
-    role: str
-    joined_at: datetime
-    you: bool
-
-
-class RoleChangeSchema(Schema):
-    role: RoleName
-
-
-class InviteCreateSchema(Schema):
-    role: RoleName = "member"
-    note: str = Field("", max_length=160)
-
-
-class InviteSchema(Schema):
-    id: int
-    role: str
-    note: str
-    created_by: str | None
-    created_at: datetime
-    expires_at: datetime
-
-
-class NewInviteSchema(InviteSchema):
-    # Shown once, right after creating it. It cannot be looked up later.
-    link: str
-
-
-class PendingInviteSchema(Schema):
-    workspace_name: str
-    role: str
-    invited_by: str | None
-
-
-def serialize_choice(
-    membership: WorkspaceMembership, current_id: int | None
-) -> WorkspaceChoiceSchema:
-    workspace = membership.workspace
-    return WorkspaceChoiceSchema(
-        id=workspace.pk,
-        name=workspace.name,
-        slug=workspace.slug,
-        role=membership.role,
-        current=workspace.pk == current_id,
-    )
+@router.post("/settings/limits", response=WorkspaceSettingsSchema, auth=django_auth)
+def set_workspace_limits(
+    request: HttpRequest, payload: RunLimitsUpdateSchema
+) -> WorkspaceSettingsSchema:
+    """Change the workspace's run limits. Runs already created keep theirs."""
+    workspace = require(request, Action.CHANGE_RUN_LIMITS)
+    try:
+        save_overrides(workspace, limit_updates(payload))
+    except LimitError as error:
+        raise HttpError(422, limit_error_detail(request, error)) from error
+    return serialize_settings(request, workspace)
 
 
 @router.get("/workspaces", response=list[WorkspaceChoiceSchema])
@@ -179,21 +150,7 @@ def dismiss_pending_invite(request: HttpRequest) -> Status[None]:
     return Status(204, None)
 
 
-def person_label(user: object | None) -> str | None:
-    if user is None:
-        return None
-    return getattr(user, "email", "") or user.get_username()  # type: ignore[attr-defined]
-
-
-def serialize_invite(invite: WorkspaceInvite) -> InviteSchema:
-    return InviteSchema(
-        id=invite.pk,
-        role=invite.role,
-        note=invite.note,
-        created_by=person_label(invite.created_by),
-        created_at=invite.created_at,
-        expires_at=invite.expires_at,
-    )
+# type: ignore[attr-defined]
 
 
 @router.get("/invites", response=list[InviteSchema])
@@ -219,18 +176,6 @@ def cancel_invite(request: HttpRequest, invite_id: int) -> Status[None]:
     workspace = require(request, Action.INVITE_PEOPLE)
     revoke_invite(get_object_or_404(pending_invites(workspace), pk=invite_id))
     return Status(204, None)
-
-
-def serialize_member(
-    request: HttpRequest, membership: WorkspaceMembership
-) -> MemberSchema:
-    return MemberSchema(
-        id=membership.pk,
-        email=person_label(membership.user) or "",
-        role=membership.role,
-        joined_at=membership.created_at,
-        you=membership.user_id == request.user.pk,
-    )
 
 
 def membership_for_request(

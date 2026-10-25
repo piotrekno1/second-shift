@@ -26,7 +26,9 @@ cannot select tools, credentials, images, mounts, networks, or runtime flags.
 
 ## Where code belongs
 
-- Django surface: `models.py`, `api.py`, `admin.py`, `apps.py`, and `signals.py`.
+- Django surface: `models.py`, `api.py`, `schemas.py`, `serialization.py`, `admin.py`,
+  `apps.py`, and `signals.py`. HTTP schemas live separately from endpoints;
+  other apps import schemas directly rather than importing route definitions.
 - Repository policy: `manifest.py`, `sync.py`, `needs.py`, `planning.py`, and
   `tool_policy.py`.
 - Durable orchestration: `agent.py`, `execution.py`, `model_gateway.py`,
@@ -34,8 +36,9 @@ cannot select tools, credentials, images, mounts, networks, or runtime flags.
 - External tools: `tool_broker.py` checks each MCP or API call against the
   run's frozen plan. Each connection kind lives in
   `secondshift/integrations/external.py`.
-- Isolation boundary: `runner_protocol.py` and `runner_client.py`. The `runner`
-  Django app implements the other side of this contract.
+- Isolation boundary: `secondshift.runner.protocol` defines the shared wire contract;
+  `runner_client.py` consumes it. The `runner` Django app owns the protocol
+  and implements the service.
 - Operations: `scheduling.py`, `reconciliation.py`, `retention.py`,
   `artifacts.py`, `notifications.py`, and `run_queries.py`.
 

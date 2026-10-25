@@ -9,15 +9,15 @@ from pathlib import Path
 from django.conf import settings
 from django.db import IntegrityError, transaction
 
-from secondshift.automations.runner_protocol import (
+from secondshift.config.constants import SandboxRuntime
+from secondshift.runner.models import RunnerCommand, RunnerSession
+from secondshift.runner.protocol import (
     CommandRequest,
     CommandResult,
     RunnerBackend,
     RunnerProtocolError,
     RunnerSessionSpec,
 )
-from secondshift.config.constants import SandboxRuntime
-from secondshift.runner.models import RunnerCommand, RunnerSession
 
 TRUNCATION_MARKER = b"\n[... command output truncated by SecondShift ...]\n"
 

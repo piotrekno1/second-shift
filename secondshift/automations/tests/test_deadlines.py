@@ -14,7 +14,7 @@ from secondshift.automations.failures import describe_failure
 from secondshift.automations.models import Run, RunEvent
 from secondshift.automations.tests.test_execution import tool_context
 from secondshift.automations.tests.test_workflows import execution_run
-from secondshift.core.workspace_settings import duration_label
+from secondshift.core.formatting import duration_label
 from secondshift.gateway.models import RunToken
 from secondshift.gateway.tokens import issue_run_token
 from secondshift.integrations.models import Connection

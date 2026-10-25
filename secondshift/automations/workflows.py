@@ -24,7 +24,6 @@ from secondshift.automations.notifications import (
 from secondshift.automations.planning import build_execution_plan
 from secondshift.automations.reconciliation import mark_run_terminal
 from secondshift.automations.runner_client import get_runner_client
-from secondshift.automations.runner_protocol import RunnerSessionSpec
 from secondshift.automations.scheduling import next_occurrence
 from secondshift.config.constants import RunSandbox
 from secondshift.gateway.tokens import revoke_run_tokens
@@ -32,6 +31,7 @@ from secondshift.integrations.models import Connection
 from secondshift.integrations.webhooks import deliver_webhook
 from secondshift.repositories.materialization import materialize_local_repository
 from secondshift.repositories.models import Repository
+from secondshift.runner.protocol import RunnerSessionSpec
 
 logger = logging.getLogger(__name__)
 

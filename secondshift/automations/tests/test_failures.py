@@ -12,8 +12,8 @@ from secondshift.automations.failures import (
     failure_summary,
 )
 from secondshift.automations.models import Run
-from secondshift.automations.runner_protocol import RunnerProtocolError
 from secondshift.automations.tests.test_workflows import execution_run
+from secondshift.runner.protocol import RunnerProtocolError
 
 
 class RetriesExceeded(Exception):

@@ -22,11 +22,11 @@ from secondshift.automations.execution import (
 )
 from secondshift.automations.failures import describe_failure
 from secondshift.automations.models import Run, RunEvent
-from secondshift.automations.runner_protocol import CommandResult
 from secondshift.automations.tests.test_execution import LATER
 from secondshift.automations.tests.test_workflows import execution_run
 from secondshift.automations.tool_policy import LOCAL_TOOLS
 from secondshift.config.constants import TOKEN_BUDGET_MESSAGE
+from secondshift.runner.protocol import CommandResult
 
 ModelFunction = Callable[[list[ModelMessage], AgentInfo], ModelResponse]
 

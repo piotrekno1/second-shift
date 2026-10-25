@@ -3,7 +3,7 @@ from dataclasses import asdict
 import requests
 from django.conf import settings
 
-from secondshift.automations.runner_protocol import (
+from secondshift.runner.protocol import (
     CommandRequest,
     CommandResult,
     RunnerBackend,
