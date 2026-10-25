@@ -1,4 +1,4 @@
-import type { ConnectionUsage, Run } from '../types'
+import type { ConnectionUsage, Run, RunLimitItem } from '../types'
 
 // Dates read in English like the rest of the UI, always with their timezone.
 const LOCALE = 'en-GB'
@@ -244,7 +244,7 @@ type RunStatSource = Pick<
   Run,
   'started_at' | 'finished_at' | 'model_tokens' | 'model_input_tokens' | 'model_output_tokens'
   | 'model_cost_usd' | 'model_cost_partial' | 'model_requests' | 'max_turns'
->
+> & Partial<Pick<Run, 'token_budget'>>
 
 /** Comparable numbers for one run, in a fixed order, for list rows. */
 export function runStats(run: RunStatSource, now = Date.now()): RunStat[] {
@@ -257,10 +257,13 @@ export function runStats(run: RunStatSource, now = Date.now()): RunStat[] {
     })
   }
   if (run.model_tokens) {
+    const budget = run.token_budget ?? null
+    const split = `${formatTokens(run.model_input_tokens)} input · ${formatTokens(run.model_output_tokens)} output tokens`
     stats.push({
       key: 'tokens',
-      text: `${formatTokens(run.model_tokens)} tok`,
-      title: `${formatTokens(run.model_input_tokens)} input · ${formatTokens(run.model_output_tokens)} output tokens`,
+      text: budget ? `${formatTokens(run.model_tokens)} / ${formatTokens(budget)} tok` : `${formatTokens(run.model_tokens)} tok`,
+      title: budget ? `${split}, of ${budget.toLocaleString('en')} allowed` : split,
+      warn: Boolean(budget && run.model_tokens >= budget * 0.8),
     })
   }
   if (run.model_cost_usd !== null) {
@@ -347,6 +350,17 @@ export function formatSeconds(total: number): string {
   if (hours) return `${hours}h ${minutes}m`
   if (minutes) return `${minutes}m ${rounded % 60}s`
   return `${rounded}s`
+}
+
+/** A run limit for reading, e.g. "24", "2m tokens" or "15 minutes". */
+export function formatLimit(unit: RunLimitItem['unit'], value: number): string {
+  if (unit === 'tokens') return `${formatTokens(value)} tokens`
+  if (unit === 'seconds') {
+    if (value % 3600 === 0) return countLabel(value / 3600, 'hour')
+    if (value % 60 === 0) return countLabel(value / 60, 'minute')
+    return countLabel(value, 'second')
+  }
+  return value.toLocaleString('en')
 }
 
 /** Week-over-week spend, e.g. "↑ 40% vs previous week". */

@@ -24,7 +24,32 @@ export interface WorkspaceSettings {
   sandbox: string
   members: { email: string, role: string }[]
   groups: { title: string, items: SettingValue[] }[]
+  /** Run limits for the whole workspace. Each job can choose its own. */
+  limits: RunLimitItem[]
+  can_edit_limits: boolean
 }
+
+export type RunLimitKey = 'max_turns' | 'max_tool_calls' | 'token_budget' | 'timeout_seconds'
+
+/** One run limit at one level (workspace or job). */
+export interface RunLimitItem {
+  key: RunLimitKey
+  label: string
+  help: string
+  unit: 'count' | 'tokens' | 'seconds'
+  /** What a run would get now. */
+  value: number
+  /** What this level chose, or null to use `inherited`. */
+  override: number | null
+  /** What applies when this level chooses nothing. */
+  inherited: number
+  minimum: number
+  maximum: number
+  env: string
+  maximum_env: string
+}
+
+export type RunLimitUpdate = Partial<Record<RunLimitKey, number | null>>
 
 export interface Overview {
   repositories: number
@@ -120,6 +145,8 @@ export interface JobDetail extends Job {
   repository_revision: string
   repository_enabled: boolean
   recent_runs: Run[]
+  limits: RunLimitItem[]
+  can_edit_limits: boolean
 }
 
 export interface Capability {
@@ -141,6 +168,8 @@ export interface RunFailure {
   /** Where it failed, e.g. "Model provider" or "Sandbox". */
   label: string
   reason: string
+  /** The run stopped at one of its limits, which an owner can change. */
+  limit?: boolean
 }
 
 export interface Run {
@@ -158,6 +187,8 @@ export interface Run {
   commit_sha: string
   model: string | null
   max_turns: number | null
+  /** The token budget frozen into the run. Older runs have none. */
+  token_budget: number | null
   model_requests: number
   model_input_tokens: number
   model_output_tokens: number

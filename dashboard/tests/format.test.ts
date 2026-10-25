@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import type { Run } from '../src/types'
 
-import { accessLabel, accessNeedsAction, connectionUsageLine, countLabel, describeCron, formatDate, formatSeconds, greeting, healthHeadline, jobOutcomes, spendTrend, formatRelative, formatScheduled, formatTime, utcTitle, zoneName, formatBytes, plainSummary, providerLabel, runStats, statusLabel, formatDuration, formatModelUsage, finishedBinding, formatSchedule, jobState, titleFromSlug, typingBinding } from '../src/utils/format'
+import { formatLimit, accessLabel, accessNeedsAction, connectionUsageLine, countLabel, describeCron, formatDate, formatSeconds, greeting, healthHeadline, jobOutcomes, spendTrend, formatRelative, formatScheduled, formatTime, utcTitle, zoneName, formatBytes, plainSummary, providerLabel, runStats, statusLabel, formatDuration, formatModelUsage, finishedBinding, formatSchedule, jobState, titleFromSlug, typingBinding } from '../src/utils/format'
 
 test('formatSchedule keeps cron and timezone visible', () => {
   assert.equal(formatSchedule('0 9 * * 1', 'Europe/Warsaw'), 'Mondays at 09:00 · Europe/Warsaw')
@@ -72,6 +72,34 @@ test('runStats lists duration, tokens, cost and turns in order', () => {
   )
 })
 
+test('runStats shows tokens against the run budget', () => {
+  const base = {
+    started_at: null,
+    finished_at: null,
+    model_tokens: 12_300,
+    model_input_tokens: 12_000,
+    model_output_tokens: 300,
+    model_cost_usd: null,
+    model_cost_partial: false,
+    model_requests: 0,
+    max_turns: null,
+  }
+  const [tokens] = runStats({ ...base, token_budget: 2_000_000 })
+  assert.equal(tokens.text, '12.3k / 2m tok')
+  assert.equal(tokens.title, '12k input · 300 output tokens, of 2,000,000 allowed')
+  assert.equal(tokens.warn, false)
+  assert.equal(runStats({ ...base, model_tokens: 1_700_000, token_budget: 2_000_000 })[0].warn, true)
+  assert.equal(runStats({ ...base, token_budget: null })[0].text, '12.3k tok')
+})
+
+test('formatLimit reads each kind of limit', () => {
+  assert.equal(formatLimit('count', 1200), '1,200')
+  assert.equal(formatLimit('tokens', 2_000_000), '2m tokens')
+  assert.equal(formatLimit('seconds', 900), '15 minutes')
+  assert.equal(formatLimit('seconds', 3600), '1 hour')
+  assert.equal(formatLimit('seconds', 90), '90 seconds')
+})
+
 test('describeCron reads common schedules and leaves the rest alone', () => {
   assert.equal(describeCron('0 9 * * 1'), 'Mondays at 09:00')
   assert.equal(describeCron('30 7 * * 1-5'), 'Weekdays at 07:30')
@@ -135,7 +163,7 @@ function run(id: number, status: Run['status'], durationSeconds: number | null, 
     scheduled_for: new Date(start).toISOString(),
     started_at: durationSeconds === null ? null : new Date(start).toISOString(),
     finished_at: durationSeconds === null ? null : new Date(start + durationSeconds * 1000).toISOString(),
-    summary: '', plan_ready: true, commit_sha: 'abc', model: null, max_turns: 24,
+    summary: '', plan_ready: true, commit_sha: 'abc', model: null, max_turns: 24, token_budget: null,
     model_requests: 1, model_input_tokens: 0, model_output_tokens: 0, failure: null,
     has_input: false, has_output: false, model_tokens: 0, model_cost_usd: cost, model_cost_partial: false,
   }
