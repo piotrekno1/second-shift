@@ -20,6 +20,7 @@
             <img src="{% static 'secondshift-mark.svg' %}" alt="" width="32" height="32">
             <span>SecondShift</span>
           </a>
+          <span class="account-eyebrow">{% trans "Your agents, safely on duty" %}</span>
           {% if messages %}
             <ul class="account-messages">
               {% for message in messages %}<li>{{ message }}</li>{% endfor %}
@@ -35,6 +36,35 @@
             <a href="/" class="account-back">{% trans "Back to SecondShift" %}</a>
           {% endif %}
         </section>
+        <aside class="account-atmosphere" aria-label="{% trans "Example scheduled reviews" %}">
+          <div class="orbit orbit-one"></div>
+          <div class="orbit orbit-two"></div>
+          <article class="shift-preview shift-release">
+            <span>Monday · 09:00</span>
+            <strong>Weekly release recap</strong>
+            <p>Merged features, fixes, and what comes next.</p>
+          </article>
+          <article class="shift-preview shift-ci">
+            <span>Every morning · 08:00</span>
+            <strong>CI failure review</strong>
+            <p>Recurring failures and suggested fixes.</p>
+          </article>
+          <article class="shift-preview shift-health">
+            <span>Monday · 09:15</span>
+            <strong>Repository health review</strong>
+            <p>Defects, test gaps, and docs that drifted.</p>
+          </article>
+          <article class="shift-preview shift-contributors">
+            <span>Friday · 16:00</span>
+            <strong>Contributor recap</strong>
+            <p>The people behind the work and reviews.</p>
+          </article>
+          <article class="shift-preview shift-alerts">
+            <span>Monday · 09:30</span>
+            <strong>Alert coverage review</strong>
+            <p>Removed alerts, paused rules, and changed thresholds.</p>
+          </article>
+        </aside>
       </main>
     {% endblock body %}
     {% block extra_body %}{% endblock extra_body %}
