@@ -220,13 +220,47 @@ def operation_name(raw: dict[str, Any], method: str, path: str) -> str:
     return f"{method}_{slug}"[:64] or method
 
 
-def read_operation(  # noqa: C901
+def read_operation(
     document: dict[str, Any],
     path: str,
     method: str,
     raw: dict[str, Any],
     shared: list[Any],
 ) -> Operation | None:
+    """An operation SecondShift can call, or None when it is too unclear."""
+    declared = declared_parameters(document, raw, shared)
+    inputs = parameter_inputs(document, declared)
+    if inputs is None:
+        return None
+    properties, required, parameters = inputs
+    # Every {name} in the path must be a declared path parameter.
+    template_names = set(re.findall(r"{([^}/]+)}", path))
+    if template_names != {item.name for item in parameters if item.location == "path"}:
+        return None
+    body = json_body(document, method, raw)
+    if body is not None:
+        properties[BODY], body_required = body
+        if body_required:
+            required.append(BODY)
+    input_schema = checked_input_schema(properties, required)
+    if input_schema is None:
+        return None
+    description = str(raw.get("summary") or raw.get("description") or "")
+    return Operation(
+        name=operation_name(raw, method, path),
+        method=method,
+        path=path,
+        description=f"{method.upper()} {path}. {description}"[:DESCRIPTION_MAX_CHARS],
+        parameters=tuple(parameters),
+        has_body=body is not None,
+        input_schema=input_schema,
+    )
+
+
+def declared_parameters(
+    document: dict[str, Any], raw: dict[str, Any], shared: list[Any]
+) -> dict[tuple[str, str], dict[str, Any]]:
+    """Parameters by location and name. The operation's override the path's."""
     declared: dict[tuple[str, str], dict[str, Any]] = {}
     for item in [*shared, *(raw.get("parameters") or [])]:
         parameter = resolve(document, item)
@@ -236,6 +270,13 @@ def read_operation(  # noqa: C901
         name = parameter.get("name")
         if location in PARAMETER_LOCATIONS and isinstance(name, str) and name != BODY:
             declared[(location, name)] = parameter
+    return declared
+
+
+def parameter_inputs(
+    document: dict[str, Any], declared: dict[tuple[str, str], dict[str, Any]]
+) -> tuple[dict[str, Any], list[str], list[Parameter]] | None:
+    """Schema properties, required names and parameters. None when ambiguous."""
     properties: dict[str, Any] = {}
     required: list[str] = []
     parameters: list[Parameter] = []
@@ -251,20 +292,27 @@ def read_operation(  # noqa: C901
         parameters.append(Parameter(name, location, is_required))
         if is_required:
             required.append(name)
-    # Every {name} in the path must be a declared path parameter.
-    template_names = set(re.findall(r"{([^}/]+)}", path))
-    if template_names != {item.name for item in parameters if item.location == "path"}:
-        return None
-    has_body = False
+    return properties, required, parameters
+
+
+def json_body(
+    document: dict[str, Any], method: str, raw: dict[str, Any]
+) -> tuple[dict[str, Any], bool] | None:
+    """The JSON body schema and whether it is required. None without one."""
     body = resolve(document, raw.get("requestBody"))
-    if method != "get" and isinstance(body, dict):
-        content = body.get("content") if isinstance(body.get("content"), dict) else {}
-        media = content.get("application/json")
-        if isinstance(media, dict):
-            has_body = True
-            properties[BODY] = inline(document, media.get("schema") or {})
-            if body.get("required"):
-                required.append(BODY)
+    if method == "get" or not isinstance(body, dict):
+        return None
+    content = body.get("content") if isinstance(body.get("content"), dict) else {}
+    media = content.get("application/json")
+    if not isinstance(media, dict):
+        return None
+    return inline(document, media.get("schema") or {}), bool(body.get("required"))
+
+
+def checked_input_schema(
+    properties: dict[str, Any], required: list[str]
+) -> dict[str, Any] | None:
+    """The tool's input schema, or None when too large or not valid."""
     input_schema: dict[str, Any] = {
         "type": "object",
         "properties": properties,
@@ -278,16 +326,7 @@ def read_operation(  # noqa: C901
         Draft202012Validator.check_schema(input_schema)
     except SchemaError:
         return None
-    description = str(raw.get("summary") or raw.get("description") or "")
-    return Operation(
-        name=operation_name(raw, method, path),
-        method=method,
-        path=path,
-        description=f"{method.upper()} {path}. {description}"[:DESCRIPTION_MAX_CHARS],
-        parameters=tuple(parameters),
-        has_body=has_body,
-        input_schema=input_schema,
-    )
+    return input_schema
 
 
 def resolve(document: dict[str, Any], value: Any, depth: int = 0) -> Any:
