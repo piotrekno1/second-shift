@@ -1,4 +1,5 @@
 import hashlib
+import posixpath
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -6,10 +7,10 @@ from pathlib import Path
 import yaml
 from django.db import transaction
 
-from secondshift.automations.manifest import RepositoryManifest, load_manifest
+from secondshift.automations.manifest import RepositoryManifest, parse_manifest
 from secondshift.automations.models import JobGrant
-from secondshift.automations.sync import sync_manifest
-from secondshift.config.constants import GITHUB_BASE_URL
+from secondshift.automations.sync import sync_jobs
+from secondshift.config.constants import GITHUB_BASE_URL, MANIFEST_FILE
 from secondshift.integrations.models import Connection
 from secondshift.repositories.github import github_remote_name
 from secondshift.repositories.models import Repository
@@ -23,101 +24,114 @@ class LocalRepositoryError(ValueError):
 @dataclass(frozen=True)
 class LocalRepositoryMetadata:
     root: Path
-    manifest: Path
-    revision: str
+    # The branch SecondShift follows, and its newest commit.
     branch: str
+    revision: str
+    manifest: RepositoryManifest
     repository_name: str
     clone_url: str = ""
 
 
+# Git file modes for a regular and an executable file. Symbolic links and
+# submodules are refused so a path cannot point outside the repository.
+FILE_MODES = {"100644", "100755"}
+
+
 def git(root: Path, *arguments: str) -> str:
-    completed = subprocess.run(
-        ["git", "-C", str(root), *arguments],
-        capture_output=True,
-        check=False,
-        text=True,
-        timeout=10,
-    )
+    try:
+        completed = subprocess.run(
+            ["git", "-C", str(root), *arguments],
+            capture_output=True,
+            check=False,
+            text=True,
+            timeout=10,
+        )
+    except subprocess.TimeoutExpired as error:
+        raise LocalRepositoryError("Git took too long to answer.") from error
     if completed.returncode:
         message = completed.stderr.strip() or completed.stdout.strip()
         raise LocalRepositoryError(message or "Git could not inspect the repository.")
     return completed.stdout.strip()
 
 
-def inspect_local_repository(raw_path: str) -> LocalRepositoryMetadata:
+def committed_file(root: Path, revision: str, path: str) -> str:
+    """A file's text at a commit. Only regular files inside the repository."""
+    normalized = posixpath.normpath(path)
+    if normalized.startswith(("../", "/")) or normalized in ("..", "."):
+        raise LocalRepositoryError(f"{path} must be a file inside the repository.")
+    entry = git(root, "ls-tree", revision, "--", normalized)
+    if not entry:
+        raise LocalRepositoryError(f"{path} is not committed on the branch.")
+    mode = entry.split(maxsplit=1)[0]
+    if mode not in FILE_MODES:
+        raise LocalRepositoryError(f"{path} must be a regular file, not a link.")
+    return git(root, "show", f"{revision}:{normalized}")
+
+
+def current_branch(root: Path) -> str:
+    try:
+        return git(root, "symbolic-ref", "--short", "HEAD")
+    except LocalRepositoryError as error:
+        raise LocalRepositoryError(
+            "Check out the branch SecondShift should follow, then add the repository."
+        ) from error
+
+
+def branch_revision(root: Path, branch: str) -> str:
+    """The newest commit on a branch."""
+    try:
+        return git(root, "rev-parse", "--verify", f"refs/heads/{branch}^{{commit}}")
+    except LocalRepositoryError as error:
+        raise LocalRepositoryError(f"The branch {branch} does not exist.") from error
+
+
+def inspect_local_repository(
+    raw_path: str, branch: str | None = None
+) -> LocalRepositoryMetadata:
+    """Read the jobs from the newest commit on a branch.
+
+    Without a branch it follows the one checked out now. Only committed files
+    count, so edits in the working folder never change what runs.
+    """
     candidate = Path(raw_path).expanduser().resolve()
     if not candidate.is_dir():
         raise LocalRepositoryError("The selected path is not a directory.")
 
     try:
         root = Path(git(candidate, "rev-parse", "--show-toplevel")).resolve()
-    except (LocalRepositoryError, subprocess.TimeoutExpired) as error:
+    except LocalRepositoryError as error:
         raise LocalRepositoryError(
             "The selected path is not a Git repository."
         ) from error
 
-    manifest_path = root / ".secondshift.yaml"
-    if not manifest_path.is_file():
-        raise LocalRepositoryError("The repository has no root .secondshift.yaml file.")
-    if manifest_path.is_symlink():
-        raise LocalRepositoryError("The manifest cannot be a symbolic link.")
-    resolved_manifest = manifest_path.resolve()
-    if not resolved_manifest.is_relative_to(root):
-        raise LocalRepositoryError("The manifest must be stored inside the repository.")
+    branch = branch or current_branch(root)
+    revision = branch_revision(root, branch)
 
     try:
-        manifest = load_manifest(resolved_manifest)
-    except (OSError, ValueError, yaml.YAMLError) as error:
-        raise LocalRepositoryError(f"Invalid .secondshift.yaml: {error}") from error
-    tracked_paths = [resolved_manifest]
-    validate_skill_files(root, manifest, tracked_paths)
-    relative_paths = [str(path.relative_to(root)) for path in tracked_paths]
-    try:
-        git(root, "ls-files", "--error-unmatch", "--", *relative_paths)
-        dirty = git(root, "status", "--porcelain", "--", *relative_paths)
-        revision = git(root, "rev-parse", "HEAD")
-    except (LocalRepositoryError, subprocess.TimeoutExpired) as error:
+        text = committed_file(root, revision, MANIFEST_FILE)
+    except LocalRepositoryError as error:
         raise LocalRepositoryError(
-            "The manifest and skill files must be committed before scheduling them."
+            f"The branch {branch} has no committed {MANIFEST_FILE} at its root."
         ) from error
-    if dirty:
-        raise LocalRepositoryError(
-            "Commit changes to the manifest and skill files before adding the repository."
-        )
-
     try:
-        branch = git(root, "symbolic-ref", "--short", "HEAD")
-    except (LocalRepositoryError, subprocess.TimeoutExpired):
-        branch = "detached"
+        manifest = parse_manifest(text)
+    except (ValueError, yaml.YAMLError) as error:
+        raise LocalRepositoryError(f"Invalid {MANIFEST_FILE}: {error}") from error
+    for job in manifest.jobs.values():
+        committed_file(root, revision, job.skill)
+
     try:
         github_name = github_remote_name(git(root, "remote", "get-url", "origin"))
-    except (LocalRepositoryError, subprocess.TimeoutExpired):
+    except LocalRepositoryError:
         github_name = None
     return LocalRepositoryMetadata(
         root=root,
-        manifest=resolved_manifest,
-        revision=revision,
         branch=branch,
+        revision=revision,
+        manifest=manifest,
         repository_name=local_repository_name(root),
         clone_url=f"{GITHUB_BASE_URL}/{github_name}" if github_name else "",
     )
-
-
-def validate_skill_files(
-    root: Path,
-    manifest: RepositoryManifest,
-    tracked_paths: list[Path],
-) -> None:
-    for job in manifest.jobs.values():
-        configured_skill = root / job.skill
-        if configured_skill.is_symlink():
-            raise LocalRepositoryError(f"Skill {job.skill} cannot be a symbolic link.")
-        skill = configured_skill.resolve()
-        if not skill.is_relative_to(root) or not skill.is_file():
-            raise LocalRepositoryError(
-                f"Skill {job.skill} does not resolve to a file inside the repository."
-            )
-        tracked_paths.append(skill)
 
 
 def local_repository_name(root: Path) -> str:
@@ -126,8 +140,11 @@ def local_repository_name(root: Path) -> str:
 
 
 @transaction.atomic
-def attach_local_repository(workspace: Workspace, raw_path: str) -> Repository:
-    metadata = inspect_local_repository(raw_path)
+def attach_local_repository(
+    workspace: Workspace, raw_path: str, branch: str | None = None
+) -> Repository:
+    """Add a local repository, or sync one again from its branch."""
+    metadata = inspect_local_repository(raw_path, branch)
     previous = Repository.objects.filter(
         workspace=workspace, local_path=str(metadata.root)
     ).first()
@@ -140,13 +157,13 @@ def attach_local_repository(workspace: Workspace, raw_path: str) -> Repository:
             "full_name": metadata.repository_name,
             "clone_url": metadata.clone_url,
             "default_branch": metadata.branch,
-            "config_path": ".secondshift.yaml",
+            "config_path": MANIFEST_FILE,
             "config_sha": metadata.revision,
             "enabled": True,
             "removed_at": None,
         },
     )
-    sync_manifest(repository, metadata.manifest)
+    sync_jobs(repository, metadata.manifest)
     if scope_changed:
         JobGrant.objects.filter(
             capability_request__job__repository=repository,

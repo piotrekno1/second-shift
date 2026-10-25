@@ -8,6 +8,15 @@ controls models, credentials, sandbox settings, and runtime policy.
 Commit the manifest and its referenced skill files before adding or syncing
 the repository in SecondShift. Runs use the synchronized Git revision.
 
+A local repository follows the branch that was checked out when it was added.
+SecondShift reads the manifest and skills from that branch's newest commit, so
+edits in the folder and other branches never change what runs. The worker
+checks the branch every five minutes and syncs new commits on its own. A commit
+with a broken manifest is skipped, and runs keep the last good sync. Owners and
+admins can turn auto-sync off on the repository's page and press **Resync**
+instead. Syncing never grants access: a job that requests new access still
+waits for an owner's approval.
+
 ## Your first job
 
 Create `.agents/skills/repository-review/SKILL.md`:

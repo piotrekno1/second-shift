@@ -36,6 +36,8 @@ class Repository(models.Model):
     default_branch = models.CharField(max_length=255, default="main")
     installation_id = models.CharField(max_length=64, blank=True)
     enabled = models.BooleanField(default=False)
+    # Sync new commits on the branch without pressing Resync.
+    auto_sync = models.BooleanField(default=True)
     config_path = models.CharField(max_length=255, default=".secondshift.yaml")
     config_sha = models.CharField(max_length=64, blank=True)
     last_synced_at = models.DateTimeField(null=True, blank=True)

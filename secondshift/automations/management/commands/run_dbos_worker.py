@@ -4,11 +4,13 @@ import time
 
 import djclick as click
 from dbos import DBOS
+from django.conf import settings
 
 from secondshift.automations.dbos_runtime import launch_dbos_worker, new_dbos_client
 from secondshift.automations.reconciliation import reconcile_terminal_workflows
 from secondshift.automations.retention import prune_runs
 from secondshift.automations.scheduling import synchronize_schedules
+from secondshift.repositories.autosync import server_syncs, sync_moved_repositories
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +26,8 @@ def command(sync_interval: int) -> None:
     stopped = threading.Event()
     client = None
     last_prune: float | None = None
+    last_repository_sync: float | None = None
+    repository_interval = settings.REPOSITORY_SYNC_INTERVAL_SECONDS
     try:
         client = new_dbos_client()
         while True:
@@ -52,6 +56,17 @@ def command(sync_interval: int) -> None:
                     )
                 except Exception:
                     logger.exception("failed to prune old runs")
+            if server_syncs() and (
+                last_repository_sync is None
+                or time.monotonic() - last_repository_sync >= repository_interval
+            ):
+                last_repository_sync = time.monotonic()
+                try:
+                    synced = sync_moved_repositories()
+                    if synced:
+                        logger.info("synced %s repository(s) with new commits", synced)
+                except Exception:
+                    logger.exception("failed to sync repositories")
             if stopped.wait(sync_interval):
                 break
     except KeyboardInterrupt:

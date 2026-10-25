@@ -72,6 +72,7 @@ from secondshift.integrations.webhooks import (
     connection_test_payload,
     deliver_webhook,
 )
+from secondshift.repositories.autosync import server_syncs
 from secondshift.repositories.local import (
     LocalRepositoryError,
     attach_local_repository,
@@ -216,6 +217,9 @@ class RepositoryJobSchema(Schema):
 
 class RepositoryDetailSchema(RepositorySchema):
     config_path: str
+    # The repository's choice, and whether this server syncs in the background.
+    auto_sync: bool
+    server_syncs: bool
     validation: RepositoryValidationSchema
     jobs: list[RepositoryJobSchema]
 
@@ -474,7 +478,9 @@ def validate_repository(repository: Repository) -> RepositoryValidationSchema:
             needs_sync=False,
         )
     try:
-        metadata = inspect_local_repository(repository.local_path)
+        metadata = inspect_local_repository(
+            repository.local_path, repository.default_branch
+        )
     except LocalRepositoryError as error:
         return RepositoryValidationSchema(
             status="error",
@@ -506,6 +512,8 @@ def serialize_repository_detail(
     return RepositoryDetailSchema(
         **summary.model_dump(),
         config_path=repository.config_path,
+        auto_sync=repository.auto_sync,
+        server_syncs=server_syncs(),
         validation=validate_repository(repository),
         jobs=[
             RepositoryJobSchema(
@@ -702,7 +710,7 @@ def resync_repository(
         raise HttpError(400, "Only local repositories support manual resync.")
     try:
         repository = attach_local_repository(
-            repository.workspace, repository.local_path
+            repository.workspace, repository.local_path, repository.default_branch
         )
     except LocalRepositoryError as error:
         raise HttpError(422, str(error)) from error
@@ -727,6 +735,23 @@ def set_repository_enabled(
             raise HttpError(409, validation.message)
     repository.enabled = payload.enabled
     repository.save(update_fields=["enabled", "updated_at"])
+    return serialize_repository_detail(request, repository)
+
+
+@api.post(
+    "/repositories/{repository_id}/auto-sync",
+    response=RepositoryDetailSchema,
+    auth=django_auth,
+)
+def set_repository_auto_sync(
+    request: HttpRequest,
+    repository_id: int,
+    payload: RepositoryEnabledSchema,
+) -> RepositoryDetailSchema:
+    repository = repository_for_request(request, repository_id)
+    require(request, Action.CHANGE_REPOSITORY_STATE)
+    repository.auto_sync = payload.enabled
+    repository.save(update_fields=["auto_sync", "updated_at"])
     return serialize_repository_detail(request, repository)
 
 

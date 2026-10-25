@@ -164,6 +164,10 @@ export interface RepositoryJob {
 
 export interface RepositoryDetail extends Repository {
   config_path: string
+  /** Sync new commits on the branch without pressing Resync. */
+  auto_sync: boolean
+  /** Whether this server syncs in the background at all. */
+  server_syncs: boolean
   validation: RepositoryValidation
   jobs: RepositoryJob[]
 }
