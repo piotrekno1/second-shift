@@ -145,54 +145,65 @@ def stream_chunks(reply: dict[str, Any]) -> list[dict[str, Any]]:
     ]
 
 
-def handler_for(recorder: Recorder) -> type[BaseHTTPRequestHandler]:  # noqa: C901
-    class Handler(BaseHTTPRequestHandler):
-        def log_message(self, format: str, *args: object) -> None:
-            pass
+class FakeServicesHandler(BaseHTTPRequestHandler):
+    """A fake OpenAI-compatible model and webhook receiver."""
 
-        def send_json(self, status: int, payload: object) -> None:
-            data = json.dumps(payload).encode()
-            self.send_response(status)
-            self.send_header("Content-Type", "application/json")
-            self.send_header("Content-Length", str(len(data)))
-            self.end_headers()
-            self.wfile.write(data)
+    recorder: Recorder
 
-        def read_json(self) -> dict[str, Any]:
-            length = int(self.headers.get("Content-Length") or 0)
-            return json.loads(self.rfile.read(length) or b"{}")
+    def log_message(self, format: str, *args: object) -> None:
+        pass
 
-        def do_GET(self) -> None:
-            if self.path.rstrip("/").endswith("/models"):
-                self.send_json(200, {"data": [{"id": MODEL_ID, "object": "model"}]})
-            else:
-                self.send_json(404, {"error": {"message": "Not found."}})
+    def send_json(self, status: int, payload: object) -> None:
+        data = json.dumps(payload).encode()
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
 
-        def do_POST(self) -> None:
-            body = self.read_json()
-            if self.path == "/hook":
-                with recorder.lock:
-                    recorder.webhooks.append(body)
-                self.send_json(200, {"ok": True})
-                return
-            if not self.path.endswith("/chat/completions"):
-                self.send_json(404, {"error": {"message": "Not found."}})
-                return
-            with recorder.lock:
-                recorder.model_requests.append(body)
-                recorder.model_auth.append(self.headers.get("Authorization", ""))
-            status, reply = chat_reply(body)
-            if status != 200 or not body.get("stream"):
-                self.send_json(status, reply)
-                return
-            self.send_response(200)
-            self.send_header("Content-Type", "text/event-stream")
-            self.end_headers()
-            for chunk in stream_chunks(reply):
-                self.wfile.write(f"data: {json.dumps(chunk)}\n\n".encode())
-            self.wfile.write(b"data: [DONE]\n\n")
+    def read_json(self) -> dict[str, Any]:
+        length = int(self.headers.get("Content-Length") or 0)
+        return json.loads(self.rfile.read(length) or b"{}")
 
-    return Handler
+    def do_GET(self) -> None:
+        if self.path.rstrip("/").endswith("/models"):
+            self.send_json(200, {"data": [{"id": MODEL_ID, "object": "model"}]})
+        else:
+            self.send_json(404, {"error": {"message": "Not found."}})
+
+    def do_POST(self) -> None:
+        body = self.read_json()
+        if self.path == "/hook":
+            self.record_webhook(body)
+        elif self.path.endswith("/chat/completions"):
+            self.answer_chat(body)
+        else:
+            self.send_json(404, {"error": {"message": "Not found."}})
+
+    def record_webhook(self, body: dict[str, Any]) -> None:
+        with self.recorder.lock:
+            self.recorder.webhooks.append(body)
+        self.send_json(200, {"ok": True})
+
+    def answer_chat(self, body: dict[str, Any]) -> None:
+        with self.recorder.lock:
+            self.recorder.model_requests.append(body)
+            self.recorder.model_auth.append(self.headers.get("Authorization", ""))
+        status, reply = chat_reply(body)
+        if status != 200 or not body.get("stream"):
+            self.send_json(status, reply)
+            return
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream")
+        self.end_headers()
+        for chunk in stream_chunks(reply):
+            self.wfile.write(f"data: {json.dumps(chunk)}\n\n".encode())
+        self.wfile.write(b"data: [DONE]\n\n")
+
+
+def handler_for(recorder: Recorder) -> type[BaseHTTPRequestHandler]:
+    """The handler class, bound to one recorder."""
+    return type("Handler", (FakeServicesHandler,), {"recorder": recorder})
 
 
 def start_fake_services(recorder: Recorder) -> ThreadingHTTPServer:
