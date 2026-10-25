@@ -33,7 +33,13 @@ from secondshift.automations.run_queries import Period, RunFilters, RunSort, run
 from secondshift.gateway.usage import with_model_usage
 from secondshift.integrations.external import changing_tools, external_access
 from secondshift.integrations.models import Connection
-from secondshift.workspaces.access import Action, allows, current_workspace, require
+from secondshift.workspaces.access import (
+    Action,
+    allows,
+    current_workspace,
+    is_operator,
+    require,
+)
 
 router = Router(auth=django_auth, tags=["automations"])
 
@@ -101,8 +107,6 @@ class LimitSchema(Schema):
     inherited: int
     minimum: int
     maximum: int
-    env: str
-    maximum_env: str
 
 
 class RunLimitsUpdateSchema(Schema):
@@ -116,6 +120,13 @@ class RunLimitsUpdateSchema(Schema):
 
 def serialize_limits(views: list[LimitView]) -> list[LimitSchema]:
     return [LimitSchema(**vars(view)) for view in views]
+
+
+def limit_error_detail(request: HttpRequest, error: LimitError) -> str:
+    """Only people who run the server can raise a maximum, so only they get the hint."""
+    if error.ceiling_env and is_operator(request):
+        return f"{error} Set {error.ceiling_env} to allow more."
+    return str(error)
 
 
 def limit_updates(payload: RunLimitsUpdateSchema) -> dict[str, int | None]:
@@ -441,7 +452,7 @@ def set_job_limits(
     try:
         save_overrides(job, limit_updates(payload))
     except LimitError as error:
-        raise HttpError(422, str(error)) from error
+        raise HttpError(422, limit_error_detail(request, error)) from error
     return serialize_job_detail(job_for_request(request, job_id), True)
 
 

@@ -102,8 +102,9 @@ def test_owner_input_must_stay_within_the_server_bounds(ceilings: Any) -> None:
         "max_turns": 100,
         "token_budget": None,
     }
-    with pytest.raises(LimitError, match="SECONDSHIFT_AGENT_MAX_TURNS_CEILING"):
+    with pytest.raises(LimitError, match="between 1 and 100") as refused:
         validate_overrides({"max_turns": 101})
+    assert refused.value.ceiling_env == "SECONDSHIFT_AGENT_MAX_TURNS_CEILING"
     with pytest.raises(LimitError, match="between 60"):
         validate_overrides({"timeout_seconds": 30})
     with pytest.raises(LimitError, match="Unknown limit"):
@@ -155,7 +156,8 @@ def test_out_of_range_limits_are_refused(client: Client, job: Job) -> None:
     negative = post(client, f"/api/jobs/{job.pk}/limits", {"max_turns": -1})
 
     assert too_many.status_code == 422
-    assert "SECONDSHIFT_AGENT_MAX_TOOL_CALLS_CEILING" in too_many.json()["detail"]
+    # The owner is not staff, so the message does not name a server variable.
+    assert too_many.json()["detail"] == "Tool calls must be between 0 and 64."
     assert negative.status_code == 422
     job.refresh_from_db()
     job.workspace.refresh_from_db()

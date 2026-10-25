@@ -73,6 +73,11 @@ def role_allows(role: str | None, action: Action) -> bool:
     return ROLE_RANK[Role(role)] >= ROLE_RANK[POLICY[action]]
 
 
+def is_operator(request: HttpRequest) -> bool:
+    """Staff run the server. Only they are shown its environment variables."""
+    return bool(getattr(request.user, "is_staff", False))
+
+
 def denial_message(action: Action) -> str:
     if POLICY[action] == Role.OWNER:
         return f"Only workspace owners can {action}."

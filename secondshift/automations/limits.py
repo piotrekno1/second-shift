@@ -92,7 +92,10 @@ LIMIT_SPECS = {
 
 
 class LimitError(ValueError):
-    pass
+    def __init__(self, message: str, ceiling_env: str = "") -> None:
+        super().__init__(message)
+        # The variable that raises the maximum, for people who run the server.
+        self.ceiling_env = ceiling_env
 
 
 @dataclass(frozen=True)
@@ -111,8 +114,6 @@ class LimitView:
     inherited: int
     minimum: int
     maximum: int
-    env: str
-    maximum_env: str
 
 
 def server_default(limit: RunLimit) -> int:
@@ -162,8 +163,6 @@ def limit_views(workspace: Workspace, job: Job | None = None) -> list[LimitView]
                 inherited=inherited,
                 minimum=spec.minimum,
                 maximum=spec.ceiling(),
-                env=spec.env,
-                maximum_env=spec.ceiling_env,
             )
         )
     return views
@@ -180,7 +179,8 @@ def validate_overrides(values: Mapping[str, int | None]) -> dict[str, int | None
         if value is not None and not spec.minimum <= value <= spec.ceiling():
             raise LimitError(
                 f"{spec.label} must be between {spec.minimum:,} and "
-                f"{spec.ceiling():,}. Set {spec.ceiling_env} to allow more."
+                f"{spec.ceiling():,}.",
+                ceiling_env=spec.ceiling_env,
             )
         checked[key] = value
     return checked

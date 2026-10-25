@@ -4,7 +4,7 @@ import type { RunLimitItem } from '../src/types'
 import { limitChanges, limitDraft, parseLimitDraft } from '../src/utils/limits'
 
 function item(key: RunLimitItem['key'], unit: RunLimitItem['unit'], override: number | null, minimum: number, maximum: number): RunLimitItem {
-  return { key, label: key, help: '', unit, value: override ?? minimum, override, inherited: minimum, minimum, maximum, env: '', maximum_env: '' }
+  return { key, label: key, help: '', unit, value: override ?? minimum, override, inherited: minimum, minimum, maximum }
 }
 
 const turns = item('max_turns', 'count', null, 1, 100)

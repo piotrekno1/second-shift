@@ -75,7 +75,7 @@ onMounted(async () => {
       />
 
       <p class="quiet-line settings-note">
-        <i class="mdi mdi-server-outline" /> Settings below and the limit maximums are set by whoever runs this server, through environment variables, and apply after a restart. Repositories cannot change them.
+        <i class="mdi mdi-server-outline" /> Settings below and the limit maximums are set by whoever runs this server<template v-if="app.user?.can_use_admin">, through environment variables, and apply after a restart</template>. Repositories cannot change them.
       </p>
 
       <div class="settings-groups">

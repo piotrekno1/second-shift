@@ -91,8 +91,6 @@ export interface RunLimitItem {
   inherited: number
   minimum: number
   maximum: number
-  env: string
-  maximum_env: string
 }
 
 export type RunLimitUpdate = Partial<Record<RunLimitKey, number | null>>

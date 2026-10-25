@@ -16,6 +16,7 @@ from secondshift.automations.api import (
     AccessSchema,
     LimitSchema,
     RunLimitsUpdateSchema,
+    limit_error_detail,
     limit_updates,
     serialize_limits,
 )
@@ -25,6 +26,7 @@ from secondshift.automations.limits import LimitError, limit_views, save_overrid
 from secondshift.automations.models import Job, Run
 from secondshift.automations.needs import capability_needs
 from secondshift.core.workspace_settings import (
+    SettingValue,
     environment_label,
     sandbox_label,
     setting_groups,
@@ -82,6 +84,7 @@ from secondshift.workspaces.access import (
     allows,
     current_membership,
     current_workspace,
+    is_operator,
     permitted_actions,
     require,
 )
@@ -533,8 +536,14 @@ def set_workspace_limits(
     try:
         save_overrides(workspace, limit_updates(payload))
     except LimitError as error:
-        raise HttpError(422, str(error)) from error
+        raise HttpError(422, limit_error_detail(request, error)) from error
     return serialize_settings(request, workspace)
+
+
+def serialize_setting(request: HttpRequest, item: SettingValue) -> SettingValueSchema:
+    # Only people who run the server can set the variable, so only they see it.
+    env = item.env if is_operator(request) else ""
+    return SettingValueSchema(**{**vars(item), "env": env})
 
 
 def serialize_settings(
@@ -547,7 +556,8 @@ def serialize_settings(
         sandbox=sandbox_label(),
         groups=[
             SettingGroupSchema(
-                title=group.title, items=[vars(item) for item in group.items]
+                title=group.title,
+                items=[serialize_setting(request, item) for item in group.items],
             )
             for group in setting_groups()
         ],
@@ -566,7 +576,7 @@ def me(request: HttpRequest) -> UserSchema:
         workspace_slug=workspace.slug if workspace else None,
         role=membership.role if membership else None,
         permissions=permitted_actions(request),
-        can_use_admin=request.user.is_staff,
+        can_use_admin=is_operator(request),
         can_create_workspace=can_create_workspace(request.user),
         local_repositories_enabled=settings.LOCAL_REPOSITORIES_ENABLED,
         environment=environment_label(),
