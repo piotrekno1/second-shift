@@ -82,6 +82,12 @@ Owners invite everyone else from the Settings page. Each invite has a role:
   and changes run limits.
 - **Member** can view.
 
+People can sign in with GitHub when `GITHUB_CLIENT_ID` and
+`GITHUB_CLIENT_SECRET` are set, or with an email and password. Set `EMAIL_URL`
+(for example `smtp://user:password@mail.example.com:587`) to send address
+confirmations and password resets. Without it SecondShift sends no email, does
+not ask people to confirm their address, and cannot reset passwords.
+
 An invite link works once and is shown only when it is created. The server
 stores a hash of it, not the link itself. Opening a link never adds anyone by
 itself. The person confirms in the dashboard while signed in. Owners can

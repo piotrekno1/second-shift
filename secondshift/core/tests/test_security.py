@@ -43,6 +43,25 @@ def test_signup_follows_setting(rf, enabled: bool) -> None:
 
 
 @pytest.mark.django_db
+@override_settings(
+    SIGNUP_ENABLED=True,
+    ACCOUNT_EMAIL_VERIFICATION="none",
+    EMAIL_BACKEND="django.core.mail.backends.smtp.EmailBackend",
+    EMAIL_HOST="127.0.0.1",
+    EMAIL_PORT=1,
+)
+def test_signing_up_sends_no_email_when_none_can_be_sent(client) -> None:
+    password = "Zq8-long-enough"
+    response = client.post(
+        "/accounts/signup/",
+        {"email": "new@example.test", "password1": password, "password2": password},
+    )
+
+    assert response.status_code == 302
+    assert get_user_model().objects.filter(email="new@example.test").exists()
+
+
+@pytest.mark.django_db
 def test_signup_page_is_closed_by_default(client) -> None:
     response = client.get("/accounts/signup/")
     assert b"Sign Up Closed" in response.content
