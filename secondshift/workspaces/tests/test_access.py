@@ -160,9 +160,13 @@ def test_a_person_works_in_one_workspace_at_a_time(client: Client) -> None:
     chosen = post(client, "/api/workspaces/current", {"workspace_id": second.pk})
 
     assert chosen.status_code == 200
-    assert chosen.json()["workspace_slug"] == "second"
-    assert chosen.json()["role"] == "member"
-    assert chosen.json()["permissions"] == []
+    assert (chosen.json()["slug"], chosen.json()["current"]) == ("second", True)
+    me = client.get("/api/me").json()
+    assert (me["workspace_slug"], me["role"], me["permissions"]) == (
+        "second",
+        "member",
+        [],
+    )
     assert [repo["full_name"] for repo in client.get("/api/repositories").json()] == [
         "local/second"
     ]

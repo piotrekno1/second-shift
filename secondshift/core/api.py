@@ -85,13 +85,12 @@ from secondshift.workspaces.access import (
     current_workspace,
     permitted_actions,
     require,
-    select_workspace,
-    user_memberships,
 )
 from secondshift.workspaces.models import Workspace
 
 api = NinjaAPI(title="SecondShift API", version="1.0")
 api.add_router("", "secondshift.automations.api.router")
+api.add_router("", "secondshift.workspaces.api.router")
 
 
 @api.exception_handler(AccessDenied)
@@ -109,18 +108,6 @@ class UserSchema(Schema):
     local_repositories_enabled: bool
     environment: str = "Production"
     sandbox: str = "gVisor sandbox"
-
-
-class WorkspaceChoiceSchema(Schema):
-    id: int
-    name: str
-    slug: str
-    role: str
-    current: bool
-
-
-class WorkspaceSelectSchema(Schema):
-    workspace_id: int
 
 
 class FailingJobSchema(Schema):
@@ -587,32 +574,6 @@ def me(request: HttpRequest) -> UserSchema:
         environment=environment_label(),
         sandbox=sandbox_label(),
     )
-
-
-@api.get("/workspaces", response=list[WorkspaceChoiceSchema], auth=django_auth)
-def workspaces(request: HttpRequest) -> list[WorkspaceChoiceSchema]:
-    """Every workspace the person belongs to, the first one joined first."""
-    current = current_workspace(request)
-    return [
-        WorkspaceChoiceSchema(
-            id=membership.workspace.pk,
-            name=membership.workspace.name,
-            slug=membership.workspace.slug,
-            role=membership.role,
-            current=current is not None and membership.workspace.pk == current.pk,
-        )
-        for membership in user_memberships(request)
-    ]
-
-
-@api.post("/workspaces/current", response=UserSchema, auth=django_auth)
-def choose_workspace(
-    request: HttpRequest, payload: WorkspaceSelectSchema
-) -> UserSchema:
-    """Work in another workspace for the rest of this session."""
-    if select_workspace(request, payload.workspace_id) is None:
-        raise HttpError(404, "Not found")
-    return me(request)
 
 
 @api.get("/overview", response=OverviewSchema, auth=django_auth)
