@@ -59,6 +59,34 @@ production they reach only public HTTPS addresses. Local mode also allows local
 addresses for testing. Each address is checked again when the connection
 opens, so a host cannot pass the check and then resolve to a private address.
 
+## First owner and invites
+
+Sign-up is closed in production unless `SECONDSHIFT_SIGNUP_ENABLED` is set.
+People join through invite links instead.
+
+Create the first workspace on the server:
+
+```bash
+secondshift create_workspace "Acme"
+```
+
+It prints a one-time link. Whoever opens it can sign in or sign up, even with
+sign-up closed, and becomes the workspace's owner after confirming. The link
+works for seven days. If it expires unused, run the command again for a new
+one. Once the workspace has an owner, the command refuses to make another.
+
+Owners invite everyone else from the Settings page. Each invite has a role:
+
+- **Owner** connects services, approves access and invites people.
+- **Admin** enables, runs and schedules approved jobs, manages repositories
+  and changes run limits.
+- **Member** can view.
+
+An invite link works once and is shown only when it is created. The server
+stores a hash of it, not the link itself. Opening a link never adds anyone by
+itself. The person confirms in the dashboard while signed in. Owners can
+revoke pending invites from the Settings page.
+
 ## Run artifact storage
 
 Full run output is stored outside Postgres in private storage, under
