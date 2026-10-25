@@ -150,6 +150,15 @@ Use focused tests while making changes, then run the full checks before
 submitting. Generate Django migrations with `makemigrations`. Do not hand-edit
 them.
 
+Squash migrations with `squashmigrations` and keep the files they replace, so
+existing databases can still upgrade. Delete the replaced files only when no
+install needs to upgrade from a release that still used them. The squashes
+added in 0.1.0a6 replace migrations from 0.1.0a5 and older. Leave
+`workspaces/0001_initial` and `core/0004_move_workspaces_to_their_app` out of
+any squash. They move the workspace models between apps, and a squash that
+includes them breaks a fresh PostgreSQL install. Test a new squash on
+PostgreSQL, because SQLite does not catch this.
+
 ## Installed builds and troubleshooting
 
 If uv reports that its tool directory is missing from your `PATH`, run
