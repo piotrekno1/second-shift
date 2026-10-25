@@ -28,6 +28,7 @@ class StrictSchema(Schema):
 
 class SessionInput(StrictSchema):
     run_id: int = Field(gt=0)
+    session_key: str = Field(min_length=32, max_length=32)
     repository: str = Field(min_length=3, max_length=300)
     commit_sha: str = Field(min_length=40, max_length=64)
     image: str = Field(min_length=1, max_length=300)

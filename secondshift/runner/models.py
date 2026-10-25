@@ -9,7 +9,7 @@ class RunnerSession(models.Model):
         ERROR = "error", "Error"
 
     session_id = models.CharField(primary_key=True, max_length=80)
-    run_id = models.PositiveBigIntegerField(unique=True)
+    run_id = models.PositiveBigIntegerField(db_index=True)
     repository = models.CharField(max_length=300)
     commit_sha = models.CharField(max_length=64)
     image = models.CharField(max_length=300)

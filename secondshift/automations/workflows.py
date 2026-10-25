@@ -125,6 +125,7 @@ def start_runner_session_step(run_id: int) -> str:
     session_id = get_runner_client().start(
         RunnerSessionSpec(
             run_id=run.pk,
+            session_key=run.runner_session_key.hex,
             repository=str(repository_plan["full_name"]),
             commit_sha=run.commit_sha,
             image=str(runner_plan["image"]),

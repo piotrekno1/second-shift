@@ -13,11 +13,13 @@ class RunnerProtocolError(RuntimeError):
 
 REPOSITORY_NAME = re.compile(r"^[A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)+$")
 COMMIT_SHA = re.compile(r"^[0-9a-f]{40,64}$")
+SESSION_KEY = re.compile(r"^[0-9a-f]{32}$")
 
 
 @dataclass(frozen=True)
 class RunnerSessionSpec:
     run_id: int
+    session_key: str
     repository: str
     commit_sha: str
     image: str
@@ -25,6 +27,8 @@ class RunnerSessionSpec:
     def __post_init__(self) -> None:
         if self.run_id < 1:
             raise ValueError("run_id must be positive")
+        if not SESSION_KEY.fullmatch(self.session_key):
+            raise ValueError("session_key must be 32 lowercase hexadecimal characters")
         if not REPOSITORY_NAME.fullmatch(self.repository):
             raise ValueError("repository must be a normalized owner/name path")
         if any(part in {".", ".."} for part in self.repository.split("/")):
@@ -33,6 +37,12 @@ class RunnerSessionSpec:
             raise ValueError("commit_sha must be a full lowercase hexadecimal SHA")
         if not self.image.strip():
             raise ValueError("a server-owned image is required")
+
+    @property
+    def session_id(self) -> str:
+        # The key is random per run, so a reset or restored database that
+        # reuses a run ID never matches an older session.
+        return f"run-{self.run_id}-{self.session_key}"
 
 
 @dataclass(frozen=True)
@@ -93,7 +103,7 @@ class FakeRunnerBackend:
         self.results: dict[tuple[str, str], tuple[str, CommandResult]] = {}
 
     def start(self, spec: RunnerSessionSpec) -> str:
-        session_id = f"run-{spec.run_id}"
+        session_id = spec.session_id
         existing = self.sessions.get(session_id)
         if existing is not None and existing != spec:
             raise RunnerProtocolError("The run already has a different session spec.")

@@ -3,7 +3,11 @@ from unittest.mock import Mock
 
 import pytest
 
-from secondshift.automations.runner_protocol import CommandRequest, RunnerProtocolError
+from secondshift.automations.runner_protocol import (
+    CommandRequest,
+    RunnerProtocolError,
+    RunnerSessionSpec,
+)
 from secondshift.runner.models import RunnerCommand, RunnerSession
 from secondshift.runner.services import DockerRunnerService, RunnerConfigurationError
 
@@ -130,3 +134,41 @@ def test_runner_refuses_to_start_when_the_pull_fails(settings, monkeypatch) -> N
 
     with pytest.raises(RunnerConfigurationError, match="pull access denied"):
         DockerRunnerService().ensure_image()
+
+
+@pytest.mark.django_db
+def test_an_old_session_with_the_same_run_id_does_not_block_a_new_run(
+    settings, monkeypatch, tmp_path: Path
+) -> None:
+    settings.RUNNER_WORK_ROOT = tmp_path
+    settings.RUNNER_IMAGE = "secondshift-runner:test"
+    RunnerSession.objects.create(
+        session_id="run-7",
+        run_id=7,
+        repository="old/project",
+        commit_sha="b" * 40,
+        image="secondshift-runner:test",
+        container_name="secondshift-run-7",
+        workspace_path=str(tmp_path / "sessions" / "run-7" / "workspace"),
+        status=RunnerSession.Status.ERROR,
+    )
+    monkeypatch.setattr(
+        DockerRunnerService, "run_command", staticmethod(lambda *a, **k: completed(0))
+    )
+    for name in ("export_repository", "prepare_workspace_permissions"):
+        monkeypatch.setattr(DockerRunnerService, name, lambda *a, **k: None)
+    spec = RunnerSessionSpec(
+        run_id=7,
+        session_key="c" * 32,
+        repository="example/project",
+        commit_sha="a" * 40,
+        image="secondshift-runner:test",
+    )
+
+    session_id = DockerRunnerService().start(spec)
+
+    assert session_id == spec.session_id
+    session = RunnerSession.objects.get(session_id=session_id)
+    assert session.status == RunnerSession.Status.ACTIVE
+    assert session.container_name == f"secondshift-{spec.session_id}"
+    assert RunnerSession.objects.filter(run_id=7).count() == 2
