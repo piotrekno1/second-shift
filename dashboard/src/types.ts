@@ -20,6 +20,15 @@ export interface PendingInvite {
   invited_by: string | null
 }
 
+export interface Member {
+  id: number
+  email: string
+  role: string
+  joined_at: string
+  /** The signed-in person. */
+  you: boolean
+}
+
 /** An invite that can still be accepted. Its link is never shown again. */
 export interface Invite {
   id: number

@@ -546,4 +546,5 @@ a.runtime-note { color: inherit; }
 .invite-link code { max-width: 100%; overflow-wrap: anywhere; font-size: 12px; }
 .invite-list li:first-child { border-top: 0; }
 .member-email small { display: block; color: var(--subtle); font-size: 11px; }
-
+.member-list .p-select.member-role { width: 128px; }
+.member-list .p-button { min-width: 84px; }
