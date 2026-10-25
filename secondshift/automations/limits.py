@@ -18,7 +18,8 @@ from typing import Any
 from django.conf import settings
 
 from secondshift.automations.models import Job
-from secondshift.core.models import RunLimitOverrides, Workspace
+from secondshift.core.models import RunLimitOverrides
+from secondshift.workspaces.models import Workspace
 
 
 class RunLimit(StrEnum):

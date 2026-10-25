@@ -8,8 +8,8 @@ from django.db.models import Count, F, Q, QuerySet
 from django.utils import timezone
 
 from secondshift.automations.models import Run
-from secondshift.core.models import Workspace
 from secondshift.gateway.usage import with_model_usage
+from secondshift.workspaces.models import Workspace
 
 Period = Literal["24h", "7d", "30d"]
 RunSort = Literal["newest", "cost"]

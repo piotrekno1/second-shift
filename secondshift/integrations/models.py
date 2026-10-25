@@ -3,7 +3,7 @@ from django.core.exceptions import ValidationError
 from django.db import models
 from encrypted_model_fields.fields import EncryptedTextField
 
-from secondshift.core.models import Workspace
+from secondshift.workspaces.models import Workspace
 
 
 class Connection(models.Model):

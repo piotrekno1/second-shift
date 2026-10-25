@@ -6,10 +6,10 @@ import pytest
 from django.contrib.auth import get_user_model
 from django.test import override_settings
 
-from secondshift.core.models import Workspace
 from secondshift.core.services import create_workspace
 from secondshift.repositories.local import LocalRepositoryError, attach_local_repository
 from secondshift.repositories.models import Repository
+from secondshift.workspaces.models import Workspace
 
 
 def run_git(path: Path, *arguments: str) -> None:

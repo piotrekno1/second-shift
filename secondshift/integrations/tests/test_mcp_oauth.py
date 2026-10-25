@@ -11,7 +11,6 @@ from django.contrib.auth import get_user_model
 from django.test import Client
 from django.utils import timezone
 
-from secondshift.core.models import Workspace
 from secondshift.core.services import create_workspace
 from secondshift.integrations.external import external_access
 from secondshift.integrations.mcp.base import MCPError, MCPRequestError
@@ -27,6 +26,7 @@ from secondshift.integrations.mcp.signin import (
 )
 from secondshift.integrations.models import Connection, OAuthAuthorization
 from secondshift.repositories.models import Repository
+from secondshift.workspaces.models import Workspace
 
 SERVER = "https://mcp.example.com/mcp"
 ISSUER = "https://auth.example.com"

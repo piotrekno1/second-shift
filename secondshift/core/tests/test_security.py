@@ -7,8 +7,8 @@ from django.urls import reverse
 
 from secondshift.automations.models import Job
 from secondshift.core.adapters import AccountAdapter, SocialAccountAdapter
-from secondshift.core.models import Workspace
 from secondshift.repositories.models import Repository
+from secondshift.workspaces.models import Workspace
 
 
 def test_admin_is_served_under_internal_prefix() -> None:

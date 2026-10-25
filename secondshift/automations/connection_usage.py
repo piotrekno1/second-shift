@@ -8,8 +8,8 @@ from django.db.models import Count, Max, Q, Sum
 from django.utils import timezone
 
 from secondshift.automations.models import JobGrant
-from secondshift.core.models import Workspace
 from secondshift.gateway.models import ModelUsage
+from secondshift.workspaces.models import Workspace
 
 WINDOW = timedelta(days=7)
 

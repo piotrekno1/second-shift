@@ -1,8 +1,8 @@
 from django.db import IntegrityError, transaction
 
-from secondshift.core.models import Workspace
 from secondshift.integrations.models import Connection
 from secondshift.integrations.webhooks import validate_webhook_url, webhook_target_label
+from secondshift.workspaces.models import Workspace
 
 
 class ConnectionConflict(ValueError):

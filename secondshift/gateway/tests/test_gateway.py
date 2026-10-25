@@ -16,7 +16,6 @@ from django.utils import timezone
 
 from secondshift.automations.models import Job, Run
 from secondshift.automations.reconciliation import mark_run_terminal
-from secondshift.core.models import Workspace
 from secondshift.core.services import create_workspace, workspace_owner
 from secondshift.gateway.metering import StreamMeter, Usage, record_usage
 from secondshift.gateway.models import ModelUsage, RunToken
@@ -27,6 +26,7 @@ from secondshift.gateway.views import model_gateway
 from secondshift.integrations.models import Connection
 from secondshift.integrations.outbound import PinnedNetworkBackend, PinnedTransport
 from secondshift.repositories.models import Repository
+from secondshift.workspaces.models import Workspace
 
 PROVIDER_KEY = "sk-ant-provider-secret"
 pytestmark = pytest.mark.urls("secondshift.gateway.urls")

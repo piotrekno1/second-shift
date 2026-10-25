@@ -92,6 +92,7 @@ INSTALLED_APPS = [
     "axes",
     "health_check",
     "secondshift.core",
+    "secondshift.workspaces",
     "secondshift.integrations",
     "secondshift.repositories",
     "secondshift.automations",

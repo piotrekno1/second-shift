@@ -1,7 +1,7 @@
 from django.contrib.auth.models import AbstractBaseUser
 from django.db import transaction
 
-from secondshift.core.models import Workspace, WorkspaceMembership
+from secondshift.workspaces.models import Workspace, WorkspaceMembership
 
 
 @transaction.atomic

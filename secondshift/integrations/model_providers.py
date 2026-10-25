@@ -10,13 +10,13 @@ from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 
-from secondshift.core.models import Workspace
 from secondshift.integrations.models import Connection
 from secondshift.integrations.outbound import (
     OutboundUrlError,
     host_label,
     validate_outbound_url,
 )
+from secondshift.workspaces.models import Workspace
 
 logger = logging.getLogger(__name__)
 

@@ -16,7 +16,7 @@ from secondshift.config.constants import (
     SandboxRuntime,
 )
 from secondshift.core.access import ROLE_RANK, Role
-from secondshift.core.models import Workspace
+from secondshift.workspaces.models import Workspace
 
 
 @dataclass(frozen=True)

@@ -8,9 +8,9 @@ from django.test import Client
 
 from secondshift.automations.models import Job
 from secondshift.core.access import ADMIN_ACTIONS, POLICY, Action, Role, role_allows
-from secondshift.core.models import Workspace, WorkspaceMembership
 from secondshift.core.services import create_workspace
 from secondshift.repositories.models import Repository
+from secondshift.workspaces.models import Workspace, WorkspaceMembership
 
 
 def user(name: str) -> AbstractUser:

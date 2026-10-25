@@ -18,11 +18,11 @@ from secondshift.automations.manifest import RepositoryManifest
 from secondshift.automations.models import Job, Run
 from secondshift.automations.planning import build_execution_plan
 from secondshift.automations.tests.test_planning import create_job
-from secondshift.core.models import WorkspaceMembership
 from secondshift.core.services import workspace_owner
 from secondshift.gateway.models import RunToken
 from secondshift.gateway.tokens import issue_run_token
 from secondshift.integrations.models import Connection
+from secondshift.workspaces.models import WorkspaceMembership
 
 
 @pytest.fixture

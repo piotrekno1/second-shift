@@ -35,7 +35,6 @@ from secondshift.core.access import (
     select_workspace,
     user_memberships,
 )
-from secondshift.core.models import Workspace
 from secondshift.core.workspace_settings import (
     environment_label,
     members,
@@ -89,6 +88,7 @@ from secondshift.repositories.local import (
     inspect_local_repository,
 )
 from secondshift.repositories.models import Repository
+from secondshift.workspaces.models import Workspace
 
 api = NinjaAPI(title="SecondShift API", version="1.0")
 api.add_router("", "secondshift.automations.api.router")

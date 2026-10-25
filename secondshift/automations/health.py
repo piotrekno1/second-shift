@@ -9,8 +9,8 @@ from django.utils import timezone
 
 from secondshift.automations.failures import describe_failure
 from secondshift.automations.models import Job, Run
-from secondshift.core.models import Workspace
 from secondshift.gateway.models import ModelUsage
+from secondshift.workspaces.models import Workspace
 
 FINISHED = (Run.Status.SUCCEEDED, Run.Status.FAILED, Run.Status.CANCELED)
 WINDOW = timedelta(days=7)

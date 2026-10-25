@@ -8,10 +8,10 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 from django.test import Client
 
-from secondshift.core.models import Workspace
 from secondshift.core.services import create_workspace
 from secondshift.integrations import model_providers
 from secondshift.integrations.models import Connection
+from secondshift.workspaces.models import Workspace
 
 KEY = "sk-provider-secret-key"
 

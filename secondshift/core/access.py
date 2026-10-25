@@ -10,7 +10,7 @@ from enum import StrEnum
 from django.db.models import QuerySet
 from django.http import HttpRequest
 
-from secondshift.core.models import Workspace, WorkspaceMembership
+from secondshift.workspaces.models import Workspace, WorkspaceMembership
 
 Role = WorkspaceMembership.Role
 
