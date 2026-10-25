@@ -11,7 +11,7 @@
 
 Your coding agents can review production errors, investigate CI failures, and
 check monitoring coverage. Stop reminding them. Commit a skill, set a schedule,
-and get the findings in Slack.
+and get the findings delivered.
 
 Your team controls their access. Every run leaves an audit trail.
 
