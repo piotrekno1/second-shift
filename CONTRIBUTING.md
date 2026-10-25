@@ -111,9 +111,11 @@ Production refuses to start until
 address.
 
 In development, the Repositories page can attach a local Git repository by
-path. SecondShift resolves its Git root, requires a committed root-level
-`.secondshift.yaml` and committed referenced `SKILL.md` files, records the HEAD
-revision, and synchronizes its jobs. The feature is enabled only by dev settings
+path. SecondShift resolves its Git root and follows the checked-out branch. It
+reads the root-level `.secondshift.yaml` and referenced `SKILL.md` files from
+that branch's newest commit, records the revision, and synchronizes its jobs.
+The worker syncs again when the branch moves
+(`SECONDSHIFT_REPOSITORY_SYNC_INTERVAL_SECONDS`, 0 turns it off). The feature is enabled only by dev settings
 and can be hidden with `SECONDSHIFT_LOCAL_REPOSITORIES_ENABLED=false`.
 
 Repository cards use the human-readable directory name and link to a detail
