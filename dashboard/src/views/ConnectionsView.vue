@@ -86,6 +86,7 @@ const providerIcon: Record<Connection['provider'], string> = {
   webhook: 'mdi-webhook',
   anthropic: 'mdi-creation-outline',
   openai: 'mdi-robot-outline',
+  openrouter: 'mdi-transit-connection-variant',
   openai_compatible: 'mdi-server-outline',
 }
 

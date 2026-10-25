@@ -74,7 +74,10 @@ def pydantic_model(access: ModelGatewayAccess) -> Model:
             ),
         )
     provider = OpenAIProvider(api_key=access.token, base_url=access.base_url)
-    if access.provider == Connection.Provider.OPENAI_COMPATIBLE:
+    if access.provider in {
+        Connection.Provider.OPENAI_COMPATIBLE,
+        Connection.Provider.OPENROUTER,
+    }:
         # Responses is not universally implemented by compatible providers.
         return OpenAIChatModel(access.model, provider=provider)
     return OpenAIResponsesModel(access.model, provider=provider)

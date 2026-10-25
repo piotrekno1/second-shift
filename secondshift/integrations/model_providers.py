@@ -23,12 +23,14 @@ logger = logging.getLogger(__name__)
 PROVIDERS = {
     Connection.Provider.ANTHROPIC,
     Connection.Provider.OPENAI,
+    Connection.Provider.OPENROUTER,
     Connection.Provider.OPENAI_COMPATIBLE,
 }
 # Anthropic base URLs exclude /v1 (SDK convention); OpenAI-family ones include it.
 DEFAULT_BASE_URLS = {
     Connection.Provider.ANTHROPIC: "https://api.anthropic.com",
     Connection.Provider.OPENAI: "https://api.openai.com/v1",
+    Connection.Provider.OPENROUTER: "https://openrouter.ai/api/v1",
 }
 
 
@@ -99,7 +101,7 @@ def create_model_connection(
 ) -> Connection:
     if provider not in PROVIDERS:
         raise ModelProviderError(
-            "Choose Anthropic, OpenAI or an OpenAI-compatible provider."
+            "Choose Anthropic, OpenAI, OpenRouter or an OpenAI-compatible provider."
         )
     api_key = api_key.strip()
     if not api_key and provider != Connection.Provider.OPENAI_COMPATIBLE:
@@ -414,7 +416,8 @@ def fetch_models(connection: Connection) -> list[str]:
         raise CheckFailed("The provider could not be reached.") from error
     models = sorted(set(models))
     connection.metadata = {**connection.metadata, "available_models": models}
-    connection.save(update_fields=["metadata", "updated_at"])
+    if connection.pk:
+        connection.save(update_fields=["metadata", "updated_at"])
     return models
 
 

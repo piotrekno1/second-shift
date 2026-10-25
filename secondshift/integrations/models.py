@@ -17,6 +17,7 @@ class Connection(models.Model):
         WEBHOOK = "webhook", "Webhook"
         ANTHROPIC = "anthropic", "Anthropic"
         OPENAI = "openai", "OpenAI"
+        OPENROUTER = "openrouter", "OpenRouter"
         OPENAI_COMPATIBLE = "openai_compatible", "OpenAI-compatible"
 
     class Kind(models.TextChoices):
