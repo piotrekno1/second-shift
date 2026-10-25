@@ -22,8 +22,8 @@ from secondshift.automations.artifacts import (
 )
 from secondshift.automations.models import Job, Run
 from secondshift.automations.retention import prune_runs
-from secondshift.core.services import create_workspace
 from secondshift.repositories.models import Repository
+from secondshift.workspaces.services import create_workspace
 
 SECRET = "hunter2-token+/="
 

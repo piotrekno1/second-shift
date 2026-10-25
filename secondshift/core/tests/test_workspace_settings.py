@@ -4,9 +4,9 @@ import pytest
 from django.contrib.auth import get_user_model
 from django.test import Client
 
-from secondshift.core.services import create_workspace
 from secondshift.core.workspace_settings import image_label
 from secondshift.workspaces.models import WorkspaceMembership
+from secondshift.workspaces.services import create_workspace
 
 
 @pytest.mark.django_db

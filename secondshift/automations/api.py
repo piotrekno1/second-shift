@@ -30,10 +30,10 @@ from secondshift.automations.models import (
 )
 from secondshift.automations.planning import build_execution_plan
 from secondshift.automations.run_queries import Period, RunFilters, RunSort, run_page
-from secondshift.core.access import Action, allows, current_workspace, require
 from secondshift.gateway.usage import with_model_usage
 from secondshift.integrations.external import changing_tools, external_access
 from secondshift.integrations.models import Connection
+from secondshift.workspaces.access import Action, allows, current_workspace, require
 
 router = Router(auth=django_auth, tags=["automations"])
 

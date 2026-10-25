@@ -2,8 +2,8 @@ import pytest
 from django.contrib.auth import get_user_model
 from django.db import connection
 
-from secondshift.core.services import create_workspace
 from secondshift.integrations.models import Secret
+from secondshift.workspaces.services import create_workspace
 
 
 @pytest.mark.django_db

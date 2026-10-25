@@ -7,9 +7,9 @@ from secondshift.automations.connection_usage import connection_usage
 from secondshift.automations.models import CapabilityRequest, JobGrant, Run
 from secondshift.automations.tests.test_health import NOW, add_run, add_usage
 from secondshift.automations.tests.test_run_queries import make_job, make_workspace
-from secondshift.core.services import workspace_owner
 from secondshift.gateway.models import ModelUsage
 from secondshift.integrations.models import Connection
+from secondshift.workspaces.services import workspace_owner
 
 
 def make_connection(workspace: object, key: str, kind: str) -> Connection:

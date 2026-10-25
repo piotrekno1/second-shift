@@ -7,8 +7,8 @@ from django.test import Client
 from secondshift.automations.health import failing_jobs, spend_by_job, week_summary
 from secondshift.automations.models import Run
 from secondshift.automations.tests.test_run_queries import make_job, make_workspace
-from secondshift.core.services import workspace_owner
 from secondshift.gateway.models import ModelUsage
+from secondshift.workspaces.services import workspace_owner
 
 NOW = datetime(2026, 10, 23, 12, 0, tzinfo=UTC)
 

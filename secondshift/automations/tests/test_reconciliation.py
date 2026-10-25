@@ -8,8 +8,8 @@ from django.utils import timezone
 
 from secondshift.automations.models import Job, Run
 from secondshift.automations.reconciliation import reconcile_terminal_workflows
-from secondshift.core.services import create_workspace
 from secondshift.repositories.models import Repository
+from secondshift.workspaces.services import create_workspace
 
 
 class FakeDBOSClient:

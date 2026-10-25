@@ -11,7 +11,6 @@ from django.db import connection as db_connection
 from django.test import Client
 
 from secondshift.automations.models import CapabilityRequest, Job, JobGrant
-from secondshift.core.services import create_workspace
 from secondshift.integrations import webhooks
 from secondshift.integrations.models import Connection
 from secondshift.integrations.webhooks import (
@@ -21,6 +20,7 @@ from secondshift.integrations.webhooks import (
 )
 from secondshift.repositories.models import Repository
 from secondshift.workspaces.models import Workspace
+from secondshift.workspaces.services import create_workspace
 
 SECRET_URL = "https://hooks.example.com/services/T000/B000/secret-token"
 

@@ -24,17 +24,6 @@ from secondshift.automations.health import failing_jobs, spend_by_job, week_summ
 from secondshift.automations.limits import LimitError, limit_views, save_overrides
 from secondshift.automations.models import Job, Run
 from secondshift.automations.needs import capability_needs
-from secondshift.core.access import (
-    AccessDenied,
-    Action,
-    allows,
-    current_membership,
-    current_workspace,
-    permitted_actions,
-    require,
-    select_workspace,
-    user_memberships,
-)
 from secondshift.core.workspace_settings import (
     environment_label,
     members,
@@ -88,6 +77,17 @@ from secondshift.repositories.local import (
     inspect_local_repository,
 )
 from secondshift.repositories.models import Repository
+from secondshift.workspaces.access import (
+    AccessDenied,
+    Action,
+    allows,
+    current_membership,
+    current_workspace,
+    permitted_actions,
+    require,
+    select_workspace,
+    user_memberships,
+)
 from secondshift.workspaces.models import Workspace
 
 api = NinjaAPI(title="SecondShift API", version="1.0")

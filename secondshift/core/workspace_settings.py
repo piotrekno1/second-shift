@@ -15,7 +15,7 @@ from secondshift.config.constants import (
     Environment,
     SandboxRuntime,
 )
-from secondshift.core.access import ROLE_RANK, Role
+from secondshift.workspaces.access import ROLE_RANK, Role
 from secondshift.workspaces.models import Workspace
 
 

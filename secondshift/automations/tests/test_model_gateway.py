@@ -11,10 +11,10 @@ from secondshift.automations.model_gateway import (
 )
 from secondshift.automations.models import Job, Run
 from secondshift.automations.planning import build_execution_plan
-from secondshift.core.services import create_workspace
 from secondshift.gateway.tokens import authenticate
 from secondshift.integrations.models import Connection
 from secondshift.repositories.models import Repository
+from secondshift.workspaces.services import create_workspace
 
 PROVIDER_KEY = "sk-ant-provider-secret"
 

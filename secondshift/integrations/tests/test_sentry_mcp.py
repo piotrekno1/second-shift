@@ -9,7 +9,6 @@ from django.test import Client
 from secondshift.automations.models import CapabilityRequest, Job, JobGrant
 from secondshift.automations.planning import build_execution_plan
 from secondshift.config.constants import SENTRY_MCP_URL
-from secondshift.core.services import create_workspace, workspace_owner
 from secondshift.integrations.external import external_access
 from secondshift.integrations.mcp.base import MCPError
 from secondshift.integrations.mcp.client import (
@@ -22,6 +21,7 @@ from secondshift.integrations.models import Connection
 from secondshift.integrations.services import revoke_connection
 from secondshift.repositories.models import Repository
 from secondshift.workspaces.models import Workspace
+from secondshift.workspaces.services import create_workspace, workspace_owner
 
 TOKEN = "sntryu_test_token"
 OBJECT_SCHEMA = {"type": "object", "properties": {"issueId": {"type": "string"}}}

@@ -8,13 +8,13 @@ from django.test import Client
 from django.utils import timezone
 
 from secondshift.core.management.commands.up import is_loopback
-from secondshift.core.owners import (
+from secondshift.core.signin import SIGN_IN_LINK_SECONDS, sign_in_url
+from secondshift.workspaces.owners import (
     LOCAL_OWNER_USERNAME,
     ensure_owner,
     get_owner,
     set_owner_credentials,
 )
-from secondshift.core.signin import SIGN_IN_LINK_SECONDS, sign_in_url
 
 BASE_URL = "http://testserver"
 

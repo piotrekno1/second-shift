@@ -28,7 +28,6 @@ from secondshift.automations.tests.test_execution import tool_context
 from secondshift.automations.tool_broker import call_external_tool_step
 from secondshift.automations.tool_policy import ToolPolicyError
 from secondshift.config.constants import GITHUB_MCP_URL
-from secondshift.core.services import create_workspace, workspace_owner
 from secondshift.integrations.errors import ExternalToolError
 from secondshift.integrations.mcp.base import MCPError, MCPRequestError
 from secondshift.integrations.models import Connection
@@ -36,6 +35,7 @@ from secondshift.integrations.tests.test_github_mcp import TOOL_SCHEMAS
 from secondshift.integrations.tests.test_github_mcp import mcp_http as imported_mcp_http
 from secondshift.integrations.webhooks import deliver_webhook
 from secondshift.repositories.models import Repository
+from secondshift.workspaces.services import create_workspace, workspace_owner
 
 LATER = datetime(2100, 1, 1, tzinfo=UTC)
 

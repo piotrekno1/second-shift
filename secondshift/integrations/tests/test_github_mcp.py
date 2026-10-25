@@ -8,7 +8,6 @@ from django.contrib.auth import get_user_model
 from django.test import Client
 
 from secondshift.config.constants import GITHUB_MCP_URL
-from secondshift.core.services import create_workspace
 from secondshift.integrations.mcp.base import MCPError
 from secondshift.integrations.mcp.client import (
     create_mcp_connection,
@@ -20,6 +19,7 @@ from secondshift.integrations.mcp.client import (
 from secondshift.integrations.mcp.github import scoped_github_arguments
 from secondshift.integrations.mcp.transport import BoundedStream
 from secondshift.integrations.models import Connection
+from secondshift.workspaces.services import create_workspace
 
 TOOL_SCHEMAS = {
     "search_pull_requests": {

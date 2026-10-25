@@ -116,7 +116,7 @@ first skill, schedule, and webhook notification.
 
 Each workspace role can also do everything the roles below it can. The full
 list of actions and the role each needs is `POLICY` in
-`secondshift/core/access.py`.
+`secondshift/workspaces/access.py`.
 
 A committed skill does not grant itself access. Repository configuration cannot
 choose credentials, provider endpoints, sandbox images, mounts, or network

@@ -7,10 +7,10 @@ from django.test import Client
 from django.utils import timezone
 
 from secondshift.automations.models import CapabilityRequest, Job, JobGrant, Run
-from secondshift.core.services import create_workspace
 from secondshift.integrations.models import Connection
 from secondshift.repositories.models import Repository
 from secondshift.workspaces.models import Workspace, WorkspaceMembership
+from secondshift.workspaces.services import create_workspace
 
 
 @pytest.fixture

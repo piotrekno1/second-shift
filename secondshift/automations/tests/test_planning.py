@@ -2,9 +2,9 @@ from django.contrib.auth import get_user_model
 
 from secondshift.automations.models import CapabilityRequest, Job, JobGrant
 from secondshift.automations.planning import build_execution_plan
-from secondshift.core.services import create_workspace
 from secondshift.integrations.models import Connection
 from secondshift.repositories.models import Repository
+from secondshift.workspaces.services import create_workspace
 
 
 def create_job(db) -> Job:

@@ -1,7 +1,7 @@
 import pytest
 from django.contrib.auth import get_user_model
 
-from secondshift.core.owners import ensure_owner, get_owner, has_owner
+from secondshift.workspaces.owners import ensure_owner, get_owner, has_owner
 
 
 @pytest.mark.django_db

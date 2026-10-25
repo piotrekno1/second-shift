@@ -3,8 +3,8 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 
-from secondshift.core.services import create_workspace, workspace_owner
 from secondshift.workspaces.models import Workspace, WorkspaceMembership
+from secondshift.workspaces.services import create_workspace, workspace_owner
 
 WORKSPACE_SLUG = "secondshift"
 WORKSPACE_NAME = "SecondShift"

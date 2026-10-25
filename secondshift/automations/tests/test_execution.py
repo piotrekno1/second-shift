@@ -27,8 +27,8 @@ from secondshift.automations.runner_protocol import (
     RunnerSessionSpec,
 )
 from secondshift.automations.tool_policy import LOCAL_TOOLS
-from secondshift.core.services import create_workspace
 from secondshift.repositories.models import Repository
+from secondshift.workspaces.services import create_workspace
 
 LATER = datetime(2100, 1, 1, tzinfo=UTC)
 

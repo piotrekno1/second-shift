@@ -4,7 +4,6 @@ import pytest
 from django.contrib.auth import get_user_model
 
 from secondshift.automations.models import JobGrant
-from secondshift.core.services import create_workspace
 from secondshift.integrations.models import Connection
 from secondshift.repositories.github import github_remote_name, github_repository_scope
 from secondshift.repositories.local import (
@@ -14,6 +13,7 @@ from secondshift.repositories.local import (
 )
 from secondshift.repositories.models import Repository
 from secondshift.repositories.tests.test_local import create_local_repository
+from secondshift.workspaces.services import create_workspace
 
 
 @pytest.mark.parametrize(

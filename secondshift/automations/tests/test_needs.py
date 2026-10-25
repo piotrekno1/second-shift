@@ -19,11 +19,11 @@ from secondshift.automations.needs import capability_needs
 from secondshift.automations.notifications import notification_targets
 from secondshift.automations.planning import build_execution_plan
 from secondshift.automations.workflows import notify
-from secondshift.core.services import create_workspace
 from secondshift.integrations import webhooks
 from secondshift.integrations.models import Connection
 from secondshift.repositories.models import Repository
 from secondshift.workspaces.models import Workspace
+from secondshift.workspaces.services import create_workspace
 
 
 @pytest.fixture

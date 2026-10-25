@@ -11,8 +11,8 @@ from secondshift.automations.workflows import (
     stop_runner_session_step,
 )
 from secondshift.config.constants import RunSandbox
-from secondshift.core.services import create_workspace
 from secondshift.repositories.models import Repository
+from secondshift.workspaces.services import create_workspace
 
 
 class FakeRunnerClient:

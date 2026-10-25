@@ -7,10 +7,10 @@ from django.test import Client
 from django.utils import timezone
 
 from secondshift.automations.models import Job, Run
-from secondshift.core.services import create_workspace, workspace_owner
 from secondshift.gateway.models import ModelUsage
 from secondshift.repositories.models import Repository
 from secondshift.workspaces.models import Workspace
+from secondshift.workspaces.services import create_workspace, workspace_owner
 
 
 def make_workspace(slug: str) -> Workspace:
