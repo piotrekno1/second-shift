@@ -12,27 +12,65 @@ onUnmounted(directories.reset)
 </script>
 
 <template>
-  <Dialog :visible="true" modal header="Browse directories" class="local-directory-picker" @update:visible="emit('close')">
-    <p>Folders on the machine running SecondShift.</p>
-    <p aria-live="polite"><code>{{ directories.listing?.path ?? '…' }}</code></p>
-    <p v-if="directories.loading" role="status">Loading directories…</p>
-    <p v-if="directories.error" class="form-error" role="alert">{{ directories.error }}</p>
-    <nav aria-label="Directories" :aria-busy="directories.loading">
-      <Button label="Up" icon="pi pi-arrow-up" text :disabled="!directories.listing?.parent || directories.loading" @click="directories.load(directories.listing?.parent ?? '')" />
-      <Button v-for="folder in directories.listing?.directories" :key="folder.path" :label="folder.name" icon="pi pi-folder" text @click="directories.load(folder.path)" />
-      <p v-if="directories.listing?.directories.length === 0">No subdirectories.</p>
+  <Dialog id="local-directory-picker" :visible="true" modal header="Choose a repository folder" class="local-directory-picker" @update:visible="emit('close')">
+    <p class="directory-description">Browse folders on the machine running SecondShift.</p>
+    <div class="directory-location">
+      <Button aria-label="Up one level" title="Up one level" icon="pi pi-arrow-up" severity="secondary" text :disabled="!directories.listing?.parent || directories.loading" @click="directories.load(directories.listing?.parent ?? '')" />
+      <div aria-live="polite"><span class="directory-label">Current folder</span><code>{{ directories.listing?.path ?? 'Loading…' }}</code></div>
+    </div>
+    <nav class="directory-list" aria-label="Directories" :aria-busy="directories.loading">
+      <p v-if="directories.loading" class="directory-message" role="status"><i class="pi pi-spinner pi-spin" aria-hidden="true" /> Loading folders…</p>
+      <p v-else-if="directories.error" class="directory-message directory-error" role="alert"><i class="pi pi-exclamation-circle" aria-hidden="true" /> {{ directories.error }}</p>
+      <button v-for="folder in directories.listing?.directories" :key="folder.path" type="button" class="directory-row" @click="directories.load(folder.path)">
+        <i class="pi pi-folder directory-icon" aria-hidden="true" />
+        <span>{{ folder.name }}</span>
+        <i class="pi pi-angle-right directory-chevron" aria-hidden="true" />
+      </button>
+      <p v-if="directories.listing?.directories.length === 0" class="directory-message"><i class="pi pi-folder-open" aria-hidden="true" /> No subfolders. You can select this folder.</p>
     </nav>
     <template #footer>
-      <Button label="Close" severity="secondary" outlined @click="emit('close')" />
+      <span class="directory-count">{{ directories.listing ? `${directories.listing.directories.length} folders` : '' }}</span>
+      <Button label="Cancel" severity="secondary" outlined @click="emit('close')" />
       <Button label="Use this folder" icon="pi pi-check" :disabled="!directories.listing || directories.loading" @click="emit('choose', directories.listing!.path)" />
     </template>
   </Dialog>
 </template>
 
-<style scoped>
-.local-directory-picker { width: min(560px, 95vw); }
-code { overflow-wrap: anywhere; }
-nav { display: flex; flex-direction: column; max-height: 50vh; overflow: auto; }
-nav :deep(.p-button) { justify-content: flex-start; flex-shrink: 0; }
-nav :deep(.p-button-label) { overflow-wrap: anywhere; text-align: left; }
+<style>
+/* Dialog is teleported outside the component's DOM tree. */
+.local-directory-picker.p-dialog {
+  width: min(600px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--night-900);
+  color: var(--ink);
+  box-shadow: 0 28px 90px rgba(0, 0, 0, .5);
+}
+.local-directory-picker .p-dialog-header { padding: 22px 24px 10px; }
+.local-directory-picker .p-dialog-title { font-family: 'Manrope', sans-serif; font-size: 18px; letter-spacing: -.025em; }
+.local-directory-picker .p-dialog-content { padding: 0 24px 20px; }
+.local-directory-picker .directory-description { margin: 0 0 20px; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.local-directory-picker .directory-location { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; padding: 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--night-950); }
+.local-directory-picker .directory-location > div { min-width: 0; display: grid; gap: 4px; }
+.local-directory-picker .directory-location .p-button { flex-shrink: 0; width: 32px; height: 32px; }
+.local-directory-picker .directory-label { color: var(--subtle); font-size: 9px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }
+.local-directory-picker code { color: var(--violet-soft); font-size: 12px; overflow-wrap: anywhere; }
+.local-directory-picker .directory-list { height: min(360px, 44vh); overflow-y: auto; padding: 4px; border: 1px solid var(--border); border-radius: 10px; background: rgba(13, 14, 29, .45); scrollbar-width: thin; scrollbar-color: var(--night-750) transparent; }
+.local-directory-picker .directory-row { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 42px; padding: 10px 12px; border: 1px solid transparent; border-radius: 7px; background: transparent; color: var(--ink); text-align: left; cursor: pointer; }
+.local-directory-picker .directory-row:hover { background: rgba(139, 124, 255, .09); }
+.local-directory-picker .directory-row:focus-visible { outline: 2px solid var(--violet); outline-offset: -2px; background: rgba(139, 124, 255, .09); }
+.local-directory-picker .directory-row > span { flex: 1; min-width: 0; overflow-wrap: anywhere; font-size: 12px; }
+.local-directory-picker .directory-icon { color: var(--amber-soft); font-size: 16px; }
+.local-directory-picker .directory-chevron { color: var(--subtle); font-size: 11px; }
+.local-directory-picker .directory-message { display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 100%; margin: 0; padding: 24px; color: var(--muted); font-size: 12px; text-align: center; line-height: 1.7; }
+.local-directory-picker .directory-error { color: var(--danger); }
+.local-directory-picker .p-dialog-footer { gap: 8px; padding: 16px 24px; border-top: 1px solid var(--border); }
+.local-directory-picker .directory-count { margin-right: auto; color: var(--subtle); font-size: 11px; }
+@media (max-width: 480px) {
+  .local-directory-picker .p-dialog-header { padding: 16px 16px 10px; }
+  .local-directory-picker .p-dialog-content { padding: 0 16px 16px; }
+  .local-directory-picker .p-dialog-footer { padding: 14px 16px; }
+  .local-directory-picker .directory-count { display: none; }
+}
 </style>

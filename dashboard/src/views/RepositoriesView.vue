@@ -94,7 +94,7 @@ function chooseDirectory(path: string): void {
       <div><h2>Add a local Git repository</h2><p>Its committed `.secondshift.yaml` and referenced skills will be validated and synchronized.</p></div>
       <InputText v-model="localPath" aria-label="Local repository path" placeholder="/Users/you/Projects/my-repository" autofocus />
       <div class="local-repository-actions">
-        <Button type="button" icon="pi pi-folder-open" severity="secondary" outlined aria-label="Browse directories" aria-haspopup="dialog" title="Browse directories" @click="browsing = true" />
+        <Button type="button" icon="pi pi-folder-open" severity="secondary" outlined aria-label="Browse directories" :aria-expanded="browsing" aria-controls="local-directory-picker" aria-haspopup="dialog" title="Browse directories" @click="browsing = true" />
         <Button type="submit" label="Validate and add" icon="pi pi-check" :loading="saving" :disabled="!localPath.trim()" />
       </div>
       <p v-if="localError" class="form-error">{{ localError }}</p>
