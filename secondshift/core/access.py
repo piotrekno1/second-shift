@@ -41,6 +41,7 @@ class Action(StrEnum):
     CHANGE_REPOSITORY_STATE = "change repository state"
     REMOVE_REPOSITORIES = "remove repositories"
     ENABLE_JOBS = "enable jobs"
+    RUN_JOBS = "run jobs"
     CHANGE_RUN_LIMITS = "change run limits"
 
 
@@ -49,6 +50,7 @@ ADMIN_ACTIONS = {
     Action.CHANGE_REPOSITORY_STATE,
     Action.REMOVE_REPOSITORIES,
     Action.ENABLE_JOBS,
+    Action.RUN_JOBS,
     Action.CHANGE_RUN_LIMITS,
 }
 # The lowest role allowed to take each action. Members can only view.

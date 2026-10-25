@@ -99,3 +99,16 @@ def test_a_person_without_a_workspace_can_do_nothing(client: Client) -> None:
 
     assert body["workspace_slug"] is None
     assert post(client, "/api/settings/limits", {"max_turns": 5}).status_code == 403
+
+
+@pytest.mark.django_db
+def test_members_cannot_start_runs(client: Client, team: dict[str, object]) -> None:
+    job = job_in(team["workspace"])  # type: ignore[arg-type]
+    client.force_login(team[Role.MEMBER])
+
+    response = client.post(f"/api/jobs/{job.pk}/run")
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == (
+        "Only workspace owners and admins can run jobs."
+    )

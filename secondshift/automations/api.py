@@ -593,6 +593,7 @@ def run_file(
 @router.post("/jobs/{job_id}/run", response=RunSchema)
 def run_job(request: HttpRequest, job_id: int) -> RunSchema:
     job = job_for_request(request, job_id)
+    require(request, Action.RUN_JOBS)
     # A manual run does not need the schedule. It still needs the repository.
     if not job.repository.enabled:
         raise HttpError(409, "Enable the repository before running its jobs.")
