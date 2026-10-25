@@ -1,7 +1,7 @@
 from django.db import models
 
-from secondshift.automations.models import Run
-from secondshift.integrations.models import Connection
+from secondshift.connections.models import Connection
+from secondshift.runs.models import Run
 
 
 class RunToken(models.Model):

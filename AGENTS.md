@@ -31,13 +31,18 @@ docker build .
 ## Conventions
 
 - All Python code lives in the `secondshift` package. Django app labels stay
-  short (`core`, `automations`), so migrations and tables keep their names.
+  short (`core`, `jobs`, `runs`). App ownership moves preserve existing tables
+  and migrate content types without losing permission assignments.
 - `manage.py` and the installed `secondshift` command run the same thing.
 - Keep Ninja views thin. Put behavior in adjacent service modules.
 - Each app owns its HTTP surface: `api.py` defines endpoints, `schemas.py`
   defines request/response/query schemas, and `serialization.py` builds
   responses when needed. Import shared schemas directly, never through API
   modules. `secondshift/config/api.py` composes the public app routers.
+- Domain ownership: `repositories` owns source access, `jobs` owns definitions
+  and approval policy, `runs` owns execution and history, `connections` owns
+  credentials and provider adapters, and `runner` owns sandbox sessions.
+  See `docs/backend-architecture.md` for boundaries and migration history.
 - No leading underscores in names. Use them only to override a library's own
   private attribute.
 - No magic strings for names used in more than one place. Shared names

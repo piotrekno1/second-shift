@@ -5,10 +5,11 @@ import pytest
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
 
-from secondshift.automations.models import Job, Run, RunEvent
+from secondshift.connections.models import Connection
 from secondshift.core.management.commands import dev_reset_db
-from secondshift.integrations.models import Connection
+from secondshift.jobs.models import Job
 from secondshift.repositories.models import Repository
+from secondshift.runs.models import Run, RunEvent
 
 
 def test_dev_reset_db_requires_development_and_confirmation(

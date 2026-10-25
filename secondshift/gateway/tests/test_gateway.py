@@ -14,17 +14,18 @@ from django.test import Client
 from django.urls import Resolver404, resolve
 from django.utils import timezone
 
-from secondshift.automations.models import Job, Run
-from secondshift.automations.reconciliation import mark_run_terminal
+from secondshift.connections.models import Connection
+from secondshift.connections.outbound import PinnedNetworkBackend, PinnedTransport
 from secondshift.gateway.metering import StreamMeter, Usage, record_usage
 from secondshift.gateway.models import ModelUsage, RunToken
 from secondshift.gateway.pricing import request_cost
 from secondshift.gateway.proxy import upstream_client
 from secondshift.gateway.tokens import GatewayUnavailable, authenticate, issue_run_token
 from secondshift.gateway.views import model_gateway
-from secondshift.integrations.models import Connection
-from secondshift.integrations.outbound import PinnedNetworkBackend, PinnedTransport
+from secondshift.jobs.models import Job
 from secondshift.repositories.models import Repository
+from secondshift.runs.models import Run
+from secondshift.runs.orchestration.reconciliation import mark_run_terminal
 from secondshift.workspaces.models import Workspace
 from secondshift.workspaces.services import create_workspace, workspace_owner
 
@@ -468,7 +469,7 @@ def test_pinned_backend_refuses_private_answers(
         connected.append(host)
 
     monkeypatch.setattr(
-        "secondshift.integrations.outbound.anyio.getaddrinfo", fake_getaddrinfo
+        "secondshift.connections.outbound.anyio.getaddrinfo", fake_getaddrinfo
     )
     monkeypatch.setattr(httpcore.AnyIOBackend, "connect_tcp", fake_connect)
 
@@ -493,7 +494,7 @@ def test_pinned_backend_connects_to_the_vetted_address(
         return "stream"
 
     monkeypatch.setattr(
-        "secondshift.integrations.outbound.anyio.getaddrinfo", fake_getaddrinfo
+        "secondshift.connections.outbound.anyio.getaddrinfo", fake_getaddrinfo
     )
     monkeypatch.setattr(httpcore.AnyIOBackend, "connect_tcp", fake_connect)
     backend = PinnedNetworkBackend()

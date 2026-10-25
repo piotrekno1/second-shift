@@ -5,7 +5,7 @@ class RunLimitOverrides(models.Model):
     """Run limits an owner chose. Empty means the next level up decides.
 
     A job falls back to its workspace, and a workspace to the server defaults.
-    The server maximums cap every value (see secondshift.automations.limits).
+    The server maximums cap every value (see secondshift.jobs.limits).
     """
 
     max_turns = models.PositiveIntegerField(null=True, blank=True)

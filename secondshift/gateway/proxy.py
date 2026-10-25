@@ -19,16 +19,16 @@ from django.conf import settings
 from django.http import HttpRequest, HttpResponse, StreamingHttpResponse
 
 from secondshift.config.constants import TOKEN_BUDGET_MESSAGE
-from secondshift.gateway.metering import StreamMeter, record_usage, usage_from_json
-from secondshift.gateway.models import RunToken
-from secondshift.gateway.tokens import aauthenticate, request_token
-from secondshift.integrations.model_providers import base_url, provider_family
-from secondshift.integrations.models import Connection
-from secondshift.integrations.outbound import (
+from secondshift.connections.model_providers import base_url, provider_family
+from secondshift.connections.models import Connection
+from secondshift.connections.outbound import (
     OutboundUrlError,
     PinnedTransport,
     validate_outbound_url,
 )
+from secondshift.gateway.metering import StreamMeter, record_usage, usage_from_json
+from secondshift.gateway.models import RunToken
+from secondshift.gateway.tokens import aauthenticate, request_token
 
 logger = logging.getLogger(__name__)
 

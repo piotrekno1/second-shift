@@ -94,8 +94,11 @@ INSTALLED_APPS = [
     "secondshift.core",
     "secondshift.workspaces",
     "secondshift.integrations",
+    "secondshift.connections",
     "secondshift.repositories",
     "secondshift.automations",
+    "secondshift.jobs",
+    "secondshift.runs",
     "secondshift.gateway",
 ]
 

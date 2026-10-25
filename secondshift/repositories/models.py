@@ -3,7 +3,7 @@ from pathlib import Path
 from django.core.exceptions import ValidationError
 from django.db import models
 
-from secondshift.integrations.models import Connection
+from secondshift.connections.models import Connection
 from secondshift.workspaces.models import Workspace
 
 

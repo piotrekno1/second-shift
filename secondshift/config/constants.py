@@ -6,6 +6,9 @@ read its keys. Values both need live here instead.
 
 from enum import StrEnum
 
+EXECUTE_RUN_WORKFLOW = "secondshift.execute_run"
+SCHEDULED_JOB_WORKFLOW = "secondshift.scheduled_job"
+
 ENVIRONMENT_VAR = "DJANGO_ENV"
 SETTINGS_MODULE_VAR = "DJANGO_SETTINGS_MODULE"
 SERVICE_VAR = "SECONDSHIFT_SERVICE"

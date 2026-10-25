@@ -5,8 +5,8 @@ from django.core.management import call_command
 from django.test import override_settings
 from django.urls import reverse
 
-from secondshift.automations.models import Job
 from secondshift.core.adapters import AccountAdapter, SocialAccountAdapter
+from secondshift.jobs.models import Job
 from secondshift.repositories.models import Repository
 from secondshift.workspaces.models import Workspace
 

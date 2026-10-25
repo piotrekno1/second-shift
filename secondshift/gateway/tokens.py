@@ -7,11 +7,11 @@ from django.db.models import QuerySet
 from django.http import HttpRequest
 from django.utils import timezone
 
-from secondshift.automations.deadlines import run_deadline
-from secondshift.automations.limits import RunLimit, plan_limit
-from secondshift.automations.models import Run
+from secondshift.connections.models import Connection
 from secondshift.gateway.models import RunToken
-from secondshift.integrations.models import Connection
+from secondshift.jobs.limits import RunLimit, plan_limit
+from secondshift.runs.execution.deadlines import run_deadline
+from secondshift.runs.models import Run
 
 TOKEN_PREFIX = "ssrt_"
 ACTIVE_RUN_STATUSES = (Run.Status.QUEUED, Run.Status.RUNNING)

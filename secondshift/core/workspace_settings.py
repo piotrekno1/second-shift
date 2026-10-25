@@ -2,7 +2,7 @@
 
 Runner settings are server-owned (see AGENTS.md), so they are shown with the
 environment variable that changes them rather than edited here. Run limits are
-edited on the page within server maximums (see secondshift.automations.limits).
+edited on the page within server maximums (see secondshift.jobs.limits).
 Nothing secret is included: no keys, connection URLs or filesystem paths.
 """
 

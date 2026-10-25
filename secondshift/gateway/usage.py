@@ -2,7 +2,7 @@
 
 from django.db.models import Count, F, Q, QuerySet, Sum
 
-from secondshift.automations.models import Run
+from secondshift.runs.models import Run
 
 
 def with_model_usage(runs: QuerySet[Run]) -> QuerySet[Run]:

@@ -4,8 +4,7 @@ from django.utils import timezone
 from ninja import Router
 from ninja.security import django_auth
 
-from secondshift.automations.health import failing_jobs, spend_by_job, week_summary
-from secondshift.automations.models import Job, Run
+from secondshift.connections.models import Connection
 from secondshift.core.schemas import (
     FailingJobSchema,
     JobSpendSchema,
@@ -16,8 +15,10 @@ from secondshift.core.workspace_settings import (
     environment_label,
     sandbox_label,
 )
-from secondshift.integrations.models import Connection
+from secondshift.jobs.models import Job
 from secondshift.repositories.models import Repository
+from secondshift.runs.models import Run
+from secondshift.runs.reporting.health import failing_jobs, spend_by_job, week_summary
 from secondshift.workspaces.access import (
     current_membership,
     current_workspace,

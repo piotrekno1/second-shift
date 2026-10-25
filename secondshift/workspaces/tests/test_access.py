@@ -8,7 +8,7 @@ from django.contrib.auth.models import AbstractUser
 from django.http import HttpResponse
 from django.test import Client
 
-from secondshift.automations.models import Job
+from secondshift.jobs.models import Job
 from secondshift.repositories.models import Repository
 from secondshift.workspaces.access import (
     ADMIN_ACTIONS,

@@ -4,12 +4,9 @@ from ninja import Router, Status
 from ninja.errors import HttpError
 from ninja.security import django_auth
 
-from secondshift.automations.api_limits import (
-    limit_error_detail,
-    limit_updates,
-)
-from secondshift.automations.limits import LimitError, save_overrides
-from secondshift.automations.schemas import RunLimitsUpdateSchema
+from secondshift.jobs.api_limits import limit_error_detail, limit_updates
+from secondshift.jobs.limits import LimitError, save_overrides
+from secondshift.jobs.schemas import RunLimitsUpdateSchema
 from secondshift.workspaces.access import (
     Action,
     current_workspace,

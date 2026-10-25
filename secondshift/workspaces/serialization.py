@@ -1,15 +1,13 @@
 from django.http import HttpRequest
 
-from secondshift.automations.api_limits import (
-    serialize_limits,
-)
-from secondshift.automations.limits import limit_views
 from secondshift.core.workspace_settings import (
     SettingValue,
     environment_label,
     sandbox_label,
     setting_groups,
 )
+from secondshift.jobs.api_limits import serialize_limits
+from secondshift.jobs.limits import limit_views
 from secondshift.workspaces.access import (
     Action,
     allows,
