@@ -25,14 +25,16 @@ async function act(action: () => Promise<unknown>, reload: boolean): Promise<voi
 </script>
 
 <template>
-  <section v-if="app.pendingInvite" class="invite-prompt" role="status">
-    <i class="mdi mdi-account-plus-outline" />
-    <div>
-      <strong>Join {{ app.pendingInvite.workspace_name }} as {{ statusLabel(app.pendingInvite.role) }}?</strong>
-      <span v-if="app.pendingInvite.invited_by">{{ app.pendingInvite.invited_by }} invited you.</span>
-      <span v-if="error" class="invite-prompt-error">{{ error }}</span>
-    </div>
-    <Button label="Not now" severity="secondary" text :disabled="busy" @click="act(dismissPendingInvite, false)" />
-    <Button :label="`Join ${app.pendingInvite.workspace_name}`" :loading="busy" @click="act(acceptPendingInvite, true)" />
-  </section>
+  <div v-if="app.pendingInvite" class="invite-prompt-wrap">
+    <section class="invite-prompt" role="status">
+      <i class="mdi mdi-account-plus-outline" />
+      <div>
+        <strong>Join {{ app.pendingInvite.workspace_name }} as {{ statusLabel(app.pendingInvite.role) }}?</strong>
+        <span v-if="app.pendingInvite.invited_by">{{ app.pendingInvite.invited_by }} invited you.</span>
+        <span v-if="error" class="invite-prompt-error">{{ error }}</span>
+      </div>
+      <Button label="Not now" severity="secondary" text :disabled="busy" @click="act(dismissPendingInvite, false)" />
+      <Button :label="`Join ${app.pendingInvite.workspace_name}`" :loading="busy" @click="act(acceptPendingInvite, true)" />
+    </section>
+  </div>
 </template>
