@@ -13,13 +13,7 @@ monitoring by reading your code and querying approved services. SecondShift
 runs these reviews on a schedule and delivers findings backed by evidence
 to your team.
 
-<p align="center">
-  <a href="https://github.com/piotrekno1/second-shift/releases/download/v0.1.0a6/secondshift-product-demo-60s-4k.mp4">
-    <img src="docs/screenshots/demo-preview.jpg" alt="SecondShift product walkthrough. Click to download the 60-second video." width="480">
-  </a>
-  <br>
-  <a href="https://github.com/piotrekno1/second-shift/releases/download/v0.1.0a6/secondshift-product-demo-60s-4k.mp4">Download the product walkthrough · 60 seconds · 4K · 22 MB</a>
-</p>
+https://github.com/user-attachments/assets/73cbd504-2a13-4a99-bf95-d7a5c3745e28
 
 Commit a skill and its schedule alongside your code, connect a model, and
 approve the services it may use. Reports arrive in Slack or another webhook
