@@ -5,7 +5,8 @@ export async function apiGet<T>(path: string): Promise<T> {
     credentials: 'include',
     headers: { Accept: 'application/json' },
   })
-  if (response.status === 401 || response.status === 403) {
+  // 403 means signed in but not allowed, so it stays an ordinary error.
+  if (response.status === 401) {
     throw new AuthenticationRequired('Sign in required')
   }
   if (!response.ok) {
@@ -19,7 +20,8 @@ export async function apiText(path: string): Promise<string> {
     credentials: 'include',
     headers: { Accept: 'text/plain' },
   })
-  if (response.status === 401 || response.status === 403) {
+  // 403 means signed in but not allowed, so it stays an ordinary error.
+  if (response.status === 401) {
     throw new AuthenticationRequired('Sign in required')
   }
   if (!response.ok) {
