@@ -68,15 +68,48 @@ def test_attach_local_repository_discovers_and_syncs_jobs(
     assert repository.jobs.get().key == "review"
 
 
-def test_attach_local_repository_rejects_dirty_skill(
+def test_edits_in_the_working_folder_are_ignored(
     workspace: Workspace,
     tmp_path: Path,
 ) -> None:
     root = tmp_path / "project"
     skill = create_local_repository(root)
     skill.write_text("# Uncommitted review\n")
+    (root / ".secondshift.yaml").write_text("not: [valid")
 
-    with pytest.raises(LocalRepositoryError, match="Commit changes"):
+    repository = attach_local_repository(workspace, str(root))
+
+    assert repository.jobs.get().name == "Review"
+
+
+def test_a_repository_follows_its_branch_not_the_checkout(
+    workspace: Workspace,
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "project"
+    create_local_repository(root)
+    repository = attach_local_repository(workspace, str(root))
+    run_git(root, "checkout", "-b", "experiment")
+    manifest = root / ".secondshift.yaml"
+    manifest.write_text(manifest.read_text().replace("Review", "Experiment"))
+    run_git(root, "commit", "-am", "Try something")
+
+    resynced = attach_local_repository(workspace, str(root), "main")
+
+    assert resynced.pk == repository.pk
+    assert resynced.default_branch == "main"
+    assert resynced.jobs.get().name == "Review"
+
+
+def test_a_skill_cannot_be_a_link(workspace: Workspace, tmp_path: Path) -> None:
+    root = tmp_path / "project"
+    skill = create_local_repository(root)
+    skill.unlink()
+    skill.symlink_to("/etc/hosts")
+    run_git(root, "add", "-A")
+    run_git(root, "commit", "-m", "Point the skill elsewhere")
+
+    with pytest.raises(LocalRepositoryError, match="not a link"):
         attach_local_repository(workspace, str(root))
 
 

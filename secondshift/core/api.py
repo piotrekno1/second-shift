@@ -474,7 +474,9 @@ def validate_repository(repository: Repository) -> RepositoryValidationSchema:
             needs_sync=False,
         )
     try:
-        metadata = inspect_local_repository(repository.local_path)
+        metadata = inspect_local_repository(
+            repository.local_path, repository.default_branch
+        )
     except LocalRepositoryError as error:
         return RepositoryValidationSchema(
             status="error",
@@ -702,7 +704,7 @@ def resync_repository(
         raise HttpError(400, "Only local repositories support manual resync.")
     try:
         repository = attach_local_repository(
-            repository.workspace, repository.local_path
+            repository.workspace, repository.local_path, repository.default_branch
         )
     except LocalRepositoryError as error:
         raise HttpError(422, str(error)) from error

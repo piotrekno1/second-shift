@@ -3,16 +3,24 @@ from pathlib import Path
 from django.db import transaction
 from django.utils import timezone
 
-from secondshift.automations.manifest import JobManifest, load_manifest, manifest_hash
+from secondshift.automations.manifest import (
+    JobManifest,
+    RepositoryManifest,
+    load_manifest,
+    manifest_hash,
+)
 from secondshift.automations.models import CapabilityRequest, Job, JobGrant
 from secondshift.automations.scheduling import next_occurrence
 from secondshift.integrations.models import Connection
 from secondshift.repositories.models import Repository
 
 
-@transaction.atomic
 def sync_manifest(repository: Repository, path: Path) -> list[Job]:
-    manifest = load_manifest(path)
+    return sync_jobs(repository, load_manifest(path))
+
+
+@transaction.atomic
+def sync_jobs(repository: Repository, manifest: RepositoryManifest) -> list[Job]:
     synced: list[Job] = []
     active_keys = set(manifest.jobs)
     for key, item in manifest.jobs.items():

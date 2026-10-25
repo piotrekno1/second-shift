@@ -103,7 +103,11 @@ class RepositoryManifest(BaseModel):
 
 
 def load_manifest(path: Path) -> RepositoryManifest:
-    raw = yaml.safe_load(path.read_text())
+    return parse_manifest(path.read_text())
+
+
+def parse_manifest(text: str) -> RepositoryManifest:
+    raw = yaml.safe_load(text)
     if not isinstance(raw, dict):
         raise ValueError("manifest root must be a mapping")
     return RepositoryManifest.model_validate(raw)

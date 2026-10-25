@@ -96,3 +96,6 @@ DEFAULT_SANDBOX_IMAGE = (
     "python:3.13-slim"
     "@sha256:57b29a7c050c4e679e4bea572e14b3965cf4b5839de2da49d55e49ffc4024f39"
 )
+
+# The repository file that lists jobs, at the repository root.
+MANIFEST_FILE = ".secondshift.yaml"
