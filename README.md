@@ -6,12 +6,14 @@
 [![CI](https://github.com/piotrekno1/second-shift/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/piotrekno1/second-shift/actions/workflows/ci.yml?query=branch%3Amain)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
 
-**Put an agent on your recurring engineering reviews.**
+**Same agent. Same task. Every week?**  
+**Put it on a schedule with SecondShift.**
 
-Agents investigate recurring CI failures, production errors, and gaps in
-monitoring by reading your code and querying approved services. SecondShift
-runs these reviews on a schedule and delivers findings backed by evidence
-to your team.
+Your coding agents can review production errors, investigate CI failures, and
+check monitoring coverage. Stop reminding them. Commit a skill, set a schedule,
+and get the findings in Slack.
+
+Your team controls their access. Every run leaves an audit trail.
 
 https://github.com/user-attachments/assets/73cbd504-2a13-4a99-bf95-d7a5c3745e28
 
