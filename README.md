@@ -13,7 +13,13 @@ approved services, then reports what it found or did. Commands run in
 an isolated sandbox. Each run records its Git revision, tool activity, and model
 cost.
 
-[Download the product walkthrough (60 seconds, 4K, 22 MB)](https://github.com/piotrekno1/second-shift/releases/download/v0.1.0a6/secondshift-product-demo-60s-4k.mp4)
+<p align="center">
+  <a href="https://github.com/piotrekno1/second-shift/releases/download/v0.1.0a6/secondshift-product-demo-60s-4k.mp4">
+    <img src="docs/screenshots/demo-preview.jpg" alt="SecondShift product walkthrough. Click to download the 60-second video." width="640">
+  </a>
+  <br>
+  <a href="https://github.com/piotrekno1/second-shift/releases/download/v0.1.0a6/secondshift-product-demo-60s-4k.mp4">Download the product walkthrough · 60 seconds · 4K · 22 MB</a>
+</p>
 
 Connect a model and import a repository to run your first task. Add a webhook
 to receive reports in your team's existing tools.
