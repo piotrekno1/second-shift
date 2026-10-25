@@ -6,23 +6,25 @@
 [![CI](https://github.com/piotrekno1/second-shift/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/piotrekno1/second-shift/actions/workflows/ci.yml?query=branch%3Amain)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
 
-**Put recurring engineering tasks on duty, with access your team controls.**
+**Put an agent on your recurring engineering reviews.**
 
-Commit a skill and a schedule. SecondShift runs it against your repository and
-approved services, then reports what it found or did. Commands run in
-an isolated sandbox. Each run records its Git revision, tool activity, and model
-cost.
+Agents investigate recurring CI failures, production errors, and gaps in
+monitoring by reading your code and querying approved services. SecondShift
+runs these reviews on a schedule and delivers findings backed by evidence
+to your team.
 
 <p align="center">
   <a href="https://github.com/piotrekno1/second-shift/releases/download/v0.1.0a6/secondshift-product-demo-60s-4k.mp4">
-    <img src="docs/screenshots/demo-preview.jpg" alt="SecondShift product walkthrough. Click to download the 60-second video." width="640">
+    <img src="docs/screenshots/demo-preview.jpg" alt="SecondShift product walkthrough. Click to download the 60-second video." width="480">
   </a>
   <br>
   <a href="https://github.com/piotrekno1/second-shift/releases/download/v0.1.0a6/secondshift-product-demo-60s-4k.mp4">Download the product walkthrough · 60 seconds · 4K · 22 MB</a>
 </p>
 
-Connect a model and import a repository to run your first task. Add a webhook
-to receive reports in your team's existing tools.
+Commit a skill and its schedule alongside your code, connect a model, and
+approve the services it may use. Reports arrive in Slack or another webhook
+destination. Commands run in an isolated sandbox. Each run records its Git
+revision, tool activity, and model cost.
 
 ## Try it out now
 
