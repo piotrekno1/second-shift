@@ -67,8 +67,12 @@ line-length = 88
 extend-exclude = ["migrations"]
 
 [tool.ruff.lint]
-select = ["E4", "E7", "E9", "F", "I", "B", "DTZ", "G", "LOG", "PLC0415", "UP", "RUF", "SIM", "C4"]
+select = ["E4", "E7", "E9", "F", "I", "B", "DTZ", "G", "LOG", "PLC0415", "UP", "RUF", "SIM", "C4", "C901"]
 ignore = ["B008", "RUF012"]
+
+[tool.ruff.lint.mccabe]
+# Functions marked noqa: C901 are waiting to be split up.
+max-complexity = 10
 
 [tool.ruff.lint.per-file-ignores]
 "**/tests/**" = ["S101"]

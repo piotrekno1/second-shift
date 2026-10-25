@@ -19,7 +19,7 @@ PRUNE_INTERVAL_SECONDS = 24 * 60 * 60
 
 @click.command()
 @click.option("--sync-interval", type=int, default=15, show_default=True)
-def command(sync_interval: int) -> None:
+def command(sync_interval: int) -> None:  # noqa: C901
     """Run DBOS workers and reconcile database-backed schedules."""
     launch_dbos_worker()
     click.echo("DBOS worker started")

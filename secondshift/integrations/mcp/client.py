@@ -59,7 +59,7 @@ def validate_mcp_connection(connection: Connection) -> MCPProvider:
     return provider
 
 
-async def mcp_request(
+async def mcp_request(  # noqa: C901
     connection: Connection,
     tool: str | None = None,
     arguments: dict[str, Any] | None = None,
@@ -251,7 +251,7 @@ def create_mcp_connection(
     return connection
 
 
-def update_mcp_connection(
+def update_mcp_connection(  # noqa: C901
     connection: Connection,
     display_name: str | None,
     token: str | None,

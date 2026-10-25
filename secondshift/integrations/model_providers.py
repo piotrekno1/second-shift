@@ -353,7 +353,7 @@ def check_model_connection(connection: Connection) -> ModelProviderCheck:
     return check
 
 
-def run_model_check(connection: Connection) -> ModelProviderCheck:
+def run_model_check(connection: Connection) -> ModelProviderCheck:  # noqa: C901
     try:
         if provider_family(connection) == "anthropic":
             models = list_anthropic_models(connection)

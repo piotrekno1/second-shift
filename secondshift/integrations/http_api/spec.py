@@ -220,7 +220,7 @@ def operation_name(raw: dict[str, Any], method: str, path: str) -> str:
     return f"{method}_{slug}"[:64] or method
 
 
-def read_operation(
+def read_operation(  # noqa: C901
     document: dict[str, Any],
     path: str,
     method: str,

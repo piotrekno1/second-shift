@@ -31,7 +31,7 @@ def model_plan(job: Job) -> dict[str, Any] | None:
     }
 
 
-def build_execution_plan(job: Job) -> dict[str, Any]:
+def build_execution_plan(job: Job) -> dict[str, Any]:  # noqa: C901
     """Compile the effective, redacted authorization plan for a future run."""
     capabilities: list[dict[str, Any]] = []
     ready = True

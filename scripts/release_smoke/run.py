@@ -145,7 +145,7 @@ def stream_chunks(reply: dict[str, Any]) -> list[dict[str, Any]]:
     ]
 
 
-def handler_for(recorder: Recorder) -> type[BaseHTTPRequestHandler]:
+def handler_for(recorder: Recorder) -> type[BaseHTTPRequestHandler]:  # noqa: C901
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, format: str, *args: object) -> None:
             pass

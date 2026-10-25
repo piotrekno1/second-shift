@@ -98,7 +98,7 @@ class StreamMeter:
         for line in lines:
             self.read_line(line.strip())
 
-    def read_line(self, line: bytes) -> None:
+    def read_line(self, line: bytes) -> None:  # noqa: C901
         if not line.startswith(b"data:"):
             return
         data = line[5:].strip()

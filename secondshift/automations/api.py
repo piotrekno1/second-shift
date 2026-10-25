@@ -479,7 +479,7 @@ def set_job_enabled(
 
 @router.post("/jobs/{job_id}/capabilities/{capability_id}/grant", response=JobSchema)
 @transaction.atomic
-def review_job_capability(
+def review_job_capability(  # noqa: C901
     request: HttpRequest,
     job_id: int,
     capability_id: int,

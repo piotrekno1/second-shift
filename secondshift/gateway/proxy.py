@@ -116,7 +116,7 @@ def copy_headers(upstream: httpx.Response, response: HttpResponse) -> None:
             response[name] = value
 
 
-async def forward(request: HttpRequest, family: str, path: str) -> HttpResponse:
+async def forward(request: HttpRequest, family: str, path: str) -> HttpResponse:  # noqa: C901
     if family not in ALLOWED_PATHS:
         return error_response("openai", 404, "not_found_error", "Unknown API family.")
     run_token = await aauthenticate(request_token(request))
