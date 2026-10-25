@@ -1,0 +1,93 @@
+/* SecondShift theme for the sign-in, sign-up and account pages that
+   allauth renders. Its elements are plain HTML, so they are styled by tag. */
+:root {
+  color-scheme: dark;
+  --night-950: #0d0e1d;
+  --night-850: #16172e;
+  --ink: #eeeefa;
+  --muted: #9899b2;
+  --subtle: #6f718d;
+  --violet: #8b7cff;
+  --violet-soft: #c5bcff;
+  --mint: #71dbb6;
+  --danger: #ff778b;
+  --border: rgba(197, 188, 255, 0.13);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  color: var(--ink);
+  background: radial-gradient(circle at 20% 0%, rgba(139, 124, 255, 0.16), transparent 45%), var(--night-950);
+  font: 14px/1.5 'DM Sans', system-ui, sans-serif;
+}
+
+.account-page { display: grid; place-items: center; min-height: 100vh; padding: 32px 16px; }
+
+.account-card {
+  width: min(420px, 100%);
+  padding: 32px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--night-850);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+}
+
+.account-brand { display: inline-flex; align-items: center; gap: 10px; margin-bottom: 22px; color: var(--ink); font: 800 16px 'Manrope', sans-serif; text-decoration: none; }
+
+h1, h2 { margin: 0 0 8px; font-family: 'Manrope', sans-serif; }
+h1 { font-size: 24px; }
+h2 { font-size: 15px; }
+p { margin: 0 0 14px; color: var(--muted); }
+a { color: var(--violet-soft); }
+hr { margin: 22px 0; border: 0; border-top: 1px solid var(--border); }
+
+form { display: grid; gap: 4px; margin: 18px 0 0; }
+form p { display: grid; gap: 6px; margin: 0 0 10px; color: var(--ink); }
+label { color: var(--muted); font-size: 12px; }
+input[type="email"], input[type="password"], input[type="text"] {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.04);
+  font: inherit;
+}
+input:focus { outline: 2px solid var(--violet); outline-offset: 1px; }
+form p > span, form p ul { color: var(--subtle); font-size: 11px; }
+form p > .helptext a { font-size: 12px; }
+form p:has(> input[type="checkbox"]) { display: flex; align-items: center; gap: 8px; }
+input[type="checkbox"] { order: -1; width: 16px; height: 16px; margin: 0; accent-color: var(--violet); }
+form p ul { margin: 0; padding-left: 16px; }
+.errorlist { margin: 0 0 6px; padding: 0; list-style: none; color: var(--danger); font-size: 12px; }
+
+button {
+  min-height: 42px;
+  padding: 0 17px;
+  border: 0;
+  border-radius: 10px;
+  color: white;
+  background: linear-gradient(120deg, var(--violet), #6d5ee8);
+  font: 700 13px 'DM Sans', sans-serif;
+  cursor: pointer;
+}
+
+/* Third-party sign-in, e.g. GitHub. */
+.account-card ul:not(.account-messages):not(.errorlist) { display: grid; gap: 8px; margin: 10px 0 0; padding: 0; list-style: none; }
+.account-card li > a[title] {
+  display: block;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.035);
+  font-weight: 700;
+  text-align: center;
+  text-decoration: none;
+}
+
+.account-messages { margin: 0 0 18px; padding: 10px 14px; border-radius: 11px; color: var(--mint); background: rgba(113, 219, 182, 0.07); list-style: none; font-size: 13px; }
+.account-back { display: inline-block; margin-top: 18px; font-size: 13px; }
