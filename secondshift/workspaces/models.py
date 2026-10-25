@@ -13,7 +13,6 @@ class Workspace(RunLimitOverrides):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta(RunLimitOverrides.Meta):
-        db_table = "core_workspace"
         ordering = ["name"]
 
     def __str__(self) -> str:
@@ -40,7 +39,6 @@ class WorkspaceMembership(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        db_table = "core_workspacemembership"
         constraints = [
             models.UniqueConstraint(
                 fields=["workspace", "user"],
