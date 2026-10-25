@@ -12,9 +12,16 @@ from ninja.errors import HttpError
 from ninja.security import django_auth
 from pydantic import Field
 
-from secondshift.automations.api import AccessSchema
+from secondshift.automations.api import (
+    AccessSchema,
+    LimitSchema,
+    RunLimitsUpdateSchema,
+    limit_updates,
+    serialize_limits,
+)
 from secondshift.automations.connection_usage import ConnectionUsage, connection_usage
 from secondshift.automations.health import failing_jobs, spend_by_job, week_summary
+from secondshift.automations.limits import LimitError, limit_views, save_overrides
 from secondshift.automations.models import Job, Run
 from secondshift.automations.needs import capability_needs
 from secondshift.core.models import Workspace
@@ -120,6 +127,9 @@ class WorkspaceSettingsSchema(Schema):
     sandbox: str
     members: list[MemberSchema]
     groups: list[SettingGroupSchema]
+    # Run limits for the whole workspace. Each job can choose its own.
+    limits: list[LimitSchema]
+    can_edit_limits: bool
 
 
 class JobSpendSchema(Schema):
@@ -502,7 +512,25 @@ def serialize_repository_detail(
 
 @api.get("/settings", response=WorkspaceSettingsSchema, auth=django_auth)
 def workspace_settings(request: HttpRequest) -> WorkspaceSettingsSchema:
-    workspace = user_workspace(request)
+    return serialize_settings(request, user_workspace(request))
+
+
+@api.post("/settings/limits", response=WorkspaceSettingsSchema, auth=django_auth)
+def set_workspace_limits(
+    request: HttpRequest, payload: RunLimitsUpdateSchema
+) -> WorkspaceSettingsSchema:
+    """Change the workspace's run limits. Runs already created keep theirs."""
+    workspace = owner_workspace(request, "change run limits")
+    try:
+        save_overrides(workspace, limit_updates(payload))
+    except LimitError as error:
+        raise HttpError(422, str(error)) from error
+    return serialize_settings(request, workspace)
+
+
+def serialize_settings(
+    request: HttpRequest, workspace: Workspace | None
+) -> WorkspaceSettingsSchema:
     return WorkspaceSettingsSchema(
         workspace_name=workspace.name if workspace else None,
         workspace_slug=workspace.slug if workspace else None,
@@ -515,6 +543,8 @@ def workspace_settings(request: HttpRequest) -> WorkspaceSettingsSchema:
             )
             for group in setting_groups()
         ],
+        limits=serialize_limits(limit_views(workspace)) if workspace else [],
+        can_edit_limits=bool(workspace and workspace.owner_id == request.user.pk),
     )
 
 

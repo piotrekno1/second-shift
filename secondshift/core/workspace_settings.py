@@ -1,7 +1,8 @@
-"""The settings page: who is in the workspace and the limits the server enforces.
+"""The settings page: who is in the workspace and what the server enforces.
 
-Runner and agent limits are server-owned (see AGENTS.md), so they are shown
-with the environment variable that changes them rather than edited here.
+Runner settings are server-owned (see AGENTS.md), so they are shown with the
+environment variable that changes them rather than edited here. Run limits are
+edited on the page within server maximums (see secondshift.automations.limits).
 Nothing secret is included: no keys, connection URLs or filesystem paths.
 """
 
@@ -95,12 +96,6 @@ def setting_groups() -> list[SettingGroup]:
             "Runs",
             [
                 SettingValue(
-                    "Run time limit",
-                    duration_label(settings.RUN_TIMEOUT_SECONDS),
-                    "SECONDSHIFT_RUN_TIMEOUT_SECONDS",
-                    "A run that takes longer stops and is marked as timed out.",
-                ),
-                SettingValue(
                     "History kept for",
                     f"{retention} days" if retention > 0 else "Forever",
                     "SECONDSHIFT_RUN_RETENTION_DAYS",
@@ -119,29 +114,6 @@ def setting_groups() -> list[SettingGroup]:
                     else "Server filesystem",
                     "SECONDSHIFT_ARTIFACT_STORAGE",
                     "Where run input and output files are kept.",
-                ),
-            ],
-        ),
-        SettingGroup(
-            "Agent",
-            [
-                SettingValue(
-                    "Model calls per run",
-                    str(settings.AGENT_MAX_TURNS),
-                    "SECONDSHIFT_AGENT_MAX_TURNS",
-                    "Shown on runs as turns, e.g. 5/24. The last one writes the report.",
-                ),
-                SettingValue(
-                    "Tool calls per run",
-                    str(settings.AGENT_MAX_TOOL_CALLS),
-                    "SECONDSHIFT_AGENT_MAX_TOOL_CALLS",
-                    "Reading files, searching and running commands.",
-                ),
-                SettingValue(
-                    "Tokens per run",
-                    f"{settings.MODEL_RUN_TOKEN_BUDGET:,}",
-                    "SECONDSHIFT_MODEL_RUN_TOKEN_BUDGET",
-                    "The model gateway refuses further calls past this budget.",
                 ),
             ],
         ),

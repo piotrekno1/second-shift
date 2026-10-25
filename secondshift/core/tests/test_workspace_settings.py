@@ -36,9 +36,13 @@ def test_settings_show_members_and_effective_limits_without_secrets(
         for group in body["groups"]
         for item in group["items"]
     }
-    assert values["Run time limit"] == ("15 minutes", "SECONDSHIFT_RUN_TIMEOUT_SECONDS")
     assert values["History kept for"][0] == "Forever"
-    assert values["Model calls per run"] == ("24", "SECONDSHIFT_AGENT_MAX_TURNS")
+    limits = {item["key"]: item for item in body["limits"]}
+    assert limits["timeout_seconds"]["value"] == 900
+    assert limits["max_turns"]["value"] == 24
+    assert limits["max_turns"]["env"] == "SECONDSHIFT_AGENT_MAX_TURNS"
+    assert limits["max_turns"]["override"] is None
+    assert body["can_edit_limits"] is True
     assert values["Isolation"][0] == "gVisor sandbox"
     assert body["sandbox"] == "gVisor sandbox"
     text = json.dumps(body).lower()
