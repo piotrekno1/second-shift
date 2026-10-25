@@ -138,3 +138,12 @@ def pending_invite(request: HttpRequest) -> WorkspaceInvite | None:
 
 def forget_invite(request: HttpRequest) -> None:
     request.session.pop(PENDING_INVITE_SESSION_KEY, None)
+
+
+def join_pending_invite(request: HttpRequest) -> WorkspaceMembership:
+    """Accept the invite waiting in the session, for the signed-in person."""
+    token = request.session.get(PENDING_INVITE_SESSION_KEY)
+    forget_invite(request)
+    if not token:
+        raise InviteError(INVITE_UNUSABLE_MESSAGE)
+    return accept_invite(token, request.user)
