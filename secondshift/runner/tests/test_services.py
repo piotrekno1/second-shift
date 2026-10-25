@@ -3,12 +3,12 @@ from unittest.mock import Mock
 
 import pytest
 
-from secondshift.automations.runner_protocol import (
+from secondshift.runner.models import RunnerCommand, RunnerSession
+from secondshift.runner.protocol import (
     CommandRequest,
     RunnerProtocolError,
     RunnerSessionSpec,
 )
-from secondshift.runner.models import RunnerCommand, RunnerSession
 from secondshift.runner.services import DockerRunnerService, RunnerConfigurationError
 
 

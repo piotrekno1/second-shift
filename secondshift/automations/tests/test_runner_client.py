@@ -3,7 +3,7 @@ from unittest.mock import Mock
 import pytest
 
 from secondshift.automations.runner_client import HttpRunnerClient
-from secondshift.automations.runner_protocol import CommandRequest, RunnerProtocolError
+from secondshift.runner.protocol import CommandRequest, RunnerProtocolError
 
 
 def test_runner_client_uses_bearer_auth_without_environment_proxies() -> None:

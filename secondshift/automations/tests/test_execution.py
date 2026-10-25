@@ -20,14 +20,14 @@ from secondshift.automations.execution import (
     workspace_tools,
 )
 from secondshift.automations.models import Job, Run
-from secondshift.automations.runner_protocol import (
+from secondshift.automations.tool_policy import LOCAL_TOOLS
+from secondshift.repositories.models import Repository
+from secondshift.runner.protocol import (
     CommandRequest,
     CommandResult,
     FakeRunnerBackend,
     RunnerSessionSpec,
 )
-from secondshift.automations.tool_policy import LOCAL_TOOLS
-from secondshift.repositories.models import Repository
 from secondshift.workspaces.services import create_workspace
 
 LATER = datetime(2100, 1, 1, tzinfo=UTC)

@@ -4,7 +4,6 @@ from django.utils import timezone
 
 from secondshift.automations import workflows
 from secondshift.automations.models import Job, Run
-from secondshift.automations.runner_protocol import RunnerSessionSpec
 from secondshift.automations.workflows import (
     materialize_local_repository_step,
     start_runner_session_step,
@@ -12,6 +11,7 @@ from secondshift.automations.workflows import (
 )
 from secondshift.config.constants import RunSandbox
 from secondshift.repositories.models import Repository
+from secondshift.runner.protocol import RunnerSessionSpec
 from secondshift.workspaces.services import create_workspace
 
 

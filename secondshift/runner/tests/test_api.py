@@ -3,7 +3,7 @@ from unittest.mock import Mock
 import pytest
 from django.test import Client
 
-from secondshift.automations.runner_protocol import CommandResult
+from secondshift.runner.protocol import CommandResult
 
 pytestmark = pytest.mark.urls("secondshift.runner.urls")
 

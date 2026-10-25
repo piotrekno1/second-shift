@@ -11,7 +11,7 @@ from django.utils import timezone
 
 from secondshift.automations.limits import RunLimit, plan_limit, raise_hint
 from secondshift.automations.models import Run
-from secondshift.core.workspace_settings import duration_label
+from secondshift.core.formatting import duration_label
 
 TIMEOUT_HEADLINE = "Timed out"
 

@@ -8,7 +8,7 @@ from pydantic_ai.exceptions import ModelHTTPError
 
 from secondshift.automations.budgets import BUDGET_HEADLINE
 from secondshift.automations.deadlines import TIMEOUT_HEADLINE
-from secondshift.automations.runner_protocol import RunnerProtocolError
+from secondshift.runner.protocol import RunnerProtocolError
 
 RunStage = Literal["starting", "checkout", "sandbox", "skill", "finishing"]
 

@@ -1,6 +1,6 @@
 import pytest
 
-from secondshift.automations.runner_protocol import (
+from secondshift.runner.protocol import (
     CommandRequest,
     CommandResult,
     FakeRunnerBackend,

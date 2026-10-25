@@ -4,7 +4,7 @@ from django.http import FileResponse, Http404, HttpRequest
 from django.urls import include, path
 from health_check.views import HealthCheckView
 
-from secondshift.core.api import api
+from secondshift.config.api import api
 from secondshift.core.signin import sign_in
 from secondshift.core.views import password_reset
 from secondshift.workspaces.views import open_invite

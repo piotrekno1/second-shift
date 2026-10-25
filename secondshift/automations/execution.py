@@ -36,13 +36,13 @@ from secondshift.automations.failures import root_error
 from secondshift.automations.limits import RunLimit, plan_limit
 from secondshift.automations.models import Run, RunEvent
 from secondshift.automations.runner_client import get_runner_client
-from secondshift.automations.runner_protocol import CommandRequest, CommandResult
 from secondshift.automations.tool_broker import (
     broker_connection,
     call_external_tool_step,
 )
 from secondshift.automations.tool_policy import LOCAL_TOOLS, authorized_tools
 from secondshift.integrations.errors import ExternalRequestError
+from secondshift.runner.protocol import CommandRequest, CommandResult
 
 MODEL_TOOL_NAMES = {
     "workspace.list_files": "workspace_list_files",

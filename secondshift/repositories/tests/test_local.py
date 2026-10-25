@@ -379,7 +379,7 @@ def test_directories_api_accepts_navigable_paths_over_one_thousand_characters(
         assert raw_path == str(root)
         return root, tmp_path, []
 
-    monkeypatch.setattr("secondshift.core.api.local_directories", directories)
+    monkeypatch.setattr("secondshift.repositories.api.local_directories", directories)
 
     response = client.get(
         "/api/repositories/local/directories",
@@ -406,7 +406,9 @@ def test_directories_api_hides_non_owner(
     def unexpected_access(raw_path: str) -> NoReturn:
         pytest.fail("Unauthorized directory requests must not access the filesystem")
 
-    monkeypatch.setattr("secondshift.core.api.local_directories", unexpected_access)
+    monkeypatch.setattr(
+        "secondshift.repositories.api.local_directories", unexpected_access
+    )
     client.force_login(member)
 
     response = client.get("/api/repositories/local/directories?path=")
