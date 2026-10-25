@@ -11,6 +11,7 @@ risks that remain.
 | --- | --- | --- |
 | Server operator | Yes | Runs the servers, sets the sandbox image, runtime and limits. |
 | Workspace owner | Yes | Connects services, chooses tools, approves jobs. |
+| Workspace admin | Partly | Runs and schedules approved jobs. Cannot add connections or approve access. |
 | Repository content | No | Anyone who can merge to the repository controls it. |
 | Model output | No | Repository content and tool results can steer it. |
 | Tool results | No | They come from outside services. |

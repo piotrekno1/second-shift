@@ -109,8 +109,14 @@ first skill, schedule, and webhook notification.
 | --- | --- |
 | **Repository contributors** | Propose skills, schedules, and requested capabilities through Git changes. |
 | **Repository maintainers** | Review and merge those changes through the repository's normal process. |
-| **Workspace owners** | Connect model providers and services, approve each job's access, and enable jobs. |
+| **Workspace owners** | Connect model providers and services, approve each job's access, and add local repositories. |
+| **Workspace admins** | Enable, run and schedule approved jobs, manage repositories, and change run limits. |
+| **Workspace members** | View repositories, jobs and runs. |
 | **Server operators** | Define sandbox images, runtimes, resource limits, and network policy. |
+
+Each workspace role can also do everything the roles below it can. The full
+list of actions and the role each needs is `POLICY` in
+`secondshift/core/access.py`.
 
 A committed skill does not grant itself access. Repository configuration cannot
 choose credentials, provider endpoints, sandbox images, mounts, or network
