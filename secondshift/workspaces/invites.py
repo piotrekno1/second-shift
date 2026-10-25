@@ -38,6 +38,10 @@ class InviteError(Exception):
     pass
 
 
+class WorkspaceTaken(Exception):
+    pass
+
+
 @dataclass(frozen=True)
 class NewInvite:
     invite: WorkspaceInvite
@@ -147,3 +151,18 @@ def join_pending_invite(request: HttpRequest) -> WorkspaceMembership:
     if not token:
         raise InviteError(INVITE_UNUSABLE_MESSAGE)
     return accept_invite(token, request.user)
+
+
+@transaction.atomic
+def invite_first_owner(name: str, slug: str) -> NewInvite:
+    """An owner invite for a new workspace, or one that has no owner yet.
+
+    This is how a server gets its first owner without any account existing.
+    """
+    workspace, _ = Workspace.objects.get_or_create(slug=slug, defaults={"name": name})
+    if workspace.memberships.filter(role=WorkspaceMembership.Role.OWNER).exists():
+        raise WorkspaceTaken(
+            f"{workspace.name} already has an owner. Owners invite people "
+            "from the Settings page."
+        )
+    return create_invite(workspace, WorkspaceMembership.Role.OWNER, None)
