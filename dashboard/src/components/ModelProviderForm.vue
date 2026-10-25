@@ -93,7 +93,7 @@ async function submit(): Promise<void> {
   <form class="need-setup-fields" @submit.prevent="submit">
     <div class="need-setup-copy">
       <h3>{{ editing ? (reconnecting ? 'Reconnect model provider' : 'Edit model provider') : 'Connect a model provider' }}</h3>
-      <p>Runs reach models only through the SecondShift gateway with a short-lived run token. The API key stays here: it never enters the sandbox, and each run is limited to the models and token budget you allow.</p>
+      <p>Runs reach models only through the SecondShift gateway with a short-lived run token. The API key stays here: it never enters the sandbox. Each run can use only the models you allow, within its token budget from Run limits in Settings.</p>
     </div>
 
     <div v-if="!editing" class="need-setup-type need-setup-wide" role="radiogroup" aria-label="Provider">
