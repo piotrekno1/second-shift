@@ -548,3 +548,9 @@ a.runtime-note { color: inherit; }
 .member-email small { display: block; color: var(--subtle); font-size: 11px; }
 .member-list .p-select.member-role { width: 128px; }
 .member-list .p-button { min-width: 84px; }
+.no-workspace { min-height: 100vh; display: flex; flex-direction: column; justify-content: center; padding: 24px 16px; }
+.no-workspace-card { width: min(520px, 100%); margin: 0 auto; display: flex; flex-direction: column; align-items: flex-start; }
+.no-workspace-card > img { width: 56px; margin-bottom: 28px; }
+.no-workspace-card h1 { margin: 10px 0 14px; font-size: clamp(28px, 4vw, 40px); line-height: 1.08; letter-spacing: -.04em; }
+.no-workspace-card p { margin: 0 0 26px; color: var(--muted); line-height: 1.7; }
+.no-workspace .invite-prompt-wrap { width: min(720px, 100%); margin: 0 auto 32px; padding: 0; }

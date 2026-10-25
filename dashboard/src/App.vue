@@ -3,6 +3,7 @@ import { onMounted } from 'vue'
 import AppShell from './components/AppShell.vue'
 import { useAppStore } from './stores/app'
 import LoginView from './views/LoginView.vue'
+import NoWorkspaceView from './views/NoWorkspaceView.vue'
 
 const app = useAppStore()
 onMounted(() => app.initialize())
@@ -14,6 +15,7 @@ onMounted(() => app.initialize())
     <span>Starting the shift…</span>
   </div>
   <LoginView v-else-if="!app.authenticated" />
+  <NoWorkspaceView v-else-if="!app.user?.workspace_slug" />
   <AppShell v-else>
     <RouterView />
   </AppShell>

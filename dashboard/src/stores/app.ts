@@ -52,7 +52,10 @@ export const useAppStore = defineStore('app', {
       try {
         this.user = await apiGet<User>('/me')
         this.authenticated = true
-        await Promise.all([this.refresh(), this.loadMCPProviders(), this.loadPendingInvite()])
+        // Without a workspace there is nothing to load but an invite to join one.
+        await Promise.all(this.user.workspace_slug
+          ? [this.refresh(), this.loadMCPProviders(), this.loadPendingInvite()]
+          : [this.loadPendingInvite()])
       } catch (error) {
         if (error instanceof AuthenticationRequired) {
           this.authenticated = false
