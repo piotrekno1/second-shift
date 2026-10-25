@@ -1,12 +1,12 @@
 from django.core.exceptions import ValidationError
 from django.db import models
 
-from secondshift.core.models import Workspace
+from secondshift.core.models import RunLimitOverrides, Workspace
 from secondshift.integrations.models import Connection
 from secondshift.repositories.models import Repository
 
 
-class Job(models.Model):
+class Job(RunLimitOverrides):
     workspace = models.ForeignKey(
         Workspace,
         on_delete=models.CASCADE,
@@ -29,7 +29,7 @@ class Job(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    class Meta:
+    class Meta(RunLimitOverrides.Meta):
         constraints = [
             models.UniqueConstraint(
                 fields=["repository", "key"],
