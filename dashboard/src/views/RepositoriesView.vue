@@ -77,7 +77,7 @@ async function addLocalRepository(): Promise<void> {
 <template>
   <div class="page">
     <PageHeader title="Repositories" :description="repositoriesSubtitle">
-      <Button v-if="app.user?.local_repositories_enabled" label="Add local repository" icon="pi pi-folder-open" severity="secondary" outlined @click="addingLocal = !addingLocal" />
+      <Button v-if="app.canAddLocalRepositories" label="Add local repository" icon="pi pi-folder-open" severity="secondary" outlined @click="addingLocal = !addingLocal" />
       <Button label="Install GitHub App" icon="pi pi-github" />
     </PageHeader>
     <form v-if="addingLocal" class="panel local-repository-form" @submit.prevent="addLocalRepository">

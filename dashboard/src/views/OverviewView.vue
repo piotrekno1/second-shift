@@ -58,7 +58,7 @@ const runsDetail = computed(() => {
 <template>
   <div class="page">
     <PageHeader :title="greeting(new Date().getHours())" :description="subtitle">
-      <RouterLink to="/repositories" class="secondary-action"><i class="mdi mdi-plus" /> Add repository</RouterLink>
+      <RouterLink v-if="app.canAddLocalRepositories" to="/repositories" class="secondary-action"><i class="mdi mdi-plus" /> Add repository</RouterLink>
     </PageHeader>
 
     <section class="stats-grid">
