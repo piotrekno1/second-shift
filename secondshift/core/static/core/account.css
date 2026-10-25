@@ -59,6 +59,8 @@ input[type="email"], input[type="password"], input[type="text"] {
 input:focus { outline: 2px solid var(--violet); outline-offset: 1px; }
 form p > span, form p ul { color: var(--subtle); font-size: 11px; }
 form p > .helptext a { font-size: 12px; }
+/* Password tips. Browsers move a list out of its paragraph into the form. */
+form > ul { margin: -4px 0 10px; padding-left: 16px; color: var(--subtle); font-size: 11px; }
 form p:has(> input[type="checkbox"]) { display: flex; align-items: center; gap: 8px; }
 input[type="checkbox"] { order: -1; width: 16px; height: 16px; margin: 0; accent-color: var(--violet); }
 form p ul { margin: 0; padding-left: 16px; }
@@ -76,7 +78,7 @@ button {
 }
 
 /* Third-party sign-in, e.g. GitHub. */
-.account-card ul:not(.account-messages):not(.errorlist) { display: grid; gap: 8px; margin: 10px 0 0; padding: 0; list-style: none; }
+.account-card ul:has(> li > a[title]) { display: grid; gap: 8px; margin: 10px 0 0; padding: 0; list-style: none; }
 .account-card li > a[title] {
   display: block;
   padding: 10px 12px;
