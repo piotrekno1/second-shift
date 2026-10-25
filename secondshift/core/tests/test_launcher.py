@@ -50,6 +50,21 @@ def test_services_listen_next_to_the_chosen_port() -> None:
         assert env["DJANGO_ENV"] == "local"
         assert env["SECONDSHIFT_RUNNER_SERVICE_URL"] == "http://127.0.0.1:9002"
         assert env["SECONDSHIFT_MODEL_GATEWAY_URL"] == "http://127.0.0.1:9001"
+        assert env["FRONTEND_URL"] == "http://127.0.0.1:9000"
+
+
+def test_frontend_url_follows_the_address_unless_set() -> None:
+    shared = launcher.services("0.0.0.0", 8000, PARENT, python="python")
+    chosen = launcher.services(
+        "0.0.0.0", 8000, {**PARENT, "FRONTEND_URL": "http://box.lan:8000"}
+    )
+
+    assert {s.env.get("FRONTEND_URL") for s in shared if s.name != "runner"} == {
+        "http://127.0.0.1:8000"
+    }
+    assert {s.env.get("FRONTEND_URL") for s in chosen if s.name != "runner"} == {
+        "http://box.lan:8000"
+    }
 
 
 def test_one_process_stopping_stops_the_others() -> None:

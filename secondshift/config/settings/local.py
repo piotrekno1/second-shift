@@ -9,6 +9,10 @@ if ENVIRONMENT != Environment.LOCAL:
         "secondshift.config.settings.local requires DJANGO_ENV=local"
     )
 
+# `secondshift up` serves the dashboard here unless told otherwise. It sets
+# FRONTEND_URL for its processes when --host or --port change it.
+FRONTEND_URL = env.str("FRONTEND_URL", default="http://127.0.0.1:8000")
+
 # Static files and the dashboard are served straight from the installed
 # package, so there is no collectstatic step.
 STATIC_ROOT = None

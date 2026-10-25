@@ -238,7 +238,8 @@ def test_sqlite_waits_for_writers_instead_of_failing(tmp_path: Path) -> None:
 def test_local_is_a_single_host_install_without_debug(tmp_path: Path) -> None:
     script = (
         "print(s.DEBUG, s.LOCAL_REPOSITORIES_ENABLED, s.OUTBOUND_ALLOW_LOCAL, "
-        "s.STATIC_ROOT, s.RUNNER_SERVICE_URL, bool(s.FIELD_ENCRYPTION_KEY))"
+        "s.STATIC_ROOT, s.RUNNER_SERVICE_URL, bool(s.FIELD_ENCRYPTION_KEY), "
+        "s.FRONTEND_URL)"
     )
     result = load_settings(
         "secondshift.config.settings.local", tmp_path, script=script, DJANGO_ENV="local"
@@ -252,6 +253,7 @@ def test_local_is_a_single_host_install_without_debug(tmp_path: Path) -> None:
         "None",
         "http://127.0.0.1:8002",
         "True",
+        "http://127.0.0.1:8000",
     ]
     assert (tmp_path / ".env").exists()
 

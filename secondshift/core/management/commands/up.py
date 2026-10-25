@@ -76,7 +76,7 @@ def command(
             ),
         )
 
-    url = f"http://{'127.0.0.1' if host == '0.0.0.0' else host}:{port}"
+    url = launcher.public_url(host, port)
 
     def ready() -> None:
         link = sign_in_url(url, get_owner())
