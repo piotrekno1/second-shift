@@ -2,8 +2,9 @@ import { defineStore } from 'pinia'
 
 import { apiGet, AuthenticationRequired } from '../services/api'
 import { fetchMCPProviders } from '../services/connections'
+import { fetchPendingInvite } from '../services/invites'
 import { fetchRuns } from '../services/runs'
-import type { CapabilityNeed, Connection, Job, MCPProviderInfo, Overview, Repository, Run, Secret, User } from '../types'
+import type { CapabilityNeed, Connection, Job, MCPProviderInfo, Overview, PendingInvite, Repository, Run, Secret, User } from '../types'
 
 const RECENT_RUNS = 6
 
@@ -22,6 +23,8 @@ interface AppState {
   secrets: Secret[]
   /** Built-in MCP servers. Fixed by the server, so loaded once. */
   mcpProviders: MCPProviderInfo[]
+  /** An invite link this browser opened, until the person joins or dismisses it. */
+  pendingInvite: PendingInvite | null
 }
 
 export const useAppStore = defineStore('app', {
@@ -38,6 +41,7 @@ export const useAppStore = defineStore('app', {
     needs: [],
     secrets: [],
     mcpProviders: [],
+    pendingInvite: null,
   }),
   getters: {
     mcpProvider: (state) => (key: string | undefined): MCPProviderInfo | undefined =>
@@ -48,7 +52,7 @@ export const useAppStore = defineStore('app', {
       try {
         this.user = await apiGet<User>('/me')
         this.authenticated = true
-        await Promise.all([this.refresh(), this.loadMCPProviders()])
+        await Promise.all([this.refresh(), this.loadMCPProviders(), this.loadPendingInvite()])
       } catch (error) {
         if (error instanceof AuthenticationRequired) {
           this.authenticated = false
@@ -79,6 +83,9 @@ export const useAppStore = defineStore('app', {
       this.connections = connections
       this.needs = needs
       this.secrets = secrets
+    },
+    async loadPendingInvite(): Promise<void> {
+      this.pendingInvite = await fetchPendingInvite()
     },
     async loadMCPProviders(): Promise<void> {
       this.mcpProviders = await fetchMCPProviders()

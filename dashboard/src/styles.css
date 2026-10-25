@@ -530,3 +530,9 @@ a.runtime-note { color: inherit; }
 .run-limit-wide { grid-column: 1 / -1; margin: 0; }
 .run-limit-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding-top: 12px; border-top: 1px solid rgba(197,188,255,.08); }
 .run-limit-footer small { color: var(--muted); font-size: 12px; }
+.invite-prompt { display: flex; align-items: center; gap: 12px; margin: 0 0 18px; padding: 12px 14px; border: 1px solid rgba(197,188,255,.28); border-radius: 12px; background: rgba(124,108,242,.1); color: var(--ink); font-size: 13px; }
+.invite-prompt > i { color: var(--violet); font-size: 20px; }
+.invite-prompt > div { display: grid; gap: 2px; flex: 1; min-width: 0; }
+.invite-prompt span { color: var(--muted); font-size: 12px; }
+.invite-prompt .invite-prompt-error { color: var(--danger); }
+@media (max-width: 640px) { .invite-prompt { flex-wrap: wrap; } .invite-prompt > div { flex-basis: calc(100% - 32px); } }

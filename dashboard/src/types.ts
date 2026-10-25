@@ -13,6 +13,21 @@ export interface User {
   sandbox: string
 }
 
+/** An invite this browser opened, waiting for the person to confirm. */
+export interface PendingInvite {
+  workspace_name: string
+  role: string
+  invited_by: string | null
+}
+
+export interface WorkspaceChoice {
+  id: number
+  name: string
+  slug: string
+  role: string
+  current: boolean
+}
+
 export interface SettingValue {
   label: string
   value: string

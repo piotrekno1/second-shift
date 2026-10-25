@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { signOut } from '../services/api'
 import { useAppStore } from '../stores/app'
+import InvitePrompt from './InvitePrompt.vue'
 
 const route = useRoute()
 const app = useAppStore()
@@ -81,6 +82,7 @@ async function handleSignOut(): Promise<void> {
       </div>
     </aside>
     <main>
+      <InvitePrompt />
       <slot />
     </main>
   </div>
