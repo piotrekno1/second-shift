@@ -353,35 +353,15 @@ def check_model_connection(connection: Connection) -> ModelProviderCheck:
     return check
 
 
-def run_model_check(connection: Connection) -> ModelProviderCheck:  # noqa: C901
-    try:
-        if provider_family(connection) == "anthropic":
-            models = list_anthropic_models(connection)
-        else:
-            models = list_openai_models(connection)
-    except anthropic.AuthenticationError:
-        return ModelProviderCheck(False, "The provider rejected the API key.", [])
-    except anthropic.PermissionDeniedError:
-        return ModelProviderCheck(False, "The API key cannot list models.", [])
-    except anthropic.APIStatusError as error:
-        return ModelProviderCheck(
-            False, f"The provider answered HTTP {error.status_code}.", []
-        )
-    except anthropic.APIConnectionError:
-        return ModelProviderCheck(False, "The provider could not be reached.", [])
-    except (ModelProviderError, OutboundUrlError) as error:
-        return ModelProviderCheck(False, str(error), [])
-    except requests.RequestException as error:
-        logger.warning(
-            "model provider check for connection %s failed: %s",
-            connection.pk,
-            type(error).__name__,
-        )
-        return ModelProviderCheck(False, "The provider could not be reached.", [])
+class CheckFailed(Exception):
+    """A provider problem, worded for the person checking the connection."""
 
-    models = sorted(set(models))
-    connection.metadata = {**connection.metadata, "available_models": models}
-    connection.save(update_fields=["metadata", "updated_at"])
+
+def run_model_check(connection: Connection) -> ModelProviderCheck:
+    try:
+        models = fetch_models(connection)
+    except CheckFailed as failure:
+        return ModelProviderCheck(False, str(failure), [])
     unavailable = sorted(set(connection.allowed_models) - set(models))
     if unavailable:
         return ModelProviderCheck(
@@ -397,30 +377,69 @@ def run_model_check(connection: Connection) -> ModelProviderCheck:  # noqa: C901
             "Set a default model to test a model call.",
             models,
         )
+    if failure := model_call_failure(connection):
+        return ModelProviderCheck(
+            False, failure + model_hint(connection.default_model, models), models
+        )
+    return ModelProviderCheck(
+        True,
+        f"Connected. {connection.default_model} answered a test request.",
+        models,
+    )
+
+
+def fetch_models(connection: Connection) -> list[str]:
+    """The provider's models, saved on the connection."""
     try:
-        failure = try_model_call(connection)
+        if provider_family(connection) == "anthropic":
+            models = list_anthropic_models(connection)
+        else:
+            models = list_openai_models(connection)
+    except anthropic.AuthenticationError as error:
+        raise CheckFailed("The provider rejected the API key.") from error
+    except anthropic.PermissionDeniedError as error:
+        raise CheckFailed("The API key cannot list models.") from error
+    except anthropic.APIStatusError as error:
+        raise CheckFailed(f"The provider answered HTTP {error.status_code}.") from error
+    except anthropic.APIConnectionError as error:
+        raise CheckFailed("The provider could not be reached.") from error
+    except (ModelProviderError, OutboundUrlError) as error:
+        raise CheckFailed(str(error)) from error
+    except requests.RequestException as error:
+        logger.warning(
+            "model provider check for connection %s failed: %s",
+            connection.pk,
+            type(error).__name__,
+        )
+        raise CheckFailed("The provider could not be reached.") from error
+    models = sorted(set(models))
+    connection.metadata = {**connection.metadata, "available_models": models}
+    connection.save(update_fields=["metadata", "updated_at"])
+    return models
+
+
+def model_call_failure(connection: Connection) -> str | None:
+    """Why a small call to the default model failed, or None when it worked."""
+    try:
+        return try_model_call(connection)
     except anthropic.APIConnectionError:
-        failure = "The provider could not be reached for a test call."
+        return "The provider could not be reached for a test call."
     except OutboundUrlError as error:
-        failure = str(error)
+        return str(error)
     except requests.RequestException as error:
         logger.warning(
             "model call check for connection %s failed: %s",
             connection.pk,
             type(error).__name__,
         )
-        failure = "The provider could not be reached for a test call."
-    if failure:
-        if connection.default_model not in models:
-            suggestion = closest_model(connection.default_model, models)
-            failure += (
-                f" The provider lists it as {suggestion}."
-                if suggestion
-                else " It is not in the provider's model list."
-            )
-        return ModelProviderCheck(False, failure, models)
-    return ModelProviderCheck(
-        True,
-        f"Connected. {connection.default_model} answered a test request.",
-        models,
-    )
+        return "The provider could not be reached for a test call."
+
+
+def model_hint(model: str, models: list[str]) -> str:
+    """When the default model is not listed, the listed name it probably means."""
+    if model in models:
+        return ""
+    suggestion = closest_model(model, models)
+    if suggestion:
+        return f" The provider lists it as {suggestion}."
+    return " It is not in the provider's model list."
