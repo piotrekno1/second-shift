@@ -83,6 +83,7 @@ def test_orchestrator_gets_run_scoped_gateway_access(model_run: Run) -> None:
         (Connection.Provider.ANTHROPIC, AnthropicModel),
         (Connection.Provider.OPENAI, OpenAIResponsesModel),
         (Connection.Provider.OPENAI_COMPATIBLE, OpenAIChatModel),
+        (Connection.Provider.OPENROUTER, OpenAIChatModel),
     ],
 )
 def test_pydantic_model_uses_only_gateway_access(

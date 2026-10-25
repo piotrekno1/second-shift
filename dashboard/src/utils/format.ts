@@ -144,6 +144,7 @@ export function accessNeedsAction(status: string): boolean {
 const PROVIDER_LABELS: Record<string, string> = {
   anthropic: 'Anthropic',
   openai: 'OpenAI',
+  openrouter: 'OpenRouter',
   openai_compatible: 'OpenAI-compatible',
   github: 'GitHub',
   sentry: 'Sentry',

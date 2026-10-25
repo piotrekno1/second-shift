@@ -340,7 +340,7 @@ export interface ConnectionUsage {
   last_used_at: string | null
 }
 
-export type ModelProvider = 'anthropic' | 'openai' | 'openai_compatible'
+export type ModelProvider = 'anthropic' | 'openai' | 'openrouter' | 'openai_compatible'
 
 /** A built-in MCP server an owner can connect. */
 export interface MCPProviderInfo {

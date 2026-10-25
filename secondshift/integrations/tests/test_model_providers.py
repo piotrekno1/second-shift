@@ -406,3 +406,65 @@ def test_closest_model_ignores_unrelated_names() -> None:
         "anthropic/claude-haiku-5.5"
     )
     assert model_providers.closest_model("llama-3-70b", models) is None
+
+
+@pytest.mark.django_db
+def test_openrouter_has_fixed_endpoint(
+    client: Client, owner: tuple[AbstractUser, Workspace]
+) -> None:
+    user, _ = owner
+    client.force_login(user)
+    response = create(client, provider="openrouter", base_url="https://example.com")
+    assert response.status_code == 200
+    connection = Connection.objects.get(pk=response.json()["id"])
+    assert connection.endpoint_url == ""
+    assert model_providers.base_url(connection) == "https://openrouter.ai/api/v1"
+    assert model_providers.provider_family(connection) == "openai"
+
+
+@pytest.mark.django_db
+def test_discover_models_before_saving(
+    client: Client, owner: tuple[AbstractUser, Workspace], monkeypatch: Any
+) -> None:
+    user, _ = owner
+    client.force_login(user)
+    monkeypatch.setattr(
+        model_providers,
+        "list_openai_models",
+        lambda connection: ["vendor/model-b", "vendor/model-a"],
+    )
+    response = client.post(
+        "/api/connections/model/models",
+        data=json.dumps({"provider": "openrouter", "api_key": KEY}),
+        content_type="application/json",
+    )
+    assert response.status_code == 200
+    assert response.json() == ["vendor/model-a", "vendor/model-b"]
+    assert KEY not in response.content.decode()
+    assert not Connection.objects.filter(kind=Connection.Kind.MODEL).exists()
+
+
+@pytest.mark.django_db
+def test_discovery_preview_does_not_change_saved_credentials(
+    client: Client, owner: tuple[AbstractUser, Workspace], monkeypatch: Any
+) -> None:
+    user, _ = owner
+    client.force_login(user)
+    saved = create(client, provider="openrouter").json()
+    seen = []
+
+    def models(connection: Connection) -> list[str]:
+        seen.append(connection.access_token)
+        return ["vendor/model"]
+
+    monkeypatch.setattr(model_providers, "list_openai_models", models)
+    response = client.post(
+        f"/api/connections/{saved['id']}/model/models",
+        data=json.dumps({"api_key": "replacement"}),
+        content_type="application/json",
+    )
+    assert response.status_code == 200
+    assert seen == ["replacement"]
+    connection = Connection.objects.get(pk=saved["id"])
+    assert connection.access_token == KEY
+    assert "available_models" not in connection.metadata

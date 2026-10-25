@@ -121,3 +121,7 @@ export function createAPIConnection(input: APIConnectionInput): Promise<Connecti
 export function updateAPIConnection(connectionId: number, input: { display_name?: string, token?: string, base_url?: string, operations?: string[] }): Promise<Connection> {
   return apiPost<Connection>(`/connections/${connectionId}/api`, input)
 }
+
+export function discoverModels(input: ModelProviderInput & { provider: ModelProvider }, connectionId?: number): Promise<string[]> {
+  return apiPost<string[]>(connectionId ? `/connections/${connectionId}/model/models` : '/connections/model/models', input)
+}

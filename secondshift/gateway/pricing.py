@@ -28,7 +28,10 @@ def request_cost(connection: Connection, model: str, usage: "Usage") -> Decimal 
         cache_read_tokens=usage.cache_read_tokens,
         cache_write_tokens=usage.cache_write_tokens,
     )
-    if connection.provider == Connection.Provider.OPENAI_COMPATIBLE:
+    if connection.provider in {
+        Connection.Provider.OPENAI_COMPATIBLE,
+        Connection.Provider.OPENROUTER,
+    }:
         # Routers like OpenRouter are recognized by their API URL.
         lookup: dict[str, str] = {"provider_api_url": base_url(connection)}
     else:

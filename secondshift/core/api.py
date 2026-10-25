@@ -53,10 +53,13 @@ from secondshift.integrations.mcp.signin import (
     start_authorization,
 )
 from secondshift.integrations.model_providers import (
+    CheckFailed,
     ModelProviderError,
     check_model_connection,
     create_model_connection,
+    fetch_models,
     update_model_connection,
+    validated_endpoint,
 )
 from secondshift.integrations.models import Connection, Secret
 from secondshift.integrations.services import (
@@ -380,7 +383,7 @@ class MCPProviderSchema(Schema):
 
 
 class ModelConnectionCreateSchema(Schema):
-    provider: Literal["anthropic", "openai", "openai_compatible"]
+    provider: Literal["anthropic", "openai", "openrouter", "openai_compatible"]
     display_name: str = Field(default="", max_length=200)
     api_key: str = Field(default="", max_length=1000)
     base_url: str = Field(default="", max_length=2000)
@@ -1124,6 +1127,55 @@ def update_webhook(
     except ValidationError as error:
         raise HttpError(422, " ".join(error.messages)) from error
     return serialize_connection(connection)
+
+
+@api.post("/connections/model/models", response=list[str], auth=django_auth)
+def discover_model_provider_models(
+    request: HttpRequest, payload: ModelConnectionCreateSchema
+) -> list[str]:
+    require(request, Action.ADD_MODEL_PROVIDERS)
+    if (
+        not payload.api_key.strip()
+        and payload.provider != Connection.Provider.OPENAI_COMPATIBLE
+    ):
+        raise HttpError(422, "Enter an API key.")
+    try:
+        connection = Connection(
+            provider=payload.provider,
+            endpoint_url=validated_endpoint(payload.provider, payload.base_url),
+            access_token=payload.api_key.strip(),
+        )
+        return fetch_models(connection)
+    except (ModelProviderError, CheckFailed) as error:
+        raise HttpError(422, str(error)) from error
+
+
+@api.post(
+    "/connections/{connection_id}/model/models", response=list[str], auth=django_auth
+)
+def refresh_model_provider_models(
+    request: HttpRequest, connection_id: int, payload: ModelConnectionUpdateSchema
+) -> list[str]:
+    connection = owned_connection(request, connection_id, Action.EDIT_MODEL_PROVIDERS)
+    if connection.kind != Connection.Kind.MODEL:
+        raise HttpError(422, "This is not a model provider connection.")
+    try:
+        # Preview changes without saving credentials, settings, or discovery results.
+        preview = Connection(
+            provider=connection.provider,
+            endpoint_url=validated_endpoint(
+                connection.provider,
+                payload.base_url
+                if payload.base_url is not None
+                else connection.endpoint_url,
+            ),
+            access_token=payload.api_key.strip()
+            if payload.api_key and payload.api_key.strip()
+            else connection.access_token,
+        )
+        return fetch_models(preview)
+    except (ModelProviderError, CheckFailed) as error:
+        raise HttpError(422, str(error)) from error
 
 
 @api.post("/connections/model", response=ConnectionSchema, auth=django_auth)
