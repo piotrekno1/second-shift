@@ -71,7 +71,7 @@ async function handleSignOut(): Promise<void> {
         </RouterLink>
         <div class="account">
           <span class="avatar">{{ initials }}</span>
-          <div><strong>{{ app.user?.email }}</strong><small>Signed in</small></div>
+          <div :title="app.user?.email"><strong>{{ app.user?.email }}</strong><small>Signed in</small></div>
           <button
             class="sign-out"
             type="button"

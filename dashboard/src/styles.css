@@ -61,10 +61,10 @@ h1, h2, .brand strong, .stat-card strong { font-family: 'Manrope', system-ui, sa
 .sidebar nav a i { font-size: 21px; }
 .sidebar nav a:hover { background: rgba(139,124,255,.08); color: var(--ink); }
 .sidebar nav a.active { background: linear-gradient(105deg, rgba(139,124,255,.2), rgba(139,124,255,.08)); color: var(--violet-soft); box-shadow: inset 0 0 0 1px rgba(139,124,255,.12); }
-.sidebar-foot { margin-top: auto; display: grid; gap: 12px; }
+.sidebar-foot { margin-top: auto; display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
 .runtime-note, .account { display: flex; align-items: center; gap: 10px; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: rgba(255,255,255,.025); }
 .runtime-note div, .account div { min-width: 0; display: flex; flex-direction: column; }
-.runtime-note strong, .account strong { font-size: 12px; }
+.runtime-note strong, .account strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
 .runtime-note small, .account small { overflow: hidden; text-overflow: ellipsis; color: var(--subtle); font-size: 10px; white-space: nowrap; }
 .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--amber); box-shadow: 0 0 0 4px rgba(255,180,84,.12); }
 .avatar { width: 30px; height: 30px; display: grid; place-items: center; flex: 0 0 auto; border-radius: 9px; background: rgba(139,124,255,.18); color: var(--violet-soft); font-size: 11px; font-weight: 800; }
