@@ -116,27 +116,56 @@ def copy_headers(upstream: httpx.Response, response: HttpResponse) -> None:
             response[name] = value
 
 
+class GatewayRefusal(Exception):
+    """A request the gateway answers itself, without calling the provider."""
+
+    def __init__(self, family: str, status: int, kind: str, message: str) -> None:
+        super().__init__(message)
+        self.response = error_response(family, status, kind, message)
+
+
 async def forward(request: HttpRequest, family: str, path: str) -> HttpResponse:
+    try:
+        run_token = await authorize(request, family, path)
+        raw, payload = await read_payload(request, family)
+        model, metered = check_request(run_token, family, path, payload)
+        raw = with_stream_usage(family, path, payload, raw)
+        upstream = await send_upstream(request, run_token, family, path, raw)
+        response = await relay(upstream, run_token, family, model, metered)
+    except GatewayRefusal as refusal:
+        return refusal.response
+    copy_headers(upstream, response)
+    return response
+
+
+async def authorize(request: HttpRequest, family: str, path: str) -> RunToken:
+    """The run token, if it may call this provider's endpoint."""
     if family not in ALLOWED_PATHS:
-        return error_response("openai", 404, "not_found_error", "Unknown API family.")
+        raise GatewayRefusal("openai", 404, "not_found_error", "Unknown API family.")
     run_token = await aauthenticate(request_token(request))
     if run_token is None:
-        return error_response(
+        raise GatewayRefusal(
             family, 401, "authentication_error", "Invalid or expired run token."
         )
-    connection = run_token.connection
-    if provider_family(connection) != family:
-        return error_response(
+    if provider_family(run_token.connection) != family:
+        raise GatewayRefusal(
             family,
             404,
             "not_found_error",
             "This run's model provider does not serve this API.",
         )
     if request.method != "POST" or path not in ALLOWED_PATHS[family]:
-        return error_response(
+        raise GatewayRefusal(
             family, 404, "not_found_error", "This endpoint is not available."
         )
+    return run_token
 
+
+async def read_payload(
+    request: HttpRequest, family: str
+) -> tuple[bytes, dict[str, Any]]:
+    """The raw body and its JSON, refused when too large or without a model."""
+    limit = settings.GATEWAY_MAX_BODY_BYTES
     try:
         declared = int(request.headers.get("content-length") or 0)
     except ValueError:
@@ -144,30 +173,34 @@ async def forward(request: HttpRequest, family: str, path: str) -> HttpResponse:
     # The ASGI handler has already spooled the body; read it off the event loop.
     raw = (
         b""
-        if declared > settings.GATEWAY_MAX_BODY_BYTES
-        else await sync_to_async(request.read, thread_sensitive=False)(
-            settings.GATEWAY_MAX_BODY_BYTES + 1
-        )
+        if declared > limit
+        else await sync_to_async(request.read, thread_sensitive=False)(limit + 1)
     )
-    if declared > settings.GATEWAY_MAX_BODY_BYTES or (
-        len(raw) > settings.GATEWAY_MAX_BODY_BYTES
-    ):
-        return error_response(
+    if declared > limit or len(raw) > limit:
+        raise GatewayRefusal(
             family, 413, "request_too_large", "The request body is too large."
         )
     try:
         payload = json.loads(raw)
-    except ValueError:
-        return error_response(
+    except ValueError as error:
+        raise GatewayRefusal(
             family, 400, "invalid_request_error", "The body must be JSON."
-        )
+        ) from error
     if not isinstance(payload, dict) or not isinstance(payload.get("model"), str):
-        return error_response(
+        raise GatewayRefusal(
             family, 400, "invalid_request_error", "The request must name a model."
         )
+    return raw, payload
+
+
+def check_request(
+    run_token: RunToken, family: str, path: str, payload: dict[str, Any]
+) -> tuple[str, bool]:
+    """The model, and whether the call counts against the token budget."""
     model = payload["model"]
-    if connection.allowed_models and model not in connection.allowed_models:
-        return error_response(
+    allowed = run_token.connection.allowed_models
+    if allowed and model not in allowed:
+        raise GatewayRefusal(
             family,
             403,
             "permission_error",
@@ -175,29 +208,43 @@ async def forward(request: HttpRequest, family: str, path: str) -> HttpResponse:
         )
     metered = path in METERED_PATHS[family]
     if metered and run_token.used_tokens >= run_token.budget_tokens:
-        refusal = error_response(family, 429, "rate_limit_error", TOKEN_BUDGET_MESSAGE)
+        refusal = GatewayRefusal(family, 429, "rate_limit_error", TOKEN_BUDGET_MESSAGE)
         # Provider SDKs retry a 429 unless told not to. Waiting never helps here.
-        refusal["x-should-retry"] = "false"
-        return refusal
-    if family == "openai" and path == "chat/completions" and payload.get("stream"):
-        # Without this, streamed chat completions never report usage.
-        options = payload.get("stream_options")
-        payload["stream_options"] = {
-            **(options if isinstance(options, dict) else {}),
-            "include_usage": True,
-        }
-        raw = json.dumps(payload).encode()
+        refusal.response["x-should-retry"] = "false"
+        raise refusal
+    return model, metered
 
+
+def with_stream_usage(
+    family: str, path: str, payload: dict[str, Any], raw: bytes
+) -> bytes:
+    """Without this, streamed OpenAI chat completions never report usage."""
+    if not (
+        family == "openai" and path == "chat/completions" and payload.get("stream")
+    ):
+        return raw
+    options = payload.get("stream_options")
+    payload["stream_options"] = {
+        **(options if isinstance(options, dict) else {}),
+        "include_usage": True,
+    }
+    return json.dumps(payload).encode()
+
+
+async def send_upstream(
+    request: HttpRequest, run_token: RunToken, family: str, path: str, raw: bytes
+) -> httpx.Response:
+    connection = run_token.connection
     root = base_url(connection)
     try:
         # Scheme and userinfo rules; the transport re-checks addresses on connect.
         validate_outbound_url(root, "provider URL", resolve=False)
     except OutboundUrlError as error:
-        return error_response(family, 502, "api_error", str(error))
+        raise GatewayRefusal(family, 502, "api_error", str(error)) from error
     url = f"{root}/v1/{path}" if family == "anthropic" else f"{root}/{path}"
     client = upstream_client()
     try:
-        upstream = await client.send(
+        return await client.send(
             client.build_request(
                 "POST",
                 url,
@@ -206,53 +253,60 @@ async def forward(request: HttpRequest, family: str, path: str) -> HttpResponse:
             ),
             stream=True,
         )
-    except httpx.TimeoutException:
-        return error_response(family, 504, "api_error", "The provider timed out.")
+    except httpx.TimeoutException as error:
+        raise GatewayRefusal(
+            family, 504, "api_error", "The provider timed out."
+        ) from error
     except httpx.HTTPError as error:
         logger.warning(
             "gateway request for run %s failed: %s",
             run_token.run_id,
             type(error).__name__,
         )
-        return error_response(
+        raise GatewayRefusal(
             family, 502, "api_error", "The provider could not be reached."
-        )
+        ) from error
 
+
+async def relay(
+    upstream: httpx.Response,
+    run_token: RunToken,
+    family: str,
+    model: str,
+    metered: bool,
+) -> HttpResponse:
+    """Pass the provider's answer on, metering its token use."""
     content_type = upstream.headers.get("content-type", "application/json")
     if content_type.startswith("text/event-stream"):
-        response: HttpResponse = StreamingHttpResponse(
+        response = StreamingHttpResponse(
             relay_stream(upstream, run_token, family, model, metered),
             status=upstream.status_code,
             content_type=content_type,
         )
         response["Cache-Control"] = "no-cache"
         response["X-Accel-Buffering"] = "no"
-    else:
+        return response
+    try:
+        content = await upstream.aread()
+    except httpx.HTTPError as error:
+        raise GatewayRefusal(
+            family, 502, "api_error", "The provider response was interrupted."
+        ) from error
+    finally:
+        await upstream.aclose()
+    if metered:
         try:
-            content = await upstream.aread()
-        except httpx.HTTPError:
-            return error_response(
-                family, 502, "api_error", "The provider response was interrupted."
-            )
-        finally:
-            await upstream.aclose()
-        if metered:
-            try:
-                body = json.loads(content)
-            except ValueError:
-                body = None
-            await record_usage(
-                run_token,
-                family,
-                model,
-                upstream.status_code,
-                usage_from_json(family, body),
-            )
-        response = HttpResponse(
-            content, status=upstream.status_code, content_type=content_type
+            body = json.loads(content)
+        except ValueError:
+            body = None
+        await record_usage(
+            run_token,
+            family,
+            model,
+            upstream.status_code,
+            usage_from_json(family, body),
         )
-    copy_headers(upstream, response)
-    return response
+    return HttpResponse(content, status=upstream.status_code, content_type=content_type)
 
 
 async def relay_stream(

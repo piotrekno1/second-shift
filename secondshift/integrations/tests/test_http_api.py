@@ -22,7 +22,12 @@ from secondshift.integrations.http_api.connections import (
     recheck_api_connection,
     update_api_connection,
 )
-from secondshift.integrations.http_api.spec import APIError, load_spec, read_spec
+from secondshift.integrations.http_api.spec import (
+    APIError,
+    load_spec,
+    read_operation,
+    read_spec,
+)
 from secondshift.integrations.models import Connection
 from secondshift.repositories.models import Repository
 from secondshift.workspaces.models import Workspace
@@ -211,6 +216,29 @@ def test_spec_reads_operations_parameters_and_servers(fake: FakeAPI) -> None:
     assert create.input_schema["required"] == ["body"]
     # A cyclic schema ends in an empty schema instead of recursing forever.
     assert "$ref" not in json.dumps(spec.operations["tree"].input_schema)
+
+
+@pytest.mark.parametrize(
+    ("path", "parameters"),
+    [
+        # A path and query parameter share a name.
+        (
+            "/items/{id}",
+            [
+                {"in": "path", "name": "id", "required": True},
+                {"in": "query", "name": "id"},
+            ],
+        ),
+        # The path has a placeholder no parameter fills.
+        ("/items/{id}", []),
+    ],
+)
+def test_unclear_operations_are_left_out(
+    path: str, parameters: list[dict[str, object]]
+) -> None:
+    raw = {"operationId": "getItem", "parameters": parameters}
+
+    assert read_operation({}, path, "get", raw, []) is None
 
 
 @pytest.mark.parametrize(

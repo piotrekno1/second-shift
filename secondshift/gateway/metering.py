@@ -99,30 +99,47 @@ class StreamMeter:
             self.read_line(line.strip())
 
     def read_line(self, line: bytes) -> None:
-        if not line.startswith(b"data:"):
-            return
-        data = line[5:].strip()
-        if not data or data == b"[DONE]":
-            return
-        try:
-            event = json.loads(data)
-        except ValueError:
-            return
-        if not isinstance(event, dict):
+        event = sse_event(line)
+        if event is None:
             return
         if self.family == "anthropic":
-            if event.get("type") == "message_start":
-                message = event.get("message")
-                if isinstance(message, dict):
-                    apply_anthropic_usage(self.usage, message.get("usage"))
-            elif event.get("type") == "message_delta":
-                apply_anthropic_usage(self.usage, event.get("usage"))
-        elif event.get("type") == "response.completed":
-            response = event.get("response")
-            if isinstance(response, dict):
-                apply_openai_usage(self.usage, response.get("usage"))
-        elif event.get("usage"):
-            apply_openai_usage(self.usage, event["usage"])
+            apply_anthropic_event(self.usage, event)
+        else:
+            apply_openai_event(self.usage, event)
+
+
+def sse_event(line: bytes) -> dict[str, Any] | None:
+    """The JSON object in a server-sent `data:` line, or None for anything else."""
+    if not line.startswith(b"data:"):
+        return None
+    data = line[5:].strip()
+    if not data or data == b"[DONE]":
+        return None
+    try:
+        event = json.loads(data)
+    except ValueError:
+        return None
+    return event if isinstance(event, dict) else None
+
+
+def apply_anthropic_event(usage: Usage, event: dict[str, Any]) -> None:
+    """Usage arrives at the message's start and in its final delta."""
+    if event.get("type") == "message_start":
+        message = event.get("message")
+        if isinstance(message, dict):
+            apply_anthropic_usage(usage, message.get("usage"))
+    elif event.get("type") == "message_delta":
+        apply_anthropic_usage(usage, event.get("usage"))
+
+
+def apply_openai_event(usage: Usage, event: dict[str, Any]) -> None:
+    """Responses report usage when complete. Chat completions in a last chunk."""
+    if event.get("type") == "response.completed":
+        response = event.get("response")
+        if isinstance(response, dict):
+            apply_openai_usage(usage, response.get("usage"))
+    elif event.get("usage"):
+        apply_openai_usage(usage, event["usage"])
 
 
 async def record_usage(
