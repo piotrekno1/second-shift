@@ -39,26 +39,14 @@ function csrfToken(): string {
   )
 }
 
-async function responseDetail(response: Response): Promise<string | null> {
+async function responseError(response: Response): Promise<Error> {
   try {
     const payload = (await response.json()) as { detail?: unknown }
-    return typeof payload.detail === 'string' ? payload.detail || null : null
+    if (typeof payload.detail === 'string' && payload.detail) return new Error(payload.detail)
   } catch {
-    // The caller falls back to a status message for non-JSON responses.
-    return null
+    // The status fallback below is sufficient for non-JSON responses.
   }
-}
-
-async function responseError(response: Response): Promise<Error> {
-  return new Error(
-    (await responseDetail(response)) ?? `Request failed with status ${response.status}`,
-  )
-}
-
-async function authenticationError(response: Response): Promise<AuthenticationRequired> {
-  return new AuthenticationRequired(
-    (await responseDetail(response)) ?? 'Sign in required',
-  )
+  return new Error(`Request failed with status ${response.status}`)
 }
 
 export async function apiPost<T>(path: string, body?: unknown): Promise<T> {

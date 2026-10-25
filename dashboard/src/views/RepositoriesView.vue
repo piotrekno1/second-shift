@@ -1,14 +1,15 @@
 <script setup lang="ts">
-import { computed, nextTick, onUnmounted, ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
+import LocalDirectoryPicker from '../components/LocalDirectoryPicker.vue'
 import FilterChips from '../components/FilterChips.vue'
 import PageHeader from '../components/PageHeader.vue'
 import SearchInput from '../components/SearchInput.vue'
 import StatusPill from '../components/StatusPill.vue'
 import { useListQuery } from '../composables/useListQuery'
-import { apiGet, apiPost } from '../services/api'
+import { apiPost } from '../services/api'
 import { useAppStore } from '../stores/app'
 import type { Repository } from '../types'
 import { Action } from '../utils/permissions'
@@ -49,15 +50,6 @@ const localPath = ref('')
 const localError = ref<string | null>(null)
 const saving = ref(false)
 const browsing = ref(false)
-const loadingDirectories = ref(false)
-const browser = ref<LocalRepositoryDirectoryList | null>(null)
-const browserError = ref<string | null>(null)
-const localPathInput = ref<{ $el: HTMLInputElement } | null>(null)
-const browseButton = ref<{ $el: HTMLButtonElement } | null>(null)
-const browserPath = ref<HTMLElement | null>(null)
-const browserErrorMessage = ref<HTMLElement | null>(null)
-let directoriesRequest = 0
-const canChooseDirectory = computed(() => Boolean(browser.value) && !browserError.value)
 const repositoriesSubtitle = computed(() => {
   const total = app.repositories.length
   if (total === 0) return 'No repositories connected yet.'
@@ -76,7 +68,7 @@ async function addLocalRepository(): Promise<void> {
     await app.refresh()
     localPath.value = ''
     addingLocal.value = false
-    closeBrowser()
+    browsing.value = false
     await router.push({ path: `/repositories/${repository.id}`, query: { added: '1' } })
   } catch (error) {
     localError.value = error instanceof Error ? error.message : 'Unable to add repository'
@@ -85,114 +77,29 @@ async function addLocalRepository(): Promise<void> {
   }
 }
 
-async function loadDirectories(path: string): Promise<void> {
-  const request = ++directoriesRequest
-  loadingDirectories.value = true
-  browser.value = null
-  browserError.value = null
-  try {
-    const result = await apiGet<LocalRepositoryDirectoryList>(
-      `/repositories/local/directories?path=${encodeURIComponent(path)}`,
-    )
-    if (request !== directoriesRequest) return
-    browser.value = result
-    await nextTick()
-    if (request === directoriesRequest) browserPath.value?.focus()
-  } catch (error) {
-    if (request !== directoriesRequest) return
-    browserError.value = error instanceof Error ? error.message : 'Unable to browse directories'
-    await nextTick()
-    if (request === directoriesRequest) browserErrorMessage.value?.focus()
-  } finally {
-    if (request === directoriesRequest) loadingDirectories.value = false
-  }
-}
-
-function closeBrowser(focusTarget?: 'browse' | 'input'): void {
-  directoriesRequest += 1
-  loadingDirectories.value = false
-  browsing.value = false
-  browser.value = null
-  browserError.value = null
-  if (focusTarget) {
-    void nextTick(() => {
-      const element = focusTarget === 'browse' ? browseButton.value?.$el : localPathInput.value?.$el
-      element?.focus()
-    })
-  }
-}
-
-function openBrowser(): void {
-  browsing.value = true
-  void loadDirectories(localPath.value)
-}
-
 function chooseDirectory(path: string): void {
-  if (!path) return
   localPath.value = path
   localError.value = null
-  closeBrowser('input')
+  browsing.value = false
 }
-
-function toggleLocalForm(): void {
-  if (addingLocal.value) closeBrowser()
-  addingLocal.value = !addingLocal.value
-}
-
-onUnmounted(() => {
-  directoriesRequest += 1
-})
 </script>
 
 <template>
   <div class="page">
     <PageHeader title="Repositories" :description="repositoriesSubtitle">
-      <Button v-if="app.canAddLocalRepositories" label="Add local repository" icon="pi pi-folder-open" severity="secondary" outlined @click="addingLocal = !addingLocal" />
+      <Button v-if="app.canAddLocalRepositories" label="Add local repository" icon="pi pi-folder-open" severity="secondary" outlined @click="addingLocal = !addingLocal; browsing = false" />
       <Button label="Install GitHub App" icon="pi pi-github" />
     </PageHeader>
     <form v-if="addingLocal" class="panel local-repository-form" @submit.prevent="addLocalRepository">
       <div><h2>Add a local Git repository</h2><p>Its committed `.secondshift.yaml` and referenced skills will be validated and synchronized.</p></div>
-      <InputText ref="localPathInput" v-model="localPath" aria-label="Local repository path" placeholder="/Users/you/Projects/my-repository" autofocus />
+      <InputText v-model="localPath" aria-label="Local repository path" placeholder="/Users/you/Projects/my-repository" autofocus />
       <div class="local-repository-actions">
-        <Button ref="browseButton" type="button" icon="pi pi-folder-open" severity="secondary" outlined aria-label="Browse directories" aria-controls="local-directory-browser" :aria-expanded="browsing" title="Browse directories" :disabled="loadingDirectories" @click="openBrowser" />
+        <Button type="button" icon="pi pi-folder-open" severity="secondary" outlined aria-label="Browse directories" aria-haspopup="dialog" title="Browse directories" @click="browsing = true" />
         <Button type="submit" label="Validate and add" icon="pi pi-check" :loading="saving" :disabled="!localPath.trim()" />
       </div>
       <p v-if="localError" class="form-error">{{ localError }}</p>
-      <fieldset v-if="browsing" id="local-directory-browser" class="local-repository-browser">
-        <legend>Browse directories</legend>
-        <p class="browser-path" aria-live="polite"><code ref="browserPath" tabindex="-1">{{ browser?.path ?? '…' }}</code></p>
-        <p v-if="loadingDirectories" class="browser-empty" role="status">Loading directories…</p>
-        <p v-if="browserError" ref="browserErrorMessage" class="form-error" role="alert" tabindex="-1">{{ browserError }}</p>
-        <div class="browser-list" :aria-busy="loadingDirectories">
-          <button type="button" class="browser-up" :disabled="!browser?.parent || loadingDirectories" @click="loadDirectories(browser?.parent ?? '')">
-            <i class="mdi mdi-arrow-up" /> Up
-          </button>
-          <button
-            v-for="directory in browser?.directories ?? []"
-            :key="directory.path"
-            type="button"
-            class="browser-folder"
-            :disabled="loadingDirectories"
-            @click="loadDirectories(directory.path)"
-          >
-            <i class="mdi mdi-folder-outline" /> <span>{{ directory.name }}</span>
-          </button>
-          <p v-if="browser && !browserError && browser.directories.length === 0" class="browser-empty">No subdirectories.</p>
-        </div>
-        <div class="browser-footer">
-          <Button type="button" label="Close" severity="secondary" outlined size="small" @click="closeBrowser('browse')" />
-          <Button
-            type="button"
-            label="Use this folder"
-            icon="pi pi-check"
-            size="small"
-            :loading="loadingDirectories"
-            :disabled="!canChooseDirectory || loadingDirectories"
-            @click="chooseDirectory(browser?.path ?? '')"
-          />
-        </div>
-      </fieldset>
     </form>
+    <LocalDirectoryPicker v-if="browsing" :path="localPath" @choose="chooseDirectory" @close="browsing = false" />
     <div v-if="app.repositories.length > 1" class="list-toolbar">
       <SearchInput :model-value="search" placeholder="Search repositories" @update:model-value="list.update({ q: $event })" />
       <FilterChips :model-value="state" :options="stateOptions" label="Repository state" @update:model-value="list.update({ state: $event })" />

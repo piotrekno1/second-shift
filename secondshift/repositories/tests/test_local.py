@@ -7,7 +7,11 @@ import pytest
 from django.contrib.auth import get_user_model
 from django.test import override_settings
 
-from secondshift.repositories.local import (LocalRepositoryError, attach_local_repository, local_directories)
+from secondshift.repositories.local import (
+    LocalRepositoryError,
+    attach_local_repository,
+    local_directories,
+)
 from secondshift.repositories.models import Repository
 from secondshift.workspaces.models import Workspace, WorkspaceMembership
 from secondshift.workspaces.services import create_workspace
@@ -388,11 +392,21 @@ def test_directories_api_accepts_navigable_paths_over_one_thousand_characters(
 
 @pytest.mark.django_db
 @override_settings(LOCAL_REPOSITORIES_ENABLED=True)
-def test_directories_api_hides_non_owner(client) -> None:
+@pytest.mark.parametrize(
+    "role", [WorkspaceMembership.Role.MEMBER, WorkspaceMembership.Role.ADMIN]
+)
+def test_directories_api_hides_non_owner(
+    client, role: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
     owner = get_user_model().objects.create_user(username="owner")
     workspace = create_workspace(name="Test", slug="test", owner=owner)
     member = get_user_model().objects.create_user(username="member")
-    WorkspaceMembership.objects.create(workspace=workspace, user=member)
+    WorkspaceMembership.objects.create(workspace=workspace, user=member, role=role)
+
+    def unexpected_access(raw_path: str) -> NoReturn:
+        pytest.fail("Unauthorized directory requests must not access the filesystem")
+
+    monkeypatch.setattr("secondshift.core.api.local_directories", unexpected_access)
     client.force_login(member)
 
     response = client.get("/api/repositories/local/directories?path=")

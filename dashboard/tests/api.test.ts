@@ -30,7 +30,7 @@ test('apiGet keeps authorization details on a forbidden response', async () => {
     await assert.rejects(
       apiGet('/repositories/local/directories'),
       (error) =>
-        !(error instanceof AuthenticationRequired)
+        error instanceof Error && !(error instanceof AuthenticationRequired)
         && error.message === 'You do not have permission to add local repositories.',
     )
   } finally {
