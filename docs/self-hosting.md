@@ -77,7 +77,8 @@ one. Once the workspace has an owner, the command refuses to make another.
 
 Owners invite everyone else from the Settings page. Each invite has a role:
 
-- **Owner** connects services, approves access and invites people.
+- **Owner** connects services, approves access, invites people and manages
+  their roles.
 - **Admin** enables, runs and schedules approved jobs, manages repositories
   and changes run limits.
 - **Member** can view.
@@ -92,6 +93,9 @@ An invite link works once and is shown only when it is created. The server
 stores a hash of it, not the link itself. Opening a link never adds anyone by
 itself. The person confirms in the dashboard while signed in. Owners can
 revoke pending invites from the Settings page.
+
+Owners also change roles and remove people on the Settings page. A workspace
+always keeps at least one owner, so the last owner cannot step down or leave.
 
 ## Run artifact storage
 

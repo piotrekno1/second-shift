@@ -109,7 +109,7 @@ first skill, schedule, and webhook notification.
 | --- | --- |
 | **Repository contributors** | Propose skills, schedules, and requested capabilities through Git changes. |
 | **Repository maintainers** | Review and merge those changes through the repository's normal process. |
-| **Workspace owners** | Connect model providers and services, approve each job's access, and add local repositories. |
+| **Workspace owners** | Connect model providers and services, approve each job's access, add local repositories, and invite people and manage their roles. |
 | **Workspace admins** | Enable, run and schedule approved jobs, manage repositories, and change run limits. |
 | **Workspace members** | View repositories, jobs and runs. |
 | **Server operators** | Define sandbox images, runtimes, resource limits, and network policy. |
