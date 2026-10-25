@@ -9,7 +9,11 @@ from django.utils import timezone
 
 from secondshift.automations.artifacts import job_input_snapshot, read_output_excerpt
 from secondshift.automations.budgets import Budget, budget_reached_message
-from secondshift.automations.deadlines import run_deadline, timeout_summary
+from secondshift.automations.deadlines import (
+    run_deadline,
+    run_timeout_seconds,
+    timeout_summary,
+)
 from secondshift.automations.execution import execute_agent_run
 from secondshift.automations.failures import failure_metadata, failure_summary
 from secondshift.automations.models import Job, Run, RunEvent
@@ -258,6 +262,7 @@ def fail_run_step(run_id: int, summary: str, details: dict[str, object]) -> None
 def execute_run(run_id: int) -> None:
     session_id: str | None = None
     deadline: datetime | None = None
+    timeout_seconds = 0
     stage = "starting"
     try:
         mark_run_started_step(run_id)
@@ -270,7 +275,8 @@ def execute_run(run_id: int) -> None:
         record_run_event_step(
             run_id, f"Running {run.input_snapshot.get('skill_path') or 'the skill'}."
         )
-        deadline = run_deadline(run.started_at)
+        deadline = run_deadline(run)
+        timeout_seconds = run_timeout_seconds(run)
         result = execute_agent_run(run, session_id)
         stage = "finishing"
         stop_runner_session_step(session_id)
@@ -286,7 +292,7 @@ def execute_run(run_id: int) -> None:
         if stage == "skill" and deadline is not None and timezone.now() >= deadline:
             # The skill stopped after its time limit, so the error is the model
             # call or tool call that hit the deadline.
-            summary = timeout_summary()
+            summary = timeout_summary(timeout_seconds)
             details["timed_out"] = True
         else:
             summary = failure_summary(stage, error)

@@ -3,12 +3,12 @@
 import hashlib
 import secrets
 
-from django.conf import settings
 from django.db.models import QuerySet
 from django.http import HttpRequest
 from django.utils import timezone
 
 from secondshift.automations.deadlines import run_deadline
+from secondshift.automations.limits import RunLimit, plan_limit
 from secondshift.automations.models import Run
 from secondshift.gateway.models import RunToken
 from secondshift.integrations.models import Connection
@@ -50,8 +50,8 @@ def issue_run_token(run: Run, connection: Connection | None = None) -> str:
         connection=connection,
         token_hash=token_digest(token),
         # Model access ends with the run's time limit.
-        expires_at=run_deadline(run.started_at),
-        budget_tokens=settings.MODEL_RUN_TOKEN_BUDGET,
+        expires_at=run_deadline(run),
+        budget_tokens=plan_limit(run.execution_plan, RunLimit.TOKEN_BUDGET),
     )
     return token
 

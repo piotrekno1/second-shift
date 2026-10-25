@@ -19,6 +19,7 @@ from pydantic_ai.messages import ModelMessage, ModelResponse, TextPart, ToolCall
 from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.usage import RunUsage
 
+from secondshift.automations.limits import RunLimit, raise_hint
 from secondshift.config.constants import TOKEN_BUDGET_MESSAGE
 
 BUDGET_HEADLINE = "Budget used up"
@@ -41,13 +42,13 @@ class Budget(StrEnum):
 @dataclass(frozen=True)
 class BudgetLimit:
     label: str
-    setting: str
+    limit: RunLimit
 
 
 BUDGET_LIMITS = {
-    Budget.REQUESTS: BudgetLimit("model requests", "SECONDSHIFT_AGENT_MAX_TURNS"),
-    Budget.TOOL_CALLS: BudgetLimit("tool calls", "SECONDSHIFT_AGENT_MAX_TOOL_CALLS"),
-    Budget.TOKENS: BudgetLimit("tokens", "SECONDSHIFT_MODEL_RUN_TOKEN_BUDGET"),
+    Budget.REQUESTS: BudgetLimit("model requests", RunLimit.MAX_TURNS),
+    Budget.TOOL_CALLS: BudgetLimit("tool calls", RunLimit.MAX_TOOL_CALLS),
+    Budget.TOKENS: BudgetLimit("tokens", RunLimit.TOKEN_BUDGET),
 }
 
 
@@ -110,7 +111,7 @@ def budget_reason(budget: Budget, limit: int) -> str:
     spec = BUDGET_LIMITS[budget]
     return (
         f"Stopped at {limit:,} {spec.label}, the run's limit. "
-        f"Set {spec.setting} to allow more."
+        f"{raise_hint(spec.limit, limit)}"
     )
 
 

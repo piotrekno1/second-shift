@@ -57,7 +57,9 @@ def budget_run(
         ),
     )
 
-    def make(max_turns: int = 10, max_tool_calls: int = 10) -> Run:
+    def make(
+        max_turns: int = 10, max_tool_calls: int = 10, token_budget: int = 2_000_000
+    ) -> Run:
         run = execution_run(db)
         run.started_at = timezone.now()
         run.input_snapshot = {"skill_path": ".agents/skills/review/SKILL.md"}
@@ -67,6 +69,7 @@ def budget_run(
                 "max_turns": max_turns,
                 "max_tool_calls": max_tool_calls,
                 "max_tool_result_chars": 1_000,
+                "token_budget": token_budget,
             },
         }
         run.save()
@@ -150,7 +153,7 @@ def test_running_out_of_tool_calls_keeps_a_partial_report(
     assert result["succeeded"] is False
     assert result["summary"] == (
         "Budget used up: Stopped at 2 tool calls, the run's limit. "
-        "Set SECONDSHIFT_AGENT_MAX_TOOL_CALLS to allow more."
+        "Raise it in the job's limits."
     )
     assert result["details"] == {
         "budget_exhausted": "tool_calls",
@@ -174,7 +177,7 @@ def test_a_model_that_ignores_the_last_request_runs_out(
 
     assert result["succeeded"] is False
     assert result["summary"].startswith("Budget used up: Stopped at 2 model requests")
-    assert "SECONDSHIFT_AGENT_MAX_TURNS" in result["summary"]
+    assert result["summary"].endswith("Raise it in the job's limits.")
     assert result["details"]["budget_exhausted"] == "requests"
 
 
@@ -182,7 +185,7 @@ def test_a_model_that_ignores_the_last_request_runs_out(
 def test_the_gateway_token_budget_ends_the_run_with_its_work(
     budget_run: Callable[..., Run], settings: Any
 ) -> None:
-    settings.MODEL_RUN_TOKEN_BUDGET = 50_000
+    settings.MODEL_RUN_TOKEN_BUDGET_CEILING = 50_000
 
     def model(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
         if len(messages) > 1:
@@ -191,11 +194,12 @@ def test_the_gateway_token_budget_ends_the_run_with_its_work(
             )
         return ModelResponse(parts=[TextPart("Started on the README."), read_readme()])
 
-    result = run_with(model, budget_run())
+    result = run_with(model, budget_run(token_budget=50_000))
 
     assert result["succeeded"] is False
     assert result["summary"].startswith("Budget used up: Stopped at 50,000 tokens")
-    assert "SECONDSHIFT_MODEL_RUN_TOKEN_BUDGET" in result["summary"]
+    # At the server maximum only the server can allow more.
+    assert "Set SECONDSHIFT_MODEL_RUN_TOKEN_BUDGET_CEILING" in result["summary"]
     assert "Started on the README." in stored_report(result)
 
 

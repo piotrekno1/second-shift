@@ -26,7 +26,18 @@ def test_deadline_counts_from_the_start(settings: Any) -> None:
     settings.RUN_TIMEOUT_SECONDS = 900
     started = timezone.now() - timedelta(hours=1)
 
-    assert run_deadline(started) == started + timedelta(minutes=15)
+    assert run_deadline(Run(started_at=started)) == started + timedelta(minutes=15)
+
+
+def test_the_deadline_uses_the_limit_frozen_into_the_plan(settings: Any) -> None:
+    settings.RUN_TIMEOUT_SECONDS = 900
+    started = timezone.now()
+    run = Run(
+        started_at=started,
+        execution_plan={"agent": {"limits": {"timeout_seconds": 3600}}},
+    )
+
+    assert run_deadline(run) == started + timedelta(hours=1)
 
 
 def test_duration_label_reads_naturally() -> None:
@@ -45,7 +56,7 @@ def test_tool_calls_stop_after_the_deadline(monkeypatch: pytest.MonkeyPatch) -> 
         run_id=7, session_id="run-7", max_output_chars=80, deadline=PAST
     )
 
-    with pytest.raises(RunTimedOut, match="run time limit"):
+    with pytest.raises(RunTimedOut, match="time limit"):
         run_command(tool_context(deps), ["ls"], ".", 30)
 
     assert calls == []

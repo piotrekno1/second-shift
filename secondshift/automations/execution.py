@@ -8,7 +8,6 @@ from pathlib import PurePosixPath
 from typing import Annotated, Any
 
 from dbos import DBOS
-from django.conf import settings
 from django.utils import timezone
 from pydantic import Field
 from pydantic_ai import RunContext, Tool, ToolFailed, capture_run_messages
@@ -30,9 +29,11 @@ from secondshift.automations.budgets import (
 from secondshift.automations.deadlines import (
     check_deadline,
     run_deadline,
+    run_timeout_seconds,
     timeout_summary,
 )
 from secondshift.automations.failures import root_error
+from secondshift.automations.limits import RunLimit, plan_limit
 from secondshift.automations.models import Run, RunEvent
 from secondshift.automations.runner_client import get_runner_client
 from secondshift.automations.runner_protocol import CommandRequest, CommandResult
@@ -371,7 +372,7 @@ def execute_agent_run(run: Run, session_id: str) -> dict[str, Any]:
         run_id=run.pk,
         session_id=session_id,
         max_output_chars=limits.max_tool_result_chars,
-        deadline=run_deadline(run.started_at),
+        deadline=run_deadline(run),
         allowed_tools=tuple(plan["agent"]["tools"]),
     )
     skill_path = str(run.input_snapshot["skill_path"])
@@ -396,12 +397,18 @@ def execute_agent_run(run: Run, session_id: str) -> dict[str, Any]:
             # Retries wrap the error, so the deadline itself tells a timeout.
             if timezone.now() >= deps.deadline:
                 return stopped_result(
-                    run, timeout_summary(), {"timed_out": True}, messages
+                    run,
+                    timeout_summary(run_timeout_seconds(run)),
+                    {"timed_out": True},
+                    messages,
                 )
             if not is_token_budget_refusal(root_error(error)):
                 raise
             return budget_result(
-                run, Budget.TOKENS, settings.MODEL_RUN_TOKEN_BUDGET, messages
+                run,
+                Budget.TOKENS,
+                plan_limit(plan, RunLimit.TOKEN_BUDGET),
+                messages,
             )
     report = str(result.output).strip()
     if not report:

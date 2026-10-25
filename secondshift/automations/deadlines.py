@@ -7,9 +7,10 @@ already in progress finishes, bounded by its own timeout.
 
 from datetime import datetime, timedelta
 
-from django.conf import settings
 from django.utils import timezone
 
+from secondshift.automations.limits import RunLimit, plan_limit, raise_hint
+from secondshift.automations.models import Run
 from secondshift.core.workspace_settings import duration_label
 
 TIMEOUT_HEADLINE = "Timed out"
@@ -19,23 +20,26 @@ class RunTimedOut(RuntimeError):
     pass
 
 
-def run_deadline(started_at: datetime | None) -> datetime:
-    start = started_at or timezone.now()
-    return start + timedelta(seconds=settings.RUN_TIMEOUT_SECONDS)
+def run_timeout_seconds(run: Run) -> int:
+    return plan_limit(run.execution_plan, RunLimit.TIMEOUT_SECONDS)
+
+
+def run_deadline(run: Run) -> datetime:
+    start = run.started_at or timezone.now()
+    return start + timedelta(seconds=run_timeout_seconds(run))
 
 
 def check_deadline(deadline: datetime) -> None:
     if timezone.now() >= deadline:
-        raise RunTimedOut(timeout_reason())
+        raise RunTimedOut("The run reached its time limit.")
 
 
-def timeout_reason() -> str:
+def timeout_reason(seconds: int) -> str:
     return (
-        f"Stopped after {duration_label(settings.RUN_TIMEOUT_SECONDS)}, "
-        "the run time limit. Set SECONDSHIFT_RUN_TIMEOUT_SECONDS to allow "
-        "longer runs."
+        f"Stopped after {duration_label(seconds)}, the run's time limit. "
+        f"{raise_hint(RunLimit.TIMEOUT_SECONDS, seconds)}"
     )
 
 
-def timeout_summary() -> str:
-    return f"{TIMEOUT_HEADLINE}: {timeout_reason()}"
+def timeout_summary(seconds: int) -> str:
+    return f"{TIMEOUT_HEADLINE}: {timeout_reason(seconds)}"
