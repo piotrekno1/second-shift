@@ -54,7 +54,7 @@ def test_notification_text_puts_status_on_its_own_line(
     assert text.splitlines() == [
         first_line,
         "Couldn't start the sandbox.",
-        "Run #2: https://secondshift.example/runs/2",
+        "<https://secondshift.example/runs/2|Open run #2>",
     ]
 
 

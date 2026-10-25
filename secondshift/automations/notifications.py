@@ -73,6 +73,7 @@ def run_report_text(run: Run, run_url: str) -> str:
         (
             f"{mark} {job.name} {status} · {job.repository.full_name}",
             summary,
-            f"Run #{run.pk}: {run_url}",
+            # Slack link syntax. Mattermost and Discord /slack webhooks accept it.
+            f"<{run_url}|Open run #{run.pk}>",
         )
     )
