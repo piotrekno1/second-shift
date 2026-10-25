@@ -1,16 +1,18 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Button from 'primevue/button'
 import PageHeader from '../components/PageHeader.vue'
 import RunOutcomes from '../components/RunOutcomes.vue'
+import RunLimitsPanel from '../components/RunLimitsPanel.vue'
 import RunRow from '../components/RunRow.vue'
 import StatusPill from '../components/StatusPill.vue'
 import { apiGet, apiPost } from '../services/api'
 import { useLiveRefresh } from '../composables/useLiveRefresh'
 import { isRunActive, startJobRun } from '../services/runs'
+import { saveJobLimits } from '../services/settings'
 import { useAppStore } from '../stores/app'
-import type { Job, JobDetail } from '../types'
+import type { Job, JobDetail, RunLimitUpdate } from '../types'
 import { accessLabel, accessNeedsAction, countLabel, formatDate, formatRelative, formatSchedule, formatScheduled, jobState, utcTitle } from '../utils/format'
 
 const route = useRoute()
@@ -21,6 +23,8 @@ const loading = ref(true)
 const action = ref<string | null>(null)
 const error = ref<string | null>(null)
 const jobId = Number(route.params.id)
+const savingLimits = ref(false)
+const limitsError = ref<string | null>(null)
 
 const requiredCapabilities = computed(() => job.value?.capabilities.filter((capability) => capability.required) ?? [])
 const optionalCapabilities = computed(() => job.value?.capabilities.filter((capability) => !capability.required) ?? [])
@@ -38,6 +42,27 @@ async function loadJob(): Promise<void> {
     error.value = loadError instanceof Error ? loadError.message : 'Unable to load job'
   } finally {
     loading.value = false
+  }
+}
+
+async function saveLimits(values: RunLimitUpdate): Promise<void> {
+  savingLimits.value = true
+  limitsError.value = null
+  try {
+    job.value = await saveJobLimits(jobId, values)
+  } catch (saveError) {
+    limitsError.value = saveError instanceof Error ? saveError.message : 'Unable to save the limits'
+  } finally {
+    savingLimits.value = false
+  }
+}
+
+async function openFromLink(): Promise<void> {
+  await loadJob()
+  // The panel exists only after the job loads, so the router cannot scroll to it.
+  if (route.hash === '#limits') {
+    await nextTick()
+    document.getElementById('limits')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 }
 
@@ -70,7 +95,7 @@ async function runNow(): Promise<void> {
   }
 }
 
-onMounted(loadJob)
+onMounted(openFromLink)
 useLiveRefresh(loadJob, () => (job.value?.recent_runs ?? []).some((run) => isRunActive(run.status)))
 </script>
 
@@ -138,6 +163,16 @@ useLiveRefresh(loadJob, () => (job.value?.recent_runs ?? []).some((run) => isRun
               </div>
             </div>
           </section>
+
+          <RunLimitsPanel
+            :limits="job.limits"
+            :can-edit="job.can_edit_limits"
+            description="Runs of this job use these. The next run picks up a change."
+            inherited-from="the workspace limit"
+            :saving="savingLimits"
+            :error="limitsError"
+            @save="saveLimits"
+          />
         </div>
 
         <aside class="panel run-details">

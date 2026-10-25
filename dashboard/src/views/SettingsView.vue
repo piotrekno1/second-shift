@@ -1,12 +1,27 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import PageHeader from '../components/PageHeader.vue'
-import { fetchSettings } from '../services/settings'
-import type { WorkspaceSettings } from '../types'
+import RunLimitsPanel from '../components/RunLimitsPanel.vue'
+import { fetchSettings, saveWorkspaceLimits } from '../services/settings'
+import type { RunLimitUpdate, WorkspaceSettings } from '../types'
 
 const data = ref<WorkspaceSettings | null>(null)
 const error = ref<string | null>(null)
 const copied = ref<string | null>(null)
+const savingLimits = ref(false)
+const limitsError = ref<string | null>(null)
+
+async function saveLimits(values: RunLimitUpdate): Promise<void> {
+  savingLimits.value = true
+  limitsError.value = null
+  try {
+    data.value = await saveWorkspaceLimits(values)
+  } catch (saveError) {
+    limitsError.value = saveError instanceof Error ? saveError.message : 'Unable to save the limits'
+  } finally {
+    savingLimits.value = false
+  }
+}
 
 const subtitle = computed(() => (data.value
   ? [data.value.workspace_name ?? 'Workspace', data.value.environment, data.value.sandbox].join(' · ')
@@ -47,8 +62,19 @@ onMounted(async () => {
         </ul>
       </section>
 
+      <RunLimitsPanel
+        v-if="data.limits.length"
+        :limits="data.limits"
+        :can-edit="data.can_edit_limits"
+        description="Every job uses these unless it sets its own. The server sets the maximums."
+        inherited-from="the server default"
+        :saving="savingLimits"
+        :error="limitsError"
+        @save="saveLimits"
+      />
+
       <p class="quiet-line settings-note">
-        <i class="mdi mdi-server-outline" /> Limits below are set by whoever runs this server, through environment variables, and apply after a restart. Repositories cannot change them.
+        <i class="mdi mdi-server-outline" /> Settings below and the limit maximums are set by whoever runs this server, through environment variables, and apply after a restart. Repositories cannot change them.
       </p>
 
       <div class="settings-groups">

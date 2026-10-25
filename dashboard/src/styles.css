@@ -513,3 +513,18 @@ a.runtime-note { color: inherit; }
   .need-row > .status-pill, .need-row > .need-actions { grid-column: 2; justify-self: start; }
   .need-row > .need-actions { flex-wrap: wrap; }
 }
+/* Run limits on the settings and job pages */
+.run-limits { margin-bottom: 14px; padding: 20px 22px; }
+.run-limit-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 16px 20px; margin-top: 12px; }
+.run-limit { display: grid; align-content: start; gap: 5px; }
+.run-limit > label { color: var(--subtle); font-size: 11px; font-weight: 700; }
+.run-limit > strong { font-size: 15px; }
+.run-limit small { color: var(--muted); font-size: 12px; }
+.run-limit small.field-error { color: var(--danger); }
+.run-limit .run-limit-help { color: var(--subtle); }
+.run-limit-input { display: flex; align-items: center; gap: 8px; }
+.run-limit-input input { width: 100%; min-width: 0; }
+.run-limit-input span { color: var(--muted); font-size: 12px; }
+.run-limit-wide { grid-column: 1 / -1; margin: 0; }
+.run-limit-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding-top: 12px; border-top: 1px solid rgba(197,188,255,.08); }
+.run-limit-footer small { color: var(--muted); font-size: 12px; }
