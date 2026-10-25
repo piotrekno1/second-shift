@@ -3,6 +3,7 @@ from typing import Any
 from django.conf import settings
 
 from secondshift.automations.agent import AgentLimits, agent_plan
+from secondshift.automations.limits import RunLimit, effective_limits
 from secondshift.automations.models import Job, JobGrant
 from secondshift.automations.tool_policy import authorized_tools
 from secondshift.integrations.external import EXTERNAL_KINDS
@@ -92,16 +93,23 @@ def build_execution_plan(job: Job) -> dict[str, Any]:
     model = model_plan(job)
     if model is None:
         ready = False
-    plan = {
-        "version": 3,
-        "ready": ready,
-        "agent": agent_plan(
-            AgentLimits(
-                max_turns=settings.AGENT_MAX_TURNS,
-                max_tool_calls=settings.AGENT_MAX_TOOL_CALLS,
-                max_tool_result_chars=settings.AGENT_MAX_TOOL_RESULT_CHARS,
-            ),
+    limits = effective_limits(job)
+    agent = agent_plan(
+        AgentLimits(
+            max_turns=limits[RunLimit.MAX_TURNS],
+            max_tool_calls=limits[RunLimit.MAX_TOOL_CALLS],
+            max_tool_result_chars=settings.AGENT_MAX_TOOL_RESULT_CHARS,
         ),
+    )
+    # The gateway and the deadline read these from the plan, not from settings.
+    agent["limits"] |= {
+        RunLimit.TOKEN_BUDGET: limits[RunLimit.TOKEN_BUDGET],
+        RunLimit.TIMEOUT_SECONDS: limits[RunLimit.TIMEOUT_SECONDS],
+    }
+    plan = {
+        "version": 4,
+        "ready": ready,
+        "agent": agent,
         "job": {
             "key": job.key,
             "skill_path": job.skill_path,
