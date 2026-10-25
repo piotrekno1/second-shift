@@ -242,9 +242,10 @@ onMounted(loadRepository)
             <div class="job-glyph"><i class="mdi mdi-calendar-clock-outline" /></div>
             <div class="job-primary"><strong>{{ job.name }}</strong><span>{{ job.skill_path }}</span></div>
             <div><span class="cell-label">Schedule</span><strong :title="job.cron">{{ formatSchedule(job.cron, job.timezone) }}</strong></div>
-            <StatusPill :status="jobState(job)" />
-            <StatusPill v-if="accessNeedsAction(job.grant_status)" :status="job.grant_status" :label="accessLabel(job.grant_status)" />
-            <span v-else />
+            <div class="job-statuses">
+              <StatusPill :status="jobState(job)" />
+              <StatusPill v-if="accessNeedsAction(job.grant_status)" :status="job.grant_status" :label="accessLabel(job.grant_status)" />
+            </div>
             <RouterLink v-if="accessNeedsAction(job.grant_status)" :to="{ path: '/jobs', query: { review: String(job.id) } }" class="job-row-action">Review access <i class="mdi mdi-arrow-right" /></RouterLink>
             <RouterLink v-else :to="`/jobs/${job.id}`" class="job-row-action">Open job <i class="mdi mdi-arrow-right" /></RouterLink>
           </div>
