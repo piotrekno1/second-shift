@@ -338,8 +338,9 @@ LOCAL_REPOSITORY_MIRROR_ROOT = Path(
         default=str(DATA_DIR / "runner" / "repositories"),
     )
 ).resolve()
-# Agent limits are server-owned. Repository manifests cannot replace them; the
-# effective limits are frozen into each execution plan.
+# Run limits. These are the defaults. A workspace owner can choose other values
+# for the workspace or a job, up to the *_CEILING maximums. Repository manifests
+# cannot set them. The values that apply are frozen into each execution plan.
 AGENT_MAX_TURNS = env.int("SECONDSHIFT_AGENT_MAX_TURNS", default=24)
 AGENT_MAX_TOOL_CALLS = env.int("SECONDSHIFT_AGENT_MAX_TOOL_CALLS", default=64)
 AGENT_MAX_TOOL_RESULT_CHARS = env.int(
@@ -352,6 +353,24 @@ if AGENT_MAX_TOOL_CALLS < 0:
 if AGENT_MAX_TOOL_RESULT_CHARS < 1:
     raise ImproperlyConfigured(
         "SECONDSHIFT_AGENT_MAX_TOOL_RESULT_CHARS must be positive"
+    )
+# The highest limits a workspace owner can choose for a workspace or a job.
+# Each defaults to its limit, so owners can only lower it until this is raised.
+AGENT_MAX_TURNS_CEILING = env.int(
+    "SECONDSHIFT_AGENT_MAX_TURNS_CEILING", default=AGENT_MAX_TURNS
+)
+AGENT_MAX_TOOL_CALLS_CEILING = env.int(
+    "SECONDSHIFT_AGENT_MAX_TOOL_CALLS_CEILING", default=AGENT_MAX_TOOL_CALLS
+)
+if AGENT_MAX_TURNS_CEILING < AGENT_MAX_TURNS:
+    raise ImproperlyConfigured(
+        "SECONDSHIFT_AGENT_MAX_TURNS_CEILING cannot be below "
+        "SECONDSHIFT_AGENT_MAX_TURNS"
+    )
+if AGENT_MAX_TOOL_CALLS_CEILING < AGENT_MAX_TOOL_CALLS:
+    raise ImproperlyConfigured(
+        "SECONDSHIFT_AGENT_MAX_TOOL_CALLS_CEILING cannot be below "
+        "SECONDSHIFT_AGENT_MAX_TOOL_CALLS"
     )
 RUNNER_RUNTIME = env.str("SECONDSHIFT_RUNNER_RUNTIME", default=SandboxRuntime.DOCKER)
 RUNNER_IMAGE = env.str("SECONDSHIFT_RUNNER_IMAGE", default=DEFAULT_SANDBOX_IMAGE)
@@ -370,6 +389,16 @@ MODEL_GATEWAY_URL = env.str(
     default="http://127.0.0.1:8001" if SINGLE_HOST else "",
 )
 RUN_TIMEOUT_SECONDS = env.int("SECONDSHIFT_RUN_TIMEOUT_SECONDS", default=900)
+RUN_TIMEOUT_SECONDS_CEILING = env.int(
+    "SECONDSHIFT_RUN_TIMEOUT_SECONDS_CEILING", default=RUN_TIMEOUT_SECONDS
+)
+if RUN_TIMEOUT_SECONDS < 1:
+    raise ImproperlyConfigured("SECONDSHIFT_RUN_TIMEOUT_SECONDS must be positive")
+if RUN_TIMEOUT_SECONDS_CEILING < RUN_TIMEOUT_SECONDS:
+    raise ImproperlyConfigured(
+        "SECONDSHIFT_RUN_TIMEOUT_SECONDS_CEILING cannot be below "
+        "SECONDSHIFT_RUN_TIMEOUT_SECONDS"
+    )
 RUN_WORK_ROOT = env.path("SECONDSHIFT_WORK_ROOT", default=DATA_DIR / "work")
 RUN_OUTPUT_MAX_BYTES = env.int(
     "SECONDSHIFT_RUN_OUTPUT_MAX_BYTES", default=5 * 1024 * 1024
@@ -391,5 +420,15 @@ OUTBOUND_TIMEOUT_SECONDS = 10
 MODEL_RUN_TOKEN_BUDGET = env.int(
     "SECONDSHIFT_MODEL_RUN_TOKEN_BUDGET", default=2_000_000
 )
+MODEL_RUN_TOKEN_BUDGET_CEILING = env.int(
+    "SECONDSHIFT_MODEL_RUN_TOKEN_BUDGET_CEILING", default=MODEL_RUN_TOKEN_BUDGET
+)
+if MODEL_RUN_TOKEN_BUDGET < 1:
+    raise ImproperlyConfigured("SECONDSHIFT_MODEL_RUN_TOKEN_BUDGET must be positive")
+if MODEL_RUN_TOKEN_BUDGET_CEILING < MODEL_RUN_TOKEN_BUDGET:
+    raise ImproperlyConfigured(
+        "SECONDSHIFT_MODEL_RUN_TOKEN_BUDGET_CEILING cannot be below "
+        "SECONDSHIFT_MODEL_RUN_TOKEN_BUDGET"
+    )
 GATEWAY_MAX_BODY_BYTES = 32 * 1024 * 1024
 GATEWAY_READ_TIMEOUT_SECONDS = 600
