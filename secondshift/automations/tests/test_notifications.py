@@ -53,7 +53,9 @@ def test_notification_text_puts_status_on_its_own_line(
 
     assert text.splitlines() == [
         first_line,
+        "",
         "Couldn't start the sandbox.",
+        "",
         "<https://secondshift.example/runs/2|Open run #2>",
     ]
 
@@ -63,4 +65,4 @@ def test_notification_text_without_a_summary(settings: Any) -> None:
 
     text = run_report_payload(finished_run(Run.Status.FAILED, ""))["text"]
 
-    assert text.splitlines()[1] == "No summary."
+    assert text.splitlines()[2] == "No summary."

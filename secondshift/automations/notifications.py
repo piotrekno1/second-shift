@@ -64,12 +64,12 @@ def run_report_payload(run: Run) -> dict[str, Any]:
 
 
 def run_report_text(run: Run, run_url: str) -> str:
-    """Status first on its own line, then the summary, then the link."""
+    """Status first, then the summary, then the link, with blank lines between."""
     job = run.job
     status = STATUS_LABELS.get(run.status, run.status)
     mark = STATUS_MARKS.get(run.status, "•")
     summary = run.summary.strip() or "No summary."
-    return "\n".join(
+    return "\n\n".join(
         (
             f"{mark} {job.name} {status} · {job.repository.full_name}",
             summary,
