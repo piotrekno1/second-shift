@@ -1,4 +1,5 @@
 from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
+from django.shortcuts import render
 from django.urls import reverse
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET
@@ -19,8 +20,11 @@ def open_invite(request: HttpRequest, token: str) -> HttpResponse:
     person to confirm first.
     """
     if find_invite(token) is None:
-        return HttpResponse(
-            INVITE_UNUSABLE_MESSAGE, status=400, content_type="text/plain"
+        return render(
+            request,
+            "workspaces/invite_unusable.html",
+            {"message": INVITE_UNUSABLE_MESSAGE},
+            status=400,
         )
     remember_invite(request, token)
     if request.user.is_authenticated:

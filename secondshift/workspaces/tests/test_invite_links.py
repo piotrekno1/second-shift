@@ -58,6 +58,7 @@ def test_an_unusable_link_says_so_and_keeps_sign_up_closed(
 
     assert response.status_code == 400
     assert b"expired or was already used" in response.content
+    assert b"account-card" in response.content
     assert PENDING_INVITE_SESSION_KEY not in client.session
     assert b"Sign Up Closed" in client.get("/accounts/signup/").content
 
