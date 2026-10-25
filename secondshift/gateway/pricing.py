@@ -6,8 +6,8 @@ from typing import TYPE_CHECKING
 
 import genai_prices
 
-from secondshift.integrations.model_providers import base_url
-from secondshift.integrations.models import Connection
+from secondshift.connections.model_providers import base_url
+from secondshift.connections.models import Connection
 
 if TYPE_CHECKING:
     from secondshift.gateway.metering import Usage

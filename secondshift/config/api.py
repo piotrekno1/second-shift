@@ -6,7 +6,7 @@ from ninja import NinjaAPI
 from secondshift.workspaces.access import AccessDenied
 
 api = NinjaAPI(title="SecondShift API", version="1.0")
-for app in ("core", "automations", "workspaces", "repositories", "integrations"):
+for app in ("core", "jobs", "runs", "workspaces", "repositories", "connections"):
     api.add_router("", f"secondshift.{app}.api.router")
 
 

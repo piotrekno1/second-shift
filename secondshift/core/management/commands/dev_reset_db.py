@@ -5,10 +5,11 @@ from django.conf import settings
 from django.core.management import call_command
 from django.utils import timezone
 
-from secondshift.automations.models import Job, Run, RunEvent
 from secondshift.config.constants import SandboxRuntime
-from secondshift.integrations.models import Connection
+from secondshift.connections.models import Connection
+from secondshift.jobs.models import Job
 from secondshift.repositories.models import Repository
+from secondshift.runs.models import Run, RunEvent
 from secondshift.workspaces.models import Workspace
 
 

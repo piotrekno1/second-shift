@@ -7,11 +7,11 @@ from pathlib import Path
 import yaml
 from django.db import transaction
 
-from secondshift.automations.manifest import RepositoryManifest, parse_manifest
-from secondshift.automations.models import JobGrant
-from secondshift.automations.sync import sync_jobs
 from secondshift.config.constants import GITHUB_BASE_URL, MANIFEST_FILE
-from secondshift.integrations.models import Connection
+from secondshift.connections.models import Connection
+from secondshift.jobs.manifest import RepositoryManifest, parse_manifest
+from secondshift.jobs.models import JobGrant
+from secondshift.jobs.sync import sync_jobs
 from secondshift.repositories.github import github_remote_name
 from secondshift.repositories.models import Repository
 from secondshift.workspaces.models import Workspace

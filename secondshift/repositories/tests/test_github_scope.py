@@ -3,8 +3,8 @@ from pathlib import Path
 import pytest
 from django.contrib.auth import get_user_model
 
-from secondshift.automations.models import JobGrant
-from secondshift.integrations.models import Connection
+from secondshift.connections.models import Connection
+from secondshift.jobs.models import JobGrant
 from secondshift.repositories.github import github_remote_name, github_repository_scope
 from secondshift.repositories.local import (
     attach_local_repository,

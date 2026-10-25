@@ -4,7 +4,7 @@ import djclick as click
 from botocore.exceptions import ClientError
 from django.conf import settings
 
-from secondshift.automations.artifacts import artifact_storage
+from secondshift.runs.artifacts import artifact_storage
 from secondshift.workspaces.owners import ensure_owner
 
 

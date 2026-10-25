@@ -4,9 +4,7 @@ from typing import Literal
 from ninja import Schema
 from pydantic import Field
 
-from secondshift.automations.schemas import (
-    LimitSchema,
-)
+from secondshift.jobs.schemas import LimitSchema
 
 
 class SettingValueSchema(Schema):
