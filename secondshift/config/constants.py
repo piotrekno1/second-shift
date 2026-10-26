@@ -144,3 +144,6 @@ DEFAULT_SANDBOX_IMAGE = (
 
 # The repository file that lists jobs, at the repository root.
 MANIFEST_FILE = ".secondshift.yaml"
+
+
+DEFAULT_HTTP_PORTS = {Service.WEB: 8000, Service.GATEWAY: 8001, Service.RUNNER: 8002}

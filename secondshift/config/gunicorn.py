@@ -1,28 +1,58 @@
 """Shared HTTP server settings. Select the role with SECONDSHIFT_SERVICE."""
 
 import os
+from pathlib import Path
+from urllib.parse import urlsplit
 
 from environ import Env
 
-from secondshift.config.constants import SERVICE_VAR, GunicornEnv, Service
+from secondshift.config.constants import (
+    DEFAULT_HTTP_PORTS,
+    ENVIRONMENT_VAR,
+    SERVICE_VAR,
+    AppEnv,
+    Environment,
+    GunicornEnv,
+    Service,
+)
 
-env = Env()
+
+class HttpEnv(Env):
+    # Read HTTP options without adding application secrets to the runner process.
+    ENVIRON = dict(os.environ)
+
+
+env = HttpEnv()
+environment = Environment(os.environ.get(ENVIRONMENT_VAR, Environment.PRODUCTION))
+if environment == Environment.DEV:
+    HttpEnv.read_env(Path(__file__).resolve().parents[2] / ".env")
 service = Service(os.environ.get(SERVICE_VAR, Service.WEB))
-# port, worker count, graceful shutdown timeout
+# Worker count and graceful shutdown timeout
 role_defaults = {
-    Service.WEB: (8000, 2, 30),
-    Service.GATEWAY: (8001, 2, 600),
-    Service.RUNNER: (8002, 1, 30),
+    Service.WEB: (2, 30),
+    Service.GATEWAY: (2, 600),
+    Service.RUNNER: (1, 30),
 }
 if service not in role_defaults:
     raise ValueError(
         "The worker role runs python manage.py run_dbos_worker, not Gunicorn"
     )
-port, default_workers, default_graceful_timeout = role_defaults[service]
+default_workers, default_graceful_timeout = role_defaults[service]
 factory = "asgi" if service == Service.GATEWAY else "wsgi"
 wsgi_app = f"secondshift.config.app:{factory}('{service}')"
 worker_class = "uvicorn_worker.UvicornWorker" if service == Service.GATEWAY else "sync"
-bind = env.str(GunicornEnv.BIND, default=f"0.0.0.0:{port}")
+port = DEFAULT_HTTP_PORTS[service]
+address = "0.0.0.0"
+if environment in {Environment.DEV, Environment.LOCAL}:
+    address = "127.0.0.1"
+    endpoint_name = {
+        Service.GATEWAY: AppEnv.MODEL_GATEWAY_URL,
+        Service.RUNNER: AppEnv.RUNNER_SERVICE_URL,
+    }.get(service)
+    if endpoint_name is not None:
+        endpoint = urlsplit(env.str(endpoint_name, default=""))
+        port = endpoint.port or (80 if endpoint.scheme == "http" else port)
+bind = env.str(GunicornEnv.BIND, default=f"{address}:{port}")
 workers = env.int(GunicornEnv.WORKERS, default=default_workers)
 timeout = env.int(GunicornEnv.TIMEOUT, default=30)
 graceful_timeout = env.int(

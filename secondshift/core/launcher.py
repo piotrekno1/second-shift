@@ -13,6 +13,7 @@ import urllib.request
 from collections.abc import Callable
 from dataclasses import dataclass
 from types import FrameType
+from urllib.parse import urlsplit
 
 from secondshift.config.constants import (
     ENVIRONMENT_VAR,
@@ -70,18 +71,42 @@ def public_url(host: str, port: int) -> str:
     return f"http://{'127.0.0.1' if host == '0.0.0.0' else host}:{port}"
 
 
+def web_address(host: str, port: int, parent: dict[str, str]) -> tuple[str, int]:
+    """Use an explicit HTTP bind for the local web process."""
+    if bind := parent.get(GunicornEnv.BIND):
+        endpoint = urlsplit(f"http://{bind}")
+        if not endpoint.hostname or endpoint.port is None:
+            raise ValueError("SECONDSHIFT_HTTP_BIND must contain a host and port")
+        return endpoint.hostname, endpoint.port
+    return host, port
+
+
+def local_service_port(url: str) -> int:
+    """Local mode starts internal services on loopback only."""
+    endpoint = urlsplit(url)
+    if endpoint.scheme != "http" or endpoint.hostname not in {"localhost", "127.0.0.1"}:
+        raise ValueError(
+            "Local service URLs must use http://localhost or http://127.0.0.1"
+        )
+    return endpoint.port or 80
+
+
 def services(
     host: str, port: int, parent: dict[str, str], python: str = sys.executable
 ) -> list[Process]:
-    gateway_port, runner_port = port + 1, port + 2
+    host, port = web_address(host, port, parent)
+    gateway_url = parent.get(AppEnv.MODEL_GATEWAY_URL, f"http://127.0.0.1:{port + 1}")
+    runner_url = parent.get(AppEnv.RUNNER_SERVICE_URL, f"http://127.0.0.1:{port + 2}")
+    gateway_port = local_service_port(gateway_url)
+    runner_port = local_service_port(runner_url)
     control = {
         # Links in notifications, invites and OAuth callbacks use it.
         AppEnv.PUBLIC_URL: parent.get(AppEnv.PUBLIC_URL, public_url(host, port)),
         **parent,
         ENVIRONMENT_VAR: Environment.LOCAL,
         SETTINGS_MODULE_VAR: CONTROL_SETTINGS,
-        "SECONDSHIFT_RUNNER_SERVICE_URL": f"http://127.0.0.1:{runner_port}",
-        "SECONDSHIFT_MODEL_GATEWAY_URL": f"http://127.0.0.1:{gateway_port}",
+        AppEnv.RUNNER_SERVICE_URL: runner_url,
+        AppEnv.MODEL_GATEWAY_URL: gateway_url,
     }
     if sys.platform == "darwin":
         # macOS stops forked processes that make HTTP calls without this.

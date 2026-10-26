@@ -120,6 +120,50 @@ if needed, `SECONDSHIFT_ARTIFACT_ADDRESSING_STYLE=path`. Supply
 or use the AWS credential chain (for example IAM roles). Bucket creation is
 managed separately. Adding these variables does not upload existing local files.
 
+## HTTP server
 
-For HTTP listen addresses, process counts, timeouts and logs, see
-[HTTP server configuration](http-server.md).
+Set `SECONDSHIFT_SERVICE` to `web`, `gateway` or `runner`, then start the server:
+
+```bash
+SECONDSHIFT_ENV=production SECONDSHIFT_SERVICE=web uv run gunicorn \
+  --config python:secondshift.config.gunicorn
+```
+
+Use the same command for each HTTP service, changing `SECONDSHIFT_SERVICE`.
+Configure the application settings above before starting.
+The background worker uses `uv run python manage.py run_dbos_worker` instead.
+
+| Variable | Meaning and default |
+| --- | --- |
+| `SECONDSHIFT_HTTP_BIND` | Listen address. Defaults to `0.0.0.0:8000` web, `:8001` gateway, `:8002` runner. |
+| `SECONDSHIFT_HTTP_PROCESSES` | HTTP process count. Default 2 web/gateway, 1 runner. Does not change job concurrency. |
+| `SECONDSHIFT_HTTP_TIMEOUT_SECONDS` | HTTP server worker timeout. Default 30 seconds. |
+| `SECONDSHIFT_HTTP_GRACEFUL_TIMEOUT_SECONDS` | HTTP shutdown grace. Default 600 seconds gateway, 30 web/runner. |
+| `SECONDSHIFT_HTTP_LOG_LEVEL` | HTTP server log level. Default `info`. |
+| `SECONDSHIFT_HTTP_ACCESS_LOG` | Request log destination. Default `-` writes to stdout. An empty value disables request logs. |
+
+These settings do not apply to the background worker. Its parallelism is set
+by `SECONDSHIFT_RUN_CONCURRENCY` in `worker.env`.
+
+Allow the process supervisor more time to stop the server than the configured
+HTTP shutdown grace.
+
+`secondshift up` and `process-compose` use this configuration with loopback
+addresses for their local services. `secondshift up` also disables access logs,
+uses warning-level server logs and runs one gateway process.
+
+In development and local mode, listeners default to loopback. Gateway and runner
+ports follow `SECONDSHIFT_MODEL_GATEWAY_URL` and `SECONDSHIFT_RUNNER_SERVICE_URL`
+when configured. In production, set `SECONDSHIFT_HTTP_BIND` in each service's
+own env file if changing its listen address. Update the worker's corresponding
+service URL too. Public URLs can point through a proxy and do not set listen ports.
+
+For `secondshift up`, `SECONDSHIFT_HTTP_BIND` selects the web address. Explicit
+`--host` and `--port` options override it. Internal service URLs must use HTTP on
+`localhost` or `127.0.0.1`. Without overrides, internal ports follow the web port
+at offsets +1 for gateway and +2 for runner.
+
+Do not set one shared `SECONDSHIFT_HTTP_BIND` for every process in
+process-compose. Set the gateway and runner URLs in the checkout's `.env`
+instead. For a different web port, set its bind only for the backend process and
+adjust `VITE_PROXY_API` to match.

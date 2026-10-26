@@ -1,12 +1,22 @@
+import os
 import runpy
+from pathlib import Path
 from typing import Any
 
 import pytest
 
-from secondshift.config.constants import SERVICE_VAR, GunicornEnv, Service
+from secondshift.config.constants import (
+    ENVIRONMENT_VAR,
+    SERVICE_VAR,
+    AppEnv,
+    Environment,
+    GunicornEnv,
+    Service,
+)
 
 
 def server_config(monkeypatch: pytest.MonkeyPatch, role: Service) -> dict[str, Any]:
+    monkeypatch.setenv(ENVIRONMENT_VAR, Environment.PRODUCTION)
     for name in GunicornEnv:
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setenv(SERVICE_VAR, role)
@@ -93,3 +103,52 @@ def test_old_http_variable_names_are_not_aliases(
     assert config["bind"] == "0.0.0.0:8000"
     assert config["workers"] == 2
     assert config["timeout"] == 30
+
+
+@pytest.mark.parametrize(
+    ("role", "endpoint", "url", "expected"),
+    [
+        (
+            Service.GATEWAY,
+            AppEnv.MODEL_GATEWAY_URL,
+            "http://localhost:9201",
+            "127.0.0.1:9201",
+        ),
+        (
+            Service.RUNNER,
+            AppEnv.RUNNER_SERVICE_URL,
+            "http://localhost:9202",
+            "127.0.0.1:9202",
+        ),
+    ],
+)
+def test_local_bind_uses_configured_endpoint_port(
+    monkeypatch: pytest.MonkeyPatch,
+    role: Service,
+    endpoint: AppEnv,
+    url: str,
+    expected: str,
+) -> None:
+    server_config(monkeypatch, role)
+    monkeypatch.setenv(ENVIRONMENT_VAR, Environment.LOCAL)
+    monkeypatch.setenv(endpoint, url)
+    assert runpy.run_module("secondshift.config.gunicorn")["bind"] == expected
+    monkeypatch.setenv(GunicornEnv.BIND, "127.0.0.1:9300")
+    assert runpy.run_module("secondshift.config.gunicorn")["bind"] == "127.0.0.1:9300"
+
+
+def test_dev_env_file_does_not_add_secrets_to_runner_environment(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    server_config(monkeypatch, Service.RUNNER)
+    monkeypatch.delenv(AppEnv.SECRET_KEY, raising=False)
+    monkeypatch.setenv(ENVIRONMENT_VAR, Environment.DEV)
+    (tmp_path / ".env").write_text(
+        "SECONDSHIFT_SECRET_KEY=private\nSECONDSHIFT_RUNNER_SERVICE_URL=http://localhost:9602\n"
+    )
+    monkeypatch.setattr(
+        Path, "resolve", lambda self: tmp_path / "secondshift/config/gunicorn.py"
+    )
+    config = runpy.run_module("secondshift.config.gunicorn")
+    assert config["bind"] == "127.0.0.1:9602"
+    assert AppEnv.SECRET_KEY not in os.environ
