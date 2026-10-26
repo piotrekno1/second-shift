@@ -25,8 +25,8 @@ revision, tool activity, and model cost.
 
 ## Try it out now
 
-Install [uv](https://docs.astral.sh/uv/getting-started/installation/) and start Docker,
-then run:
+Install [uv](https://docs.astral.sh/uv/getting-started/installation/) to manage the
+application and start Docker for job sandboxes, then run:
 
 ```bash
 # Install SecondShift
@@ -53,6 +53,14 @@ Run `secondshift login` for a new link. Press Ctrl+C to stop.
 SecondShift is in alpha, distributed through
 [GitHub Releases](https://github.com/piotrekno1/second-shift/releases) until it is
 available on PyPI.
+
+## Deploy for your team
+
+For a shared installation on a Linux server, follow the
+[Docker Compose deployment guide](docs/production-deployment.md). The example
+sets up Caddy with automatic HTTPS, PostgreSQL, and a gVisor runner, and connects
+to your private S3-compatible bucket. The guide covers GitHub App configuration,
+initial setup, backups, and updates.
 
 ## What you can do
 
