@@ -11,7 +11,13 @@ from pathlib import Path
 from django.core.exceptions import ImproperlyConfigured
 from environ import Env
 
-from secondshift.config.constants import DEFAULT_SANDBOX_IMAGE, AppEnv, SandboxRuntime
+from secondshift.config.constants import (
+    DEFAULT_SANDBOX_IMAGE,
+    AppEnv,
+    SandboxRuntime,
+    Service,
+)
+from secondshift.config.logging import logging_config
 
 env = Env()
 # On a single host the runner shares the data folder, but reads only runner.env
@@ -101,12 +107,6 @@ if os.geteuid() != 0 and (
         "runner running as root. Unset them to use the runner's own user."
     )
 
-LOGGING = {
-    "version": 1,
-    "disable_existing_loggers": False,
-    "handlers": {"console": {"class": "logging.StreamHandler"}},
-    "root": {
-        "handlers": ["console"],
-        "level": env.str(AppEnv.LOG_LEVEL, default="INFO").upper(),
-    },
-}
+LOGGING = logging_config(
+    env.str(AppEnv.LOG_LEVEL, default="INFO").upper(), Service.RUNNER
+)
