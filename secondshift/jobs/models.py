@@ -31,7 +31,6 @@ class Job(RunLimitOverrides):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta(RunLimitOverrides.Meta):
-        db_table = "automations_job"
         constraints = [
             models.UniqueConstraint(
                 fields=["repository", "key"],
@@ -80,7 +79,6 @@ class CapabilityRequest(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = "automations_capabilityrequest"
         constraints = [
             models.UniqueConstraint(
                 fields=["job", "binding"],
@@ -129,7 +127,6 @@ class JobGrant(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = "automations_jobgrant"
         ordering = ["capability_request__job", "capability_request__binding"]
 
     def __str__(self) -> str:

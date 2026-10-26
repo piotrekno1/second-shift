@@ -18,7 +18,7 @@ def test_secret_value_is_encrypted_at_rest() -> None:
 
     with connection.cursor() as cursor:
         cursor.execute(
-            "SELECT value FROM integrations_secret WHERE id = %s", [secret.pk]
+            "SELECT value FROM connections_secret WHERE id = %s", [secret.pk]
         )
         stored = cursor.fetchone()[0]
 
