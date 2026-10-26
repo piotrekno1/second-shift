@@ -1,0 +1,22 @@
+version: 1
+
+jobs:
+  security-regression:
+    name: Weekly security regression review
+    skill: .agents/skills/security-regression/SKILL.md
+    schedule: "0 9 * * 1"
+    timezone: Europe/Warsaw
+    requires:
+      mcps:
+        - binding: github
+          tools:
+            - list_commits
+            - get_commit
+          required: false
+        - binding: sentry
+          tools:
+            - search_issues
+            - search_errors
+            - search_traces
+            - get_sentry_resource
+          required: false

@@ -1,0 +1,5 @@
+version: 1
+jobs:
+  ci-failure-review:
+    name: Recurring CI failures
+    skill: .agents/skills/ci-failure-review/SKILL.md

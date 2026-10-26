@@ -2,18 +2,19 @@
 
 [README](../README.md) · [Repository configuration](repository-configuration.md)
 
-These five skills live in [`.agents/skills`](../.agents/skills). They can run as
+These five review skills live in [self-contained examples](../examples/README.md),
+with discovery symlinks in [`.agents/skills`](../.agents/skills). They can run as
 SecondShift jobs or be used by a coding agent that discovers repository skills.
 Each investigates a specific problem and returns a report. They do not change
 service state or repository files.
 
 | Skill | Required evidence |
 | --- | --- |
-| [CI failure review](../.agents/skills/ci-failure-review/SKILL.md) | Build history and failure logs from an approved API or MCP connection. |
-| [Production error review](../.agents/skills/production-error-review/SKILL.md) | Sentry issues, errors, or traces from the built-in connection, or equivalent approved API tools. |
-| [Monitoring coverage review](../.agents/skills/monitoring-coverage-review/SKILL.md) | Alert definitions in Git or an approved monitoring connection. History is needed to establish changes. |
-| [Release readiness review](../.agents/skills/release-readiness-review/SKILL.md) | A release target, baseline, and rollout instructions in Git or an approved connection. |
-| [Incident follow-up review](../.agents/skills/incident-follow-up-review/SKILL.md) | Incident action items and acceptance criteria in Git or an approved connection, with links to implementation evidence. |
+| [CI failure review](../examples/ci-failure-review/.agents/skills/ci-failure-review/SKILL.md) | Build history and failure logs from an approved API or MCP connection. |
+| [Production error review](../examples/production-error-review/.agents/skills/production-error-review/SKILL.md) | Sentry issues, errors, or traces from the built-in connection, or equivalent approved API tools. |
+| [Monitoring coverage review](../examples/monitoring-coverage-review/.agents/skills/monitoring-coverage-review/SKILL.md) | Alert definitions in Git or an approved monitoring connection. History is needed to establish changes. |
+| [Release readiness review](../examples/release-readiness-review/.agents/skills/release-readiness-review/SKILL.md) | A release target, baseline, and rollout instructions in Git or an approved connection. |
+| [Incident follow-up review](../examples/incident-follow-up-review/.agents/skills/incident-follow-up-review/SKILL.md) | Incident action items and acceptance criteria in Git or an approved connection, with links to implementation evidence. |
 
 ## Use them in SecondShift itself
 
@@ -41,7 +42,9 @@ broker controls apply when the skill runs as a SecondShift job.
 
 ## Add a job to your repository
 
-Copy the desired skill directory into your own `.agents/skills`, then add a job
+Copy the desired skill directory from `examples/<name>/.agents/skills` into
+your own `.agents/skills` (copy the actual directory, not the root discovery
+symlink), then add a job
 to `.secondshift.yaml`. Start with a manual run before choosing a schedule:
 
 ```yaml

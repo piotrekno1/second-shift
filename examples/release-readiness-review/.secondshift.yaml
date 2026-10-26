@@ -1,0 +1,5 @@
+version: 1
+jobs:
+  release-readiness-review:
+    name: Release readiness
+    skill: .agents/skills/release-readiness-review/SKILL.md

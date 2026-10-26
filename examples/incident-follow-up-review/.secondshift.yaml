@@ -1,0 +1,5 @@
+version: 1
+jobs:
+  incident-follow-up-review:
+    name: Incident follow-up
+    skill: .agents/skills/incident-follow-up-review/SKILL.md

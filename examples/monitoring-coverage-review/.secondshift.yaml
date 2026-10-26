@@ -1,0 +1,5 @@
+version: 1
+jobs:
+  monitoring-coverage-review:
+    name: Monitoring coverage
+    skill: .agents/skills/monitoring-coverage-review/SKILL.md
