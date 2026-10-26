@@ -10,7 +10,6 @@ import pytest
 from secondshift.config.constants import (
     SERVICE_VAR,
     AppEnv,
-    GunicornEnv,
     Service,
 )
 from secondshift.config.container_env import generate_environment
@@ -79,12 +78,12 @@ def test_environment_overrides_reach_each_service(
         role,
         tmp_path,
         {
-            GunicornEnv.BIND: "127.0.0.1:9100",
-            GunicornEnv.WORKERS: "3",
-            GunicornEnv.TIMEOUT: "45",
-            GunicornEnv.GRACEFUL_TIMEOUT: "90",
-            GunicornEnv.LOG_LEVEL: "warning",
-            GunicornEnv.ACCESS_LOG: "",
+            "SECONDSHIFT_HTTP_BIND": "127.0.0.1:9100",
+            "SECONDSHIFT_HTTP_PROCESSES": "3",
+            "SECONDSHIFT_HTTP_TIMEOUT_SECONDS": "45",
+            "SECONDSHIFT_HTTP_GRACEFUL_TIMEOUT_SECONDS": "90",
+            "SECONDSHIFT_HTTP_LOG_LEVEL": "warning",
+            "SECONDSHIFT_HTTP_ACCESS_LOG": "",
         },
     )
     assert config["bind"] == "127.0.0.1:9100"
@@ -102,11 +101,14 @@ def test_worker_cannot_be_started_as_an_http_service(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize(
-    "name", [GunicornEnv.WORKERS, GunicornEnv.TIMEOUT, GunicornEnv.GRACEFUL_TIMEOUT]
+    "name",
+    [
+        "SECONDSHIFT_HTTP_PROCESSES",
+        "SECONDSHIFT_HTTP_TIMEOUT_SECONDS",
+        "SECONDSHIFT_HTTP_GRACEFUL_TIMEOUT_SECONDS",
+    ],
 )
-def test_nonpositive_limits_fail_before_server_start(
-    tmp_path: Path, name: GunicornEnv
-) -> None:
+def test_nonpositive_limits_fail_before_server_start(tmp_path: Path, name: str) -> None:
     with pytest.raises(subprocess.CalledProcessError) as error:
         server_config(Service.WEB, tmp_path, {name: "0"})
     assert "must be positive" in error.value.stderr

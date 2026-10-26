@@ -10,7 +10,6 @@ from django.core.management import call_command
 
 from secondshift.config.constants import (
     Environment,
-    GunicornEnv,
     Service,
 )
 from secondshift.core import launcher
@@ -65,7 +64,7 @@ def command(
     parent = dict(os.environ)
     configured_host, configured_port = launcher.web_address("127.0.0.1", 8000, parent)
     host, port = host or configured_host, port if port is not None else configured_port
-    parent.pop(GunicornEnv.BIND, None)
+    parent.pop("SECONDSHIFT_HTTP_BIND", None)
     check_docker()
     if not (settings.WEB_DIR / "index.html").exists():
         raise click.ClickException(

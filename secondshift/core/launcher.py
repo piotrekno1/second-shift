@@ -25,7 +25,6 @@ from secondshift.config.constants import (
     SETTINGS_MODULE_VAR,
     AppEnv,
     Environment,
-    GunicornEnv,
     SandboxRuntime,
     Service,
     settings_module,
@@ -75,7 +74,7 @@ def public_url(host: str, port: int) -> str:
 
 def web_address(host: str, port: int, parent: dict[str, str]) -> tuple[str, int]:
     """Use an explicit HTTP bind for the local web process."""
-    if bind := parent.get(GunicornEnv.BIND):
+    if bind := parent.get("SECONDSHIFT_HTTP_BIND"):
         endpoint = urlsplit(f"http://{bind}")
         if not endpoint.hostname or endpoint.port is None:
             raise ValueError("SECONDSHIFT_HTTP_BIND must contain a host and port")
@@ -120,14 +119,14 @@ def services(
         environment = {
             **environment,
             SERVICE_VAR: service,
-            GunicornEnv.BIND: f"{address}:{http_port}",
-            GunicornEnv.LOG_LEVEL: "warning",
-            GunicornEnv.ACCESS_LOG: "",
+            "SECONDSHIFT_HTTP_BIND": f"{address}:{http_port}",
+            "SECONDSHIFT_HTTP_LOG_LEVEL": "warning",
+            "SECONDSHIFT_HTTP_ACCESS_LOG": "",
         }
         if service in {Service.GATEWAY, Service.RUNNER}:
-            environment[GunicornEnv.WORKERS] = "1"
+            environment["SECONDSHIFT_HTTP_PROCESSES"] = "1"
         if service == Service.GATEWAY:
-            environment[GunicornEnv.GRACEFUL_TIMEOUT] = "600"
+            environment["SECONDSHIFT_HTTP_GRACEFUL_TIMEOUT_SECONDS"] = "600"
         return Process(
             service,
             [python, "-m", "gunicorn", "--config", GUNICORN_CONFIG],
