@@ -128,3 +128,12 @@ jobs:
           gh release create "$RELEASE_TAG" dist/*.whl \
             --verify-tag --title "SecondShift $RELEASE_TAG" \
             --notes-file release-notes.md --generate-notes "${flags[@]}"
+
+  container:
+    needs: publish
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/container.yml
+    with:
+      tag: ${{ github.ref_name }}
