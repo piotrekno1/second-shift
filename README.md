@@ -9,17 +9,18 @@
 **Same agent. Same task. Every week?**  
 **Put it on a schedule with SecondShift.**
 
-Your coding agents can review production errors, investigate CI failures, and
-check monitoring coverage. Stop reminding them. Commit a skill, set a schedule,
-and get the findings delivered.
+Give your coding agents recurring tasks: investigate CI failures, check release
+readiness, or close fixed issues through an approved service connection.
+Commit a skill, set a schedule, and follow what gets done.
 
 Your team controls their access. Every run leaves an audit trail.
 
 https://github.com/user-attachments/assets/73cbd504-2a13-4a99-bf95-d7a5c3745e28
 
 Commit a skill and its schedule alongside your code, connect a model, and
-approve the services it may use. Reports arrive in Slack or another webhook
-destination. Commands run in an isolated sandbox. Each run records its Git
+approve the tools it may use. Skills can read data and take actions through
+approved MCP tools or HTTP API operations. Results can arrive in Slack or another
+webhook destination. Commands run in an isolated sandbox. Each run records its Git
 revision, tool activity, and model cost.
 
 ## Try it out now
@@ -62,50 +63,35 @@ available on PyPI.
 - **Connect models and report destinations.** Add a model provider and webhook,
   then approve each job's notification access. Connections remain separately
   revocable.
-- **Give skills live data.** Connect GitHub, Sentry, any MCP server (OAuth or a
+- **Connect skills to your services.** Connect GitHub, Sentry, any MCP server (OAuth or a
   token), or an HTTP API from its OpenAPI spec. Choose which tools jobs may use,
-  then approve each job's request. Calls run outside the sandbox.
+  then approve each job's request, including operations that change data.
+  Calls run outside the sandbox. Built-in GitHub and Sentry tools are read-only.
 - **Follow every run.** Inspect its Git revision, execution timeline, report,
   token usage, and model cost.
 
-## Put recurring reviews on duty
+## Put recurring tasks on duty
 
-Write a skill for a recurring problem your team needs to investigate. Connect
+Write a skill for recurring work your team needs done. Connect
 the services it needs through MCP or an HTTP API, then approve the job's access.
 
-| Review | What the skill can investigate | Data it needs |
-| --- | --- | --- |
-| [**Recurring CI failures**](.agents/skills/ci-failure-review/SKILL.md) | Which failures keep blocking builds, when they started, and which changes may explain them. | Build history and failure logs through an API or MCP connection, plus repository code. |
-| [**Production errors**](.agents/skills/production-error-review/SKILL.md) | Which Sentry errors are new or worsening and which recent code changes may be related. | Issues, events, or traces through the built-in Sentry connection, plus repository code. |
-| [**Monitoring coverage**](.agents/skills/monitoring-coverage-review/SKILL.md) | Whether removed alerts, paused rules, or changed thresholds leave important failure paths uncovered. | Monitoring rules and their change history through an API or MCP connection, or configuration committed to the repository. |
-| [**Release readiness**](.agents/skills/release-readiness-review/SKILL.md) | Whether a planned release needs migration steps, configuration changes, or rollout instructions that are missing. | Repository changes and release plans, with an API or MCP connection for plans kept outside Git. |
-| [**Incident follow-up**](.agents/skills/incident-follow-up-review/SKILL.md) | Whether completed incident action items have the promised code changes, regression tests, or monitoring. | Incident records and action items through an API or MCP connection, or documents committed to the repository. |
-
-These are workflows you can define with skills and approved connections. Each
-review depends on the data exposed by the connected service. The built-in GitHub
-connection reads pull requests and commits. CI logs need a separate API or MCP
-connection that exposes them.
-
-The linked skills live in [`.agents/skills`](.agents/skills) so they can also be
-used while working on SecondShift. See [Engineering tasks](docs/engineering-tasks.md)
-for setup and reuse in another repository. Release readiness is included as a
-manual job in this repository's manifest. Add the other jobs after choosing
-their data sources and requested tools.
-
-Ask skills to explain what changed, who is affected, why it needs attention, and
-what to check next. Findings should cite their evidence and say when the
-available data is insufficient to draw a conclusion.
-
-Skills review the repository and the services you approve. Two examples to
-start from:
+Task examples include:
 
 - [Documentation drift](examples/docs-drift/README.md) finds broken links and
   stale commands in your docs. It needs only a model provider.
-- [Engineering briefing](examples/engineering-briefing/README.md) summarizes the
-  week from live GitHub data through an approved MCP connection.
+- [CI failure review](examples/ci-failure-review/README.md) groups recurring
+  build failures and identifies what still blocks work.
+- [Ticket reconciliation](examples/ticket-reconciliation/README.md) updates or
+  closes tickets when linked changes meet your team's completion rules.
 
-See [Repository configuration](docs/repository-configuration.md) to add your
-first skill, schedule, and webhook notification.
+Browse the [full skill catalog](examples/README.md) to choose a workflow and see
+what data it needs. Follow the [engineering task setup guide](docs/engineering-tasks.md)
+to copy a skill, approve access, try it manually, and enable scheduling.
+
+For teams that want a person to decide, the
+[ticket follow-up brief](examples/ticket-follow-up/README.md) lists candidates
+without changing tickets. See [tasks that change service data](docs/engineering-tasks.md#tasks-that-change-service-data)
+for access requirements and workflow setup.
 
 ## Who controls what
 
@@ -166,7 +152,7 @@ discuss the approach.
 ## Documentation
 
 - [Repository configuration](docs/repository-configuration.md): skills, YAML syntax, schedules, and notifications.
-- [Engineering tasks](docs/engineering-tasks.md): review skills, required data, and setup for use in this repository or your own.
+- [Engineering tasks](docs/engineering-tasks.md): skill setup, approved service actions, and scheduling.
 - [Architecture](docs/architecture.md): execution design and capability boundaries.
 - [Security model](docs/security-model.md): what a run can reach, where secrets live, and remaining risks.
 - [Self-hosting](docs/self-hosting.md) (work in progress): runner backends, sandbox images, and artifact storage.

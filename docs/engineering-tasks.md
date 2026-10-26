@@ -2,38 +2,28 @@
 
 [README](../README.md) · [Repository configuration](repository-configuration.md)
 
-These five skills live in [`.agents/skills`](../.agents/skills). They can run as
-SecondShift jobs or be used by a coding agent that discovers repository skills.
-Each investigates a specific problem and returns a report. They do not change
-service state or repository files.
+SecondShift executes tasks defined by repository skills. A task can investigate
+code, produce a briefing, or change connected service data through explicitly
+approved MCP tools or HTTP API operations.
 
-| Skill | Required evidence |
-| --- | --- |
-| [CI failure review](../.agents/skills/ci-failure-review/SKILL.md) | Build history and failure logs from an approved API or MCP connection. |
-| [Production error review](../.agents/skills/production-error-review/SKILL.md) | Sentry issues, errors, or traces from the built-in connection, or equivalent approved API tools. |
-| [Monitoring coverage review](../.agents/skills/monitoring-coverage-review/SKILL.md) | Alert definitions in Git or an approved monitoring connection. History is needed to establish changes. |
-| [Release readiness review](../.agents/skills/release-readiness-review/SKILL.md) | A release target, baseline, and rollout instructions in Git or an approved connection. |
-| [Incident follow-up review](../.agents/skills/incident-follow-up-review/SKILL.md) | Incident action items and acceptance criteria in Git or an approved connection, with links to implementation evidence. |
+The [examples](../examples/README.md) include reviews, briefings, and a ticket
+reconciliation task that updates connected services. Each skill defines its
+actions and boundaries. Root `.agents/skills` contains discovery symlinks.
 
-## Use them in SecondShift itself
+Choose a workflow from the [skill catalog](../examples/README.md). Each example
+explains its data sources and suggests a schedule where appropriate. This guide
+covers the shared setup process.
 
-The root `.secondshift.yaml` includes release readiness as a manual job. Commit
-the skill and manifest, sync the repository, connect a model, and choose **Run
-now**. No external service connection is required for repository-only review.
-The skill looks for a committed release plan that identifies the target and
-baseline. If those are missing, it reports that limit and checks current rollout
-documentation for concrete inconsistencies.
+**Begin with a manual run, check its results and tool activity, then enable a
+schedule if useful.** Verify that the task can access its intended data and
+complete the intended work before it runs unattended. For a review, check the
+findings and coverage. For an action task, verify the resulting service state.
 
-The other four skills are available for local agent use but are not declared as
-jobs in the root manifest. Configure the relevant data sources before adding
-them. Monitoring and incident review can work from committed documents when
-those contain the required evidence.
-
-For an interactive agent, ask for a skill and scope explicitly, for example:
+For local coding-agent use, request a skill and scope explicitly, for example:
 
 ```text
 Use $release-readiness-review to review the planned release described in our
-committed release notes. Report any missing rollout steps and unavailable evidence.
+committed release notes. Report missing rollout steps and unavailable evidence.
 ```
 
 Local agent use follows that agent's permissions. SecondShift's sandbox and
@@ -41,23 +31,16 @@ broker controls apply when the skill runs as a SecondShift job.
 
 ## Add a job to your repository
 
-Copy the desired skill directory into your own `.agents/skills`, then add a job
-to `.secondshift.yaml`. Start with a manual run before choosing a schedule:
-
-```yaml
-version: 1
-jobs:
-  release-readiness-review:
-    name: Release readiness review
-    skill: .agents/skills/release-readiness-review/SKILL.md
-```
+Copy the desired skill directory from `examples/<name>/.agents/skills` into
+your own `.agents/skills` (copy the actual directory, not the root discovery
+symlink), then add a job to `.secondshift.yaml`.
 
 For live data, connect the service in SecondShift, choose its tools, and declare
 those exact tool names under the job's `requires.mcps` or `requires.apis`.
 Approve the job's request after syncing the committed configuration. A skill
 file does not grant access by itself.
 
-For example, a production error review can use the built-in Sentry connection:
+A production error review can use the built-in Sentry connection:
 
 ```yaml
 version: 1
@@ -65,6 +48,8 @@ jobs:
   production-error-review:
     name: Production error review
     skill: .agents/skills/production-error-review/SKILL.md
+    schedule: "0 8 * * *"
+    timezone: UTC
     requires:
       mcps:
         - binding: sentry
@@ -77,16 +62,49 @@ jobs:
 
 Create the Sentry connection with binding `sentry` and choose the organization
 or project to review. Confirm that the requested tools are available on that
-connection. Begin with a manual run, check its findings and coverage, then add
-a schedule if useful.
+connection. Use **Run now** to verify the report before enabling the daily schedule.
 
 CI, monitoring, and incident tools depend on the service you connect. Select
-operations that expose the evidence in the table above. Use the tool names shown
-by SecondShift rather than guessing names. The built-in GitHub connection reads
+operations that expose the history and records described in each example. Use
+the tool names shown by SecondShift rather than guessing names. The built-in GitHub connection reads
 pull requests and commits. It does not provide build logs. See
 [MCP and API declarations](repository-configuration.md#mcp-and-api-declarations)
 for connection setup and [webhook notifications](repository-configuration.md#deliver-reports-to-a-webhook)
 for report delivery.
+
+## Tasks that change service data
+
+Custom MCP and HTTP API connections can expose write operations. The workspace
+owner must allow the operation on the connection and approve the job's request.
+The built-in GitHub and Sentry connections expose read tools only. Use a custom
+connection with the required operations for actions such as Jira transitions.
+
+The [ticket reconciliation skill](../examples/ticket-reconciliation/README.md)
+implements this workflow for an approved tracker, such as Jira:
+
+1. Find candidate issues in the approved project.
+2. Check linked implementation, validation, and deployment evidence against
+   the team's definition of fixed. A merged PR alone may not meet that definition.
+3. Transition only issues that meet those criteria and verify the resulting state.
+4. Summarize changed issues, skipped issues, and failures with evidence links.
+
+Select the service's actual read and transition operations, then declare their
+exact names in the job's `requires` section. Keep the project, credentials, and
+endpoint configuration in the workspace connection. The provider-neutral sample
+requires the tracker's actual operation names before it can run. For teams that
+want a person to decide, the [ticket follow-up brief](../examples/ticket-follow-up/README.md)
+returns candidates without changing tickets and can be delivered to Slack.
+
+Write the skill's completion criteria and stopping conditions explicitly.
+Check current state before acting, skip already-completed transitions, and
+avoid duplicate comments on reruns. If a write times out, check its outcome
+before retrying. Start with a read-only preview of proposed changes when useful,
+then test the approved action workflow manually before enabling its schedule.
+Access approval permits the tool calls. It does not guarantee that the model
+will apply your business rules correctly. See the
+[security model](security-model.md#remaining-risks).
+
+## Execution environment
 
 The sandbox contains the repository at the run's commit, without network access.
 Git history and project dependencies may be absent. Historical comparisons need

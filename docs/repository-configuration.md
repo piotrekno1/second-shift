@@ -5,6 +5,11 @@
 A root-level `.secondshift.yaml` declares what runs and when. The server
 controls models, credentials, sandbox settings, and runtime policy.
 
+A skill defines a task: it can analyze repository files, gather service data,
+or take actions through approved MCP tools and HTTP API operations. The review
+below is a simple first example. See [action tasks](engineering-tasks.md#tasks-that-change-service-data)
+for a workflow that changes connected service data.
+
 Commit the manifest and its referenced skill files before adding or syncing
 the repository in SecondShift. Runs use the synchronized Git revision.
 
@@ -18,6 +23,10 @@ instead. Syncing never grants access: a job that requests new access still
 waits for an owner's approval.
 
 ## Your first job
+
+**Begin with a manual run, check its results and tool activity, then enable a
+schedule if useful.** A proposed schedule is a starting point. Verify the
+skill's access and outcome before letting it run unattended.
 
 Create `.agents/skills/repository-review/SKILL.md`:
 

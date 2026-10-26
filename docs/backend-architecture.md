@@ -20,12 +20,12 @@ schemas or route registration.
 
 Repository synchronization obtains configuration at a revision and calls
 `jobs.sync`. The jobs app validates the manifest and reconciles definitions and
-capability requests. Connections make external services available; job grants
+capability requests. Connections make external services available. Job grants
 authorize their use. `jobs.planning` freezes effective policy for a future run.
 It does not import the agent execution framework.
 
 Manual and scheduled triggers use `runs.services.create_run`. Manual execution
-checks authorization and readiness first; scheduled creation retains its existing
+checks authorization and readiness first. Scheduled creation retains its existing
 idempotency and execution-time readiness checks. Existing execution plans and
 input snapshots remain attached to their run. Runtime checks still enforce
 connection ownership and revocation.
@@ -40,7 +40,7 @@ The runs app has three internal packages:
   report delivery payloads.
 
 `runner.client` is the public client for sandbox operations. Runs consume that
-client and the shared protocol; runtime flags, images, mounts and isolation
+client and the shared protocol. Runtime flags, images, mounts and isolation
 remain enforced by the runner service. No additional sandbox Django app exists.
 
 ## Migration compatibility

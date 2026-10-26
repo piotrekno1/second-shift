@@ -7,14 +7,15 @@ description: Review a planned release for missing migration, configuration, comp
 
 Check whether the planned release has the instructions and supporting changes
 needed to roll it out. Use repository files and approved API or MCP tools when
-release plans are external. Do not deploy, publish, tag a release, or modify files.
+release plans are external. Do not deploy, publish, tag a release, or modify
+files.
 
 ## Establish the release
 
 Use an explicitly supplied target and baseline first. Otherwise look for a
 committed release plan or changelog that identifies the upcoming release and its
-previous version. Record the exact scope and source. Do not guess that the latest
-tag or current checkout is the intended release.
+previous version. Record the exact scope and source. Do not guess that the
+latest tag or current checkout is the intended release.
 
 If no release scope can be established, report that limitation. You may identify
 concrete inconsistencies in current rollout documentation, but label that work
@@ -44,11 +45,12 @@ shell networking. Run checks only when the environment supports them.
 
 ## Report
 
-Keep the report under 700 words. State the target, baseline, and evidence available.
-Lead with confirmed rollout blockers, followed by missing instructions and open
-questions. Give file and line references or service links, the concrete rollout
-consequence, and the correction or check needed for each finding.
+Keep the report under 700 words. State the target, baseline, and evidence
+available. Lead with confirmed rollout blockers, followed by missing
+instructions and open questions. Give file and line references or service links,
+the concrete rollout consequence, and the correction or check needed for each
+finding.
 
 Finish with checks run and missing evidence. Finding no blockers in inspected
-material does not establish that the release is safe. Return the report.
-SecondShift handles configured notification delivery.
+material does not establish that the release is safe. Return the report. The
+host handles configured notification delivery.

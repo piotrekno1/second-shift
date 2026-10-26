@@ -1,0 +1,15 @@
+version: 1
+jobs:
+  ticket-follow-up:
+    name: Ticket follow-up brief
+    skill: .agents/skills/ticket-follow-up/SKILL.md
+    schedule: 0 9 * * 1-5
+    timezone: UTC
+    requires:
+      mcps:
+      - binding: github
+        tools:
+        - list_commits
+        - get_commit
+        - search_pull_requests
+        - pull_request_read

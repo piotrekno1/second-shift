@@ -1,0 +1,7 @@
+version: 1
+jobs:
+  incident-follow-up-review:
+    name: Incident follow-up
+    skill: .agents/skills/incident-follow-up-review/SKILL.md
+    schedule: 0 10 * * 1
+    timezone: UTC

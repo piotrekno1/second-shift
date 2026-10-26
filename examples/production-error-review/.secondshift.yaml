@@ -1,0 +1,15 @@
+version: 1
+jobs:
+  production-error-review:
+    name: Production errors
+    skill: .agents/skills/production-error-review/SKILL.md
+    requires:
+      mcps:
+      - binding: sentry
+        tools:
+        - search_issues
+        - search_errors
+        - search_traces
+        - get_sentry_resource
+    schedule: 0 8 * * *
+    timezone: UTC
