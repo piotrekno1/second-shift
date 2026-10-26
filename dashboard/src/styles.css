@@ -556,3 +556,36 @@ a.runtime-note { color: inherit; }
 .app-icon-spin { animation: icon-spin 1s linear infinite; }
 @keyframes icon-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .app-icon-spin, .job-action.is-loading > .app-icon { animation: none; } }
+
+.github-import { padding: 24px; margin-bottom: 20px; }
+.github-import-heading { display: flex; align-items: center; gap: 13px; margin-bottom: 24px; }
+.github-import-icon { display: grid; place-items: center; flex: 0 0 42px; height: 42px; border: 1px solid var(--border); border-radius: 12px; background: rgba(139,124,255,.08); color: var(--violet-soft); font-size: 23px; }
+.github-import-heading h2 { margin: 0 0 5px; font-size: 17px; }
+.github-import-heading p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.github-import-fields { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, .9fr) auto; align-items: start; gap: 18px; }
+.github-import-field { display: grid; gap: 8px; min-width: 0; }
+.github-import-field label { color: var(--ink); font-size: 12px; font-weight: 600; }
+.github-import-field small { color: var(--subtle); font-size: 11px; line-height: 1.5; }
+.github-import-select.p-select { width: 100%; min-height: 44px; align-items: center; border: 1px solid var(--border); border-radius: 10px; background: rgba(255,255,255,.035); }
+.github-import-select.p-select:not(.p-disabled):hover { border-color: rgba(197,188,255,.35); }
+.github-import-select.p-select.p-focus { border-color: var(--violet); box-shadow: 0 0 0 3px rgba(139,124,255,.12); }
+.github-import-select .p-select-label { min-width: 0; color: var(--ink); font-size: 13px; }
+.github-import-select .p-select-label.p-placeholder, .github-import-select .p-select-dropdown { color: var(--subtle); }
+.github-import-submit { padding-top: 24px; }
+.github-import-submit .p-button { min-height: 44px; white-space: nowrap; }
+.github-import-footer { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-top: 22px; padding-top: 17px; border-top: 1px solid var(--border); font-size: 11px; line-height: 1.5; }
+.github-import-footer > span { color: var(--muted); }
+.github-import-footer a { display: inline-flex; align-items: center; gap: 5px; color: var(--violet-soft); }
+.github-import-footer a:hover { text-decoration: underline; }
+.github-import .form-error { color: var(--danger); }
+.github-import-error { margin: 16px 0 0; font-size: 12px; }
+@media (max-width: 1150px) and (min-width: 981px) {
+  .github-import-fields { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .github-import-submit { grid-column: 1 / -1; padding-top: 0; justify-self: end; }
+}
+@media (max-width: 700px) {
+  .github-import { padding: 20px; }
+  .github-import-fields { grid-template-columns: minmax(0, 1fr); }
+  .github-import-submit { padding-top: 0; }
+  .github-import-submit .p-button { width: 100%; }
+}

@@ -57,8 +57,8 @@ with the usual `python manage.py migrate` before starting the updated services.
    to install the App. Select only the repositories it should read. Use
    **Manage GitHub access** to install it for another account or change repository
    access on an existing installation.
-3. Back in SecondShift, choose a repository and optionally a branch. Leaving the
-   branch empty uses its default branch at import time.
+3. Back in SecondShift, choose a repository and branch using the searchable
+   selectors. Its default branch is selected automatically.
 4. Import it. The committed manifest and every referenced skill must be valid.
    Review job capabilities, connect a model provider and any required services,
    then enable the repository and its scheduled jobs.

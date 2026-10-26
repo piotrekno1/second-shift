@@ -54,7 +54,7 @@ def app_token() -> str:
     return f"{message}.{encoded(signature)}"
 
 
-def request_json(method: str, url: str, token: str = "", **kwargs: object) -> dict:
+def request_payload(method: str, url: str, token: str = "", **kwargs: object) -> object:
     try:
         response = requests.request(
             method,
@@ -73,9 +73,35 @@ def request_json(method: str, url: str, token: str = "", **kwargs: object) -> di
         raise GitHubAppError(
             "GitHub access failed. Check the installation and permissions."
         ) from error
+    return result
+
+
+def request_json(method: str, url: str, token: str = "", **kwargs: object) -> dict:
+    result = request_payload(method, url, token, **kwargs)
     if not isinstance(result, dict) or "error" in result:
         raise GitHubAppError("GitHub returned an invalid authorization response.")
     return result
+
+
+def repository_branches(installation_id: str, repository_id: int) -> list[str]:
+    metadata = repository_metadata(installation_id, repository_id)
+    token = installation_token(installation_id, repository_id)
+    branches = []
+    for page in range(1, 101):
+        batch = request_payload(
+            "GET",
+            f"{API_URL}/repos/{metadata['full_name']}/branches?per_page=100&page={page}",
+            token,
+        )
+        if not isinstance(batch, list) or any(
+            not isinstance(item, dict) or not isinstance(item.get("name"), str)
+            for item in batch
+        ):
+            raise GitHubAppError("GitHub returned an invalid branch listing.")
+        branches.extend(item["name"] for item in batch)
+        if len(batch) < 100:
+            return branches
+    raise GitHubAppError("This repository has too many branches to list.")
 
 
 def installation_token(installation_id: str, repository_id: int | None = None) -> str:

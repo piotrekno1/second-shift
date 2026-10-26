@@ -25,3 +25,7 @@ export function importGitHubRepository(source: GitHubSource, branch: string): Pr
     branch,
   })
 }
+
+export function githubBranches(source: GitHubSource): Promise<string[]> {
+  return apiGet<string[]>(`/repositories/github/${source.connection_id}/${source.repository_id}/branches`)
+}

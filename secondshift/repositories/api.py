@@ -10,6 +10,7 @@ from secondshift.connections.models import Connection
 from secondshift.repositories.github_app import (
     GitHubAppError,
     configured,
+    repository_branches,
 )
 from secondshift.repositories.github_sync import (
     GitHubRepositoryExistsError,
@@ -124,6 +125,28 @@ def available_github_repositories(request: HttpRequest) -> GitHubAppStatusSchema
         error=" ".join(errors),
         repositories=[GitHubAvailableRepositorySchema(**item) for item in available],
     )
+
+
+@router.get(
+    "/repositories/github/{connection_id}/{repository_id}/branches", response=list[str]
+)
+def github_branches(
+    request: HttpRequest, connection_id: int, repository_id: int
+) -> list[str]:
+    workspace = require(request, Action.ADD_GITHUB_REPOSITORIES)
+    connection = get_object_or_404(
+        Connection,
+        pk=connection_id,
+        workspace=workspace,
+        provider=Connection.Provider.GITHUB,
+        kind=Connection.Kind.SOURCE,
+        auth_strategy=Connection.AuthStrategy.MANAGED,
+        status=Connection.Status.CONNECTED,
+    )
+    try:
+        return repository_branches(connection.external_account_id, repository_id)
+    except GitHubAppError as error:
+        raise HttpError(422, str(error)) from error
 
 
 @router.post("/repositories/github", response=RepositorySchema)

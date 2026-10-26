@@ -410,3 +410,41 @@ def test_oauth_exchange_does_not_send_an_empty_bearer_token(monkeypatch: Any) ->
         "POST", github_app.OAUTH_URL + "/access_token", json={"code": "code"}
     )
     assert "Authorization" not in request.call_args.kwargs["headers"]
+
+
+def test_branch_listing_is_scoped_to_selected_repository(monkeypatch: Any) -> None:
+    monkeypatch.setattr(
+        github_app, "repository_metadata", lambda *args: {"full_name": "owner/project"}
+    )
+    token = Mock(return_value="installation-secret")
+    monkeypatch.setattr(github_app, "installation_token", token)
+    request = Mock(
+        side_effect=[
+            [{"name": f"branch-{index}"} for index in range(100)],
+            [{"name": "main"}],
+        ]
+    )
+    monkeypatch.setattr(github_app, "request_payload", request)
+    branches = github_app.repository_branches("42", 7)
+    assert len(branches) == 101
+    assert branches[-1] == "main"
+    token.assert_called_once_with("42", 7)
+    assert "page=2" in request.call_args.args[1]
+
+
+def test_branch_endpoint_enforces_workspace_access(
+    owner_client: Any, source_connection: Any, monkeypatch: Any
+) -> None:
+    branches = Mock(return_value=["main", "release"])
+    monkeypatch.setattr("secondshift.repositories.api.repository_branches", branches)
+    url = f"/api/repositories/github/{source_connection.pk}/7/branches"
+    response = owner_client.get(url)
+    assert response.status_code == 200
+    assert response.json() == ["main", "release"]
+    branches.assert_called_once_with("42", 7)
+    user = get_user_model().objects.create_user(username="branch-outsider")
+    other = create_workspace(name="Other", slug="branch-other", owner=user)
+    source_connection.workspace = other
+    source_connection.save()
+    assert owner_client.get(url).status_code == 404
+    assert branches.call_count == 1

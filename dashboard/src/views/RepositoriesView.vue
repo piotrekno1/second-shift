@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import AppIcon from '../components/AppIcon.vue'
-import { computed, ref, onMounted } from 'vue'
+import { computed, ref, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
+import Select from 'primevue/select'
 import LocalDirectoryPicker from '../components/LocalDirectoryPicker.vue'
 import FilterChips from '../components/FilterChips.vue'
 import PageHeader from '../components/PageHeader.vue'
@@ -53,14 +54,26 @@ const { configured: githubConfigured, sources: githubSources, error: githubError
 const addingGitHub = ref(false)
 const githubChoice = ref('')
 const githubBranch = ref('')
+const githubOptions = computed(() => githubSources.value
+  .filter((source) => !app.repositories.some((repository) => repository.source_type === 'github' && repository.full_name === source.full_name))
+  .map((source) => ({ ...source, key: `${source.connection_id}:${source.repository_id}` })))
+const selectedGitHubSource = computed(() => githubOptions.value.find((source) => source.key === githubChoice.value) ?? null)
+const branchOptions = computed(() => github.branches.map((name) => ({ name, label: name === selectedGitHubSource.value?.default_branch ? `${name} (default)` : name })))
+const canImportGitHub = computed(() => Boolean(selectedGitHubSource.value && githubBranch.value && github.branches.includes(githubBranch.value) && !github.branchesLoading && !githubBusy.value))
+watch(githubChoice, () => {
+  const source = selectedGitHubSource.value
+  githubBranch.value = source?.default_branch ?? ''
+  void github.loadBranches(source)
+})
 onMounted(async () => {
   if (!app.can(Action.AddGitHubRepositories)) return
   await github.load()
-  addingGitHub.value = githubSources.value.length > 0
+  addingGitHub.value = githubOptions.value.length > 0
+  if (githubOptions.value.length === 1) githubChoice.value = githubOptions.value[0]!.key
 })
 async function addGitHubRepository(): Promise<void> {
-  const source = githubSources.value.find((item) => `${item.connection_id}:${item.repository_id}` === githubChoice.value)
-  if (!source) return
+  const source = selectedGitHubSource.value
+  if (!source || !canImportGitHub.value) return
   const repository = await github.importRepository(source, githubBranch.value.trim())
   if (repository) {
     await app.refresh()
@@ -111,21 +124,44 @@ function chooseDirectory(path: string): void {
       <Button v-if="app.canAddLocalRepositories" label="Add local repository" severity="secondary" outlined @click="addingLocal = !addingLocal; browsing = false">
         <template #icon><AppIcon name="folder-open-outline" /></template>
       </Button>
-      <Button v-if="app.can(Action.AddGitHubRepositories) && githubConfigured" label="Connect GitHub" as="a" href="/-/github/connect/">
+      <Button v-if="app.can(Action.AddGitHubRepositories) && githubConfigured && githubOptions.length" label="Add GitHub repository" @click="addingGitHub = !addingGitHub">
+        <template #icon><AppIcon name="github" /></template>
+      </Button>
+      <Button v-else-if="app.can(Action.AddGitHubRepositories) && githubConfigured" label="Connect GitHub" as="a" href="/-/github/connect/">
         <template #icon><AppIcon name="github" /></template>
       </Button>
       <Button v-if="app.can(Action.AddGitHubRepositories) && githubConfigured" label="Manage GitHub access" severity="secondary" text as="a" href="/-/github/connect/?install=1" />
     </PageHeader>
-    <p v-if="githubError" class="form-error" role="alert">{{ githubError }}</p>
-    <p v-if="app.can(Action.AddGitHubRepositories) && !githubConfigured && !githubError">Ask your deployment operator to configure the GitHub App to connect repositories.</p>
-    <form v-if="addingGitHub" class="panel local-repository-form" @submit.prevent="addGitHubRepository">
-      <div><h2>Add a GitHub repository</h2><p>Import its committed configuration, then approve capabilities and enable schedules.</p></div>
-      <select v-model="githubChoice" aria-label="GitHub repository">
-        <option value="" disabled>Select a repository</option>
-        <option v-for="source in githubSources" :key="`${source.connection_id}:${source.repository_id}`" :value="`${source.connection_id}:${source.repository_id}`">{{ source.full_name }}</option>
-      </select>
-      <InputText v-model="githubBranch" aria-label="GitHub branch" placeholder="Default branch" />
-      <Button type="submit" label="Import repository" :disabled="!githubChoice" :loading="githubBusy" />
+    <p v-if="githubError && !addingGitHub" class="form-error" role="alert">{{ githubError }}</p>
+    <p v-if="app.can(Action.AddGitHubRepositories) && !githubConfigured && !githubError && !github.loading">Ask your deployment operator to configure the GitHub App to connect repositories.</p>
+    <form v-if="addingGitHub" class="panel github-import" :aria-busy="githubBusy" @submit.prevent="addGitHubRepository">
+      <div class="github-import-heading">
+        <span class="github-import-icon"><AppIcon name="github" /></span>
+        <div><h2>Add a GitHub repository</h2><p>Choose the repository and branch SecondShift should follow.</p></div>
+      </div>
+      <div class="github-import-fields">
+        <div class="github-import-field">
+          <label for="github-repository">Repository</label>
+          <Select v-model="githubChoice" input-id="github-repository" aria-label="Repository" :options="githubOptions" option-label="full_name" option-value="key" filter filter-placeholder="Find a repository…" placeholder="Choose a repository" :disabled="githubBusy" class="github-import-select" empty-filter-message="No matching repositories" />
+          <small>Only repositories you granted access to are listed.</small>
+        </div>
+        <div class="github-import-field">
+          <label for="github-branch">Branch</label>
+          <Select v-model="githubBranch" input-id="github-branch" aria-label="Branch" :options="branchOptions" option-label="label" option-value="name" filter filter-placeholder="Find a branch…" :placeholder="github.branchesLoading ? 'Loading branches…' : 'Choose a branch'" :loading="github.branchesLoading" :disabled="!selectedGitHubSource || github.branchesLoading || githubBusy" class="github-import-select" empty-filter-message="No matching branches" />
+          <small v-if="!github.branchesError">New commits on this branch will be synced.</small>
+          <small v-else class="form-error" role="alert">{{ github.branchesError }} <button type="button" class="link-button" @click="github.loadBranches(selectedGitHubSource)">Retry</button></small>
+        </div>
+        <div class="github-import-submit">
+          <Button type="submit" :label="githubBusy ? 'Importing…' : 'Import repository'" :disabled="!canImportGitHub" :loading="githubBusy">
+            <template #icon><AppIcon name="download" /></template>
+          </Button>
+        </div>
+      </div>
+      <p v-if="githubError" class="form-error github-import-error" role="alert">{{ githubError }}</p>
+      <div class="github-import-footer">
+        <span>Schedules stay off until you review the imported jobs.</span>
+        <a href="/-/github/connect/?install=1">Missing a repository? Manage access <AppIcon name="open-in-new" /></a>
+      </div>
     </form>
     <form v-if="addingLocal" class="panel local-repository-form" @submit.prevent="addLocalRepository">
       <div><h2>Add a local Git repository</h2><p>Its committed `.secondshift.yaml` and referenced skills will be validated and synchronized.</p></div>
@@ -157,7 +193,7 @@ function chooseDirectory(path: string): void {
         <AppIcon name="filter-remove-outline" /><strong>No repositories match these filters</strong>
         <Button label="Clear filters" severity="secondary" text size="small" @click="list.update({ q: null, state: null })" />
       </article>
-      <article v-if="!app.repositories.length" class="panel empty-state wide">
+      <article v-if="!app.repositories.length && !addingGitHub && !addingLocal" class="panel empty-state wide">
         <AppIcon name="source-branch-plus" /><strong>{{ app.can(Action.AddLocalRepositories) ? 'Connect your first repository' : 'No repositories yet' }}</strong>
         <span v-if="!app.can(Action.AddLocalRepositories)">Workspace owners add repositories.</span>
         <span v-else>{{ app.user?.local_repositories_enabled ? 'Add a local Git repository or connect GitHub.' : 'Connect GitHub and import a repository containing `.secondshift.yaml`.' }}</span>
