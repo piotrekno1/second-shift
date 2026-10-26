@@ -26,6 +26,11 @@ cd dashboard && npm install && cd ..
 process-compose up
 ```
 
+The local supporting services use `docker-compose.localdev.yml`. For direct
+Docker commands, include `-f docker-compose.localdev.yml`. See the
+[environment reference](docs/environment-variables.md#local-development) for
+settings and optional integrations.
+
 ### Releasing a build
 
 Releases are created by pushing a version tag on a commit that belongs to

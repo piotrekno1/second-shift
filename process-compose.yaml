@@ -1,40 +1,34 @@
 version: "3"
 
+environment:
+  - SECONDSHIFT_ENV=dev
+  # macOS kills forked workers that make outbound HTTP (system proxy lookup).
+  - OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
+
 processes:
   stack:
     description: PostgreSQL is healthy
-    command: docker compose up -d --wait
+    command: docker compose -f docker-compose.localdev.yml up -d --wait
 
   stack_logs:
     description: Docker service logs
-    command: docker compose logs --follow
+    command: docker compose -f docker-compose.localdev.yml logs --follow
     depends_on:
       stack:
         condition: process_completed_successfully
     shutdown:
-      command: docker compose down
+      command: docker compose -f docker-compose.localdev.yml down
       timeout_seconds: 30
 
-  migrate:
-    command: uv run python manage.py migrate
-    environment:
-      - SECONDSHIFT_ENV=dev
+  initialize:
+    description: Initialize the control plane, development workspace, and runner
+    command: >-
+      uv run python manage.py migrate &&
+      uv run python manage.py bootstrap_dev &&
+      DJANGO_SETTINGS_MODULE=secondshift.config.settings.runner uv run python manage.py migrate
     depends_on:
       stack:
         condition: process_completed_successfully
-
-  bootstrap:
-    command: uv run python manage.py bootstrap_dev
-    environment:
-      - SECONDSHIFT_ENV=dev
-    depends_on:
-      migrate:
-        condition: process_completed_successfully
-
-  runner_migrate:
-    command: uv run python manage.py migrate
-    environment:
-      - DJANGO_SETTINGS_MODULE=secondshift.config.settings.runner
 
   runner:
     description: Isolated command-runner API
@@ -43,12 +37,8 @@ processes:
       - SECONDSHIFT_SERVICE=runner
       - SECONDSHIFT_HTTP_BIND=127.0.0.1:8002
       - SECONDSHIFT_HTTP_PROCESSES=1
-      - SECONDSHIFT_ENV=dev
-      - DJANGO_SETTINGS_MODULE=secondshift.config.settings.runner
     depends_on:
-      runner_migrate:
-        condition: process_completed_successfully
-      bootstrap:
+      initialize:
         condition: process_completed_successfully
     availability:
       restart: always
@@ -58,11 +48,8 @@ processes:
     environment:
       - SECONDSHIFT_SERVICE=web
       - SECONDSHIFT_HTTP_BIND=127.0.0.1:8000
-      - SECONDSHIFT_ENV=dev
-      # macOS kills forked workers that make outbound HTTP (system proxy lookup).
-      - OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
     depends_on:
-      bootstrap:
+      initialize:
         condition: process_completed_successfully
     availability:
       restart: always
@@ -75,10 +62,8 @@ processes:
       - SECONDSHIFT_HTTP_GRACEFUL_TIMEOUT_SECONDS=600
       - SECONDSHIFT_HTTP_BIND=127.0.0.1:8001
       - SECONDSHIFT_HTTP_PROCESSES=1
-      - SECONDSHIFT_ENV=dev
-      - OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
     depends_on:
-      bootstrap:
+      initialize:
         condition: process_completed_successfully
     availability:
       restart: always
@@ -86,9 +71,9 @@ processes:
   worker:
     command: uv run python manage.py run_dbos_worker
     environment:
-      - SECONDSHIFT_ENV=dev
+      - SECONDSHIFT_SERVICE=worker
     depends_on:
-      bootstrap:
+      initialize:
         condition: process_completed_successfully
       gateway:
         condition: process_started
@@ -108,8 +93,3 @@ processes:
     depends_on:
       backend:
         condition: process_started
-
-  runner_gvisor_check:
-    description: Optional Linux production-runtime smoke test
-    command: docker run --rm --runtime=runsc hello-world
-    disabled: true
