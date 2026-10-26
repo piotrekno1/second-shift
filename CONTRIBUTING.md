@@ -26,8 +26,7 @@ cd dashboard && npm install && cd ..
 process-compose up
 ```
 
-Process-compose
-loads `.env` and selects development mode for its processes. Initialization
+Process-compose loads `.env` and selects development mode for its processes. Initialization
 creates the control-plane keys and runner token before migrating the runner.
 The supporting PostgreSQL and optional RustFS services are defined in
 `docker-compose.localdev.yml`; standalone Docker commands need
@@ -35,10 +34,8 @@ The supporting PostgreSQL and optional RustFS services are defined in
 
 The template contains the development overrides. See the
 [environment reference](docs/environment-variables.md) for optional integrations,
-email, logging, and sandbox settings. In dev and local
-mode, keys are generated in `SECONDSHIFT_DATA_DIR` (default `~/.secondshift`),
+email, logging, and sandbox settings. In dev and local mode, keys are generated in `SECONDSHIFT_DATA_DIR` (default `~/.secondshift`),
 email defaults to terminal output, and plain Docker sandboxes are supported.
-Production requirements in the tables below apply to deployed services.
 
 To use the optional local RustFS service, add this block to `.env`:
 
