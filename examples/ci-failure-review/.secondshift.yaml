@@ -3,3 +3,5 @@ jobs:
   ci-failure-review:
     name: Recurring CI failures
     skill: .agents/skills/ci-failure-review/SKILL.md
+    schedule: 0 8 * * 1-5
+    timezone: UTC

@@ -9,6 +9,13 @@ Alert definitions, notification routing, runbooks, and concrete repository failu
 
 Use monitoring configuration committed in the repository, or connect your monitoring service and declare its exact read operations. Without rule history, the skill reviews current coverage and explicitly avoids claims about removed alerts.
 
+## Suggested schedule
+
+Mondays at 09:00 UTC; reviews the preceding seven days. Remove `schedule` for manual use only.
+
+**Begin with a manual run, check its findings and coverage, then enable a
+schedule if useful.**
+
 ## Use in another project
 
 1. Copy this example's `.agents/skills/monitoring-coverage-review` into your repository's
@@ -19,8 +26,8 @@ Use monitoring configuration committed in the repository, or connect your monito
    any service access described above. Connection endpoints and credentials
    belong in SecondShift, never in the manifest or skill.
 3. Import or resync the repository, approve the requested access, and choose
-   **Run now**. Review findings and coverage before adding a cron `schedule`
-   and IANA `timezone`. This sample is manual by default.
+   **Run now**. Review findings and coverage before enabling the proposed
+   schedule. Adjust `schedule` and `timezone` for your team.
 
 For local coding-agent use, copy the same skill and request it explicitly with
 scope and available evidence. Use that agent's approved tools; installing a

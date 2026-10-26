@@ -11,3 +11,5 @@ jobs:
         - search_errors
         - search_traces
         - get_sentry_resource
+    schedule: 0 8 * * *
+    timezone: UTC

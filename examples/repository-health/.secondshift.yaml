@@ -3,3 +3,5 @@ jobs:
   repository-health:
     name: Repository health
     skill: .agents/skills/repository-health/SKILL.md
+    schedule: 0 7 * * 1
+    timezone: UTC

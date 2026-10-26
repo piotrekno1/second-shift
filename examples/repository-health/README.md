@@ -9,6 +9,13 @@ Source, configuration, contributor guidance, and tests from the repository snaps
 
 Only a model provider is required. Focused offline checks can run when their dependencies are already available. The skill does not install packages or assume a particular language or framework.
 
+## Suggested schedule
+
+Mondays at 07:00 UTC; reviews the synchronized repository snapshot. Remove `schedule` for manual use only.
+
+**Begin with a manual run, check its findings and coverage, then enable a
+schedule if useful.**
+
 ## Use in another project
 
 1. Copy this example's `.agents/skills/repository-health` into your repository's
@@ -19,8 +26,8 @@ Only a model provider is required. Focused offline checks can run when their dep
    any service access described above. Connection endpoints and credentials
    belong in SecondShift, never in the manifest or skill.
 3. Import or resync the repository, approve the requested access, and choose
-   **Run now**. Review findings and coverage before adding a cron `schedule`
-   and IANA `timezone`. This sample is manual by default.
+   **Run now**. Review findings and coverage before enabling the proposed
+   schedule. Adjust `schedule` and `timezone` for your team.
 
 For local coding-agent use, copy the same skill and request it explicitly with
 scope and available evidence. Use that agent's approved tools; installing a

@@ -9,6 +9,15 @@ An explicit release target, baseline, rollout instructions, and the relevant rep
 
 Provide a committed release plan identifying target and baseline, or supply them in the interactive request. External release plans need a separately declared, approved read connection. Without release scope, the skill reports the limitation and checks current documentation for concrete inconsistencies.
 
+## When to run
+
+Run before a planned release with an explicit target and baseline. This sample
+is intentionally manual: a weekly timer cannot identify the release you intend
+to ship. If your team maintains an upcoming release plan, you can add a schedule.
+
+**Begin with a manual run, check its findings and coverage, then enable a
+schedule if useful.**
+
 ## Use in another project
 
 1. Copy this example's `.agents/skills/release-readiness-review` into your repository's

@@ -19,6 +19,10 @@ waits for an owner's approval.
 
 ## Your first job
 
+**Begin with a manual run, check its findings and coverage, then enable a
+schedule if useful.** A proposed schedule is a starting point; verify the
+skill's access and report before letting it run unattended.
+
 Create `.agents/skills/repository-review/SKILL.md`:
 
 ```markdown

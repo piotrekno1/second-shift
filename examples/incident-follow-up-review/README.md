@@ -9,6 +9,13 @@ Incident action items, acceptance criteria, completion history, and links to imp
 
 Commit incident records and acceptance criteria, or connect an approved incident or ticket service and declare its exact read operations. A snapshot without completion history supports checking individual items, but not a complete weekly completion review.
 
+## Suggested schedule
+
+Mondays at 10:00 UTC; checks items completed in the preceding seven days. Remove `schedule` for manual use only.
+
+**Begin with a manual run, check its findings and coverage, then enable a
+schedule if useful.**
+
 ## Use in another project
 
 1. Copy this example's `.agents/skills/incident-follow-up-review` into your repository's
@@ -19,8 +26,8 @@ Commit incident records and acceptance criteria, or connect an approved incident
    any service access described above. Connection endpoints and credentials
    belong in SecondShift, never in the manifest or skill.
 3. Import or resync the repository, approve the requested access, and choose
-   **Run now**. Review findings and coverage before adding a cron `schedule`
-   and IANA `timezone`. This sample is manual by default.
+   **Run now**. Review findings and coverage before enabling the proposed
+   schedule. Adjust `schedule` and `timezone` for your team.
 
 For local coding-agent use, copy the same skill and request it explicitly with
 scope and available evidence. Use that agent's approved tools; installing a

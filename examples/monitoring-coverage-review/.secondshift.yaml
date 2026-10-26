@@ -3,3 +3,5 @@ jobs:
   monitoring-coverage-review:
     name: Monitoring coverage
     skill: .agents/skills/monitoring-coverage-review/SKILL.md
+    schedule: 0 9 * * 1
+    timezone: UTC
