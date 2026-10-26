@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppIcon from '../components/AppIcon.vue'
 import { computed, nextTick, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Button from 'primevue/button'
@@ -103,13 +104,17 @@ useLiveRefresh(loadJob, () => (job.value?.recent_runs ?? []).some((run) => isRun
 <template>
   <div class="page">
     <PageHeader :title="job?.name ?? 'Job'" :description="detailSubtitle">
-      <RouterLink to="/jobs" class="secondary-action"><i class="mdi mdi-arrow-left" /> Jobs</RouterLink>
-      <Button v-if="job && job.cron && app.can(Action.EnableJobs)" :label="job.enabled ? 'Disable' : 'Enable'" :icon="job.enabled ? 'pi pi-pause' : 'pi pi-play'" severity="secondary" outlined :loading="action === 'toggle'" @click="toggleJob" />
-      <Button v-if="job && app.can(Action.RunJobs)" label="Run now" icon="pi pi-play" :disabled="!job.repository_enabled" :title="job.repository_enabled ? 'Start a run and open it' : 'Enable the repository to run its jobs'" :loading="action === 'run'" @click="runNow" />
+      <RouterLink to="/jobs" class="secondary-action"><AppIcon name="arrow-left" /> Jobs</RouterLink>
+      <Button v-if="job && job.cron && app.can(Action.EnableJobs)" :label="job.enabled ? 'Disable' : 'Enable'" severity="secondary" outlined :loading="action === 'toggle'" @click="toggleJob">
+        <template #icon><AppIcon :name="job.enabled ? 'pause' : 'play'" /></template>
+      </Button>
+      <Button v-if="job && app.can(Action.RunJobs)" label="Run now" :disabled="!job.repository_enabled" :title="job.repository_enabled ? 'Start a run and open it' : 'Enable the repository to run its jobs'" :loading="action === 'run'" @click="runNow">
+        <template #icon><AppIcon name="play" /></template>
+      </Button>
     </PageHeader>
 
-    <div v-if="loading" class="panel empty-state"><i class="mdi mdi-loading mdi-spin" /><strong>Loading job</strong></div>
-    <div v-else-if="!job" class="panel empty-state"><i class="mdi mdi-alert-outline" /><strong>Job unavailable</strong><span>{{ error }}</span></div>
+    <div v-if="loading" class="panel empty-state"><AppIcon name="loading" spin /><strong>Loading job</strong></div>
+    <div v-else-if="!job" class="panel empty-state"><AppIcon name="alert-outline" /><strong>Job unavailable</strong><span>{{ error }}</span></div>
     <template v-else>
       <p v-if="error" class="page-error">{{ error }}</p>
 
@@ -130,9 +135,9 @@ useLiveRefresh(loadJob, () => (job.value?.recent_runs ?? []).some((run) => isRun
           <strong v-else>Not yet</strong>
         </div>
         <RouterLink v-if="accessNeedsAction(job.grant_status)" :to="{ path: '/jobs', query: { review: String(job.id) } }" class="job-status-action">
-          <StatusPill :status="job.grant_status" :label="accessLabel(job.grant_status)" /> Review access <i class="mdi mdi-arrow-right" />
+          <StatusPill :status="job.grant_status" :label="accessLabel(job.grant_status)" /> Review access <AppIcon name="arrow-right" />
         </RouterLink>
-        <span v-if="!job.repository_enabled" class="job-status-warning"><i class="mdi mdi-alert-outline" /> Repository disabled</span>
+        <span v-if="!job.repository_enabled" class="job-status-warning"><AppIcon name="alert-outline" /> Repository disabled</span>
       </section>
 
       <div class="run-layout">
@@ -147,7 +152,7 @@ useLiveRefresh(loadJob, () => (job.value?.recent_runs ?? []).some((run) => isRun
             <div v-if="job.recent_runs.length" class="data-list">
               <RunRow v-for="run in job.recent_runs" :key="run.id" :run="run" :show-job="false" />
             </div>
-            <div v-else class="empty-state compact"><i class="mdi mdi-history" /><strong>No runs yet</strong><span>Use Run now to try the job, or wait for its schedule.</span></div>
+            <div v-else class="empty-state compact"><AppIcon name="history" /><strong>No runs yet</strong><span>Use Run now to try the job, or wait for its schedule.</span></div>
           </section>
 
           <section v-if="job.capabilities.length" class="panel job-access-panel">

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppIcon from './AppIcon.vue'
 import { nextTick, onMounted, onUnmounted, ref } from 'vue'
 import Button from 'primevue/button'
 import Dialog from 'primevue/dialog'
@@ -41,12 +42,12 @@ onUnmounted(directories.reset)
       <Button
         aria-label="Up one level"
         title="Up one level"
-        icon="pi pi-arrow-up"
         severity="secondary"
         text
         :disabled="!directories.listing?.parent || directories.loading"
-        @click="navigate(directories.listing?.parent ?? '')"
-      />
+        @click="navigate(directories.listing?.parent ?? '')">
+          <template #icon><AppIcon name="arrow-up" /></template>
+        </Button>
       <div ref="currentPath" tabindex="-1" aria-live="polite">
         <span class="directory-label">Current folder</span>
         <code>{{ directories.listing?.path ?? (directories.loading ? 'Loading…' : path || 'Home') }}</code>
@@ -55,7 +56,7 @@ onUnmounted(directories.reset)
     <p v-if="directories.error" class="directory-error" role="alert">{{ directories.error }}</p>
     <nav class="directory-list" aria-label="Directories" :aria-busy="directories.loading">
       <p v-if="directories.loading" class="directory-message" role="status">
-        <i class="pi pi-spinner pi-spin" aria-hidden="true" /> Loading folders…
+        <AppIcon aria-hidden="true" name="loading" spin /> Loading folders…
       </p>
       <button
         v-for="folder in directories.loading ? [] : directories.listing?.directories"
@@ -64,12 +65,12 @@ onUnmounted(directories.reset)
         class="directory-row"
         @click="navigate(folder.path)"
       >
-        <i class="pi pi-folder directory-icon" aria-hidden="true" />
+        <AppIcon aria-hidden="true" name="folder-outline" class="directory-icon" />
         <span>{{ folder.name }}</span>
-        <i class="pi pi-angle-right directory-chevron" aria-hidden="true" />
+        <AppIcon aria-hidden="true" name="chevron-right" class="directory-chevron" />
       </button>
       <p v-if="!directories.loading && directories.listing?.directories.length === 0" class="directory-message">
-        <i class="pi pi-folder-open" aria-hidden="true" /> No subfolders. You can select this folder.
+        <AppIcon aria-hidden="true" name="folder-open-outline" /> No subfolders. You can select this folder.
       </p>
     </nav>
     <template #footer>
@@ -77,10 +78,10 @@ onUnmounted(directories.reset)
       <Button label="Cancel" severity="secondary" outlined @click="visible = false" />
       <Button
         label="Use this folder"
-        icon="pi pi-check"
         :disabled="!directories.listing || directories.loading"
-        @click="chooseDirectory"
-      />
+        @click="chooseDirectory">
+          <template #icon><AppIcon name="check" /></template>
+        </Button>
     </template>
   </Dialog>
 </template>

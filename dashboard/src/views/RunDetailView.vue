@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppIcon from '../components/AppIcon.vue'
 import { computed, nextTick, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Button from 'primevue/button'
@@ -108,12 +109,14 @@ onUnmounted(stopPolling)
 <template>
   <div class="page">
     <PageHeader :title="`Run #${runId}`" :description="subtitle">
-      <RouterLink to="/runs" class="secondary-action"><i class="mdi mdi-arrow-left" /> Runs</RouterLink>
-      <Button v-if="run && !active && app.can(Action.RunJobs)" label="Run again" icon="pi pi-replay" :loading="rerunning" @click="runAgain" />
+      <RouterLink to="/runs" class="secondary-action"><AppIcon name="arrow-left" /> Runs</RouterLink>
+      <Button v-if="run && !active && app.can(Action.RunJobs)" label="Run again" :loading="rerunning" @click="runAgain">
+        <template #icon><AppIcon name="replay" /></template>
+      </Button>
     </PageHeader>
 
-    <div v-if="loading" class="panel empty-state"><i class="mdi mdi-loading mdi-spin" /><strong>Loading run</strong></div>
-    <div v-else-if="!run" class="panel empty-state"><i class="mdi mdi-alert-outline" /><strong>Run unavailable</strong><span>{{ error }}</span></div>
+    <div v-if="loading" class="panel empty-state"><AppIcon name="loading" spin /><strong>Loading run</strong></div>
+    <div v-else-if="!run" class="panel empty-state"><AppIcon name="alert-outline" /><strong>Run unavailable</strong><span>{{ error }}</span></div>
     <template v-else>
       <p v-if="error" class="page-error">{{ error }}</p>
 
@@ -125,11 +128,11 @@ onUnmounted(stopPolling)
           <code class="run-stat-quiet" :title="run.commit_sha">{{ run.commit_sha.slice(0, 7) }}</code>
         </div>
         <p v-if="run.failure" class="run-headline run-failure-headline">
-          <span class="failure-label"><i class="mdi" :class="run.status === 'canceled' ? 'mdi-cancel' : 'mdi-alert-circle-outline'" />{{ run.failure.label }}</span>
+          <span class="failure-label"><AppIcon :name="run.status === 'canceled' ? 'cancel' : 'alert-circle-outline'" />{{ run.failure.label }}</span>
           <span>{{ run.failure.reason }}</span>
-          <RouterLink v-if="run.failure.limit" :to="{ path: `/jobs/${run.job_id}`, hash: '#limits' }" class="detail-link">Change this job's limits <i class="mdi mdi-arrow-right" /></RouterLink>
+          <RouterLink v-if="run.failure.limit" :to="{ path: `/jobs/${run.job_id}`, hash: '#limits' }" class="detail-link">Change this job's limits <AppIcon name="arrow-right" /></RouterLink>
         </p>
-        <p v-else-if="active" class="run-headline run-active-note"><i class="mdi mdi-loading mdi-spin" /> {{ activeNote }}</p>
+        <p v-else-if="active" class="run-headline run-active-note"><AppIcon name="loading" spin /> {{ activeNote }}</p>
       </section>
 
       <div class="run-layout">
@@ -143,25 +146,25 @@ onUnmounted(stopPolling)
               </li>
               <li v-if="active" class="pending"><time>…</time><span>Waiting for the next step</span></li>
             </ol>
-            <div v-else class="empty-state compact"><i class="mdi mdi-timer-sand" /><strong>Nothing has happened yet</strong><span>Steps appear as soon as a worker starts the run.</span></div>
+            <div v-else class="empty-state compact"><AppIcon name="timer-sand" /><strong>Nothing has happened yet</strong><span>Steps appear as soon as a worker starts the run.</span></div>
           </section>
 
           <section v-if="run.output_excerpt || !run.failure" class="panel job-runs-panel run-report-panel">
             <div class="panel-heading">
               <div><h2>Report</h2><p v-if="excerptOnly">Showing the end of the report.</p></div>
               <div v-if="outputFile" class="run-report-actions">
-                <RouterLink :to="`/runs/${run.id}/files/output`" class="detail-link">Open <i class="mdi mdi-arrow-top-right" /></RouterLink>
-                <a :href="runFileUrl(run.id, 'output', true)" class="detail-link" download>Download <i class="mdi mdi-download" /></a>
+                <RouterLink :to="`/runs/${run.id}/files/output`" class="detail-link">Open <AppIcon name="arrow-top-right" /></RouterLink>
+                <a :href="runFileUrl(run.id, 'output', true)" class="detail-link" download>Download <AppIcon name="download" /></a>
               </div>
             </div>
             <template v-if="run.output_excerpt">
               <!-- eslint-disable-next-line vue/no-v-html -- sanitized by renderMarkdown -->
               <article ref="reportElement" class="markdown-body run-report" :class="{ collapsed: reportOverflows && !reportExpanded }" v-html="reportHtml" />
               <button v-if="reportOverflows" type="button" class="run-report-toggle" @click="reportExpanded = !reportExpanded">
-                {{ reportExpanded ? 'Show less' : 'Show full report' }} <i class="mdi" :class="reportExpanded ? 'mdi-chevron-up' : 'mdi-chevron-down'" />
+                {{ reportExpanded ? 'Show less' : 'Show full report' }} <AppIcon :name="reportExpanded ? 'chevron-up' : 'chevron-down'" />
               </button>
             </template>
-            <div v-else class="empty-state compact"><i class="mdi mdi-text-box-outline" /><strong>{{ active ? 'The report appears when the run finishes' : 'No report' }}</strong></div>
+            <div v-else class="empty-state compact"><AppIcon name="text-box-outline" /><strong>{{ active ? 'The report appears when the run finishes' : 'No report' }}</strong></div>
           </section>
 
           <details v-if="!timelineOpen" class="panel run-timeline-fold">

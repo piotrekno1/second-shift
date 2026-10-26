@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppIcon from './AppIcon.vue'
 import { computed } from 'vue'
 import type { Run } from '../types'
 import { formatCost, formatDate, formatSeconds, jobOutcomes, runSeconds, statusLabel } from '../utils/format'
@@ -13,11 +14,11 @@ const RADIUS = 2
 
 const outcomes = computed(() => jobOutcomes(props.runs))
 const ICONS: Record<Run['status'], string> = {
-  succeeded: 'mdi-check',
-  failed: 'mdi-close',
-  canceled: 'mdi-minus',
-  running: 'mdi-loading mdi-spin',
-  queued: 'mdi-dots-horizontal',
+  succeeded: 'check',
+  failed: 'close',
+  canceled: 'minus',
+  running: 'loading',
+  queued: 'dots-horizontal',
 }
 
 function describe(run: Run): string {
@@ -64,7 +65,7 @@ const rateText = computed(() => (outcomes.value.successRate === null ? '—' : `
     <ol class="outcome-strip">
       <li v-for="run in outcomes.chronological" :key="run.id">
         <RouterLink :to="`/runs/${run.id}`" class="outcome-mark" :class="run.status" :title="describe(run)" :aria-label="describe(run)">
-          <i class="mdi" :class="ICONS[run.status]" />
+          <AppIcon :name="ICONS[run.status]" :spin="run.status === 'running'" />
         </RouterLink>
       </li>
     </ol>

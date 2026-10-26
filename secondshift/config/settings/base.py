@@ -29,6 +29,7 @@ from secondshift.config.constants import (
     Service,
 )
 from secondshift.config.first_run import write_generated_env
+from secondshift.core.static_storage import immutable_static_file
 
 # The secondshift package, and the checkout that contains it.
 PACKAGE_DIR = Path(__file__).resolve().parents[2]
@@ -208,6 +209,7 @@ DBOS_WORKER_CONCURRENCY = env.int("DBOS_WORKER_CONCURRENCY", default=2)
 
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+WHITENOISE_IMMUTABLE_FILE_TEST = immutable_static_file
 # The built dashboard. In a checkout also its source assets, so admin has its
 # icon before the first build.
 STATICFILES_DIRS = [
@@ -257,7 +259,7 @@ STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
     "run_artifacts": ARTIFACT_STORAGES[ARTIFACT_STORAGE],
     "staticfiles": {
-        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"
+        "BACKEND": "secondshift.core.static_storage.StaticFilesStorage"
     },
 }
 

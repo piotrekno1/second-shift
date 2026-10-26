@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppIcon from './AppIcon.vue'
 import type { RouteLocationRaw } from 'vue-router'
 
 // With `to`, the card opens what its number counts.
@@ -7,9 +8,9 @@ defineProps<{ label: string; value: number | string; detail: string; icon: strin
 
 <template>
   <component :is="to ? 'RouterLink' : 'article'" :to="to" class="stat-card" :class="[tone ?? 'violet', { linked: to }]">
-    <div class="stat-icon"><i class="mdi" :class="icon" /></div>
+    <div class="stat-icon"><AppIcon :name="icon" /></div>
     <span>{{ label }}</span>
     <strong>{{ value }}</strong>
-    <small>{{ detail }}<i v-if="to" class="mdi mdi-arrow-right stat-arrow" /></small>
+    <small>{{ detail }}<AppIcon v-if="to"   name="arrow-right" class="stat-arrow" /></small>
   </component>
 </template>

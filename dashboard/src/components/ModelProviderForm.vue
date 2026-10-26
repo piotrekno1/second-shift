@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppIcon from './AppIcon.vue'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
@@ -148,7 +149,9 @@ async function submit(): Promise<void> {
     </label>
     <div v-if="modelError" class="need-setup-wide model-discovery">
       <p class="field-error" role="alert">{{ modelError }}</p>
-      <Button type="button" label="Retry loading models" icon="pi pi-refresh" severity="secondary" size="small" :disabled="!discoveryReady" @click="loadModels" />
+      <Button type="button" label="Retry loading models" severity="secondary" size="small" :disabled="!discoveryReady" @click="loadModels">
+        <template #icon><AppIcon name="refresh" /></template>
+      </Button>
     </div>
     <div class="model-field">
       <label for="allowed-models">Allowed models</label>
@@ -168,10 +171,12 @@ async function submit(): Promise<void> {
 
     <p v-if="error" class="need-notice need-setup-wide">{{ error }}</p>
     <div class="need-setup-footer">
-      <small><i class="mdi mdi-lock-outline" /> The key is encrypted at rest and never shown again.</small>
+      <small><AppIcon name="lock-outline" /> The key is encrypted at rest and never shown again.</small>
       <div class="need-actions">
         <Button label="Cancel" severity="secondary" text size="small" @click="emit('cancel')" />
-        <Button type="submit" :label="editing ? 'Save and check' : 'Connect and check'" icon="pi pi-check" :loading="saving" :disabled="!canSubmit" />
+        <Button type="submit" :label="editing ? 'Save and check' : 'Connect and check'" :loading="saving" :disabled="!canSubmit">
+          <template #icon><AppIcon name="check" /></template>
+        </Button>
       </div>
     </div>
   </form>

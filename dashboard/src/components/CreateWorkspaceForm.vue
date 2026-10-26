@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppIcon from './AppIcon.vue'
 import { ref } from 'vue'
 import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
@@ -25,7 +26,9 @@ async function create(): Promise<void> {
   <form class="create-workspace" @submit.prevent="create">
     <div class="create-workspace-row">
       <InputText v-model="name" maxlength="160" placeholder="Workspace name, e.g. Platform team" aria-label="Workspace name" autofocus />
-      <Button type="submit" label="Create workspace" icon="mdi mdi-plus" :loading="busy" :disabled="!name.trim()" />
+      <Button type="submit" label="Create workspace" :loading="busy" :disabled="!name.trim()">
+        <template #icon><AppIcon name="plus" /></template>
+      </Button>
     </div>
     <p v-if="error" class="page-error">{{ error }}</p>
   </form>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppIcon from './AppIcon.vue'
 import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { signOut } from '../services/api'
@@ -12,12 +13,12 @@ const app = useAppStore()
 const mobileOpen = ref(false)
 
 const navigation = [
-  { label: 'Overview', to: '/', icon: 'mdi-view-dashboard-outline' },
-  { label: 'Repositories', to: '/repositories', icon: 'mdi-source-repository' },
-  { label: 'Jobs', to: '/jobs', icon: 'mdi-calendar-clock-outline' },
-  { label: 'Runs', to: '/runs', icon: 'mdi-play-circle-outline' },
-  { label: 'Connections', to: '/connections', icon: 'mdi-connection' },
-  { label: 'Settings', to: '/settings', icon: 'mdi-cog-outline' },
+  { label: 'Overview', to: '/', icon: 'view-dashboard-outline' },
+  { label: 'Repositories', to: '/repositories', icon: 'source-repository' },
+  { label: 'Jobs', to: '/jobs', icon: 'calendar-clock-outline' },
+  { label: 'Runs', to: '/runs', icon: 'play-circle-outline' },
+  { label: 'Connections', to: '/connections', icon: 'connection' },
+  { label: 'Settings', to: '/settings', icon: 'cog-outline' },
 ]
 
 const initials = computed(() => (app.user?.email ?? 'SS').slice(0, 2).toUpperCase())
@@ -38,7 +39,7 @@ async function handleSignOut(): Promise<void> {
 <template>
   <div class="app-shell">
     <button class="mobile-menu" aria-label="Open navigation" @click="mobileOpen = !mobileOpen">
-      <i class="mdi mdi-menu" />
+      <AppIcon name="menu" />
     </button>
     <aside class="sidebar" :class="{ open: mobileOpen }">
       <RouterLink to="/" class="brand" @click="mobileOpen = false">
@@ -59,7 +60,7 @@ async function handleSignOut(): Promise<void> {
           :class="{ active: route.path === item.to }"
           @click="mobileOpen = false"
         >
-          <i class="mdi" :class="item.icon" />
+          <AppIcon :name="item.icon" />
           <span>{{ item.label }}</span>
         </RouterLink>
       </nav>
@@ -80,7 +81,7 @@ async function handleSignOut(): Promise<void> {
             :disabled="signingOut"
             @click="handleSignOut"
           >
-            <i class="mdi mdi-logout" />
+            <AppIcon name="logout" />
           </button>
         </div>
       </div>

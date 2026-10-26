@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppIcon from './AppIcon.vue'
 import { computed, onMounted, ref } from 'vue'
 import Dialog from 'primevue/dialog'
 import Menu from 'primevue/menu'
@@ -21,7 +22,7 @@ const canSwitch = computed(() => workspaces.value.length > 1 || canCreate.value)
 const items = computed<MenuItem[]>(() => {
   const choices: MenuItem[] = workspaces.value.map((workspace) => ({
     label: workspace.name,
-    icon: workspace.current ? 'mdi mdi-check' : 'mdi mdi-blank',
+    icon: workspace.current ? 'check' : 'blank',
     class: workspace.current ? 'current' : undefined,
     command: () => switchTo(workspace),
   }))
@@ -29,7 +30,7 @@ const items = computed<MenuItem[]>(() => {
   return [
     ...choices,
     { separator: true },
-    { label: 'New workspace', icon: 'mdi mdi-plus', command: () => { creating.value = true } },
+    { label: 'New workspace', icon: 'plus', command: () => { creating.value = true } },
   ]
 })
 
@@ -60,12 +61,14 @@ onMounted(async () => {
     @click="menu?.toggle($event)"
   >
     <span class="workspace-name"><strong>{{ app.user?.workspace_name }}</strong><small>{{ roleLabel }}</small></span>
-    <i class="mdi mdi-unfold-more-horizontal" />
+    <AppIcon name="unfold-more-horizontal" />
   </button>
   <div v-else class="workspace-switcher static">
     <span class="workspace-name"><strong>{{ app.user?.workspace_name }}</strong><small>{{ roleLabel }}</small></span>
   </div>
-  <Menu id="workspace-menu" ref="menu" :model="items" popup class="workspace-menu" />
+  <Menu id="workspace-menu" ref="menu" :model="items" popup class="workspace-menu">
+    <template #itemicon="{ item, class: iconClass }"><AppIcon :name="item.icon" :class="iconClass" /></template>
+  </Menu>
   <Dialog v-model:visible="creating" modal header="New workspace" :style="{ width: 'min(480px, calc(100vw - 32px))' }">
     <p class="dialog-lead">You will own it and can invite people from its Settings page.</p>
     <CreateWorkspaceForm />
