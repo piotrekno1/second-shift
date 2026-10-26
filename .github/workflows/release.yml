@@ -90,6 +90,7 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           name: release-wheel
@@ -115,6 +116,11 @@ jobs:
           secondshift up
           \`\`\`
           EOF
+          version_notes="docs/releases/${RELEASE_TAG#v}.md"
+          if [[ -f "$version_notes" ]]; then
+            printf '\n' >> release-notes.md
+            cat "$version_notes" >> release-notes.md
+          fi
           flags=()
           if [[ "$RELEASE_TAG" =~ (a|b|rc)[0-9]+$ ]]; then
             flags+=(--prerelease --latest=false)

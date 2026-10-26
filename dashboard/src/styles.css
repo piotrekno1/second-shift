@@ -42,16 +42,29 @@ h1, h2, .brand strong, .stat-card strong { font-family: 'Manrope', system-ui, sa
 .brand strong { font-size: 18px; letter-spacing: -.03em; }
 .brand span { margin-top: 2px; color: var(--subtle); font-size: 11px; text-transform: uppercase; letter-spacing: .12em; }
 .workspace-switcher { width: 100%; margin: 0 0 18px; display: flex; align-items: center; gap: 10px; padding: 10px 13px; border: 1px solid var(--border); border-radius: 12px; background: rgba(255,255,255,.025); color: var(--ink); font: inherit; text-align: left; cursor: pointer; transition: .18s ease; }
-.workspace-switcher:hover { background: rgba(139,124,255,.08); }
+.workspace-switcher:hover, .workspace-switcher.is-open { background: rgba(139,124,255,.08); border-color: rgba(139,124,255,.3); }
+.workspace-switcher:focus-visible { outline: 2px solid var(--violet); outline-offset: 3px; }
 .workspace-switcher.static { cursor: default; }
 .workspace-switcher.static:hover { background: rgba(255,255,255,.025); }
 .workspace-switcher .app-icon { color: var(--subtle); font-size: 18px; }
 .workspace-name { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .workspace-name strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
 .workspace-name small { color: var(--subtle); font-size: 11px; }
-.workspace-menu { min-width: 220px; }
-.workspace-menu .p-menu-item-icon { width: 16px; text-align: center; }
-.workspace-menu .current .p-menu-item-label { color: var(--violet-soft); font-weight: 600; }
+.workspace-avatar { display: grid; place-items: center; flex: 0 0 32px; width: 32px; height: 32px; border: 1px solid rgba(139,124,255,.18); border-radius: 9px; background: rgba(139,124,255,.12); color: var(--violet-soft); font-size: 11px; font-weight: 700; }
+.workspace-name { gap: 3px; }
+body .workspace-menu { width: 280px; max-width: calc(100vw - 32px); padding: 6px; border: 1px solid var(--border); border-radius: 14px; background: var(--night-850); color: var(--ink); box-shadow: var(--shadow); }
+.workspace-menu-heading { padding: 8px 10px 10px; color: var(--muted); font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+body .workspace-menu .p-menu-list { gap: 4px; padding: 0; max-height: min(400px, 60vh); overflow-y: auto; }
+body .workspace-menu .p-menu-item-content { border-radius: 9px; color: var(--ink); background: transparent; }
+body .workspace-menu .p-menu-item:not(.p-disabled) .p-menu-item-content:hover, body .workspace-menu .p-menu-item.p-focus .p-menu-item-content { color: var(--ink); background: rgba(139,124,255,.1); }
+body .workspace-menu .current .p-menu-item-content { background: rgba(139,124,255,.08); }
+body .workspace-menu .workspace-option { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 9px 10px; color: inherit; }
+.workspace-option-copy { display: flex; flex: 1; flex-direction: column; gap: 3px; min-width: 0; }
+.workspace-option-copy strong { overflow-wrap: anywhere; font-size: 13px; font-weight: 600; line-height: 1.4; }
+.workspace-option-copy small { color: var(--muted); font-size: 11px; }
+.workspace-current-check { flex-shrink: 0; color: var(--violet-soft); font-size: 18px; }
+.workspace-create-icon { display: grid; place-items: center; flex: 0 0 32px; height: 28px; color: var(--muted); font-size: 18px; }
+body .workspace-menu .p-menu-separator { margin: 4px 10px; border-top-color: var(--border); }
 .create-workspace { display: grid; gap: 10px; width: 100%; }
 .create-workspace-row { display: flex; gap: 10px; flex-wrap: wrap; }
 .create-workspace-row .p-inputtext { flex: 1 1 220px; }

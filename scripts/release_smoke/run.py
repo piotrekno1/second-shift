@@ -307,6 +307,8 @@ class App:
             if not key.startswith(("DJANGO_", "SECONDSHIFT_", "DATABASE_"))
         }
         self.env["SECONDSHIFT_DATA_DIR"] = str(root / "data")
+        self.env["SECONDSHIFT_MODEL_GATEWAY_URL"] = f"http://127.0.0.1:{self.port + 1}"
+        self.env["SECONDSHIFT_RUNNER_SERVICE_URL"] = f"http://127.0.0.1:{self.port + 2}"
         self.process: subprocess.Popen[bytes] | None = None
 
     def start(self) -> None:

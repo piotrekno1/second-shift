@@ -14,6 +14,7 @@ const app = useAppStore()
 const workspaces = ref<WorkspaceChoice[]>([])
 const menu = ref<InstanceType<typeof Menu> | null>(null)
 const creating = ref(false)
+const menuOpen = ref(false)
 
 const canCreate = computed(() => app.user?.can_create_workspace ?? false)
 // With one workspace and nothing to create there is nothing to choose.
@@ -22,7 +23,9 @@ const canSwitch = computed(() => workspaces.value.length > 1 || canCreate.value)
 const items = computed<MenuItem[]>(() => {
   const choices: MenuItem[] = workspaces.value.map((workspace) => ({
     label: workspace.name,
-    icon: workspace.current ? 'check' : 'blank',
+    workspaceRole: statusLabel(workspace.role),
+    initials: workspace.name.slice(0, 2).toUpperCase(),
+    current: workspace.current,
     class: workspace.current ? 'current' : undefined,
     command: () => switchTo(workspace),
   }))
@@ -56,18 +59,31 @@ onMounted(async () => {
     v-if="canSwitch"
     type="button"
     class="workspace-switcher"
-    aria-haspopup="true"
+    :class="{ 'is-open': menuOpen }"
+    aria-label="Switch workspace"
+    aria-haspopup="menu"
+    :aria-expanded="menuOpen"
     aria-controls="workspace-menu"
     @click="menu?.toggle($event)"
   >
+    <span class="workspace-avatar" aria-hidden="true">{{ app.user?.workspace_name?.slice(0, 2).toUpperCase() }}</span>
     <span class="workspace-name"><strong>{{ app.user?.workspace_name }}</strong><small>{{ roleLabel }}</small></span>
     <AppIcon name="unfold-more-horizontal" />
   </button>
   <div v-else class="workspace-switcher static">
+    <span class="workspace-avatar" aria-hidden="true">{{ app.user?.workspace_name?.slice(0, 2).toUpperCase() }}</span>
     <span class="workspace-name"><strong>{{ app.user?.workspace_name }}</strong><small>{{ roleLabel }}</small></span>
   </div>
-  <Menu id="workspace-menu" ref="menu" :model="items" popup class="workspace-menu">
-    <template #itemicon="{ item, class: iconClass }"><AppIcon :name="item.icon" :class="iconClass" /></template>
+  <Menu id="workspace-menu" ref="menu" :model="items" popup class="workspace-menu" @show="menuOpen = true" @hide="menuOpen = false">
+    <template #start><div class="workspace-menu-heading">Workspaces</div></template>
+    <template #item="{ item, props }">
+      <a v-bind="props.action" class="workspace-option" :aria-current="item.current ? 'true' : undefined">
+        <span v-if="item.workspaceRole" class="workspace-avatar" aria-hidden="true">{{ item.initials }}</span>
+        <span v-else class="workspace-create-icon"><AppIcon name="plus" /></span>
+        <span class="workspace-option-copy"><strong>{{ item.label }}</strong><small v-if="item.workspaceRole">{{ item.workspaceRole }}</small></span>
+        <AppIcon v-if="item.current" name="check" class="workspace-current-check" />
+      </a>
+    </template>
   </Menu>
   <Dialog v-model:visible="creating" modal header="New workspace" :style="{ width: 'min(480px, calc(100vw - 32px))' }">
     <p class="dialog-lead">You will own it and can invite people from its Settings page.</p>

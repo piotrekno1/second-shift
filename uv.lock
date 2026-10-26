@@ -1100,7 +1100,7 @@ wheels = [
 
 [[package]]
 name = "secondshift"
-version = "0.1.0a6"
+version = "0.1.0b1"
 source = { editable = "." }
 dependencies = [
     { name = "anthropic" },
