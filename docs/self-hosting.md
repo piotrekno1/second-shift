@@ -114,7 +114,7 @@ Full run output is stored outside Postgres in private storage, under
 - `filesystem` (default): files under `SECONDSHIFT_ARTIFACT_ROOT`. Mount a
   persistent volume there in production.
 - `s3`: any S3-compatible service. Configure the `SECONDSHIFT_ARTIFACT_*`
-  variables in `.env.example`. To try it locally, set `COMPOSE_PROFILES=s3` and
+  variables in the [environment reference](environment-variables.md). To try it locally, set `COMPOSE_PROFILES=s3` and
   `SECONDSHIFT_ARTIFACT_STORAGE=s3`. Run `process-compose up` to start RustFS and
   let `bootstrap_dev` create the bucket.
 
