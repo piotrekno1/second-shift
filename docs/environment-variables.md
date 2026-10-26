@@ -152,18 +152,13 @@ HTTP shutdown grace.
 addresses for their local services. `secondshift up` also disables access logs,
 uses warning-level server logs and runs one gateway process.
 
-In development and local mode, listeners default to loopback. Gateway and runner
-ports follow `SECONDSHIFT_MODEL_GATEWAY_URL` and `SECONDSHIFT_RUNNER_SERVICE_URL`
-when configured. In production, set `SECONDSHIFT_HTTP_BIND` in each service's
-own env file if changing its listen address. Update the worker's corresponding
-service URL too. Public URLs can point through a proxy and do not set listen ports.
+Set `SECONDSHIFT_HTTP_BIND` separately for each HTTP process. The local launcher
+and process-compose set loopback listeners. If you change a gateway or runner
+listener, set the matching service URL so the worker can reach it.
 
-For `secondshift up`, `SECONDSHIFT_HTTP_BIND` selects the web address. Explicit
-`--host` and `--port` options override it. Internal service URLs must use HTTP on
-`localhost` or `127.0.0.1`. Without overrides, internal ports follow the web port
-at offsets +1 for gateway and +2 for runner.
+`secondshift up` reads the gateway and runner URLs from Django settings.
+Its web address comes from `SECONDSHIFT_HTTP_BIND`, with explicit `--host`
+and `--port` options taking precedence. Internal services must use HTTP on
+`localhost` or `127.0.0.1`.
 
-Do not set one shared `SECONDSHIFT_HTTP_BIND` for every process in
-process-compose. Set the gateway and runner URLs in the checkout's `.env`
-instead. For a different web port, set its bind only for the backend process and
-adjust `VITE_PROXY_API` to match.
+Public URLs can point through a proxy and do not set listen ports.

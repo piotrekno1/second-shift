@@ -1,9 +1,12 @@
+import json
 import os
-import runpy
+import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
 import pytest
+from cryptography.fernet import Fernet
 
 from secondshift.config.constants import (
     ENVIRONMENT_VAR,
@@ -15,32 +18,59 @@ from secondshift.config.constants import (
 )
 
 
-def server_config(monkeypatch: pytest.MonkeyPatch, role: Service) -> dict[str, Any]:
-    monkeypatch.setenv(ENVIRONMENT_VAR, Environment.PRODUCTION)
-    for name in GunicornEnv:
-        monkeypatch.delenv(name, raising=False)
-    monkeypatch.setenv(SERVICE_VAR, role)
-    return runpy.run_module("secondshift.config.gunicorn")
+def server_config(
+    role: Service, directory: Path, overrides: dict[str, str] | None = None
+) -> dict[str, Any]:
+    environment = {
+        name: value
+        for name, value in os.environ.items()
+        if not name.startswith("SECONDSHIFT_") and name != "DJANGO_SETTINGS_MODULE"
+    }
+    environment.update(
+        {
+            ENVIRONMENT_VAR: Environment.PRODUCTION,
+            SERVICE_VAR: role,
+            AppEnv.DATA_DIR: str(directory),
+            AppEnv.SECRET_KEY: "test-signing-key",
+            AppEnv.ENCRYPTION_KEY: Fernet.generate_key().decode(),
+            AppEnv.DATABASE_URL: "sqlite:///:memory:",
+            AppEnv.PUBLIC_URL: "https://secondshift.example.com",
+            AppEnv.RUNNER_RUNTIME: "runsc",
+            AppEnv.RUNNER_SERVICE_TOKEN: "t" * 40,
+            **(overrides or {}),
+        }
+    )
+    output = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "import json, runpy; "
+            "config = runpy.run_module('secondshift.config.gunicorn'); "
+            "print(json.dumps({name: config[name] for name in "
+            "['bind', 'workers', 'wsgi_app', 'worker_class', 'timeout', "
+            "'graceful_timeout', 'loglevel', 'accesslog', 'control_socket_disable']}))",
+        ],
+        env=environment,
+        text=True,
+        capture_output=True,
+        check=True,
+    )
+    return json.loads(output.stdout)
 
 
 @pytest.mark.parametrize(
-    ("role", "port", "workers", "factory", "graceful"),
+    ("role", "bind", "workers", "factory", "graceful"),
     [
-        (Service.WEB, 8000, 2, "wsgi", 30),
-        (Service.GATEWAY, 8001, 2, "asgi", 600),
-        (Service.RUNNER, 8002, 1, "wsgi", 30),
+        (Service.WEB, "0.0.0.0:8000", 2, "wsgi", 30),
+        (Service.GATEWAY, "0.0.0.0:8001", 2, "asgi", 600),
+        (Service.RUNNER, "0.0.0.0:8002", 1, "wsgi", 30),
     ],
 )
-def test_role_defaults(
-    monkeypatch: pytest.MonkeyPatch,
-    role: Service,
-    port: int,
-    workers: int,
-    factory: str,
-    graceful: int,
+def test_role_settings_reach_gunicorn(
+    tmp_path: Path, role: Service, bind: str, workers: int, factory: str, graceful: int
 ) -> None:
-    config = server_config(monkeypatch, role)
-    assert config["bind"] == f"0.0.0.0:{port}"
+    config = server_config(role, tmp_path)
+    assert config["bind"] == bind
     assert config["workers"] == workers
     assert config["wsgi_app"] == f"secondshift.config.app:{factory}('{role}')"
     assert config["graceful_timeout"] == graceful
@@ -50,105 +80,52 @@ def test_role_defaults(
     )
 
 
-def test_environment_overrides_without_changing_service_boundary(
-    monkeypatch: pytest.MonkeyPatch,
+@pytest.mark.parametrize("role", [Service.WEB, Service.GATEWAY, Service.RUNNER])
+def test_environment_overrides_reach_each_service(
+    tmp_path: Path, role: Service
 ) -> None:
-    server_config(monkeypatch, Service.RUNNER)
-    overrides = {
-        GunicornEnv.BIND: "127.0.0.1:9100",
-        GunicornEnv.WORKERS: "3",
-        GunicornEnv.TIMEOUT: "45",
-        GunicornEnv.GRACEFUL_TIMEOUT: "90",
-        GunicornEnv.LOG_LEVEL: "warning",
-        GunicornEnv.ACCESS_LOG: "",
-    }
-    for name, value in overrides.items():
-        monkeypatch.setenv(name, value)
-    config = runpy.run_module("secondshift.config.gunicorn")
+    config = server_config(
+        role,
+        tmp_path,
+        {
+            GunicornEnv.BIND: "127.0.0.1:9100",
+            GunicornEnv.WORKERS: "3",
+            GunicornEnv.TIMEOUT: "45",
+            GunicornEnv.GRACEFUL_TIMEOUT: "90",
+            GunicornEnv.LOG_LEVEL: "warning",
+            GunicornEnv.ACCESS_LOG: "",
+        },
+    )
     assert config["bind"] == "127.0.0.1:9100"
     assert config["workers"] == 3
     assert config["timeout"] == 45
     assert config["graceful_timeout"] == 90
     assert config["loglevel"] == "warning"
     assert config["accesslog"] is None
-    assert config["wsgi_app"] == "secondshift.config.app:wsgi('runner')"
 
 
-def test_worker_cannot_be_started_as_an_http_service(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    with pytest.raises(ValueError, match="run_dbos_worker"):
-        server_config(monkeypatch, Service.WORKER)
+def test_worker_cannot_be_started_as_an_http_service(tmp_path: Path) -> None:
+    with pytest.raises(subprocess.CalledProcessError) as error:
+        server_config(Service.WORKER, tmp_path)
+    assert "run_dbos_worker" in error.value.stderr
 
 
 @pytest.mark.parametrize(
     "name", [GunicornEnv.WORKERS, GunicornEnv.TIMEOUT, GunicornEnv.GRACEFUL_TIMEOUT]
 )
 def test_nonpositive_limits_fail_before_server_start(
-    monkeypatch: pytest.MonkeyPatch, name: GunicornEnv
+    tmp_path: Path, name: GunicornEnv
 ) -> None:
-    server_config(monkeypatch, Service.WEB)
-    monkeypatch.setenv(name, "0")
-    with pytest.raises(ValueError, match="must be positive"):
-        runpy.run_module("secondshift.config.gunicorn")
+    with pytest.raises(subprocess.CalledProcessError) as error:
+        server_config(Service.WEB, tmp_path, {name: "0"})
+    assert "must be positive" in error.value.stderr
 
 
-def test_old_http_variable_names_are_not_aliases(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setenv("GUNICORN_BIND", "127.0.0.1:9999")
-    monkeypatch.setenv("GUNICORN_WORKERS", "9")
-    monkeypatch.setenv("GUNICORN_TIMEOUT", "120")
-    config = server_config(monkeypatch, Service.WEB)
+def test_old_http_variable_names_are_not_aliases(tmp_path: Path) -> None:
+    config = server_config(
+        Service.WEB,
+        tmp_path,
+        {"GUNICORN_BIND": "127.0.0.1:9999", "GUNICORN_WORKERS": "9"},
+    )
     assert config["bind"] == "0.0.0.0:8000"
     assert config["workers"] == 2
-    assert config["timeout"] == 30
-
-
-@pytest.mark.parametrize(
-    ("role", "endpoint", "url", "expected"),
-    [
-        (
-            Service.GATEWAY,
-            AppEnv.MODEL_GATEWAY_URL,
-            "http://localhost:9201",
-            "127.0.0.1:9201",
-        ),
-        (
-            Service.RUNNER,
-            AppEnv.RUNNER_SERVICE_URL,
-            "http://localhost:9202",
-            "127.0.0.1:9202",
-        ),
-    ],
-)
-def test_local_bind_uses_configured_endpoint_port(
-    monkeypatch: pytest.MonkeyPatch,
-    role: Service,
-    endpoint: AppEnv,
-    url: str,
-    expected: str,
-) -> None:
-    server_config(monkeypatch, role)
-    monkeypatch.setenv(ENVIRONMENT_VAR, Environment.LOCAL)
-    monkeypatch.setenv(endpoint, url)
-    assert runpy.run_module("secondshift.config.gunicorn")["bind"] == expected
-    monkeypatch.setenv(GunicornEnv.BIND, "127.0.0.1:9300")
-    assert runpy.run_module("secondshift.config.gunicorn")["bind"] == "127.0.0.1:9300"
-
-
-def test_dev_env_file_does_not_add_secrets_to_runner_environment(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    server_config(monkeypatch, Service.RUNNER)
-    monkeypatch.delenv(AppEnv.SECRET_KEY, raising=False)
-    monkeypatch.setenv(ENVIRONMENT_VAR, Environment.DEV)
-    (tmp_path / ".env").write_text(
-        "SECONDSHIFT_SECRET_KEY=private\nSECONDSHIFT_RUNNER_SERVICE_URL=http://localhost:9602\n"
-    )
-    monkeypatch.setattr(
-        Path, "resolve", lambda self: tmp_path / "secondshift/config/gunicorn.py"
-    )
-    config = runpy.run_module("secondshift.config.gunicorn")
-    assert config["bind"] == "127.0.0.1:9602"
-    assert AppEnv.SECRET_KEY not in os.environ

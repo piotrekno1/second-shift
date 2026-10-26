@@ -4,6 +4,7 @@ import time
 import click
 import pytest
 from django.core.management import call_command
+from django.test import override_settings
 
 from secondshift.core import launcher
 
@@ -43,7 +44,11 @@ def test_runner_gets_docker_access_and_its_token_but_no_control_plane_keys() -> 
     }
 
 
-def test_services_listen_next_to_the_chosen_port() -> None:
+@override_settings(
+    MODEL_GATEWAY_URL="http://127.0.0.1:9001",
+    RUNNER_SERVICE_URL="http://127.0.0.1:9002",
+)
+def test_services_use_configured_internal_addresses() -> None:
     services = by_name(9000)
 
     assert services["web"].env["SECONDSHIFT_HTTP_BIND"] == "127.0.0.1:9000"
@@ -116,6 +121,10 @@ def test_control_secrets_stay_out_of_runner_and_runner_database_is_forwarded() -
         assert name not in runner.env
 
 
+@override_settings(
+    MODEL_GATEWAY_URL="http://localhost:9501",
+    RUNNER_SERVICE_URL="http://localhost:9502",
+)
 def test_configured_ports_drive_local_services_and_health_checks() -> None:
     parent = {
         **PARENT,
@@ -140,6 +149,7 @@ def test_configured_ports_drive_local_services_and_health_checks() -> None:
     )
 
 
+@override_settings(RUNNER_SERVICE_URL="http://external:9502")
 def test_local_services_reject_external_runner_address() -> None:
     with pytest.raises(ValueError, match="Local service URLs"):
         launcher.services(

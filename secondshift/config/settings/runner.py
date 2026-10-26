@@ -110,3 +110,13 @@ LOGGING = {
         "level": env.str(AppEnv.LOG_LEVEL, default="INFO").upper(),
     },
 }
+
+
+from secondshift.config.settings.http import (  # noqa: E402, F401
+    HTTP_ACCESS_LOG,
+    HTTP_BIND,
+    HTTP_GRACEFUL_TIMEOUT_SECONDS,
+    HTTP_LOG_LEVEL,
+    HTTP_PROCESSES,
+    HTTP_TIMEOUT_SECONDS,
+)

@@ -9,7 +9,6 @@ from pathlib import Path
 from cryptography.fernet import Fernet
 
 from secondshift.config.constants import (
-    DEFAULT_HTTP_PORTS,
     ENVIRONMENT_VAR,
     SERVICE_VAR,
     AppEnv,
@@ -54,9 +53,9 @@ def generate_environment(hostname: str, directory: Path) -> None:
         Service.WORKER: {
             **common,
             **public,
-            AppEnv.RUNNER_SERVICE_URL: f"http://secondshift-runner:{DEFAULT_HTTP_PORTS[Service.RUNNER]}",
+            AppEnv.RUNNER_SERVICE_URL: "http://secondshift-runner:8002",
             AppEnv.RUNNER_SERVICE_TOKEN: token,
-            AppEnv.MODEL_GATEWAY_URL: f"http://secondshift-gateway:{DEFAULT_HTTP_PORTS[Service.GATEWAY]}",
+            AppEnv.MODEL_GATEWAY_URL: "http://secondshift-gateway:8001",
         },
         Service.RUNNER: {
             AppEnv.RUNNER_ALLOWED_HOSTS: "secondshift-runner",

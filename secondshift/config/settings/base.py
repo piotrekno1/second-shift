@@ -22,7 +22,6 @@ from django.utils.csp import CSP
 from environ import Env
 
 from secondshift.config.constants import (
-    DEFAULT_HTTP_PORTS,
     DEFAULT_SANDBOX_IMAGE,
     ENVIRONMENT_VAR,
     SERVICE_VAR,
@@ -415,14 +414,14 @@ RUNNER_IMAGE = env.str(AppEnv.RUNNER_IMAGE, default=DEFAULT_SANDBOX_IMAGE)
 # On a single host the runner and gateway listen next to the web app.
 RUNNER_SERVICE_URL = env.str(
     "SECONDSHIFT_RUNNER_SERVICE_URL",
-    default=f"http://127.0.0.1:{DEFAULT_HTTP_PORTS[Service.RUNNER]}" if SINGLE_HOST else "",
+    default="http://127.0.0.1:8002" if SINGLE_HOST else "",
 )
 RUNNER_SERVICE_TOKEN = env.str(AppEnv.RUNNER_SERVICE_TOKEN, default="")
 # The trusted agent orchestrator calls this internal gateway. Command sandboxes
 # always use --network=none and never receive its run-scoped token.
 MODEL_GATEWAY_URL = env.str(
     "SECONDSHIFT_MODEL_GATEWAY_URL",
-    default=f"http://127.0.0.1:{DEFAULT_HTTP_PORTS[Service.GATEWAY]}" if SINGLE_HOST else "",
+    default="http://127.0.0.1:8001" if SINGLE_HOST else "",
 )
 RUN_TIMEOUT_SECONDS = env.int("SECONDSHIFT_RUN_TIMEOUT_SECONDS", default=900)
 RUN_TIMEOUT_SECONDS_CEILING = env.int(
@@ -473,3 +472,13 @@ if MODEL_RUN_TOKEN_BUDGET_CEILING < MODEL_RUN_TOKEN_BUDGET:
     )
 GATEWAY_MAX_BODY_BYTES = 32 * 1024 * 1024
 GATEWAY_READ_TIMEOUT_SECONDS = 600
+
+
+from secondshift.config.settings.http import (  # noqa: E402, F401
+    HTTP_ACCESS_LOG,
+    HTTP_BIND,
+    HTTP_GRACEFUL_TIMEOUT_SECONDS,
+    HTTP_LOG_LEVEL,
+    HTTP_PROCESSES,
+    HTTP_TIMEOUT_SECONDS,
+)

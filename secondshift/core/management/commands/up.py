@@ -9,7 +9,6 @@ from django.conf import settings
 from django.core.management import call_command
 
 from secondshift.config.constants import (
-    DEFAULT_HTTP_PORTS,
     Environment,
     GunicornEnv,
     Service,
@@ -64,9 +63,7 @@ def command(
             "In a checkout, use process-compose instead."
         )
     parent = dict(os.environ)
-    configured_host, configured_port = launcher.web_address(
-        "127.0.0.1", DEFAULT_HTTP_PORTS[Service.WEB], parent
-    )
+    configured_host, configured_port = launcher.web_address("127.0.0.1", 8000, parent)
     host, port = host or configured_host, port if port is not None else configured_port
     parent.pop(GunicornEnv.BIND, None)
     check_docker()

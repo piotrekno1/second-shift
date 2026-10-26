@@ -15,6 +15,8 @@ from dataclasses import dataclass
 from types import FrameType
 from urllib.parse import urlsplit
 
+from django.conf import settings
+
 from secondshift.config.constants import (
     ENVIRONMENT_VAR,
     GUNICORN_CONFIG,
@@ -95,8 +97,8 @@ def services(
     host: str, port: int, parent: dict[str, str], python: str = sys.executable
 ) -> list[Process]:
     host, port = web_address(host, port, parent)
-    gateway_url = parent.get(AppEnv.MODEL_GATEWAY_URL, f"http://127.0.0.1:{port + 1}")
-    runner_url = parent.get(AppEnv.RUNNER_SERVICE_URL, f"http://127.0.0.1:{port + 2}")
+    gateway_url = settings.MODEL_GATEWAY_URL
+    runner_url = settings.RUNNER_SERVICE_URL
     gateway_port = local_service_port(gateway_url)
     runner_port = local_service_port(runner_url)
     control = {
