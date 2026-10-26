@@ -315,7 +315,7 @@ export interface RunQuery {
 export interface Connection {
   id: number
   provider: 'github' | 'sentry' | 'chatgpt' | 'slack' | 'mcp' | 'api' | 'webhook' | ModelProvider
-  kind: 'identity' | 'mcp' | 'api' | 'notification' | 'model'
+  kind: 'source' | 'identity' | 'mcp' | 'api' | 'notification' | 'model'
   binding_key: string
   display_name: string
   status: 'connected' | 'expired' | 'revoked'

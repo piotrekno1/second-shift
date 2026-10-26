@@ -101,6 +101,10 @@ def revoke_connection(connection: Connection) -> Connection:
 def delete_connection(connection: Connection) -> None:
     if connection.kind == Connection.Kind.IDENTITY:
         raise ConnectionConflict("Sign-in connections are managed by their provider.")
+    if connection.kind == Connection.Kind.SOURCE and connection.repositories.exists():
+        raise ConnectionConflict(
+            "This installation has repository history. Disconnect it instead."
+        )
     # Grants are review records: they return to pending instead of disappearing,
     # so the jobs show up again under "Needed by your jobs".
     connection.job_grants.update(

@@ -18,6 +18,8 @@ PARENT = {
     "SECONDSHIFT_ENCRYPTION_KEY": "key",
     "SECONDSHIFT_DATABASE_URL": "postgres://user:pass@db/app",
     "GITHUB_CLIENT_SECRET": "github",
+    "SECONDSHIFT_GITHUB_APP_PRIVATE_KEY": "github-private-key",
+    "SECONDSHIFT_GITHUB_APP_CLIENT_SECRET": "github-app-secret",
 }
 
 

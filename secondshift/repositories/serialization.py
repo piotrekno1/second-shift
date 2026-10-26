@@ -1,6 +1,9 @@
 from django.http import HttpRequest
 
+from secondshift.connections.models import Connection
 from secondshift.repositories.autosync import server_syncs
+from secondshift.repositories.github_app import GitHubAppError, branch_head
+from secondshift.repositories.github_sync import github_repository_metadata
 from secondshift.repositories.local import (
     LocalRepositoryError,
     inspect_local_repository,
@@ -46,13 +49,35 @@ def serialize_repository(
 
 def validate_repository(repository: Repository) -> RepositoryValidationSchema:
     if repository.source_type != Repository.SourceType.LOCAL:
-        return RepositoryValidationSchema(
-            status="valid",
-            message="GitHub repository metadata is managed by its installation.",
-            current_revision=repository.config_sha or None,
-            synced_revision=repository.config_sha,
-            needs_sync=False,
-        )
+        try:
+            connection = repository.github_connection
+            if not connection or connection.status != Connection.Status.CONNECTED:
+                raise GitHubAppError("The GitHub installation is disconnected.")
+            github_repository_metadata(repository)
+            head = branch_head(
+                connection.external_account_id,
+                int(repository.external_id),
+                repository.default_branch,
+            )
+            valid = bool(repository.config_sha) and not repository.last_sync_error
+            return RepositoryValidationSchema(
+                status="valid" if valid else "error",
+                message="Repository synchronized."
+                if valid
+                else repository.last_sync_error
+                or "Sync the repository before enabling schedules.",
+                current_revision=head,
+                synced_revision=repository.config_sha,
+                needs_sync=head != repository.config_sha,
+            )
+        except GitHubAppError as error:
+            return RepositoryValidationSchema(
+                status="error",
+                message=str(error),
+                current_revision=None,
+                synced_revision=repository.config_sha,
+                needs_sync=False,
+            )
     try:
         metadata = inspect_local_repository(
             repository.local_path, repository.default_branch

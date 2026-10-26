@@ -26,6 +26,7 @@ class Action(StrEnum):
     """Each value finishes the sentence "Only ... can"."""
 
     # Owners: credentials, approvals and the host's files.
+    ADD_GITHUB_REPOSITORIES = "add GitHub repositories"
     ADD_LOCAL_REPOSITORIES = "add local repositories"
     VIEW_LOCAL_PATHS = "see local repository paths"
     ADD_CONNECTIONS = "add connections"

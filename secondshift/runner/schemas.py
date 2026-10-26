@@ -30,3 +30,9 @@ class CommandOutput(Schema):
     exit_code: int | None
     output: str
     timed_out: bool
+
+
+class RepositoryImportInput(StrictSchema):
+    repository: str = Field(min_length=3, max_length=255)
+    commit_sha: str = Field(pattern=r"^[a-f0-9]{40}$")
+    bundle: str = Field(max_length=90 * 1024 * 1024)

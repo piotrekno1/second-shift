@@ -62,3 +62,22 @@ class RepositoryDetailSchema(RepositorySchema):
     server_syncs: bool
     validation: RepositoryValidationSchema
     jobs: list[RepositoryJobSchema]
+
+
+class GitHubRepositoryCreateSchema(Schema):
+    connection_id: int
+    repository_id: int = Field(gt=0)
+    branch: str = Field(default="", max_length=255)
+
+
+class GitHubAvailableRepositorySchema(Schema):
+    connection_id: int
+    repository_id: int
+    full_name: str
+    default_branch: str
+
+
+class GitHubAppStatusSchema(Schema):
+    configured: bool
+    error: str = ""
+    repositories: list[GitHubAvailableRepositorySchema]

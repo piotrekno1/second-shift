@@ -22,6 +22,7 @@ class Connection(models.Model):
 
     class Kind(models.TextChoices):
         IDENTITY = "identity", "Identity"
+        SOURCE = "source", "Repository source"
         MCP = "mcp", "MCP"
         API = "api", "API"
         NOTIFICATION = "notification", "Notification"
