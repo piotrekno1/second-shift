@@ -4,9 +4,9 @@ This single-server example runs SecondShift behind Caddy with HTTPS,
 PostgreSQL and an existing private S3 bucket. It uses
 [`compose.production.yaml`](../compose.production.yaml) on a Linux Docker host.
 
-**Production repository import is still unfinished.** You can start the
-dashboard and services, but cannot yet complete a working repository job through
-this deployment. Use [local mode](../README.md#try-it-out-now) to try jobs today.
+GitHub repositories are imported through a GitHub App. This example targets one
+dedicated server and has downtime during updates. It does not provide high
+availability.
 
 ## Prepare
 
@@ -58,12 +58,35 @@ Optionally configure email and GitHub sign-in in `web.env` using the
 reset messages cannot be sent. Generate these files only once, and retain them
 for upgrades.
 
+## Configure repository access
+
+Register a [GitHub App](github-app.md#register-the-app) with callback URL
+`https://secondshift.example.com/-/github/callback/`, using your hostname.
+Enable user authorization during installation, grant read-only repository
+contents access, and disable webhooks.
+
+Add the same five values to **both `web.env` and `worker.env`**:
+
+```dotenv
+SECONDSHIFT_GITHUB_APP_ID=123456
+SECONDSHIFT_GITHUB_APP_SLUG=your-secondshift-app
+SECONDSHIFT_GITHUB_APP_CLIENT_ID=Iv1.example
+SECONDSHIFT_GITHUB_APP_CLIENT_SECRET=replace-with-client-secret
+SECONDSHIFT_GITHUB_APP_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----"
+```
+
+Use the downloaded PEM contents with literal `\n` between lines for the key.
+Keep these credentials out of `compose.env`, gateway and runner. GitHub sign-in
+is optional and uses separate credentials. The generated web and worker files
+already contain the matching private runner URL/token; retain those values.
+The generated HTTP timeouts allow synchronous imports. Caddy's default proxy
+configuration imposes no response-header timeout.
+
 ## Start
 
 ```bash
 dc config --quiet
 dc up -d --wait postgres
-dc run --rm --no-deps web python manage.py migrate automations 0003_run_limits --noinput
 dc run --rm --no-deps web python manage.py migrate --noinput
 dc run --rm --no-deps runner python manage.py migrate --noinput \
   --settings=secondshift.config.settings.runner
@@ -84,12 +107,6 @@ The worker should log `DBOS worker started`. Runner startup checks gVisor and
 pulls the sandbox image, so its first start can take longer. Resolve startup
 errors in the logs before using the deployment.
 
-The first, targeted migration is for a **fresh database only**. It creates the
-legacy tables before later migrations rename them. The current migration graph
-can otherwise rename `core_workspace` before its referencing tables exist on
-PostgreSQL. Do not repeat this targeted command during upgrades: use only the
-unqualified `migrate` commands below.
-
 One PostgreSQL instance holds two databases, each owned by a separate login
 role without superuser privileges. Web, gateway and worker share `secondshift`,
 including DBOS workflow tables. The runner uses only `secondshift_runner`.
@@ -101,6 +118,26 @@ Only the runner receives the Docker socket and runs as root. That socket gives
 it control of the Docker host; this example is for a dedicated, trusted server.
 It receives no application keys or S3 credentials. Command sandboxes still run
 unprivileged under gVisor without network access.
+
+## Import and verify a job
+
+As the workspace owner, open **Repositories → Connect GitHub**, authorize the
+App, and grant access to the desired repository. Select its branch and import
+it. The selected commit must include a valid `.secondshift.yaml` and referenced
+skills. Connect the required model provider and services, review capabilities,
+and start a manual run before enabling schedules. See the
+[GitHub App guide](github-app.md#connect-and-run) for the complete flow.
+
+Confirm the run checks out the expected commit, finishes successfully, and its
+report and artifacts are readable. Push a change and verify **Resync** imports
+it. Enabled repositories with automatic sync are also polled by the worker
+every five minutes.
+
+Repositories and pinned Git objects live under `RUNNER_ROOT/repositories` on
+the server, not in S3. Temporary execution workspaces also use the runner disk.
+S3 stores run artifacts; PostgreSQL stores metadata, job definitions and history.
+Monitor disk space and preserve the runner directory: a force-pushed commit
+may no longer be recoverable from GitHub.
 
 ## Update and back up
 
