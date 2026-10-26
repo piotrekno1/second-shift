@@ -2,10 +2,14 @@
 
 [README](../README.md) · [Architecture](architecture.md) · [Security model](security-model.md)
 
-> **Work in progress.** A [single-server Compose example](production-deployment.md)
-> is available, but production repository import remains unfinished. Follow
-> [issue #1](https://github.com/piotrekno1/second-shift/issues/1) for progress.
-> Local mode (`secondshift up`) is the supported way to try SecondShift today.
+Use the [single-server Compose deployment guide](production-deployment.md) for
+published service images, HTTPS, PostgreSQL, and S3 artifact storage. GitHub App
+repository import and automatic syncing are available. Target-host gVisor
+execution, full production job runs, and backup/restore validation remain tracked
+in [issue #1](https://github.com/piotrekno1/second-shift/issues/1).
+
+For a local trial, use `secondshift up` as described in the
+[quick start](../README.md#try-it-out-now).
 
 See [GitHub App repository access](github-app.md) to configure repository import
 and automatic syncing.
