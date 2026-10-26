@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import AppIcon from '../components/AppIcon.vue'
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
@@ -11,6 +11,8 @@ import SearchInput from '../components/SearchInput.vue'
 import StatusPill from '../components/StatusPill.vue'
 import { useListQuery } from '../composables/useListQuery'
 import { apiPost } from '../services/api'
+import { storeToRefs } from 'pinia'
+import { useGitHubRepositoriesStore } from '../stores/githubRepositories'
 import { useAppStore } from '../stores/app'
 import type { Repository } from '../types'
 import { Action } from '../utils/permissions'
@@ -46,6 +48,25 @@ const visibleRepositories = computed(() => {
   return searchedRepositories.value.filter(matches)
 })
 const filtered = computed(() => Boolean(search.value || state.value))
+const github = useGitHubRepositoriesStore()
+const { configured: githubConfigured, sources: githubSources, error: githubError, importing: githubBusy } = storeToRefs(github)
+const addingGitHub = ref(false)
+const githubChoice = ref('')
+const githubBranch = ref('')
+onMounted(async () => {
+  if (!app.can(Action.AddGitHubRepositories)) return
+  await github.load()
+  addingGitHub.value = githubSources.value.length > 0
+})
+async function addGitHubRepository(): Promise<void> {
+  const source = githubSources.value.find((item) => `${item.connection_id}:${item.repository_id}` === githubChoice.value)
+  if (!source) return
+  const repository = await github.importRepository(source, githubBranch.value.trim())
+  if (repository) {
+    await app.refresh()
+    await router.push(`/repositories/${repository.id}`)
+  }
+}
 const addingLocal = ref(false)
 const localPath = ref('')
 const localError = ref<string | null>(null)
@@ -90,10 +111,22 @@ function chooseDirectory(path: string): void {
       <Button v-if="app.canAddLocalRepositories" label="Add local repository" severity="secondary" outlined @click="addingLocal = !addingLocal; browsing = false">
         <template #icon><AppIcon name="folder-open-outline" /></template>
       </Button>
-      <Button label="Install GitHub App">
+      <Button v-if="app.can(Action.AddGitHubRepositories) && githubConfigured" label="Connect GitHub" as="a" href="/-/github/connect/">
         <template #icon><AppIcon name="github" /></template>
       </Button>
+      <Button v-if="app.can(Action.AddGitHubRepositories) && githubConfigured" label="Manage GitHub access" severity="secondary" text as="a" href="/-/github/connect/?install=1" />
     </PageHeader>
+    <p v-if="githubError" class="form-error" role="alert">{{ githubError }}</p>
+    <p v-if="app.can(Action.AddGitHubRepositories) && !githubConfigured && !githubError">Ask your deployment operator to configure the GitHub App to connect repositories.</p>
+    <form v-if="addingGitHub" class="panel local-repository-form" @submit.prevent="addGitHubRepository">
+      <div><h2>Add a GitHub repository</h2><p>Import its committed configuration, then approve capabilities and enable schedules.</p></div>
+      <select v-model="githubChoice" aria-label="GitHub repository">
+        <option value="" disabled>Select a repository</option>
+        <option v-for="source in githubSources" :key="`${source.connection_id}:${source.repository_id}`" :value="`${source.connection_id}:${source.repository_id}`">{{ source.full_name }}</option>
+      </select>
+      <InputText v-model="githubBranch" aria-label="GitHub branch" placeholder="Default branch" />
+      <Button type="submit" label="Import repository" :disabled="!githubChoice" :loading="githubBusy" />
+    </form>
     <form v-if="addingLocal" class="panel local-repository-form" @submit.prevent="addLocalRepository">
       <div><h2>Add a local Git repository</h2><p>Its committed `.secondshift.yaml` and referenced skills will be validated and synchronized.</p></div>
       <InputText v-model="localPath" aria-label="Local repository path" placeholder="/Users/you/Projects/my-repository" autofocus />
@@ -127,7 +160,7 @@ function chooseDirectory(path: string): void {
       <article v-if="!app.repositories.length" class="panel empty-state wide">
         <AppIcon name="source-branch-plus" /><strong>{{ app.can(Action.AddLocalRepositories) ? 'Connect your first repository' : 'No repositories yet' }}</strong>
         <span v-if="!app.can(Action.AddLocalRepositories)">Workspace owners add repositories.</span>
-        <span v-else>{{ app.user?.local_repositories_enabled ? 'Add a local Git repository or install the GitHub App.' : 'Install the GitHub App, then approve a repository containing `.secondshift.yaml`.' }}</span>
+        <span v-else>{{ app.user?.local_repositories_enabled ? 'Add a local Git repository or connect GitHub.' : 'Connect GitHub and import a repository containing `.secondshift.yaml`.' }}</span>
       </article>
     </section>
   </div>

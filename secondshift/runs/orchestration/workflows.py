@@ -17,6 +17,7 @@ from secondshift.connections.webhooks import deliver_webhook
 from secondshift.gateway.tokens import revoke_run_tokens
 from secondshift.jobs.models import Job
 from secondshift.jobs.scheduling import next_occurrence
+from secondshift.repositories.github_sync import github_repository_metadata
 from secondshift.repositories.materialization import materialize_local_repository
 from secondshift.repositories.models import Repository
 from secondshift.runner.client import get_runner_client
@@ -86,6 +87,7 @@ def materialize_local_repository_step(run_id: int) -> None:
     run = Run.objects.select_related("job__repository").get(pk=run_id)
     repository = run.job.repository
     if repository.source_type != Repository.SourceType.LOCAL:
+        github_repository_metadata(repository)
         return
     if not settings.LOCAL_REPOSITORIES_ENABLED:
         raise RuntimeError("Local repositories are available only on a single host.")

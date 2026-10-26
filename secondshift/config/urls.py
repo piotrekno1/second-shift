@@ -7,6 +7,7 @@ from health_check.views import HealthCheckView
 from secondshift.config.api import api
 from secondshift.core.signin import sign_in
 from secondshift.core.views import password_reset
+from secondshift.repositories.github_views import github_callback, github_start
 from secondshift.workspaces.views import open_invite
 
 
@@ -20,6 +21,8 @@ def spa(request: HttpRequest, path: str = "") -> FileResponse:
 
 
 urlpatterns = [
+    path("-/github/connect/", github_start),
+    path("-/github/callback/", github_callback),
     path("-/admin/", admin.site.urls),
     path("accounts/password/reset/", password_reset),
     path("accounts/", include("allauth.urls")),

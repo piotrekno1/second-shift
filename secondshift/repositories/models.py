@@ -41,6 +41,7 @@ class Repository(models.Model):
     config_path = models.CharField(max_length=255, default=".secondshift.yaml")
     config_sha = models.CharField(max_length=64, blank=True)
     last_synced_at = models.DateTimeField(null=True, blank=True)
+    last_sync_error = models.CharField(max_length=500, blank=True)
     removed_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

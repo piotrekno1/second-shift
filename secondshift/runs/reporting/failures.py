@@ -6,6 +6,7 @@ from typing import Literal
 import requests
 from pydantic_ai.exceptions import ModelHTTPError
 
+from secondshift.repositories.github_app import GitHubAppError
 from secondshift.runner.protocol import RunnerProtocolError
 from secondshift.runs.execution.budgets import BUDGET_HEADLINE
 from secondshift.runs.execution.deadlines import TIMEOUT_HEADLINE
@@ -25,6 +26,7 @@ MAX_DETAIL_CHARS = 300
 # are RuntimeErrors) and never carry credentials, so they are shown. Anything
 # else could echo arbitrary data, so only its type is shown.
 SHOWN_ERROR_TYPES: tuple[type[BaseException], ...] = (
+    GitHubAppError,
     RunnerProtocolError,
     RuntimeError,
 )

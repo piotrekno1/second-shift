@@ -11,9 +11,11 @@ from secondshift.runner.protocol import (
     RunnerProtocolError,
     RunnerSessionSpec,
 )
+from secondshift.runner.repositories import import_bundle
 from secondshift.runner.schemas import (
     CommandInput,
     CommandOutput,
+    RepositoryImportInput,
     SessionInput,
     SessionOutput,
 )
@@ -69,4 +71,12 @@ def execute_command(request: HttpRequest, session_id: str, payload: CommandInput
 @api.delete("/v1/sessions/{session_id}", response={204: None})
 def stop_session(request: HttpRequest, session_id: str):
     get_runner_service().stop(session_id)
+    return Status(204, None)
+
+
+@api.post("/v1/repositories", response={204: None})
+def import_repository(
+    request: HttpRequest, payload: RepositoryImportInput
+) -> Status[None]:
+    import_bundle(payload.repository, payload.commit_sha, payload.bundle)
     return Status(204, None)

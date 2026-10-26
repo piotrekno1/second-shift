@@ -25,6 +25,7 @@ def rename_job(root: Path, name: str) -> None:
     run_git(root, "commit", "-am", f"Rename the job to {name}")
 
 
+@override_settings(LOCAL_REPOSITORIES_ENABLED=True)
 def test_new_commits_on_the_branch_are_synced(
     workspace: Workspace,
     tmp_path: Path,

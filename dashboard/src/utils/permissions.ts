@@ -6,6 +6,7 @@ import type { User } from '../types'
  * only uses them to hide controls the person cannot use.
  */
 export const Action = {
+  AddGitHubRepositories: 'add GitHub repositories',
   AddLocalRepositories: 'add local repositories',
   AddConnections: 'add connections',
   EditConnections: 'edit connections',

@@ -195,7 +195,7 @@ onMounted(loadRepository)
         <Button v-if="app.can(Action.ChangeRepositoryState)" :label="repository.enabled ? 'Disable' : 'Enable'" severity="secondary" outlined :loading="action === 'toggle'" @click="toggleRepository">
           <template #icon><AppIcon :name="repository.enabled ? 'pause' : 'play'" /></template>
         </Button>
-        <Button v-if="repository.source_type === 'local' && app.can(Action.ResyncRepositories)" label="Resync" :loading="action === 'resync'" title="Import the committed manifest and skill definitions" @click="resyncRepository">
+        <Button v-if="app.can(Action.ResyncRepositories)" label="Resync" :loading="action === 'resync'" title="Import the committed manifest and skill definitions" @click="resyncRepository">
           <template #icon><AppIcon name="refresh" /></template>
         </Button>
       </template>
@@ -264,7 +264,7 @@ onMounted(loadRepository)
           <div v-if="repository.local_path"><dt>Path</dt><dd><code>{{ repository.local_path }}</code><button class="copy-button" type="button" :aria-label="copied ? 'Copied' : 'Copy path'" @click="copyPath"><AppIcon :name="copied ? 'check' : 'content-copy'" /></button></dd></div>
           <div v-else><dt>Type</dt><dd>GitHub</dd></div>
           <div><dt>Branch</dt><dd>{{ repository.default_branch }}</dd></div>
-          <div v-if="repository.source_type === 'local'">
+          <div>
             <dt>Auto-sync</dt>
             <dd class="auto-sync" :title="autoSyncHelp">
               <span>{{ autoSyncLabel }}</span>

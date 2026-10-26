@@ -76,6 +76,7 @@ const kindIcon: Record<string, string> = {
   mcp: 'server-network',
   api: 'api',
   identity: 'account-key-outline',
+  source: 'source-repository',
 }
 const providerIcon: Record<Connection['provider'], string> = {
   github: 'github',
