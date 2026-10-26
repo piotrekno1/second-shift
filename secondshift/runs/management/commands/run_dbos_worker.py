@@ -1,5 +1,7 @@
 import logging
+import signal
 import threading
+from types import FrameType
 
 import djclick as click
 from dbos import DBOS, DBOSClient
@@ -54,21 +56,33 @@ def worker_tasks(client: DBOSClient) -> list[PeriodicTask]:
 @click.option("--sync-interval", type=int, default=15, show_default=True)
 def command(sync_interval: int) -> None:
     """Run DBOS workers and reconcile database-backed schedules."""
-    launch_dbos_worker()
-    click.echo("DBOS worker started")
     stopped = threading.Event()
+
+    def stop(signum: int, frame: FrameType | None) -> None:
+        stopped.set()
+
+    previous = signal.signal(signal.SIGTERM, stop)
     client = None
     try:
+        launch_dbos_worker()
+        click.echo("DBOS worker started")
         client = new_dbos_client()
         tasks = worker_tasks(client)
-        while True:
+        while not stopped.is_set():
             for task in tasks:
+                if stopped.is_set():
+                    break
                 task.run_if_due()
             if stopped.wait(sync_interval):
                 break
     except KeyboardInterrupt:
         click.echo("Stopping DBOS worker")
     finally:
-        if client is not None:
-            client.destroy()
-        DBOS.destroy(workflow_completion_timeout_sec=10)
+        try:
+            if client is not None:
+                client.destroy()
+        finally:
+            try:
+                DBOS.destroy(workflow_completion_timeout_sec=10)
+            finally:
+                signal.signal(signal.SIGTERM, previous)

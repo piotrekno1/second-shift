@@ -1,16 +1,33 @@
-.git
-.env
-.venv
-.pytest_cache
-.ruff_cache
-**/__pycache__
-dashboard/node_modules
-secondshift/web
-.secondshift-work
-.secondshift-artifacts
-.secondshift-runner
+# Build inputs are opt-in. Keep this list aligned with Dockerfile COPY inputs.
+**
+!Dockerfile
+!.dockerignore
+!pyproject.toml
+!uv.lock
+!README.md
+!LICENSE
+!manage.py
+!secondshift/
+!secondshift/**
+!dashboard/
+!dashboard/package.json
+!dashboard/package-lock.json
+!dashboard/index.html
+!dashboard/vite.config.ts
+!dashboard/tsconfig*.json
+!dashboard/src/
+!dashboard/src/**
+!dashboard/public/
+!dashboard/public/**
 
-# Generated service configuration contains secrets.
-*.env
-*.env.*
-.env.*
+# Generated/runtime files are never application source.
+**/__pycache__
+**/*.pyc
+**/.env
+**/.env.*
+**/*.env
+**/*.env.*
+**/*.sqlite3
+**/*.sqlite3-*
+secondshift/**/tests
+secondshift/web
