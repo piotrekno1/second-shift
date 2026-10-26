@@ -34,17 +34,22 @@ Keep public access disabled. For an S3-compatible provider, use its HTTPS
 endpoint and set `ARTIFACT_ADDRESSING_STYLE=path` if required. Only web and
 worker receive these credentials.
 
-Define a shortcut for the remaining commands, then build and generate the
+Define a shortcut for the remaining commands, then pull the image and generate the
 application keys. Replace the example hostname with the same one in the env file:
 
 ```bash
 dc() { docker compose --env-file deploy/production/compose.env -f compose.production.yaml "$@"; }
-docker build -t secondshift:production .
+docker pull ghcr.io/piotrekno1/second-shift:0.1.0b2
 docker run --rm --user "$(id -u):$(id -g)" \
   -v "$PWD/deploy/production:$PWD/deploy/production" \
-  -w "$PWD/deploy/production" secondshift:production \
+  -w "$PWD/deploy/production" ghcr.io/piotrekno1/second-shift:0.1.0b2 \
   python -m secondshift.config.container_env --hostname secondshift.example.com
 ```
+
+The published image supports Linux amd64 and arm64. All application services use
+the same image. `SECONDSHIFT_IMAGE` in `compose.env` pins the release; use the
+same version in the configuration-generation command above. gVisor must still
+be installed on the Docker host.
 
 The generator creates private `web.env`, `gateway.env`, `worker.env` and
 `runner.env` files. Keep their keys and service settings. Compose overrides their
@@ -146,11 +151,12 @@ the S3 bucket, and Caddy's named volumes. Preserve the encryption key: saved
 credentials cannot be recovered without it. Use PostgreSQL backup tools rather
 than copying its live data volume.
 
-For an update, take backups, fetch the intended release, and run:
+For an update, take backups, fetch the intended release, update
+`SECONDSHIFT_IMAGE` in `compose.env` to that release version (or digest), and run:
 
 ```bash
 dc stop caddy web gateway worker runner
-docker build -t secondshift:production .
+dc pull
 dc run --rm --no-deps web python manage.py migrate --noinput
 dc run --rm --no-deps runner python manage.py migrate --noinput \
   --settings=secondshift.config.settings.runner

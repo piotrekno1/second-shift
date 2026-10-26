@@ -1,0 +1,147 @@
+name: Publish container image
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing GitHub release tag to publish
+        required: true
+        type: string
+  workflow_call:
+    inputs:
+      tag:
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: container-${{ inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.release.outputs.version }}
+      revision: ${{ steps.release.outputs.revision }}
+      image: ${{ steps.release.outputs.image }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Validate the released source
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+((a|b|rc)[0-9]+)?$ ]] || exit 1
+          [[ "$(gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft)" == false ]]
+          revision=$(git rev-parse "$RELEASE_TAG^{commit}")
+          git merge-base --is-ancestor "$revision" origin/main
+          git checkout --detach "$revision"
+          version=$(python3 -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')
+          [[ "$RELEASE_TAG" == "v$version" ]]
+          {
+            echo "version=$version"
+            echo "revision=$revision"
+            echo "image=ghcr.io/${GITHUB_REPOSITORY,,}"
+          } >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.revision }}
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build the released image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/${{ matrix.arch }}
+          load: true
+          tags: secondshift:test
+          build-args: |
+            VERSION=${{ needs.prepare.outputs.version }}
+            REVISION=${{ needs.prepare.outputs.revision }}
+          cache-from: type=gha,scope=container-${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=container-${{ matrix.arch }}
+      - name: Verify the packaged application
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          set -euo pipefail
+          [[ "$(docker image inspect --format '{{.Config.User}}' secondshift:test)" == '10001:10001' ]]
+          docker run --rm -e EXPECTED_VERSION="$VERSION" secondshift:test python -c '
+          import os, sqlite3
+          from importlib.metadata import version
+          from pathlib import Path
+          import secondshift
+          assert version("secondshift") == os.environ["EXPECTED_VERSION"]
+          assert sqlite3.sqlite_version_info >= (3, 42, 0)
+          root = Path(secondshift.__file__).parent
+          assert (root / "web/index.html").is_file()
+          assert list((root.parent / "staticfiles/assets").glob("*.js"))
+          '
+          docker run --rm secondshift:test docker --version
+      - name: Push the tested platform image
+        env:
+          IMAGE: ${{ needs.prepare.outputs.image }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+          ARCH: ${{ matrix.arch }}
+        run: |
+          docker tag secondshift:test "$IMAGE:$VERSION-$ARCH"
+          docker push "$IMAGE:$VERSION-$ARCH"
+
+  publish:
+    needs: [prepare, build]
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    steps:
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish the version manifest
+        env:
+          IMAGE: ${{ needs.prepare.outputs.image }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          set -euo pipefail
+          if docker buildx imagetools inspect "$IMAGE:$VERSION" > existing-image.txt 2>&1; then
+            echo 'This version is already published; do not replace release images.' >&2
+            exit 1
+          fi
+          grep -Eqi 'not found|manifest unknown' existing-image.txt || { cat existing-image.txt; exit 1; }
+          docker buildx imagetools create --tag "$IMAGE:$VERSION" "$IMAGE:$VERSION-amd64" "$IMAGE:$VERSION-arm64"
+          # Prereleases never move the stable latest tag.
+          if [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            docker buildx imagetools create --tag "$IMAGE:latest" "$IMAGE:$VERSION"
+          fi
+          docker buildx imagetools inspect "$IMAGE:$VERSION"
+          echo "Published \`$IMAGE:$VERSION\` from the released source." >> "$GITHUB_STEP_SUMMARY"

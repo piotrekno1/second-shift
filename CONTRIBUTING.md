@@ -82,6 +82,20 @@ publishes the wheel and installation instructions to a GitHub release. Alpha, be
 The workflow uses GitHub's built-in token. It does not publish to PyPI.
 Use a new version and tag for each build. Do not move published tags.
 
+After publishing the wheel release, the release workflow calls **Publish container
+image**. It builds the exact tagged commit on native amd64 and arm64 runners,
+checks the installed package and bundled dashboard, and publishes
+`ghcr.io/piotrekno1/second-shift:VERSION`. Stable versions also update `latest`;
+prereleases do not. Published version manifests must not be replaced.
+
+To add an image for an existing release, run **Publish container image** manually
+on `main` with its release tag (for example `v0.1.0b1`). It verifies that the tag
+belongs to `main`, matches the package version, and has a published GitHub release.
+The workflow uses `GITHUB_TOKEN` with `packages: write`; no registry secret is
+needed. After first publication, check the package's visibility in GitHub Packages
+and set it to Public so deployments can pull anonymously.
+
+
 The release smoke test installs the wheel into a clean environment outside the
 checkout and starts `secondshift up` with its own data folder. A fake model
 and a webhook receiver stand in for real services. It runs one skill that must
