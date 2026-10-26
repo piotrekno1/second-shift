@@ -31,6 +31,7 @@ from secondshift.config.constants import (
     Service,
 )
 from secondshift.config.first_run import write_generated_env
+from secondshift.config.logging import logging_config
 from secondshift.core.static_storage import immutable_static_file
 
 # The secondshift package, and the checkout that contains it.
@@ -160,30 +161,7 @@ USE_TZ = True
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 SITE_ID = 1
 
-LOGGING = {
-    "version": 1,
-    "disable_existing_loggers": False,
-    "formatters": {
-        "console": {"format": "{levelname} {name}: {message}", "style": "{"}
-    },
-    "handlers": {
-        "console": {"class": "logging.StreamHandler", "formatter": "console"},
-        "null": {"class": "logging.NullHandler"},
-    },
-    "root": {
-        "handlers": ["console"],
-        "level": env.str(AppEnv.LOG_LEVEL, default="INFO").upper(),
-    },
-    # httpx logs full request URLs at INFO, provider and webhook URLs can carry
-    # credentials.
-    "loggers": {
-        "httpx": {"level": "WARNING"},
-        "httpcore": {"level": "WARNING"},
-        # The SDK can log raw remote payloads and session identifiers. The
-        # broker emits bounded audit events and sanitized errors instead.
-        "mcp": {"handlers": ["null"], "propagate": False},
-    },
-}
+LOGGING = logging_config(env.str(AppEnv.LOG_LEVEL, default="INFO").upper(), SERVICE)
 
 # --- Database and durable workflows ------------------------------------------
 
