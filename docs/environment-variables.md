@@ -16,37 +16,8 @@ uv run python -m secondshift.config.container_env \
 This creates four files in `$HOME/secondshift-server`, with production mode,
 service names and keys already set. It refuses to overwrite existing files.
 
-## Local development
-
-Copy `.env.example` to `.env` and run `process-compose up`. Process-compose
-loads `.env` and selects development mode for its processes. Initialization
-creates the control-plane keys and runner token before migrating the runner.
-The supporting PostgreSQL and optional RustFS services are defined in
-`docker-compose.localdev.yml`; standalone Docker commands need
-`docker compose -f docker-compose.localdev.yml`.
-
-The template contains the development overrides. Use the reference below for
-optional integrations, email, logging, and sandbox settings. In dev and local
-mode, keys are generated in `SECONDSHIFT_DATA_DIR` (default `~/.secondshift`),
-email defaults to terminal output, and plain Docker sandboxes are supported.
-Production requirements in the tables below apply to deployed services.
-
-To use the optional local RustFS service, add this block to `.env`:
-
-```dotenv
-COMPOSE_PROFILES=s3
-SECONDSHIFT_ARTIFACT_STORAGE=s3
-SECONDSHIFT_ARTIFACT_BUCKET=secondshift-artifacts
-SECONDSHIFT_ARTIFACT_ENDPOINT_URL=http://localhost:9000
-SECONDSHIFT_ARTIFACT_REGION=us-east-1
-SECONDSHIFT_ARTIFACT_ACCESS_KEY_ID=secondshift
-SECONDSHIFT_ARTIFACT_SECRET_ACCESS_KEY=secondshift-dev-secret
-SECONDSHIFT_ARTIFACT_ADDRESSING_STYLE=path
-```
-
-Restart process-compose after changing the profile. Bootstrap creates the local
-bucket. The RustFS console is at `http://localhost:9001/rustfs/console/`; sign in
-with the development artifact access key and secret above.
+For local development setup and optional RustFS storage, see
+[Contributing](../CONTRIBUTING.md#development).
 
 ## Edit the env files
 
