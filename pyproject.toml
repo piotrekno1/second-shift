@@ -1,6 +1,6 @@
 [project]
 name = "secondshift"
-version = "0.1.0b1"
+version = "0.1.0b2"
 description = "Scheduled agent tasks for your repositories, defined in Git."
 readme = "README.md"
 license = "Apache-2.0"
@@ -8,6 +8,7 @@ requires-python = ">=3.13,<3.14"
 dependencies = [
     "anthropic>=1.15.0",
     "anyio>=4.15.1",
+    "certifi>=2026.10.19",
     "croniter>=6.0.0",
     "cryptography>=46.0.0",
     "dbos>=3.3.0",
