@@ -153,6 +153,7 @@ discuss the approach.
 
 - [Repository configuration](docs/repository-configuration.md): skills, YAML syntax, schedules, and notifications.
 - [Engineering tasks](docs/engineering-tasks.md): skill setup, approved service actions, and scheduling.
+- [Environment variables](docs/environment-variables.md): service-scoped configuration and setup file generation.
 - [Architecture](docs/architecture.md): execution design and capability boundaries.
 - [Security model](docs/security-model.md): what a run can reach, where secrets live, and remaining risks.
 - [Self-hosting](docs/self-hosting.md) (work in progress): runner backends, sandbox images, and artifact storage.

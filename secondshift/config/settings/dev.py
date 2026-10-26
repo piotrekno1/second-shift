@@ -3,7 +3,7 @@ from secondshift.config.settings.base import *
 
 if not DEV:
     raise ImproperlyConfigured(
-        "secondshift.config.settings.dev requires DJANGO_ENV=dev"
+        "secondshift.config.settings.dev requires SECONDSHIFT_ENV=dev"
     )
 
 INSTALLED_APPS += ["django_extensions"]

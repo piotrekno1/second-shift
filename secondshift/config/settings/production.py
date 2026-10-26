@@ -1,10 +1,10 @@
 # ruff: noqa: F403, F405
-from secondshift.config.constants import Environment, SandboxRuntime, Service
+from secondshift.config.constants import AppEnv, Environment, SandboxRuntime, Service
 from secondshift.config.settings.base import *
 
 if ENVIRONMENT != Environment.PRODUCTION:
     raise ImproperlyConfigured(
-        "secondshift.config.settings.production requires DJANGO_ENV=production"
+        "secondshift.config.settings.production requires SECONDSHIFT_ENV=production"
     )
 
 # Every problem is reported at once, and the process refuses to start.
@@ -19,23 +19,46 @@ def required(name: str) -> str:
 
 
 # No development fallbacks for secrets or the database in production.
-SECRET_KEY = required("DJANGO_SECRET_KEY")
-FIELD_ENCRYPTION_KEY = required("FIELD_ENCRYPTION_KEY")
-required("DATABASE_URL")
+SECRET_KEY = required(AppEnv.SECRET_KEY)
+FIELD_ENCRYPTION_KEY = required(AppEnv.ENCRYPTION_KEY)
+required(AppEnv.DATABASE_URL)
 if DEBUG:
-    errors.append("DJANGO_DEBUG must be off")
-if not CSRF_TRUSTED_ORIGINS:
-    errors.append("CSRF_TRUSTED_ORIGINS must be set")
-# Sign-in callbacks and run links use this address.
-if not FRONTEND_URL.startswith("https://"):
-    errors.append("FRONTEND_URL must be the public HTTPS address")
-if ARTIFACT_STORAGE == "s3" and not ARTIFACT_STORAGES["s3"]["OPTIONS"]["bucket_name"]:
-    errors.append("SECONDSHIFT_ARTIFACT_BUCKET must be set for s3 storage")
-if RUNNER_RUNTIME != SandboxRuntime.GVISOR:
-    errors.append("SECONDSHIFT_RUNNER_RUNTIME must be runsc (gVisor)")
-required("SECONDSHIFT_RUNNER_SERVICE_URL")
-required("SECONDSHIFT_RUNNER_SERVICE_TOKEN")
-required("SECONDSHIFT_MODEL_GATEWAY_URL")
+    errors.append(f"{AppEnv.DEBUG} must be off")
+if SERVICE == Service.WEB and not CSRF_TRUSTED_ORIGINS:
+    errors.append(f"{AppEnv.CSRF_TRUSTED_ORIGINS} must be set")
+if SERVICE in {Service.WEB, Service.WORKER}:
+    try:
+        public_origin = urlsplit(FRONTEND_URL)
+        valid_origin = (
+            public_origin.scheme == "https"
+            and bool(public_origin.hostname)
+            and not public_origin.username
+            and not public_origin.password
+            and public_origin.path in {"", "/"}
+            and not public_origin.query
+            and not public_origin.fragment
+            and public_origin.port != 0
+        )
+    except ValueError:
+        valid_origin = False
+    if not valid_origin:
+        errors.append(f"{AppEnv.PUBLIC_URL} must be the public HTTPS address")
+    if (
+        ARTIFACT_STORAGE == "s3"
+        and not ARTIFACT_STORAGES["s3"]["OPTIONS"]["bucket_name"]
+    ):
+        errors.append("SECONDSHIFT_ARTIFACT_BUCKET must be set for s3 storage")
+    if RUNNER_RUNTIME != SandboxRuntime.GVISOR:
+        errors.append("SECONDSHIFT_RUNNER_RUNTIME must be runsc (gVisor)")
+if SERVICE == Service.WORKER:
+    if DBOS_WORKER_CONCURRENCY < 1:
+        errors.append(f"{AppEnv.RUN_CONCURRENCY} must be positive")
+    required(AppEnv.RUNNER_SERVICE_URL)
+    required(AppEnv.MODEL_GATEWAY_URL)
+    if len(required(AppEnv.RUNNER_SERVICE_TOKEN)) < 32:
+        errors.append(
+            "SECONDSHIFT_RUNNER_SERVICE_TOKEN must contain at least 32 characters"
+        )
 if errors:
     raise ImproperlyConfigured(
         "Production settings are incomplete:\n- " + "\n- ".join(errors)

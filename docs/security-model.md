@@ -42,7 +42,7 @@ the destination or call the webhook.
 
 ## Where secrets live
 
-All credentials are encrypted in the database with `FIELD_ENCRYPTION_KEY`.
+All credentials are encrypted in the database with `SECONDSHIFT_ENCRYPTION_KEY`.
 
 | Secret | During a run, decrypted by | Never reaches |
 | --- | --- | --- |

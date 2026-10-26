@@ -22,7 +22,7 @@ from secondshift.workspaces.models import Workspace
 def command(yes: bool) -> None:
     """Reset the development database, migrate it, and load demo data."""
     if not settings.DEV:
-        raise click.ClickException("dev_reset_db only runs with DJANGO_ENV=dev.")
+        raise click.ClickException("dev_reset_db only runs with SECONDSHIFT_ENV=dev.")
     if not yes:
         raise click.ClickException(
             "dev_reset_db destroys the development database. Pass --yes to continue."

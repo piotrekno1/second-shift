@@ -9,3 +9,8 @@ secondshift/web
 .secondshift-work
 .secondshift-artifacts
 .secondshift-runner
+
+# Generated service configuration contains secrets.
+*.env
+*.env.*
+.env.*

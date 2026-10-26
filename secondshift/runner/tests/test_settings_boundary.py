@@ -77,7 +77,7 @@ def test_runner_accepts_its_own_user_as_the_sandbox_user(tmp_path: Path) -> None
 
 def test_runner_reads_only_its_token_from_the_data_folder(tmp_path: Path) -> None:
     (tmp_path / "runner.env").write_text("SECONDSHIFT_RUNNER_SERVICE_TOKEN=" + "r" * 40)
-    (tmp_path / ".env").write_text("FIELD_ENCRYPTION_KEY=must-not-be-read")
+    (tmp_path / ".env").write_text("SECONDSHIFT_ENCRYPTION_KEY=must-not-be-read")
     environment = {
         key: value
         for key, value in os.environ.items()
@@ -87,7 +87,7 @@ def test_runner_reads_only_its_token_from_the_data_folder(tmp_path: Path) -> Non
     script = (
         "import os, secondshift.config.settings.runner as s; "
         "print(s.RUNNER_SERVICE_TOKEN); print(s.RUNNER_REPOSITORY_ROOT); "
-        "print('FIELD_ENCRYPTION_KEY' in os.environ)"
+        "print('SECONDSHIFT_ENCRYPTION_KEY' in os.environ)"
     )
     result = subprocess.run(
         [sys.executable, "-c", script],

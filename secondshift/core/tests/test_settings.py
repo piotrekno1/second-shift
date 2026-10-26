@@ -12,11 +12,11 @@ from secondshift.config.settings.base import sqlalchemy_url
 CHECKOUT_ENV = Path(__file__).resolve().parents[3] / ".env"
 
 PRODUCTION_ENV = {
-    "DJANGO_SECRET_KEY": "test-secret",
-    "FIELD_ENCRYPTION_KEY": "x2Ce3x8qg2ZDiZ0T3W2WXZkCw5rN0p8D2kMlcV1Wq3E=",
-    "DATABASE_URL": "postgres://user:pass@db:5432/app",
-    "CSRF_TRUSTED_ORIGINS": "https://app.example",
-    "FRONTEND_URL": "https://app.example",
+    "SECONDSHIFT_SECRET_KEY": "test-secret",
+    "SECONDSHIFT_ENCRYPTION_KEY": "x2Ce3x8qg2ZDiZ0T3W2WXZkCw5rN0p8D2kMlcV1Wq3E=",
+    "SECONDSHIFT_DATABASE_URL": "postgres://user:pass@db:5432/app",
+    "SECONDSHIFT_CSRF_TRUSTED_ORIGINS": "https://app.example",
+    "SECONDSHIFT_PUBLIC_URL": "https://app.example",
     "SECONDSHIFT_RUNNER_RUNTIME": "runsc",
     "SECONDSHIFT_RUNNER_SERVICE_URL": "http://runner:8002",
     "SECONDSHIFT_RUNNER_SERVICE_TOKEN": "runner-service-token",
@@ -34,7 +34,7 @@ def load_settings(
         for key, value in os.environ.items()
         if key in {"PATH", "HOME", "SYSTEMROOT"}
     }
-    # The checkout's .env is skipped; the data folder's is read as usual.
+    # The checkout's .env is skipped, the data folder's is read as usual.
     script = (
         "import environ; read = environ.Env.read_env; "
         "environ.Env.read_env = staticmethod("
@@ -54,20 +54,16 @@ def load_settings(
 
 def test_production_reports_every_missing_value_at_once(tmp_path: Path) -> None:
     result = load_settings(
-        "secondshift.config.settings.production", tmp_path, DJANGO_ENV="production"
+        "secondshift.config.settings.production", tmp_path, SECONDSHIFT_ENV="production"
     )
 
     assert result.returncode != 0
     for name in (
-        "DJANGO_SECRET_KEY",
-        "FIELD_ENCRYPTION_KEY",
-        "DATABASE_URL",
-        "CSRF_TRUSTED_ORIGINS",
-        "FRONTEND_URL",
+        "SECONDSHIFT_SECRET_KEY",
+        "SECONDSHIFT_ENCRYPTION_KEY",
+        "SECONDSHIFT_DATABASE_URL",
+        "SECONDSHIFT_PUBLIC_URL",
         "SECONDSHIFT_RUNNER_RUNTIME",
-        "SECONDSHIFT_RUNNER_SERVICE_URL",
-        "SECONDSHIFT_RUNNER_SERVICE_TOKEN",
-        "SECONDSHIFT_MODEL_GATEWAY_URL",
     ):
         assert f"{name} must be" in result.stderr
 
@@ -76,12 +72,12 @@ def test_production_requires_an_https_frontend_url(tmp_path: Path) -> None:
     result = load_settings(
         "secondshift.config.settings.production",
         tmp_path,
-        DJANGO_ENV="production",
-        **{**PRODUCTION_ENV, "FRONTEND_URL": "http://app.example"},
+        SECONDSHIFT_ENV="production",
+        **{**PRODUCTION_ENV, "SECONDSHIFT_PUBLIC_URL": "http://app.example"},
     )
 
     assert result.returncode != 0
-    assert "FRONTEND_URL must be the public HTTPS address" in result.stderr
+    assert "SECONDSHIFT_PUBLIC_URL must be the public HTTPS address" in result.stderr
 
 
 def test_production_loads_with_required_values_and_ignores_dev_flags(
@@ -90,7 +86,7 @@ def test_production_loads_with_required_values_and_ignores_dev_flags(
     result = load_settings(
         "secondshift.config.settings.production",
         tmp_path,
-        DJANGO_ENV="production",
+        SECONDSHIFT_ENV="production",
         SECONDSHIFT_OUTBOUND_ALLOW_LOCAL="true",
         **PRODUCTION_ENV,
     )
@@ -101,7 +97,7 @@ def test_production_loads_with_required_values_and_ignores_dev_flags(
 
 def test_dev_defaults_apply_only_in_dev(tmp_path: Path) -> None:
     result = load_settings(
-        "secondshift.config.settings.dev", tmp_path, DJANGO_ENV="dev"
+        "secondshift.config.settings.dev", tmp_path, SECONDSHIFT_ENV="dev"
     )
 
     assert result.returncode == 0, result.stderr
@@ -118,10 +114,12 @@ def test_dev_defaults_apply_only_in_dev(tmp_path: Path) -> None:
 def test_settings_module_must_match_django_env(
     module: str, environment: str, tmp_path: Path
 ) -> None:
-    result = load_settings(module, tmp_path, DJANGO_ENV=environment, **PRODUCTION_ENV)
+    result = load_settings(
+        module, tmp_path, SECONDSHIFT_ENV=environment, **PRODUCTION_ENV
+    )
 
     assert result.returncode != 0
-    assert "requires DJANGO_ENV" in result.stderr
+    assert "requires SECONDSHIFT_ENV" in result.stderr
 
 
 @pytest.mark.parametrize(
@@ -147,13 +145,13 @@ def test_dev_generates_keys_once_into_the_data_folder(tmp_path: Path) -> None:
         "secondshift.config.settings.dev",
         tmp_path,
         script=KEYS_SCRIPT,
-        DJANGO_ENV="dev",
+        SECONDSHIFT_ENV="dev",
     )
     second = load_settings(
         "secondshift.config.settings.dev",
         tmp_path,
         script=KEYS_SCRIPT,
-        DJANGO_ENV="dev",
+        SECONDSHIFT_ENV="dev",
     )
 
     assert first.returncode == 0, first.stderr
@@ -174,21 +172,21 @@ def test_configured_keys_win_over_the_data_folder(tmp_path: Path) -> None:
         "secondshift.config.settings.dev",
         tmp_path,
         script=KEYS_SCRIPT,
-        DJANGO_ENV="dev",
+        SECONDSHIFT_ENV="dev",
         **PRODUCTION_ENV,
     )
 
     assert result.returncode == 0, result.stderr
     assert result.stdout.split()[:3] == [
         "test-secret",
-        PRODUCTION_ENV["FIELD_ENCRYPTION_KEY"],
+        PRODUCTION_ENV["SECONDSHIFT_ENCRYPTION_KEY"],
         "runner-service-token",
     ]
 
 
 def test_production_never_generates_keys(tmp_path: Path) -> None:
     load_settings(
-        "secondshift.config.settings.production", tmp_path, DJANGO_ENV="production"
+        "secondshift.config.settings.production", tmp_path, SECONDSHIFT_ENV="production"
     )
 
     assert list(tmp_path.iterdir()) == []
@@ -200,34 +198,37 @@ def test_debug_is_independent_in_dev_and_refused_in_production(
     dev = load_settings(
         "secondshift.config.settings.dev",
         tmp_path,
-        DJANGO_ENV="dev",
-        DJANGO_DEBUG="false",
+        SECONDSHIFT_ENV="dev",
+        SECONDSHIFT_DEBUG="false",
     )
     production = load_settings(
         "secondshift.config.settings.production",
         tmp_path,
-        DJANGO_ENV="production",
-        DJANGO_DEBUG="true",
+        SECONDSHIFT_ENV="production",
+        SECONDSHIFT_DEBUG="true",
         **PRODUCTION_ENV,
     )
 
     assert dev.returncode == 0, dev.stderr
     assert dev.stdout.split()[0] == "False"
     assert production.returncode != 0
-    assert "DJANGO_DEBUG must be off" in production.stderr
+    assert "SECONDSHIFT_DEBUG must be off" in production.stderr
 
 
 def test_sqlite_waits_for_writers_instead_of_failing(tmp_path: Path) -> None:
     script = "print(s.DATABASES['default'].get('OPTIONS'))"
     sqlite = load_settings(
-        "secondshift.config.settings.dev", tmp_path, script=script, DJANGO_ENV="dev"
+        "secondshift.config.settings.dev",
+        tmp_path,
+        script=script,
+        SECONDSHIFT_ENV="dev",
     )
     postgres = load_settings(
         "secondshift.config.settings.dev",
         tmp_path,
         script=script,
-        DJANGO_ENV="dev",
-        DATABASE_URL="postgres://user:pass@db:5432/app",
+        SECONDSHIFT_ENV="dev",
+        SECONDSHIFT_DATABASE_URL="postgres://user:pass@db:5432/app",
     )
 
     assert "journal_mode=WAL" in sqlite.stdout
@@ -242,7 +243,10 @@ def test_local_is_a_single_host_install_without_debug(tmp_path: Path) -> None:
         "s.FRONTEND_URL)"
     )
     result = load_settings(
-        "secondshift.config.settings.local", tmp_path, script=script, DJANGO_ENV="local"
+        "secondshift.config.settings.local",
+        tmp_path,
+        script=script,
+        SECONDSHIFT_ENV="local",
     )
 
     assert result.returncode == 0, result.stderr
@@ -263,7 +267,7 @@ def test_gateway_service_serves_only_gateway_routes(tmp_path: Path) -> None:
         "secondshift.config.settings.production",
         tmp_path,
         script="print(s.ROOT_URLCONF, s.SECURE_SSL_REDIRECT)",
-        DJANGO_ENV="production",
+        SECONDSHIFT_ENV="production",
         SECONDSHIFT_SERVICE="gateway",
         **PRODUCTION_ENV,
     )
@@ -305,7 +309,7 @@ def test_local_ignores_the_checkout_env(
             "PATH": os.environ["PATH"],
             "HOME": str(tmp_path),
             "SECONDSHIFT_DATA_DIR": str(tmp_path),
-            "DJANGO_ENV": environment,
+            "SECONDSHIFT_ENV": environment,
         },
         capture_output=True,
         text=True,
@@ -328,7 +332,10 @@ EMAIL_SCRIPT = "print(s.EMAIL_BACKEND.rsplit('.', 2)[-2], s.ACCOUNT_EMAIL_VERIFI
         (
             "production",
             "production",
-            {**PRODUCTION_ENV, "EMAIL_URL": "smtp://user:pw@mail.example:587"},
+            {
+                **PRODUCTION_ENV,
+                "SECONDSHIFT_EMAIL_URL": "smtp://user:pw@mail.example:587",
+            },
             ["smtp", "optional"],
         ),
     ],
@@ -344,7 +351,7 @@ def test_email_is_sent_and_confirmed_only_with_an_email_url(
         f"secondshift.config.settings.{module}",
         tmp_path,
         script=EMAIL_SCRIPT,
-        DJANGO_ENV=environment,
+        SECONDSHIFT_ENV=environment,
         **variables,
     )
 

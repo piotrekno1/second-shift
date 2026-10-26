@@ -10,9 +10,9 @@ ephemeral sandbox, and delivers results to connected services.
 uv sync
 uv run python manage.py migrate
 uv run python manage.py bootstrap_dev
-DJANGO_ENV=dev uv run python manage.py dev_reset_db --yes
+SECONDSHIFT_ENV=dev uv run python manage.py dev_reset_db --yes
 uv run python manage.py runserver
-uv run secondshift up   # the installed single-machine mode (DJANGO_ENV=local)
+uv run secondshift up   # the installed single-machine mode (SECONDSHIFT_ENV=local)
 uv run python manage.py run_dbos_worker
 uv run pytest
 uv run ruff check .
@@ -56,7 +56,7 @@ docker build .
   Docker flags, mounts, images, capabilities, or the selected OCI runtime.
 - Production must fail closed when the configured sandbox runtime is missing.
 - Vue components use TypeScript and `<script setup lang="ts">`. Pinia owns
-  server-backed and cross-view state; services own HTTP.
+  server-backed and cross-view state, services own HTTP.
 - Use generated migrations. Do not hand-edit migration files.
 
 ## Verification

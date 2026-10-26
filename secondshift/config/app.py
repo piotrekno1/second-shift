@@ -26,7 +26,7 @@ from secondshift.config.constants import (
 
 
 def select_settings(default: Environment) -> None:
-    """Use DJANGO_ENV, or the default, to pick the settings module."""
+    """Use SECONDSHIFT_ENV, or the default, to pick the settings module."""
     environment = Environment(os.environ.setdefault(ENVIRONMENT_VAR, default))
     os.environ.setdefault(SETTINGS_MODULE_VAR, settings_module(environment))
 

@@ -16,7 +16,7 @@ def test_dev_reset_db_requires_development_and_confirmation(
     settings: Any, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     settings.DEV = False
-    with pytest.raises(click.ClickException, match="DJANGO_ENV=dev"):
+    with pytest.raises(click.ClickException, match="SECONDSHIFT_ENV=dev"):
         call_command("dev_reset_db", yes=True)
 
     settings.DEV = True

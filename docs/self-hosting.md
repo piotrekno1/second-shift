@@ -50,7 +50,7 @@ must remain within the operator's environment.
 
 ## Public address and outbound calls
 
-Set `FRONTEND_URL` to the HTTPS address people use to open the dashboard.
+Set `SECONDSHIFT_PUBLIC_URL` to the HTTPS address people use to open the dashboard.
 Production refuses to start without it. OAuth sign-in callbacks and run links
 use it.
 
@@ -92,7 +92,7 @@ Owners invite everyone else from the Settings page. Each invite has a role:
 - **Member** can view.
 
 People can sign in with GitHub when `GITHUB_CLIENT_ID` and
-`GITHUB_CLIENT_SECRET` are set, or with an email and password. Set `EMAIL_URL`
+`GITHUB_CLIENT_SECRET` are set, or with an email and password. Set `SECONDSHIFT_EMAIL_URL`
 (for example `smtp://user:password@mail.example.com:587`) to send address
 confirmations and password resets. Without it SecondShift sends no email, does
 not ask people to confirm their address, and cannot reset passwords.

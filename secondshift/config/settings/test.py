@@ -4,7 +4,7 @@ import tempfile
 
 from secondshift.config.constants import ENVIRONMENT_VAR, Environment
 
-# Tests use production defaults, whatever DJANGO_ENV the shell exports.
+# Tests use production defaults, whatever SECONDSHIFT_ENV the shell exports.
 os.environ[ENVIRONMENT_VAR] = Environment.TEST
 # Files go to a throwaway folder, and ~/.secondshift/.env is never read.
 os.environ["SECONDSHIFT_DATA_DIR"] = tempfile.mkdtemp(prefix="secondshift-test-")

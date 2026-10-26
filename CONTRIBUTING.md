@@ -78,7 +78,7 @@ To replace the development database with credential-free sample data for UI
 exploration, stop SecondShift processes, leave PostgreSQL running, and run:
 
 ```bash
-DJANGO_ENV=dev uv run python manage.py dev_reset_db --yes
+SECONDSHIFT_ENV=dev uv run python manage.py dev_reset_db --yes
 ```
 
 This deliberately drops and recreates the configured development database,
@@ -97,17 +97,17 @@ Without explicit settings, SecondShift keeps its state in `~/.secondshift`
 
 | Path | Contents |
 |---|---|
-| `.env` | Settings, read after a checkout's `.env`. In development, the first start writes fresh keys here. Back it up: `FIELD_ENCRYPTION_KEY` decrypts stored connection credentials |
+| `.env` | Settings, read after a checkout's `.env`. In development, the first start writes fresh keys here. Back it up: `SECONDSHIFT_ENCRYPTION_KEY` decrypts stored connection credentials |
 | `runner.env` | The runner's token. The runner reads only this file |
-| `secondshift.sqlite3` | The database, unless `DATABASE_URL` is set |
+| `secondshift.sqlite3` | The database, unless `SECONDSHIFT_DATABASE_URL` is set |
 | `artifacts/`, `work/` | Run input and output files, and scratch space |
 | `secondshift/runner/` | The runner's database, sandbox workspaces and Git mirrors |
 
 The real environment wins over a checkout's `.env`, which wins over the data
 folder's. Development generates keys through `secondshift/config/first_run.py`.
 Production refuses to start until
-`DJANGO_SECRET_KEY`, `FIELD_ENCRYPTION_KEY` and
-`SECONDSHIFT_RUNNER_SERVICE_TOKEN` are set, and `FRONTEND_URL` is an HTTPS
+`SECONDSHIFT_SECRET_KEY`, `SECONDSHIFT_ENCRYPTION_KEY` and
+`SECONDSHIFT_RUNNER_SERVICE_TOKEN` are set, and `SECONDSHIFT_PUBLIC_URL` is an HTTPS
 address.
 
 In development, the Repositories page can attach a local Git repository by

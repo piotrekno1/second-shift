@@ -7,6 +7,8 @@ from pathlib import Path
 
 from cryptography.fernet import Fernet
 
+from secondshift.config.constants import AppEnv
+
 
 def write_generated_env(data_dir: Path) -> None:
     """Create the data folder with fresh keys in its .env, once.
@@ -23,10 +25,10 @@ def write_generated_env(data_dir: Path) -> None:
         files = {
             "runner.env": f"SECONDSHIFT_RUNNER_SERVICE_TOKEN={token}\n",
             ".env": (
-                "# Generated on first start. Back it up: FIELD_ENCRYPTION_KEY\n"
+                "# Generated on first start. Back it up: SECONDSHIFT_ENCRYPTION_KEY\n"
                 "# decrypts stored connection credentials.\n"
-                f"DJANGO_SECRET_KEY={secrets.token_urlsafe(48)}\n"
-                f"FIELD_ENCRYPTION_KEY={Fernet.generate_key().decode()}\n"
+                f"{AppEnv.SECRET_KEY}={secrets.token_urlsafe(48)}\n"
+                f"{AppEnv.ENCRYPTION_KEY}={Fernet.generate_key().decode()}\n"
                 f"SECONDSHIFT_RUNNER_SERVICE_TOKEN={token}\n"
             ),
         }
