@@ -56,7 +56,7 @@ docker build .
   Docker flags, mounts, images, capabilities, or the selected OCI runtime.
 - Production must fail closed when the configured sandbox runtime is missing.
 - Vue components use TypeScript and `<script setup lang="ts">`. Pinia owns
-  server-backed and cross-view state; services own HTTP.
+  server-backed and cross-view state, services own HTTP.
 - Use generated migrations. Do not hand-edit migration files.
 
 ## Verification

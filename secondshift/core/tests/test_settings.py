@@ -34,7 +34,7 @@ def load_settings(
         for key, value in os.environ.items()
         if key in {"PATH", "HOME", "SYSTEMROOT"}
     }
-    # The checkout's .env is skipped; the data folder's is read as usual.
+    # The checkout's .env is skipped, the data folder's is read as usual.
     script = (
         "import environ; read = environ.Env.read_env; "
         "environ.Env.read_env = staticmethod("

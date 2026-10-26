@@ -74,7 +74,7 @@ def sqlalchemy_url(database_url: str) -> str:
 # Required in production. Generated into DATA_DIR/.env on a single host.
 SECRET_KEY = env.str(AppEnv.SECRET_KEY, default="")
 FIELD_ENCRYPTION_KEY = env.str(AppEnv.ENCRYPTION_KEY, default="")
-# Off unless asked for; on by default in development. production.py refuses it.
+# Off unless asked for, on by default in development. production.py refuses it.
 DEBUG = env.bool(AppEnv.DEBUG, default=DEV)
 FRONTEND_URL = env.str(AppEnv.PUBLIC_URL, default="http://localhost:5173")
 try:
@@ -174,7 +174,7 @@ LOGGING = {
         "handlers": ["console"],
         "level": env.str(AppEnv.LOG_LEVEL, default="INFO").upper(),
     },
-    # httpx logs full request URLs at INFO; provider and webhook URLs can carry
+    # httpx logs full request URLs at INFO, provider and webhook URLs can carry
     # credentials.
     "loggers": {
         "httpx": {"level": "WARNING"},
@@ -199,7 +199,7 @@ DATABASES = {
 }
 if DATABASES["default"]["ENGINE"] == "django.db.backends.sqlite3":
     # Web, gateway and worker share one file. WAL lets reads run during a
-    # write; IMMEDIATE transactions and a timeout make writers wait their turn
+    # write, IMMEDIATE transactions and a timeout make writers wait their turn
     # instead of failing with "database is locked".
     DATABASES["default"]["OPTIONS"] = {
         "init_command": "PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;",
@@ -229,7 +229,7 @@ STATICFILES_DIRS = [
 ]
 
 # Private run output, never served over HTTP. "filesystem" needs a persistent
-# volume at SECONDSHIFT_ARTIFACT_ROOT in production; "s3" works with any
+# volume at SECONDSHIFT_ARTIFACT_ROOT in production, "s3" works with any
 # S3-compatible service (AWS, R2, Hetzner, RustFS locally).
 ARTIFACT_STORAGE = env.str("SECONDSHIFT_ARTIFACT_STORAGE", default="filesystem")
 ARTIFACT_STORAGES = {
@@ -309,7 +309,7 @@ ACCOUNT_LOGIN_METHODS = {"email"}
 ACCOUNT_SIGNUP_FIELDS = ["email*", "password1*", "password2*"]
 ACCOUNT_ADAPTER = "secondshift.core.adapters.AccountAdapter"
 SOCIALACCOUNT_ADAPTER = "secondshift.core.adapters.SocialAccountAdapter"
-# New accounts (email or GitHub) are refused unless enabled; open in dev.
+# New accounts (email or GitHub) are refused unless enabled, open in dev.
 SIGNUP_ENABLED = env.bool("SECONDSHIFT_SIGNUP_ENABLED", default=DEV)
 LOGIN_REDIRECT_URL = "/"
 LOGOUT_REDIRECT_URL = "/"
