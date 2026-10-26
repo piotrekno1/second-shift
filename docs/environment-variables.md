@@ -16,6 +16,9 @@ uv run python -m secondshift.config.container_env \
 This creates four files in `$HOME/secondshift-server`, with production mode,
 service names and keys already set. It refuses to overwrite existing files.
 
+For local development setup and optional RustFS storage, see
+[Contributing](../CONTRIBUTING.md#development).
+
 ## Edit the env files
 
 | File | Service |
@@ -79,6 +82,12 @@ Put these in `runner.env` unless the table names other services:
 Only the runner receives the Docker socket. It must not receive the application
 volume or another service's env file. Repository manifests cannot override any
 of these sandbox choices.
+
+## GitHub sign-in
+
+Set `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` in `web.env` (or `.env` for
+local development) to enable GitHub sign-in through your OAuth application.
+These are separate from GitHub connections configured in the dashboard.
 
 ## Email
 
