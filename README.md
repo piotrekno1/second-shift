@@ -15,7 +15,7 @@ Commit a skill, set a schedule, and follow what gets done.
 
 Your team controls their access. Every run leaves an audit trail.
 
-https://github.com/user-attachments/assets/73cbd504-2a13-4a99-bf95-d7a5c3745e28
+https://github.com/user-attachments/assets/0d88e2ef-c14d-4bfa-8367-7a5c4e4fd627
 
 Commit a skill and its schedule alongside your code, connect a model, and
 approve the tools it may use. Skills can read data and take actions through
