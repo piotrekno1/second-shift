@@ -36,6 +36,9 @@ Run finished -> Worker -> Webhook
   resource-limited sandbox with no network or credentials.
 - The gateway enforces model access, budgets and usage metering.
 - The broker executes only approved MCP tools and API operations.
+- Skills can read or change external service data through approved operations.
+  The built-in GitHub and Sentry tools are read-only; custom connections can
+  expose write operations chosen by the workspace owner.
 - DBOS checkpoints each turn and deduplicates retried calls. Large output goes
   to private artifact storage.
 

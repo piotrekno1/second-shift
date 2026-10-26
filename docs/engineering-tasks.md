@@ -2,18 +2,22 @@
 
 [README](../README.md) · [Repository configuration](repository-configuration.md)
 
-The review skills in [examples](../examples/README.md) investigate repository
-code and approved service data, then return actionable reports. They do not
-change service state or repository files. Root `.agents/skills` contains
-symlinks so coding agents can discover the same skills.
+SecondShift executes tasks defined by repository skills. A task can investigate
+code, produce a briefing, or change connected service data through explicitly
+approved MCP tools or HTTP API operations.
+
+The current [examples](../examples/README.md) are reviews and briefings that
+return findings without modifying code or connected services. Those are the
+examples' chosen boundaries. Root `.agents/skills` contains discovery symlinks.
 
 Choose a workflow from the [skill catalog](../examples/README.md). Each example
 explains its data sources and suggests a schedule where appropriate. This guide
 covers the shared setup process.
 
-**Begin with a manual run, check its findings and coverage, then enable a
-schedule if useful.** A successful run should show that the skill can access
-the intended evidence and produce a useful report before it runs unattended.
+**Begin with a manual run, check its results and tool activity, then enable a
+schedule if useful.** Verify that the task can access its intended data and
+complete the intended work before it runs unattended. For a review, check the
+findings and coverage; for an action task, verify the resulting service state.
 
 For local coding-agent use, request a skill and scope explicitly, for example:
 
@@ -67,6 +71,37 @@ pull requests and commits. It does not provide build logs. See
 [MCP and API declarations](repository-configuration.md#mcp-and-api-declarations)
 for connection setup and [webhook notifications](repository-configuration.md#deliver-reports-to-a-webhook)
 for report delivery.
+
+## Tasks that change service data
+
+Custom MCP and HTTP API connections can expose write operations. The workspace
+owner must allow the operation on the connection and approve the job's request.
+The built-in GitHub and Sentry connections expose read tools only. Use a custom
+connection with the required operations for actions such as Jira transitions.
+
+For example, a Jira issue cleanup skill could:
+
+1. Find candidate issues in the approved project.
+2. Check linked implementation, validation, and deployment evidence against
+   the team's definition of fixed. A merged PR alone may not meet that definition.
+3. Transition only issues that meet those criteria and verify the resulting state.
+4. Summarize changed issues, skipped issues, and failures with evidence links.
+
+Select the service's actual read and transition operations, then declare their
+exact names in the job's `requires` section. Keep the project, credentials, and
+endpoint configuration in the workspace connection. This workflow is a design
+example; the shipped catalog does not include a Jira cleanup skill.
+
+Write the skill's completion criteria and stopping conditions explicitly.
+Check current state before acting, skip already-completed transitions, and
+avoid duplicate comments on reruns. If a write times out, check its outcome
+before retrying. Start with a read-only preview of proposed changes when useful,
+then test the approved action workflow manually before enabling its schedule.
+Access approval permits the tool calls; it does not guarantee that the model
+will apply your business rules correctly. See the
+[security model](security-model.md#remaining-risks).
+
+## Execution environment
 
 The sandbox contains the repository at the run's commit, without network access.
 Git history and project dependencies may be absent. Historical comparisons need

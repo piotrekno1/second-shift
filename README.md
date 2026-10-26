@@ -9,17 +9,18 @@
 **Same agent. Same task. Every week?**  
 **Put it on a schedule with SecondShift.**
 
-Your coding agents can review production errors, investigate CI failures, and
-check monitoring coverage. Stop reminding them. Commit a skill, set a schedule,
-and get the findings delivered.
+Give your coding agents recurring tasks: investigate CI failures, check release
+readiness, or close fixed issues through an approved service connection.
+Commit a skill, set a schedule, and follow what gets done.
 
 Your team controls their access. Every run leaves an audit trail.
 
 https://github.com/user-attachments/assets/73cbd504-2a13-4a99-bf95-d7a5c3745e28
 
 Commit a skill and its schedule alongside your code, connect a model, and
-approve the services it may use. Reports arrive in Slack or another webhook
-destination. Commands run in an isolated sandbox. Each run records its Git
+approve the tools it may use. Skills can read data and take actions through
+approved MCP tools or HTTP API operations. Results can arrive in Slack or another
+webhook destination. Commands run in an isolated sandbox. Each run records its Git
 revision, tool activity, and model cost.
 
 ## Try it out now
@@ -62,18 +63,19 @@ available on PyPI.
 - **Connect models and report destinations.** Add a model provider and webhook,
   then approve each job's notification access. Connections remain separately
   revocable.
-- **Give skills live data.** Connect GitHub, Sentry, any MCP server (OAuth or a
+- **Connect skills to your services.** Connect GitHub, Sentry, any MCP server (OAuth or a
   token), or an HTTP API from its OpenAPI spec. Choose which tools jobs may use,
-  then approve each job's request. Calls run outside the sandbox.
+  then approve each job's request, including operations that change data.
+  Calls run outside the sandbox. Built-in GitHub and Sentry tools are read-only.
 - **Follow every run.** Inspect its Git revision, execution timeline, report,
   token usage, and model cost.
 
-## Put recurring reviews on duty
+## Put recurring tasks on duty
 
-Write a skill for a recurring problem your team needs to investigate. Connect
+Write a skill for recurring work your team needs done. Connect
 the services it needs through MCP or an HTTP API, then approve the job's access.
 
-Start with a useful recurring task:
+The current task examples focus on reviews and briefings:
 
 - [Documentation drift](examples/docs-drift/README.md) finds broken links and
   stale commands in your docs. It needs only a model provider.
@@ -85,6 +87,12 @@ Start with a useful recurring task:
 Browse the [full skill catalog](examples/README.md) to choose a workflow and see
 what data it needs. Follow the [engineering task setup guide](docs/engineering-tasks.md)
 to copy a skill, approve access, try it manually, and enable scheduling.
+
+You can also write action skills. For example, a Jira task could check whether
+issues meet your definition of fixed, then transition them through an approved
+custom MCP connection. Define the completion criteria, allowed actions, and how
+to handle an item that was already processed. See
+[tasks that change service data](docs/engineering-tasks.md#tasks-that-change-service-data).
 
 ## Who controls what
 
@@ -145,7 +153,7 @@ discuss the approach.
 ## Documentation
 
 - [Repository configuration](docs/repository-configuration.md): skills, YAML syntax, schedules, and notifications.
-- [Engineering tasks](docs/engineering-tasks.md): review skills, required data, and setup for use in this repository or your own.
+- [Engineering tasks](docs/engineering-tasks.md): skill setup, approved service actions, and scheduling.
 - [Architecture](docs/architecture.md): execution design and capability boundaries.
 - [Security model](docs/security-model.md): what a run can reach, where secrets live, and remaining risks.
 - [Self-hosting](docs/self-hosting.md) (work in progress): runner backends, sandbox images, and artifact storage.

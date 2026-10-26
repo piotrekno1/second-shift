@@ -1,4 +1,9 @@
-# Reusable review examples
+# Task examples
+
+These examples demonstrate reviews and briefings. SecondShift can also execute
+tasks that change connected services through approved MCP tools or API
+operations. See the [task setup guide](../docs/engineering-tasks.md#tasks-that-change-service-data)
+for an action workflow and its access requirements.
 
 Each directory contains the canonical `.agents/skills/<name>/SKILL.md`, a sample
 `.secondshift.yaml`, and setup instructions. Root `.agents/skills/<name>` symlinks
