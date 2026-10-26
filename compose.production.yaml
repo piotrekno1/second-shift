@@ -1,0 +1,126 @@
+# Standalone example. See docs/production-deployment.md.
+name: secondshift
+
+x-application: &application
+  image: secondshift:production
+  build: .
+  restart: unless-stopped
+
+x-artifacts: &artifacts
+  SECONDSHIFT_ARTIFACT_STORAGE: s3
+  SECONDSHIFT_ARTIFACT_BUCKET: ${ARTIFACT_BUCKET:?Set ARTIFACT_BUCKET}
+  SECONDSHIFT_ARTIFACT_REGION: ${ARTIFACT_REGION:?Set ARTIFACT_REGION}
+  SECONDSHIFT_ARTIFACT_ACCESS_KEY_ID: ${ARTIFACT_ACCESS_KEY_ID:?Set ARTIFACT_ACCESS_KEY_ID}
+  SECONDSHIFT_ARTIFACT_SECRET_ACCESS_KEY: ${ARTIFACT_SECRET_ACCESS_KEY:?Set ARTIFACT_SECRET_ACCESS_KEY}
+  SECONDSHIFT_ARTIFACT_ENDPOINT_URL: ${ARTIFACT_ENDPOINT_URL:?Set ARTIFACT_ENDPOINT_URL}
+  SECONDSHIFT_ARTIFACT_ADDRESSING_STYLE: ${ARTIFACT_ADDRESSING_STYLE:-auto}
+
+services:
+  postgres:
+    image: postgres:18-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+      APP_DATABASE_PASSWORD: ${APP_DATABASE_PASSWORD:?Set APP_DATABASE_PASSWORD}
+      RUNNER_DATABASE_PASSWORD: ${RUNNER_DATABASE_PASSWORD:?Set RUNNER_DATABASE_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql
+      - ./deploy/production/init-postgres.sql:/docker-entrypoint-initdb.d/10-secondshift.sql:ro
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -h 127.0.0.1 -U postgres -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  web:
+    <<: *application
+    env_file: ./deploy/production/web.env
+    environment:
+      <<: *artifacts
+      SECONDSHIFT_DATABASE_URL: postgres://secondshift:${APP_DATABASE_PASSWORD:?}@postgres:5432/secondshift
+      SECONDSHIFT_TRUSTED_PROXY_COUNT: "1"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    stop_grace_period: 40s
+    healthcheck:
+      test: [CMD, python, -c, "from urllib.request import urlopen; urlopen('http://localhost:8000/-/health/up/', timeout=5).close()"]
+      interval: 10s
+      timeout: 6s
+      retries: 10
+
+  gateway:
+    <<: *application
+    env_file: ./deploy/production/gateway.env
+    environment:
+      SECONDSHIFT_DATABASE_URL: postgres://secondshift:${APP_DATABASE_PASSWORD:?}@postgres:5432/secondshift
+    networks:
+      default:
+        aliases: [secondshift-gateway]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    stop_grace_period: 610s
+
+  worker:
+    <<: *application
+    command: [python, manage.py, run_dbos_worker]
+    env_file: ./deploy/production/worker.env
+    environment:
+      <<: *artifacts
+      SECONDSHIFT_DATABASE_URL: postgres://secondshift:${APP_DATABASE_PASSWORD:?}@postgres:5432/secondshift
+    depends_on:
+      postgres:
+        condition: service_healthy
+      gateway:
+        condition: service_started
+      runner:
+        condition: service_started
+    stop_grace_period: 60s
+
+  runner:
+    <<: *application
+    user: "0:0"
+    env_file: ./deploy/production/runner.env
+    environment:
+      SECONDSHIFT_RUNNER_DATABASE_URL: postgres://secondshift_runner:${RUNNER_DATABASE_PASSWORD:?}@postgres:5432/secondshift_runner
+      SECONDSHIFT_DATA_DIR: ${RUNNER_ROOT:?Set RUNNER_ROOT to an absolute host path}
+      SECONDSHIFT_RUNNER_WORK_ROOT: ${RUNNER_ROOT:?}
+      SECONDSHIFT_RUNNER_REPOSITORY_ROOT: ${RUNNER_ROOT:?}/repositories
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      # The host daemon must see sandbox workspaces at the identical path.
+      - type: bind
+        source: ${RUNNER_ROOT:?}
+        target: ${RUNNER_ROOT:?}
+        bind:
+          create_host_path: false
+    networks:
+      default:
+        aliases: [secondshift-runner]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    stop_grace_period: 40s
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      DOMAIN: ${DOMAIN:?Set DOMAIN to your public hostname}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./deploy/production/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      web:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  caddy_data:
+  caddy_config:
