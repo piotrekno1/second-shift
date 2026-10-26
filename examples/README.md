@@ -27,6 +27,7 @@ Individual examples provide service-specific setup and suggested cadences.
 | [Engineering briefing](engineering-briefing/README.md) | Summarizes shipped work, open blockers, and participation. | GitHub pull requests, reviews, and commits through approved read tools. |
 | [Ticket follow-up brief](ticket-follow-up/README.md) | Finds tickets that may be ready to close or update and explains what still needs checking. | Repository history and approved tracker read access. |
 | [Ticket reconciliation](ticket-reconciliation/README.md) | Updates or closes tickets that meet the team's completion rules. | Repository history, explicit workflow rules, and approved tracker read and write operations. |
+| [On-call coverage](on-call-coverage/README.md) | Checks upcoming shifts for coverage gaps and conflicts with explicit time off. | Resolved on-call assignments, approved calendar or leave data, and team coverage rules. |
 
 ## Reuse in your project
 

@@ -1,0 +1,10 @@
+version: 1
+
+jobs:
+  on-call-coverage:
+    name: Upcoming on-call coverage
+    skill: .agents/skills/on-call-coverage/SKILL.md
+    schedule: "0 8 * * *"
+    timezone: Europe/Warsaw
+    # Add required on-call and calendar operations from approved connections.
+    # Operation names depend on the selected MCP servers or HTTP APIs.
