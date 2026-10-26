@@ -1,0 +1,10 @@
+version: 1
+
+jobs:
+  quarterly-access-review:
+    name: Quarterly access review
+    skill: .agents/skills/quarterly-access-review/SKILL.md
+    schedule: "0 9 1 1,4,7,10 *"
+    timezone: Europe/Warsaw
+    # Declare actual required read operations for the workforce directory,
+    # identity provider, and in-scope systems before using this template.
