@@ -28,6 +28,8 @@ process-compose up
 
 Process-compose loads `.env` and selects development mode for its processes. Initialization
 creates the control-plane keys and runner token before migrating the runner.
+Gunicorn automatically loads the root `gunicorn.conf.py`, which delegates to
+the shared service configuration in `secondshift/config/gunicorn.py`.
 The supporting PostgreSQL and optional RustFS services are defined in
 `docker-compose.localdev.yml`; standalone Docker commands need
 `docker compose -f docker-compose.localdev.yml`.

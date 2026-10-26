@@ -32,7 +32,7 @@ processes:
 
   runner:
     description: Isolated command-runner API
-    command: uv run gunicorn --config python:secondshift.config.gunicorn --reload
+    command: uv run gunicorn --reload
     environment:
       - SECONDSHIFT_SERVICE=runner
       - SECONDSHIFT_HTTP_BIND=127.0.0.1:8002
@@ -44,7 +44,7 @@ processes:
       restart: always
 
   backend:
-    command: uv run gunicorn --config python:secondshift.config.gunicorn --reload
+    command: uv run gunicorn --reload
     environment:
       - SECONDSHIFT_SERVICE=web
       - SECONDSHIFT_HTTP_BIND=127.0.0.1:8000
@@ -56,7 +56,7 @@ processes:
 
   gateway:
     description: Model gateway for the trusted agent orchestrator
-    command: uv run gunicorn --config python:secondshift.config.gunicorn --reload
+    command: uv run gunicorn --reload
     environment:
       - SECONDSHIFT_SERVICE=gateway
       - SECONDSHIFT_HTTP_GRACEFUL_TIMEOUT_SECONDS=600
