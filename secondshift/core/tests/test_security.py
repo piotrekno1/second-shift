@@ -87,7 +87,7 @@ def test_admin_login_locks_out_after_failures(client) -> None:
 
 
 def test_bootstrap_dev_refuses_outside_debug() -> None:
-    with pytest.raises(click.ClickException, match="DJANGO_ENV=dev"):
+    with pytest.raises(click.ClickException, match="SECONDSHIFT_ENV=dev"):
         call_command("bootstrap_dev")
 
 

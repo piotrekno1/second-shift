@@ -18,6 +18,7 @@ from secondshift.config.constants import (
     ENVIRONMENT_VAR,
     RUNNER_SETTINGS,
     SETTINGS_MODULE_VAR,
+    AppEnv,
     Environment,
     SandboxRuntime,
     Service,
@@ -26,7 +27,7 @@ from secondshift.config.constants import (
 
 CONTROL_SETTINGS = settings_module(Environment.LOCAL)
 # The runner gets only these variables from the parent environment.
-RUNNER_ENV_NAMES = {"PATH", "HOME", "USER", "LANG", "LC_ALL", "TMPDIR", "LOG_LEVEL"}
+RUNNER_ENV_NAMES = {"PATH", "HOME", "USER", "LANG", "LC_ALL", "TMPDIR", AppEnv.LOG_LEVEL}
 RUNNER_ENV_PREFIXES = ("DOCKER_", "SECONDSHIFT_RUNNER_")
 STOP_SECONDS = 15
 
@@ -64,7 +65,7 @@ def services(
     gateway_port, runner_port = port + 1, port + 2
     control = {
         # Links in notifications, invites and OAuth callbacks use it.
-        "FRONTEND_URL": public_url(host, port),
+        AppEnv.PUBLIC_URL: public_url(host, port),
         **parent,
         ENVIRONMENT_VAR: Environment.LOCAL,
         SETTINGS_MODULE_VAR: CONTROL_SETTINGS,

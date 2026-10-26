@@ -8,22 +8,24 @@ import os
 import secrets
 from pathlib import Path
 
-import environ
 from django.core.exceptions import ImproperlyConfigured
+from environ import Env
 
-from secondshift.config.constants import DEFAULT_SANDBOX_IMAGE, SandboxRuntime
+from secondshift.config.constants import DEFAULT_SANDBOX_IMAGE, AppEnv, SandboxRuntime
 
-env = environ.Env()
+env = Env()
 # On a single host the runner shares the data folder, but reads only runner.env
 # (its token), never the control plane's .env with the encryption key.
-DATA_DIR = Path(env.str("SECONDSHIFT_DATA_DIR", default="~/.secondshift")).expanduser()
-environ.Env.read_env(DATA_DIR / "runner.env")
+DATA_DIR = Path(env.str(AppEnv.DATA_DIR, default="~/.secondshift")).expanduser()
+Env.read_env(DATA_DIR / "runner.env")
 
 # Nothing in the runner signs data (no sessions, no auth cookies), so a
 # per-process key is enough and there is nothing to configure.
 SECRET_KEY = secrets.token_urlsafe(50)
 DEBUG = False
-ALLOWED_HOSTS = env.list("RUNNER_ALLOWED_HOSTS", default=["127.0.0.1", "localhost"])
+ALLOWED_HOSTS = env.list(
+    AppEnv.RUNNER_ALLOWED_HOSTS, default=["127.0.0.1", "localhost"]
+)
 
 INSTALLED_APPS = ["django.contrib.contenttypes", "secondshift.runner"]
 MIDDLEWARE = ["django.middleware.security.SecurityMiddleware"]
@@ -35,26 +37,27 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 DATA_UPLOAD_MAX_MEMORY_SIZE = 64 * 1024
 
 RUNNER_WORK_ROOT = Path(
-    env.str("SECONDSHIFT_RUNNER_WORK_ROOT", default=str(DATA_DIR / "runner"))
+    env.str(AppEnv.RUNNER_WORK_ROOT, default=str(DATA_DIR / "runner"))
 ).resolve()
 RUNNER_WORK_ROOT.mkdir(parents=True, exist_ok=True, mode=0o700)
 RUNNER_DATABASE_URL = env.str(
-    "RUNNER_DATABASE_URL", default=f"sqlite:///{RUNNER_WORK_ROOT / 'runner.sqlite3'}"
+    AppEnv.RUNNER_DATABASE_URL,
+    default=f"sqlite:///{RUNNER_WORK_ROOT / 'runner.sqlite3'}",
 )
 DATABASES = {
     "default": {
         **env.db_url_config(RUNNER_DATABASE_URL),
-        "CONN_MAX_AGE": env.int("RUNNER_DB_CONN_MAX_AGE", default=60),
+        "CONN_MAX_AGE": env.int(AppEnv.RUNNER_DB_CONN_MAX_AGE_SECONDS, default=60),
         "CONN_HEALTH_CHECKS": True,
     }
 }
 
-RUNNER_SERVICE_TOKEN = env.str("SECONDSHIFT_RUNNER_SERVICE_TOKEN", default="")
-RUNNER_IMAGE = env.str("SECONDSHIFT_RUNNER_IMAGE", default=DEFAULT_SANDBOX_IMAGE)
-RUNNER_RUNTIME = env.str("SECONDSHIFT_RUNNER_RUNTIME", default=SandboxRuntime.GVISOR)
+RUNNER_SERVICE_TOKEN = env.str(AppEnv.RUNNER_SERVICE_TOKEN, default="")
+RUNNER_IMAGE = env.str(AppEnv.RUNNER_IMAGE, default=DEFAULT_SANDBOX_IMAGE)
+RUNNER_RUNTIME = env.str(AppEnv.RUNNER_RUNTIME, default=SandboxRuntime.GVISOR)
 RUNNER_REPOSITORY_ROOT = Path(
     env.str(
-        "SECONDSHIFT_RUNNER_REPOSITORY_ROOT",
+        AppEnv.RUNNER_REPOSITORY_ROOT,
         default=str(RUNNER_WORK_ROOT / "repositories"),
     )
 ).resolve()
@@ -102,5 +105,8 @@ LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
     "handlers": {"console": {"class": "logging.StreamHandler"}},
-    "root": {"handlers": ["console"], "level": env.str("LOG_LEVEL", default="INFO")},
+    "root": {
+        "handlers": ["console"],
+        "level": env.str(AppEnv.LOG_LEVEL, default="INFO").upper(),
+    },
 }

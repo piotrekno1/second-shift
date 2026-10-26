@@ -18,7 +18,7 @@ processes:
   migrate:
     command: uv run python manage.py migrate
     environment:
-      - DJANGO_ENV=dev
+      - SECONDSHIFT_ENV=dev
     depends_on:
       stack:
         condition: process_completed_successfully
@@ -26,7 +26,7 @@ processes:
   bootstrap:
     command: uv run python manage.py bootstrap_dev
     environment:
-      - DJANGO_ENV=dev
+      - SECONDSHIFT_ENV=dev
     depends_on:
       migrate:
         condition: process_completed_successfully
@@ -52,7 +52,7 @@ processes:
   backend:
     command: uv run gunicorn "secondshift.config.app:wsgi('web')" --bind 127.0.0.1:8000 --workers 2 --reload --access-logfile -
     environment:
-      - DJANGO_ENV=dev
+      - SECONDSHIFT_ENV=dev
       # macOS kills forked workers that make outbound HTTP (system proxy lookup).
       - OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
     depends_on:
@@ -65,7 +65,7 @@ processes:
     description: Model gateway for the trusted agent orchestrator
     command: uv run gunicorn "secondshift.config.app:asgi('gateway')" --bind 127.0.0.1:8001 --worker-class uvicorn_worker.UvicornWorker --workers 1 --reload --access-logfile -
     environment:
-      - DJANGO_ENV=dev
+      - SECONDSHIFT_ENV=dev
       - OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
     depends_on:
       bootstrap:
@@ -76,7 +76,7 @@ processes:
   worker:
     command: uv run python manage.py run_dbos_worker
     environment:
-      - DJANGO_ENV=dev
+      - SECONDSHIFT_ENV=dev
     depends_on:
       bootstrap:
         condition: process_completed_successfully

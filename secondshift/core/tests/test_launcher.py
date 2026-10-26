@@ -13,9 +13,9 @@ PARENT = {
     "DOCKER_HOST": "unix:///var/run/docker.sock",
     "SECONDSHIFT_DATA_DIR": "/data",
     "SECONDSHIFT_RUNNER_SERVICE_TOKEN": "t" * 40,
-    "DJANGO_SECRET_KEY": "secret",
-    "FIELD_ENCRYPTION_KEY": "key",
-    "DATABASE_URL": "postgres://user:pass@db/app",
+    "SECONDSHIFT_SECRET_KEY": "secret",
+    "SECONDSHIFT_ENCRYPTION_KEY": "key",
+    "SECONDSHIFT_DATABASE_URL": "postgres://user:pass@db/app",
     "GITHUB_CLIENT_SECRET": "github",
 }
 
@@ -47,24 +47,24 @@ def test_services_listen_next_to_the_chosen_port() -> None:
     assert "127.0.0.1:9002" in services["runner"].argv
     for name in ("web", "gateway", "worker"):
         env = services[name].env
-        assert env["DJANGO_ENV"] == "local"
+        assert env["SECONDSHIFT_ENV"] == "local"
         assert env["SECONDSHIFT_RUNNER_SERVICE_URL"] == "http://127.0.0.1:9002"
         assert env["SECONDSHIFT_MODEL_GATEWAY_URL"] == "http://127.0.0.1:9001"
-        assert env["FRONTEND_URL"] == "http://127.0.0.1:9000"
+        assert env["SECONDSHIFT_PUBLIC_URL"] == "http://127.0.0.1:9000"
 
 
 def test_frontend_url_follows_the_address_unless_set() -> None:
     shared = launcher.services("0.0.0.0", 8000, PARENT, python="python")
     chosen = launcher.services(
-        "0.0.0.0", 8000, {**PARENT, "FRONTEND_URL": "http://box.lan:8000"}
+        "0.0.0.0", 8000, {**PARENT, "SECONDSHIFT_PUBLIC_URL": "http://box.lan:8000"}
     )
 
-    assert {s.env.get("FRONTEND_URL") for s in shared if s.name != "runner"} == {
-        "http://127.0.0.1:8000"
-    }
-    assert {s.env.get("FRONTEND_URL") for s in chosen if s.name != "runner"} == {
-        "http://box.lan:8000"
-    }
+    assert {
+        s.env.get("SECONDSHIFT_PUBLIC_URL") for s in shared if s.name != "runner"
+    } == {"http://127.0.0.1:8000"}
+    assert {
+        s.env.get("SECONDSHIFT_PUBLIC_URL") for s in chosen if s.name != "runner"
+    } == {"http://box.lan:8000"}
 
 
 def test_one_process_stopping_stops_the_others() -> None:
@@ -83,5 +83,5 @@ def test_one_process_stopping_stops_the_others() -> None:
 
 
 def test_up_runs_only_in_the_local_environment() -> None:
-    with pytest.raises(click.ClickException, match="DJANGO_ENV=local"):
+    with pytest.raises(click.ClickException, match="SECONDSHIFT_ENV=local"):
         call_command("up")

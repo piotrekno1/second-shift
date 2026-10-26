@@ -1,5 +1,9 @@
 .DS_Store
 .env
+.env.*
+*.env
+*.env.*
+!.env.example
 .venv/
 .pytest_cache/
 .ruff_cache/

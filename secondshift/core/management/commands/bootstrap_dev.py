@@ -12,7 +12,7 @@ from secondshift.workspaces.owners import ensure_owner
 def command() -> None:
     """Create the local owner and workspace when they do not exist."""
     if not settings.DEV:
-        raise click.ClickException("bootstrap_dev only runs with DJANGO_ENV=dev.")
+        raise click.ClickException("bootstrap_dev only runs with SECONDSHIFT_ENV=dev.")
     email = os.environ.get("DEV_ADMIN_EMAIL", "admin@secondshift.local")
     password = os.environ.get("DEV_ADMIN_PASSWORD", "secondshift")
     ensure_owner(email, password)

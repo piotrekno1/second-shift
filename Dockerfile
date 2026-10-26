@@ -9,7 +9,7 @@ FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim AS application
 ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
     PATH="/app/.venv/bin:$PATH" \
-    DJANGO_ENV=production
+    SECONDSHIFT_ENV=production
 WORKDIR /app
 
 COPY pyproject.toml uv.lock ./
@@ -19,7 +19,7 @@ COPY --from=frontend /app/secondshift/web /app/secondshift/web
 # collectstatic loads the models, which need an encryption key. It gets a
 # throwaway one that exists only for this command.
 RUN uv sync --frozen --no-dev && \
-    FIELD_ENCRYPTION_KEY="$(python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())')" \
+    SECONDSHIFT_ENCRYPTION_KEY="$(python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())')" \
     DJANGO_SETTINGS_MODULE=secondshift.config.settings.base python manage.py collectstatic --noinput && \
     addgroup --system secondshift && \
     adduser --system --ingroup secondshift --home /app secondshift && \

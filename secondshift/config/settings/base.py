@@ -1,6 +1,6 @@
 """Settings shared by every environment.
 
-DJANGO_ENV picks the settings module. It is read from the process
+SECONDSHIFT_ENV picks the settings module. It is read from the process
 environment, never from .env.
 
 - production: a server. production.py requires every key and adds HTTPS.
@@ -15,15 +15,17 @@ Defaults are safe for production. Values that differ on a single machine use
 import os
 from datetime import timedelta
 from pathlib import Path
+from urllib.parse import urlsplit
 
-import environ
 from django.core.exceptions import ImproperlyConfigured
 from django.utils.csp import CSP
+from environ import Env
 
 from secondshift.config.constants import (
     DEFAULT_SANDBOX_IMAGE,
     ENVIRONMENT_VAR,
     SERVICE_VAR,
+    AppEnv,
     Environment,
     SandboxRuntime,
     Service,
@@ -43,20 +45,20 @@ DEV = ENVIRONMENT == Environment.DEV
 # generated keys are fine there.
 SINGLE_HOST = ENVIRONMENT in {Environment.DEV, Environment.LOCAL}
 
-env = environ.Env()
+env = Env()
 
 
 # Real environment wins, then a checkout's .env, then the data folder's .env.
 # A checkout's .env holds development settings. Local mode skips it so it runs
 # the same as an installed copy.
 if ENVIRONMENT != Environment.LOCAL:
-    environ.Env.read_env(BASE_DIR / ".env")
+    Env.read_env(BASE_DIR / ".env")
 # Everything a single-host install writes: database, run files and runner
 # workspaces. On a single host its .env also holds keys made on first start.
-DATA_DIR = Path(env.str("SECONDSHIFT_DATA_DIR", default="~/.secondshift")).expanduser()
+DATA_DIR = Path(env.str(AppEnv.DATA_DIR, default="~/.secondshift")).expanduser()
 if SINGLE_HOST:
     write_generated_env(DATA_DIR)
-environ.Env.read_env(DATA_DIR / ".env")
+Env.read_env(DATA_DIR / ".env")
 
 
 def sqlalchemy_url(database_url: str) -> str:
@@ -70,12 +72,19 @@ def sqlalchemy_url(database_url: str) -> str:
 # --- Core --------------------------------------------------------------------
 
 # Required in production. Generated into DATA_DIR/.env on a single host.
-SECRET_KEY = env.str("DJANGO_SECRET_KEY", default="")
-FIELD_ENCRYPTION_KEY = env.str("FIELD_ENCRYPTION_KEY", default="")
+SECRET_KEY = env.str(AppEnv.SECRET_KEY, default="")
+FIELD_ENCRYPTION_KEY = env.str(AppEnv.ENCRYPTION_KEY, default="")
 # Off unless asked for; on by default in development. production.py refuses it.
-DEBUG = env.bool("DJANGO_DEBUG", default=DEV)
-ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS", default=["localhost", "127.0.0.1"])
-FRONTEND_URL = env.str("FRONTEND_URL", default="http://localhost:5173")
+DEBUG = env.bool(AppEnv.DEBUG, default=DEV)
+FRONTEND_URL = env.str(AppEnv.PUBLIC_URL, default="http://localhost:5173")
+try:
+    PUBLIC_HOST = urlsplit(FRONTEND_URL).hostname
+except ValueError:
+    PUBLIC_HOST = None
+ALLOWED_HOSTS = env.list(
+    AppEnv.ALLOWED_HOSTS,
+    default=["localhost", "127.0.0.1"] if SINGLE_HOST else [PUBLIC_HOST or "localhost"],
+)
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -161,7 +170,10 @@ LOGGING = {
         "console": {"class": "logging.StreamHandler", "formatter": "console"},
         "null": {"class": "logging.NullHandler"},
     },
-    "root": {"handlers": ["console"], "level": env.str("LOG_LEVEL", default="INFO")},
+    "root": {
+        "handlers": ["console"],
+        "level": env.str(AppEnv.LOG_LEVEL, default="INFO").upper(),
+    },
     # httpx logs full request URLs at INFO; provider and webhook URLs can carry
     # credentials.
     "loggers": {
@@ -176,12 +188,12 @@ LOGGING = {
 # --- Database and durable workflows ------------------------------------------
 
 DATABASE_URL = env.str(
-    "DATABASE_URL", default=f"sqlite:///{DATA_DIR / 'secondshift.sqlite3'}"
+    AppEnv.DATABASE_URL, default=f"sqlite:///{DATA_DIR / 'secondshift.sqlite3'}"
 )
 DATABASES = {
     "default": {
         **env.db_url_config(DATABASE_URL),
-        "CONN_MAX_AGE": env.int("CONN_MAX_AGE", default=60),
+        "CONN_MAX_AGE": env.int(AppEnv.DB_CONN_MAX_AGE_SECONDS, default=60),
         "CONN_HEALTH_CHECKS": True,
     }
 }
@@ -197,13 +209,13 @@ if DATABASES["default"]["ENGINE"] == "django.db.backends.sqlite3":
 CACHES = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}
 
 DBOS_SYSTEM_DATABASE_URL = sqlalchemy_url(
-    env.str("DBOS_SYSTEM_DATABASE_URL", default=DATABASE_URL)
+    env.str(AppEnv.WORKFLOW_DATABASE_URL, default=DATABASE_URL)
 )
 DBOS_APPLICATION_NAME = "secondshift"
 # Fixed, so a deploy still recovers workflows started by the previous version.
 DBOS_APPLICATION_VERSION = "0.1.0"
 DBOS_QUEUE_NAME = "agent-runs"
-DBOS_WORKER_CONCURRENCY = env.int("DBOS_WORKER_CONCURRENCY", default=2)
+DBOS_WORKER_CONCURRENCY = env.int(AppEnv.RUN_CONCURRENCY, default=2)
 
 # --- Static files and run artifacts ------------------------------------------
 
@@ -258,9 +270,7 @@ if ARTIFACT_STORAGE not in ARTIFACT_STORAGES:
 STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
     "run_artifacts": ARTIFACT_STORAGES[ARTIFACT_STORAGE],
-    "staticfiles": {
-        "BACKEND": "secondshift.core.static_storage.StaticFilesStorage"
-    },
+    "staticfiles": {"BACKEND": "secondshift.core.static_storage.StaticFilesStorage"},
 }
 
 # --- Accounts and login ------------------------------------------------------
@@ -280,10 +290,10 @@ AUTHENTICATION_BACKENDS = [
 ]
 
 # Email goes out only through EMAIL_URL, e.g. smtp://user:pass@host:587.
-EMAIL_URL = env.str("EMAIL_URL", default="")
-DEFAULT_FROM_EMAIL = env.str("DEFAULT_FROM_EMAIL", default="webmaster@localhost")
+EMAIL_URL = env.str(AppEnv.EMAIL_URL, default="")
+DEFAULT_FROM_EMAIL = env.str(AppEnv.FROM_EMAIL, default="webmaster@localhost")
 if EMAIL_URL:
-    globals().update(env.email_url("EMAIL_URL"))
+    globals().update(env.email_url(AppEnv.EMAIL_URL))
 elif SINGLE_HOST:
     # One person at the terminal reads them there.
     EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
@@ -330,7 +340,9 @@ AXES_IPWARE_META_PRECEDENCE_ORDER = (
 
 # --- Browser security --------------------------------------------------------
 
-CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[])
+CSRF_TRUSTED_ORIGINS = env.list(
+    AppEnv.CSRF_TRUSTED_ORIGINS, default=[FRONTEND_URL.rstrip("/")]
+)
 X_FRAME_OPTIONS = "DENY"
 # PrimeVue injects component styles at runtime, so styles need 'unsafe-inline'.
 # Scripts stay restricted to same-origin files.
@@ -357,7 +369,7 @@ LOCAL_REPOSITORIES_ENABLED = SINGLE_HOST and env.bool(
 # runner's repository folder, so both default to the same place.
 LOCAL_REPOSITORY_MIRROR_ROOT = Path(
     env.str(
-        "SECONDSHIFT_RUNNER_REPOSITORY_ROOT",
+        AppEnv.RUNNER_REPOSITORY_ROOT,
         default=str(DATA_DIR / "runner" / "repositories"),
     )
 ).resolve()
@@ -395,8 +407,8 @@ if AGENT_MAX_TOOL_CALLS_CEILING < AGENT_MAX_TOOL_CALLS:
         "SECONDSHIFT_AGENT_MAX_TOOL_CALLS_CEILING cannot be below "
         "SECONDSHIFT_AGENT_MAX_TOOL_CALLS"
     )
-RUNNER_RUNTIME = env.str("SECONDSHIFT_RUNNER_RUNTIME", default=SandboxRuntime.DOCKER)
-RUNNER_IMAGE = env.str("SECONDSHIFT_RUNNER_IMAGE", default=DEFAULT_SANDBOX_IMAGE)
+RUNNER_RUNTIME = env.str(AppEnv.RUNNER_RUNTIME, default=SandboxRuntime.DOCKER)
+RUNNER_IMAGE = env.str(AppEnv.RUNNER_IMAGE, default=DEFAULT_SANDBOX_IMAGE)
 # The orchestrator receives only this runner-scoped credential. It never receives
 # the runtime socket or runner database credentials.
 # On a single host the runner and gateway listen next to the web app.
@@ -404,7 +416,7 @@ RUNNER_SERVICE_URL = env.str(
     "SECONDSHIFT_RUNNER_SERVICE_URL",
     default="http://127.0.0.1:8002" if SINGLE_HOST else "",
 )
-RUNNER_SERVICE_TOKEN = env.str("SECONDSHIFT_RUNNER_SERVICE_TOKEN", default="")
+RUNNER_SERVICE_TOKEN = env.str(AppEnv.RUNNER_SERVICE_TOKEN, default="")
 # The trusted agent orchestrator calls this internal gateway. Command sandboxes
 # always use --network=none and never receive its run-scoped token.
 MODEL_GATEWAY_URL = env.str(

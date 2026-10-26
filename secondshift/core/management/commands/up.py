@@ -44,7 +44,7 @@ def command(
     """Start SecondShift on this computer."""
     if settings.ENVIRONMENT != Environment.LOCAL:
         raise click.ClickException(
-            "secondshift up runs with DJANGO_ENV=local. "
+            "secondshift up runs with SECONDSHIFT_ENV=local. "
             "In a checkout, use process-compose instead."
         )
     check_docker()
