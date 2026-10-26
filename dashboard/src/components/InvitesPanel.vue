@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppIcon from './AppIcon.vue'
 import { onMounted, ref } from 'vue'
 import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
@@ -73,20 +74,24 @@ onMounted(load)
     <form class="invite-form" @submit.prevent="create">
       <Select v-model="role" :options="roleOptions" option-label="label" option-value="value" aria-label="Role" class="invite-role" />
       <InputText v-model="note" maxlength="160" placeholder="Who is it for? (optional)" aria-label="Who the invite is for" />
-      <Button type="submit" label="Create invite link" icon="pi pi-link" :loading="busy" />
+      <Button type="submit" label="Create invite link" :loading="busy">
+        <template #icon><AppIcon name="link" /></template>
+      </Button>
     </form>
 
     <div v-if="created" class="invite-link" role="status">
       <span>Send this link to {{ created.note || 'the person you are inviting' }}. It works once, and this is the only time it is shown.</span>
       <code>{{ created.link }}</code>
-      <Button :label="copied ? 'Copied' : 'Copy link'" :icon="copied ? 'pi pi-check' : 'pi pi-copy'" severity="secondary" size="small" @click="copyLink" />
+      <Button :label="copied ? 'Copied' : 'Copy link'" severity="secondary" size="small" @click="copyLink">
+        <template #icon><AppIcon :name="copied ? 'check' : 'content-copy'" /></template>
+      </Button>
     </div>
 
     <p v-if="error" class="page-error">{{ error }}</p>
 
     <ul v-if="invites.length" class="member-list invite-list">
       <li v-for="invite in invites" :key="invite.id">
-        <span class="avatar small"><i class="mdi mdi-email-outline" /></span>
+        <span class="avatar small"><AppIcon name="email-outline" /></span>
         <span class="member-email">
           {{ invite.note || 'Invite link' }}
           <small>Expires {{ formatRelative(invite.expires_at) }}<template v-if="invite.created_by"> · from {{ invite.created_by }}</template></small>

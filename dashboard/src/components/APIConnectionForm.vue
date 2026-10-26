@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppIcon from './AppIcon.vue'
 import { computed, ref, watch } from 'vue'
 import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
@@ -199,7 +200,7 @@ async function submit(): Promise<void> {
 
     <p v-if="error" class="need-notice need-setup-wide">{{ error }}</p>
     <div class="need-setup-footer">
-      <small><i class="mdi mdi-lock-outline" /> The credential is encrypted at rest and stays outside command sandboxes.</small>
+      <small><AppIcon name="lock-outline" /> The credential is encrypted at rest and stays outside command sandboxes.</small>
       <div class="need-actions"><Button label="Cancel" severity="secondary" text size="small" @click="emit('cancel')" /><Button type="submit" :label="submitLabel" :loading="saving" /></div>
     </div>
   </form>

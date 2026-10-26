@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppIcon from '../components/AppIcon.vue'
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Button from 'primevue/button'
@@ -186,21 +187,27 @@ onMounted(loadRepository)
       :title="repository?.display_name ?? 'Repository'"
       :description="repositorySubtitle"
     >
-      <RouterLink to="/repositories" class="secondary-action"><i class="mdi mdi-arrow-left" /> Repositories</RouterLink>
+      <RouterLink to="/repositories" class="secondary-action"><AppIcon name="arrow-left" /> Repositories</RouterLink>
       <template v-if="repository">
-        <Button label="Validate" icon="pi pi-check-circle" severity="secondary" outlined :loading="action === 'validate'" title="Read-only check of the manifest and skills" @click="validateRepository" />
-        <Button v-if="app.can(Action.ChangeRepositoryState)" :label="repository.enabled ? 'Disable' : 'Enable'" :icon="repository.enabled ? 'pi pi-pause' : 'pi pi-play'" severity="secondary" outlined :loading="action === 'toggle'" @click="toggleRepository" />
-        <Button v-if="repository.source_type === 'local' && app.can(Action.ResyncRepositories)" label="Resync" icon="pi pi-refresh" :loading="action === 'resync'" title="Import the committed manifest and skill definitions" @click="resyncRepository" />
+        <Button label="Validate" severity="secondary" outlined :loading="action === 'validate'" title="Read-only check of the manifest and skills" @click="validateRepository">
+          <template #icon><AppIcon name="check-circle-outline" /></template>
+        </Button>
+        <Button v-if="app.can(Action.ChangeRepositoryState)" :label="repository.enabled ? 'Disable' : 'Enable'" severity="secondary" outlined :loading="action === 'toggle'" @click="toggleRepository">
+          <template #icon><AppIcon :name="repository.enabled ? 'pause' : 'play'" /></template>
+        </Button>
+        <Button v-if="repository.source_type === 'local' && app.can(Action.ResyncRepositories)" label="Resync" :loading="action === 'resync'" title="Import the committed manifest and skill definitions" @click="resyncRepository">
+          <template #icon><AppIcon name="refresh" /></template>
+        </Button>
       </template>
     </PageHeader>
 
-    <div v-if="loading" class="panel empty-state"><i class="mdi mdi-loading mdi-spin" /><strong>Inspecting repository</strong></div>
-    <div v-else-if="!repository" class="panel empty-state"><i class="mdi mdi-alert-outline" /><strong>Repository unavailable</strong><span>{{ error }}</span></div>
+    <div v-if="loading" class="panel empty-state"><AppIcon name="loading" spin /><strong>Inspecting repository</strong></div>
+    <div v-else-if="!repository" class="panel empty-state"><AppIcon name="alert-outline" /><strong>Repository unavailable</strong><span>{{ error }}</span></div>
     <template v-else>
       <p v-if="error" class="page-error">{{ error }}</p>
 
       <section v-if="!setupComplete || justAdded" class="panel repository-setup" :class="{ complete: setupComplete }">
-        <div class="setup-status-icon"><i class="mdi" :class="setupComplete ? 'mdi-check-decagram-outline' : 'mdi-progress-check'" /></div>
+        <div class="setup-status-icon"><AppIcon :name="setupComplete ? 'check-decagram-outline' : 'progress-check'" /></div>
         <div class="setup-copy">
           <span class="step-label">{{ justAdded ? 'Repository added' : 'Finish setup' }}</span>
           <h2>{{ setupComplete ? 'This repository is ready' : 'Complete the remaining setup' }}</h2>
@@ -214,32 +221,34 @@ onMounted(loadRepository)
             v-if="requiredReviews[0] && app.can(Action.ReviewCapabilities)"
             :to="{ path: '/jobs', query: { review: String(requiredReviews[0].job.id) } }"
             class="primary-action"
-          ><i class="mdi mdi-shield-key-outline" /> Review required access</RouterLink>
+          ><AppIcon name="shield-key-outline" /> Review required access</RouterLink>
           <Button
             v-else-if="readyDisabledJobs.length && app.can(Action.EnableJobs)"
             :label="`Enable ${countLabel(readyDisabledJobs.length, 'job')}`"
-            icon="pi pi-play"
             :loading="action === 'enable-jobs'"
-            @click="enableReadyJobs"
-          />
+            @click="enableReadyJobs">
+              <template #icon><AppIcon name="play" /></template>
+            </Button>
           <RouterLink
             v-if="optionalSetups[0] && app.can(Action.AddConnections)"
             :to="{ path: '/connections', query: connectionSetupQuery(optionalSetups[0].job, optionalSetups[0].capability) }"
             class="secondary-action"
-          ><i class="mdi mdi-link-plus" /> Configure {{ optionalSetups[0].capability.binding }}</RouterLink>
+          ><AppIcon name="link-plus" /> Configure {{ optionalSetups[0].capability.binding }}</RouterLink>
         </div>
       </section>
 
       <section v-if="repository.validation.needs_sync" class="panel repository-alert warning">
-        <i class="mdi mdi-source-commit" />
+        <AppIcon name="source-commit" />
         <div>
           <strong>New commits since the last sync</strong>
           <span>Runs still use <code>{{ repository.validation.synced_revision.slice(0, 7) }}</code>; the repository is at <code>{{ repository.validation.current_revision?.slice(0, 7) }}</code>.</span>
         </div>
-        <Button v-if="app.can(Action.ResyncRepositories)" label="Resync" icon="pi pi-refresh" size="small" :loading="action === 'resync'" @click="resyncRepository" />
+        <Button v-if="app.can(Action.ResyncRepositories)" label="Resync" size="small" :loading="action === 'resync'" @click="resyncRepository">
+          <template #icon><AppIcon name="refresh" /></template>
+        </Button>
       </section>
       <section v-else-if="repository.validation.status !== 'valid'" class="panel repository-alert" :class="repository.validation.status">
-        <i class="mdi" :class="repository.validation.status === 'warning' ? 'mdi-alert-outline' : 'mdi-close-octagon-outline'" />
+        <AppIcon :name="repository.validation.status === 'warning' ? 'alert-outline' : 'close-octagon-outline'" />
         <div><strong>{{ repository.validation.status === 'warning' ? 'Check this repository' : 'This repository cannot run' }}</strong><span>{{ repository.validation.message }}</span></div>
       </section>
 
@@ -252,7 +261,7 @@ onMounted(loadRepository)
           </div>
         </div>
         <dl class="repository-metadata compact-grid">
-          <div v-if="repository.local_path"><dt>Path</dt><dd><code>{{ repository.local_path }}</code><button class="copy-button" type="button" :aria-label="copied ? 'Copied' : 'Copy path'" @click="copyPath"><i class="mdi" :class="copied ? 'mdi-check' : 'mdi-content-copy'" /></button></dd></div>
+          <div v-if="repository.local_path"><dt>Path</dt><dd><code>{{ repository.local_path }}</code><button class="copy-button" type="button" :aria-label="copied ? 'Copied' : 'Copy path'" @click="copyPath"><AppIcon :name="copied ? 'check' : 'content-copy'" /></button></dd></div>
           <div v-else><dt>Type</dt><dd>GitHub</dd></div>
           <div><dt>Branch</dt><dd>{{ repository.default_branch }}</dd></div>
           <div v-if="repository.source_type === 'local'">
@@ -272,22 +281,24 @@ onMounted(loadRepository)
         <div class="panel-heading"><div><h2>Discovered jobs</h2><p>Schedules come from the synchronized manifest; execution still requires explicit grants.</p></div><RouterLink to="/jobs">All jobs</RouterLink></div>
         <div v-if="repository.jobs.length" class="repository-job-list">
           <div v-for="job in repository.jobs" :key="job.id" class="repository-job-row">
-            <div class="job-glyph"><i class="mdi mdi-calendar-clock-outline" /></div>
+            <div class="job-glyph"><AppIcon name="calendar-clock-outline" /></div>
             <div class="job-primary"><strong>{{ job.name }}</strong><span>{{ job.skill_path }}</span></div>
             <div><span class="cell-label">Schedule</span><strong :title="job.cron">{{ formatSchedule(job.cron, job.timezone) }}</strong></div>
             <div class="job-statuses">
               <StatusPill :status="jobState(job)" />
               <StatusPill v-if="accessNeedsAction(job.grant_status)" :status="job.grant_status" :label="accessLabel(job.grant_status)" />
             </div>
-            <RouterLink v-if="accessNeedsAction(job.grant_status) && app.can(Action.ReviewCapabilities)" :to="{ path: '/jobs', query: { review: String(job.id) } }" class="job-row-action">Review access <i class="mdi mdi-arrow-right" /></RouterLink>
-            <RouterLink v-else :to="`/jobs/${job.id}`" class="job-row-action">Open job <i class="mdi mdi-arrow-right" /></RouterLink>
+            <RouterLink v-if="accessNeedsAction(job.grant_status) && app.can(Action.ReviewCapabilities)" :to="{ path: '/jobs', query: { review: String(job.id) } }" class="job-row-action">Review access <AppIcon name="arrow-right" /></RouterLink>
+            <RouterLink v-else :to="`/jobs/${job.id}`" class="job-row-action">Open job <AppIcon name="arrow-right" /></RouterLink>
           </div>
         </div>
-        <div v-else class="empty-state compact"><i class="mdi mdi-calendar-search" /><strong>No jobs discovered</strong></div>
+        <div v-else class="empty-state compact"><AppIcon name="calendar-search" /><strong>No jobs discovered</strong></div>
       </section>
       <section v-if="app.can(Action.RemoveRepositories)" class="repository-danger">
         <span v-if="confirmRemove">Remove {{ repository.display_name }} from SecondShift? Its jobs stop running; run history is kept.</span>
-        <Button :label="confirmRemove ? 'Confirm remove' : 'Remove repository'" icon="pi pi-trash" severity="danger" :text="!confirmRemove" size="small" :loading="action === 'remove'" @click="removeRepository" />
+        <Button :label="confirmRemove ? 'Confirm remove' : 'Remove repository'" severity="danger" :text="!confirmRemove" size="small" :loading="action === 'remove'" @click="removeRepository">
+          <template #icon><AppIcon name="trash-can-outline" /></template>
+        </Button>
         <Button v-if="confirmRemove" label="Cancel" severity="secondary" text size="small" @click="confirmRemove = false" />
       </section>
     </template>

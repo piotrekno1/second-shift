@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppIcon from '../components/AppIcon.vue'
 import { computed, onMounted, ref } from 'vue'
 import InvitesPanel from '../components/InvitesPanel.vue'
 import MembersPanel from '../components/MembersPanel.vue'
@@ -75,7 +76,7 @@ onMounted(async () => {
       />
 
       <p class="quiet-line settings-note">
-        <i class="mdi mdi-server-outline" /> Settings below and the limit maximums are set by whoever runs this server<template v-if="app.user?.can_use_admin">, through environment variables, and apply after a restart</template>. Repositories cannot change them.
+        <AppIcon name="server-outline" /> Settings below and the limit maximums are set by whoever runs this server<template v-if="app.user?.can_use_admin">, through environment variables, and apply after a restart</template>. Repositories cannot change them.
       </p>
 
       <div class="settings-groups">
@@ -88,7 +89,7 @@ onMounted(async () => {
                 <strong>{{ item.value }}</strong>
                 <small>{{ item.help }}</small>
                 <button v-if="item.env" type="button" class="env-chip" :title="`Copy ${item.env}`" @click="copy(item.env)">
-                  <i class="mdi" :class="copied === item.env ? 'mdi-check' : 'mdi-content-copy'" /> {{ item.env }}
+                  <AppIcon :name="copied === item.env ? 'check' : 'content-copy'" /> {{ item.env }}
                 </button>
               </dd>
             </div>
@@ -97,9 +98,9 @@ onMounted(async () => {
       </div>
 
       <p class="quiet-line">
-        <i class="mdi mdi-file-code-outline" /> Jobs, schedules and the access they need are defined in each repository's <code>.secondshift.yaml</code>.
+        <AppIcon name="file-code-outline" /> Jobs, schedules and the access they need are defined in each repository's <code>.secondshift.yaml</code>.
       </p>
     </template>
-    <div v-else class="panel empty-state"><i class="mdi mdi-loading mdi-spin" /><strong>Loading settings</strong></div>
+    <div v-else class="panel empty-state"><AppIcon name="loading" spin /><strong>Loading settings</strong></div>
   </div>
 </template>

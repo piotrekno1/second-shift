@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppIcon from './AppIcon.vue'
 import { onUnmounted, ref, watch } from 'vue'
 import IconField from 'primevue/iconfield'
 import InputIcon from 'primevue/inputicon'
@@ -35,7 +36,7 @@ onUnmounted(() => {
 
 <template>
   <IconField class="search-input">
-    <InputIcon class="pi pi-search" />
+    <InputIcon><AppIcon name="magnify" /></InputIcon>
     <InputText v-model="draft" type="search" :placeholder="placeholder" :aria-label="placeholder" autocomplete="off" spellcheck="false" @input="schedule" @keydown.esc="clear" />
   </IconField>
 </template>

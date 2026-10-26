@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppIcon from './AppIcon.vue'
 import { computed, ref, watch } from 'vue'
 import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
@@ -38,10 +39,10 @@ const error = ref<string | null>(null)
 const editing = computed(() => Boolean(props.connection))
 const typeOptions = computed(() => ([
   // Model providers are workspace-wide, so they are never offered for a binding.
-  ...(props.binding ? [] : [['model', 'Model provider', 'mdi-creation-outline']]),
-  ['mcp', 'MCP server', 'mdi-server-network'],
-  ['api', 'HTTP API', 'mdi-api'],
-  ['webhook', 'Webhook', 'mdi-webhook'],
+  ...(props.binding ? [] : [['model', 'Model provider', 'creation-outline']]),
+  ['mcp', 'MCP server', 'server-network'],
+  ['api', 'HTTP API', 'api'],
+  ['webhook', 'Webhook', 'webhook'],
 ] as [ConnectionType, string, string][]))
 const reconnecting = computed(() => props.connection?.status === 'revoked')
 const bindingFixed = computed(() => editing.value || Boolean(props.binding))
@@ -109,7 +110,7 @@ async function submit(): Promise<void> {
   <div class="need-setup">
     <div v-if="!editing && !binding" class="need-setup-type" role="radiogroup" aria-label="Connection type">
       <button v-for="option in typeOptions" :key="option[0]" type="button" role="radio" :aria-checked="type === option[0]" :class="{ active: type === option[0] }" @click="type = option[0]">
-        <i class="mdi" :class="option[2]" /> {{ option[1] }}
+        <AppIcon :name="option[2]" /> {{ option[1] }}
       </button>
     </div>
 
@@ -147,10 +148,12 @@ async function submit(): Promise<void> {
       </label>
       <p v-if="error" class="need-notice need-setup-wide">{{ error }}</p>
       <div class="need-setup-footer">
-        <small><i class="mdi mdi-lock-outline" /> The URL is encrypted at rest and never shown again. Only its host is displayed.</small>
+        <small><AppIcon name="lock-outline" /> The URL is encrypted at rest and never shown again. Only its host is displayed.</small>
         <div class="need-actions">
           <Button label="Cancel" severity="secondary" text size="small" @click="emit('cancel')" />
-          <Button type="submit" :label="url.trim() ? (editing ? 'Save and send test' : 'Connect and send test') : 'Save'" icon="pi pi-send" :loading="saving" :disabled="!canSubmit" />
+          <Button type="submit" :label="url.trim() ? (editing ? 'Save and send test' : 'Connect and send test') : 'Save'" :loading="saving" :disabled="!canSubmit">
+            <template #icon><AppIcon name="send-outline" /></template>
+          </Button>
         </div>
       </div>
     </form>

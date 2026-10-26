@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppIcon from '../components/AppIcon.vue'
 import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import PageHeader from '../components/PageHeader.vue'
@@ -41,16 +42,16 @@ watch([runId, name], load, { immediate: true })
 <template>
   <div class="page">
     <PageHeader :title="`Run #${runId} · ${LABELS[name]}`" :description="DESCRIPTIONS[name]">
-      <RouterLink :to="`/runs/${runId}`" class="secondary-action"><i class="mdi mdi-arrow-left" /> Run</RouterLink>
+      <RouterLink :to="`/runs/${runId}`" class="secondary-action"><AppIcon name="arrow-left" /> Run</RouterLink>
       <div class="segmented" role="group" aria-label="File view">
         <button type="button" :class="{ active: view === 'rendered' }" :aria-pressed="view === 'rendered'" @click="view = 'rendered'">Rendered</button>
         <button type="button" :class="{ active: view === 'raw' }" :aria-pressed="view === 'raw'" @click="view = 'raw'">Raw</button>
       </div>
-      <a :href="runFileUrl(runId, name, true)" class="secondary-action" download><i class="mdi mdi-download" /> Download</a>
+      <a :href="runFileUrl(runId, name, true)" class="secondary-action" download><AppIcon name="download" /> Download</a>
     </PageHeader>
 
-    <div v-if="loading" class="panel empty-state"><i class="mdi mdi-loading mdi-spin" /><strong>Loading file</strong></div>
-    <div v-else-if="error" class="panel empty-state"><i class="mdi mdi-file-alert-outline" /><strong>File unavailable</strong><span>{{ error }}</span></div>
+    <div v-if="loading" class="panel empty-state"><AppIcon name="loading" spin /><strong>Loading file</strong></div>
+    <div v-else-if="error" class="panel empty-state"><AppIcon name="file-alert-outline" /><strong>File unavailable</strong><span>{{ error }}</span></div>
     <section v-else class="panel run-file-panel">
       <!-- eslint-disable-next-line vue/no-v-html -- sanitized by renderMarkdown -->
       <article v-if="view === 'rendered'" class="markdown-body" v-html="rendered" />

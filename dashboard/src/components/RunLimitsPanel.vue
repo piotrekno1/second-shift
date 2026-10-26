@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppIcon from './AppIcon.vue'
 import { computed, ref, watch } from 'vue'
 import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
@@ -76,7 +77,9 @@ function save(): void {
         <small>Leave a field empty to use {{ inheritedFrom }}. Runs already started or queued keep their limits.</small>
         <div class="need-actions">
           <Button v-if="dirty" label="Reset" severity="secondary" text size="small" @click="reset" />
-          <Button type="submit" label="Save limits" icon="pi pi-check" size="small" :loading="saving" :disabled="!dirty || invalid" />
+          <Button type="submit" label="Save limits" size="small" :loading="saving" :disabled="!dirty || invalid">
+            <template #icon><AppIcon name="check" /></template>
+          </Button>
         </div>
       </div>
       <p v-else class="run-limit-footer run-limit-wide"><small>Only the workspace owner can change these.</small></p>

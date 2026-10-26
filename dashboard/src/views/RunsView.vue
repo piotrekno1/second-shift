@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppIcon from '../components/AppIcon.vue'
 import { computed, watch } from 'vue'
 import Button from 'primevue/button'
 import Paginator from 'primevue/paginator'
@@ -98,10 +99,10 @@ useLiveRefresh(load, () => Boolean(counts.value.queued || counts.value.running))
         <RunRow v-for="run in runs.page.items" :key="run.id" :run="run" />
       </div>
       <div v-else-if="runs.page && filtered" class="empty-state wide">
-        <i class="mdi mdi-filter-remove-outline" /><strong>No runs match these filters</strong>
+        <AppIcon name="filter-remove-outline" /><strong>No runs match these filters</strong>
         <Button label="Clear filters" severity="secondary" text size="small" @click="clearFilters" />
       </div>
-      <div v-else-if="runs.page" class="empty-state wide"><i class="mdi mdi-text-box-search-outline" /><strong>No audit history yet</strong><span>Run output and decisions will be recorded here.</span></div>
+      <div v-else-if="runs.page" class="empty-state wide"><AppIcon name="text-box-search-outline" /><strong>No audit history yet</strong><span>Run output and decisions will be recorded here.</span></div>
       <Paginator
         v-if="runs.page && runs.page.count > runs.page.page_size"
         :first="(runs.page.page - 1) * runs.page.page_size"

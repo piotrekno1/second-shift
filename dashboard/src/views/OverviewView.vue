@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppIcon from '../components/AppIcon.vue'
 import { computed } from 'vue'
 import PageHeader from '../components/PageHeader.vue'
 import StatCard from '../components/StatCard.vue'
@@ -58,14 +59,14 @@ const runsDetail = computed(() => {
 <template>
   <div class="page">
     <PageHeader :title="greeting(new Date().getHours())" :description="subtitle">
-      <RouterLink v-if="app.canAddLocalRepositories" to="/repositories" class="secondary-action"><i class="mdi mdi-plus" /> Add repository</RouterLink>
+      <RouterLink v-if="app.canAddLocalRepositories" to="/repositories" class="secondary-action"><AppIcon name="plus" /> Add repository</RouterLink>
     </PageHeader>
 
     <section class="stats-grid">
-      <StatCard label="Needs attention" :value="failing.length" :detail="failing.length ? `${failing.length === 1 ? 'job' : 'jobs'} whose last run failed` : 'every job\'s last run passed'" icon="mdi-alert-circle-outline" :tone="failing.length ? 'amber' : 'mint'" :to="failing.length ? { hash: '#failing' } : undefined" />
-      <StatCard label="Runs · 7 days" :value="app.overview?.runs_7d ?? 0" :detail="runsDetail" icon="mdi-play-circle-outline" tone="mint" :to="{ path: '/runs', query: { period: '7d' } }" />
-      <StatCard label="Spend · 7 days" :value="spend.value" :detail="spend.detail" icon="mdi-currency-usd" :to="spendRows.length ? { hash: '#spend' } : undefined" />
-      <StatCard label="Jobs on duty" :value="app.overview?.enabled_jobs ?? 0" :detail="`across ${countLabel(app.overview?.repositories ?? 0, 'repository', 'repositories')}`" icon="mdi-calendar-check-outline" tone="amber" :to="{ path: '/jobs', query: { state: 'enabled' } }" />
+      <StatCard label="Needs attention" :value="failing.length" :detail="failing.length ? `${failing.length === 1 ? 'job' : 'jobs'} whose last run failed` : 'every job\'s last run passed'" icon="alert-circle-outline" :tone="failing.length ? 'amber' : 'mint'" :to="failing.length ? { hash: '#failing' } : undefined" />
+      <StatCard label="Runs · 7 days" :value="app.overview?.runs_7d ?? 0" :detail="runsDetail" icon="play-circle-outline" tone="mint" :to="{ path: '/runs', query: { period: '7d' } }" />
+      <StatCard label="Spend · 7 days" :value="spend.value" :detail="spend.detail" icon="currency-usd" :to="spendRows.length ? { hash: '#spend' } : undefined" />
+      <StatCard label="Jobs on duty" :value="app.overview?.enabled_jobs ?? 0" :detail="`across ${countLabel(app.overview?.repositories ?? 0, 'repository', 'repositories')}`" icon="calendar-check-outline" tone="amber" :to="{ path: '/jobs', query: { state: 'enabled' } }" />
     </section>
 
     <section v-if="failing.length" id="failing" class="panel attention-panel">
@@ -75,11 +76,11 @@ const runsDetail = computed(() => {
       </div>
       <div class="approval-list">
         <RouterLink v-for="job in failing" :key="job.job_id" :to="`/runs/${job.run_id}`" class="attention-row">
-          <span class="attention-icon"><i class="mdi mdi-alert-circle-outline" /></span>
+          <span class="attention-icon"><AppIcon name="alert-circle-outline" /></span>
           <div class="activity-main"><strong>{{ job.job }}</strong><span>{{ job.repository }} · run #{{ job.run_id }}</span></div>
-          <div class="run-failure"><span class="failure-label"><i class="mdi mdi-alert-circle-outline" />{{ job.label }}</span><span class="failure-reason">{{ job.reason }}</span></div>
+          <div class="run-failure"><span class="failure-label"><AppIcon name="alert-circle-outline" />{{ job.label }}</span><span class="failure-reason">{{ job.reason }}</span></div>
           <span class="activity-time" :title="`${formatDate(job.failed_at)} · ${utcTitle(job.failed_at)}`">{{ formatRelative(job.failed_at) }}</span>
-          <i class="mdi mdi-chevron-right row-chevron" />
+          <AppIcon name="chevron-right" class="row-chevron" />
         </RouterLink>
       </div>
     </section>
@@ -96,11 +97,11 @@ const runsDetail = computed(() => {
           :to="{ path: '/jobs', query: { review: String(job.id) } }"
           class="approval-row"
         >
-          <span class="approval-icon"><i class="mdi mdi-shield-key-outline" /></span>
+          <span class="approval-icon"><AppIcon name="shield-key-outline" /></span>
           <div><strong>{{ job.name }}</strong><span>{{ job.repository }}</span></div>
           <small>{{ job.capabilities.filter((capability) => capability.required && capability.grant_status !== 'approved').map((capability) => capability.binding).join(', ') }}</small>
           <StatusPill :status="job.grant_status" :label="accessLabel(job.grant_status)" />
-          <i class="mdi mdi-chevron-right" />
+          <AppIcon name="chevron-right" />
         </RouterLink>
       </div>
     </section>
@@ -110,7 +111,7 @@ const runsDetail = computed(() => {
         <div class="panel-heading"><h2>Recent runs</h2><RouterLink to="/runs">All runs</RouterLink></div>
         <div v-if="app.runs.length" class="activity-list">
           <RouterLink v-for="run in app.runs.slice(0, 6)" :key="run.id" :to="`/runs/${run.id}`" class="activity-row clickable-row">
-            <span class="run-icon"><i class="mdi mdi-console-line" /></span>
+            <span class="run-icon"><AppIcon name="console-line" /></span>
             <div class="activity-main">
               <strong>{{ run.job }} <span class="activity-id">#{{ run.id }}</span></strong>
               <span v-if="run.failure" class="activity-failure">{{ run.failure.label }} · {{ run.failure.reason }}</span>
@@ -120,7 +121,7 @@ const runsDetail = computed(() => {
             <StatusPill :status="run.status" />
           </RouterLink>
         </div>
-        <div v-else class="empty-state"><i class="mdi mdi-weather-night" /><strong>No runs yet</strong><span>Your first shift will appear here.</span></div>
+        <div v-else class="empty-state"><AppIcon name="weather-night" /><strong>No runs yet</strong><span>Your first shift will appear here.</span></div>
       </article>
 
       <article class="panel upcoming-panel">
@@ -132,7 +133,7 @@ const runsDetail = computed(() => {
             <small>{{ formatRelative(job.next_run_at) }} · {{ job.repository }}</small>
           </RouterLink>
         </div>
-        <div v-else class="empty-state compact"><i class="mdi mdi-calendar-blank-outline" /><strong>No job enabled</strong><span>Enable a job to put it on the schedule.</span></div>
+        <div v-else class="empty-state compact"><AppIcon name="calendar-blank-outline" /><strong>No job enabled</strong><span>Enable a job to put it on the schedule.</span></div>
       </article>
     </section>
 
@@ -147,7 +148,7 @@ const runsDetail = computed(() => {
           <span v-if="spendRows.length > 1" class="spend-bar" aria-hidden="true"><span :style="{ width: `${topSpend > 0 ? Math.max(2, (row.spend_usd / topSpend) * 100) : 0}%` }" /></span>
           <span v-if="spendRows.length > 1" class="spend-share">{{ spendShare(row.spend_usd) }}</span>
           <strong class="spend-value">{{ formatCost(row.spend_usd, row.partial) }}</strong>
-          <i class="mdi mdi-chevron-right row-chevron" />
+          <AppIcon name="chevron-right" class="row-chevron" />
         </RouterLink>
       </div>
     </section>

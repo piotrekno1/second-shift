@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppIcon from '../components/AppIcon.vue'
 import { ref } from 'vue'
 import Button from 'primevue/button'
 import CreateWorkspaceForm from '../components/CreateWorkspaceForm.vue'
@@ -39,7 +40,9 @@ async function handleSignOut(): Promise<void> {
         you can join.
       </p>
       <CreateWorkspaceForm v-if="app.user?.can_create_workspace" class="no-workspace-create" />
-      <Button label="Sign out" icon="mdi mdi-logout" severity="secondary" :loading="signingOut" @click="handleSignOut" />
+      <Button label="Sign out" severity="secondary" :loading="signingOut" @click="handleSignOut">
+        <template #icon><AppIcon name="logout" /></template>
+      </Button>
     </section>
   </main>
 </template>

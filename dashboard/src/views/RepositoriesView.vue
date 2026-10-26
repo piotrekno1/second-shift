@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppIcon from '../components/AppIcon.vue'
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import Button from 'primevue/button'
@@ -86,15 +87,23 @@ function chooseDirectory(path: string): void {
 <template>
   <div class="page">
     <PageHeader title="Repositories" :description="repositoriesSubtitle">
-      <Button v-if="app.canAddLocalRepositories" label="Add local repository" icon="pi pi-folder-open" severity="secondary" outlined @click="addingLocal = !addingLocal; browsing = false" />
-      <Button label="Install GitHub App" icon="pi pi-github" />
+      <Button v-if="app.canAddLocalRepositories" label="Add local repository" severity="secondary" outlined @click="addingLocal = !addingLocal; browsing = false">
+        <template #icon><AppIcon name="folder-open-outline" /></template>
+      </Button>
+      <Button label="Install GitHub App">
+        <template #icon><AppIcon name="github" /></template>
+      </Button>
     </PageHeader>
     <form v-if="addingLocal" class="panel local-repository-form" @submit.prevent="addLocalRepository">
       <div><h2>Add a local Git repository</h2><p>Its committed `.secondshift.yaml` and referenced skills will be validated and synchronized.</p></div>
       <InputText v-model="localPath" aria-label="Local repository path" placeholder="/Users/you/Projects/my-repository" autofocus />
       <div class="local-repository-actions">
-        <Button type="button" icon="pi pi-folder-open" severity="secondary" outlined aria-label="Browse directories" :aria-expanded="browsing" aria-controls="local-directory-picker" aria-haspopup="dialog" title="Browse directories" @click="browsing = true" />
-        <Button type="submit" label="Validate and add" icon="pi pi-check" :loading="saving" :disabled="!localPath.trim()" />
+        <Button type="button" severity="secondary" outlined aria-label="Browse directories" :aria-expanded="browsing" aria-controls="local-directory-picker" aria-haspopup="dialog" title="Browse directories" @click="browsing = true">
+          <template #icon><AppIcon name="folder-open-outline" /></template>
+        </Button>
+        <Button type="submit" label="Validate and add" :loading="saving" :disabled="!localPath.trim()">
+          <template #icon><AppIcon name="check" /></template>
+        </Button>
       </div>
       <p v-if="localError" class="form-error">{{ localError }}</p>
     </form>
@@ -105,18 +114,18 @@ function chooseDirectory(path: string): void {
     </div>
     <section class="card-grid">
       <RouterLink v-for="repository in visibleRepositories" :key="repository.id" :to="`/repositories/${repository.id}`" class="panel repository-card">
-        <div class="repository-head"><i class="mdi" :class="repository.source_type === 'local' ? 'mdi-folder-git-outline' : 'mdi-source-repository'" /><StatusPill :status="repository.enabled ? 'enabled' : 'disabled'" /></div>
+        <div class="repository-head"><AppIcon :name="repository.source_type === 'local' ? 'folder-outline' : 'source-repository'" /><StatusPill :status="repository.enabled ? 'enabled' : 'disabled'" /></div>
         <h2>{{ repository.display_name }}</h2>
         <span>{{ repository.source_type === 'local' ? 'Local' : 'GitHub' }} · {{ repository.default_branch }} · {{ countLabel(repository.job_count, 'job') }}</span>
         <code v-if="repository.local_path" class="repository-path">{{ repository.local_path }}</code>
         <small :title="`${formatDate(repository.last_synced_at)} · ${utcTitle(repository.last_synced_at)}`">Last synced {{ formatRelative(repository.last_synced_at) }}</small>
       </RouterLink>
       <article v-if="app.repositories.length && !visibleRepositories.length && filtered" class="panel empty-state wide">
-        <i class="mdi mdi-filter-remove-outline" /><strong>No repositories match these filters</strong>
+        <AppIcon name="filter-remove-outline" /><strong>No repositories match these filters</strong>
         <Button label="Clear filters" severity="secondary" text size="small" @click="list.update({ q: null, state: null })" />
       </article>
       <article v-if="!app.repositories.length" class="panel empty-state wide">
-        <i class="mdi mdi-source-branch-plus" /><strong>{{ app.can(Action.AddLocalRepositories) ? 'Connect your first repository' : 'No repositories yet' }}</strong>
+        <AppIcon name="source-branch-plus" /><strong>{{ app.can(Action.AddLocalRepositories) ? 'Connect your first repository' : 'No repositories yet' }}</strong>
         <span v-if="!app.can(Action.AddLocalRepositories)">Workspace owners add repositories.</span>
         <span v-else>{{ app.user?.local_repositories_enabled ? 'Add a local Git repository or install the GitHub App.' : 'Install the GitHub App, then approve a repository containing `.secondshift.yaml`.' }}</span>
       </article>

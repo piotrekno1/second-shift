@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppIcon from './AppIcon.vue'
 import { computed } from 'vue'
 import { siSentry } from 'simple-icons'
 
@@ -9,7 +10,7 @@ const BRAND_PATHS: Record<string, string> = {
 
 const props = defineProps<{
   provider: string
-  /** Material Design Icons class used when there is no brand mark. */
+  /** Material Design icon name used when there is no brand mark. */
   fallback: string
 }>()
 
@@ -18,5 +19,5 @@ const path = computed(() => BRAND_PATHS[props.provider])
 
 <template>
   <svg v-if="path" class="provider-icon" viewBox="0 0 24 24" role="img" aria-hidden="true"><path :d="path" /></svg>
-  <i v-else class="mdi" :class="fallback" aria-hidden="true" />
+  <AppIcon v-else  :name="fallback" aria-hidden="true" />
 </template>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppIcon from './AppIcon.vue'
 import { computed, ref, watch } from 'vue'
 import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
@@ -9,8 +10,8 @@ import type { Connection, MCPServerInfo, Notice } from '../types'
 import { countLabel, finishedBinding, typingBinding } from '../utils/format'
 
 const PROVIDER_ICONS: Record<string, string> = {
-  github: 'mdi-github',
-  mcp: 'mdi-server-plus-outline',
+  github: 'github',
+  mcp: 'server-plus-outline',
 }
 // Scopes that usually allow changes. Flagged, never pre-selected.
 const RISKY_SCOPE = /write|admin|delete|manage|query|full/i
@@ -86,7 +87,7 @@ watch(binding, (value) => {
 watch(settings, () => { if (!editing.value) server.value = null }, { deep: true })
 
 function iconFor(key: string): string {
-  return PROVIDER_ICONS[key] ?? 'mdi-server-network'
+  return PROVIDER_ICONS[key] ?? 'server-network'
 }
 
 function cardDetail(key: string): string {
@@ -222,7 +223,7 @@ async function submit(): Promise<void> {
 
     <p v-if="error" class="need-notice need-setup-wide">{{ error }}</p>
     <div class="need-setup-footer">
-      <small><i class="mdi mdi-lock-outline" /> Tokens are encrypted at rest and stay outside command sandboxes.</small>
+      <small><AppIcon name="lock-outline" /> Tokens are encrypted at rest and stay outside command sandboxes.</small>
       <div class="need-actions"><Button label="Cancel" severity="secondary" text size="small" @click="emit('cancel')" /><Button type="submit" :label="submitLabel" :loading="saving" :disabled="!provider" /></div>
     </div>
   </form>

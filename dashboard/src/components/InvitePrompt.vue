@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppIcon from './AppIcon.vue'
 import { ref } from 'vue'
 import Button from 'primevue/button'
 import { acceptPendingInvite, dismissPendingInvite } from '../services/invites'
@@ -27,7 +28,7 @@ async function act(action: () => Promise<unknown>, reload: boolean): Promise<voi
 <template>
   <div v-if="app.pendingInvite" class="invite-prompt-wrap">
     <section class="invite-prompt" role="status">
-      <i class="mdi mdi-account-plus-outline" />
+      <AppIcon name="account-plus-outline" />
       <div>
         <strong>Join {{ app.pendingInvite.workspace_name }} as {{ statusLabel(app.pendingInvite.role) }}?</strong>
         <span v-if="app.pendingInvite.invited_by">{{ app.pendingInvite.invited_by }} invited you.</span>

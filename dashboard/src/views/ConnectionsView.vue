@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppIcon from '../components/AppIcon.vue'
 import { computed, nextTick, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Button from 'primevue/button'
@@ -65,29 +66,29 @@ const returnReview = typeof route.query.review === 'string' ? route.query.review
 const returnJob = typeof route.query.job === 'string' ? route.query.job : ''
 
 const needStatus: Record<CapabilityNeed['status'], { label: string, pill: string, icon: string }> = {
-  missing: { label: 'Not connected', pill: 'pending', icon: 'mdi-link-variant-off' },
-  unavailable: { label: 'Needs attention', pill: 'failed', icon: 'mdi-alert-outline' },
-  needs_approval: { label: 'Awaiting approval', pill: 'pending', icon: 'mdi-shield-alert-outline' },
-  ready: { label: 'Ready', pill: 'connected', icon: 'mdi-check' },
+  missing: { label: 'Not connected', pill: 'pending', icon: 'link-variant-off' },
+  unavailable: { label: 'Needs attention', pill: 'failed', icon: 'alert-outline' },
+  needs_approval: { label: 'Awaiting approval', pill: 'pending', icon: 'shield-alert-outline' },
+  ready: { label: 'Ready', pill: 'connected', icon: 'check' },
 }
 const kindIcon: Record<string, string> = {
-  notification: 'mdi-bell-outline',
-  mcp: 'mdi-server-network',
-  api: 'mdi-api',
-  identity: 'mdi-account-key-outline',
+  notification: 'bell-outline',
+  mcp: 'server-network',
+  api: 'api',
+  identity: 'account-key-outline',
 }
 const providerIcon: Record<Connection['provider'], string> = {
-  github: 'mdi-github',
-  sentry: 'mdi-server-network',
-  chatgpt: 'mdi-creation-outline',
-  slack: 'mdi-slack',
-  mcp: 'mdi-server-network',
-  api: 'mdi-api',
-  webhook: 'mdi-webhook',
-  anthropic: 'mdi-creation-outline',
-  openai: 'mdi-robot-outline',
-  openrouter: 'mdi-transit-connection-variant',
-  openai_compatible: 'mdi-server-outline',
+  github: 'github',
+  sentry: 'server-network',
+  chatgpt: 'creation-outline',
+  slack: 'slack',
+  mcp: 'server-network',
+  api: 'api',
+  webhook: 'webhook',
+  anthropic: 'creation-outline',
+  openai: 'robot-outline',
+  openrouter: 'transit-connection-variant',
+  openai_compatible: 'server-outline',
 }
 
 const openNeeds = computed(() => app.needs.filter((need) => need.status !== 'ready'))
@@ -218,13 +219,15 @@ onMounted(async () => {
   <div class="page">
     <PageHeader title="Connections" :description="connectionsSubtitle">
       <RouterLink v-if="returnReview" :to="{ path: '/jobs', query: { review: returnReview } }" class="secondary-action">
-        <i class="mdi mdi-arrow-left" /> Back to {{ returnJob || 'job review' }}
+        <AppIcon name="arrow-left" /> Back to {{ returnJob || 'job review' }}
       </RouterLink>
-      <Button v-if="canEdit" label="Add connection" icon="pi pi-plus" @click="toggle({ mode: 'add' })" />
+      <Button v-if="canEdit" label="Add connection" @click="toggle({ mode: 'add' })">
+        <template #icon><AppIcon name="plus" /></template>
+      </Button>
     </PageHeader>
 
     <p v-if="pageNotice" class="page-notice" :class="{ ok: pageNotice.ok }" role="status">
-      <i class="mdi" :class="pageNotice.ok ? 'mdi-check-circle-outline' : 'mdi-alert-circle-outline'" /> {{ pageNotice.text }}
+      <AppIcon :name="pageNotice.ok ? 'check-circle-outline' : 'alert-circle-outline'" /> {{ pageNotice.text }}
     </p>
 
     <section v-if="isOpen({ mode: 'add' })" class="panel add-connection-panel">
@@ -246,7 +249,7 @@ onMounted(async () => {
                 {{ connection.default_model ? `Default model ${connection.default_model}` : 'No default model' }} · {{ connection.allowed_models.length ? `${connection.allowed_models.length} allowed` : 'any model allowed' }}
               </small>
               <small v-if="connectionUsageLine(connection.usage, connection.kind)" class="connection-usage" :title="connection.usage?.last_used_at ? `Last used ${formatDate(connection.usage.last_used_at)}` : undefined">
-                <i class="mdi mdi-chart-timeline-variant" /> {{ connectionUsageLine(connection.usage, connection.kind) }}
+                <AppIcon name="chart-timeline-variant" /> {{ connectionUsageLine(connection.usage, connection.kind) }}
               </small>
               <div v-if="connection.available_tools.length" class="tool-list">
                 <span v-for="tool in shownTools(connection)" :key="tool">{{ tool }}</span>
@@ -259,35 +262,43 @@ onMounted(async () => {
             <StatusPill v-else :status="connection.status" />
             <div v-if="connection.kind !== 'identity'" class="need-actions">
               <template v-if="connection.kind === 'mcp' || connection.kind === 'api'">
-                <Button v-if="connection.status === 'connected' && canTest" :label="connection.kind === 'api' ? 'Check operations' : 'Check tools'" icon="pi pi-refresh" severity="secondary" text size="small" :loading="busy === `test-${connection.id}`" @click="sendTest(connection, `connection-${connection.id}`)" />
-                <Button v-if="canEdit" :label="connection.status === 'connected' ? 'Edit' : 'Reconnect'" icon="pi pi-pencil" severity="secondary" text size="small" @click="toggle({ mode: 'edit', id: connection.id })" />
+                <Button v-if="connection.status === 'connected' && canTest" :label="connection.kind === 'api' ? 'Check operations' : 'Check tools'" severity="secondary" text size="small" :loading="busy === `test-${connection.id}`" @click="sendTest(connection, `connection-${connection.id}`)">
+                  <template #icon><AppIcon name="refresh" /></template>
+                </Button>
+                <Button v-if="canEdit" :label="connection.status === 'connected' ? 'Edit' : 'Reconnect'" severity="secondary" text size="small" @click="toggle({ mode: 'edit', id: connection.id })">
+                  <template #icon><AppIcon name="pencil-outline" /></template>
+                </Button>
               </template>
               <template v-else-if="connection.provider === 'webhook' || connection.kind === 'model'">
-                <Button v-if="connection.status === 'connected' && canTest" :label="connection.kind === 'model' ? 'Check' : 'Send test'" :title="connection.kind === 'model' ? 'Lists models and sends one tiny request to the default model (a fraction of a cent)' : undefined" icon="pi pi-send" severity="secondary" text size="small" :loading="busy === `test-${connection.id}`" @click="sendTest(connection, `connection-${connection.id}`)" />
-                <Button v-if="canEdit" :label="connection.status === 'revoked' ? 'Reconnect' : 'Edit'" icon="pi pi-pencil" severity="secondary" text size="small" @click="toggle({ mode: 'edit', id: connection.id })" />
+                <Button v-if="connection.status === 'connected' && canTest" :label="connection.kind === 'model' ? 'Check' : 'Send test'" :title="connection.kind === 'model' ? 'Lists models and sends one tiny request to the default model (a fraction of a cent)' : undefined" severity="secondary" text size="small" :loading="busy === `test-${connection.id}`" @click="sendTest(connection, `connection-${connection.id}`)">
+                  <template #icon><AppIcon name="send-outline" /></template>
+                </Button>
+                <Button v-if="canEdit" :label="connection.status === 'revoked' ? 'Reconnect' : 'Edit'" severity="secondary" text size="small" @click="toggle({ mode: 'edit', id: connection.id })">
+                  <template #icon><AppIcon name="pencil-outline" /></template>
+                </Button>
               </template>
-              <a v-else-if="canUseAdmin" :href="`/-/admin/connections/connection/${connection.id}/change/`" target="_blank" rel="noopener" class="secondary-action compact"><i class="mdi mdi-open-in-new" /> Admin</a>
+              <a v-else-if="canUseAdmin" :href="`/-/admin/connections/connection/${connection.id}/change/`" target="_blank" rel="noopener" class="secondary-action compact"><AppIcon name="open-in-new" /> Admin</a>
               <Button v-if="connection.status !== 'revoked' && app.can(Action.DisconnectConnections)" :label="confirmRevoke === connection.id ? 'Confirm disconnect' : 'Disconnect'" severity="danger" :text="confirmRevoke !== connection.id" size="small" :loading="busy === `revoke-${connection.id}`" @click="disconnect(connection)" />
               <Button v-if="confirmRevoke === connection.id" label="Cancel" severity="secondary" text size="small" @click="confirmRevoke = null" />
               <Button v-if="connection.status === 'revoked' && app.can(Action.DeleteConnections)" :label="confirmDelete === connection.id ? 'Confirm delete' : 'Delete'" severity="danger" :text="confirmDelete !== connection.id" size="small" :loading="busy === `delete-${connection.id}`" @click="remove(connection)" />
             </div>
           </div>
           <p v-if="notices[`connection-${connection.id}`]" class="need-notice" :class="{ ok: notices[`connection-${connection.id}`].ok }">
-            <i class="mdi" :class="notices[`connection-${connection.id}`].ok ? 'mdi-check-circle-outline' : 'mdi-alert-circle-outline'" /> {{ notices[`connection-${connection.id}`].text }}
+            <AppIcon :name="notices[`connection-${connection.id}`].ok ? 'check-circle-outline' : 'alert-circle-outline'" /> {{ notices[`connection-${connection.id}`].text }}
           </p>
           <p v-if="connection.last_check && !notices[`connection-${connection.id}`]" class="need-notice" :class="{ ok: connection.last_check.ok }" :title="`${formatDate(connection.last_check.checked_at)} · ${utcTitle(connection.last_check.checked_at)}`">
-            <i class="mdi" :class="connection.last_check.ok ? 'mdi-check-circle-outline' : 'mdi-alert-circle-outline'" /> {{ connection.last_check.message }} <span class="check-age">Checked {{ formatRelative(connection.last_check.checked_at) }}</span>
+            <AppIcon :name="connection.last_check.ok ? 'check-circle-outline' : 'alert-circle-outline'" /> {{ connection.last_check.message }} <span class="check-age">Checked {{ formatRelative(connection.last_check.checked_at) }}</span>
           </p>
           <p v-if="confirmRevoke === connection.id" class="need-notice">
-            <i class="mdi mdi-alert-circle-outline" /> Disconnecting discards the stored URL or token. {{ connection.usage?.jobs ? `${countLabel(connection.usage.jobs, 'job')} that use${connection.usage.jobs === 1 ? 's' : ''} it will be blocked` : 'Jobs that use it are blocked' }} until you reconnect.
+            <AppIcon name="alert-circle-outline" /> Disconnecting discards the stored URL or token. {{ connection.usage?.jobs ? `${countLabel(connection.usage.jobs, 'job')} that use${connection.usage.jobs === 1 ? 's' : ''} it will be blocked` : 'Jobs that use it are blocked' }} until you reconnect.
           </p>
           <p v-if="confirmDelete === connection.id" class="need-notice">
-            <i class="mdi mdi-alert-circle-outline" /> Deleting removes the connection. Jobs that used it go back to awaiting approval.
+            <AppIcon name="alert-circle-outline" /> Deleting removes the connection. Jobs that used it go back to awaiting approval.
           </p>
           <ConnectionForm v-if="isOpen({ mode: 'edit', id: connection.id })" class="inset" :connection="connection" @done="formDone" @cancel="openForm = null" />
         </article>
       </div>
-      <div v-else class="empty-state compact"><i class="mdi mdi-power-plug-off-outline" /><strong>Nothing connected yet</strong><span v-if="canEdit">Use <strong>Add connection</strong> or connect a binding above.</span><span v-else>Workspace owners add connections.</span></div>
+      <div v-else class="empty-state compact"><AppIcon name="power-plug-off-outline" /><strong>Nothing connected yet</strong><span v-if="canEdit">Use <strong>Add connection</strong> or connect a binding above.</span><span v-else>Workspace owners add connections.</span></div>
     </section>
 
     <section v-if="app.needs.length" class="panel needs-panel">
@@ -296,16 +307,18 @@ onMounted(async () => {
           <h2>Needed by your jobs</h2>
           <p>Bindings named in your repositories' <code>.secondshift.yaml</code>. Connect each one once and every job that uses it can share it.</p>
         </div>
-        <Button label="Check again" icon="pi pi-refresh" severity="secondary" text size="small" :loading="busy === 'refresh'" @click="checkAgain" />
+        <Button label="Check again" severity="secondary" text size="small" :loading="busy === 'refresh'" @click="checkAgain">
+          <template #icon><AppIcon name="refresh" /></template>
+        </Button>
       </div>
 
       <div class="need-list">
         <article v-for="need in app.needs" :id="`need-${need.binding}`" :key="need.binding" class="need" :class="[need.status, { optional: !need.required }]">
           <div class="need-row">
-            <div class="need-icon"><i class="mdi" :class="needStatus[need.status].icon" /></div>
+            <div class="need-icon"><AppIcon :name="needStatus[need.status].icon" /></div>
             <div class="need-primary">
               <strong>{{ need.binding }}</strong>
-              <span><i class="mdi" :class="kindIcon[need.kind]" /> {{ need.kind === 'notification' ? 'Notification' : need.kind.toUpperCase() }} · {{ need.required ? 'Required' : 'Optional' }} · {{ jobSummary(need) }}</span>
+              <span><AppIcon :name="kindIcon[need.kind]" /> {{ need.kind === 'notification' ? 'Notification' : need.kind.toUpperCase() }} · {{ need.required ? 'Required' : 'Optional' }} · {{ jobSummary(need) }}</span>
               <small v-if="need.connection && need.status !== 'missing'">
                 {{ need.connection.display_name }}<template v-if="need.connection.target"> → {{ need.connection.target }}</template>
               </small>
@@ -314,19 +327,27 @@ onMounted(async () => {
             </div>
             <span class="status-pill" :class="!need.required && need.status === 'missing' ? 'optional' : needStatus[need.status].pill">{{ needStatus[need.status].label }}</span>
             <div class="need-actions">
-              <Button v-if="need.status === 'missing' && canEdit" :label="isOpen({ mode: 'need', binding: need.binding }) ? 'Cancel' : 'Connect'" :icon="isOpen({ mode: 'need', binding: need.binding }) ? undefined : 'pi pi-link'" size="small" :severity="isOpen({ mode: 'need', binding: need.binding }) ? 'secondary' : undefined" :text="isOpen({ mode: 'need', binding: need.binding })" @click="toggle({ mode: 'need', binding: need.binding })" />
+              <Button v-if="need.status === 'missing' && canEdit" :label="isOpen({ mode: 'need', binding: need.binding }) ? 'Cancel' : 'Connect'" size="small" :severity="isOpen({ mode: 'need', binding: need.binding }) ? 'secondary' : undefined" :text="isOpen({ mode: 'need', binding: need.binding })" @click="toggle({ mode: 'need', binding: need.binding })">
+                <template #icon><AppIcon :name="isOpen({ mode: 'need', binding: need.binding }) ? undefined : 'link'" /></template>
+              </Button>
               <template v-else-if="need.status === 'unavailable' && need.connection">
-                <Button v-if="canEdit && (need.connection.provider === 'webhook' || need.connection.kind === 'mcp' || need.connection.kind === 'api')" :label="isOpen({ mode: 'need', binding: need.binding }) ? 'Cancel' : 'Reconnect'" icon="pi pi-pencil" size="small" @click="toggle({ mode: 'need', binding: need.binding })" />
-                <a v-else-if="canUseAdmin" :href="`/-/admin/connections/connection/${need.connection.id}/change/`" target="_blank" rel="noopener" class="secondary-action compact"><i class="mdi mdi-wrench-outline" /> Fix in admin</a>
+                <Button v-if="canEdit && (need.connection.provider === 'webhook' || need.connection.kind === 'mcp' || need.connection.kind === 'api')" :label="isOpen({ mode: 'need', binding: need.binding }) ? 'Cancel' : 'Reconnect'" size="small" @click="toggle({ mode: 'need', binding: need.binding })">
+                  <template #icon><AppIcon name="pencil-outline" /></template>
+                </Button>
+                <a v-else-if="canUseAdmin" :href="`/-/admin/connections/connection/${need.connection.id}/change/`" target="_blank" rel="noopener" class="secondary-action compact"><AppIcon name="wrench-outline" /> Fix in admin</a>
               </template>
               <template v-else-if="need.connection">
-                <Button v-if="need.connection.provider === 'webhook' && canTest" label="Send test" icon="pi pi-send" severity="secondary" text size="small" :loading="busy === `test-${need.connection.id}`" @click="sendTest(need.connection, need.binding)" />
-                <Button v-if="need.status === 'needs_approval' && app.can(Action.ReviewCapabilities)" :label="`Approve for ${countLabel(pendingJobs(need), 'job')}`" icon="pi pi-check" size="small" :loading="busy === `approve-${need.binding}`" @click="approve(need)" />
+                <Button v-if="need.connection.provider === 'webhook' && canTest" label="Send test" severity="secondary" text size="small" :loading="busy === `test-${need.connection.id}`" @click="sendTest(need.connection, need.binding)">
+                  <template #icon><AppIcon name="send-outline" /></template>
+                </Button>
+                <Button v-if="need.status === 'needs_approval' && app.can(Action.ReviewCapabilities)" :label="`Approve for ${countLabel(pendingJobs(need), 'job')}`" size="small" :loading="busy === `approve-${need.binding}`" @click="approve(need)">
+                  <template #icon><AppIcon name="check" /></template>
+                </Button>
               </template>
             </div>
           </div>
           <p v-if="notices[need.binding]" class="need-notice" :class="{ ok: notices[need.binding].ok }">
-            <i class="mdi" :class="notices[need.binding].ok ? 'mdi-check-circle-outline' : 'mdi-alert-circle-outline'" /> {{ notices[need.binding].text }}
+            <AppIcon :name="notices[need.binding].ok ? 'check-circle-outline' : 'alert-circle-outline'" /> {{ notices[need.binding].text }}
           </p>
           <ConnectionForm v-if="isOpen({ mode: 'need', binding: need.binding })" class="inset" :binding="need.binding" :connection="need.connection ?? undefined" @done="formDone" @cancel="openForm = null" />
         </article>
@@ -334,18 +355,20 @@ onMounted(async () => {
     </section>
 
     <p v-else class="quiet-line">
-      <i class="mdi mdi-check-decagram-outline" /> No job needs a connection. Bindings listed under <code>notify</code> or <code>requires</code> in a repository's <code>.secondshift.yaml</code> appear here.
-      <Button label="Check again" icon="pi pi-refresh" severity="secondary" text size="small" :loading="busy === 'refresh'" @click="checkAgain" />
+      <AppIcon name="check-decagram-outline" /> No job needs a connection. Bindings listed under <code>notify</code> or <code>requires</code> in a repository's <code>.secondshift.yaml</code> appear here.
+      <Button label="Check again" severity="secondary" text size="small" :loading="busy === 'refresh'" @click="checkAgain">
+        <template #icon><AppIcon name="refresh" /></template>
+      </Button>
     </p>
 
     <section v-if="app.secrets.length" class="panel secrets-panel">
       <div class="panel-heading"><div><h2>Credential fallback</h2><p>Prefer opaque Vault/KMS references on connections. Encrypted local values remain available for development.</p></div><a v-if="canUseAdmin" href="/-/admin/connections/secret/add/">Manage in admin</a></div>
       <div class="secret-list">
-        <div v-for="secret in app.secrets" :key="secret.name"><i class="mdi mdi-key-variant" /><strong>{{ secret.name }}</strong><span>{{ secret.description || 'No description' }}</span></div>
+        <div v-for="secret in app.secrets" :key="secret.name"><AppIcon name="key-variant" /><strong>{{ secret.name }}</strong><span>{{ secret.description || 'No description' }}</span></div>
       </div>
     </section>
     <p v-else class="quiet-line">
-      <i class="mdi mdi-shield-key-outline" /> No fallback secrets stored. Connections should prefer Vault/KMS references.
+      <AppIcon name="shield-key-outline" /> No fallback secrets stored. Connections should prefer Vault/KMS references.
       <a v-if="canUseAdmin" href="/-/admin/connections/secret/add/" class="detail-link">Add one in admin</a>
     </p>
   </div>
