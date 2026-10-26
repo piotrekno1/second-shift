@@ -32,14 +32,14 @@ application and start Docker for job sandboxes, then run:
 # Install SecondShift
 release=https://github.com/piotrekno1/second-shift/releases
 uv tool install --force --python 3.13 \
-  "$release/download/v0.1.0a6/secondshift-0.1.0a6-py3-none-any.whl"
+  "$release/download/v0.1.0b1/secondshift-0.1.0b1-py3-none-any.whl"
 
 # Start SecondShift
 secondshift up
 ```
 
-Upgrading from an earlier alpha? Read
-[installed builds](CONTRIBUTING.md#installed-builds-and-troubleshooting) first.
+Upgrading from an alpha? This beta resets database migrations and requires a
+fresh database. Read the [beta release notes](docs/releases/0.1.0b1.md) first.
 
 Once started, the console shows:
 
@@ -50,7 +50,7 @@ Sign in with this link. It works once, within 15 minutes:
 Run `secondshift login` for a new link. Press Ctrl+C to stop.
 ```
 
-SecondShift is in alpha, distributed through
+SecondShift is in beta, distributed through
 [GitHub Releases](https://github.com/piotrekno1/second-shift/releases) until it is
 available on PyPI.
 
