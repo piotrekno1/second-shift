@@ -1,39 +1,33 @@
 # Environment variables
 
-Use the `SECONDSHIFT_` deployment settings below. Renamed variables are not
-accepted under their previous names. There is no compatibility alias layer.
+Set `SECONDSHIFT_ENV=production` when deploying a server.
+For development or tests, use `dev`, `local` or `test`.
 
-Set `SECONDSHIFT_ENV` to `dev`, `local`, `production` or `test`. The installed
-`secondshift` command defaults to `local`. `manage.py` defaults to `dev`.
-Server entrypoints default to `production`. Set this in the process environment
-before starting the application. The later-loaded local `.env` file does not
-select the environment. Docker `--env-file` supplies process environment values.
+Set this variable before starting the process. A local `.env` file cannot
+select the environment. Docker's `--env-file` does set it.
 
-To generate private per-service files for a new container installation:
+To generate the needed env files, run:
 
 ```bash
 uv run python -m secondshift.config.container_env \
   --hostname secondshift.example.com --directory "$HOME/secondshift-server"
 ```
 
-This writes `web.env`, `gateway.env`, `worker.env` and `runner.env` in
-`$HOME/secondshift-server`, refusing existing configuration. The files select production
-mode and their service automatically. Put them outside the source checkout.
-Most installations only need to choose their public hostname. Image startup is
-covered separately by the container deployment guide when available.
+This creates four files in `$HOME/secondshift-server`, with production mode,
+service names and keys already set. It refuses to overwrite existing files.
 
-## Which file should I edit?
+## Edit the env files
 
-| File | Purpose | Must not contain |
-| --- | --- | --- |
-| `web.env` | Dashboard, sign-in, connection management | Runner auth token |
-| `gateway.env` | Internal model requests | Runner auth token or public website settings |
-| `worker.env` | Scheduling and job execution | Runner database credentials or Docker access |
-| `runner.env` | Sandboxes and runner state | Application database URL, signing key or encryption key |
+| File | Service |
+| --- | --- |
+| `web.env` | Dashboard and sign-in |
+| `gateway.env` | Internal model requests |
+| `worker.env` | Scheduling and job execution |
+| `runner.env` | Sandbox execution |
 
-Settings below are local to the service receiving that file. Recreating a
-container is required after editing its env file. `docker restart` keeps the
-old environment. Do not generate new keys to rename variables or change services.
+The tables below tell you which files need each setting. Keep the generated
+keys and service-specific settings in their original files. After editing a
+file, recreate its container to apply the changes. A restart does not reload it.
 
 ## Application and public address
 
@@ -41,7 +35,7 @@ old environment. Do not generate new keys to rename variables or change services
 | --- | --- | --- |
 | `SECONDSHIFT_SECRET_KEY` | Web, gateway, worker | Required Django signing key. Keep the generated value identical in these three files. |
 | `SECONDSHIFT_ENCRYPTION_KEY` | Web, gateway, worker | Required Fernet key for saved credentials. Keep the same value in all three and retain it in backups. |
-| `SECONDSHIFT_DATABASE_URL` | Web, gateway, worker | Required shared application database. The generator uses `sqlite:////var/lib/secondshift/control.sqlite3`. A PostgreSQL URL is also supported. |
+| `SECONDSHIFT_DATABASE_URL` | Web, gateway, worker | Required shared application database. The generator uses `sqlite:////var/lib/secondshift/control.sqlite3`. For PostgreSQL, use `postgres://secondshift:password@db:5432/secondshift`. |
 | `SECONDSHIFT_PUBLIC_URL` | Web, worker | Public HTTPS origin, e.g. `https://secondshift.example.com`. Used for sign-in callbacks and links in reports. No path, query, fragment or embedded credentials. Not needed by gateway. |
 | `SECONDSHIFT_ALLOWED_HOSTS` | Web, gateway | Optional comma-separated hostnames, without schemes or ports. Web defaults to the public URL's hostname. The generated gateway file sets `secondshift-gateway`. |
 | `SECONDSHIFT_CSRF_TRUSTED_ORIGINS` | Web | Optional extra browser origins, including `https://`. Defaults to the public URL. Normally leave unset. |
@@ -86,12 +80,29 @@ Only the runner receives the Docker socket. It must not receive the application
 volume or another service's env file. Repository manifests cannot override any
 of these sandbox choices.
 
-## Email and stored run files
+## Email
 
-In `web.env`, set `SECONDSHIFT_EMAIL_URL` (for example
-`smtp://user:password@mail.example.com:587`) and `SECONDSHIFT_FROM_EMAIL` to send
-address confirmations and password resets. Without SMTP, no mail is sent and
-password reset cannot deliver a link. Default sender is `webmaster@localhost`.
+Set these in `web.env` to send address confirmations and password resets:
+
+```dotenv
+SECONDSHIFT_EMAIL_URL=smtp+tls://user:password@mail.example.com:587
+SECONDSHIFT_FROM_EMAIL=SecondShift <noreply@example.com>
+```
+
+| Variable | Meaning |
+| --- | --- |
+| `SECONDSHIFT_EMAIL_URL` | SMTP connection, including username, password, host and port. Use `smtp+tls://` for STARTTLS, commonly on port 587, or `smtp+ssl://` for implicit TLS, commonly on port 465. Unset by default, so production sends no email. |
+| `SECONDSHIFT_FROM_EMAIL` | Sender address, optionally with a display name. Use an address approved by your mail provider. Default `webmaster@localhost`. |
+
+These are the only email-specific environment variables. URL-encode special
+characters in the SMTP username and password. Also set
+[`SECONDSHIFT_PUBLIC_URL`](#application-and-public-address) to the public HTTPS
+address so email links point to your server.
+
+Recreate the web container, then request a password reset for an existing
+account to check delivery. Without email configured, password resets are unavailable.
+
+## Stored run files
 
 Run files default to the shared filesystem volume. To use an existing private
 S3 bucket, set these identically in **web and worker**. Gateway/runner do not
