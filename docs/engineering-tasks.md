@@ -7,20 +7,9 @@ code and approved service data, then return actionable reports. They do not
 change service state or repository files. Root `.agents/skills` contains
 symlinks so coding agents can discover the same skills.
 
-| Skill | What it does |
-| --- | --- |
-| [Repository health](../examples/repository-health/README.md) | Finds concrete defects, risky configuration, and important test gaps; prioritizes fixes. |
-| [Documentation drift](../examples/docs-drift/README.md) | Finds documentation links, commands, settings, and versions that no longer match the project. |
-| [CI failures](../examples/ci-failure-review/README.md) | Groups recurring build failures, traces likely causes, and identifies what still blocks work. |
-| [Production errors](../examples/production-error-review/README.md) | Investigates new or worsening errors and connects observed impact to code. |
-| [Monitoring coverage](../examples/monitoring-coverage-review/README.md) | Finds concrete failure paths left without useful detection after alert changes. |
-| [Incident follow-up](../examples/incident-follow-up-review/README.md) | Checks whether completed incident actions actually address the promised failure mode. |
-| [Release readiness](../examples/release-readiness-review/README.md) | Identifies missing migration, compatibility, configuration, and rollout steps for a planned release. |
-| [Security regression](../examples/security-regression/README.md) | Reviews changes for security defects, with optional runtime context to assess impact. |
-| [Engineering briefing](../examples/engineering-briefing/README.md) | Summarizes shipped work, open blockers, and participation from GitHub PRs and commits. |
-
-Each example explains its data sources and proposes a schedule where appropriate.
-Release readiness is manual by default because it needs a specific release scope.
+Choose a workflow from the [skill catalog](../examples/README.md). Each example
+explains its data sources and suggests a schedule where appropriate. This guide
+covers the shared setup process.
 
 **Begin with a manual run, check its findings and coverage, then enable a
 schedule if useful.** A successful run should show that the skill can access
