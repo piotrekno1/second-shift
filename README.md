@@ -25,12 +25,8 @@ revision, tool activity, and model cost.
 
 ## Try it out now
 
-Run SecondShift locally with the installed CLI. uv installs the application;
-Docker runs the job sandboxes. `secondshift up` starts the local services and
-provides a sign-in link.
-
-Install [uv](https://docs.astral.sh/uv/getting-started/installation/) and start Docker,
-then run:
+Install [uv](https://docs.astral.sh/uv/getting-started/installation/) to manage the
+application and start Docker for job sandboxes, then run:
 
 ```bash
 # Install SecondShift
