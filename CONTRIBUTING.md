@@ -135,6 +135,12 @@ Without explicit settings, SecondShift keeps its state in `~/.secondshift`
 
 The real environment wins over a checkout's `.env`, which wins over the data
 folder's. Development generates keys through `secondshift/config/first_run.py`.
+On startup, dev and local mode rename the old generated `DJANGO_SECRET_KEY`
+and `FIELD_ENCRYPTION_KEY` entries in the data-folder `.env` to their
+`SECONDSHIFT_*` names while preserving the keys. Explicit current names take
+precedence. Update any old names in your checkout `.env` or exported shell
+environment yourself; those files are not rewritten.
+
 Production refuses to start until
 `SECONDSHIFT_SECRET_KEY`, `SECONDSHIFT_ENCRYPTION_KEY` and
 `SECONDSHIFT_RUNNER_SERVICE_TOKEN` are set, and `SECONDSHIFT_PUBLIC_URL` is an HTTPS

@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 
 import pytest
+from cryptography.fernet import Fernet
 
 from secondshift.config.app import select_settings
 from secondshift.config.constants import (
@@ -187,3 +188,69 @@ def test_generated_keyfile_uses_only_the_new_key_names(tmp_path: Path) -> None:
     assert "SECONDSHIFT_ENCRYPTION_KEY=" in content
     assert "DJANGO_SECRET_KEY=" not in content
     assert "\nFIELD_ENCRYPTION_KEY=" not in content
+
+
+def test_generated_legacy_keys_migrate_without_losing_credentials(
+    tmp_path: Path,
+) -> None:
+    key = Fernet.generate_key()
+    encrypted = Fernet(key).encrypt(b"saved-connection-credential")
+    path = tmp_path / ".env"
+    path.write_text(
+        "# Existing installation\n"
+        "DJANGO_SECRET_KEY=original-signing-key\n"
+        f"FIELD_ENCRYPTION_KEY={key.decode()}\n"
+        "SECONDSHIFT_RUNNER_SERVICE_TOKEN=original-runner-token\n"
+    )
+    runner = tmp_path / "runner.env"
+    runner.write_text("SECONDSHIFT_RUNNER_SERVICE_TOKEN=original-runner-token\n")
+    runner_before = runner.read_bytes()
+
+    write_generated_env(tmp_path)
+    migrated = path.read_bytes()
+    values = dict(
+        line.split("=", 1) for line in path.read_text().splitlines() if "=" in line
+    )
+    assert values["SECONDSHIFT_SECRET_KEY"] == "original-signing-key"
+    assert Fernet(values["SECONDSHIFT_ENCRYPTION_KEY"].encode()).decrypt(encrypted) == (
+        b"saved-connection-credential"
+    )
+    assert "DJANGO_SECRET_KEY" not in values
+    assert "FIELD_ENCRYPTION_KEY" not in values
+    assert runner.read_bytes() == runner_before
+    assert path.stat().st_mode & 0o777 == 0o600
+    write_generated_env(tmp_path)
+    assert path.read_bytes() == migrated
+
+
+def test_generated_key_migration_preserves_explicit_current_keys(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / ".env"
+    original = (
+        "DJANGO_SECRET_KEY=old-signing-key\n"
+        "SECONDSHIFT_SECRET_KEY=current-signing-key\n"
+        "FIELD_ENCRYPTION_KEY=old-encryption-key\n"
+        "SECONDSHIFT_ENCRYPTION_KEY=current-encryption-key\n"
+    )
+    path.write_text(original)
+    write_generated_env(tmp_path)
+    assert path.read_text() == original
+
+
+def test_dev_boots_with_legacy_generated_keys(tmp_path: Path) -> None:
+    key = Fernet.generate_key().decode()
+    (tmp_path / ".env").write_text(
+        "DJANGO_SECRET_KEY=legacy-signing-key\n"
+        f"FIELD_ENCRYPTION_KEY={key}\n"
+        "SECONDSHIFT_RUNNER_SERVICE_TOKEN=legacy-token-at-least-thirty-two-characters\n"
+    )
+    result = load_settings(
+        "secondshift.config.settings.dev",
+        tmp_path,
+        SECONDSHIFT_ENV="dev",
+        script="import django; django.setup(); print('ready')",
+        DJANGO_SETTINGS_MODULE="secondshift.config.settings.dev",
+    )
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == "ready"
