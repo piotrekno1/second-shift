@@ -227,7 +227,7 @@ def test_owner_creates_webhook_without_url_in_response(
     assert saved.delivery_url == SECRET_URL
     with db_connection.cursor() as cursor:
         cursor.execute(
-            "SELECT delivery_url FROM integrations_connection WHERE id = %s",
+            "SELECT delivery_url FROM connections_connection WHERE id = %s",
             [saved.pk],
         )
         assert "secret-token" not in cursor.fetchone()[0]

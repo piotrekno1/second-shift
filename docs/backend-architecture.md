@@ -43,21 +43,26 @@ The runs app has three internal packages:
 client and the shared protocol. Runtime flags, images, mounts and isolation
 remain enforced by the runner service. No additional sandbox Django app exists.
 
-## Migration compatibility
+## Database migrations
 
-`automations` and `integrations` remain installed as migration-only apps. Do not
-remove their migrations: existing installations and fresh databases both need
-them. They contain no active models, APIs or services.
+First-party migration history starts from the current app structure. Each
+model-owning app has generated initial migrations, and tables use their owning
+app's name. The obsolete `automations` and `integrations` apps have been removed.
+The control plane and runner have independent migration graphs and databases.
 
-Generated `SeparateDatabaseAndState` migrations move model ownership to `jobs`,
-`runs` and `connections`. Physical tables retain their legacy names, as do
-existing constraints and indexes. Foreign key state in repositories and the
-gateway follows the new owners without rewriting stored rows.
+This alpha reset does not support upgrading a database created with the previous
+migration history. Back up existing data before switching versions, then create
+fresh control-plane and runner databases, including fresh DBOS workflow state.
+Do not fake the new initial migrations against an old database: its tables and
+content types belong to the previous app structure. Connections, approvals and
+schedules must be configured again.
 
-A reversible data migration updates existing content types in place. Permission
-IDs, user/group assignments and admin log references keep their identity. A
-collision with an already-existing destination content type fails explicitly.
-Run the complete migration graph with `python manage.py migrate` during upgrade.
+For a new control-plane database, run `python manage.py migrate`. For a new
+runner database, use the runner's environment and settings:
+
+```bash
+python manage.py migrate --settings=secondshift.config.settings.runner
+```
 
 Public API URLs and payloads stay stable. Admin URLs and generated OpenAPI tags
 and operation IDs reflect the new app ownership. DBOS workflow names, step names,

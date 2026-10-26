@@ -48,11 +48,10 @@ class Run(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        db_table = "automations_run"
         ordering = ["-created_at"]
         indexes = [
             models.Index(
-                fields=["status", "created_at"], name="automations_status_0a2ba1_idx"
+                fields=["status", "created_at"], name="runs_status_created_at_idx"
             )
         ]
         constraints = [
@@ -74,7 +73,6 @@ class RunEvent(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        db_table = "automations_runevent"
         ordering = ["created_at"]
 
     def __str__(self) -> str:
