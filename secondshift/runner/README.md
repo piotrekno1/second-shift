@@ -50,8 +50,7 @@ Required configuration is in `secondshift/config/settings/runner.py`. Production
 `runsc`. Standard Docker is reserved for trusted development and single-tenant
 self-hosting. Service startup verifies the selected runtime and fails closed.
 The runner uses the same image as the control plane, with its own command,
-root user override, database and network identity. See
-[the container image contract](../../docs/container-image.md).
+root user override, database and network identity.
 Sandboxes use `SECONDSHIFT_RUNNER_IMAGE` (default: the pinned official
 `python:3.13-slim`, see `secondshift/config/constants.py`). The runner pulls it at startup and
 refuses to start if the pull fails.
