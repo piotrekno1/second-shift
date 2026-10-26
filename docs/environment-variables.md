@@ -52,18 +52,20 @@ initializing a fresh installation. Do not reuse that account for the runner.
 
 ## Background work and internal services
 
-These settings belong in `worker.env`, except the shared runner token:
+These settings belong in `worker.env`; the runner URL and token are also
+needed by web for GitHub repository imports, and the token is shared with runner:
 
 | Variable | Meaning and default |
 | --- | --- |
 | `SECONDSHIFT_RUN_CONCURRENCY` | Number of job runs this background-worker process can execute concurrently. Default `2`. Independent of HTTP server process count. |
 | `SECONDSHIFT_WORKFLOW_DATABASE_URL` | Optional DBOS workflow database URL, also needed by web when set. Defaults to `SECONDSHIFT_DATABASE_URL`. Back it up consistently with the application database. |
 | `SECONDSHIFT_RUNNER_SERVICE_URL` | Required private runner address. Generated value: `http://secondshift-runner:8002`. |
-| `SECONDSHIFT_RUNNER_SERVICE_TOKEN` | Required auth token of at least 32 characters. Present only in worker and runner, with identical values. Generated automatically. |
+| `SECONDSHIFT_RUNNER_SERVICE_TOKEN` | Required auth token of at least 32 characters. Identical in web, worker and runner. Generated automatically. |
 | `SECONDSHIFT_MODEL_GATEWAY_URL` | Required private model endpoint. Generated value: `http://secondshift-gateway:8001`. |
 
-Do not publish the gateway or runner ports. The dashboard does not need either
-internal endpoint or the runner token in its environment.
+Do not publish the gateway or runner ports. The web process needs the runner
+URL/token for GitHub imports; it does not need the model gateway endpoint.
+The generated web role file already contains its runner configuration.
 
 ## Runner and sandboxes
 
@@ -74,7 +76,7 @@ Put these in `runner.env` unless the table names other services:
 | `SECONDSHIFT_RUNNER_ALLOWED_HOSTS` | Comma-separated runner hostnames. Generated value `secondshift-runner`. Separate from the dashboard/gateway hosts. |
 | `SECONDSHIFT_RUNNER_DATABASE_URL` | Optional runner-only database. Defaults to SQLite in the runner work directory. Can use a separate PostgreSQL database/account. |
 | `SECONDSHIFT_RUNNER_WORK_ROOT` | Persistent runner workspace and session directory. The generated absolute path must be mounted at the identical path on the Docker host. |
-| `SECONDSHIFT_RUNNER_REPOSITORY_ROOT` | Runner's Git source store. Defaults to `repositories/` inside its work directory. Production repository import remains unfinished. |
+| `SECONDSHIFT_RUNNER_REPOSITORY_ROOT` | Runner's Git source store. Defaults to `repositories/` inside its work directory. GitHub imports populate this store with pinned Git objects. Back it up with the runner database. |
 | `SECONDSHIFT_RUNNER_RUNTIME` | Sandbox OCI runtime, not the HTTP server. Use `runsc` in web, worker and runner for production. Gateway does not need it. |
 | `SECONDSHIFT_RUNNER_IMAGE` | Optional command-sandbox image. If overridden, keep the value identical in web, worker and runner. Default is the pinned Python image supplied by SecondShift. |
 | `SECONDSHIFT_RUNNER_SANDBOX_UID`, `SECONDSHIFT_RUNNER_SANDBOX_GID` | Identity inside command sandboxes. Image defaults `10001:10001`. Separate from the runner container's root user. |
@@ -82,6 +84,28 @@ Put these in `runner.env` unless the table names other services:
 Only the runner receives the Docker socket. It must not receive the application
 volume or another service's env file. Repository manifests cannot override any
 of these sandbox choices.
+
+## GitHub App repository access
+
+Set these together in **web and worker only**, or in the checkout's `.env` for
+process-compose development. They are separate from GitHub sign-in and job MCP
+connections. Follow the [GitHub App setup guide](github-app.md) to register the
+App and configure the callback.
+
+| Variable | Meaning |
+| --- | --- |
+| `SECONDSHIFT_GITHUB_APP_ID` | Numeric App ID. |
+| `SECONDSHIFT_GITHUB_APP_SLUG` | Slug from the App's public URL. |
+| `SECONDSHIFT_GITHUB_APP_CLIENT_ID` | App OAuth client ID. |
+| `SECONDSHIFT_GITHUB_APP_CLIENT_SECRET` | Generated App client secret. |
+| `SECONDSHIFT_GITHUB_APP_PRIVATE_KEY` | Downloaded PEM contents; accepts real newlines or literal `\n` escapes. |
+| `SECONDSHIFT_REPOSITORY_SYNC_INTERVAL_SECONDS` | Worker polling interval, default `300`; `0` disables polling. |
+
+Production rejects partial App configuration. The private runner API must be
+reachable from web and worker. Imports are synchronous: generated role files
+set the web HTTP timeout to 300 seconds and runner to 180 seconds. For a checkout,
+set `SECONDSHIFT_HTTP_TIMEOUT_SECONDS=300` when testing imports and restart
+process-compose to apply it.
 
 ## GitHub sign-in
 

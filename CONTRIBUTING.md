@@ -39,7 +39,8 @@ The template contains the development overrides. See the
 email, logging, and sandbox settings. In dev and local mode, keys are generated in `SECONDSHIFT_DATA_DIR` (default `~/.secondshift`),
 email defaults to terminal output, and plain Docker sandboxes are supported.
 
-To use the optional local RustFS service, add this block to `.env`:
+To use the optional local RustFS service, uncomment its block in `.env`
+(copied from `.env.example`):
 
 ```dotenv
 COMPOSE_PROFILES=s3
