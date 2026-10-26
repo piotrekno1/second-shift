@@ -17,7 +17,7 @@ covers the shared setup process.
 **Begin with a manual run, check its results and tool activity, then enable a
 schedule if useful.** Verify that the task can access its intended data and
 complete the intended work before it runs unattended. For a review, check the
-findings and coverage; for an action task, verify the resulting service state.
+findings and coverage. For an action task, verify the resulting service state.
 
 For local coding-agent use, request a skill and scope explicitly, for example:
 
@@ -90,14 +90,14 @@ For example, a Jira issue cleanup skill could:
 Select the service's actual read and transition operations, then declare their
 exact names in the job's `requires` section. Keep the project, credentials, and
 endpoint configuration in the workspace connection. This workflow is a design
-example; the shipped catalog does not include a Jira cleanup skill.
+example. The shipped catalog does not include a Jira cleanup skill.
 
 Write the skill's completion criteria and stopping conditions explicitly.
 Check current state before acting, skip already-completed transitions, and
 avoid duplicate comments on reruns. If a write times out, check its outcome
 before retrying. Start with a read-only preview of proposed changes when useful,
 then test the approved action workflow manually before enabling its schedule.
-Access approval permits the tool calls; it does not guarantee that the model
+Access approval permits the tool calls. It does not guarantee that the model
 will apply your business rules correctly. See the
 [security model](security-model.md#remaining-risks).
 

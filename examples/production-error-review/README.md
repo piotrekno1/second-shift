@@ -7,11 +7,11 @@ and report actionable findings without changing files or service state.
 
 Issues, error events, or traces scoped to an approved project and environment, plus release-to-commit metadata where available.
 
-The sample requests the built-in Sentry read tools. Create a connection with binding `sentry`, select the intended project, and approve the requested access. Specify the environment when a project contains several. Other providers can be used by replacing the declaration with their actual approved operations; the skill accepts equivalent evidence.
+The sample requests the built-in Sentry read tools. Create a connection with binding `sentry`, select the intended project, and approve the requested access. Specify the environment when a project contains several. Other providers can be used by replacing the declaration with their actual approved operations. The skill accepts equivalent evidence.
 
 ## Suggested schedule
 
-Daily at 08:00 UTC; reviews the preceding 24 hours. Remove `schedule` for manual use only.
+Daily at 08:00 UTC. Reviews the preceding 24 hours. Remove `schedule` for manual use only.
 
 **Begin with a manual run, check its findings and coverage, then enable a
 schedule if useful.**
@@ -30,14 +30,14 @@ schedule if useful.**
    schedule. Adjust `schedule` and `timezone` for your team.
 
 For local coding-agent use, copy the same skill and request it explicitly with
-scope and available evidence. Use that agent's approved tools; installing a
+scope and available evidence. Use that agent's approved tools. Installing a
 skill does not grant access. The skill returns a report and leaves delivery to
 its host. See [repository configuration](../../docs/repository-configuration.md)
 for connections, schedules, and optional webhook delivery.
 
 ## Use in this repository
 
-The canonical skill lives in this example; root `.agents/skills/production-error-review`
+The canonical skill lives in this example. Root `.agents/skills/production-error-review`
 is a relative symlink for agent discovery. Root jobs reference canonical example
 paths directly. Copying a sample manifest does not enable a job or grant access.
 

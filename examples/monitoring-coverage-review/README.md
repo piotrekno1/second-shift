@@ -11,7 +11,7 @@ Use monitoring configuration committed in the repository, or connect your monito
 
 ## Suggested schedule
 
-Mondays at 09:00 UTC; reviews the preceding seven days. Remove `schedule` for manual use only.
+Mondays at 09:00 UTC. Reviews the preceding seven days. Remove `schedule` for manual use only.
 
 **Begin with a manual run, check its findings and coverage, then enable a
 schedule if useful.**
@@ -30,14 +30,14 @@ schedule if useful.**
    schedule. Adjust `schedule` and `timezone` for your team.
 
 For local coding-agent use, copy the same skill and request it explicitly with
-scope and available evidence. Use that agent's approved tools; installing a
+scope and available evidence. Use that agent's approved tools. Installing a
 skill does not grant access. The skill returns a report and leaves delivery to
 its host. See [repository configuration](../../docs/repository-configuration.md)
 for connections, schedules, and optional webhook delivery.
 
 ## Use in this repository
 
-The canonical skill lives in this example; root `.agents/skills/monitoring-coverage-review`
+The canonical skill lives in this example. Root `.agents/skills/monitoring-coverage-review`
 is a relative symlink for agent discovery. Root jobs reference canonical example
 paths directly. Copying a sample manifest does not enable a job or grant access.
 

@@ -23,14 +23,14 @@ Individual examples provide service-specific setup and suggested cadences.
 | [Monitoring coverage](monitoring-coverage-review/README.md) | Finds failure paths left without useful detection. | Alert rules, routing, failure paths, and a baseline from committed configuration or a monitoring API. |
 | [Incident follow-up](incident-follow-up-review/README.md) | Verifies completed actions against their promised outcome. | Incident actions, acceptance criteria, and implementation links from documents or a ticket API. |
 | [Release readiness](release-readiness-review/README.md) | Finds missing steps and blockers for a planned rollout. | An explicit release target, baseline, and rollout plan. |
-| [Security regression](security-regression/README.md) | Finds security defects introduced by recent changes. | Repository code and local or approved source-control history; observability is optional. |
+| [Security regression](security-regression/README.md) | Finds security defects introduced by recent changes. | Repository code and local or approved source-control history. Observability is optional. |
 | [Engineering briefing](engineering-briefing/README.md) | Summarizes shipped work, open blockers, and participation. | GitHub pull requests, reviews, and commits through approved read tools. |
 
 ## Reuse in your project
 
 Copy the actual skill directory from its example into your project's
 `.agents/skills`, rather than copying this repository's discovery symlink.
-The skills work with repository files and approved service tools; they do not
+The skills work with repository files and approved service tools. They do not
 assume SecondShift source code, a particular framework, or a Python runtime.
 They can also run in a local coding agent with equivalent approved tools.
 The engineering briefing is specifically for GitHub projects.
@@ -41,9 +41,9 @@ coverage limitation. Individual examples describe their fallback behavior.
 
 Only repository health, release readiness, docs drift, and engineering briefing
 are registered in this repository's root manifest. Other sample jobs are
-available to copy and review; they are not automatically registered.
-Recurring examples propose schedules;
-release readiness stays manual because it needs an explicit release scope.
+available to copy and review. They are not automatically registered.
+Recurring examples propose schedules.
+Release readiness stays manual because it needs an explicit release scope.
 
 See the [setup guide](../docs/engineering-tasks.md) for the manual-first
 workflow and connection approval steps.

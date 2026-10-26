@@ -25,7 +25,7 @@ waits for an owner's approval.
 ## Your first job
 
 **Begin with a manual run, check its results and tool activity, then enable a
-schedule if useful.** A proposed schedule is a starting point; verify the
+schedule if useful.** A proposed schedule is a starting point. Verify the
 skill's access and outcome before letting it run unattended.
 
 Create `.agents/skills/repository-review/SKILL.md`:

@@ -60,7 +60,7 @@ instructions.
 Keep the report under 700 words. Use this structure:
 
 - **Needs attention:** Rank failure groups by observed blocking impact and
-  recurrence. For each, name the workflow/job and signature; give distinct build
+  recurrence. For each, name the workflow/job and signature. Give distinct build
   counts separately from retry counts, affected branches, first/latest timestamps,
   current status, and representative run/log links. Explain the supported cause
   or label it a hypothesis. Include relevant code at the matching revision and
@@ -73,5 +73,5 @@ Keep the report under 700 words. Use this structure:
   a reliable denominator.
 
 If complete collection shows no recurring failures, say so. If history or logs
-are missing, say the review is incomplete and name the access needed; do not
+are missing, say the review is incomplete and name the access needed. Do not
 claim CI is healthy. Return the report. The host handles configured delivery.

@@ -16,14 +16,14 @@ URLs in the report.
 ## Establish the comparison
 
 Use an explicitly requested comparison window first. Otherwise use the reporting
-time supplied by the scheduler as the exclusive end of a seven-day window; for
+time supplied by the scheduler as the exclusive end of a seven-day window. For
 interactive use or a missing reporting time, use the current time and state that
 choice. State the timestamps in UTC and the checkout revision when available. Do
 not assume access to previous reports or a saved baseline. Overlapping runs may
-repeat findings; do not claim a finding is new to the user without prior-report
+repeat findings. Do not claim a finding is new to the user without prior-report
 evidence.
 
-Check whether local Git history is available; exported sandboxes may contain
+Check whether local Git history is available. Exported sandboxes may contain
 only a source snapshot. Use local history for the requested comparison when
 available, without fetching or changing the checkout. If approved GitHub tools
 are available, use `list_commits` for the job's own repository and the reporting
@@ -36,12 +36,12 @@ branch.
 Review changes only when their relationship to the checkout revision is
 established. Live GitHub's default branch may be ahead of, or different from,
 the synchronized checkout. Do not attribute a live patch to the snapshot unless
-the relevant code matches; disclose any uncertainty about branch or ancestry.
+the relevant code matches. Disclose any uncertainty about branch or ancestry.
 Missing history, truncated patches, pagination limits, or unavailable tools
 limit regression coverage. If no reliable comparison is possible, review a
 bounded set of sensitive entry points in the snapshot and label the result
-**Snapshot review; regression comparison unavailable**. If a complete comparison
-shows no changes, say so; do not manufacture review activity.
+**Snapshot review: regression comparison unavailable**. If a complete comparison
+shows no changes, say so. Do not manufacture review activity.
 
 ## Inspect the changed security boundaries
 
@@ -75,7 +75,7 @@ commit metadata to the reviewed code before attributing runtime behavior to a
 change. If environment or release mapping is missing, state that limitation.
 
 Observability can establish observed failures and help prioritize an
-investigation; it does not prove exploitability or causation. Error volume is
+investigation. It does not prove exploitability or causation. Error volume is
 not an error rate without traffic data. An empty result, sampled data, or an
 absence of exceptions does not show that a vulnerability is absent. Do not
 require telemetry to report a defect supported by code. If unavailable, proceed
@@ -96,6 +96,6 @@ demonstrated regressions.
 
 Finish with coverage: comparison window and revisions, sensitive paths reviewed,
 checks run, optional services used, and missing evidence or budget limits. If
-nothing actionable was found, say so within the stated coverage; do not certify
+nothing actionable was found, say so within the stated coverage. Do not certify
 the repository as secure. Return the report. The host stores it and handles
-configured notifications; do not send a notification yourself.
+configured notifications. Do not send a notification yourself.

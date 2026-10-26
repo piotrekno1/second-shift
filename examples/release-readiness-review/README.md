@@ -32,14 +32,14 @@ schedule if useful.**
    and IANA `timezone`. This sample is manual by default.
 
 For local coding-agent use, copy the same skill and request it explicitly with
-scope and available evidence. Use that agent's approved tools; installing a
+scope and available evidence. Use that agent's approved tools. Installing a
 skill does not grant access. The skill returns a report and leaves delivery to
 its host. See [repository configuration](../../docs/repository-configuration.md)
 for connections, schedules, and optional webhook delivery.
 
 ## Use in this repository
 
-The canonical skill lives in this example; root `.agents/skills/release-readiness-review`
+The canonical skill lives in this example. Root `.agents/skills/release-readiness-review`
 is a relative symlink for agent discovery. Root jobs reference canonical example
 paths directly. Copying a sample manifest does not enable a job or grant access.
 

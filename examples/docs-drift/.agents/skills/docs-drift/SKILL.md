@@ -24,12 +24,12 @@ you skipped.
 1. **Relative links.** Resolve local links using the documentation system's
    source roots and build rules. Targets must exist or have a documented
    generation step. A heading link must match the target's generated anchor.
-   Use an available local scripting runtime to check links when possible;
-   disclose links that could not be checked reliably.
+   Use an available local scripting runtime to check links when possible.
+   Disclose links that could not be checked reliably.
 2. **Paths in prose and code blocks.** File and directory paths mentioned in
    the text should match their documented context. Generated outputs, install
    destinations, placeholders, and paths in downstream projects need not exist
-   in this checkout; check how they are created before reporting drift.
+   in this checkout. Check how they are created before reporting drift.
 3. **Commands.** Scripts, make targets, package scripts, and CLI subcommands
    named in the docs must be defined in the repository, for example in
    `package.json`, `Makefile`, `pyproject.toml`, or the CLI source. Do not run

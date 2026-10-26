@@ -2,8 +2,8 @@
 
 Review recent changes for concrete security defects and suggest fixes and
 regression tests. The skill reads source, tests, dependency lockfiles, and
-deployment configuration. Optional GitHub access provides change evidence;
-optional Sentry access provides runtime context. It does not run Strix or Striga.
+deployment configuration. Optional GitHub access provides change evidence.
+Optional Sentry access provides runtime context. It does not run Strix or Striga.
 
 The [security regression skill](.agents/skills/security-regression/SKILL.md)
 lives in this example. Root `.agents/skills/security-regression` symlinks here
@@ -40,15 +40,15 @@ No job or service connection is activated by adding these files.
 
 The default window is seven days, not changes since the last successful run.
 There is no persistent findings baseline or automatic deduplication. Live GitHub
-can differ from the synchronized revision; the report must disclose comparison
+can differ from the synchronized revision. The report must disclose comparison
 limits. Observability is supporting evidence, not proof that code is secure.
 
 Useful repository context includes an architecture or threat model, intended
 roles and tenant boundaries, security-sensitive configuration, dependency
 lockfiles, and focused tests. Release-to-commit metadata makes optional Sentry
 evidence much more useful. Advisory feeds, prior findings, or a staging scanner
-could be added through separately approved connections in a later integration;
-the sample does not assume they exist.
+could be added through separately approved connections in a later integration.
+The sample does not assume they exist.
 
 Dependencies for offline checks must already be in the server-owned sandbox
 image. The skill does not install packages, probe deployed applications, modify
