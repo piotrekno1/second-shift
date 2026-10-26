@@ -7,6 +7,9 @@
 > [issue #1](https://github.com/piotrekno1/second-shift/issues/1) for progress.
 > Local mode (`secondshift up`) is the supported way to try SecondShift today.
 
+See [GitHub App repository access](github-app.md) to configure repository import
+and automatic syncing.
+
 ## Runner backends
 
 Self-host SecondShift to run committed skills against trusted repositories

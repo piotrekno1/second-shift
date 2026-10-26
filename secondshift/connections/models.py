@@ -22,6 +22,7 @@ class Connection(models.Model):
 
     class Kind(models.TextChoices):
         IDENTITY = "identity", "Identity"
+        SOURCE = "source", "Repository source"
         MCP = "mcp", "MCP"
         API = "api", "API"
         NOTIFICATION = "notification", "Notification"
@@ -93,7 +94,6 @@ class Connection(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = "integrations_connection"
         constraints = [
             models.UniqueConstraint(
                 fields=["workspace", "provider", "external_account_id"],
@@ -156,7 +156,6 @@ class Secret(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = "integrations_secret"
         constraints = [
             models.UniqueConstraint(
                 fields=["workspace", "name"],
@@ -204,6 +203,3 @@ class OAuthAuthorization(models.Model):
 
     def __str__(self) -> str:
         return f"OAuth sign-in for {self.binding_key or self.provider}"
-
-    class Meta:
-        db_table = "integrations_oauthauthorization"

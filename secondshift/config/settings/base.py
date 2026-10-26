@@ -104,10 +104,8 @@ INSTALLED_APPS = [
     "health_check",
     "secondshift.core",
     "secondshift.workspaces",
-    "secondshift.integrations",
     "secondshift.connections",
     "secondshift.repositories",
-    "secondshift.automations",
     "secondshift.jobs",
     "secondshift.runs",
     "secondshift.gateway",
@@ -450,3 +448,12 @@ if MODEL_RUN_TOKEN_BUDGET_CEILING < MODEL_RUN_TOKEN_BUDGET:
     )
 GATEWAY_MAX_BODY_BYTES = 32 * 1024 * 1024
 GATEWAY_READ_TIMEOUT_SECONDS = 600
+
+# GitHub App credentials belong only to the control plane, never to sandboxes.
+GITHUB_APP_ID = env.str("SECONDSHIFT_GITHUB_APP_ID", default="")
+GITHUB_APP_SLUG = env.str("SECONDSHIFT_GITHUB_APP_SLUG", default="")
+GITHUB_APP_CLIENT_ID = env.str("SECONDSHIFT_GITHUB_APP_CLIENT_ID", default="")
+GITHUB_APP_CLIENT_SECRET = env.str("SECONDSHIFT_GITHUB_APP_CLIENT_SECRET", default="")
+GITHUB_APP_PRIVATE_KEY = env.str(
+    "SECONDSHIFT_GITHUB_APP_PRIVATE_KEY", default=""
+).replace("\\n", "\n")

@@ -110,3 +110,6 @@ if os.geteuid() != 0 and (
 LOGGING = logging_config(
     env.str(AppEnv.LOG_LEVEL, default="INFO").upper(), Service.RUNNER
 )
+
+# Internal credential-free repository bundle imports (64 MiB before base64).
+DATA_UPLOAD_MAX_MEMORY_SIZE = 90 * 1024 * 1024

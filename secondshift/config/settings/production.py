@@ -59,6 +59,25 @@ if SERVICE == Service.WORKER:
         errors.append(
             "SECONDSHIFT_RUNNER_SERVICE_TOKEN must contain at least 32 characters"
         )
+# Partial App configuration must not silently disable production repository sync.
+app_configuration = (
+    GITHUB_APP_ID,
+    GITHUB_APP_SLUG,
+    GITHUB_APP_CLIENT_ID,
+    GITHUB_APP_CLIENT_SECRET,
+    GITHUB_APP_PRIVATE_KEY,
+)
+if SERVICE in {Service.WEB, Service.WORKER} and any(app_configuration):
+    if not all(app_configuration):
+        errors.append(
+            "All SECONDSHIFT_GITHUB_APP_* settings must be configured together"
+        )
+    if SERVICE == Service.WEB:
+        required(AppEnv.RUNNER_SERVICE_URL)
+        if len(required(AppEnv.RUNNER_SERVICE_TOKEN)) < 32:
+            errors.append(
+                "SECONDSHIFT_RUNNER_SERVICE_TOKEN must contain at least 32 characters"
+            )
 if errors:
     raise ImproperlyConfigured(
         "Production settings are incomplete:\n- " + "\n- ".join(errors)

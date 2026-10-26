@@ -4,6 +4,7 @@ import pytest
 import requests
 from pydantic_ai.exceptions import ModelHTTPError
 
+from secondshift.repositories.github_app import GitHubAppError
 from secondshift.runner.protocol import RunnerProtocolError
 from secondshift.runs.models import Run
 from secondshift.runs.orchestration import workflows
@@ -97,6 +98,9 @@ def test_failed_run_records_stage_events_and_a_clear_summary(db, monkeypatch) ->
     def fail_to_start(run_id: int) -> str:
         raise RetriesExceeded([RunnerProtocolError("Runner answered HTTP 500.")])
 
+    monkeypatch.setattr(
+        workflows, "materialize_local_repository_step", lambda run_id: None
+    )
     monkeypatch.setattr(workflows, "start_runner_session_step", fail_to_start)
     # Outside a real workflow DBOS has no workflow id to record.
     monkeypatch.setattr(workflows, "DBOS", SimpleNamespace(workflow_id="wf-test"))
@@ -171,3 +175,9 @@ def test_describe_failure_reads_what_failure_summary_writes() -> None:
     view = describe_failure(failure_summary("sandbox", error))
 
     assert view == FailureView("Sandbox", "Runner answered HTTP 500.")
+
+
+def test_checkout_explains_github_access_failure() -> None:
+    assert failure_summary(
+        "checkout", GitHubAppError("The GitHub installation is disconnected.")
+    ) == ("Couldn't check out the repository: The GitHub installation is disconnected.")
