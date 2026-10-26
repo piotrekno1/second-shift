@@ -43,7 +43,7 @@ Start the service only after applying its own migrations:
 
 ```bash
 DJANGO_SETTINGS_MODULE=secondshift.config.settings.runner uv run python manage.py migrate
-uv run gunicorn "secondshift.config.app:wsgi('runner')" --bind 0.0.0.0:8002 --workers 1
+SECONDSHIFT_SERVICE=runner uv run gunicorn --config python:secondshift.config.gunicorn
 ```
 
 Required configuration is in `secondshift/config/settings/runner.py`. Production should use

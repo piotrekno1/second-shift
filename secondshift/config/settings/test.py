@@ -36,3 +36,7 @@ RUNNER_CPUS = "2"
 RUNNER_PIDS_LIMIT = 256
 RUNNER_SANDBOX_UID = os.getuid()
 RUNNER_SANDBOX_GID = os.getgid()
+
+# Internal services in tests have explicit addresses, independent of the shell.
+RUNNER_SERVICE_URL = "http://127.0.0.1:8002"
+MODEL_GATEWAY_URL = "http://127.0.0.1:8001"

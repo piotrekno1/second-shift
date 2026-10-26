@@ -8,7 +8,10 @@ import djclick as click
 from django.conf import settings
 from django.core.management import call_command
 
-from secondshift.config.constants import Environment, Service
+from secondshift.config.constants import (
+    Environment,
+    Service,
+)
 from secondshift.core import launcher
 from secondshift.core.signin import SIGN_IN_LINK_SECONDS, sign_in_url
 from secondshift.workspaces.owners import (
@@ -20,8 +23,15 @@ from secondshift.workspaces.owners import (
 
 
 @click.command()
-@click.option("--host", default="127.0.0.1", show_default=True)
-@click.option("--port", default=8000, show_default=True, type=int)
+@click.option(
+    "--host", default=None, help="Web listen host. Overrides SECONDSHIFT_HTTP_BIND."
+)
+@click.option(
+    "--port",
+    default=None,
+    type=int,
+    help="Web listen port. Overrides SECONDSHIFT_HTTP_BIND.",
+)
 @click.option(
     "--email",
     envvar="SECONDSHIFT_OWNER_EMAIL",
@@ -39,7 +49,11 @@ from secondshift.workspaces.owners import (
     help="Open the sign-in link in your browser once started.",
 )
 def command(
-    host: str, port: int, email: str | None, password: str | None, browser: bool
+    host: str | None,
+    port: int | None,
+    email: str | None,
+    password: str | None,
+    browser: bool,
 ) -> None:
     """Start SecondShift on this computer."""
     if settings.ENVIRONMENT != Environment.LOCAL:
@@ -47,6 +61,10 @@ def command(
             "secondshift up runs with SECONDSHIFT_ENV=local. "
             "In a checkout, use process-compose instead."
         )
+    parent = dict(os.environ)
+    configured_host, configured_port = launcher.web_address("127.0.0.1", 8000, parent)
+    host, port = host or configured_host, port if port is not None else configured_port
+    parent.pop("SECONDSHIFT_HTTP_BIND", None)
     check_docker()
     if not (settings.WEB_DIR / "index.html").exists():
         raise click.ClickException(
@@ -56,7 +74,7 @@ def command(
 
     click.echo(f"Data folder: {settings.DATA_DIR}")
     call_command("migrate", interactive=False, verbosity=0)
-    services = launcher.services(host, port, dict(os.environ))
+    services = launcher.services(host, port, parent)
     runner = next(service for service in services if service.name == Service.RUNNER)
     subprocess.run(
         [sys.executable, "-m", "secondshift", "migrate", "--verbosity", "0"],

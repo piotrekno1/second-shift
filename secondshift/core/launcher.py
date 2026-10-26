@@ -13,10 +13,15 @@ import urllib.request
 from collections.abc import Callable
 from dataclasses import dataclass
 from types import FrameType
+from urllib.parse import urlsplit
+
+from django.conf import settings
 
 from secondshift.config.constants import (
     ENVIRONMENT_VAR,
+    GUNICORN_CONFIG,
     RUNNER_SETTINGS,
+    SERVICE_VAR,
     SETTINGS_MODULE_VAR,
     AppEnv,
     Environment,
@@ -27,7 +32,15 @@ from secondshift.config.constants import (
 
 CONTROL_SETTINGS = settings_module(Environment.LOCAL)
 # The runner gets only these variables from the parent environment.
-RUNNER_ENV_NAMES = {"PATH", "HOME", "USER", "LANG", "LC_ALL", "TMPDIR", AppEnv.LOG_LEVEL}
+RUNNER_ENV_NAMES = {
+    "PATH",
+    "HOME",
+    "USER",
+    "LANG",
+    "LC_ALL",
+    "TMPDIR",
+    AppEnv.LOG_LEVEL,
+}
 RUNNER_ENV_PREFIXES = ("DOCKER_", "SECONDSHIFT_RUNNER_")
 STOP_SECONDS = 15
 
@@ -59,78 +72,77 @@ def public_url(host: str, port: int) -> str:
     return f"http://{'127.0.0.1' if host == '0.0.0.0' else host}:{port}"
 
 
+def web_address(host: str, port: int, parent: dict[str, str]) -> tuple[str, int]:
+    """Use an explicit HTTP bind for the local web process."""
+    if bind := parent.get("SECONDSHIFT_HTTP_BIND"):
+        endpoint = urlsplit(f"http://{bind}")
+        if not endpoint.hostname or endpoint.port is None:
+            raise ValueError("SECONDSHIFT_HTTP_BIND must contain a host and port")
+        return endpoint.hostname, endpoint.port
+    return host, port
+
+
+def local_service_port(url: str) -> int:
+    """Local mode starts internal services on loopback only."""
+    endpoint = urlsplit(url)
+    if endpoint.scheme != "http" or endpoint.hostname not in {"localhost", "127.0.0.1"}:
+        raise ValueError(
+            "Local service URLs must use http://localhost or http://127.0.0.1"
+        )
+    return endpoint.port or 80
+
+
 def services(
     host: str, port: int, parent: dict[str, str], python: str = sys.executable
 ) -> list[Process]:
-    gateway_port, runner_port = port + 1, port + 2
+    host, port = web_address(host, port, parent)
+    gateway_url = settings.MODEL_GATEWAY_URL
+    runner_url = settings.RUNNER_SERVICE_URL
+    gateway_port = local_service_port(gateway_url)
+    runner_port = local_service_port(runner_url)
     control = {
         # Links in notifications, invites and OAuth callbacks use it.
-        AppEnv.PUBLIC_URL: public_url(host, port),
+        AppEnv.PUBLIC_URL: parent.get(AppEnv.PUBLIC_URL, public_url(host, port)),
         **parent,
         ENVIRONMENT_VAR: Environment.LOCAL,
         SETTINGS_MODULE_VAR: CONTROL_SETTINGS,
-        "SECONDSHIFT_RUNNER_SERVICE_URL": f"http://127.0.0.1:{runner_port}",
-        "SECONDSHIFT_MODEL_GATEWAY_URL": f"http://127.0.0.1:{gateway_port}",
+        AppEnv.RUNNER_SERVICE_URL: runner_url,
+        AppEnv.MODEL_GATEWAY_URL: gateway_url,
     }
     if sys.platform == "darwin":
         # macOS stops forked processes that make HTTP calls without this.
         control["OBJC_DISABLE_INITIALIZE_FORK_SAFETY"] = "YES"
-    # Several gunicorns run side by side, so none opens the shared control socket.
-    gunicorn = [
-        python,
-        "-m",
-        "gunicorn",
-        "--log-level",
-        "warning",
-        "--no-control-socket",
-    ]
+
+    def http_service(
+        service: Service, address: str, http_port: int, environment: dict[str, str]
+    ) -> Process:
+        environment = {
+            **environment,
+            SERVICE_VAR: service,
+            "SECONDSHIFT_HTTP_BIND": f"{address}:{http_port}",
+            "SECONDSHIFT_HTTP_LOG_LEVEL": "warning",
+            "SECONDSHIFT_HTTP_ACCESS_LOG": "",
+        }
+        if service in {Service.GATEWAY, Service.RUNNER}:
+            environment["SECONDSHIFT_HTTP_PROCESSES"] = "1"
+        if service == Service.GATEWAY:
+            environment["SECONDSHIFT_HTTP_GRACEFUL_TIMEOUT_SECONDS"] = "600"
+        return Process(
+            service,
+            [python, "-m", "gunicorn", "--config", GUNICORN_CONFIG],
+            environment,
+            f"http://127.0.0.1:{http_port}/-/health/",
+        )
+
     return [
+        http_service(Service.RUNNER, "127.0.0.1", runner_port, runner_env(parent)),
+        http_service(Service.GATEWAY, "127.0.0.1", gateway_port, control),
         Process(
-            Service.RUNNER,
-            [
-                *gunicorn,
-                f"secondshift.config.app:wsgi('{Service.RUNNER}')",
-                "--bind",
-                f"127.0.0.1:{runner_port}",
-                "--workers",
-                "1",
-            ],
-            runner_env(parent),
-            f"http://127.0.0.1:{runner_port}/-/health/",
+            Service.WORKER,
+            [python, "-m", "secondshift", "run_dbos_worker"],
+            {**control, SERVICE_VAR: Service.WORKER},
         ),
-        Process(
-            Service.GATEWAY,
-            [
-                *gunicorn,
-                f"secondshift.config.app:asgi('{Service.GATEWAY}')",
-                "--bind",
-                f"127.0.0.1:{gateway_port}",
-                "--worker-class",
-                "uvicorn_worker.UvicornWorker",
-                "--workers",
-                "1",
-                "--graceful-timeout",
-                "600",
-            ],
-            control,
-            f"http://127.0.0.1:{gateway_port}/-/health/",
-        ),
-        Process(
-            Service.WORKER, [python, "-m", "secondshift", "run_dbos_worker"], control
-        ),
-        Process(
-            Service.WEB,
-            [
-                *gunicorn,
-                f"secondshift.config.app:wsgi('{Service.WEB}')",
-                "--bind",
-                f"{host}:{port}",
-                "--workers",
-                "2",
-            ],
-            control,
-            f"http://127.0.0.1:{port}/-/health/",
-        ),
+        http_service(Service.WEB, host, port, control),
     ]
 
 

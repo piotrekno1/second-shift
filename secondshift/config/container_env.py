@@ -49,7 +49,12 @@ def generate_environment(hostname: str, directory: Path) -> None:
     runner.mkdir(mode=0o700, exist_ok=True)
     configs = {
         Service.WEB: {**common, **public},
-        Service.GATEWAY: {**common, AppEnv.ALLOWED_HOSTS: "secondshift-gateway"},
+        Service.GATEWAY: {
+            **common,
+            AppEnv.ALLOWED_HOSTS: "secondshift-gateway",
+            "SECONDSHIFT_HTTP_BIND": "0.0.0.0:8001",
+            "SECONDSHIFT_HTTP_GRACEFUL_TIMEOUT_SECONDS": "600",
+        },
         Service.WORKER: {
             **common,
             **public,
@@ -58,6 +63,8 @@ def generate_environment(hostname: str, directory: Path) -> None:
             AppEnv.MODEL_GATEWAY_URL: "http://secondshift-gateway:8001",
         },
         Service.RUNNER: {
+            "SECONDSHIFT_HTTP_BIND": "0.0.0.0:8002",
+            "SECONDSHIFT_HTTP_PROCESSES": "1",
             AppEnv.RUNNER_ALLOWED_HOSTS: "secondshift-runner",
             AppEnv.RUNNER_SERVICE_TOKEN: token,
             AppEnv.RUNNER_RUNTIME: SandboxRuntime.GVISOR,
