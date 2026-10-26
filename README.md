@@ -75,24 +75,23 @@ available on PyPI.
 Write a skill for recurring work your team needs done. Connect
 the services it needs through MCP or an HTTP API, then approve the job's access.
 
-The current task examples focus on reviews and briefings:
+Task examples include:
 
 - [Documentation drift](examples/docs-drift/README.md) finds broken links and
   stale commands in your docs. It needs only a model provider.
 - [CI failure review](examples/ci-failure-review/README.md) groups recurring
   build failures and identifies what still blocks work.
-- [Security regression review](examples/security-regression/README.md) reviews
-  recent changes for security defects, with optional runtime context.
+- [Ticket reconciliation](examples/ticket-reconciliation/README.md) updates or
+  closes tickets when linked changes meet your team's completion rules.
 
 Browse the [full skill catalog](examples/README.md) to choose a workflow and see
 what data it needs. Follow the [engineering task setup guide](docs/engineering-tasks.md)
 to copy a skill, approve access, try it manually, and enable scheduling.
 
-You can also write action skills. For example, a Jira task could check whether
-issues meet your definition of fixed, then transition them through an approved
-custom MCP connection. Define the completion criteria, allowed actions, and how
-to handle an item that was already processed. See
-[tasks that change service data](docs/engineering-tasks.md#tasks-that-change-service-data).
+For teams that want a person to decide, the
+[ticket follow-up brief](examples/ticket-follow-up/README.md) lists candidates
+without changing tickets. See [tasks that change service data](docs/engineering-tasks.md#tasks-that-change-service-data)
+for access requirements and workflow setup.
 
 ## Who controls what
 

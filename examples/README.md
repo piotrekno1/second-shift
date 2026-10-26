@@ -1,8 +1,8 @@
 # Task examples
 
-These examples demonstrate reviews and briefings. SecondShift can also execute
-tasks that change connected services through approved MCP tools or API
-operations. See the [task setup guide](../docs/engineering-tasks.md#tasks-that-change-service-data)
+These examples demonstrate reviews, briefings, and ticket updates through
+approved MCP tools or API operations.
+See the [task setup guide](../docs/engineering-tasks.md#tasks-that-change-service-data)
 for an action workflow and its access requirements.
 
 Each directory contains the canonical `.agents/skills/<name>/SKILL.md`, a sample
@@ -25,6 +25,8 @@ Individual examples provide service-specific setup and suggested cadences.
 | [Release readiness](release-readiness-review/README.md) | Finds missing steps and blockers for a planned rollout. | An explicit release target, baseline, and rollout plan. |
 | [Security regression](security-regression/README.md) | Finds security defects introduced by recent changes. | Repository code and local or approved source-control history. Observability is optional. |
 | [Engineering briefing](engineering-briefing/README.md) | Summarizes shipped work, open blockers, and participation. | GitHub pull requests, reviews, and commits through approved read tools. |
+| [Ticket follow-up brief](ticket-follow-up/README.md) | Lists evidence-backed ticket updates for a person to decide. | Repository history and approved tracker read access. |
+| [Ticket reconciliation](ticket-reconciliation/README.md) | Updates or closes tickets that meet the team's completion rules. | Repository history, explicit workflow rules, and approved tracker read and write operations. |
 
 ## Reuse in your project
 

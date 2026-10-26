@@ -6,9 +6,9 @@ SecondShift executes tasks defined by repository skills. A task can investigate
 code, produce a briefing, or change connected service data through explicitly
 approved MCP tools or HTTP API operations.
 
-The current [examples](../examples/README.md) are reviews and briefings that
-return findings without modifying code or connected services. Those are the
-examples' chosen boundaries. Root `.agents/skills` contains discovery symlinks.
+The [examples](../examples/README.md) include reviews, briefings, and a ticket
+reconciliation task that updates connected services. Each skill defines its
+actions and boundaries. Root `.agents/skills` contains discovery symlinks.
 
 Choose a workflow from the [skill catalog](../examples/README.md). Each example
 explains its data sources and suggests a schedule where appropriate. This guide
@@ -79,7 +79,8 @@ owner must allow the operation on the connection and approve the job's request.
 The built-in GitHub and Sentry connections expose read tools only. Use a custom
 connection with the required operations for actions such as Jira transitions.
 
-For example, a Jira issue cleanup skill could:
+The [ticket reconciliation skill](../examples/ticket-reconciliation/README.md)
+implements this workflow for an approved tracker, such as Jira:
 
 1. Find candidate issues in the approved project.
 2. Check linked implementation, validation, and deployment evidence against
@@ -89,8 +90,10 @@ For example, a Jira issue cleanup skill could:
 
 Select the service's actual read and transition operations, then declare their
 exact names in the job's `requires` section. Keep the project, credentials, and
-endpoint configuration in the workspace connection. This workflow is a design
-example. The shipped catalog does not include a Jira cleanup skill.
+endpoint configuration in the workspace connection. The provider-neutral sample
+requires the tracker's actual operation names before it can run. For teams that
+want a person to decide, the [ticket follow-up brief](../examples/ticket-follow-up/README.md)
+returns candidates without changing tickets and can be delivered to Slack.
 
 Write the skill's completion criteria and stopping conditions explicitly.
 Check current state before acting, skip already-completed transitions, and
