@@ -1,7 +1,7 @@
 # Environment variables
 
-SecondShift application settings use the `SECONDSHIFT_` prefix. Only the names
-documented here are accepted; there are no fallback aliases.
+Use the `SECONDSHIFT_` deployment settings below. Renamed variables are not
+accepted under their previous names; there is no compatibility alias layer.
 
 Set `SECONDSHIFT_ENV` to `dev`, `local`, `production` or `test`. The installed
 `secondshift` command defaults to `local`; `manage.py` defaults to `dev`;
