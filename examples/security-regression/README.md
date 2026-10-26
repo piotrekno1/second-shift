@@ -3,7 +3,8 @@
 Review recent changes for concrete security defects and suggest fixes and
 regression tests. The skill reads source, tests, dependency lockfiles, and
 deployment configuration. Optional GitHub access provides change evidence.
-Optional Sentry access provides runtime context. It does not run Strix or Striga.
+Optional observability access provides runtime context through Sentry, Grafana,
+Datadog, Splunk, or another approved connection. It does not run Strix or Striga.
 
 The [security regression skill](.agents/skills/security-regression/SKILL.md)
 lives in this example. Root `.agents/skills/security-regression` symlinks here
@@ -24,11 +25,14 @@ so coding agents discover the same skill we ship for users to copy.
    repository requirements. This is recommended for regression reviews: the
    sandbox contains no Git history. Without usable change evidence, the report
    explicitly falls back to a bounded snapshot review.
-4. Optionally connect Sentry with binding `sentry`, select the intended project,
-   and approve the four read tools listed in the manifest. Tell the skill which
-   environment matters when the project contains several. Missing observability
-   does not block a code review. Neither optional connection is granted access
-   merely by appearing in the manifest.
+4. Optionally connect observability tools. The manifest includes Sentry as a
+   ready-made example with binding `sentry`. For Grafana, Datadog, Splunk, or
+   another service, replace or supplement that entry with a logical binding
+   and the actual read operation names from your approved MCP or API connection.
+   Set `required: false` for optional context. Choose operations that expose
+   relevant logs, traces, metrics, deployment markers, or security events.
+   Specify the intended service and environment. Missing observability does
+   not block a code review, and declaring a connection does not grant access.
 5. Choose **Run now** and review its findings and coverage before enabling the
    Monday 09:00 Europe/Warsaw schedule. Remove the schedule for manual use only.
 
@@ -45,7 +49,7 @@ limits. Observability is supporting evidence, not proof that code is secure.
 
 Useful repository context includes an architecture or threat model, intended
 roles and tenant boundaries, security-sensitive configuration, dependency
-lockfiles, and focused tests. Release-to-commit metadata makes optional Sentry
+lockfiles, and focused tests. Release-to-commit metadata makes observability
 evidence much more useful. Advisory feeds, prior findings, or a staging scanner
 could be added through separately approved connections in a later integration.
 The sample does not assume they exist.

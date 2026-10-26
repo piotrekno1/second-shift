@@ -1,9 +1,9 @@
 # Ticket follow-up brief
 
 Use the [skill](.agents/skills/ticket-follow-up/SKILL.md) to turn repository
-history into a list of ticket updates for a human to decide. It follows explicit
-ticket links, compares implementation with acceptance criteria, and returns
-proposed updates with evidence. It does not change tickets or add comments.
+history into a list of tickets that may be ready to close or update. It explains
+what was implemented, suggests the next ticket update, and flags anything that
+still needs testing or confirmation. It does not change tickets or add comments.
 
 Choose this for engineering leads, triage owners, or teams whose definition of
 done needs human judgment. Use [ticket reconciliation](../ticket-reconciliation/README.md)

@@ -68,11 +68,23 @@ budget and disclose omitted areas.
 
 ## Optional observability context
 
-If approved Sentry or equivalent observability tools are available, search the
-same window in the approved project and environment for errors or traces related
-to candidate code paths. Use returned resource IDs and links. Match release or
-commit metadata to the reviewed code before attributing runtime behavior to a
-change. If environment or release mapping is missing, state that limitation.
+Discover the approved observability read tools available to this job. Choose
+tools by the evidence they expose, not the provider name. Sentry, Grafana,
+Datadog, Splunk, and other MCP or API connections may supply logs, traces,
+metrics, deployment markers, or security events. Do not assume a connection
+exists or request broader access just to complete the review.
+
+Use targeted queries for candidate code paths within the reporting window and
+the approved project, service, and environment. For example, check relevant
+authorization failures, unexpected access patterns, or errors near a changed
+input handler when those signals are available. Do not scan unrelated logs or
+copy raw events containing sensitive data into the report. Query only tools
+approved for reading evidence, without changing dashboards, alerts, or services.
+
+Use returned resource IDs and links. Match release or commit metadata to the
+reviewed code before attributing runtime behavior to a change. Distinguish when
+an event happened from when it was ingested. State missing environment or release
+mapping, retention limits, sampling, and incomplete query results.
 
 Observability can establish observed failures and help prioritize an
 investigation. It does not prove exploitability or causation. Error volume is
