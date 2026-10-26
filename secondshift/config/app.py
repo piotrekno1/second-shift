@@ -1,10 +1,8 @@
 """Server entry points for the web app, the model gateway and the runner.
 
-Gunicorn calls these by service name:
+Start an HTTP role with SECONDSHIFT_SERVICE set to web, gateway or runner:
 
-    gunicorn "secondshift.config.app:wsgi('web')"
-    gunicorn "secondshift.config.app:asgi('gateway')" --worker-class uvicorn_worker.UvicornWorker
-    gunicorn "secondshift.config.app:wsgi('runner')"
+    gunicorn --config python:secondshift.config.gunicorn
 """
 
 import os

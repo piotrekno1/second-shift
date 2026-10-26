@@ -120,3 +120,6 @@ if needed, `SECONDSHIFT_ARTIFACT_ADDRESSING_STYLE=path`. Supply
 or use the AWS credential chain (for example IAM roles). Bucket creation is
 managed separately. Adding these variables does not upload existing local files.
 
+
+For HTTP listen addresses, process counts, timeouts and logs, see
+[HTTP server configuration](http-server.md).

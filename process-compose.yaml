@@ -38,8 +38,10 @@ processes:
 
   runner:
     description: Isolated command-runner API
-    command: uv run gunicorn "secondshift.config.app:wsgi('runner')" --bind 127.0.0.1:8002 --workers 1 --reload --access-logfile -
+    command: uv run gunicorn --config python:secondshift.config.gunicorn --reload
     environment:
+      - SECONDSHIFT_SERVICE=runner
+      - SECONDSHIFT_HTTP_BIND=127.0.0.1:8002
       - DJANGO_SETTINGS_MODULE=secondshift.config.settings.runner
     depends_on:
       runner_migrate:
@@ -50,8 +52,10 @@ processes:
       restart: always
 
   backend:
-    command: uv run gunicorn "secondshift.config.app:wsgi('web')" --bind 127.0.0.1:8000 --workers 2 --reload --access-logfile -
+    command: uv run gunicorn --config python:secondshift.config.gunicorn --reload
     environment:
+      - SECONDSHIFT_SERVICE=web
+      - SECONDSHIFT_HTTP_BIND=127.0.0.1:8000
       - SECONDSHIFT_ENV=dev
       # macOS kills forked workers that make outbound HTTP (system proxy lookup).
       - OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
@@ -63,8 +67,11 @@ processes:
 
   gateway:
     description: Model gateway for the trusted agent orchestrator
-    command: uv run gunicorn "secondshift.config.app:asgi('gateway')" --bind 127.0.0.1:8001 --worker-class uvicorn_worker.UvicornWorker --workers 1 --reload --access-logfile -
+    command: uv run gunicorn --config python:secondshift.config.gunicorn --reload
     environment:
+      - SECONDSHIFT_SERVICE=gateway
+      - SECONDSHIFT_HTTP_BIND=127.0.0.1:8001
+      - SECONDSHIFT_HTTP_PROCESSES=1
       - SECONDSHIFT_ENV=dev
       - OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
     depends_on:

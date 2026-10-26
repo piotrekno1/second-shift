@@ -36,15 +36,19 @@ def test_runner_gets_docker_access_and_its_token_but_no_control_plane_keys() -> 
         "SECONDSHIFT_RUNNER_SERVICE_TOKEN": "t" * 40,
         "DJANGO_SETTINGS_MODULE": "secondshift.config.settings.runner",
         "SECONDSHIFT_RUNNER_RUNTIME": "docker",
+        "SECONDSHIFT_SERVICE": "runner",
+        "SECONDSHIFT_HTTP_BIND": "127.0.0.1:8002",
+        "SECONDSHIFT_HTTP_LOG_LEVEL": "warning",
+        "SECONDSHIFT_HTTP_ACCESS_LOG": "",
     }
 
 
 def test_services_listen_next_to_the_chosen_port() -> None:
     services = by_name(9000)
 
-    assert "127.0.0.1:9000" in services["web"].argv
-    assert "127.0.0.1:9001" in services["gateway"].argv
-    assert "127.0.0.1:9002" in services["runner"].argv
+    assert services["web"].env["SECONDSHIFT_HTTP_BIND"] == "127.0.0.1:9000"
+    assert services["gateway"].env["SECONDSHIFT_HTTP_BIND"] == "127.0.0.1:9001"
+    assert services["runner"].env["SECONDSHIFT_HTTP_BIND"] == "127.0.0.1:9002"
     for name in ("web", "gateway", "worker"):
         env = services[name].env
         assert env["SECONDSHIFT_ENV"] == "local"
@@ -85,3 +89,28 @@ def test_one_process_stopping_stops_the_others() -> None:
 def test_up_runs_only_in_the_local_environment() -> None:
     with pytest.raises(click.ClickException, match="SECONDSHIFT_ENV=local"):
         call_command("up")
+
+
+def test_control_secrets_stay_out_of_runner_and_runner_database_is_forwarded() -> None:
+    parent = {
+        **PARENT,
+        "SECONDSHIFT_SECRET_KEY": "private-signing-key",
+        "SECONDSHIFT_ENCRYPTION_KEY": "private-encryption-key",
+        "SECONDSHIFT_DATABASE_URL": "postgres://control:password@database/app",
+        "SECONDSHIFT_RUNNER_DATABASE_URL": "sqlite:///runner-only.sqlite3",
+    }
+    runner = next(
+        service
+        for service in launcher.services("127.0.0.1", 8000, parent)
+        if service.name == "runner"
+    )
+    assert (
+        runner.env["SECONDSHIFT_RUNNER_DATABASE_URL"]
+        == parent["SECONDSHIFT_RUNNER_DATABASE_URL"]
+    )
+    for name in (
+        "SECONDSHIFT_SECRET_KEY",
+        "SECONDSHIFT_ENCRYPTION_KEY",
+        "SECONDSHIFT_DATABASE_URL",
+    ):
+        assert name not in runner.env

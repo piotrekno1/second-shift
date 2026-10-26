@@ -16,10 +16,13 @@ from types import FrameType
 
 from secondshift.config.constants import (
     ENVIRONMENT_VAR,
+    GUNICORN_CONFIG,
     RUNNER_SETTINGS,
+    SERVICE_VAR,
     SETTINGS_MODULE_VAR,
     AppEnv,
     Environment,
+    GunicornEnv,
     SandboxRuntime,
     Service,
     settings_module,
@@ -27,7 +30,15 @@ from secondshift.config.constants import (
 
 CONTROL_SETTINGS = settings_module(Environment.LOCAL)
 # The runner gets only these variables from the parent environment.
-RUNNER_ENV_NAMES = {"PATH", "HOME", "USER", "LANG", "LC_ALL", "TMPDIR", AppEnv.LOG_LEVEL}
+RUNNER_ENV_NAMES = {
+    "PATH",
+    "HOME",
+    "USER",
+    "LANG",
+    "LC_ALL",
+    "TMPDIR",
+    AppEnv.LOG_LEVEL,
+}
 RUNNER_ENV_PREFIXES = ("DOCKER_", "SECONDSHIFT_RUNNER_")
 STOP_SECONDS = 15
 
@@ -65,7 +76,7 @@ def services(
     gateway_port, runner_port = port + 1, port + 2
     control = {
         # Links in notifications, invites and OAuth callbacks use it.
-        AppEnv.PUBLIC_URL: public_url(host, port),
+        AppEnv.PUBLIC_URL: parent.get(AppEnv.PUBLIC_URL, public_url(host, port)),
         **parent,
         ENVIRONMENT_VAR: Environment.LOCAL,
         SETTINGS_MODULE_VAR: CONTROL_SETTINGS,
@@ -75,62 +86,35 @@ def services(
     if sys.platform == "darwin":
         # macOS stops forked processes that make HTTP calls without this.
         control["OBJC_DISABLE_INITIALIZE_FORK_SAFETY"] = "YES"
-    # Several gunicorns run side by side, so none opens the shared control socket.
-    gunicorn = [
-        python,
-        "-m",
-        "gunicorn",
-        "--log-level",
-        "warning",
-        "--no-control-socket",
-    ]
+
+    def http_service(
+        service: Service, address: str, http_port: int, environment: dict[str, str]
+    ) -> Process:
+        environment = {
+            **environment,
+            SERVICE_VAR: service,
+            GunicornEnv.BIND: f"{address}:{http_port}",
+            GunicornEnv.LOG_LEVEL: "warning",
+            GunicornEnv.ACCESS_LOG: "",
+        }
+        if service == Service.GATEWAY:
+            environment[GunicornEnv.WORKERS] = "1"
+        return Process(
+            service,
+            [python, "-m", "gunicorn", "--config", GUNICORN_CONFIG],
+            environment,
+            f"http://127.0.0.1:{http_port}/-/health/",
+        )
+
     return [
+        http_service(Service.RUNNER, "127.0.0.1", runner_port, runner_env(parent)),
+        http_service(Service.GATEWAY, "127.0.0.1", gateway_port, control),
         Process(
-            Service.RUNNER,
-            [
-                *gunicorn,
-                f"secondshift.config.app:wsgi('{Service.RUNNER}')",
-                "--bind",
-                f"127.0.0.1:{runner_port}",
-                "--workers",
-                "1",
-            ],
-            runner_env(parent),
-            f"http://127.0.0.1:{runner_port}/-/health/",
+            Service.WORKER,
+            [python, "-m", "secondshift", "run_dbos_worker"],
+            {**control, SERVICE_VAR: Service.WORKER},
         ),
-        Process(
-            Service.GATEWAY,
-            [
-                *gunicorn,
-                f"secondshift.config.app:asgi('{Service.GATEWAY}')",
-                "--bind",
-                f"127.0.0.1:{gateway_port}",
-                "--worker-class",
-                "uvicorn_worker.UvicornWorker",
-                "--workers",
-                "1",
-                "--graceful-timeout",
-                "600",
-            ],
-            control,
-            f"http://127.0.0.1:{gateway_port}/-/health/",
-        ),
-        Process(
-            Service.WORKER, [python, "-m", "secondshift", "run_dbos_worker"], control
-        ),
-        Process(
-            Service.WEB,
-            [
-                *gunicorn,
-                f"secondshift.config.app:wsgi('{Service.WEB}')",
-                "--bind",
-                f"{host}:{port}",
-                "--workers",
-                "2",
-            ],
-            control,
-            f"http://127.0.0.1:{port}/-/health/",
-        ),
+        http_service(Service.WEB, host, port, control),
     ]
 
 
