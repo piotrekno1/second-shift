@@ -42,6 +42,7 @@ processes:
     environment:
       - SECONDSHIFT_SERVICE=runner
       - SECONDSHIFT_HTTP_BIND=127.0.0.1:8002
+      - SECONDSHIFT_HTTP_PROCESSES=1
       - SECONDSHIFT_ENV=dev
       - DJANGO_SETTINGS_MODULE=secondshift.config.settings.runner
     depends_on:
@@ -71,6 +72,7 @@ processes:
     command: uv run gunicorn --config python:secondshift.config.gunicorn --reload
     environment:
       - SECONDSHIFT_SERVICE=gateway
+      - SECONDSHIFT_HTTP_GRACEFUL_TIMEOUT_SECONDS=600
       - SECONDSHIFT_HTTP_BIND=127.0.0.1:8001
       - SECONDSHIFT_HTTP_PROCESSES=1
       - SECONDSHIFT_ENV=dev

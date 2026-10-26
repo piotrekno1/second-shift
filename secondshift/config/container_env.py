@@ -13,6 +13,7 @@ from secondshift.config.constants import (
     SERVICE_VAR,
     AppEnv,
     Environment,
+    GunicornEnv,
     SandboxRuntime,
     Service,
 )
@@ -49,7 +50,12 @@ def generate_environment(hostname: str, directory: Path) -> None:
     runner.mkdir(mode=0o700, exist_ok=True)
     configs = {
         Service.WEB: {**common, **public},
-        Service.GATEWAY: {**common, AppEnv.ALLOWED_HOSTS: "secondshift-gateway"},
+        Service.GATEWAY: {
+            **common,
+            AppEnv.ALLOWED_HOSTS: "secondshift-gateway",
+            GunicornEnv.BIND: "0.0.0.0:8001",
+            GunicornEnv.GRACEFUL_TIMEOUT: "600",
+        },
         Service.WORKER: {
             **common,
             **public,
@@ -58,6 +64,8 @@ def generate_environment(hostname: str, directory: Path) -> None:
             AppEnv.MODEL_GATEWAY_URL: "http://secondshift-gateway:8001",
         },
         Service.RUNNER: {
+            GunicornEnv.BIND: "0.0.0.0:8002",
+            GunicornEnv.WORKERS: "1",
             AppEnv.RUNNER_ALLOWED_HOSTS: "secondshift-runner",
             AppEnv.RUNNER_SERVICE_TOKEN: token,
             AppEnv.RUNNER_RUNTIME: SandboxRuntime.GVISOR,

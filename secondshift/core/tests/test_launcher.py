@@ -39,6 +39,7 @@ def test_runner_gets_docker_access_and_its_token_but_no_control_plane_keys() -> 
         "SECONDSHIFT_RUNNER_RUNTIME": "docker",
         "SECONDSHIFT_SERVICE": "runner",
         "SECONDSHIFT_HTTP_BIND": "127.0.0.1:8002",
+        "SECONDSHIFT_HTTP_PROCESSES": "1",
         "SECONDSHIFT_HTTP_LOG_LEVEL": "warning",
         "SECONDSHIFT_HTTP_ACCESS_LOG": "",
     }

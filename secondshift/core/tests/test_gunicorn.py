@@ -6,16 +6,14 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from cryptography.fernet import Fernet
 
 from secondshift.config.constants import (
-    ENVIRONMENT_VAR,
     SERVICE_VAR,
     AppEnv,
-    Environment,
     GunicornEnv,
     Service,
 )
+from secondshift.config.container_env import generate_environment
 
 
 def server_config(
@@ -28,15 +26,8 @@ def server_config(
     }
     environment.update(
         {
-            ENVIRONMENT_VAR: Environment.PRODUCTION,
             SERVICE_VAR: role,
             AppEnv.DATA_DIR: str(directory),
-            AppEnv.SECRET_KEY: "test-signing-key",
-            AppEnv.ENCRYPTION_KEY: Fernet.generate_key().decode(),
-            AppEnv.DATABASE_URL: "sqlite:///:memory:",
-            AppEnv.PUBLIC_URL: "https://secondshift.example.com",
-            AppEnv.RUNNER_RUNTIME: "runsc",
-            AppEnv.RUNNER_SERVICE_TOKEN: "t" * 40,
             **(overrides or {}),
         }
     )
@@ -62,11 +53,11 @@ def server_config(
     ("role", "bind", "workers", "factory", "graceful"),
     [
         (Service.WEB, "0.0.0.0:8000", 2, "wsgi", 30),
-        (Service.GATEWAY, "0.0.0.0:8001", 2, "asgi", 600),
-        (Service.RUNNER, "0.0.0.0:8002", 1, "wsgi", 30),
+        (Service.GATEWAY, "0.0.0.0:8000", 2, "asgi", 30),
+        (Service.RUNNER, "0.0.0.0:8000", 2, "wsgi", 30),
     ],
 )
-def test_role_settings_reach_gunicorn(
+def test_uniform_defaults_for_http_roles(
     tmp_path: Path, role: Service, bind: str, workers: int, factory: str, graceful: int
 ) -> None:
     config = server_config(role, tmp_path)
@@ -129,3 +120,26 @@ def test_old_http_variable_names_are_not_aliases(tmp_path: Path) -> None:
     )
     assert config["bind"] == "0.0.0.0:8000"
     assert config["workers"] == 2
+
+
+@pytest.mark.parametrize(
+    ("role", "bind", "processes", "graceful"),
+    [
+        (Service.WEB, "0.0.0.0:8000", 2, 30),
+        (Service.GATEWAY, "0.0.0.0:8001", 2, 600),
+        (Service.RUNNER, "0.0.0.0:8002", 1, 30),
+    ],
+)
+def test_generated_env_files_configure_production_roles(
+    tmp_path: Path, role: Service, bind: str, processes: int, graceful: int
+) -> None:
+    directory = tmp_path / "deployment"
+    generate_environment("app.example", directory)
+    values = dict(
+        line.split("=", 1)
+        for line in (directory / f"{role}.env").read_text().splitlines()
+    )
+    config = server_config(role, tmp_path, values)
+    assert config["bind"] == bind
+    assert config["workers"] == processes
+    assert config["graceful_timeout"] == graceful

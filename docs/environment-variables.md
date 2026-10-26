@@ -135,10 +135,10 @@ The background worker uses `uv run python manage.py run_dbos_worker` instead.
 
 | Variable | Meaning and default |
 | --- | --- |
-| `SECONDSHIFT_HTTP_BIND` | Listen address. Defaults to `0.0.0.0:8000` web, `:8001` gateway, `:8002` runner. |
-| `SECONDSHIFT_HTTP_PROCESSES` | HTTP process count. Default 2 web/gateway, 1 runner. Does not change job concurrency. |
+| `SECONDSHIFT_HTTP_BIND` | Listen address. Default `0.0.0.0:8000`. Generated gateway and runner files override it to ports 8001 and 8002. |
+| `SECONDSHIFT_HTTP_PROCESSES` | HTTP process count. Default 2. The generated runner file sets 1. Does not change job concurrency. |
 | `SECONDSHIFT_HTTP_TIMEOUT_SECONDS` | HTTP server worker timeout. Default 30 seconds. |
-| `SECONDSHIFT_HTTP_GRACEFUL_TIMEOUT_SECONDS` | HTTP shutdown grace. Default 600 seconds gateway, 30 web/runner. |
+| `SECONDSHIFT_HTTP_GRACEFUL_TIMEOUT_SECONDS` | HTTP shutdown grace. Default 30 seconds. The generated gateway file sets 600. |
 | `SECONDSHIFT_HTTP_LOG_LEVEL` | HTTP server log level. Default `info`. |
 | `SECONDSHIFT_HTTP_ACCESS_LOG` | Request log destination. Default `-` writes to stdout. An empty value disables request logs. |
 

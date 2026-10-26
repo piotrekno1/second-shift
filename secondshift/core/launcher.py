@@ -124,8 +124,10 @@ def services(
             GunicornEnv.LOG_LEVEL: "warning",
             GunicornEnv.ACCESS_LOG: "",
         }
-        if service == Service.GATEWAY:
+        if service in {Service.GATEWAY, Service.RUNNER}:
             environment[GunicornEnv.WORKERS] = "1"
+        if service == Service.GATEWAY:
+            environment[GunicornEnv.GRACEFUL_TIMEOUT] = "600"
         return Process(
             service,
             [python, "-m", "gunicorn", "--config", GUNICORN_CONFIG],
