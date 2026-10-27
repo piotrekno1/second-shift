@@ -16,7 +16,10 @@ from secondshift.connections.mcp.client import (
     validate_mcp_connection,
     validate_tool_schema,
 )
-from secondshift.connections.mcp.github import scoped_github_arguments
+from secondshift.connections.mcp.github import (
+    narrowed_github_schema,
+    scoped_github_arguments,
+)
 from secondshift.connections.mcp.transport import BoundedStream
 from secondshift.connections.models import Connection
 from secondshift.workspaces.services import create_workspace
@@ -427,3 +430,101 @@ def test_create_rejects_unknown_provider(client: Client) -> None:
     )
     assert response.status_code == 422
     assert not Connection.objects.filter(binding_key="custom").exists()
+
+
+ACTIONS_SCHEMAS = {
+    "actions_list": {
+        "type": "object",
+        "properties": {
+            "method": {
+                "type": "string",
+                "enum": [
+                    "list_workflows",
+                    "list_workflow_runs",
+                    "list_workflow_jobs",
+                    "list_workflow_run_artifacts",
+                ],
+            },
+            "owner": {"type": "string"},
+            "repo": {"type": "string"},
+        },
+        "required": ["method", "owner", "repo"],
+    },
+    "actions_get": {
+        "type": "object",
+        "properties": {
+            "method": {
+                "type": "string",
+                "enum": [
+                    "get_workflow",
+                    "get_workflow_run",
+                    "get_workflow_job",
+                    "get_workflow_run_usage",
+                    "get_workflow_run_logs_url",
+                    "download_workflow_run_artifact",
+                ],
+            },
+            "resource_id": {"type": "string"},
+        },
+        "required": ["method", "resource_id"],
+    },
+    "get_job_logs": {
+        "type": "object",
+        "properties": {
+            "run_id": {"type": "number"},
+            "failed_only": {"type": "boolean"},
+            "return_content": {"type": "boolean"},
+            "tail_lines": {"type": "number", "default": 500},
+        },
+        "required": ["owner", "repo", "return_content"],
+    },
+}
+
+
+def test_model_sees_only_allowed_actions_methods() -> None:
+    listed = narrowed_github_schema("actions_list", ACTIONS_SCHEMAS["actions_list"])
+    got = narrowed_github_schema("actions_get", ACTIONS_SCHEMAS["actions_get"])
+    assert listed["properties"]["method"]["enum"] == [
+        "list_workflow_jobs",
+        "list_workflow_runs",
+        "list_workflows",
+    ]
+    assert got["properties"]["method"]["enum"] == [
+        "get_workflow",
+        "get_workflow_job",
+        "get_workflow_run",
+    ]
+    # The server's schema is left as it was.
+    assert (
+        "list_workflow_run_artifacts"
+        in (ACTIONS_SCHEMAS["actions_list"]["properties"]["method"]["enum"])
+    )
+
+
+def test_model_is_not_offered_log_links_or_githubs_line_default() -> None:
+    logs = narrowed_github_schema("get_job_logs", ACTIONS_SCHEMAS["get_job_logs"])
+    assert "return_content" not in logs["properties"]
+    assert logs["required"] == ["owner", "repo"]
+    assert "default" not in logs["properties"]["tail_lines"]
+    assert "300" in logs["properties"]["tail_lines"]["description"]
+
+
+def test_other_github_schemas_are_unchanged() -> None:
+    schema = TOOL_SCHEMAS["pull_request_read"]["inputSchema"]
+    assert narrowed_github_schema("pull_request_read", schema) == schema
+
+
+def test_discovery_stores_the_narrowed_schema(mcp_http, github_connection) -> None:
+    TOOL_SCHEMAS["actions_get"] = {
+        "description": "Get Actions resources",
+        "inputSchema": ACTIONS_SCHEMAS["actions_get"],
+    }
+    try:
+        tools = discover_tools(github_connection)
+    finally:
+        del TOOL_SCHEMAS["actions_get"]
+    assert tools["actions_get"]["inputSchema"]["properties"]["method"]["enum"] == [
+        "get_workflow",
+        "get_workflow_job",
+        "get_workflow_run",
+    ]

@@ -82,6 +82,45 @@ def scoped_github_arguments(
     return scoped
 
 
+def narrowed_github_schema(tool: str, schema: dict[str, Any]) -> dict[str, Any]:
+    """Show the model only the Actions methods and log options it may use.
+
+    A call outside the scope rules stops the run, so the model must not be
+    offered methods those rules block.
+    """
+    properties = schema.get("properties")
+    if not isinstance(properties, dict):
+        return schema
+    narrowed = {**schema, "properties": dict(properties)}
+    methods = GITHUB_ACTIONS_METHODS.get(tool)
+    if methods is not None and isinstance(properties.get("method"), dict):
+        narrowed["properties"]["method"] = {
+            **properties["method"],
+            "enum": sorted(methods),
+        }
+    if tool == GitHubMCPTool.GET_JOB_LOGS:
+        # Always set by scope_arguments, so the model has no choice to make.
+        narrowed["properties"].pop("return_content", None)
+        if isinstance(narrowed.get("required"), list):
+            narrowed["required"] = [
+                name for name in narrowed["required"] if name != "return_content"
+            ]
+        if isinstance(properties.get("tail_lines"), dict):
+            # GitHub's own default is above the cap.
+            narrowed["properties"]["tail_lines"] = {
+                **{
+                    key: value
+                    for key, value in properties["tail_lines"].items()
+                    if key != "default"
+                },
+                "description": (
+                    "Lines to return from the end of the log. "
+                    f"At most {GITHUB_JOB_LOG_MAX_LINES}."
+                ),
+            }
+    return narrowed
+
+
 def github_scope(settings: MCPSettings, repository: Repository) -> str | None:
     """A job reads only its own repository, whatever the token can reach."""
     del settings
@@ -120,4 +159,5 @@ GITHUB_MCP = MCPProvider(
         "Commit statuses, and Contents."
     ),
     scope_arguments=scoped_github_arguments,
+    narrow_schema=narrowed_github_schema,
 )

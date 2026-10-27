@@ -133,7 +133,7 @@ def offered_tool(item: Any, provider: MCPProvider) -> dict[str, Any] | None:
         return None
     return {
         "description": item.description or item.name,
-        "inputSchema": item.inputSchema,
+        "inputSchema": provider.narrow_schema(item.name, item.inputSchema),
         "readOnly": read_only,
     }
 
