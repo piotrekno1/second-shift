@@ -51,6 +51,9 @@ export const useAppStore = defineStore('app', {
     /** The server must allow local repositories and the role must allow adding them. */
     canAddLocalRepositories: (state): boolean =>
       Boolean(state.user?.local_repositories_enabled) && allows(state.user, Action.AddLocalRepositories),
+    /** Jobs whose access is pending or denied, so they cannot run until reviewed. */
+    jobsNeedingReview: (state): number =>
+      state.jobs.filter((job) => job.grant_status === 'pending' || job.grant_status === 'denied').length,
     mcpProvider: (state) => (key: string | undefined): MCPProviderInfo | undefined =>
       state.mcpProviders.find((provider) => provider.key === key),
   },

@@ -24,7 +24,7 @@ const items = computed<MenuItem[]>(() => {
   const choices: MenuItem[] = workspaces.value.map((workspace) => ({
     label: workspace.name,
     workspaceRole: statusLabel(workspace.role),
-    initials: workspace.name.slice(0, 2).toUpperCase(),
+    initials: workspace.name.slice(0, 1).toUpperCase(),
     current: workspace.current,
     class: workspace.current ? 'current' : undefined,
     command: () => switchTo(workspace),
@@ -66,21 +66,22 @@ onMounted(async () => {
     aria-controls="workspace-menu"
     @click="menu?.toggle($event)"
   >
-    <span class="workspace-avatar" aria-hidden="true">{{ app.user?.workspace_name?.slice(0, 2).toUpperCase() }}</span>
-    <span class="workspace-name"><strong>{{ app.user?.workspace_name }}</strong><small>{{ roleLabel }}</small></span>
+    <img src="/secondshift-mark.svg" alt="" class="brand-mark" />
+    <strong class="workspace-name">{{ app.user?.workspace_name }}</strong>
     <AppIcon name="unfold-more-horizontal" />
   </button>
-  <div v-else class="workspace-switcher static">
-    <span class="workspace-avatar" aria-hidden="true">{{ app.user?.workspace_name?.slice(0, 2).toUpperCase() }}</span>
-    <span class="workspace-name"><strong>{{ app.user?.workspace_name }}</strong><small>{{ roleLabel }}</small></span>
-  </div>
-  <Menu id="workspace-menu" ref="menu" :model="items" popup class="workspace-menu" @show="menuOpen = true" @hide="menuOpen = false">
-    <template #start><div class="workspace-menu-heading">Workspaces</div></template>
+  <RouterLink v-else to="/" class="workspace-switcher static" :title="roleLabel ? `${app.user?.workspace_name} · ${roleLabel}` : undefined">
+    <img src="/secondshift-mark.svg" alt="" class="brand-mark" />
+    <strong class="workspace-name">{{ app.user?.workspace_name }}</strong>
+  </RouterLink>
+  <Menu id="workspace-menu" ref="menu" :model="items" popup class="row-menu workspace-menu" @show="menuOpen = true" @hide="menuOpen = false">
+    <template #start><div class="menu-heading">Workspaces</div></template>
     <template #item="{ item, props }">
-      <a v-bind="props.action" class="workspace-option" :aria-current="item.current ? 'true' : undefined">
-        <span v-if="item.workspaceRole" class="workspace-avatar" aria-hidden="true">{{ item.initials }}</span>
-        <span v-else class="workspace-create-icon"><AppIcon name="plus" /></span>
-        <span class="workspace-option-copy"><strong>{{ item.label }}</strong><small v-if="item.workspaceRole">{{ item.workspaceRole }}</small></span>
+      <a v-bind="props.action" class="row-menu-item workspace-option" :aria-current="item.current ? 'true' : undefined">
+        <span v-if="item.workspaceRole" class="avatar small" aria-hidden="true">{{ item.initials }}</span>
+        <AppIcon v-else name="plus" />
+        <span class="workspace-option-name">{{ item.label }}</span>
+        <small v-if="item.workspaceRole" class="workspace-option-role">{{ item.workspaceRole }}</small>
         <AppIcon v-if="item.current" name="check" class="workspace-current-check" />
       </a>
     </template>
