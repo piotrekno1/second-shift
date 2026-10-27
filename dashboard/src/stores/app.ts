@@ -6,7 +6,7 @@ import { Action, allows } from '../utils/permissions'
 import { fetchMCPProviders } from '../services/connections'
 import { fetchPendingInvite } from '../services/invites'
 import { fetchRuns } from '../services/runs'
-import type { CapabilityNeed, Connection, Job, MCPProviderInfo, Overview, PendingInvite, Repository, Run, Secret, User } from '../types'
+import type { CapabilityNeed, Connection, Job, MCPProviderInfo, Overview, PendingInvite, Repository, Run, User } from '../types'
 
 const RECENT_RUNS = 6
 
@@ -22,7 +22,6 @@ interface AppState {
   runs: Run[]
   connections: Connection[]
   needs: CapabilityNeed[]
-  secrets: Secret[]
   /** Built-in MCP servers. Fixed by the server, so loaded once. */
   mcpProviders: MCPProviderInfo[]
   /** An invite link this browser opened, until the person joins or dismisses it. */
@@ -41,7 +40,6 @@ export const useAppStore = defineStore('app', {
     runs: [],
     connections: [],
     needs: [],
-    secrets: [],
     mcpProviders: [],
     pendingInvite: null,
   }),
@@ -79,14 +77,13 @@ export const useAppStore = defineStore('app', {
       }
     },
     async refresh(): Promise<void> {
-      const [overview, repositories, jobs, runs, connections, needs, secrets] = await Promise.all([
+      const [overview, repositories, jobs, runs, connections, needs] = await Promise.all([
         apiGet<Overview>('/overview'),
         apiGet<Repository[]>('/repositories'),
         apiGet<Job[]>('/jobs'),
         fetchRuns({ page_size: RECENT_RUNS }),
         apiGet<Connection[]>('/connections'),
         apiGet<CapabilityNeed[]>('/capability-needs'),
-        apiGet<Secret[]>('/secrets'),
       ])
       this.overview = overview
       this.repositories = repositories
@@ -94,7 +91,6 @@ export const useAppStore = defineStore('app', {
       this.runs = runs.items
       this.connections = connections
       this.needs = needs
-      this.secrets = secrets
     },
     async loadPendingInvite(): Promise<void> {
       this.pendingInvite = await fetchPendingInvite()

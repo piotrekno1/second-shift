@@ -441,12 +441,6 @@ export interface ConnectionTest {
   models: string[]
 }
 
-export interface Secret {
-  name: string
-  description: string
-  last_used_at: string | null
-}
-
 export interface Notice {
   ok: boolean
   text: string
