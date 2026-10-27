@@ -6,6 +6,8 @@ jobs:
     skill: .agents/skills/security-regression/SKILL.md
     schedule: "0 9 * * 1"
     timezone: Europe/Warsaw
+    # Starts each run with the previous report, to mark findings new or still open.
+    history: 1
     requires:
       mcps:
         - binding: github

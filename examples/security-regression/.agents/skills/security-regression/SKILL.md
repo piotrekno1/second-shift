@@ -18,10 +18,14 @@ URLs in the report.
 Use an explicitly requested comparison window first. Otherwise use the reporting
 time supplied by the scheduler as the exclusive end of a seven-day window. For
 interactive use or a missing reporting time, use the current time and state that
-choice. State the timestamps in UTC and the checkout revision when available. Do
-not assume access to previous reports or a saved baseline. Overlapping runs may
-repeat findings. Do not claim a finding is new to the user without prior-report
-evidence.
+choice. State the timestamps in UTC and the checkout revision when available.
+
+When the job sets `history`, the prompt also holds its previous reports, marked
+as earlier output. Use them only to label findings: **new**, **still open**
+(reported before and still present in the checkout, with the earlier report's
+date), or **resolved** (reported before and no longer present). Check every
+finding against the current checkout; never carry one over from a report.
+Without previous reports, do not claim a finding is new to the user.
 
 Check whether local Git history is available. Exported sandboxes may contain
 only a source snapshot. Use local history for the requested comparison when
@@ -100,6 +104,9 @@ confirmed defect, include severity with rationale, checkout file and line,
 relevant change link when established, attacker prerequisites, impact,
 supporting evidence, and a suggested fix plus a regression test. Distinguish
 demonstrated behavior from conclusions supported only by code inspection.
+
+With previous reports, list new findings first, still-open ones briefly after
+them, and resolved ones as a one-line list.
 
 Put credible but unverified candidates in a short **Needs validation** section
 with the missing evidence and next diagnostic step. Do not inflate hypothetical

@@ -106,6 +106,11 @@ retention is marked as no longer stored. Reports are marked as earlier output, n
 because they may quote untrusted text. Reading its own reports gives a job no
 new access, so `history` needs no approval.
 
+Reports are kept as long as their runs, `SECONDSHIFT_RUN_RETENTION_DAYS` (90 by
+default). A job that runs less often than that, such as a quarterly review,
+finds its previous report already removed: raise the retention or leave
+`history` off for that job.
+
 ## Deliver reports to a webhook
 
 Add a logical notification binding to the job:

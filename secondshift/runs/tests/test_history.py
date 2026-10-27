@@ -7,7 +7,7 @@ from django.contrib.auth import get_user_model
 from django.utils import timezone
 from pydantic import ValidationError
 
-from secondshift.jobs.manifest import JobManifest
+from secondshift.jobs.manifest import JobManifest, load_manifest
 from secondshift.jobs.models import Job
 from secondshift.repositories.models import Repository
 from secondshift.runs.artifacts import artifact_storage, store_run_text
@@ -161,3 +161,9 @@ def test_lowering_the_server_cap_applies_without_a_resync(settings, repository) 
     run = create_run(job, timezone.now())
 
     assert len(run.input_snapshot["history_run_ids"]) == 1
+
+
+def test_security_regression_example_reads_its_previous_report() -> None:
+    manifest = load_manifest(Path("examples/security-regression/.secondshift.yaml"))
+
+    assert manifest.jobs["security-regression"].history == 1
