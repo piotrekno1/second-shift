@@ -173,7 +173,7 @@ async function toggleJob(job: Job): Promise<void> {
       <Select v-if="app.repositories.length > 1" :model-value="repositoryFilter" :options="repositoryOptions" option-label="label" option-value="value" placeholder="All repositories" show-clear class="list-select" aria-label="Repository" @update:model-value="list.update({ repository: $event })" />
     </div>
     <p v-if="error" class="page-error">{{ error }}</p>
-    <p v-if="startedRun" class="page-notice" role="status">
+    <p v-if="startedRun" class="page-notice floating" role="status">
       <AppIcon name="play-circle-outline" />
       <span>Run #{{ startedRun.id }} of {{ startedRun.job }} started.</span>
       <RouterLink :to="`/runs/${startedRun.id}`" class="detail-link">View run <AppIcon name="arrow-right" /></RouterLink>
