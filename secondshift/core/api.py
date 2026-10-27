@@ -16,6 +16,7 @@ from secondshift.core.workspace_settings import (
     sandbox_label,
 )
 from secondshift.jobs.models import Job
+from secondshift.repositories.github_app import configured as github_app_configured
 from secondshift.repositories.models import Repository
 from secondshift.runs.models import Run
 from secondshift.runs.reporting.health import failing_jobs, spend_by_job, week_summary
@@ -43,6 +44,7 @@ def me(request: HttpRequest) -> UserSchema:
         can_use_admin=is_operator(request),
         can_create_workspace=can_create_workspace(request.user),
         local_repositories_enabled=settings.LOCAL_REPOSITORIES_ENABLED,
+        github_app_configured=github_app_configured(),
         environment=environment_label(),
         sandbox=sandbox_label(),
     )

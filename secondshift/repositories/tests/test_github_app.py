@@ -4,7 +4,7 @@ import subprocess
 import time
 from pathlib import Path
 from typing import Any
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 from urllib.parse import parse_qs, urlparse
 
 import pytest
@@ -448,3 +448,23 @@ def test_branch_endpoint_enforces_workspace_access(
     source_connection.save()
     assert owner_client.get(url).status_code == 404
     assert branches.call_count == 1
+
+
+@pytest.mark.django_db
+def test_session_says_whether_the_github_app_is_configured(
+    owner_client: Any, settings: Any
+) -> None:
+    settings.GITHUB_APP_ID = ""
+    assert owner_client.get("/api/me").json()["github_app_configured"] is False
+
+
+@pytest.mark.django_db
+def test_session_reports_the_github_app_without_calling_github(
+    owner_client: Any, app_settings: Any
+) -> None:
+    with patch(
+        "secondshift.repositories.github_app.requests.request",
+        side_effect=AssertionError("The session must not call GitHub."),
+    ):
+        body = owner_client.get("/api/me").json()
+    assert body["github_app_configured"] is True

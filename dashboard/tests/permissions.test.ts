@@ -14,6 +14,7 @@ function person(permissions: string[]): User {
     can_use_admin: false,
     can_create_workspace: false,
     local_repositories_enabled: false,
+    github_app_configured: false,
     environment: 'Production',
     sandbox: 'gVisor sandbox',
   }

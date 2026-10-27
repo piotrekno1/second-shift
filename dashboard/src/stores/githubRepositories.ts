@@ -3,7 +3,6 @@ import { ref } from 'vue'
 import { githubRepositories, githubBranches, importGitHubRepository, type GitHubSource } from '../services/githubRepositories'
 
 export const useGitHubRepositoriesStore = defineStore('githubRepositories', () => {
-  const configured = ref(false)
   const sources = ref<GitHubSource[]>([])
   const error = ref<string | null>(null)
   const importing = ref(false)
@@ -34,11 +33,9 @@ export const useGitHubRepositoriesStore = defineStore('githubRepositories', () =
   async function load(): Promise<void> {
     loading.value = true
     sources.value = []
-    configured.value = false
     error.value = null
     try {
       const status = await githubRepositories()
-      configured.value = status.configured
       sources.value = status.repositories
       error.value = status.error || null
     } catch (caught) {
@@ -59,5 +56,5 @@ export const useGitHubRepositoriesStore = defineStore('githubRepositories', () =
     }
   }
 
-  return { configured, sources, error, importing, loading, branches, branchesLoading, branchesError, load, loadBranches, importRepository }
+  return { sources, error, importing, loading, branches, branchesLoading, branchesError, load, loadBranches, importRepository }
 })

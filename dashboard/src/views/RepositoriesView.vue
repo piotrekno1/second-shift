@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import AppIcon from '../components/AppIcon.vue'
-import { computed, ref, onMounted, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
@@ -50,7 +50,8 @@ const visibleRepositories = computed(() => {
 })
 const filtered = computed(() => Boolean(search.value || state.value))
 const github = useGitHubRepositoriesStore()
-const { configured: githubConfigured, sources: githubSources, error: githubError, importing: githubBusy } = storeToRefs(github)
+const githubConfigured = computed(() => Boolean(app.user?.github_app_configured))
+const { sources: githubSources, error: githubError, importing: githubBusy } = storeToRefs(github)
 const addingGitHub = ref(false)
 const githubChoice = ref('')
 const githubBranch = ref('')
@@ -65,12 +66,13 @@ watch(githubChoice, () => {
   githubBranch.value = source?.default_branch ?? ''
   void github.loadBranches(source)
 })
-onMounted(async () => {
-  if (!app.can(Action.AddGitHubRepositories)) return
-  await github.load()
-  addingGitHub.value = githubOptions.value.length > 0
-  if (githubOptions.value.length === 1) githubChoice.value = githubOptions.value[0]!.key
-})
+// Start before the first render so the header shows a loading button, not Connect GitHub.
+if (app.can(Action.AddGitHubRepositories) && githubConfigured.value) {
+  void github.load().then(() => {
+    addingGitHub.value = githubOptions.value.length > 0
+    if (githubOptions.value.length === 1) githubChoice.value = githubOptions.value[0]!.key
+  })
+}
 async function addGitHubRepository(): Promise<void> {
   const source = selectedGitHubSource.value
   if (!source || !canImportGitHub.value) return
@@ -124,7 +126,7 @@ function chooseDirectory(path: string): void {
       <Button v-if="app.canAddLocalRepositories" label="Add local repository" severity="secondary" outlined @click="addingLocal = !addingLocal; browsing = false">
         <template #icon><AppIcon name="folder-open-outline" /></template>
       </Button>
-      <Button v-if="app.can(Action.AddGitHubRepositories) && githubConfigured && githubOptions.length" label="Add GitHub repository" @click="addingGitHub = !addingGitHub">
+      <Button v-if="app.can(Action.AddGitHubRepositories) && githubConfigured && (github.loading || githubOptions.length)" label="Add GitHub repository" :loading="github.loading" :disabled="github.loading" @click="addingGitHub = !addingGitHub">
         <template #icon><AppIcon name="github" /></template>
       </Button>
       <Button v-else-if="app.can(Action.AddGitHubRepositories) && githubConfigured" label="Connect GitHub" as="a" href="/-/github/connect/">
@@ -133,7 +135,7 @@ function chooseDirectory(path: string): void {
       <Button v-if="app.can(Action.AddGitHubRepositories) && githubConfigured" label="Manage GitHub access" severity="secondary" text as="a" href="/-/github/connect/?install=1" />
     </PageHeader>
     <p v-if="githubError && !addingGitHub" class="form-error" role="alert">{{ githubError }}</p>
-    <p v-if="app.can(Action.AddGitHubRepositories) && !githubConfigured && !githubError && !github.loading">Ask your deployment operator to configure the GitHub App to connect repositories.</p>
+    <p v-if="app.can(Action.AddGitHubRepositories) && !githubConfigured">Ask your deployment operator to configure the GitHub App to connect repositories.</p>
     <form v-if="addingGitHub" class="panel github-import" :aria-busy="githubBusy" @submit.prevent="addGitHubRepository">
       <div class="github-import-heading">
         <span class="github-import-icon"><AppIcon name="github" /></span>
