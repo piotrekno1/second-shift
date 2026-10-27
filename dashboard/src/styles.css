@@ -586,6 +586,7 @@ a.runtime-note { color: inherit; }
 .github-import-select .p-select-label.p-placeholder, .github-import-select .p-select-dropdown { color: var(--subtle); }
 .github-import-submit { padding-top: 24px; }
 .github-import-submit .p-button { min-height: 44px; white-space: nowrap; }
+.github-import-empty { margin: 0; color: var(--muted); }
 .github-import-footer { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-top: 22px; padding-top: 17px; border-top: 1px solid var(--border); font-size: 11px; line-height: 1.5; }
 .github-import-footer > span { color: var(--muted); }
 .github-import-footer a { display: inline-flex; align-items: center; gap: 5px; color: var(--violet-soft); }
