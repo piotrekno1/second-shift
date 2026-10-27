@@ -59,7 +59,7 @@ const rateText = computed(() => (outcomes.value.successRate === null ? '—' : `
 <template>
   <section class="panel run-outcomes" aria-label="Recent outcomes">
     <div class="panel-heading">
-      <div><h2>Outcomes</h2><p>Last {{ runs.length }} runs, oldest to newest. Hover for details.</p></div>
+      <div><h2>Outcomes</h2><p>{{ runs.length === 1 ? 'The last run' : `The last ${runs.length} runs, oldest first` }}. Open a run for details.</p></div>
     </div>
 
     <ol class="outcome-strip">

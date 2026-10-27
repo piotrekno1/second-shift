@@ -17,7 +17,7 @@ import { useAppStore } from '../stores/app'
 import type { Job, JobDetail, RunLimitUpdate } from '../types'
 import { Action } from '../utils/permissions'
 import { enableBlocker } from '../utils/readiness'
-import { accessLabel, accessNeedsAction, countLabel, formatDate, historyLabel, formatRelative, formatSchedule, formatScheduled, jobState, kindLabel, utcTitle } from '../utils/format'
+import { accessLabel, accessNeedsAction, countLabel, describeCron, formatDate, historyLabel, formatRelative, formatSchedule, formatScheduled, jobState, kindLabel, utcTitle } from '../utils/format'
 
 const route = useRoute()
 const router = useRouter()
@@ -35,6 +35,13 @@ const optionalCapabilities = computed(() => job.value?.capabilities.filter((capa
 const detailSubtitle = computed(() => {
   if (!job.value) return loading.value ? 'Loading job…' : 'This job could not be loaded'
   return `${job.value.repository} · ${formatSchedule(job.value.cron, job.value.timezone)}`
+})
+// "1 needed, 1 optional" instead of "0 required bindings · 1 optional".
+const accessSummary = computed(() => {
+  const parts = []
+  if (requiredCapabilities.value.length) parts.push(`${countLabel(requiredCapabilities.value.length, 'connection')} needed`)
+  if (optionalCapabilities.value.length) parts.push(`${optionalCapabilities.value.length} optional`)
+  return parts.join(' · ')
 })
 const lastRun = computed(() => job.value?.recent_runs[0] ?? null)
 
@@ -159,13 +166,13 @@ useLiveRefresh(loadJob, () => (job.value?.recent_runs ?? []).some((run) => isRun
 
           <section v-if="job.capabilities.length" class="panel job-access-panel">
             <div class="panel-heading">
-              <div><h2>Access and connections</h2><p>{{ countLabel(requiredCapabilities.length, 'required binding') }}<template v-if="optionalCapabilities.length"> · {{ optionalCapabilities.length }} optional</template></p></div>
+              <div><h2>Access and connections</h2><p>{{ accessSummary }}</p></div>
               <RouterLink v-if="app.can(Action.ReviewCapabilities)" :to="{ path: '/jobs', query: { review: String(job.id) } }">Review access</RouterLink>
             </div>
             <div class="job-capability-details">
               <div v-for="capability in job.capabilities" :key="capability.id" class="job-capability-detail">
                 <div><strong>{{ capability.binding }}</strong><span>{{ kindLabel(capability.kind) }} · {{ capability.required ? 'Required' : 'Optional' }}</span></div>
-                <div class="tool-list"><span v-for="tool in capability.requested_tools" :key="tool">{{ tool }}</span><small v-if="!capability.requested_tools.length">No tool-level scope</small></div>
+                <div class="tool-list"><span v-for="tool in capability.requested_tools" :key="tool">{{ tool }}</span><small v-if="!capability.requested_tools.length">Any tool on this connection</small></div>
                 <span class="capability-connection">{{ capability.connection_name || 'No connection selected' }}</span>
                 <StatusPill :status="capability.grant_status" />
               </div>
@@ -188,7 +195,7 @@ useLiveRefresh(loadJob, () => (job.value?.recent_runs ?? []).some((run) => isRun
           <dl>
             <div><dt>Repository</dt><dd><RouterLink :to="`/repositories/${job.repository_id}`" class="detail-link">{{ job.repository }}</RouterLink></dd></div>
             <div><dt>Skill</dt><dd><code>{{ job.skill_path }}</code></dd></div>
-            <div><dt>Schedule</dt><dd><code>{{ job.cron }}</code> <span class="run-details-muted">· {{ job.timezone }}</span></dd></div>
+            <div><dt>Schedule</dt><dd v-if="job.cron">{{ describeCron(job.cron) }} <span class="run-details-muted">· {{ job.timezone }}</span><code v-if="describeCron(job.cron) !== job.cron" class="run-details-muted cron-raw">{{ job.cron }}</code></dd><dd v-else>Manual only. Start it with Run now.</dd></div>
             <div><dt>Job key</dt><dd><code>{{ job.key }}</code></dd></div>
             <div><dt>Revision</dt><dd><code>{{ job.repository_revision.slice(0, 12) }}</code></dd></div>
             <div><dt>Config hash</dt><dd><code>{{ job.config_hash.slice(0, 12) }}</code></dd></div>
