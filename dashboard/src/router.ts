@@ -3,6 +3,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import ConnectionsView from './views/ConnectionsView.vue'
 import JobsView from './views/JobsView.vue'
 import JobDetailView from './views/JobDetailView.vue'
+import NotFoundView from './views/NotFoundView.vue'
 import OverviewView from './views/OverviewView.vue'
 import RepositoriesView from './views/RepositoriesView.vue'
 import RepositoryDetailView from './views/RepositoryDetailView.vue'
@@ -18,14 +19,16 @@ export default createRouter({
     { path: '/login', redirect: '/' },
     { path: '/', component: OverviewView },
     { path: '/repositories', component: RepositoriesView },
-    { path: '/repositories/:id', component: RepositoryDetailView },
+    { path: '/repositories/:id(\\d+)', component: RepositoryDetailView },
     { path: '/jobs', component: JobsView },
-    { path: '/jobs/:id', component: JobDetailView },
+    { path: '/jobs/:id(\\d+)', component: JobDetailView },
     { path: '/runs', component: RunsView },
-    { path: '/runs/:id', component: RunDetailView },
-    { path: '/runs/:id/files/:name(input|output)', component: RunFileView },
+    { path: '/runs/:id(\\d+)', component: RunDetailView },
+    { path: '/runs/:id(\\d+)/files/:name(input|output)', component: RunFileView },
     { path: '/connections', component: ConnectionsView },
     { path: '/settings', component: SettingsView },
+    // Ids are numbers, so /runs/abc lands here instead of asking the server.
+    { path: '/:unknown(.*)*', component: NotFoundView },
   ],
   scrollBehavior(to, from, savedPosition) {
     if (savedPosition) return savedPosition
