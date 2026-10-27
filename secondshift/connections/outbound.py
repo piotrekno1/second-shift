@@ -13,8 +13,31 @@ class OutboundUrlError(ValueError):
     pass
 
 
+def parse_address(address: str) -> ipaddress.IPv4Address | ipaddress.IPv6Address:
+    parsed = ipaddress.ip_address(address.split("%", 1)[0])
+    if isinstance(parsed, ipaddress.IPv6Address) and parsed.ipv4_mapped:
+        return parsed.ipv4_mapped
+    return parsed
+
+
 def public_address(address: str) -> bool:
-    return ipaddress.ip_address(address.split("%", 1)[0]).is_global
+    return parse_address(address).is_global
+
+
+def link_local_address(address: str) -> bool:
+    """Link-local hosts include cloud metadata services such as 169.254.169.254.
+
+    These stay blocked even when local addresses are allowed, because they can
+    hand out the host machine's own credentials.
+    """
+    return parse_address(address).is_link_local
+
+
+def literal_address(host: str) -> str | None:
+    try:
+        return str(ipaddress.ip_address(host.strip("[]").split("%", 1)[0]))
+    except ValueError:
+        return None
 
 
 def validate_outbound_url(url: str, noun: str = "URL", resolve: bool = True) -> str:
@@ -38,6 +61,11 @@ def validate_outbound_url(url: str, noun: str = "URL", resolve: bool = True) -> 
     if parts.username or parts.password:
         raise OutboundUrlError(
             f"{noun.capitalize()}s cannot contain a username or password."
+        )
+    literal = literal_address(parts.hostname)
+    if literal and link_local_address(literal):
+        raise OutboundUrlError(
+            f"{noun.capitalize()}s cannot point to a link-local address."
         )
     if allow_local or not resolve:
         return url
@@ -67,6 +95,8 @@ def vetted_addresses(infos: Iterable[tuple[object, ...]]) -> list[str]:
     addresses = list(dict.fromkeys(str(info[4][0]) for info in infos))  # type: ignore[index]
     if not addresses:
         raise httpcore.ConnectError("The host could not be resolved.")
+    if any(link_local_address(address) for address in addresses):
+        raise httpcore.ConnectError("The host resolves to a link-local address.")
     if not settings.OUTBOUND_ALLOW_LOCAL and not all(
         public_address(address) for address in addresses
     ):
