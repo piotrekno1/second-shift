@@ -24,7 +24,8 @@ test('an empty field uses the inherited value', () => {
 test('only whole numbers within the bounds are accepted', () => {
   assert.equal(parseLimitDraft(turns, '1,000').problem, 'Between 1 and 100.')
   assert.equal(parseLimitDraft(turns, '2.5').problem, 'Enter a whole number.')
-  assert.equal(parseLimitDraft(turns, '-3').problem, 'Enter a whole number.')
+  assert.equal(parseLimitDraft(turns, '-3').problem, 'Between 1 and 100.')
+  assert.equal(parseLimitDraft(turns, 'abc').problem, 'Enter a whole number.')
   assert.deepEqual(parseLimitDraft(turns, '50'), { value: 50, problem: null })
 })
 
@@ -32,4 +33,10 @@ test('limitChanges sends only what changed', () => {
   assert.deepEqual(limitChanges([turns, time], { max_turns: '', timeout_seconds: '30' }), {})
   assert.deepEqual(limitChanges([turns, time], { max_turns: '40', timeout_seconds: '' }), { max_turns: 40, timeout_seconds: null })
   assert.deepEqual(limitChanges([turns, time], { max_turns: '400', timeout_seconds: '30' }), {})
+})
+
+test('zero is a value, not an empty field', () => {
+  const tools = item('max_tool_calls', 'count', null, 0, 64)
+  assert.deepEqual(parseLimitDraft(tools, '0'), { value: 0, problem: null })
+  assert.deepEqual(limitChanges([tools], { max_tool_calls: '0' }), { max_tool_calls: 0 })
 })

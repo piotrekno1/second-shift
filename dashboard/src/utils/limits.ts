@@ -29,14 +29,11 @@ export function parseLimitDraft(
 ): ParsedLimit {
   const text = draft.trim().replace(/[,_\s]/g, '')
   if (!text) return { value: null, problem: null }
-  if (!/^\d+$/.test(text)) return { value: null, problem: 'Enter a whole number.' }
+  const range = `Between ${formatLimit(item.unit, item.minimum)} and ${formatLimit(item.unit, item.maximum)}.`
+  // "-5" is a whole number, just out of range, so it gets the range message.
+  if (!/^-?\d+$/.test(text)) return { value: null, problem: 'Enter a whole number.' }
   const value = Number(text) * limitScale(item)
-  if (value < item.minimum || value > item.maximum) {
-    return {
-      value: null,
-      problem: `Between ${formatLimit(item.unit, item.minimum)} and ${formatLimit(item.unit, item.maximum)}.`,
-    }
-  }
+  if (value < item.minimum || value > item.maximum) return { value: null, problem: range }
   return { value, problem: null }
 }
 

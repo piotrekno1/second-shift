@@ -34,6 +34,11 @@ const dirty = computed(() => Object.keys(changes.value).length > 0)
 
 function source(item: RunLimitItem): string {
   const inherited = formatLimit(item.unit, item.inherited)
+  // While typing, say what saving would set, not what is set now.
+  if (item.key in changes.value) {
+    const next = changes.value[item.key]
+    return next === null || next === undefined ? `Will use ${props.inheritedFrom}: ${inherited}.` : `Will be ${formatLimit(item.unit, next)} after saving.`
+  }
   if (item.override === null) return `Uses ${props.inheritedFrom}: ${inherited}.`
   if (item.value < item.override) return `Capped at the server maximum, ${formatLimit(item.unit, item.value)}.`
   return `Set here. Without it: ${inherited}.`
