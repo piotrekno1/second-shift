@@ -7,7 +7,7 @@ and report actionable findings without changing files or service state.
 
 Source, configuration, contributor guidance, and tests from the repository snapshot.
 
-Only a model provider is required. Focused offline checks can run when their dependencies are already available. The skill does not install packages or assume a particular language or framework.
+Only a model provider is required. The job sets `history: 1`, so each run reads the previous report and marks findings as new, still open, or fixed. Focused offline checks can run when their dependencies are already available. The skill does not install packages or assume a particular language or framework.
 
 ## Suggested schedule
 

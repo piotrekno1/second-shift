@@ -2,7 +2,9 @@
 
 Find links, paths, commands, and settings in your docs that no longer match the
 repository. This example needs only a model provider. It reads the repository
-in the offline sandbox and connects to nothing else.
+in the offline sandbox and connects to nothing else. The job sets `history: 1`,
+so each run reads the previous report and marks drift as new, still open, or
+fixed.
 
 ## Try it
 

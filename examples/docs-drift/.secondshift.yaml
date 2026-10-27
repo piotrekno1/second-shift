@@ -5,3 +5,5 @@ jobs:
     skill: .agents/skills/docs-drift/SKILL.md
     schedule: "0 8 * * 1"
     timezone: UTC
+    # Starts each run with the previous report, to mark findings new or still open.
+    history: 1
