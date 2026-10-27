@@ -77,6 +77,8 @@ def test_container_flags_are_server_owned(settings, tmp_path: Path) -> None:
     assert "--network=none" in command
     assert "--read-only" in command
     assert "--cap-drop=ALL" in command
+    assert "--memory=1g" in command
+    assert "--memory-swap=1g" in command
     assert "--user=65534:65534" in command
     mounts = [
         part for part in command if part.startswith(("--mount", "-v", "--volume"))
@@ -172,3 +174,74 @@ def test_an_old_session_with_the_same_run_id_does_not_block_a_new_run(
     assert session.status == RunnerSession.Status.ACTIVE
     assert session.container_name == f"secondshift-{spec.session_id}"
     assert RunnerSession.objects.filter(run_id=7).count() == 2
+
+
+def fake_inspect(running: bool, oom_killed: bool):
+    def run_command(command: list[str], timeout: int = 30) -> Mock:
+        if command[:2] != ["docker", "inspect"]:
+            return completed(0)
+        state = {"{{.State.Running}}": running, "{{.State.OOMKilled}}": oom_killed}
+        return Mock(returncode=0, stdout=f"{str(state[command[3]]).lower()}\n")
+
+    return staticmethod(run_command)
+
+
+@pytest.mark.django_db
+def test_a_sandbox_killed_for_memory_ends_the_session(
+    settings, monkeypatch, tmp_path: Path
+) -> None:
+    settings.RUNNER_WORK_ROOT = tmp_path
+    active_session(tmp_path)
+    monkeypatch.setattr(
+        "secondshift.runner.services.subprocess.run", lambda *a, **k: completed(128)
+    )
+    monkeypatch.setattr(
+        DockerRunnerService, "run_command", fake_inspect(running=True, oom_killed=True)
+    )
+
+    with pytest.raises(RunnerProtocolError, match="ran out of memory"):
+        DockerRunnerService().execute("run-7", CommandRequest("call-1", ("python",)))
+
+    assert RunnerSession.objects.get().status == RunnerSession.Status.STOPPED
+
+
+@pytest.mark.django_db
+def test_a_failing_command_in_a_running_sandbox_is_returned(
+    settings, monkeypatch, tmp_path: Path
+) -> None:
+    settings.RUNNER_WORK_ROOT = tmp_path
+    active_session(tmp_path)
+    monkeypatch.setattr(
+        "secondshift.runner.services.subprocess.run", lambda *a, **k: completed(2)
+    )
+    monkeypatch.setattr(
+        DockerRunnerService, "run_command", fake_inspect(running=True, oom_killed=False)
+    )
+
+    result = DockerRunnerService().execute(
+        "run-7", CommandRequest("call-1", ("grep", "x"))
+    )
+
+    assert result.exit_code == 2
+    assert RunnerSession.objects.get().status == RunnerSession.Status.ACTIVE
+
+
+@pytest.mark.django_db
+def test_a_sandbox_that_stopped_ends_the_session(
+    settings, monkeypatch, tmp_path: Path
+) -> None:
+    settings.RUNNER_WORK_ROOT = tmp_path
+    active_session(tmp_path)
+    monkeypatch.setattr(
+        "secondshift.runner.services.subprocess.run", lambda *a, **k: completed(1)
+    )
+    monkeypatch.setattr(
+        DockerRunnerService,
+        "run_command",
+        fake_inspect(running=False, oom_killed=False),
+    )
+
+    with pytest.raises(RunnerProtocolError, match="stopped unexpectedly"):
+        DockerRunnerService().execute("run-7", CommandRequest("call-1", ("true",)))
+
+    assert RunnerSession.objects.get().status == RunnerSession.Status.STOPPED

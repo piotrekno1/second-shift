@@ -190,6 +190,16 @@ class DockerRunnerService(RunnerBackend):
             )
             if timed_out:
                 self.stop(session_id)
+            elif exit_code:
+                # gVisor ends the whole sandbox when it runs out of memory, so
+                # later commands could never succeed. Docker sets OOMKilled at
+                # once but reports the container running a little longer.
+                if self.container_oom_killed(session.container_name):
+                    self.stop(session_id)
+                    raise RunnerProtocolError("The sandbox ran out of memory.")
+                if not self.container_running(session.container_name):
+                    self.stop(session_id)
+                    raise RunnerProtocolError("The sandbox stopped unexpectedly.")
             return result
         finally:
             output_path.unlink(missing_ok=True)
@@ -313,6 +323,8 @@ class DockerRunnerService(RunnerBackend):
             "--security-opt=no-new-privileges:true",
             f"--pids-limit={settings.RUNNER_PIDS_LIMIT}",
             f"--memory={settings.RUNNER_MEMORY}",
+            # Docker otherwise lets the sandbox swap as much again as its memory.
+            f"--memory-swap={settings.RUNNER_MEMORY}",
             f"--cpus={settings.RUNNER_CPUS}",
             "--network=none",
             "--tmpfs=/tmp:rw,noexec,nosuid,size=256m",
@@ -356,6 +368,19 @@ class DockerRunnerService(RunnerBackend):
 
     def container_exists(self, name: str) -> bool:
         return self.run_command(["docker", "inspect", name], timeout=10).returncode == 0
+
+    def container_state(self, name: str, field: str) -> bool:
+        completed = self.run_command(
+            ["docker", "inspect", "--format", f"{{{{.State.{field}}}}}", name],
+            timeout=10,
+        )
+        return completed.returncode == 0 and completed.stdout.strip() == "true"
+
+    def container_running(self, name: str) -> bool:
+        return self.container_state(name, "Running")
+
+    def container_oom_killed(self, name: str) -> bool:
+        return self.container_state(name, "OOMKilled")
 
     def remove_container(self, name: str) -> None:
         self.run_command(["docker", "rm", "--force", name], timeout=30)
