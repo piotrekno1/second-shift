@@ -65,17 +65,21 @@ class JobSpend:
 
 
 def failing_jobs(workspace: Workspace) -> list[FailingJob]:
-    """Enabled jobs whose most recent finished run failed.
+    """Enabled and manual-only jobs whose most recent finished run failed.
 
     A job that failed last week but has succeeded since is healthy, so this
-    looks only at each job's latest outcome, not at failure history.
+    looks only at each job's latest outcome, not at failure history. Paused
+    scheduled jobs are left out: nothing will run them until someone acts.
+    Manual-only jobs have no schedule to pause, so they always count.
     """
     latest = Run.objects.filter(job=OuterRef("pk"), status__in=FINISHED).order_by(
         "-created_at", "-pk"
     )
     jobs = (
         Job.objects.filter(
-            workspace=workspace, enabled=True, repository__removed_at__isnull=True
+            Q(enabled=True) | Q(cron=""),
+            workspace=workspace,
+            repository__removed_at__isnull=True,
         )
         .select_related("repository")
         .annotate(
