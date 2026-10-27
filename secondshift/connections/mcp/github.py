@@ -18,6 +18,40 @@ from secondshift.repositories.models import Repository
 GITHUB_FINE_GRAINED_TOKEN_PATTERN = r"github_pat_[A-Za-z0-9_]+"
 # Search text is written by the model. A short limit keeps it a search.
 GITHUB_SEARCH_QUERY_MAX_CHARS = 256
+# Artifacts and log archives are left out. They return download links.
+GITHUB_ACTIONS_METHODS = {
+    GitHubMCPTool.ACTIONS_LIST: frozenset(
+        {"list_workflows", "list_workflow_runs", "list_workflow_jobs"}
+    ),
+    GitHubMCPTool.ACTIONS_GET: frozenset(
+        {"get_workflow", "get_workflow_run", "get_workflow_job"}
+    ),
+}
+# The end of a failed job's log usually holds the error.
+GITHUB_JOB_LOG_MAX_LINES = 300
+
+
+def scoped_search_query(repository: str, query: str) -> str:
+    """Pin a pull request search to the job's repository."""
+    if len(query) > GITHUB_SEARCH_QUERY_MAX_CHARS:
+        raise MCPError(
+            f"Keep the search under {GITHUB_SEARCH_QUERY_MAX_CHARS} characters."
+        )
+    # OR can widen a repo-qualified search. Disallow it rather than attempt
+    # to rewrite the provider's query language. GitHub only reads it in capitals.
+    if re.search(r"\bOR\b", query):
+        raise MCPError("Use separate searches instead of OR.")
+    query = re.sub(rf"(?i)(?<!\S)repo:{re.escape(repository)}(?=\s|$)", "", query)
+    if re.search(r"repo\s*:", query, re.IGNORECASE):
+        raise MCPError("The search must target the approved repository.")
+    return f"repo:{repository} {query.strip()}".strip()
+
+
+def job_log_lines(requested: Any) -> int:
+    """The requested log tail, capped. Anything else gets the cap."""
+    if not isinstance(requested, int) or isinstance(requested, bool) or requested < 1:
+        return GITHUB_JOB_LOG_MAX_LINES
+    return min(requested, GITHUB_JOB_LOG_MAX_LINES)
 
 
 def scoped_github_arguments(
@@ -37,19 +71,14 @@ def scoped_github_arguments(
     if tool == GitHubMCPTool.LIST_COMMITS and scoped.get("sha"):
         raise MCPError("List commits from the default branch by omitting sha.")
     if tool == GitHubMCPTool.SEARCH_PULL_REQUESTS:
-        query = str(scoped.get("query", ""))
-        if len(query) > GITHUB_SEARCH_QUERY_MAX_CHARS:
-            raise MCPError(
-                f"Keep the search under {GITHUB_SEARCH_QUERY_MAX_CHARS} characters."
-            )
-        # OR can widen a repo-qualified search. Disallow it rather than attempt
-        # to rewrite the provider's query language. GitHub only reads it in capitals.
-        if re.search(r"\bOR\b", query):
-            raise MCPError("Use separate searches instead of OR.")
-        query = re.sub(rf"(?i)(?<!\S)repo:{re.escape(repository)}(?=\s|$)", "", query)
-        if re.search(r"repo\s*:", query, re.IGNORECASE):
-            raise MCPError("The search must target the approved repository.")
-        scoped["query"] = f"repo:{repository} {query.strip()}".strip()
+        scoped["query"] = scoped_search_query(repository, str(scoped.get("query", "")))
+    methods = GITHUB_ACTIONS_METHODS.get(tool)
+    if methods is not None and scoped.get("method") not in methods:
+        raise MCPError(f"Use one of these methods: {', '.join(sorted(methods))}.")
+    if tool == GitHubMCPTool.GET_JOB_LOGS:
+        # A download link would skip the broker's size limit and redaction.
+        scoped["return_content"] = True
+        scoped["tail_lines"] = job_log_lines(scoped.get("tail_lines"))
     return scoped
 
 

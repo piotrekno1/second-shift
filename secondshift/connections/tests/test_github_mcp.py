@@ -312,6 +312,80 @@ def test_commit_tools_are_scoped_to_the_job_repository(tool: str) -> None:
         scoped_github_arguments("example/project", tool, {"repo": "other"})
 
 
+@pytest.mark.parametrize(
+    ("tool", "method"),
+    [
+        ("actions_list", "list_workflows"),
+        ("actions_list", "list_workflow_runs"),
+        ("actions_list", "list_workflow_jobs"),
+        ("actions_get", "get_workflow"),
+        ("actions_get", "get_workflow_run"),
+        ("actions_get", "get_workflow_job"),
+    ],
+)
+def test_actions_read_methods_are_scoped_to_the_job_repository(
+    tool: str, method: str
+) -> None:
+    arguments = {"method": method, "resource_id": "42"}
+    assert scoped_github_arguments("example/project", tool, arguments) == {
+        **arguments,
+        "owner": "example",
+        "repo": "project",
+    }
+    with pytest.raises(MCPError, match="repository"):
+        scoped_github_arguments(
+            "example/project", tool, {**arguments, "owner": "other"}
+        )
+
+
+@pytest.mark.parametrize(
+    ("tool", "method"),
+    [
+        ("actions_list", "list_workflow_run_artifacts"),
+        ("actions_get", "get_workflow_run_logs_url"),
+        ("actions_get", "download_workflow_run_artifact"),
+        ("actions_get", "get_workflow_run_usage"),
+        ("actions_get", None),
+    ],
+)
+def test_actions_methods_with_links_or_artifacts_are_blocked(
+    tool: str, method: str | None
+) -> None:
+    with pytest.raises(MCPError, match="methods"):
+        scoped_github_arguments(
+            "example/project", tool, {"method": method, "resource_id": "42"}
+        )
+
+
+def test_actions_trigger_is_not_supported() -> None:
+    with pytest.raises(MCPError, match="not supported"):
+        scoped_github_arguments(
+            "example/project", "actions_run_trigger", {"method": "rerun_workflow_run"}
+        )
+
+
+@pytest.mark.parametrize(
+    ("requested", "expected"),
+    [(None, 300), (50, 50), (5000, 300), (0, 300), (True, 300), ("10", 300)],
+)
+def test_job_logs_return_content_with_a_line_limit(
+    requested: Any, expected: int
+) -> None:
+    arguments: dict[str, Any] = {"run_id": 7, "failed_only": True}
+    if requested is not None:
+        arguments["tail_lines"] = requested
+    arguments["return_content"] = False
+    result = scoped_github_arguments("example/project", "get_job_logs", arguments)
+    assert result == {
+        "run_id": 7,
+        "failed_only": True,
+        "owner": "example",
+        "repo": "project",
+        "return_content": True,
+        "tail_lines": expected,
+    }
+
+
 def test_list_commits_cannot_select_another_branch() -> None:
     with pytest.raises(MCPError, match="default branch"):
         scoped_github_arguments("example/project", "list_commits", {"sha": "feature"})
