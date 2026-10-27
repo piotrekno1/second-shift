@@ -54,6 +54,23 @@ SecondShift is in beta, distributed through
 [GitHub Releases](https://github.com/piotrekno1/second-shift/releases) until it is
 available on PyPI.
 
+### Let SecondShift review itself
+
+In another terminal, clone this repository:
+
+```bash
+git clone https://github.com/piotrekno1/second-shift.git
+```
+
+1. In **Connections**, add a model provider and choose a default model. Model
+   usage may incur charges.
+2. In **Repositories**, choose **Add local repository** and select the cloned
+   directory, or enter its absolute path.
+3. Open **Documentation drift** in **Jobs** and click **Run now**.
+4. Inspect the report, execution timeline, and model cost.
+
+The repository already includes the skill and configuration—no edits needed.
+
 ## Deploy for your team
 
 For a shared installation on a Linux server, follow the
@@ -80,26 +97,9 @@ initial setup, backups, and updates.
 
 ## Put recurring tasks on duty
 
-Write a skill for recurring work your team needs done. Connect
-the services it needs through MCP or an HTTP API, then approve the job's access.
-
-Task examples include:
-
-- [Documentation drift](examples/docs-drift/README.md) finds broken links and
-  stale commands in your docs. It needs only a model provider.
-- [CI failure review](examples/ci-failure-review/README.md) groups recurring
-  build failures and identifies what still blocks work.
-- [Ticket reconciliation](examples/ticket-reconciliation/README.md) updates or
-  closes tickets when linked changes meet your team's completion rules.
-
-Browse the [full skill catalog](examples/README.md) to choose a workflow and see
-what data it needs. Follow the [engineering task setup guide](docs/engineering-tasks.md)
+Browse the [skill catalog](examples/README.md) to choose a workflow for your
+own repository. Follow the [engineering task setup guide](docs/engineering-tasks.md)
 to copy a skill, approve access, try it manually, and enable scheduling.
-
-For teams that want a person to decide, the
-[ticket follow-up brief](examples/ticket-follow-up/README.md) lists candidates
-without changing tickets. See [tasks that change service data](docs/engineering-tasks.md#tasks-that-change-service-data)
-for access requirements and workflow setup.
 
 ## Who controls what
 
