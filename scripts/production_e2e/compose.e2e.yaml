@@ -1,0 +1,55 @@
+# Test-only override for compose.production.yaml. See README.md.
+networks:
+  default:
+    ipam:
+      config:
+        # Counts as public to the outbound checks, so production rules apply.
+        - subnet: 45.86.200.0/24
+
+services:
+  # Web, gateway and worker also trust the test CA, to reach the fakes.
+  web:
+    image: ${E2E_IMAGE:?}
+  gateway:
+    image: ${E2E_IMAGE:?}
+  worker:
+    image: ${E2E_IMAGE:?}
+
+  caddy:
+    volumes:
+      - ./scripts/production_e2e/Caddyfile:/etc/caddy/Caddyfile:ro
+    networks:
+      default:
+        aliases: [secondshift.e2e.test]
+
+  # Stands in for the S3 provider.
+  rustfs:
+    image: rustfs/rustfs:1.0.1
+    restart: unless-stopped
+    environment:
+      RUSTFS_ACCESS_KEY: ${ARTIFACT_ACCESS_KEY_ID:?}
+      RUSTFS_SECRET_KEY: ${ARTIFACT_SECRET_ACCESS_KEY:?}
+    volumes:
+      - rustfs_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:9000/health"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  # GitHub, the model provider and the webhook receiver.
+  fake:
+    image: ${SECONDSHIFT_IMAGE:?}
+    user: "0:0"
+    restart: unless-stopped
+    command: [python, /scripts/production_e2e/fake_services.py]
+    volumes:
+      - ./scripts:/scripts:ro
+      - fake_git:/srv
+    networks:
+      default:
+        aliases: [api.github.com, github.com, model.e2e.test, hooks.e2e.test]
+
+volumes:
+  rustfs_data:
+  fake_git:

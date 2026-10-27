@@ -4,13 +4,11 @@
 
 Use the [single-server Compose deployment guide](production-deployment.md) for
 published service images, HTTPS, PostgreSQL, and S3 artifact storage. GitHub App
-repository import and automatic syncing are available. Sandbox execution under
-gVisor has been tested on a host running the Compose deployment, including its
-isolation, resource limits and fail-closed startup. A full job run on that
-deployment, from GitHub App import to webhook delivery and a restart, has been
-tested against simulated GitHub and model services. Validation against
-GitHub.com, public certificate issuance and backup/restore remain tracked in
-[issue #1](https://github.com/piotrekno1/second-shift/issues/1).
+repository import and automatic syncing are available. The deployment has been
+tested with GitHub.com and on a gVisor host, including sandbox isolation,
+resource limits and fail-closed startup. Its guide includes tested backup,
+restore and update procedures. To repeat the gVisor, upgrade and restore tests,
+run the [production end-to-end test](../scripts/production_e2e/README.md).
 
 For a local trial, use `secondshift up` as described in the
 [quick start](../README.md#try-it-out-now).

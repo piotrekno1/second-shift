@@ -21,3 +21,4 @@ dashboard/node_modules/
 .secondshift-runner/
 coverage.xml
 htmlcov/
+scripts/production_e2e/certs/
