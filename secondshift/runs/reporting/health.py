@@ -1,10 +1,11 @@
 """Workspace health for the overview: what is failing now, and what it costs."""
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 
 from django.db.models import Count, OuterRef, Q, Subquery, Sum
+from django.db.models.functions import TruncDate
 from django.utils import timezone
 
 from secondshift.gateway.models import ModelUsage
@@ -15,6 +16,8 @@ from secondshift.workspaces.models import Workspace
 
 FINISHED = (Run.Status.SUCCEEDED, Run.Status.FAILED, Run.Status.CANCELED)
 WINDOW = timedelta(days=7)
+# Two weeks, so the overview chart shows this week against the one before.
+CHART_DAYS = 14
 
 
 @dataclass(frozen=True)
@@ -31,12 +34,23 @@ class FailingJob:
 @dataclass(frozen=True)
 class WeekSummary:
     runs: int
+    previous_runs: int
     finished: int
     succeeded: int
     spend_usd: Decimal
     previous_spend_usd: Decimal
     # Some model calls had no known price, so spend is a lower bound.
     spend_partial: bool
+
+
+@dataclass(frozen=True)
+class RunDay:
+    """Finished runs on one local day, by outcome."""
+
+    day: date
+    succeeded: int
+    failed: int
+    canceled: int
 
 
 @dataclass(frozen=True)
@@ -104,6 +118,11 @@ def week_summary(workspace: Workspace, now: datetime | None = None) -> WeekSumma
     )
     return WeekSummary(
         runs=runs.count(),
+        previous_runs=Run.objects.filter(
+            job__workspace=workspace,
+            created_at__gte=previous_start,
+            created_at__lt=start,
+        ).count(),
         finished=runs.filter(status__in=FINISHED).count(),
         succeeded=runs.filter(status=Run.Status.SUCCEEDED).count(),
         spend_usd=totals["spend"] or Decimal(0),
@@ -112,6 +131,36 @@ def week_summary(workspace: Workspace, now: datetime | None = None) -> WeekSumma
             created_at__gte=start, cost_usd__isnull=True
         ).exists(),
     )
+
+
+def runs_by_day(
+    workspace: Workspace, now: datetime | None = None, days: int = CHART_DAYS
+) -> list[RunDay]:
+    """Finished runs per local day, oldest first. Days without runs count as zero."""
+    today = timezone.localdate(now or timezone.now())
+    first = today - timedelta(days=days - 1)
+    rows = (
+        Run.objects.filter(
+            job__workspace=workspace,
+            status__in=FINISHED,
+            created_at__date__gte=first,
+            created_at__date__lte=today,
+        )
+        .annotate(day=TruncDate("created_at"))
+        .values("day", "status")
+        .annotate(count=Count("pk"))
+        .order_by()
+    )
+    counts = {(row["day"], row["status"]): row["count"] for row in rows}
+    return [
+        RunDay(
+            day=day,
+            succeeded=counts.get((day, Run.Status.SUCCEEDED), 0),
+            failed=counts.get((day, Run.Status.FAILED), 0),
+            canceled=counts.get((day, Run.Status.CANCELED), 0),
+        )
+        for day in (first + timedelta(days=offset) for offset in range(days))
+    ]
 
 
 def spend_by_job(

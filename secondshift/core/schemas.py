@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 
 from ninja import Schema
 
@@ -39,6 +39,13 @@ class JobSpendSchema(Schema):
     partial: bool
 
 
+class RunDaySchema(Schema):
+    day: date
+    succeeded: int
+    failed: int
+    canceled: int
+
+
 class OverviewSchema(Schema):
     repositories: int
     local_repositories: int
@@ -48,9 +55,11 @@ class OverviewSchema(Schema):
     connected_services: int
     failing_jobs: list[FailingJobSchema] = []
     runs_7d: int = 0
+    runs_previous_7d: int = 0
     finished_7d: int = 0
     succeeded_7d: int = 0
     spend_7d_usd: float = 0
     spend_previous_7d_usd: float = 0
     spend_partial: bool = False
     spend_by_job: list[JobSpendSchema] = []
+    run_days: list[RunDaySchema] = []
