@@ -31,9 +31,15 @@ async function saveLimits(values: RunLimitUpdate): Promise<void> {
   }
 }
 
-const subtitle = computed(() => (data.value
-  ? [data.value.workspace_name ?? 'Workspace', data.value.environment, data.value.sandbox].join(' · ')
-  : 'Loading settings…'))
+const subtitle = computed(() => (data.value ? `${data.value.workspace_name ?? 'Workspace'} workspace` : 'Loading settings…'))
+// Environment variable names help whoever runs the server, not the people using it.
+const isOperator = computed(() => app.user?.can_use_admin ?? false)
+// The deployment is part of the server settings, so it leads that section.
+const serverGroups = computed(() => {
+  if (!data.value) return []
+  const deployment = { title: 'Deployment', items: [{ label: 'Environment', value: data.value.environment, help: '', env: '' }] }
+  return [deployment, ...data.value.groups]
+})
 
 async function copy(env: string): Promise<void> {
   await navigator.clipboard.writeText(env)
@@ -52,7 +58,7 @@ onMounted(async () => {
 
 <template>
   <div class="page">
-    <PageHeader title="Settings" :description="subtitle" />
+    <PageHeader compact title="Settings" :description="subtitle" />
 
     <p v-if="error" class="page-error">{{ error }}</p>
     <template v-else-if="data">
@@ -75,27 +81,25 @@ onMounted(async () => {
         @save="saveLimits"
       />
 
-      <p class="quiet-line settings-note">
-        <AppIcon name="server-outline" /> Settings below and the limit maximums are set by whoever runs this server<template v-if="app.user?.can_use_admin">, through environment variables, and apply after a restart</template>. Repositories cannot change them.
-      </p>
-
-      <div class="settings-groups">
-        <section v-for="group in data.groups" :key="group.title" class="panel settings-group">
-          <h2>{{ group.title }}</h2>
+      <section class="panel server-settings">
+        <div class="panel-heading">
+          <div><h2>Server</h2><p>Set by whoever runs this server<template v-if="isOperator">, through environment variables. Changes apply after a restart</template>. Workspaces and repositories cannot change them.</p></div>
+        </div>
+        <section v-for="group in serverGroups" :key="group.title" class="server-group">
+          <h3>{{ group.title }}</h3>
           <dl>
-            <div v-for="item in group.items" :key="item.label">
+            <div v-for="item in group.items" :key="item.label" class="server-row">
               <dt>{{ item.label }}</dt>
               <dd>
-                <strong>{{ item.value }}</strong>
-                <small>{{ item.help }}</small>
-                <button v-if="item.env" type="button" class="env-chip" :title="`Copy ${item.env}`" @click="copy(item.env)">
+                <strong>{{ item.value }}</strong><small v-if="item.help">{{ item.help }}</small>
+                <button v-if="isOperator && item.env" type="button" class="env-chip" :title="`Copy ${item.env}`" @click="copy(item.env)">
                   <AppIcon :name="copied === item.env ? 'check' : 'content-copy'" /> {{ item.env }}
                 </button>
               </dd>
             </div>
           </dl>
         </section>
-      </div>
+      </section>
 
       <p class="quiet-line">
         <AppIcon name="file-code-outline" /> Jobs, schedules and the access they need are defined in each repository's <code>.secondshift.yaml</code>.

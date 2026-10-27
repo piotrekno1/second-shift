@@ -58,7 +58,7 @@ onMounted(load)
   <p v-if="error" class="page-error">{{ error }}</p>
   <ul class="member-list">
     <li v-for="member in members" :key="member.id">
-      <span class="avatar small">{{ member.email.slice(0, 2).toUpperCase() }}</span>
+      <span class="avatar small">{{ member.email.slice(0, 1).toUpperCase() }}</span>
       <span class="member-email">{{ member.email }}<small v-if="member.you">You</small></span>
       <template v-if="props.canManage">
         <Select
