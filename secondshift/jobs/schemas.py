@@ -99,6 +99,7 @@ class RunLimitsUpdateSchema(Schema):
 class JobDetailSchema(JobSchema):
     key: str
     config_hash: str
+    history: int
     repository_revision: str
     repository_enabled: bool
     recent_runs: list[RunSchema]

@@ -58,6 +58,7 @@ needed by web for GitHub repository imports, and the token is shared with runner
 | Variable | Meaning and default |
 | --- | --- |
 | `SECONDSHIFT_RUN_CONCURRENCY` | Number of job runs this background-worker process can execute concurrently. Default `2`. Independent of HTTP server process count. |
+| `SECONDSHIFT_RUN_HISTORY_MAX_CHARS` | Total characters of a job's earlier reports a run starts with, when the job sets `history`. Newest first; what does not fit is cut or left out. Default `65536`. |
 | `SECONDSHIFT_WORKFLOW_DATABASE_URL` | Optional DBOS workflow database URL, also needed by web when set. Defaults to `SECONDSHIFT_DATABASE_URL`. Back it up consistently with the application database. |
 | `SECONDSHIFT_RUNNER_SERVICE_URL` | Required private runner address. Generated value: `http://secondshift-runner:8002`. |
 | `SECONDSHIFT_RUNNER_SERVICE_TOKEN` | Required auth token of at least 32 characters. Identical in web, worker and runner. Generated automatically. |

@@ -163,6 +163,11 @@ export function countLabel(value: number, singular: string, plural = `${singular
   return `${value} ${value === 1 ? singular : plural}`
 }
 
+export function historyLabel(history: number): string {
+  if (!history) return 'None'
+  return history === 1 ? 'Reads its last report' : `Reads its last ${history} reports`
+}
+
 export function titleFromSlug(slug: string): string {
   return slug
     .split('-')

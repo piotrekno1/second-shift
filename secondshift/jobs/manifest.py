@@ -48,6 +48,8 @@ class JobManifest(BaseModel):
     # Without a schedule, the job runs only when started with Run now.
     schedule: str | None = Field(default=None, min_length=1, max_length=100)
     timezone: str = "UTC"
+    # How many of the job's own earlier reports each run starts with.
+    history: int = Field(default=0, ge=0, le=5)
     requires: RequirementsManifest = Field(default_factory=RequirementsManifest)
     notify: list[NotificationManifest] = Field(default_factory=list)
 

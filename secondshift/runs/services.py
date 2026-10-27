@@ -6,6 +6,7 @@ from typing import Any
 from secondshift.jobs.models import Job
 from secondshift.jobs.planning import build_execution_plan
 from secondshift.runs.artifacts import job_input_snapshot
+from secondshift.runs.history import previous_run_ids
 from secondshift.runs.models import Run
 
 
@@ -18,7 +19,8 @@ def create_run(
 ) -> Run:
     defaults = {
         "commit_sha": job.repository.config_sha,
-        "input_snapshot": job_input_snapshot(job),
+        "input_snapshot": job_input_snapshot(job)
+        | {"history_run_ids": previous_run_ids(job)},
         "execution_plan": (
             build_execution_plan(job) if execution_plan is None else execution_plan
         ),

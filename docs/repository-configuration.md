@@ -75,12 +75,36 @@ standard-library tests work without installing packages.
 | `jobs.<key>.skill` | Yes | Repository-relative path to a `SKILL.md` file. |
 | `jobs.<key>.schedule` | No | Cron schedule, such as `0 9 * * 1` for Monday at 09:00. Leave it out for a job that runs only with **Run now**. |
 | `jobs.<key>.timezone` | No | IANA timezone, such as `Europe/Warsaw`. Defaults to `UTC`. |
+| `jobs.<key>.history` | No | How many of the job's own earlier reports each run starts with, from 0 to 5. Defaults to 0. See [run history](#run-history). |
 | `jobs.<key>.notify` | No | Webhook notification bindings requested by this job. |
 | `jobs.<key>.requires` | No | MCP tools and HTTP API operations the job needs. See below. |
 
 Skill paths must stay inside the repository. Unknown fields are rejected.
 Use separate job definitions for skills with different schedules or access
 requirements.
+
+## Run history
+
+A job that compares against its last run, such as a weekly review, can set
+`history`. Each run then starts with the job's last N successful reports, newest
+first, after the task in its prompt:
+
+```yaml
+jobs:
+  weekly-review:
+    name: Weekly review
+    skill: .agents/skills/weekly-review/SKILL.md
+    history: 1
+```
+
+Only the same job's reports are included: a job is its repository and key, so
+renaming the key starts with no history. Failed and canceled runs are left out.
+The reports are chosen when a run is created and are shown in its stored input.
+Together they are capped by the server's `SECONDSHIFT_RUN_HISTORY_MAX_CHARS`,
+newest first, so an older report may be cut or left out. One removed by
+retention is marked as no longer stored. Reports are marked as earlier output, not instructions,
+because they may quote untrusted text. Reading its own reports gives a job no
+new access, so `history` needs no approval.
 
 ## Deliver reports to a webhook
 

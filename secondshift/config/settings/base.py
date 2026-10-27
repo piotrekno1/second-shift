@@ -415,6 +415,10 @@ RUN_OUTPUT_MAX_BYTES = env.int(
     "SECONDSHIFT_RUN_OUTPUT_MAX_BYTES", default=5 * 1024 * 1024
 )
 RUN_OUTPUT_EXCERPT_BYTES = 16 * 1024
+# Total text a run starts with from its job's earlier reports, newest first.
+RUN_HISTORY_MAX_CHARS = env.int("SECONDSHIFT_RUN_HISTORY_MAX_CHARS", default=65_536)
+if RUN_HISTORY_MAX_CHARS < 1:
+    raise ImproperlyConfigured("SECONDSHIFT_RUN_HISTORY_MAX_CHARS must be positive")
 # Finished runs, their output and DBOS records are deleted after this. 0 keeps them.
 RUN_RETENTION_DAYS = env.int("SECONDSHIFT_RUN_RETENTION_DAYS", default=90)
 # How often the worker syncs local repositories whose branch has new commits.

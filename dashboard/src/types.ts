@@ -201,6 +201,8 @@ export interface Job {
 export interface JobDetail extends Job {
   key: string
   config_hash: string
+  /** How many of its own earlier reports each run starts with. */
+  history: number
   repository_revision: string
   repository_enabled: boolean
   recent_runs: Run[]
