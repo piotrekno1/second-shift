@@ -244,6 +244,9 @@ export interface RunFailure {
   reason: string
   /** The run stopped at one of its limits, which an owner can change. */
   limit?: boolean
+  /** The connection the failure came from, when there is one to fix. */
+  connection_id?: number | null
+  next_step?: string
 }
 
 export interface Run {

@@ -25,6 +25,8 @@ const canTest = computed(() => app.can(Action.TestConnections))
 const route = useRoute()
 const router = useRouter()
 const requestedBinding = typeof route.query.binding === 'string' ? route.query.binding : null
+// A failed run links here with ?connection=<id> so its form opens ready to fix.
+const requestedConnection = typeof route.query.connection === 'string' ? Number(route.query.connection) : null
 const openForm = ref<OpenForm | null>(requestedBinding && canEdit.value ? { mode: 'need', binding: requestedBinding } : null)
 const busy = ref<string | null>(null)
 const confirmDelete = ref<number | null>(null)
@@ -267,6 +269,12 @@ async function checkAgain(): Promise<void> {
 }
 
 onMounted(async () => {
+  if (requestedConnection && app.connections.some((connection) => connection.id === requestedConnection)) {
+    if (canEdit.value) openForm.value = { mode: 'edit', id: requestedConnection }
+    await nextTick()
+    document.getElementById(`connection-${requestedConnection}`)?.scrollIntoView({ block: 'center' })
+    return
+  }
   if (!requestedBinding) return
   const need = app.needs.find((item) => item.binding === requestedBinding)
   if (need?.status !== 'missing') openForm.value = null
@@ -342,7 +350,7 @@ onMounted(async () => {
         </Button>
       </div>
       <div v-if="app.connections.length" class="need-list">
-        <article v-for="connection in app.connections" :key="connection.id" class="need" :class="{ unavailable: connection.status !== 'connected' }">
+        <article v-for="connection in app.connections" :id="`connection-${connection.id}`" :key="connection.id" class="need" :class="{ unavailable: connection.status !== 'connected' }">
           <div class="need-row">
             <div class="row-glyph"><ProviderIcon :provider="connection.provider" :fallback="providerIcon[connection.provider] ?? kindIcon[connection.kind]" /></div>
             <div class="need-primary">

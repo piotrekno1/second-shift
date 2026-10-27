@@ -347,6 +347,7 @@ body .p-select-overlay { color: var(--ink); background: var(--night-800); border
 .failure-reason { overflow: hidden; color: var(--muted); text-overflow: ellipsis; white-space: nowrap; }
 .run-failure.canceled .failure-label { border-color: var(--border); background: rgba(152,153,178,.08); color: var(--muted); }
 .run-failure-headline { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; color: var(--ink) !important; }
+.run-next-step { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin: 8px 0 0; color: var(--muted); font-size: 13px; }
 .run-failure-headline .failure-label { font-size: 12px; padding: 4px 8px 4px 8px; }
 
 /* Run detail: report first, details on the side */

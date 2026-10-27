@@ -131,6 +131,10 @@ onUnmounted(stopPolling)
           <span>{{ run.failure.reason }}</span>
           <RouterLink v-if="run.failure.limit" :to="{ path: `/jobs/${run.job_id}`, hash: '#limits' }" class="detail-link">Change this job's limits <AppIcon name="arrow-right" /></RouterLink>
         </p>
+        <p v-if="run.failure?.next_step" class="run-next-step">
+          {{ run.failure.next_step }}
+          <RouterLink v-if="run.failure.connection_id" :to="{ path: '/connections', query: { connection: String(run.failure.connection_id) } }" class="primary-action">Fix the connection <AppIcon name="arrow-right" /></RouterLink>
+        </p>
         <p v-else-if="active" class="run-headline run-active-note"><AppIcon name="loading" spin /> {{ activeNote }}</p>
       </section>
 
