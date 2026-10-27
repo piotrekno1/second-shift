@@ -11,6 +11,8 @@ export interface User {
   /** Anyone when sign-up is open, otherwise staff only. */
   can_create_workspace: boolean
   local_repositories_enabled: boolean
+  /** The operator set up the GitHub App, so repositories can come from GitHub. */
+  github_app_configured: boolean
   /** "Development" or "Production". */
   environment: string
   /** How command sandboxes are isolated, e.g. "Trusted Docker". */

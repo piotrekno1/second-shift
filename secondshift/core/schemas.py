@@ -14,6 +14,8 @@ class UserSchema(Schema):
     can_use_admin: bool
     can_create_workspace: bool
     local_repositories_enabled: bool
+    # The operator set up the GitHub App, so repositories can come from GitHub.
+    github_app_configured: bool = False
     environment: str = "Production"
     sandbox: str = "gVisor sandbox"
 
