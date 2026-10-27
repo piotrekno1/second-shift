@@ -14,6 +14,7 @@ from secondshift.runs.reporting.failures import (
     failure_metadata,
     failure_summary,
 )
+from secondshift.runs.serialization import run_failure
 from secondshift.runs.tests.test_workflows import execution_run
 
 
@@ -181,3 +182,48 @@ def test_checkout_explains_github_access_failure() -> None:
     assert failure_summary(
         "checkout", GitHubAppError("The GitHub installation is disconnected.")
     ) == ("Couldn't check out the repository: The GitHub installation is disconnected.")
+
+
+MODEL_PLAN = {"model": {"connection_id": 2, "connection_name": "OpenRouter"}}
+
+
+@pytest.mark.parametrize(
+    ("detail", "next_step"),
+    [
+        (
+            "HTTP 401: API key expired.",
+            "The provider refused the API key of OpenRouter. "
+            "Update the key, then run again.",
+        ),
+        ("HTTP 429.", "The provider is limiting requests. Wait, then run again."),
+        ("HTTP 503.", "The provider had a problem. Run again later."),
+    ],
+)
+def test_model_provider_failure_names_the_connection_to_fix(
+    detail: str, next_step: str
+) -> None:
+    run = Run(
+        status=Run.Status.FAILED,
+        summary=f"The skill run failed: The model provider answered {detail}",
+        execution_plan=MODEL_PLAN,
+    )
+
+    failure = run_failure(run)
+
+    assert failure is not None
+    assert failure.connection_id == 2
+    assert failure.next_step == next_step
+
+
+def test_other_failures_point_at_no_connection() -> None:
+    run = Run(
+        status=Run.Status.FAILED,
+        summary="Couldn't start the sandbox: Runner answered HTTP 500.",
+        execution_plan=MODEL_PLAN,
+    )
+
+    failure = run_failure(run)
+
+    assert failure is not None
+    assert failure.connection_id is None
+    assert failure.next_step == ""

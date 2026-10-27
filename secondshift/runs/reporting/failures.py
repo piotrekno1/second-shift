@@ -102,6 +102,7 @@ STAGE_LABELS: dict[str, str] = {
     "finishing": "Recording",
 }
 MODEL_PROVIDER_PREFIX = "The model provider answered "
+MODEL_PROVIDER_LABEL = "Model provider"
 LEGACY_WORKFLOW_PREFIX = "The durable workflow failed unexpectedly ("
 
 
@@ -129,7 +130,7 @@ def describe_failure(summary: str) -> FailureView:
             if detail.startswith(MODEL_PROVIDER_PREFIX):
                 # "HTTP 401: User not found." reads better as "HTTP 401 · User not found."
                 return FailureView(
-                    "Model provider",
+                    MODEL_PROVIDER_LABEL,
                     detail[len(MODEL_PROVIDER_PREFIX) :].replace(": ", " · ", 1),
                 )
             return FailureView(STAGE_LABELS[stage], detail)
@@ -138,3 +139,17 @@ def describe_failure(summary: str) -> FailureView:
             "Workflow", f"Unexpected {text[len(LEGACY_WORKFLOW_PREFIX) : -2]}."
         )
     return FailureView("Run", text or "No reason was recorded.")
+
+
+def model_provider_next_step(reason: str, connection_name: str) -> str:
+    """What to do about a model provider failure, in plain words."""
+    if reason.startswith(("HTTP 401", "HTTP 403")):
+        return (
+            f"The provider refused the API key of {connection_name}. "
+            "Update the key, then run again."
+        )
+    if reason.startswith("HTTP 429"):
+        return "The provider is limiting requests. Wait, then run again."
+    if reason.startswith("HTTP 5"):
+        return "The provider had a problem. Run again later."
+    return f"Check {connection_name}, then run again."
