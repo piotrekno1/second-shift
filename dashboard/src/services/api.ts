@@ -41,11 +41,14 @@ function csrfToken(): string {
 
 interface FieldProblem { loc?: unknown[]; msg?: string }
 
+// Query names that read badly as words.
+const FIELD_LABELS: Record<string, string> = { q: 'The search' }
+
 // "String should have at most 200 characters" on body.payload.name reads as
 // "Name should have at most 200 characters."
 function fieldMessage(problem: FieldProblem): string {
   const field = [...(problem.loc ?? [])].reverse().find((part) => typeof part === 'string' && !['body', 'payload', 'query', 'path'].includes(part))
-  const label = typeof field === 'string' ? field.replace(/_/g, ' ') : 'This value'
+  const label = typeof field === 'string' ? (FIELD_LABELS[field] ?? field.replace(/_/g, ' ')) : 'This value'
   const text = (problem.msg ?? 'is not valid').replace(/^(Value error, |String |Input |Value )/, '')
   const sentence = `${label.charAt(0).toUpperCase()}${label.slice(1)} ${text.charAt(0).toLowerCase()}${text.slice(1)}`
   return sentence.endsWith('.') ? sentence : `${sentence}.`
@@ -64,8 +67,8 @@ async function responseError(response: Response): Promise<Error> {
     if (Array.isArray(payload.detail) && payload.detail.length) {
       return new Error([...new Set((payload.detail as FieldProblem[]).map(fieldMessage))].join(' '))
     }
-    // Ninja's own "Not Found" is less useful than the message below.
-    if (typeof payload.detail === 'string' && payload.detail && payload.detail !== 'Not Found') return new Error(payload.detail)
+    // Django's "Not Found: No Job matches the given query." is less useful than the message below.
+    if (typeof payload.detail === 'string' && payload.detail && !payload.detail.startsWith('Not Found')) return new Error(payload.detail)
   } catch {
     // The status messages below cover responses without JSON.
   }
