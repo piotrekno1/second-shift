@@ -1,0 +1,8 @@
+# Test only: the release image plus trust in the E2E test CA. No app changes.
+ARG BASE=secondshift:gvisor-test
+FROM ${BASE}
+USER root
+COPY certs/ca.pem /usr/local/share/ca-certificates/e2e-test-ca.crt
+RUN cat /usr/local/share/ca-certificates/e2e-test-ca.crt >> "$(python -c 'import certifi; print(certifi.where())')" && \
+    cat /usr/local/share/ca-certificates/e2e-test-ca.crt >> /etc/ssl/certs/ca-certificates.crt
+USER 10001:10001

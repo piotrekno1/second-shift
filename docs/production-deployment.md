@@ -155,9 +155,65 @@ may no longer be recoverable from GitHub.
 Back up both PostgreSQL databases, all private env files, the runner directory,
 the S3 bucket, and Caddy's named volumes. Preserve the encryption key: saved
 credentials cannot be recovered without it. Use PostgreSQL backup tools rather
-than copying its live data volume.
+than copying its live data volume. A backup holds every key and password, so
+keep it private and store a copy off the server.
 
-For an update, take backups, fetch the intended release, update
+Stop the application services so the databases, runner directory and bucket
+match, then run from the checkout:
+
+```bash
+RUNNER_ROOT=$(sed -n 's/^RUNNER_ROOT=//p' deploy/production/compose.env)
+backup=/srv/secondshift-backups/$(date +%Y%m%d-%H%M%S)
+mkdir -p "$backup" && chmod 700 "$backup"
+dc stop caddy web gateway worker runner
+dc exec -T postgres pg_dump -U postgres -Fc secondshift > "$backup/secondshift.dump"
+dc exec -T postgres pg_dump -U postgres -Fc secondshift_runner > "$backup/secondshift_runner.dump"
+tar -czf "$backup/config.tgz" deploy/production
+tar -czf "$backup/runner.tgz" -C "$RUNNER_ROOT" --exclude=./sessions .
+for volume in caddy_data caddy_config; do
+  docker run --rm -v "secondshift_$volume:/volume:ro" -v "$backup:/backup" \
+    alpine:3.22 tar -czf "/backup/$volume.tgz" -C /volume .
+done
+```
+
+Copy the bucket while the services are stopped, with your provider's tools (for
+example `aws s3 sync s3://your-bucket "$backup/s3"`), or rely on its versioning
+or replication. Then start the services again:
+
+```bash
+dc up -d
+```
+
+To restore, prepare a server as in [Prepare](#prepare) with a checkout of the
+release that made the backup, copy the backup folder to it, and restore the
+bucket if it was lost. PostgreSQL's volume must be empty: its first start
+creates the roles and empty databases from the restored passwords.
+
+```bash
+backup=/srv/secondshift-backups/20261027-082400  # the folder to restore
+tar -xzf "$backup/config.tgz"
+RUNNER_ROOT=$(sed -n 's/^RUNNER_ROOT=//p' deploy/production/compose.env)
+mkdir -p "$RUNNER_ROOT" && tar -xzf "$backup/runner.tgz" -C "$RUNNER_ROOT"
+dc up -d --wait postgres
+dc exec -T postgres pg_restore -U postgres -d secondshift --no-owner \
+  --role=secondshift --exit-on-error < "$backup/secondshift.dump"
+dc exec -T postgres pg_restore -U postgres -d secondshift_runner --no-owner \
+  --role=secondshift_runner --exit-on-error < "$backup/secondshift_runner.dump"
+dc create caddy
+for volume in caddy_data caddy_config; do
+  docker run --rm -v "secondshift_$volume:/volume" -v "$backup:/backup:ro" \
+    alpine:3.22 tar -xzf "/backup/$volume.tgz" -C /volume
+done
+dc run --rm --no-deps web python manage.py migrate --noinput
+dc run --rm --no-deps runner python manage.py migrate --noinput \
+  --settings=secondshift.config.settings.runner
+dc up -d
+```
+
+Sign in and open an earlier run's report to confirm the restore. Update to a
+newer release only after it works.
+
+For an update, take a backup, fetch the intended release, update
 `SECONDSHIFT_IMAGE` in `compose.env` to that release version (or digest), and run:
 
 ```bash
