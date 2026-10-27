@@ -92,17 +92,17 @@ onUnmounted(directories.reset)
   width: min(600px, calc(100vw - 32px));
   max-height: calc(100dvh - 32px);
   border: 1px solid var(--border);
-  border-radius: 18px;
+  border-radius: 12px;
   background: var(--night-900);
   color: var(--ink);
   box-shadow: 0 28px 90px rgba(0, 0, 0, .5);
 }
 .local-directory-picker .p-dialog-header {
-  padding: 22px 24px 10px;
+  padding: 24px 24px 8px;
 }
 .local-directory-picker .p-dialog-title {
-  font-family: 'Manrope', sans-serif;
-  font-size: 18px;
+  font-family: var(--font-sans);
+  font-size: 16px;
   letter-spacing: -.025em;
 }
 .local-directory-picker .p-dialog-content {
@@ -117,11 +117,11 @@ onUnmounted(directories.reset)
 .local-directory-picker .directory-location {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   margin-bottom: 12px;
-  padding: 10px;
+  padding: 8px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 8px;
   background: var(--night-950);
 }
 .local-directory-picker .directory-location > div {
@@ -136,13 +136,11 @@ onUnmounted(directories.reset)
 }
 .local-directory-picker .directory-label {
   color: var(--subtle);
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: .09em;
-  text-transform: uppercase;
+  font-family: var(--font-mono);
+  font-size: 11px;
 }
 .local-directory-picker code {
-  color: var(--violet-soft);
+  color: var(--ink);
   font-size: 12px;
   overflow-wrap: anywhere;
 }
@@ -151,7 +149,7 @@ onUnmounted(directories.reset)
   overflow-y: auto;
   padding: 4px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 8px;
   background: rgba(13, 14, 29, .45);
   scrollbar-width: thin;
   scrollbar-color: var(--night-750) transparent;
@@ -162,21 +160,21 @@ onUnmounted(directories.reset)
   gap: 12px;
   width: 100%;
   min-height: 42px;
-  padding: 10px 12px;
+  padding: 8px 12px;
   border: 1px solid transparent;
-  border-radius: 7px;
+  border-radius: 6px;
   background: transparent;
   color: var(--ink);
   text-align: left;
   cursor: pointer;
 }
 .local-directory-picker .directory-row:hover {
-  background: rgba(139, 124, 255, .09);
+  background: rgba(255,255,255, .09);
 }
 .local-directory-picker .directory-row:focus-visible {
-  outline: 2px solid var(--violet);
+  outline: 2px solid var(--focus);
   outline-offset: -2px;
-  background: rgba(139, 124, 255, .09);
+  background: rgba(255,255,255, .09);
 }
 .local-directory-picker .directory-row > span {
   flex: 1;
@@ -196,7 +194,7 @@ onUnmounted(directories.reset)
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: 8px;
   min-height: 100%;
   margin: 0;
   padding: 24px;
@@ -222,13 +220,13 @@ onUnmounted(directories.reset)
 }
 @media (max-width: 480px) {
   .local-directory-picker .p-dialog-header {
-    padding: 16px 16px 10px;
+    padding: 16px 16px 8px;
   }
   .local-directory-picker .p-dialog-content {
     padding: 0 16px 16px;
   }
   .local-directory-picker .p-dialog-footer {
-    padding: 14px 16px;
+    padding: 16px 16px;
   }
   .local-directory-picker .directory-count {
     display: none;
