@@ -14,7 +14,7 @@ import { startJobRun } from '../services/runs'
 import { useAppStore } from '../stores/app'
 import type { Access, Capability, Connection, Job } from '../types'
 import { Action } from '../utils/permissions'
-import { accessLabel, accessNeedsAction, countLabel, formatRelative, formatSchedule, formatScheduled, jobState, utcTitle } from '../utils/format'
+import { accessLabel, accessNeedsAction, countLabel, formatRelative, formatSchedule, formatScheduled, jobState, kindLabel, utcTitle } from '../utils/format'
 
 const app = useAppStore()
 const route = useRoute()
@@ -38,12 +38,14 @@ const jobsSubtitle = computed(() => {
   return summary.join(' · ')
 })
 
-type JobState = '' | 'enabled' | 'disabled' | 'review'
+type JobState = '' | 'enabled' | 'disabled' | 'manual' | 'review'
 const JOB_STATES: { value: JobState, label: string, matches: (job: Job) => boolean }[] = [
   { value: '', label: 'All', matches: () => true },
   { value: 'enabled', label: 'Enabled', matches: (job) => job.enabled },
-  { value: 'disabled', label: 'Disabled', matches: (job) => !job.enabled },
-  { value: 'review', label: 'Needs review', matches: (job) => job.grant_status === 'pending' || job.grant_status === 'denied' },
+  // Manual jobs have no schedule to switch on, so they are their own group.
+  { value: 'disabled', label: 'Disabled', matches: (job) => Boolean(job.cron) && !job.enabled },
+  { value: 'manual', label: 'Manual', matches: (job) => !job.cron },
+  { value: 'review', label: 'Needs approval', matches: (job) => job.grant_status === 'pending' || job.grant_status === 'denied' },
 ]
 const search = computed(() => list.text('q'))
 const repositoryFilter = computed(() => list.number('repository'))
@@ -68,6 +70,12 @@ const visibleJobs = computed(() => {
   return searchedJobs.value.filter(matches)
 })
 const filtered = computed(() => Boolean(search.value || repositoryFilter.value || state.value))
+
+/** The skill's folder name, which is how people refer to it. */
+function skillName(path: string): string {
+  const parts = path.split('/').filter(Boolean)
+  return parts.at(-1)?.toLowerCase() === 'skill.md' ? parts.at(-2) ?? path : parts.at(-1) ?? path
+}
 
 function clearFilters(): void {
   list.update({ q: null, repository: null, state: null })
@@ -159,11 +167,10 @@ async function toggleJob(job: Job): Promise<void> {
 
 <template>
   <div class="page">
-    <PageHeader title="Jobs" :description="jobsSubtitle" />
-    <div v-if="app.jobs.length" class="list-toolbar">
-      <SearchInput :model-value="search" placeholder="Search name, repository, skill or binding" @update:model-value="list.update({ q: $event })" />
-      <Select :model-value="repositoryFilter" :options="repositoryOptions" option-label="label" option-value="value" placeholder="All repositories" show-clear class="list-select" aria-label="Repository" @update:model-value="list.update({ repository: $event })" />
-      <FilterChips :model-value="state" :options="stateOptions" label="Job state" @update:model-value="list.update({ state: $event })" />
+    <PageHeader compact title="Jobs" :description="jobsSubtitle" />
+    <div v-if="app.jobs.length" class="list-toolbar runs-toolbar">
+      <SearchInput :model-value="search" placeholder="Search jobs, repositories or skills" @update:model-value="list.update({ q: $event })" />
+      <Select v-if="app.repositories.length > 1" :model-value="repositoryFilter" :options="repositoryOptions" option-label="label" option-value="value" placeholder="All repositories" show-clear class="list-select" aria-label="Repository" @update:model-value="list.update({ repository: $event })" />
     </div>
     <p v-if="error" class="page-error">{{ error }}</p>
     <p v-if="startedRun" class="page-notice" role="status">
@@ -173,27 +180,32 @@ async function toggleJob(job: Job): Promise<void> {
       <button type="button" class="page-notice-close" aria-label="Dismiss" @click="startedRun = null"><AppIcon name="close" /></button>
     </p>
     <section class="panel table-panel">
+      <div v-if="app.jobs.length" class="list-head">
+        <FilterChips :model-value="state" :options="stateOptions" label="Job state" @update:model-value="list.update({ state: $event })" />
+      </div>
       <div v-if="visibleJobs.length" class="data-list">
         <template v-for="job in visibleJobs" :key="job.id">
           <div class="job-row">
-            <div class="job-glyph"><AppIcon name="calendar-clock-outline" /></div>
             <div class="job-primary">
-              <RouterLink :to="`/jobs/${job.id}`" class="job-name-link"><strong>{{ job.name }}</strong><AppIcon name="arrow-top-right" /></RouterLink>
-              <span><RouterLink :to="`/repositories/${job.repository_id}`" class="repository-inline-link">{{ job.repository }}</RouterLink> · {{ job.skill_path }}</span>
+              <RouterLink :to="`/jobs/${job.id}`" class="job-name-link"><strong>{{ job.name }}</strong></RouterLink>
+              <span><template v-if="app.repositories.length > 1"><RouterLink :to="`/repositories/${job.repository_id}`" class="repository-inline-link">{{ job.repository }}</RouterLink> · </template><span :title="job.skill_path">skill {{ skillName(job.skill_path) }}</span></span>
               <div v-if="job.capabilities.length" class="capability-list">
                 <span v-for="capability in job.capabilities" :key="capability.binding" class="capability-chip" :title="capability.requested_tools.join(', ') || capability.kind">
                   {{ capability.binding }}<small>{{ capability.required ? 'required' : 'optional' }}</small>
                 </span>
               </div>
             </div>
-            <div><span class="cell-label">Schedule</span><strong :title="job.cron">{{ formatSchedule(job.cron, job.timezone) }}</strong></div>
-            <div><span class="cell-label">Next run</span><strong :title="utcTitle(job.next_run_at)">{{ formatScheduled(job.next_run_at, job.timezone) }}</strong><small class="cell-sub">{{ formatRelative(job.next_run_at) }}</small></div>
+            <div class="job-cell"><strong :title="job.cron">{{ formatSchedule(job.cron, job.timezone) }}</strong></div>
+            <div class="job-cell">
+              <template v-if="job.cron && job.enabled && job.next_run_at"><strong :title="utcTitle(job.next_run_at)">Next {{ formatRelative(job.next_run_at) }}</strong><small class="cell-sub">{{ formatScheduled(job.next_run_at, job.timezone) }}</small></template>
+            </div>
             <div class="job-statuses">
-              <StatusPill :status="jobState(job)" />
+              <StatusPill v-if="job.cron" :status="jobState(job)" />
               <StatusPill v-if="accessNeedsAction(job.grant_status)" :status="job.grant_status" :label="accessLabel(job.grant_status)" />
             </div>
             <div class="job-actions">
-              <button v-if="job.capabilities.length" type="button" class="job-action" :class="{ active: expandedJobId === job.id }" aria-label="Review access" title="Review access" :aria-expanded="expandedJobId === job.id" :aria-controls="`job-access-${job.id}`" @click="expandedJobId = expandedJobId === job.id ? null : job.id">
+              <Button v-if="accessNeedsAction(job.grant_status) && app.can(Action.ReviewCapabilities)" label="Review access" size="small" :aria-expanded="expandedJobId === job.id" :aria-controls="`job-access-${job.id}`" @click="expandedJobId = expandedJobId === job.id ? null : job.id" />
+              <button v-else-if="job.capabilities.length" type="button" class="job-action" :class="{ active: expandedJobId === job.id }" aria-label="Access" title="Access" :aria-expanded="expandedJobId === job.id" :aria-controls="`job-access-${job.id}`" @click="expandedJobId = expandedJobId === job.id ? null : job.id">
                 <AppIcon aria-hidden="true" name="shield-check-outline" />
               </button>
               <button v-if="app.can(Action.RunJobs)" type="button" class="job-action" :class="{ 'is-loading': action === `run-${job.id}` }" aria-label="Run now" :title="job.enabled || !job.cron ? 'Run now' : 'Run once. The schedule stays off'" :aria-busy="action === `run-${job.id}`" :disabled="action === `run-${job.id}`" @click="runNow(job.id)">
@@ -211,7 +223,7 @@ async function toggleJob(job: Job): Promise<void> {
             <div v-for="capability in job.capabilities" :key="capability.id" class="capability-review-row">
               <div class="capability-summary">
                 <strong>{{ capability.binding }}</strong>
-                <span>{{ capability.kind.toUpperCase() }} · {{ capability.required ? 'Required' : 'Optional' }}</span>
+                <span>{{ kindLabel(capability.kind) }} · {{ capability.required ? 'Required' : 'Optional' }}</span>
                 <small v-if="capability.requested_tools.length" class="requested-tools">
                   <span v-for="tool in capability.requested_tools" :key="tool">
                     {{ tool }}<span v-if="capability.changing_tools?.includes(tool)" class="mcp-flag" title="The service does not mark this as read-only">May change data</span>
@@ -233,8 +245,8 @@ async function toggleJob(job: Job): Promise<void> {
               <div v-else-if="!matchingConnections(capability).length" class="connection-required">
                 <span class="step-label">Connection required before approval</span>
                 <strong>No workspace connection matches <code>{{ capability.binding }}</code>.</strong>
-                <small>Create a {{ capability.kind.toUpperCase() }} connection with this capability name, then return here to approve it.</small>
-                <RouterLink v-if="app.can(Action.AddConnections)" :to="{ path: '/connections', query: connectionSetupQuery(job, capability) }" class="primary-action connection-setup-action">
+                <small>Create a {{ kindLabel(capability.kind) }} connection with this capability name, then return here to approve it.</small>
+                <RouterLink v-if="app.can(Action.AddConnections)" :to="{ path: '/connections', query: connectionSetupQuery(job, capability) }" class="secondary-action connection-setup-action">
                   <AppIcon name="link-plus" /> Set up {{ capability.binding }}
                 </RouterLink>
               </div>
