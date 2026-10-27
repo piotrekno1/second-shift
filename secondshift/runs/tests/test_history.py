@@ -163,7 +163,15 @@ def test_lowering_the_server_cap_applies_without_a_resync(settings, repository) 
     assert len(run.input_snapshot["history_run_ids"]) == 1
 
 
-def test_security_regression_example_reads_its_previous_report() -> None:
-    manifest = load_manifest(Path("examples/security-regression/.secondshift.yaml"))
-
-    assert manifest.jobs["security-regression"].history == 1
+@pytest.mark.parametrize(
+    ("manifest", "job"),
+    [
+        ("examples/security-regression/.secondshift.yaml", "security-regression"),
+        ("examples/repository-health/.secondshift.yaml", "repository-health"),
+        ("examples/docs-drift/.secondshift.yaml", "docs-drift"),
+        (".secondshift.yaml", "repository-health"),
+        (".secondshift.yaml", "docs-drift"),
+    ],
+)
+def test_review_examples_read_their_previous_report(manifest: str, job: str) -> None:
+    assert load_manifest(Path(manifest)).jobs[job].history == 1

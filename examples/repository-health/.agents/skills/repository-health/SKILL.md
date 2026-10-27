@@ -38,5 +38,11 @@ Keep the report under 600 words. Use short sections:
 - **Coverage:** what you read, what you skipped, and what you could not check
   without running the code.
 
+If the prompt holds previous reports from this job, mark each finding **new**
+or **still open** (with the earlier report's date), and list in one line the
+problems from the last report that are now fixed. Check every finding against this
+commit; never copy one from an earlier report. Without previous reports, do not
+label findings.
+
 If you find nothing serious, say so plainly. Never invent problems. Return the
 report as your final answer.

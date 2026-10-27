@@ -5,3 +5,5 @@ jobs:
     skill: .agents/skills/repository-health/SKILL.md
     schedule: 0 7 * * 1
     timezone: UTC
+    # Starts each run with the previous report, to mark findings new or still open.
+    history: 1

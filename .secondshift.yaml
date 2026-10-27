@@ -10,6 +10,7 @@ jobs:
   repository-health:
     name: Repository health
     skill: examples/repository-health/.agents/skills/repository-health/SKILL.md
+    history: 1
     notify:
       - binding: engineering-alerts
         required: false
@@ -17,6 +18,7 @@ jobs:
   docs-drift:
     name: Documentation drift
     skill: examples/docs-drift/.agents/skills/docs-drift/SKILL.md
+    history: 1
     schedule: "0 8 * * 1"
     timezone: UTC
 
