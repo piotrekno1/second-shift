@@ -75,7 +75,7 @@ standard-library tests work without installing packages.
 | `jobs.<key>.skill` | Yes | Repository-relative path to a `SKILL.md` file. |
 | `jobs.<key>.schedule` | No | Cron schedule, such as `0 9 * * 1` for Monday at 09:00. Leave it out for a job that runs only with **Run now**. |
 | `jobs.<key>.timezone` | No | IANA timezone, such as `Europe/Warsaw`. Defaults to `UTC`. |
-| `jobs.<key>.history` | No | How many of the job's own earlier reports each run starts with, from 0 to 5. Defaults to 0. See [run history](#run-history). |
+| `jobs.<key>.history` | No | How many of the job's own earlier reports each run starts with, up to the server's `SECONDSHIFT_JOB_HISTORY_MAX` (5 by default). Defaults to 0. See [run history](#run-history). |
 | `jobs.<key>.notify` | No | Webhook notification bindings requested by this job. |
 | `jobs.<key>.requires` | No | MCP tools and HTTP API operations the job needs. See below. |
 

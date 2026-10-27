@@ -1,3 +1,4 @@
+import re
 from datetime import timedelta
 from pathlib import Path
 
@@ -11,7 +12,7 @@ from secondshift.jobs.models import Job
 from secondshift.repositories.models import Repository
 from secondshift.runs.artifacts import artifact_storage, store_run_text
 from secondshift.runs.execution.run import run_prompt
-from secondshift.runs.history import previous_reports
+from secondshift.runs.history import CUT_NOTE, previous_reports
 from secondshift.runs.models import Run
 from secondshift.runs.services import create_run
 from secondshift.workspaces.services import create_workspace
@@ -125,24 +126,38 @@ def test_report_cannot_close_its_block(repository) -> None:
 
 
 def test_history_limit_is_shared_newest_first(settings, repository) -> None:
-    settings.RUN_HISTORY_MAX_CHARS = 30
-    job = make_job(repository, history=3)
-    oldest = finished_run(job, "O" * 20, days_ago=3)
-    finished_run(job, "M" * 20, days_ago=2)
-    finished_run(job, "N" * 20, days_ago=1)
+    settings.RUN_HISTORY_MAX_CHARS = 140
+    job = make_job(repository, history=4)
+    oldest = finished_run(job, "P" * 50, days_ago=4)
+    for letter, days_ago in (("O", 3), ("M", 2), ("N", 1)):
+        finished_run(job, letter * 50, days_ago=days_ago)
 
     prompt = previous_reports(create_run(job, timezone.now()))
+    bodies = re.findall(
+        r'date="[^"]+" commit="[^"]*">\n(.*?)\n</previous-report>', prompt, re.S
+    )
 
-    assert "N" * 20 in prompt
-    assert "M" * 10 + "\n[... cut by the history limit ...]" in prompt
-    assert "M" * 11 not in prompt
+    assert bodies[:2] == ["N" * 50, "M" * 50]
+    assert bodies[2] == "O" * 5 + CUT_NOTE
+    assert sum(len(body) for body in bodies) == 140
     assert f'<previous-report run="{oldest.pk}">\n[Left out: history limit.]' in prompt
-    assert "O" * 20 not in prompt
 
 
-def test_manifest_caps_history_at_five() -> None:
+def test_manifest_history_is_capped_by_the_server(settings) -> None:
+    settings.JOB_HISTORY_MAX = 3
     fields = {"name": "Review", "skill": ".agents/skills/review/SKILL.md"}
 
-    assert JobManifest(**fields, history=5).history == 5
-    with pytest.raises(ValidationError, match="less than or equal to 5"):
-        JobManifest(**fields, history=6)
+    assert JobManifest(**fields, history=3).history == 3
+    with pytest.raises(ValidationError, match="cannot be above 3 on this server"):
+        JobManifest(**fields, history=4)
+
+
+def test_lowering_the_server_cap_applies_without_a_resync(settings, repository) -> None:
+    job = make_job(repository, history=3)
+    for days_ago in (3, 2, 1):
+        finished_run(job, f"report {days_ago}", days_ago=days_ago)
+    settings.JOB_HISTORY_MAX = 1
+
+    run = create_run(job, timezone.now())
+
+    assert len(run.input_snapshot["history_run_ids"]) == 1
