@@ -5,6 +5,7 @@ import { useRoute } from 'vue-router'
 import Button from 'primevue/button'
 import Select from 'primevue/select'
 import FilterChips from '../components/FilterChips.vue'
+import ModelWarning from '../components/ModelWarning.vue'
 import PageHeader from '../components/PageHeader.vue'
 import SearchInput from '../components/SearchInput.vue'
 import StatusPill from '../components/StatusPill.vue'
@@ -169,6 +170,7 @@ async function toggleJob(job: Job): Promise<void> {
 <template>
   <div class="page">
     <PageHeader compact title="Jobs" :description="jobsSubtitle" />
+    <ModelWarning v-if="app.can(Action.RunJobs)" />
     <div v-if="app.jobs.length" class="list-toolbar runs-toolbar">
       <SearchInput :model-value="search" placeholder="Search jobs, repositories or skills" @update:model-value="list.update({ q: $event })" />
       <Select v-if="app.repositories.length > 1" :model-value="repositoryFilter" :options="repositoryOptions" option-label="label" option-value="value" placeholder="All repositories" show-clear class="list-select" aria-label="Repository" @update:model-value="list.update({ repository: $event })" />

@@ -6,7 +6,9 @@ export function enableBlocker(job: Pick<Job, 'enabled' | 'capabilities'>): strin
   const waiting = job.capabilities.filter((capability) => capability.required && capability.grant_status !== 'approved')
   if (!waiting.length) return ''
   const names = waiting.map((capability) => capability.binding).join(', ')
-  return `Approve ${names} first. Scheduled runs would fail without ${waiting.length === 1 ? 'it' : 'them'}.`
+  // Approving needs a connection, so a binding without one asks for that step.
+  const verb = waiting.some((capability) => capability.connection_id === null) ? 'Connect and approve' : 'Approve'
+  return `${verb} ${names} first. Scheduled runs would fail without ${waiting.length === 1 ? 'it' : 'them'}.`
 }
 
 /** The workspace model connection, when its last check failed or it is not connected. */

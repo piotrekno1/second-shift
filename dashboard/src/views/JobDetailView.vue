@@ -3,6 +3,7 @@ import AppIcon from '../components/AppIcon.vue'
 import { computed, nextTick, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Button from 'primevue/button'
+import ModelWarning from '../components/ModelWarning.vue'
 import PageHeader from '../components/PageHeader.vue'
 import RunOutcomes from '../components/RunOutcomes.vue'
 import RunLimitsPanel from '../components/RunLimitsPanel.vue'
@@ -15,7 +16,7 @@ import { saveJobLimits } from '../services/settings'
 import { useAppStore } from '../stores/app'
 import type { Job, JobDetail, RunLimitUpdate } from '../types'
 import { Action } from '../utils/permissions'
-import { brokenModelConnection, enableBlocker } from '../utils/readiness'
+import { enableBlocker } from '../utils/readiness'
 import { accessLabel, accessNeedsAction, countLabel, formatDate, historyLabel, formatRelative, formatSchedule, formatScheduled, jobState, kindLabel, utcTitle } from '../utils/format'
 
 const route = useRoute()
@@ -35,7 +36,6 @@ const detailSubtitle = computed(() => {
   if (!job.value) return 'Loading job…'
   return `${job.value.repository} · ${formatSchedule(job.value.cron, job.value.timezone)}`
 })
-const brokenModel = computed(() => brokenModelConnection(app.connections))
 const lastRun = computed(() => job.value?.recent_runs[0] ?? null)
 
 async function loadJob(): Promise<void> {
@@ -118,11 +118,7 @@ useLiveRefresh(loadJob, () => (job.value?.recent_runs ?? []).some((run) => isRun
     <div v-else-if="!job" class="panel empty-state"><AppIcon name="alert-outline" /><strong>Job unavailable</strong><span>{{ error }}</span></div>
     <template v-else>
       <p v-if="error" class="page-error">{{ error }}</p>
-      <p v-if="brokenModel" class="page-warning">
-        <AppIcon name="alert-outline" />
-        <span>Runs will fail until {{ brokenModel.display_name }} works again. {{ brokenModel.last_check?.message ?? 'It is not connected.' }}</span>
-        <RouterLink :to="{ path: '/connections', query: { connection: String(brokenModel.id) } }" class="primary-action">Fix the connection <AppIcon name="arrow-right" /></RouterLink>
-      </p>
+      <ModelWarning />
 
       <section class="panel job-status-strip" :class="{ disabled: !job.enabled }">
         <StatusPill :status="jobState(job)" />

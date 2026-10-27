@@ -10,8 +10,10 @@ function capability(binding: string, required: boolean, grant: Capability['grant
 
 test('enableBlocker names required bindings that are not approved', () => {
   const capabilities = [capability('engineering-reports', true, 'pending'), capability('alerts', false, 'unconfigured')]
-  assert.equal(enableBlocker({ enabled: false, capabilities }), 'Approve engineering-reports first. Scheduled runs would fail without it.')
+  assert.equal(enableBlocker({ enabled: false, capabilities }), 'Connect and approve engineering-reports first. Scheduled runs would fail without it.')
   assert.equal(enableBlocker({ enabled: true, capabilities }), '')
+  const connected = [{ ...capability('engineering-reports', true, 'pending'), connection_id: 4 }]
+  assert.equal(enableBlocker({ enabled: false, capabilities: connected }), 'Approve engineering-reports first. Scheduled runs would fail without it.')
   assert.equal(enableBlocker({ enabled: false, capabilities: [capability('alerts', false, 'pending')] }), '')
 })
 
