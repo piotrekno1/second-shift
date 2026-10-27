@@ -172,9 +172,9 @@ useLiveRefresh(loadJob, () => (job.value?.recent_runs ?? []).some((run) => isRun
             <div class="job-capability-details">
               <div v-for="capability in job.capabilities" :key="capability.id" class="job-capability-detail">
                 <div><strong>{{ capability.binding }}</strong><span>{{ kindLabel(capability.kind) }} · {{ capability.required ? 'Required' : 'Optional' }}</span></div>
-                <div class="tool-list"><span v-for="tool in capability.requested_tools" :key="tool">{{ tool }}</span><small v-if="!capability.requested_tools.length">Any tool on this connection</small></div>
+                <div class="tool-list"><span v-for="tool in capability.requested_tools" :key="tool">{{ tool }}</span><small v-if="!capability.requested_tools.length">No tool list. It can use the whole connection</small></div>
                 <span class="capability-connection">{{ capability.connection_name || 'No connection selected' }}</span>
-                <StatusPill :status="capability.grant_status" />
+                <StatusPill :status="capability.grant_status" :label="accessLabel(capability.grant_status)" />
               </div>
             </div>
           </section>
@@ -195,7 +195,7 @@ useLiveRefresh(loadJob, () => (job.value?.recent_runs ?? []).some((run) => isRun
           <dl>
             <div><dt>Repository</dt><dd><RouterLink :to="`/repositories/${job.repository_id}`" class="detail-link">{{ job.repository }}</RouterLink></dd></div>
             <div><dt>Skill</dt><dd><code>{{ job.skill_path }}</code></dd></div>
-            <div><dt>Schedule</dt><dd v-if="job.cron">{{ describeCron(job.cron) }} <span class="run-details-muted">· {{ job.timezone }}</span><code v-if="describeCron(job.cron) !== job.cron" class="run-details-muted cron-raw">{{ job.cron }}</code></dd><dd v-else>Manual only. Start it with Run now.</dd></div>
+            <div><dt>Schedule</dt><dd v-if="job.cron" :title="job.cron">{{ describeCron(job.cron) }} <span class="run-details-muted">· {{ job.timezone }}</span></dd><dd v-else>Manual only. Start it with Run now.</dd></div>
             <div><dt>Job key</dt><dd><code>{{ job.key }}</code></dd></div>
             <div><dt>Revision</dt><dd><code>{{ job.repository_revision.slice(0, 12) }}</code></dd></div>
             <div><dt>Config hash</dt><dd><code>{{ job.config_hash.slice(0, 12) }}</code></dd></div>
