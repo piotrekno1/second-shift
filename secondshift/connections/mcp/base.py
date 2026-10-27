@@ -62,6 +62,14 @@ class MCPProvider:
     auth_scheme: str = "Bearer"
     # Fixed request headers, sent alongside the token.
     headers: dict[str, str] = field(default_factory=dict)
+    # Rewrites a discovered tool's input schema so the model sees only the
+    # arguments scope_arguments accepts. Applied before the schema is stored.
+    narrow_schema: Callable[[str, dict[str, Any]], dict[str, Any]] = (
+        lambda tool, schema: schema
+    )
+    # A safe message for a failed tool call, chosen by matching the remote
+    # error text, or None for the general one. The remote text is never shown.
+    tool_error: Callable[[str, str], str | None] = lambda tool, text: None
     # Drop tools the server does not mark read-only.
     require_read_only_hint: bool = False
     # Custom servers: keep every tool and let the owner choose. Read-only

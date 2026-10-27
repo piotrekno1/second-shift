@@ -55,6 +55,24 @@ instructions.
   occurrence ever. A nearby commit is a candidate cause until supported by a
   concrete code path, error, or reproduction.
 
+## GitHub Actions
+
+With the built-in GitHub connection, the job reads only its own repository.
+
+- `actions_list` with `list_workflow_runs` lists runs. Filter by status,
+  branch, or creation date to stay in the window. Use `list_workflow_jobs` with
+  a run ID to find the failed jobs and their attempt numbers.
+- `actions_get` with `get_workflow_run` or `get_workflow_job` reads one run or
+  job, including its commit SHA, branch, and links.
+- `get_job_logs` returns the end of a job's log as text, up to 300 lines. Pass
+  a `job_id` for one job, or a `run_id` with `failed_only` for every failed job
+  in a run. If the error is cut off, say so rather than guessing the rest.
+- `list_commits` and `get_commit` compare a failed run's commit with nearby
+  changes on the default branch.
+
+If GitHub refuses a call for missing Actions access, report that and stop
+collecting from Actions.
+
 ## Report
 
 Keep the report under 700 words. Use this structure:

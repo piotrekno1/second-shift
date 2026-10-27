@@ -85,6 +85,9 @@ tools that may change data.
   a tool result can make the model call any approved tool with any arguments
   its schema allows. An approved tool that changes data can be used to change
   data the job was not meant to touch.
+- **Tool results can carry injected text.** Pull request text and CI job logs
+  can be written by anyone who can open a pull request. GitHub masks the
+  secrets it knows about in logs, but not values it was never told are secret.
 - **Data can leave through approved tools.** The model can put repository
   content into an approved call, for example a search query, and send it to
   that service.

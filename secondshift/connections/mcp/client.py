@@ -98,7 +98,7 @@ async def mcp_request(
                 del session_id
                 await session.initialize()
                 if tool is not None:
-                    payload = await call_tool(session, provider, tool, arguments)
+                    payload = await call_tool(session, tool, arguments)
                 else:
                     payload = await offered_tools(session, provider)
     except Exception:
@@ -107,6 +107,12 @@ async def mcp_request(
             f"{provider.label} MCP request failed. Check the token, permissions, "
             "and service availability."
         ) from None
+    if tool is not None and payload.get("isError"):
+        # Raised outside the session so the catch-all above keeps its message.
+        message = provider.tool_error(tool, error_text(payload))
+        raise MCPRequestError(
+            message or f"{provider.label} could not complete this tool call."
+        )
     encoded = json.dumps(payload)
     if len(encoded.encode()) > MCP_RESPONSE_MAX_BYTES:
         raise MCPError("The MCP result exceeded the size limit.")
@@ -115,14 +121,20 @@ async def mcp_request(
 
 async def call_tool(
     session: ClientSession,
-    provider: MCPProvider,
     tool: str,
     arguments: dict[str, Any] | None,
 ) -> dict[str, Any]:
     result = await session.call_tool(tool, arguments)
-    if result.isError:
-        raise MCPError(f"{provider.label} could not complete this tool call.")
     return result.model_dump(mode="json", by_alias=True)
+
+
+def error_text(payload: dict[str, Any]) -> str:
+    """The remote error text, for matching only. It never leaves SecondShift."""
+    return " ".join(
+        str(item.get("text", ""))
+        for item in payload.get("content", [])
+        if isinstance(item, dict) and item.get("type") == "text"
+    )
 
 
 def offered_tool(item: Any, provider: MCPProvider) -> dict[str, Any] | None:
@@ -133,7 +145,7 @@ def offered_tool(item: Any, provider: MCPProvider) -> dict[str, Any] | None:
         return None
     return {
         "description": item.description or item.name,
-        "inputSchema": item.inputSchema,
+        "inputSchema": provider.narrow_schema(item.name, item.inputSchema),
         "readOnly": read_only,
     }
 

@@ -177,12 +177,16 @@ and a nonempty list of unique `tools`. The `required` flag defaults to `true`.
 
 | Connection | Tool names | Sign-in | Scope |
 | --- | --- | --- | --- |
-| GitHub (built in) | `search_pull_requests`, `pull_request_read`, `list_commits`, `get_commit` | Fine-grained personal access token | The job's own repository |
+| GitHub (built in) | `search_pull_requests`, `pull_request_read`, `list_commits`, `get_commit`, `actions_list`, `actions_get`, `get_job_logs` | Fine-grained personal access token | The job's own repository |
 | Sentry (built in) | `find_projects`, `search_issues`, `search_errors`, `search_traces`, `get_sentry_resource` | Auth token with read scopes | The organization or project chosen when connecting |
 | Custom MCP server | The server's own tool names | OAuth sign-in, or a bearer token | Whatever the credential can reach |
 | HTTP API | The `operationId` of each operation in its OpenAPI 3 spec | Bearer token, or a named header | Whatever the credential can reach |
 
-GitHub and Sentry offer only read tools that SecondShift allowlists. For a
+GitHub and Sentry offer only read tools that SecondShift allowlists. GitHub
+Actions tools can list and read workflows, runs, and jobs, and read job logs as
+text. Logs are capped at the last 300 lines. Triggering runs, artifacts, and
+log download links are not available. The token needs read-only Actions access
+for these tools. For a
 custom MCP server, the owner chooses tools after connecting, and tools the
 server marks read-only start selected. For an HTTP API, GET operations start
 selected. The access review marks any requested tool that may change data.

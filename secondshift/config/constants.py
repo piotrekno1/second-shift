@@ -56,10 +56,19 @@ TOKEN_BUDGET_MESSAGE = "This run has used its token budget."
 
 
 class GitHubMCPTool(StrEnum):
+    """Read tools for pull requests, commits, and Actions runs.
+
+    Actions tools that trigger runs, list artifacts, or return download links
+    are left out or blocked by method.
+    """
+
     SEARCH_PULL_REQUESTS = "search_pull_requests"
     PULL_REQUEST_READ = "pull_request_read"
     LIST_COMMITS = "list_commits"
     GET_COMMIT = "get_commit"
+    ACTIONS_LIST = "actions_list"
+    ACTIONS_GET = "actions_get"
+    GET_JOB_LOGS = "get_job_logs"
 
 
 GITHUB_MCP_TOOLS = tuple(GitHubMCPTool)
