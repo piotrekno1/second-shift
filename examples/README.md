@@ -14,21 +14,41 @@ Choose a skill below, then follow the [setup guide](../docs/engineering-tasks.md
 to copy it, connect data, approve access, and try it before enabling a schedule.
 Individual examples provide service-specific setup and suggested cadences.
 
+Skills are grouped by the role that usually owns them. Many are useful to
+more than one team.
+
+## Developers and code health
+
 | Skill | What it does | Data needed |
 | --- | --- | --- |
 | [Repository health](repository-health/README.md) | Prioritizes code defects, unsafe configuration, and test gaps. | Repository source, configuration, project guidance, and tests. |
 | [Documentation drift](docs-drift/README.md) | Finds docs that no longer match project files and behavior. | Documentation and the repository files it describes. |
 | [CI failures](ci-failure-review/README.md) | Groups recurring failures and explains what still blocks builds. | CI build history and job logs, plus repository code. GitHub commit access alone is insufficient. |
+
+## SRE and operations
+
+| Skill | What it does | Data needed |
+| --- | --- | --- |
 | [Production errors](production-error-review/README.md) | Investigates new or worsening runtime errors and their impact. | Error events or traces, project/environment scope, and repository code. Sentry setup is included. |
 | [Monitoring coverage](monitoring-coverage-review/README.md) | Finds failure paths left without useful detection. | Alert rules, routing, failure paths, and a baseline from committed configuration or a monitoring API. |
 | [Incident follow-up](incident-follow-up-review/README.md) | Verifies completed actions against their promised outcome. | Incident actions, acceptance criteria, and implementation links from documents or a ticket API. |
-| [Release readiness](release-readiness-review/README.md) | Finds missing steps and blockers for a planned rollout. | An explicit release target, baseline, and rollout plan. |
+| [On-call coverage](on-call-coverage/README.md) | Checks upcoming shifts for coverage gaps and conflicts with explicit time off. | Resolved on-call assignments, approved calendar or leave data, and team coverage rules. |
+
+## Security and compliance
+
+| Skill | What it does | Data needed |
+| --- | --- | --- |
 | [Security regression](security-regression/README.md) | Finds security defects introduced by recent changes. | Repository code and local or approved source-control history. Observability is optional. |
+| [Quarterly access review](quarterly-access-review/README.md) | Flags accounts and permissions that owners should change, remove, or confirm, and shows unreviewed systems. | Workforce status, identity-provider and system access data, a system inventory, and access rules. |
+
+## Release and engineering management
+
+| Skill | What it does | Data needed |
+| --- | --- | --- |
+| [Release readiness](release-readiness-review/README.md) | Finds missing steps and blockers for a planned rollout. | An explicit release target, baseline, and rollout plan. |
 | [Engineering briefing](engineering-briefing/README.md) | Summarizes shipped work, open blockers, and participation. | GitHub pull requests, reviews, and commits through approved read tools. |
 | [Ticket follow-up brief](ticket-follow-up/README.md) | Finds tickets that may be ready to close or update and explains what still needs checking. | Repository history and approved tracker read access. |
 | [Ticket reconciliation](ticket-reconciliation/README.md) | Updates or closes tickets that meet the team's completion rules. | Repository history, explicit workflow rules, and approved tracker read and write operations. |
-| [Quarterly access review](quarterly-access-review/README.md) | Flags accounts and permissions that owners should change, remove, or confirm, and shows unreviewed systems. | Workforce status, identity-provider and system access data, a system inventory, and access rules. |
-| [On-call coverage](on-call-coverage/README.md) | Checks upcoming shifts for coverage gaps and conflicts with explicit time off. | Resolved on-call assignments, approved calendar or leave data, and team coverage rules. |
 
 ## Reuse in your project
 
