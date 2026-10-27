@@ -108,9 +108,8 @@ onUnmounted(stopPolling)
 
 <template>
   <div class="page">
-    <PageHeader :title="`Run #${runId}`" :description="subtitle">
-      <RouterLink to="/runs" class="secondary-action"><AppIcon name="arrow-left" /> Runs</RouterLink>
-      <Button v-if="run && !active && app.can(Action.RunJobs)" label="Run again" :loading="rerunning" @click="runAgain">
+    <PageHeader compact :title="`Run #${runId}`" :description="subtitle" :parent="{ label: 'Runs', to: '/runs' }">
+      <Button class="main-action" v-if="run && !active && app.can(Action.RunJobs)" label="Run again" :loading="rerunning" @click="runAgain">
         <template #icon><AppIcon name="replay" /></template>
       </Button>
     </PageHeader>

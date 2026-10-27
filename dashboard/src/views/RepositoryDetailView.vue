@@ -184,10 +184,11 @@ onMounted(loadRepository)
 <template>
   <div class="page">
     <PageHeader
+      compact
       :title="repository?.display_name ?? 'Repository'"
       :description="repositorySubtitle"
+      :parent="{ label: 'Repositories', to: '/repositories' }"
     >
-      <RouterLink to="/repositories" class="secondary-action"><AppIcon name="arrow-left" /> Repositories</RouterLink>
       <template v-if="repository">
         <Button label="Validate" severity="secondary" outlined :loading="action === 'validate'" title="Read-only check of the manifest and skills" @click="validateRepository">
           <template #icon><AppIcon name="check-circle-outline" /></template>
@@ -209,31 +210,28 @@ onMounted(loadRepository)
       <section v-if="!setupComplete || justAdded" class="panel repository-setup" :class="{ complete: setupComplete }">
         <div class="setup-status-icon"><AppIcon :name="setupComplete ? 'check-decagram-outline' : 'progress-check'" /></div>
         <div class="setup-copy">
-          <span class="step-label">{{ justAdded ? 'Repository added' : 'Finish setup' }}</span>
-          <h2>{{ setupComplete ? 'This repository is ready' : 'Complete the remaining setup' }}</h2>
-          <p v-if="requiredReviews.length">{{ countLabel(requiredReviews.length, 'required capability', 'required capabilities') }} must be reviewed before the affected jobs can run.</p>
+          <h2>{{ setupComplete ? (justAdded ? 'Repository added and ready' : 'This repository is ready') : 'Finish setup' }}</h2>
+          <p v-if="requiredReviews.length">Approve access for {{ countLabel(requiredReviews.length, 'required binding') }} before its jobs can run.</p>
           <p v-else-if="readyDisabledJobs.length">Access is ready. Enable {{ countLabel(readyDisabledJobs.length, 'job') }} to start its schedule.</p>
           <p v-else>All required access is resolved and every ready job is enabled.</p>
-          <small v-if="optionalSetups.length">{{ countLabel(optionalSetups.length, 'optional connection') }} can still be configured without blocking execution.</small>
+          <small v-if="optionalSetups.length && app.can(Action.AddConnections)">
+            Optional: <RouterLink :to="{ path: '/connections', query: connectionSetupQuery(optionalSetups[0].job, optionalSetups[0].capability) }" class="need-job">connect {{ optionalSetups[0].capability.binding }}</RouterLink><template v-if="optionalSetups.length > 1"> and {{ optionalSetups.length - 1 }} more</template>. Jobs run without it.
+          </small>
         </div>
         <div class="repository-setup-actions">
           <RouterLink
             v-if="requiredReviews[0] && app.can(Action.ReviewCapabilities)"
             :to="{ path: '/jobs', query: { review: String(requiredReviews[0].job.id) } }"
             class="primary-action"
-          ><AppIcon name="shield-key-outline" /> Review required access</RouterLink>
+          ><AppIcon name="shield-key-outline" /> Review access</RouterLink>
           <Button
             v-else-if="readyDisabledJobs.length && app.can(Action.EnableJobs)"
+            class="main-action"
             :label="`Enable ${countLabel(readyDisabledJobs.length, 'job')}`"
             :loading="action === 'enable-jobs'"
             @click="enableReadyJobs">
               <template #icon><AppIcon name="play" /></template>
             </Button>
-          <RouterLink
-            v-if="optionalSetups[0] && app.can(Action.AddConnections)"
-            :to="{ path: '/connections', query: connectionSetupQuery(optionalSetups[0].job, optionalSetups[0].capability) }"
-            class="secondary-action"
-          ><AppIcon name="link-plus" /> Configure {{ optionalSetups[0].capability.binding }}</RouterLink>
         </div>
       </section>
 
@@ -261,8 +259,7 @@ onMounted(loadRepository)
           </div>
         </div>
         <dl class="repository-metadata compact-grid">
-          <div v-if="repository.local_path"><dt>Path</dt><dd><code>{{ repository.local_path }}</code><button class="copy-button" type="button" :aria-label="copied ? 'Copied' : 'Copy path'" @click="copyPath"><AppIcon :name="copied ? 'check' : 'content-copy'" /></button></dd></div>
-          <div v-else><dt>Type</dt><dd>GitHub</dd></div>
+          <div v-if="repository.local_path" class="full-row"><dt>Path</dt><dd><code>{{ repository.local_path }}</code><button class="copy-button" type="button" :aria-label="copied ? 'Copied' : 'Copy path'" @click="copyPath"><AppIcon :name="copied ? 'check' : 'content-copy'" /></button></dd></div>
           <div><dt>Branch</dt><dd>{{ repository.default_branch }}</dd></div>
           <div>
             <dt>Auto-sync</dt>
@@ -278,14 +275,13 @@ onMounted(loadRepository)
       </section>
 
       <section class="panel repository-jobs-panel">
-        <div class="panel-heading"><div><h2>Discovered jobs</h2><p>Schedules come from the synchronized manifest; execution still requires explicit grants.</p></div><RouterLink to="/jobs">All jobs</RouterLink></div>
+        <div class="panel-heading"><div><h2>Discovered jobs</h2><p>Read from <code>{{ repository.config_path }}</code> at the synced revision.</p></div><RouterLink to="/jobs">All jobs</RouterLink></div>
         <div v-if="repository.jobs.length" class="repository-job-list">
           <div v-for="job in repository.jobs" :key="job.id" class="repository-job-row">
-            <div class="job-glyph"><AppIcon name="calendar-clock-outline" /></div>
-            <div class="job-primary"><strong>{{ job.name }}</strong><span>{{ job.skill_path }}</span></div>
-            <div><span class="cell-label">Schedule</span><strong :title="job.cron">{{ formatSchedule(job.cron, job.timezone) }}</strong></div>
+            <div class="job-primary"><strong>{{ job.name }}</strong><span :title="job.skill_path">{{ job.skill_path }}</span></div>
+            <div class="job-cell"><strong :title="job.cron">{{ formatSchedule(job.cron, job.timezone) }}</strong></div>
             <div class="job-statuses">
-              <StatusPill :status="jobState(job)" />
+              <StatusPill v-if="job.cron" :status="jobState(job)" />
               <StatusPill v-if="accessNeedsAction(job.grant_status)" :status="job.grant_status" :label="accessLabel(job.grant_status)" />
             </div>
             <RouterLink v-if="accessNeedsAction(job.grant_status) && app.can(Action.ReviewCapabilities)" :to="{ path: '/jobs', query: { review: String(job.id) } }" class="job-row-action">Review access <AppIcon name="arrow-right" /></RouterLink>
