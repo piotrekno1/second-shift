@@ -1,3 +1,4 @@
+import socket
 from typing import Any
 
 import httpcore
@@ -11,6 +12,9 @@ from secondshift.connections.outbound import (
 
 LINK_LOCAL_URLS = [
     "https://169.254.169.254/latest/meta-data/",
+    "https://2852039166/latest/meta-data/",
+    "https://0xa9fea9fe/latest/meta-data/",
+    "https://169.254.43518/latest/meta-data/",
     "https://[fe80::1]/x",
     "https://[::ffff:169.254.169.254]/x",
 ]
@@ -62,3 +66,22 @@ def test_names_resolving_to_link_local_are_refused_at_connect(
 
     with pytest.raises(httpcore.ConnectError):
         vetted_addresses(answer("93.184.216.34", address))
+
+
+def test_names_resolving_to_link_local_are_refused_in_development(
+    settings: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    settings.OUTBOUND_ALLOW_LOCAL = True
+    monkeypatch.setattr(
+        socket, "getaddrinfo", lambda *args, **kwargs: answer("169.254.169.254")
+    )
+
+    with pytest.raises(OutboundUrlError, match="link-local"):
+        validate_outbound_url("http://metadata.example.test/")
+
+
+def test_messages_keep_url_in_capitals(settings: Any) -> None:
+    settings.OUTBOUND_ALLOW_LOCAL = False
+
+    with pytest.raises(OutboundUrlError, match=r"^Base URLs must use HTTPS"):
+        validate_outbound_url("http://example.com", "base URL")
