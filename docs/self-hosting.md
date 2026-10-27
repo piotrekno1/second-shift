@@ -130,6 +130,12 @@ Full run output is stored outside Postgres in private storage, under
 Finished runs older than `SECONDSHIFT_RUN_RETENTION_DAYS` (default 90) are
 pruned daily by the worker, together with their output and DBOS records.
 
+A job with `history` starts each run with its earlier reports.
+`SECONDSHIFT_JOB_HISTORY_MAX` (default 5) is the most a manifest can ask for;
+lowering it also applies to jobs that already ask for more.
+`SECONDSHIFT_RUN_HISTORY_MAX_CHARS` (default 65,536) caps their total length.
+The newest report is included first; what does not fit is cut or left out.
+
 Each run has four limits. Each has a default and a maximum:
 
 - `SECONDSHIFT_RUN_TIMEOUT_SECONDS` (default 900, so 15 minutes) limits time.

@@ -6,6 +6,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import yaml
 from croniter import croniter
+from django.conf import settings
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
@@ -48,6 +49,8 @@ class JobManifest(BaseModel):
     # Without a schedule, the job runs only when started with Run now.
     schedule: str | None = Field(default=None, min_length=1, max_length=100)
     timezone: str = "UTC"
+    # How many of the job's own earlier reports each run starts with.
+    history: int = Field(default=0, ge=0)
     requires: RequirementsManifest = Field(default_factory=RequirementsManifest)
     notify: list[NotificationManifest] = Field(default_factory=list)
 
@@ -59,6 +62,15 @@ class JobManifest(BaseModel):
             raise ValueError("skill must be a repository-relative path")
         if path.name != "SKILL.md":
             raise ValueError("skill must point to a SKILL.md file")
+        return value
+
+    @field_validator("history")
+    @classmethod
+    def validate_history(cls, value: int) -> int:
+        if value > settings.JOB_HISTORY_MAX:
+            raise ValueError(
+                f"history cannot be above {settings.JOB_HISTORY_MAX} on this server"
+            )
         return value
 
     @field_validator("schedule")

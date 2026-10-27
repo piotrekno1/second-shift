@@ -24,6 +24,8 @@ class Job(RunLimitOverrides):
     # Empty for a job that runs only when started manually.
     cron = models.CharField(max_length=100, blank=True, default="")
     timezone = models.CharField(max_length=64, default="UTC")
+    # How many of its own earlier reports each run starts with.
+    history = models.PositiveSmallIntegerField(default=0)
     enabled = models.BooleanField(default=False)
     next_run_at = models.DateTimeField(null=True, blank=True)
     config_hash = models.CharField(max_length=64)

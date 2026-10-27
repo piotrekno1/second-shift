@@ -15,7 +15,7 @@ import { saveJobLimits } from '../services/settings'
 import { useAppStore } from '../stores/app'
 import type { Job, JobDetail, RunLimitUpdate } from '../types'
 import { Action } from '../utils/permissions'
-import { accessLabel, accessNeedsAction, countLabel, formatDate, formatRelative, formatSchedule, formatScheduled, jobState, utcTitle } from '../utils/format'
+import { accessLabel, accessNeedsAction, countLabel, formatDate, historyLabel, formatRelative, formatSchedule, formatScheduled, jobState, utcTitle } from '../utils/format'
 
 const route = useRoute()
 const router = useRouter()
@@ -190,6 +190,7 @@ useLiveRefresh(loadJob, () => (job.value?.recent_runs ?? []).some((run) => isRun
             <div><dt>Job key</dt><dd><code>{{ job.key }}</code></dd></div>
             <div><dt>Revision</dt><dd><code>{{ job.repository_revision.slice(0, 12) }}</code></dd></div>
             <div><dt>Config hash</dt><dd><code>{{ job.config_hash.slice(0, 12) }}</code></dd></div>
+            <div><dt>History</dt><dd>{{ historyLabel(job.history) }}</dd></div>
             <div><dt>External access</dt><dd>{{ job.capabilities.length ? countLabel(job.capabilities.length, 'binding') : 'None requested' }}</dd></div>
           </dl>
         </aside>

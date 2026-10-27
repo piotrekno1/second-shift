@@ -87,6 +87,7 @@ def serialize_job_detail(job: Job, can_edit_limits: bool) -> JobDetailSchema:
         **summary.model_dump(),
         key=job.key,
         config_hash=job.config_hash,
+        history=job.history,
         repository_revision=job.repository.config_sha,
         repository_enabled=job.repository.enabled,
         recent_runs=[serialize_run(run) for run in recent_runs],

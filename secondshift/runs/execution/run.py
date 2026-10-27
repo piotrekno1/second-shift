@@ -33,6 +33,7 @@ from secondshift.runs.execution.workspace_tools import (
     workspace_path,
     workspace_tools,
 )
+from secondshift.runs.history import previous_reports
 from secondshift.runs.models import Run, RunEvent
 from secondshift.runs.reporting.failures import root_error
 
@@ -63,6 +64,16 @@ def task_prompt(skill_path: str) -> str:
     return f"Read {skill_path} with workspace_read_file, then execute that skill."
 
 
+def run_prompt(run: Run) -> str:
+    """The first user message: the task, the reporting time, and any history."""
+    prompt = (
+        task_prompt(str(run.input_snapshot["skill_path"]))
+        + f"\nReporting time (UTC): {run.scheduled_for.isoformat()}"
+    )
+    history = previous_reports(run)
+    return f"{prompt}\n\n{history}" if history else prompt
+
+
 def render_run_input(run: Run, skill: CommandResult | None) -> str:
     """Markdown showing exactly what the agent was given for this run."""
     skill_path = str(run.input_snapshot["skill_path"])
@@ -85,8 +96,7 @@ def render_run_input(run: Run, skill: CommandResult | None) -> str:
             "",
             "## Task",
             "",
-            task_prompt(skill_path)
-            + f"\nReporting time (UTC): {run.scheduled_for.isoformat()}",
+            run_prompt(run),
             "",
             f"## Skill: `{skill_path}`",
             "",
@@ -148,13 +158,11 @@ def execute_agent_run(run: Run, session_id: str) -> dict[str, Any]:
         deadline=run_deadline(run),
         allowed_tools=tuple(plan["agent"]["tools"]),
     )
-    skill_path = str(run.input_snapshot["skill_path"])
     capture_run_input_step(run.pk, session_id)
     with capture_run_messages() as messages:
         try:
             result = WORKSPACE_AGENT.run_sync(
-                task_prompt(skill_path)
-                + f"\nReporting time (UTC): {run.scheduled_for.isoformat()}",
+                run_prompt(run),
                 deps=deps,
                 usage_limits=limits.usage_limits(),
                 run_id=f"secondshift-run-{run.pk}",

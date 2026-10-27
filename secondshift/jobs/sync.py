@@ -33,6 +33,7 @@ def sync_jobs(repository: Repository, manifest: RepositoryManifest) -> list[Job]
                 "skill_path": item.skill,
                 "cron": item.schedule or "",
                 "timezone": item.timezone,
+                "history": item.history,
                 "config_hash": manifest_hash(item),
             },
         )

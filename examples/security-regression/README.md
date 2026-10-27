@@ -5,6 +5,8 @@ regression tests. The skill reads source, tests, dependency lockfiles, and
 deployment configuration. Optional GitHub access provides change evidence.
 Optional observability access provides runtime context through Sentry, Grafana,
 Datadog, Splunk, or another approved connection. It does not run Strix or Striga.
+The job sets `history: 1`, so each run reads the previous report and marks
+findings as new, still open, or resolved.
 
 The [security regression skill](.agents/skills/security-regression/SKILL.md)
 lives in this example. Root `.agents/skills/security-regression` symlinks here

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import type { Run } from '../src/types'
 
-import { formatLimit, accessLabel, accessNeedsAction, connectionUsageLine, countLabel, describeCron, formatDate, formatSeconds, greeting, healthHeadline, jobOutcomes, spendTrend, formatRelative, formatScheduled, formatTime, utcTitle, zoneName, formatBytes, plainSummary, providerLabel, runStats, statusLabel, formatDuration, formatModelUsage, finishedBinding, formatSchedule, jobState, titleFromSlug, typingBinding } from '../src/utils/format'
+import { formatLimit, accessLabel, accessNeedsAction, connectionUsageLine, countLabel, describeCron, formatDate, formatSeconds, greeting, healthHeadline, jobOutcomes, spendTrend, formatRelative, formatScheduled, formatTime, utcTitle, zoneName, formatBytes, plainSummary, providerLabel, runStats, statusLabel, formatDuration, formatModelUsage, finishedBinding, formatSchedule, jobState, historyLabel, titleFromSlug, typingBinding } from '../src/utils/format'
 
 test('formatSchedule keeps cron and timezone visible', () => {
   assert.equal(formatSchedule('0 9 * * 1', 'Europe/Warsaw'), 'Mondays at 09:00 · Europe/Warsaw')
@@ -11,6 +11,12 @@ test('formatSchedule keeps cron and timezone visible', () => {
 test('countLabel uses the appropriate singular and plural labels', () => {
   assert.equal(countLabel(1, 'repository', 'repositories'), '1 repository')
   assert.equal(countLabel(3, 'repository', 'repositories'), '3 repositories')
+})
+
+test('historyLabel says how many earlier reports a run reads', () => {
+  assert.equal(historyLabel(0), 'None')
+  assert.equal(historyLabel(1), 'Reads its last report')
+  assert.equal(historyLabel(3), 'Reads its last 3 reports')
 })
 
 test('titleFromSlug turns a binding key into a readable name', () => {
