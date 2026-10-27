@@ -23,7 +23,7 @@ more than one team.
 | --- | --- | --- |
 | [Repository health](repository-health/README.md) | Prioritizes code defects, unsafe configuration, and test gaps. | Repository source, configuration, project guidance, and tests. |
 | [Documentation drift](docs-drift/README.md) | Finds docs that no longer match project files and behavior. | Documentation and the repository files it describes. |
-| [CI failures](ci-failure-review/README.md) | Groups recurring failures and explains what still blocks builds. | CI build history and job logs, plus repository code. GitHub commit access alone is insufficient. |
+| [CI failures](ci-failure-review/README.md) | Groups recurring failures and explains what still blocks builds. | GitHub Actions runs and job logs through the built-in GitHub connection, or another CI service you connect, plus repository code. |
 
 ## SRE and operations
 

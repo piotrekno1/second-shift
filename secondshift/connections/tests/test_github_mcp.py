@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 from typing import Any
 
 import anyio
@@ -7,7 +8,7 @@ import pytest
 from django.contrib.auth import get_user_model
 from django.test import Client
 
-from secondshift.config.constants import GITHUB_MCP_URL
+from secondshift.config.constants import GITHUB_MCP_TOOLS, GITHUB_MCP_URL
 from secondshift.connections.mcp.base import MCPError, MCPRequestError
 from secondshift.connections.mcp.client import (
     create_mcp_connection,
@@ -23,6 +24,7 @@ from secondshift.connections.mcp.github import (
 )
 from secondshift.connections.mcp.transport import BoundedStream
 from secondshift.connections.models import Connection
+from secondshift.jobs.manifest import load_manifest
 from secondshift.workspaces.services import create_workspace
 
 TOOL_SCHEMAS = {
@@ -606,3 +608,13 @@ def test_other_tool_failures_keep_the_general_message(
     with pytest.raises(MCPRequestError, match="GitHub could not complete") as caught:
         anyio.run(mcp_request, github_connection, "get_commit", {})
     assert "api.github.com" not in str(caught.value)
+
+
+def test_ci_failure_example_requests_only_built_in_github_tools() -> None:
+    manifest = load_manifest(Path("examples/ci-failure-review/.secondshift.yaml"))
+    job = manifest.jobs["ci-failure-review"]
+    assert Path("examples/ci-failure-review", job.skill).is_file()
+    [github] = job.requires.mcps
+    assert github.binding == "github"
+    assert set(github.tools) <= set(GITHUB_MCP_TOOLS)
+    assert {"actions_list", "actions_get", "get_job_logs"} <= set(github.tools)

@@ -67,7 +67,8 @@ connection. Use **Run now** to verify the report before enabling the daily sched
 CI, monitoring, and incident tools depend on the service you connect. Select
 operations that expose the history and records described in each example. Use
 the tool names shown by SecondShift rather than guessing names. The built-in GitHub connection reads
-pull requests and commits. It does not provide build logs. See
+pull requests, commits, and GitHub Actions runs and job logs. The
+[CI failures example](../examples/ci-failure-review/README.md) uses it. See
 [MCP and API declarations](repository-configuration.md#mcp-and-api-declarations)
 for connection setup and [webhook notifications](repository-configuration.md#deliver-reports-to-a-webhook)
 for report delivery.

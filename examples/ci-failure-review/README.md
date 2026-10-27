@@ -5,9 +5,26 @@ and report actionable findings without changing files or service state.
 
 ## Evidence and setup
 
-Build history, job logs, attempt numbers, branches, and commit SHAs from an approved CI API or MCP service. The built-in GitHub connection does not expose build logs.
+Build history, job logs, attempt numbers, branches, and commit SHAs. The
+manifest reads GitHub Actions through the built-in GitHub connection. Each job
+reads only its own repository.
 
-Connect your CI service, select its read operations for build history and job logs, and declare their exact names under `requires.mcps` or `requires.apis`. This provider-neutral template deliberately omits guessed tool names. Without that access, it reports missing evidence rather than diagnosing failures from code.
+In **Connections**, add the **GitHub** MCP server with capability name `github`.
+Use a fine-grained token with read-only Actions, Contents, Commit statuses, and
+Pull requests for the repositories your jobs use. A GitHub connection created
+before Actions support needs **Save** once to pick up the new tools. Then
+approve the job's request for `actions_list`, `actions_get`, `get_job_logs`,
+`list_commits`, and `get_commit`.
+
+Job logs come back as text, capped at the last 300 lines. Artifacts and log
+download links are not available. Logs can contain text written by anyone who
+can open a pull request, so the skill treats them as evidence, not
+instructions.
+
+For another CI service, connect it as a custom MCP server or HTTP API, select
+its read operations for build history and job logs, and replace the GitHub
+entry under `requires`. Without that access, the skill reports missing evidence
+rather than diagnosing failures from code.
 
 ## Suggested schedule
 

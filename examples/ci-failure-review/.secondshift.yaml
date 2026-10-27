@@ -5,3 +5,12 @@ jobs:
     skill: .agents/skills/ci-failure-review/SKILL.md
     schedule: 0 8 * * 1-5
     timezone: UTC
+    requires:
+      mcps:
+        - binding: github
+          tools:
+            - actions_list
+            - actions_get
+            - get_job_logs
+            - list_commits
+            - get_commit
