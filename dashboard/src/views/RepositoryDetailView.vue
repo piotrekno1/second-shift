@@ -42,7 +42,7 @@ const readyDisabledJobs = computed(() => detailedJobs.value.filter((job) =>
 const setupComplete = computed(() => requiredReviews.value.length === 0 && readyDisabledJobs.value.length === 0)
 const repositorySubtitle = computed(() => {
   const item = repository.value
-  if (!item) return 'Loading repository…'
+  if (!item) return loading.value ? 'Loading repository…' : 'This repository could not be loaded'
   const source = item.source_type === 'local' ? 'Local' : 'GitHub'
   return `${source} · ${item.default_branch} · ${countLabel(item.jobs.length, 'job')}`
 })
