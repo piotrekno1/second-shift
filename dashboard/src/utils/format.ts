@@ -247,7 +247,7 @@ export function plainSummary(text: string): string {
 }
 
 export function formatTokens(tokens: number): string {
-  return new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(tokens).toLowerCase()
+  return new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(tokens)
 }
 
 export function formatCost(costUsd: number, partial = false): string {
