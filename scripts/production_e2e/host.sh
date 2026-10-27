@@ -75,7 +75,8 @@ run_doc() {
     printing' docs/production-deployment.md > "$STATE/doc-block.sh"
   [ -s "$STATE/doc-block.sh" ] || { echo "No block $1 in the guide" >&2; exit 1; }
   if [ -n "${BACKUP_OVERRIDE:-}" ]; then
-    sed -i "s#^backup=.*#backup=$BACKUP_OVERRIDE#" "$STATE/doc-block.sh"
+    sed -i "s#^backup=.*#backup=$BACKUP_OVERRIDE#
+s#^secrets=.*#secrets=$SECRETS_OVERRIDE#" "$STATE/doc-block.sh"
   fi
   echo "--- guide block $1:"; cat "$STATE/doc-block.sh"; echo "---"
   # shellcheck disable=SC1091
@@ -154,8 +155,12 @@ backup)
   backup=$(find /srv/secondshift-backups -mindepth 1 -maxdepth 1 | sort | tail -1)
   s3_copy download "$backup/s3"
   run_doc 2
+  if [ -e "$backup/config.tgz" ]; then
+    echo "The data backup must not contain the server secrets." >&2
+    exit 1
+  fi
   echo "$backup" > "$STATE/last-backup"
-  ls -la "$backup"
+  ls -la "$backup" "/srv/secondshift-secrets/$(basename "$backup")"
   ;;
 wipe)
   load_env
@@ -169,14 +174,15 @@ wipe)
   ;;
 restore)
   backup=$(cat "$STATE/last-backup")
+  secrets=/srv/secondshift-secrets/$(basename "$backup")
   step "Restore $backup, with the guide's commands"
   # The provider's bucket restore comes first, as the guide says.
-  tar -xzf "$backup/config.tgz" deploy/production/compose.env
+  tar -xzf "$secrets/config.tgz" deploy/production/compose.env
   load_env
   dc up -d --wait rustfs
   s3_copy create-bucket /tmp
   s3_copy upload "$backup/s3"
-  BACKUP_OVERRIDE=$backup run_doc 3
+  BACKUP_OVERRIDE=$backup SECRETS_OVERRIDE=$secrets run_doc 3
   dc ps --format 'table {{.Service}}\t{{.Image}}\t{{.Status}}'
   ;;
 upgrade)
@@ -199,7 +205,7 @@ destroy)
   fi
   docker volume rm secondshift_fake_git >/dev/null 2>&1 || true
   rm -rf /srv/secondshift/runner deploy/production/*.env deploy/production/runner \
-    "$E/certs" /srv/secondshift-backups "$STATE"
+    "$E/certs" /srv/secondshift-backups /srv/secondshift-secrets "$STATE"
   # These images trust the test CA that was just deleted.
   docker images -q secondshift-e2e | xargs -r docker rmi -f >/dev/null
   ;;
