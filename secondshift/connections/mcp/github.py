@@ -27,6 +27,9 @@ GITHUB_ACTIONS_METHODS = {
         {"get_workflow", "get_workflow_run", "get_workflow_job"}
     ),
 }
+GITHUB_ACTIONS_TOOLS = frozenset(
+    {GitHubMCPTool.ACTIONS_LIST, GitHubMCPTool.ACTIONS_GET, GitHubMCPTool.GET_JOB_LOGS}
+)
 # The end of a failed job's log usually holds the error.
 GITHUB_JOB_LOG_MAX_LINES = 300
 
@@ -121,6 +124,18 @@ def narrowed_github_schema(tool: str, schema: dict[str, Any]) -> dict[str, Any]:
     return narrowed
 
 
+def github_tool_error(tool: str, text: str) -> str | None:
+    """Name the missing token permission when GitHub refuses a call."""
+    if not re.search(r"\b403\b|Resource not accessible", text):
+        return None
+    if tool in GITHUB_ACTIONS_TOOLS:
+        return (
+            "GitHub refused this call. The token needs read access to Actions "
+            "on this repository. Update the token, then save the GitHub connection."
+        )
+    return "GitHub refused this call. Check the token's repository permissions."
+
+
 def github_scope(settings: MCPSettings, repository: Repository) -> str | None:
     """A job reads only its own repository, whatever the token can reach."""
     del settings
@@ -150,14 +165,19 @@ GITHUB_MCP = MCPProvider(
         "This job has no GitHub repository identity. For a local checkout, "
         "configure a GitHub origin and resync it."
     ),
-    description="Read pull requests and commits. Each job reads only its own repository.",
+    description=(
+        "Read pull requests, commits, and Actions runs and logs. "
+        "Each job reads only its own repository."
+    ),
     default_binding="github",
     token_label="Fine-grained personal access token",
     setup_url="https://github.com/settings/personal-access-tokens/new",
     setup_help=(
         "Pick your jobs' repositories and grant read-only Pull requests, "
-        "Commit statuses, and Contents."
+        "Commit statuses, and Contents. Add read-only Actions for jobs that "
+        "read CI runs and logs."
     ),
     scope_arguments=scoped_github_arguments,
     narrow_schema=narrowed_github_schema,
+    tool_error=github_tool_error,
 )

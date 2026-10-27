@@ -8,7 +8,7 @@ from django.contrib.auth import get_user_model
 from django.test import Client
 
 from secondshift.config.constants import GITHUB_MCP_URL
-from secondshift.connections.mcp.base import MCPError
+from secondshift.connections.mcp.base import MCPError, MCPRequestError
 from secondshift.connections.mcp.client import (
     create_mcp_connection,
     discover_tools,
@@ -17,6 +17,7 @@ from secondshift.connections.mcp.client import (
     validate_tool_schema,
 )
 from secondshift.connections.mcp.github import (
+    github_tool_error,
     narrowed_github_schema,
     scoped_github_arguments,
 )
@@ -528,3 +529,80 @@ def test_discovery_stores_the_narrowed_schema(mcp_http, github_connection) -> No
         "get_workflow_job",
         "get_workflow_run",
     ]
+
+
+@pytest.mark.parametrize(
+    ("tool", "text", "expected"),
+    [
+        (
+            "get_job_logs",
+            "failed to get job logs: GET https://api.github.com/x: 403 "
+            "Resource not accessible by personal access token []",
+            "read access to Actions",
+        ),
+        ("actions_list", "Resource not accessible by integration", "Actions"),
+        ("get_commit", "403 Forbidden", "repository permissions"),
+        ("get_job_logs", "404 Not Found", None),
+    ],
+)
+def test_github_refusals_name_the_missing_permission(
+    tool: str, text: str, expected: str | None
+) -> None:
+    message = github_tool_error(tool, text)
+    if expected is None:
+        assert message is None
+    else:
+        assert expected in message
+        assert "api.github.com" not in message
+
+
+def tool_error_transport(text: str) -> httpx.MockTransport:
+    def handle(request: httpx.Request) -> httpx.Response:
+        message = json.loads(request.content)
+        if "id" not in message:
+            return httpx.Response(202)
+        match message["method"]:
+            case "initialize":
+                result = {
+                    "protocolVersion": "2025-03-26",
+                    "capabilities": {"tools": {}},
+                    "serverInfo": {"name": "github-fixture", "version": "1"},
+                }
+            case "tools/call":
+                result = {"content": [{"type": "text", "text": text}], "isError": True}
+            case _:
+                raise AssertionError(message)
+        return httpx.Response(
+            200, json={"jsonrpc": "2.0", "id": message["id"], "result": result}
+        )
+
+    return httpx.MockTransport(handle)
+
+
+def test_tool_refusal_reaches_the_agent_without_remote_text(
+    monkeypatch, github_connection
+) -> None:
+    remote = (
+        "403 Resource not accessible by personal access token github_pat_test_token"
+    )
+    monkeypatch.setattr(
+        "secondshift.connections.mcp.client.MCPTransport",
+        lambda: tool_error_transport(remote),
+    )
+    with pytest.raises(MCPRequestError) as caught:
+        anyio.run(mcp_request, github_connection, "get_job_logs", {"run_id": 7})
+    assert "read access to Actions" in str(caught.value)
+    assert "github_pat_test_token" not in str(caught.value)
+    assert "personal access token" not in str(caught.value)
+
+
+def test_other_tool_failures_keep_the_general_message(
+    monkeypatch, github_connection
+) -> None:
+    monkeypatch.setattr(
+        "secondshift.connections.mcp.client.MCPTransport",
+        lambda: tool_error_transport("something broke at api.github.com"),
+    )
+    with pytest.raises(MCPRequestError, match="GitHub could not complete") as caught:
+        anyio.run(mcp_request, github_connection, "get_commit", {})
+    assert "api.github.com" not in str(caught.value)

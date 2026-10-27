@@ -67,6 +67,9 @@ class MCPProvider:
     narrow_schema: Callable[[str, dict[str, Any]], dict[str, Any]] = (
         lambda tool, schema: schema
     )
+    # A safe message for a failed tool call, chosen by matching the remote
+    # error text, or None for the general one. The remote text is never shown.
+    tool_error: Callable[[str, str], str | None] = lambda tool, text: None
     # Drop tools the server does not mark read-only.
     require_read_only_hint: bool = False
     # Custom servers: keep every tool and let the owner choose. Read-only
