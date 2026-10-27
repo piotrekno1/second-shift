@@ -14,6 +14,7 @@ import { startJobRun } from '../services/runs'
 import { useAppStore } from '../stores/app'
 import type { Access, Capability, Connection, Job } from '../types'
 import { Action } from '../utils/permissions'
+import { approvalPending, enableBlocker } from '../utils/readiness'
 import { accessLabel, accessNeedsAction, countLabel, formatRelative, formatSchedule, formatScheduled, jobState, kindLabel, utcTitle } from '../utils/format'
 
 const app = useAppStore()
@@ -216,10 +217,11 @@ async function toggleJob(job: Job): Promise<void> {
           <section v-if="expandedJobId === job.id" :id="`job-access-${job.id}`" class="job-review">
             <div class="job-review-heading">
               <div><h3>Access review</h3><p>Repository code requests capabilities. You choose the connection and approve access.</p></div>
-              <Button v-if="job.cron && app.can(Action.EnableJobs)" :label="job.enabled ? 'Disable job' : 'Enable job'" severity="secondary" outlined :loading="action === `toggle-${job.id}`" @click="toggleJob(job)">
+              <Button v-if="job.cron && app.can(Action.EnableJobs)" :label="job.enabled ? 'Disable job' : 'Enable job'" severity="secondary" outlined :disabled="Boolean(enableBlocker(job))" :title="enableBlocker(job) || undefined" :loading="action === `toggle-${job.id}`" @click="toggleJob(job)">
                 <template #icon><AppIcon :name="job.enabled ? 'pause' : 'play'" /></template>
               </Button>
             </div>
+            <p v-if="job.cron && app.can(Action.EnableJobs) && enableBlocker(job)" class="review-blocker">{{ enableBlocker(job) }}</p>
             <div v-for="capability in job.capabilities" :key="capability.id" class="capability-review-row">
               <div class="capability-summary">
                 <strong>{{ capability.binding }}</strong>
@@ -252,8 +254,8 @@ async function toggleJob(job: Job): Promise<void> {
               </div>
               <StatusPill :status="capability.grant_status" />
               <div v-if="app.can(Action.ReviewCapabilities)" class="review-actions">
-                <Button label="Deny" severity="danger" text size="small" :loading="action === `denied-${capability.id}`" @click="reviewCapability(job, capability, 'denied')" />
-                <Button label="Approve" size="small" :disabled="!selectedConnection(capability) || accessFor(capability)?.ok === false" :title="selectedConnection(capability) ? 'Approve this connection and scope' : 'Set up a matching connection first'" :loading="action === `approved-${capability.id}`" @click="reviewCapability(job, capability, 'approved')">
+                <Button :label="capability.grant_status === 'approved' ? 'Revoke' : 'Deny'" severity="danger" text size="small" :loading="action === `denied-${capability.id}`" @click="reviewCapability(job, capability, 'denied')" />
+                <Button v-if="approvalPending(capability, selectedConnection(capability))" :label="capability.grant_status === 'approved' ? 'Approve change' : 'Approve'" size="small" :disabled="!selectedConnection(capability) || accessFor(capability)?.ok === false" :title="selectedConnection(capability) ? 'Approve this connection and scope' : 'Set up a matching connection first'" :loading="action === `approved-${capability.id}`" @click="reviewCapability(job, capability, 'approved')">
                   <template #icon><AppIcon name="check" /></template>
                 </Button>
               </div>
