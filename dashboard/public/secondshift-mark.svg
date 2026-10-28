@@ -2,8 +2,8 @@
   <title id="title">SecondShift</title>
   <defs>
     <linearGradient id="night" x1="8" y1="8" x2="56" y2="56" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#8b7cff"/>
-      <stop offset="1" stop-color="#4d43a8"/>
+      <stop stop-color="#ededed"/>
+      <stop offset="1" stop-color="#737373"/>
     </linearGradient>
     <linearGradient id="shift" x1="19" y1="42" x2="49" y2="25" gradientUnits="userSpaceOnUse">
       <stop stop-color="#ffb454"/>
