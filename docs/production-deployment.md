@@ -47,7 +47,7 @@ docker run --rm --user "$(id -u):$(id -g)" \
 ```
 
 The published image supports Linux amd64 and arm64. All application services use
-the same image. `SECONDSHIFT_IMAGE` in `compose.env` pins the release; use the
+the same image. `SECONDSHIFT_IMAGE` in `compose.env` pins the release. Use the
 same version in the configuration-generation command above. gVisor must still
 be installed on the Docker host.
 
@@ -83,7 +83,7 @@ SECONDSHIFT_GITHUB_APP_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\n...\n-----E
 Use the downloaded PEM contents with literal `\n` between lines for the key.
 Keep these credentials out of `compose.env`, gateway and runner. GitHub sign-in
 is optional and uses separate credentials. The generated web and worker files
-already contain the matching private runner URL/token; retain those values.
+already contain the matching private runner URL/token. Retain those values.
 The generated HTTP timeouts allow synchronous imports. Caddy's default proxy
 configuration imposes no response-header timeout.
 
@@ -120,7 +120,7 @@ password goes only to the database container. Splitting the application roles
 into more databases would break their shared state.
 
 Only the runner receives the Docker socket and runs as root. That socket gives
-it control of the Docker host; this example is for a dedicated, trusted server.
+it control of the Docker host. Use a dedicated, trusted server.
 It receives no application keys or S3 credentials. Command sandboxes still run
 unprivileged under gVisor without network access.
 
@@ -146,7 +146,7 @@ every five minutes.
 
 Repositories and pinned Git objects live under `RUNNER_ROOT/repositories` on
 the server, not in S3. Temporary execution workspaces also use the runner disk.
-S3 stores run artifacts; PostgreSQL stores metadata, job definitions and history.
+S3 stores run artifacts. PostgreSQL stores metadata, job definitions and history.
 Monitor disk space and preserve the runner directory: a force-pushed commit
 may no longer be recoverable from GitHub.
 
@@ -240,4 +240,4 @@ This update has downtime. Changing an env file also requires `dc up -d` to
 recreate its container. PostgreSQL initialization runs only on an empty volume:
 editing passwords in the env file does not rotate existing database passwords.
 Keep the PostgreSQL major version fixed until you perform a database upgrade.
-`dc down` retains named volumes; `dc down -v` deletes them.
+`dc down` retains named volumes. `dc down -v` deletes them.

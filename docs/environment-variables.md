@@ -52,21 +52,21 @@ initializing a fresh installation. Do not reuse that account for the runner.
 
 ## Background work and internal services
 
-These settings belong in `worker.env`; the runner URL and token are also
+These settings belong in `worker.env`. The runner URL and token are also
 needed by web for GitHub repository imports, and the token is shared with runner:
 
 | Variable | Meaning and default |
 | --- | --- |
 | `SECONDSHIFT_RUN_CONCURRENCY` | Number of job runs this background-worker process can execute concurrently. Default `2`. Independent of HTTP server process count. |
-| `SECONDSHIFT_JOB_HISTORY_MAX` | The most earlier reports a job can ask for with `history`. A manifest above it fails to sync; lowering it also caps jobs already synced. `0` turns history off. Default `5`. |
-| `SECONDSHIFT_RUN_HISTORY_MAX_CHARS` | Total characters of a job's earlier reports a run starts with, when the job sets `history`. Newest first; what does not fit is cut or left out. Default `65536`. |
+| `SECONDSHIFT_JOB_HISTORY_MAX` | The most earlier reports a job can ask for with `history`. A manifest above it fails to sync. Lowering it also caps jobs already synced. `0` turns history off. Default `5`. |
+| `SECONDSHIFT_RUN_HISTORY_MAX_CHARS` | Total characters of a job's earlier reports a run starts with, when the job sets `history`. Newest first. What does not fit is cut or left out. Default `65536`. |
 | `SECONDSHIFT_WORKFLOW_DATABASE_URL` | Optional DBOS workflow database URL, also needed by web when set. Defaults to `SECONDSHIFT_DATABASE_URL`. Back it up consistently with the application database. |
 | `SECONDSHIFT_RUNNER_SERVICE_URL` | Required private runner address. Generated value: `http://secondshift-runner:8002`. |
 | `SECONDSHIFT_RUNNER_SERVICE_TOKEN` | Required auth token of at least 32 characters. Identical in web, worker and runner. Generated automatically. |
 | `SECONDSHIFT_MODEL_GATEWAY_URL` | Required private model endpoint. Generated value: `http://secondshift-gateway:8001`. |
 
 Do not publish the gateway or runner ports. The web process needs the runner
-URL/token for GitHub imports; it does not need the model gateway endpoint.
+URL/token for GitHub imports. It does not need the model gateway endpoint.
 The generated web role file already contains its runner configuration.
 
 ## Runner and sandboxes
@@ -100,8 +100,8 @@ App and configure the callback.
 | `SECONDSHIFT_GITHUB_APP_SLUG` | Slug from the App's public URL. |
 | `SECONDSHIFT_GITHUB_APP_CLIENT_ID` | App OAuth client ID. |
 | `SECONDSHIFT_GITHUB_APP_CLIENT_SECRET` | Generated App client secret. |
-| `SECONDSHIFT_GITHUB_APP_PRIVATE_KEY` | Downloaded PEM contents; accepts real newlines or literal `\n` escapes. |
-| `SECONDSHIFT_REPOSITORY_SYNC_INTERVAL_SECONDS` | Worker polling interval, default `300`; `0` disables polling. |
+| `SECONDSHIFT_GITHUB_APP_PRIVATE_KEY` | Downloaded PEM contents. Accepts real newlines or literal `\n` escapes. |
+| `SECONDSHIFT_REPOSITORY_SYNC_INTERVAL_SECONDS` | Worker polling interval. Default `300`. Set `0` to disable polling. |
 
 Production rejects partial App configuration. The private runner API must be
 reachable from web and worker. Imports are synchronous: generated role files

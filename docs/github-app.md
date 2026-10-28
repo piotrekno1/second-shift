@@ -66,14 +66,14 @@ with the usual `python manage.py migrate` before starting the updated services.
    relying on the schedule.
 
 Only installations returned by GitHub for the authorizing user are linked to the
-current workspace; a callback's installation ID is never treated as proof.
+current workspace. A callback's installation ID is never treated as proof.
 Available repositories are listed from those installations. Repository import
-requires a workspace owner; owners and admins can resync afterward.
+requires a workspace owner. Owners and admins can resync afterward.
 
 **Resync** fetches the selected branch again. Enabled repositories with automatic
 sync turned on are checked every 300 seconds by the worker. Set
-`SECONDSHIFT_REPOSITORY_SYNC_INTERVAL_SECONDS` to change this interval; `0`
-disables polling. Changed capabilities continue through the existing approval
+`SECONDSHIFT_REPOSITORY_SYNC_INTERVAL_SECONDS` to change this interval. Set it to `0` to
+disable polling. Changed capabilities continue through the existing approval
 process. A failed sync preserves the last good revision and appears in repository
 validation. It does not silently replace a working job definition.
 
@@ -81,7 +81,7 @@ validation. It does not silently replace a working job definition.
 
 SecondShift creates short-lived installation tokens scoped to the repository
 and read-only contents permission. Tokens stay in trusted source-fetching
-processes. The runner receives a credential-free Git bundle; sandboxes receive
+processes. The runner receives a credential-free Git bundle. Sandboxes receive
 only the checkout at the run's recorded commit. GitHub's
 [installation authentication guide](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/authenticating-as-a-github-app-installation)
 describes token permissions and expiry.
@@ -96,5 +96,5 @@ This first version uses polling, not webhooks. It fetches the full selected bran
 history on each changed revision and accepts bundles up to 64 MiB. Git LFS objects
 and submodule contents are not downloaded. Repository renames require a new
 import so existing capability approvals cannot silently change scope. Back up
-the runner repository store alongside its database; restoring only the control
+the runner repository store alongside its database. Restoring only the control
 plane database does not restore the pinned Git objects.
