@@ -504,6 +504,8 @@ body .p-select-overlay { color: var(--ink); background: var(--night-800); border
 .job-actions { justify-content: flex-end; gap: 8px; }
 .job-action { display: inline-flex; flex: 0 0 34px; align-items: center; justify-content: center; width: 34px; height: 34px; padding: 0; border: 1px solid var(--border); border-radius: 8px; background: transparent; color: var(--muted); cursor: pointer; transition: color .15s, border-color .15s, background .15s; }
 .job-action > .app-icon { display: block; font-size: 18px; line-height: 1; }
+.job-action.labeled { flex: 0 0 auto; width: auto; gap: 6px; padding: 0 10px; font-size: 12px; }
+.job-action.labeled > .app-icon { font-size: 16px; }
 .job-action:hover:not(:disabled), .job-action.active { color: var(--ink); border-color: var(--raised-border); background: var(--raised); box-shadow: var(--raised-shadow); }
 .job-action:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
 .job-action:disabled { opacity: .4; cursor: not-allowed; }
@@ -777,6 +779,8 @@ body .workspace-menu { width: 224px; }
   .list-head .filter-chips { flex-wrap: wrap; overflow: visible; }
   .list-head .filter-chips button { min-height: 36px; }
   .icon-action, .job-action { width: 40px; height: 40px; }
+  .job-action { flex-basis: 40px; }
+  .job-action.labeled { width: auto; flex-basis: auto; }
   .crumbs a, .panel-heading > a { display: inline-flex; align-items: center; min-height: 32px; }
   .p-button.p-button-sm { min-height: 36px; }
 }

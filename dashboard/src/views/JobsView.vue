@@ -205,8 +205,8 @@ async function toggleJob(job: Job): Promise<void> {
             </div>
             <div class="job-actions">
               <Button v-if="accessNeedsAction(job.grant_status) && app.can(Action.ReviewCapabilities)" label="Review access" size="small" :aria-expanded="expandedJobId === job.id" :aria-controls="`job-access-${job.id}`" @click="expandedJobId = expandedJobId === job.id ? null : job.id" />
-              <button v-else-if="job.capabilities.length" type="button" class="job-action" :class="{ active: expandedJobId === job.id }" aria-label="Access" title="Access" :aria-expanded="expandedJobId === job.id" :aria-controls="`job-access-${job.id}`" @click="expandedJobId = expandedJobId === job.id ? null : job.id">
-                <AppIcon aria-hidden="true" name="shield-check-outline" />
+              <button v-else-if="job.capabilities.length" type="button" class="job-action labeled" :class="{ active: expandedJobId === job.id }" title="Show the connections this job uses" :aria-expanded="expandedJobId === job.id" :aria-controls="`job-access-${job.id}`" @click="expandedJobId = expandedJobId === job.id ? null : job.id">
+                <AppIcon aria-hidden="true" name="shield-check-outline" /><span>Access</span>
               </button>
               <button v-if="app.can(Action.RunJobs)" type="button" class="job-action" :class="{ 'is-loading': action === `run-${job.id}` }" aria-label="Run now" :title="job.enabled || !job.cron ? 'Run now' : 'Run once. The schedule stays off'" :aria-busy="action === `run-${job.id}`" :disabled="action === `run-${job.id}`" @click="runNow(job.id)">
                 <AppIcon :name="action === `run-${job.id}` ? 'loading' : 'play-outline'" aria-hidden="true" />
