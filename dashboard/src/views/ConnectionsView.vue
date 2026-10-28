@@ -273,8 +273,9 @@ onMounted(async () => {
     if (canEdit.value) openForm.value = { mode: 'edit', id: requestedConnection }
     await nextTick()
     // The form can be taller than a phone screen, so its top goes to the top.
+    // Scroll its box: the form itself uses display: contents and has none.
     const row = document.getElementById(`connection-${requestedConnection}`)
-    ;(row?.querySelector('form') ?? row)?.scrollIntoView({ block: 'start' })
+    ;(row?.querySelector('.need-setup') ?? row)?.scrollIntoView({ block: 'start' })
     return
   }
   if (!requestedBinding) return
