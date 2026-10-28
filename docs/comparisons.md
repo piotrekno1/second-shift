@@ -20,8 +20,9 @@ team a procedure it can review and operate across repositories:
   Merging a skill cannot grant credentials or expand its access.
 - **Share ownership and history.** Owners grant access, admins operate jobs,
   and members view reports, tool activity, token usage, and model cost.
-- **Choose your host and model.** Run SecondShift with your own model provider,
-  including a local provider.
+- **Inspect and run it yourself.** SecondShift is open source under
+  [Apache 2.0](../LICENSE). Review how permissions and sandbox isolation work,
+  self-host it, and configure models, connections, and runtime limits.
 
 Enable [`history`](repository-configuration.md#run-history) to give jobs earlier
 successful reports as context.
@@ -52,9 +53,9 @@ your tools and habits. It offers persistent memory, reusable skills, scheduled
 work, messaging integrations, model choice, and several execution backends.
 See the [Hermes documentation](https://hermes-agent.nousresearch.com/docs).
 
-Both Hermes and SecondShift support self-hosting and scheduled skills.
-SecondShift adds a workspace for managing repository jobs, access grants,
-and run history.
+Both Hermes and SecondShift are open source and support self-hosting and
+scheduled skills. SecondShift adds a workspace for managing repository jobs,
+access grants, and run history.
 
 ## Why choose Viktor?
 

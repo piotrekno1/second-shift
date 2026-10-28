@@ -131,8 +131,12 @@ run history across repositories. Each run records its Git revision, tool
 activity, report, and model cost. Owners grant access, admins operate jobs,
 and members view results.
 
-SecondShift is self-hosted and currently in beta. Its fresh, networkless
-sandboxes suit repository checks. Jobs can use earlier successful reports as
+SecondShift is open source under [Apache 2.0](LICENSE). Inspect how permissions
+and sandbox isolation work, self-host it, and configure models, connections,
+and runtime limits.
+
+SecondShift is currently in beta. Its fresh, networkless sandboxes suit
+repository checks. Jobs can use earlier successful reports as
 context through the [`history` setting](docs/repository-configuration.md#run-history).
 Sandbox files and sessions do not persist between runs. Work that needs a
 browser or persistent sessions may fit another assistant better.
