@@ -2,12 +2,16 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { fetchRuns } from '../services/runs'
+import { useAppStore } from '../stores/app'
 import { countLabel, zoneName } from '../utils/format'
 
 // One line at the foot of the sidebar: what is running or waiting, and the time.
 // The clock uses the reader's zone, like run timelines and "your time" on jobs.
+// Check often while something is active, so a short run is not missed.
 const REFRESH_MS = 15_000
+const ACTIVE_REFRESH_MS = 3_000
 const route = useRoute()
+const app = useAppStore()
 const now = ref(new Date())
 const running = ref(0)
 const queued = ref(0)
@@ -25,13 +29,22 @@ async function refresh(): Promise<void> {
 }
 
 let timer: number | undefined
-onMounted(() => {
-  void refresh()
-  timer = window.setInterval(() => void refresh(), REFRESH_MS)
-})
-onBeforeUnmount(() => window.clearInterval(timer))
-// Starting a run usually changes page, so check again then instead of waiting.
-watch(() => route.fullPath, () => void refresh())
+function schedule(): void {
+  window.clearTimeout(timer)
+  timer = window.setTimeout(async () => {
+    await refresh()
+    schedule()
+  }, running.value + queued.value ? ACTIVE_REFRESH_MS : REFRESH_MS)
+}
+async function refreshNow(): Promise<void> {
+  await refresh()
+  schedule()
+}
+onMounted(() => void refreshNow())
+onBeforeUnmount(() => window.clearTimeout(timer))
+// Starting a run changes the page or reloads the store's runs. Check again then.
+watch(() => route.fullPath, () => void refreshNow())
+watch(() => app.runs, () => void refreshNow())
 
 const clock = computed(() => {
   const time = `${String(now.value.getHours()).padStart(2, '0')}:${String(now.value.getMinutes()).padStart(2, '0')}`
