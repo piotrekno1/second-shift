@@ -29,6 +29,16 @@ committed release notes. Report missing rollout steps and unavailable evidence.
 Local agent use follows that agent's permissions. SecondShift's sandbox and
 broker controls apply when the skill runs as a SecondShift job.
 
+## Connect services
+
+Connect GitHub, Sentry, an MCP server using OAuth or a token, or an HTTP API
+from its OpenAPI spec. Choose which tools jobs may use, then approve each job's
+request, including operations that change data. Calls run outside the sandbox.
+Built-in GitHub and Sentry tools are read-only.
+
+For report delivery, add a webhook and approve each job's notification access.
+Connections can be revoked separately.
+
 ## Add a job to your repository
 
 Copy the desired skill directory from `examples/<name>/.agents/skills` into
