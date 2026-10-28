@@ -817,3 +817,9 @@ body .workspace-menu { width: 224px; }
   .crumbs a, .panel-heading > a { display: inline-flex; align-items: center; min-height: 32px; }
   .p-button.p-button-sm { min-height: 36px; }
 }
+
+/* iOS zooms into any field under 16px when it gets focus, and stays zoomed.
+   Touch screens get 16px fields. Important beats the compact toolbar sizes. */
+@media (hover: none) and (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), textarea, select, body .p-inputtext { font-size: 16px !important; }
+}
