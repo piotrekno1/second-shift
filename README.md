@@ -126,20 +126,14 @@ Skills run in isolated sandboxes. Every run is tied to a Git commit.
 
 ### Why add SecondShift if your agent already supports schedules?
 
-Review skills and schedules in Git, approve service access per job, and share
-run history across repositories. Each run records its Git revision, tool
-activity, report, and model cost. Owners grant access, admins operate jobs,
-and members view results.
+Make recurring tasks part of how your company operates. Keep procedures and
+schedules in Git, review changes, and give the team shared jobs that continue
+when responsibilities change.
 
-SecondShift is open source under [Apache 2.0](LICENSE). Inspect how permissions
-and sandbox isolation work, self-host it, and configure models, connections,
-and runtime limits.
-
-Fresh, networkless sandboxes suit repository checks. Jobs can use earlier
-successful reports as
-context through the [`history` setting](docs/repository-configuration.md#run-history).
-Sandbox files and sessions do not persist between runs. Work that needs a
-browser or persistent sessions may fit another assistant better.
+Govern who can approve access, operate jobs, and view results. Set run budgets
+and see token usage and model costs. Each run records the procedure's Git
+revision, tool activity, and report, so the team can check what ran, what it
+did, and what it cost.
 
 Compare [SecondShift, Grok Bot, Hermes Agent, and Viktor](docs/comparisons.md),
 or read the [security model](docs/security-model.md).
