@@ -16,7 +16,7 @@ import { useAppStore } from '../stores/app'
 import type { Access, Capability, Connection, Job } from '../types'
 import { Action } from '../utils/permissions'
 import { approvalPending, enableBlocker } from '../utils/readiness'
-import { accessLabel, accessNeedsAction, countLabel, formatRelative, formatSchedule, formatScheduled, jobState, kindLabel, utcTitle } from '../utils/format'
+import { accessLabel, accessNeedsAction, countLabel, formatDate, formatRelative, lastRunLine, formatSchedule, formatScheduled, jobState, kindLabel, utcTitle } from '../utils/format'
 
 const app = useAppStore()
 const route = useRoute()
@@ -205,7 +205,11 @@ async function toggleJob(job: Job): Promise<void> {
                 </span>
               </div>
             </div>
-            <div class="job-cell"><strong :title="job.cron">{{ formatSchedule(job.cron, job.timezone) }}</strong></div>
+            <div class="job-cell">
+              <strong :title="job.cron">{{ formatSchedule(job.cron, job.timezone) }}</strong>
+              <RouterLink v-if="job.last_run" :to="`/runs/${job.last_run.id}`" class="cell-sub last-run" :class="job.last_run.status" :title="`${formatDate(job.last_run.at)} · ${utcTitle(job.last_run.at)}`">{{ lastRunLine(job.last_run) }}</RouterLink>
+              <small v-else class="cell-sub">{{ lastRunLine(null) }}</small>
+            </div>
             <div class="job-cell">
               <template v-if="job.cron && job.enabled && job.next_run_at"><strong :title="utcTitle(job.next_run_at)">Next {{ formatRelative(job.next_run_at) }}</strong><small class="cell-sub">{{ formatScheduled(job.next_run_at, job.timezone) }}</small></template>
             </div>

@@ -210,6 +210,8 @@ export interface Job {
   requested_capabilities: number
   grant_status: 'approved' | 'pending' | 'denied' | 'not_required'
   capabilities: Capability[]
+  /** The newest run, finished or not. */
+  last_run: { id: number, status: Run['status'], at: string } | null
 }
 
 export interface JobDetail extends Job {

@@ -26,6 +26,7 @@ from secondshift.jobs.serialization import (
     binding_connections,
     serialize_job,
     serialize_job_detail,
+    with_last_run,
 )
 from secondshift.workspaces.access import (
     Action,
@@ -72,10 +73,12 @@ def jobs(request: HttpRequest) -> list[JobSchema]:
     workspace = current_workspace(request)
     if not workspace:
         return []
-    queryset = Job.objects.filter(
-        workspace=workspace,
-        repository__removed_at__isnull=True,
-    ).select_related("repository")
+    queryset = with_last_run(
+        Job.objects.filter(
+            workspace=workspace,
+            repository__removed_at__isnull=True,
+        ).select_related("repository")
+    )
     connections = binding_connections(workspace.pk)
     return [
         serialize_job(item, connections)

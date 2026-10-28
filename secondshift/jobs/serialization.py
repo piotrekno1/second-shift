@@ -1,3 +1,6 @@
+from django.db.models import OuterRef, QuerySet, Subquery
+from django.db.models.functions import Coalesce
+
 from secondshift.connections.external import changing_tools, external_access
 from secondshift.connections.models import Connection
 from secondshift.gateway.usage import with_model_usage
@@ -9,8 +12,32 @@ from secondshift.jobs.schemas import (
     CapabilitySchema,
     JobDetailSchema,
     JobSchema,
+    LastRunSchema,
 )
+from secondshift.runs.models import Run
 from secondshift.runs.serialization import serialize_run
+
+
+def with_last_run(jobs: QuerySet[Job]) -> QuerySet[Job]:
+    """Annotate each job with its newest run, so a list needs no query per job."""
+    newest = Run.objects.filter(job=OuterRef("pk")).order_by("-created_at", "-pk")
+    return jobs.annotate(
+        last_run_id=Subquery(newest.values("pk")[:1]),
+        last_run_status=Subquery(newest.values("status")[:1]),
+        last_run_at=Subquery(
+            newest.annotate(at=Coalesce("finished_at", "created_at")).values("at")[:1]
+        ),
+    )
+
+
+def last_run(job: Job) -> LastRunSchema | None:
+    if not hasattr(job, "last_run_id"):
+        job = with_last_run(Job.objects.filter(pk=job.pk)).get()
+    if job.last_run_id is None:
+        return None
+    return LastRunSchema(
+        id=job.last_run_id, status=job.last_run_status, at=job.last_run_at
+    )
 
 
 def binding_connections(workspace_id: int) -> dict[str, Connection]:
@@ -74,6 +101,7 @@ def serialize_job(
         requested_capabilities=len(requests),
         grant_status=job.capability_grant_status(),
         capabilities=capabilities,
+        last_run=last_run(job),
     )
 
 

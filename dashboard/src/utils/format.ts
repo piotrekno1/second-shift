@@ -422,6 +422,14 @@ export function healthHeadline(failingJobs: string[], enabledJobs: number, nextR
   return nextRun ? `All jobs passing. Next shift ${nextRun}.` : 'All jobs passing.'
 }
 
+/** A job's newest run in a few words, for the jobs list. */
+export function lastRunLine(run: { status: string, at: string } | null, now = Date.now()): string {
+  if (!run) return 'Never run'
+  if (run.status === 'running') return 'Running now'
+  if (run.status === 'queued') return 'Run queued'
+  return `Last run ${statusLabel(run.status).toLowerCase()} ${formatRelative(run.at, now)}`
+}
+
 /** One quiet line on how a connection is used, so it's clear before anyone disconnects it. */
 export function connectionUsageLine(usage: ConnectionUsage | null | undefined, kind: string, now = Date.now()): string {
   // A source connection is how repositories are imported and synced, not something jobs call.
