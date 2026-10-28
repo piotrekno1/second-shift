@@ -35,7 +35,7 @@ async function act(action: () => Promise<unknown>, reload: boolean): Promise<voi
         <span v-if="error" class="invite-prompt-error">{{ error }}</span>
       </div>
       <Button label="Not now" severity="secondary" text :disabled="busy" @click="act(dismissPendingInvite, false)" />
-      <Button :label="`Join ${app.pendingInvite.workspace_name}`" :loading="busy" @click="act(acceptPendingInvite, true)" />
+      <Button class="main-action" :label="`Join ${app.pendingInvite.workspace_name}`" :loading="busy" @click="act(acceptPendingInvite, true)" />
     </section>
   </div>
 </template>

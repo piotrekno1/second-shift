@@ -93,9 +93,11 @@ const repositoriesSubtitle = computed(() => {
   const total = app.repositories.length
   if (total === 0) return 'No repositories connected yet.'
 
-  const local = app.repositories.filter((repository) => repository.source_type === 'local').length
-  const enabled = app.repositories.filter((repository) => repository.enabled).length
-  return `${countLabel(total, 'repository', 'repositories')} · ${countLabel(local, 'local source')} · ${countLabel(enabled, 'repository', 'repositories')} enabled`
+  const jobs = app.repositories.reduce((sum, repository) => sum + repository.job_count, 0)
+  const disabled = app.repositories.filter((repository) => !repository.enabled).length
+  const parts = [countLabel(total, 'repository', 'repositories'), countLabel(jobs, 'job')]
+  if (disabled) parts.push(`${disabled} disabled`)
+  return parts.join(' · ')
 })
 
 async function addLocalRepository(): Promise<void> {
@@ -124,17 +126,16 @@ function chooseDirectory(path: string): void {
 
 <template>
   <div class="page">
-    <PageHeader title="Repositories" :description="repositoriesSubtitle">
+    <PageHeader compact title="Repositories" :description="repositoriesSubtitle">
       <Button v-if="app.canAddLocalRepositories" label="Add local repository" severity="secondary" outlined @click="addingLocal = !addingLocal; browsing = false">
         <template #icon><AppIcon name="folder-open-outline" /></template>
       </Button>
-      <Button v-if="app.can(Action.AddGitHubRepositories) && githubConfigured && githubConnected" label="Add GitHub repository" :loading="github.loading" :disabled="github.loading" @click="addingGitHub = !addingGitHub">
+      <Button class="main-action" v-if="app.can(Action.AddGitHubRepositories) && githubConfigured && githubConnected" label="Add GitHub repository" :loading="github.loading" :disabled="github.loading" @click="addingGitHub = !addingGitHub">
         <template #icon><AppIcon name="github" /></template>
       </Button>
-      <Button v-else-if="app.can(Action.AddGitHubRepositories) && githubConfigured" label="Connect GitHub" as="a" href="/-/github/connect/">
+      <Button class="main-action" v-else-if="app.can(Action.AddGitHubRepositories) && githubConfigured" label="Connect GitHub" as="a" href="/-/github/connect/">
         <template #icon><AppIcon name="github" /></template>
       </Button>
-      <Button v-if="app.can(Action.AddGitHubRepositories) && githubConfigured" label="Manage GitHub access" severity="secondary" text as="a" href="/-/github/connect/?install=1" />
     </PageHeader>
     <p v-if="githubError && !addingGitHub" class="form-error" role="alert">{{ githubError }}</p>
     <p v-if="app.can(Action.AddGitHubRepositories) && !githubConfigured">Ask your deployment operator to configure the GitHub App to connect repositories.</p>
@@ -157,7 +158,7 @@ function chooseDirectory(path: string): void {
           <small v-else class="form-error" role="alert">{{ github.branchesError }} <button type="button" class="link-button" @click="github.loadBranches(selectedGitHubSource)">Retry</button></small>
         </div>
         <div class="github-import-submit">
-          <Button type="submit" :label="githubBusy ? 'Importing…' : 'Import repository'" :disabled="!canImportGitHub" :loading="githubBusy">
+          <Button class="main-action" type="submit" :label="githubBusy ? 'Importing…' : 'Import repository'" :disabled="!canImportGitHub" :loading="githubBusy">
             <template #icon><AppIcon name="download" /></template>
           </Button>
         </div>
@@ -175,7 +176,7 @@ function chooseDirectory(path: string): void {
         <Button type="button" severity="secondary" outlined aria-label="Browse directories" :aria-expanded="browsing" aria-controls="local-directory-picker" aria-haspopup="dialog" title="Browse directories" @click="browsing = true">
           <template #icon><AppIcon name="folder-open-outline" /></template>
         </Button>
-        <Button type="submit" label="Validate and add" :loading="saving" :disabled="!localPath.trim()">
+        <Button class="main-action" type="submit" label="Validate and add" :loading="saving" :disabled="!localPath.trim()">
           <template #icon><AppIcon name="check" /></template>
         </Button>
       </div>
@@ -186,15 +187,24 @@ function chooseDirectory(path: string): void {
       <SearchInput :model-value="search" placeholder="Search repositories" @update:model-value="list.update({ q: $event })" />
       <FilterChips :model-value="state" :options="stateOptions" label="Repository state" @update:model-value="list.update({ state: $event })" />
     </div>
-    <section class="card-grid">
-      <RouterLink v-for="repository in visibleRepositories" :key="repository.id" :to="`/repositories/${repository.id}`" class="panel repository-card">
-        <div class="repository-head"><AppIcon :name="repository.source_type === 'local' ? 'folder-outline' : 'source-repository'" /><StatusPill :status="repository.enabled ? 'enabled' : 'disabled'" /></div>
-        <h2>{{ repository.display_name }}</h2>
-        <span>{{ repository.source_type === 'local' ? 'Local' : 'GitHub' }} · {{ repository.default_branch }} · {{ countLabel(repository.job_count, 'job') }}</span>
-        <code v-if="repository.local_path" class="repository-path">{{ repository.local_path }}</code>
-        <small :title="`${formatDate(repository.last_synced_at)} · ${utcTitle(repository.last_synced_at)}`">Last synced {{ formatRelative(repository.last_synced_at) }}</small>
-      </RouterLink>
-      <article v-if="app.repositories.length && !visibleRepositories.length && filtered" class="panel empty-state wide">
+    <section v-if="visibleRepositories.length" class="panel table-panel">
+      <div class="data-list">
+        <RouterLink v-for="repository in visibleRepositories" :key="repository.id" :to="`/repositories/${repository.id}`" class="repository-row">
+          <span class="row-glyph"><AppIcon :name="repository.source_type === 'local' ? 'folder-outline' : 'github'" /></span>
+          <div class="repository-row-main">
+            <strong>{{ repository.display_name }}</strong>
+            <span v-if="repository.local_path" class="mono-line">{{ repository.local_path }}</span>
+            <span v-else>{{ repository.source_type === 'local' ? 'Local' : 'GitHub' }} · {{ repository.default_branch }}</span>
+          </div>
+          <span class="repository-row-jobs">{{ countLabel(repository.job_count, 'job') }}</span>
+          <span class="repository-row-sync" :title="`${formatDate(repository.last_synced_at)} · ${utcTitle(repository.last_synced_at)}`">Synced {{ formatRelative(repository.last_synced_at) }}</span>
+          <StatusPill :status="repository.enabled ? 'enabled' : 'disabled'" />
+          <AppIcon name="chevron-right" class="row-chevron" />
+        </RouterLink>
+      </div>
+    </section>
+    <section v-else class="card-grid">
+      <article v-if="app.repositories.length && filtered" class="panel empty-state wide">
         <AppIcon name="filter-remove-outline" /><strong>No repositories match these filters</strong>
         <Button label="Clear filters" severity="secondary" text size="small" @click="list.update({ q: null, state: null })" />
       </article>

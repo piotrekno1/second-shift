@@ -3,14 +3,14 @@ import AppIcon from './AppIcon.vue'
 import { computed } from 'vue'
 import { siSentry } from 'simple-icons'
 
-// Brand marks Material Design Icons lacks. Drawn in the text color so they suit both themes.
+// Brand marks the app icon set lacks. Drawn in the text color so they suit both themes.
 const BRAND_PATHS: Record<string, string> = {
   sentry: siSentry.path,
 }
 
 const props = defineProps<{
   provider: string
-  /** Material Design icon name used when there is no brand mark. */
+  /** App icon name used when there is no brand mark. */
   fallback: string
 }>()
 

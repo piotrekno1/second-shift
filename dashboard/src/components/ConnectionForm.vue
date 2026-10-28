@@ -151,7 +151,7 @@ async function submit(): Promise<void> {
         <small><AppIcon name="lock-outline" /> The URL is encrypted at rest and never shown again. Only its host is displayed.</small>
         <div class="need-actions">
           <Button label="Cancel" severity="secondary" text size="small" @click="emit('cancel')" />
-          <Button type="submit" :label="url.trim() ? (editing ? 'Save and send test' : 'Connect and send test') : 'Save'" :loading="saving" :disabled="!canSubmit">
+          <Button class="main-action" type="submit" :label="url.trim() ? (editing ? 'Save and send test' : 'Connect and send test') : 'Save'" :loading="saving" :disabled="!canSubmit">
             <template #icon><AppIcon name="send-outline" /></template>
           </Button>
         </div>

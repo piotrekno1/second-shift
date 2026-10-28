@@ -3,10 +3,16 @@ from decimal import Decimal
 
 import pytest
 from django.test import Client
+from django.utils import timezone
 
 from secondshift.gateway.models import ModelUsage
 from secondshift.runs.models import Run
-from secondshift.runs.reporting.health import failing_jobs, spend_by_job, week_summary
+from secondshift.runs.reporting.health import (
+    failing_jobs,
+    runs_by_day,
+    spend_by_job,
+    week_summary,
+)
 from secondshift.runs.tests.test_run_queries import make_job, make_workspace
 from secondshift.workspaces.services import workspace_owner
 
@@ -88,6 +94,7 @@ def test_week_summary_counts_runs_and_compares_spend_with_the_week_before() -> N
     week = week_summary(workspace, now=NOW)
 
     assert (week.runs, week.finished, week.succeeded) == (3, 2, 1)
+    assert week.previous_runs == 1
     assert week.spend_usd == Decimal("0.0100")
     assert week.previous_spend_usd == Decimal("0.0400")
     assert week.spend_partial is True
@@ -114,6 +121,30 @@ def test_overview_reports_failing_jobs_and_weekly_numbers(client: Client) -> Non
     assert body["failing_jobs"][0]["label"] == "Sandbox"
     assert (body["runs_7d"], body["finished_7d"], body["succeeded_7d"]) == (1, 1, 0)
     assert body["spend_7d_usd"] == 0
+    assert body["runs_previous_7d"] == 0
+    assert len(body["run_days"]) == 14
+    assert body["run_days"][-1]["failed"] == 1
+
+
+@pytest.mark.django_db
+def test_runs_by_day_counts_finished_runs_per_day_and_fills_empty_days() -> None:
+    workspace = make_workspace("team")
+    job = make_job(workspace, "acme/api", "review")
+    add_run(job, Run.Status.SUCCEEDED, 30)
+    add_run(job, Run.Status.FAILED, 40)
+    add_run(job, Run.Status.RUNNING, 1)
+    add_run(job, Run.Status.CANCELED, 60 * 24 * 3)
+    add_run(job, Run.Status.SUCCEEDED, 60 * 24 * 20)
+
+    days = runs_by_day(workspace, now=NOW)
+
+    today = timezone.localdate(NOW)
+    assert [day.day for day in days] == [
+        today - timedelta(days=offset) for offset in range(13, -1, -1)
+    ]
+    assert (days[-1].succeeded, days[-1].failed, days[-1].canceled) == (1, 1, 0)
+    assert days[-4].canceled == 1
+    assert sum(day.succeeded + day.failed + day.canceled for day in days) == 3
 
 
 @pytest.mark.django_db

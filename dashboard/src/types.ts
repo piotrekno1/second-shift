@@ -106,12 +106,23 @@ export interface Overview {
   connected_services: number
   failing_jobs: FailingJob[]
   runs_7d: number
+  runs_previous_7d: number
   finished_7d: number
   succeeded_7d: number
   spend_7d_usd: number
   spend_previous_7d_usd: number
   spend_partial: boolean
   spend_by_job: JobSpend[]
+  /** Finished runs per day, oldest first, ending today. */
+  run_days: RunDay[]
+}
+
+export interface RunDay {
+  /** Local date, "2026-10-27". */
+  day: string
+  succeeded: number
+  failed: number
+  canceled: number
 }
 
 export interface JobSpend {
@@ -428,12 +439,6 @@ export interface ConnectionTest {
   status_code: number | null
   message: string
   models: string[]
-}
-
-export interface Secret {
-  name: string
-  description: string
-  last_used_at: string | null
 }
 
 export interface Notice {

@@ -174,7 +174,7 @@ async function submit(): Promise<void> {
       <small><AppIcon name="lock-outline" /> The key is encrypted at rest and never shown again.</small>
       <div class="need-actions">
         <Button label="Cancel" severity="secondary" text size="small" @click="emit('cancel')" />
-        <Button type="submit" :label="editing ? 'Save and check' : 'Connect and check'" :loading="saving" :disabled="!canSubmit">
+        <Button class="main-action" type="submit" :label="editing ? 'Save and check' : 'Connect and check'" :loading="saving" :disabled="!canSubmit">
           <template #icon><AppIcon name="check" /></template>
         </Button>
       </div>
@@ -183,9 +183,9 @@ async function submit(): Promise<void> {
 </template>
 
 <style scoped>
-.model-field { display: grid; min-width: 0; align-content: start; gap: 6px; }
+.model-field { display: grid; min-width: 0; align-content: start; gap: 8px; }
 .model-field small { color: var(--muted); font-size: 11px; line-height: 1.5; }
 .model-field small.field-error { color: var(--danger); }
-.model-discovery { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 14px 0; border-top: 1px solid var(--border); }
+.model-discovery { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 16px 0; border-top: 1px solid var(--border); }
 .model-discovery .field-error { flex-basis: 100%; margin: 0; color: var(--danger); font-size: 11px; }
 </style>

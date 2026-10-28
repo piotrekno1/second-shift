@@ -2,13 +2,15 @@
 import AppIcon from '../components/AppIcon.vue'
 import { computed } from 'vue'
 import PageHeader from '../components/PageHeader.vue'
+import RunsChart from '../components/RunsChart.vue'
 import StatCard from '../components/StatCard.vue'
 import StatusPill from '../components/StatusPill.vue'
 import { useLiveRefresh } from '../composables/useLiveRefresh'
 import { isRunActive } from '../services/runs'
 import { useAppStore } from '../stores/app'
+import { Action } from '../utils/permissions'
 import {
-  accessLabel, countLabel, formatCost, formatDate, formatRelative, formatScheduled, greeting, healthHeadline, spendTrend, utcTitle,
+  accessLabel, countLabel, formatCost, formatDate, formatRelative, formatScheduled, healthHeadline, runsTrend, spendTrend, utcTitle, weekRange,
 } from '../utils/format'
 
 const app = useAppStore()
@@ -37,10 +39,10 @@ const subtitle = computed(() => {
 })
 const spend = computed(() => {
   const overview = app.overview
-  if (!overview) return { value: formatCost(0), detail: '' }
+  if (!overview) return { value: formatCost(0), delta: '', detail: '', good: false }
   return {
     value: formatCost(overview.spend_7d_usd, overview.spend_partial),
-    detail: spendTrend(overview.spend_7d_usd, overview.spend_previous_7d_usd),
+    ...spendTrend(overview.spend_7d_usd, overview.spend_previous_7d_usd),
   }
 })
 const spendRows = computed(() => app.overview?.spend_by_job ?? [])
@@ -49,24 +51,34 @@ function spendShare(value: number): string {
   const total = app.overview?.spend_7d_usd ?? 0
   return total > 0 ? `${Math.round((value / total) * 100)}% of the week` : ''
 }
-const runsDetail = computed(() => {
+const runs = computed(() => runsTrend(app.overview?.runs_7d ?? 0, app.overview?.runs_previous_7d ?? 0))
+const runDays = computed(() => app.overview?.run_days ?? [])
+// The chart earns its space only once something has finished. Before that, Recent runs says so.
+const hasFinishedRuns = computed(() => runDays.value.some((day) => day.succeeded + day.failed + day.canceled > 0))
+const attentionDetail = computed(() => {
+  if (failing.value.length) return `${failing.value.length === 1 ? 'Job' : 'Jobs'} whose last run failed`
+  return app.runs.length ? 'No job\'s last run failed' : 'Nothing has run yet'
+})
+const passRate = computed(() => {
   const overview = app.overview
-  if (!overview || overview.finished_7d === 0) return 'none finished yet'
-  return `${overview.succeeded_7d} of ${overview.finished_7d} finished runs passed`
+  if (!overview || overview.finished_7d === 0) return ''
+  return `${Math.round((overview.succeeded_7d / overview.finished_7d) * 100)}% of this week's finished runs passed`
 })
 </script>
 
 <template>
   <div class="page">
-    <PageHeader :title="greeting(new Date().getHours())" :description="subtitle">
-      <RouterLink v-if="app.canAddLocalRepositories" to="/repositories" class="secondary-action"><AppIcon name="plus" /> Add repository</RouterLink>
+    <PageHeader title="This week" :aside="weekRange(new Date())" :description="subtitle">
+      <!-- The one next step: approve what blocks a job, or add the first repository. -->
+      <RouterLink v-if="approvalJobs[0] && app.can(Action.ReviewCapabilities)" :to="{ path: '/jobs', query: { review: String(approvalJobs[0].id) } }" class="primary-action"><AppIcon name="shield-key-outline" /> Review access</RouterLink>
+      <RouterLink v-else-if="!app.repositories.length && app.canAddLocalRepositories" to="/repositories" class="primary-action"><AppIcon name="plus" /> Add repository</RouterLink>
     </PageHeader>
 
     <section class="stats-grid">
-      <StatCard label="Needs attention" :value="failing.length" :detail="failing.length ? `${failing.length === 1 ? 'job' : 'jobs'} whose last run failed` : 'every job\'s last run passed'" icon="alert-circle-outline" :tone="failing.length ? 'amber' : 'mint'" :to="failing.length ? { hash: '#failing' } : undefined" />
-      <StatCard label="Runs · 7 days" :value="app.overview?.runs_7d ?? 0" :detail="runsDetail" icon="play-circle-outline" tone="mint" :to="{ path: '/runs', query: { period: '7d' } }" />
-      <StatCard label="Spend · 7 days" :value="spend.value" :detail="spend.detail" icon="currency-usd" :to="spendRows.length ? { hash: '#spend' } : undefined" />
-      <StatCard label="Jobs on duty" :value="app.overview?.enabled_jobs ?? 0" :detail="`across ${countLabel(app.overview?.repositories ?? 0, 'repository', 'repositories')}`" icon="calendar-check-outline" tone="amber" :to="{ path: '/jobs', query: { state: 'enabled' } }" />
+      <StatCard label="Needs attention" :value="failing.length" :detail="attentionDetail" :tone="failing.length ? 'danger' : undefined" :to="failing.length ? { hash: '#failing' } : undefined" />
+      <StatCard label="Runs" :value="app.overview?.runs_7d ?? 0" :delta="runs.delta" :detail="runs.detail" :to="{ path: '/runs', query: { period: '7d' } }" />
+      <StatCard label="Model spend" :value="spend.value" :delta="spend.delta" :good="spend.good" :detail="spend.detail" :to="spendRows.length ? { hash: '#spend' } : undefined" />
+      <StatCard label="Enabled jobs" :value="app.overview?.enabled_jobs ?? 0" :detail="`Across ${countLabel(app.overview?.repositories ?? 0, 'repository', 'repositories')}`" :to="{ path: '/jobs', query: { state: 'enabled' } }" />
     </section>
 
     <section v-if="failing.length" id="failing" class="panel attention-panel">
@@ -76,7 +88,6 @@ const runsDetail = computed(() => {
       </div>
       <div class="approval-list">
         <RouterLink v-for="job in failing" :key="job.job_id" :to="`/runs/${job.run_id}`" class="attention-row">
-          <span class="attention-icon"><AppIcon name="alert-circle-outline" /></span>
           <div class="activity-main"><strong>{{ job.job }}</strong><span>{{ job.repository }} · run #{{ job.run_id }}</span></div>
           <div class="run-failure"><span class="failure-label"><AppIcon name="alert-circle-outline" />{{ job.label }}</span><span class="failure-reason">{{ job.reason }}</span></div>
           <span class="activity-time" :title="`${formatDate(job.failed_at)} · ${utcTitle(job.failed_at)}`">{{ formatRelative(job.failed_at) }}</span>
@@ -87,8 +98,8 @@ const runsDetail = computed(() => {
 
     <section v-if="approvalJobs.length" class="panel approval-inbox">
       <div class="panel-heading">
-        <div><h2>Needs your decision</h2><p>Required access must be reviewed before these jobs can run.</p></div>
-        <RouterLink to="/jobs">Review all</RouterLink>
+        <div><h2>Needs approval</h2><p>These jobs ask for access to a connection. They cannot run until you approve it.</p></div>
+        <RouterLink :to="{ path: '/jobs', query: { state: 'review' } }">All jobs needing approval</RouterLink>
       </div>
       <div class="approval-list">
         <RouterLink
@@ -97,13 +108,19 @@ const runsDetail = computed(() => {
           :to="{ path: '/jobs', query: { review: String(job.id) } }"
           class="approval-row"
         >
-          <span class="approval-icon"><AppIcon name="shield-key-outline" /></span>
-          <div><strong>{{ job.name }}</strong><span>{{ job.repository }}</span></div>
-          <small>{{ job.capabilities.filter((capability) => capability.required && capability.grant_status !== 'approved').map((capability) => capability.binding).join(', ') }}</small>
+          <div><strong>{{ job.name }}</strong><span>{{ job.repository }} · needs <code>{{ job.capabilities.filter((capability) => capability.required && capability.grant_status !== 'approved').map((capability) => capability.binding).join(', ') }}</code></span></div>
           <StatusPill :status="job.grant_status" :label="accessLabel(job.grant_status)" />
           <AppIcon name="chevron-right" />
         </RouterLink>
       </div>
+    </section>
+
+    <section v-if="hasFinishedRuns" class="panel runs-panel">
+      <div class="panel-heading">
+        <div><h2>Finished runs</h2><p>{{ passRate || 'Per day, by outcome, over the last two weeks.' }}</p></div>
+        <RouterLink :to="{ path: '/runs', query: { period: '7d' } }">All runs</RouterLink>
+      </div>
+      <RunsChart :days="runDays" />
     </section>
 
     <section class="content-grid">
@@ -111,7 +128,6 @@ const runsDetail = computed(() => {
         <div class="panel-heading"><h2>Recent runs</h2><RouterLink to="/runs">All runs</RouterLink></div>
         <div v-if="app.runs.length" class="activity-list">
           <RouterLink v-for="run in app.runs.slice(0, 6)" :key="run.id" :to="`/runs/${run.id}`" class="activity-row clickable-row">
-            <span class="run-icon"><AppIcon name="console-line" /></span>
             <div class="activity-main">
               <strong>{{ run.job }} <span class="activity-id">#{{ run.id }}</span></strong>
               <span v-if="run.failure" class="activity-failure">{{ run.failure.label }} · {{ run.failure.reason }}</span>
@@ -121,7 +137,7 @@ const runsDetail = computed(() => {
             <StatusPill :status="run.status" />
           </RouterLink>
         </div>
-        <div v-else class="empty-state"><AppIcon name="weather-night" /><strong>No runs yet</strong><span>Your first shift will appear here.</span></div>
+        <div v-else class="empty-state"><AppIcon name="weather-night" /><strong>No runs yet</strong><span>Runs appear here when a job starts.</span></div>
       </article>
 
       <article class="panel upcoming-panel">
@@ -139,7 +155,7 @@ const runsDetail = computed(() => {
 
     <section v-if="spendRows.length" id="spend" class="panel spend-panel">
       <div class="panel-heading">
-        <div><h2>Spend by job · 7 days</h2><p>Model spend, highest first. Open a job's most expensive runs.</p></div>
+        <div><h2>Model spend by job</h2><p>Model spend, highest first. Open a job's most expensive runs.</p></div>
         <RouterLink :to="{ path: '/runs', query: { period: '7d', sort: 'cost' } }">Most expensive runs</RouterLink>
       </div>
       <div class="spend-list">

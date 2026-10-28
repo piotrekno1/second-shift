@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import type { Run } from '../src/types'
 
-import { formatLimit, accessLabel, accessNeedsAction, connectionUsageLine, countLabel, describeCron, formatDate, formatSeconds, greeting, healthHeadline, jobOutcomes, spendTrend, formatRelative, formatScheduled, formatTime, utcTitle, zoneName, formatBytes, plainSummary, providerLabel, runStats, statusLabel, formatDuration, formatModelUsage, finishedBinding, formatSchedule, jobState, historyLabel, titleFromSlug, typingBinding } from '../src/utils/format'
+import { formatLimit, accessLabel, accessNeedsAction, connectionUsageLine, countLabel, describeCron, formatDate, formatSeconds, healthHeadline, runsTrend, weekRange, jobOutcomes, spendTrend, formatRelative, formatScheduled, formatTime, utcTitle, zoneName, formatBytes, plainSummary, providerLabel, runStats, statusLabel, formatDuration, formatModelUsage, finishedBinding, formatSchedule, jobState, historyLabel, titleFromSlug, typingBinding, kindLabel } from '../src/utils/format'
 
 test('formatSchedule keeps cron and timezone visible', () => {
   assert.equal(formatSchedule('0 9 * * 1', 'Europe/Warsaw'), 'Mondays at 09:00 · Europe/Warsaw')
@@ -124,7 +124,7 @@ test('describeCron reads common schedules and leaves the rest alone', () => {
 test('status, access and provider labels are readable', () => {
   assert.equal(statusLabel('not_required'), 'No access needed')
   assert.equal(statusLabel('succeeded'), 'Succeeded')
-  assert.equal(accessLabel('pending'), 'Access pending')
+  assert.equal(accessLabel('pending'), 'Needs approval')
   assert.deepEqual(['pending', 'denied', 'approved', 'not_required'].map(accessNeedsAction), [true, true, false, false])
   assert.equal(providerLabel('openai_compatible'), 'OpenAI-compatible')
   assert.equal(providerLabel('something_new'), 'Something new')
@@ -156,10 +156,9 @@ test('formatRelative picks a readable unit', () => {
   assert.equal(formatRelative('2026-10-22T12:00:00Z', now), 'yesterday')
 })
 
-test('greeting follows the local hour', () => {
-  assert.deepEqual([4, 9, 12, 17, 18, 23].map(greeting), [
-    'Good evening.', 'Good morning.', 'Good afternoon.', 'Good afternoon.', 'Good evening.', 'Good evening.',
-  ])
+test('weekRange names the seven days ending today', () => {
+  assert.equal(weekRange(new Date(2026, 9, 27)), '21–27 Oct')
+  assert.equal(weekRange(new Date(2026, 10, 2)), '27 Oct – 2 Nov')
 })
 
 function run(id: number, status: Run['status'], durationSeconds: number | null, cost: number | null): Run {
@@ -195,11 +194,14 @@ test('jobOutcomes summarizes finished runs and keeps active ones out of the rate
 })
 
 test('spendTrend and healthHeadline read naturally', () => {
-  assert.equal(spendTrend(0.14, 0.1), '↑ 40% vs previous week')
-  assert.equal(spendTrend(0.08, 0.1), '↓ 20% vs previous week')
-  assert.equal(spendTrend(0.1, 0.1), 'Same as previous week')
-  assert.equal(spendTrend(0.1, 0), 'No spend the week before')
-  assert.equal(spendTrend(0, 0), 'No model spend yet')
+  assert.deepEqual(spendTrend(0.14, 0.1), { delta: '↑ 40%', detail: 'vs previous week', good: false })
+  assert.deepEqual(spendTrend(0.08, 0.1), { delta: '↓ 20%', detail: 'vs previous week', good: true })
+  assert.deepEqual(spendTrend(0.1, 0.1), { delta: '', detail: 'Same as previous week', good: false })
+  assert.deepEqual(spendTrend(0.1, 0), { delta: '', detail: 'No spend the week before', good: false })
+  assert.deepEqual(spendTrend(0, 0), { delta: '', detail: 'No model spend yet', good: false })
+  assert.deepEqual(runsTrend(12, 10), { delta: '↑ 20%', detail: 'vs previous week', good: false })
+  assert.deepEqual(runsTrend(8, 10), { delta: '↓ 20%', detail: 'vs previous week', good: false })
+  assert.deepEqual(runsTrend(3, 0), { delta: '', detail: 'No runs the week before', good: false })
   assert.equal(healthHeadline(['Weekly review'], 1, null), 'Weekly review is failing.')
   assert.equal(healthHeadline(['A', 'B'], 2, null), '2 jobs are failing.')
   assert.equal(healthHeadline([], 1, 'Mon 26 Oct, 09:00 CET'), 'All jobs passing. Next shift Mon 26 Oct, 09:00 CET.')
@@ -210,6 +212,7 @@ test('connectionUsageLine says what uses a connection and what it cost', () => {
   const now = Date.parse('2026-10-23T12:00:00Z')
   const usage = { jobs: 0, runs_7d: 0, spend_7d_usd: 0, spend_partial: false, last_used_at: null }
   assert.equal(connectionUsageLine(null, 'model', now), '')
+  assert.equal(connectionUsageLine(usage, 'source', now), 'Imports and syncs repositories')
   assert.equal(connectionUsageLine(usage, 'model', now), 'Not used yet')
   assert.equal(connectionUsageLine({ ...usage, last_used_at: '2026-10-13T12:00:00Z' }, 'model', now), 'Not used this week · last used last week')
   assert.equal(
@@ -233,4 +236,11 @@ test('a job without a schedule reads as manual only', () => {
   assert.equal(jobState({ cron: '', enabled: false }), 'manual')
   assert.equal(jobState({ cron: '0 9 * * 1', enabled: false }), 'disabled')
   assert.equal(jobState({ cron: '0 9 * * 1', enabled: true }), 'enabled')
+})
+
+test('kindLabel and statusLabel use the same words on every page', () => {
+  assert.equal(kindLabel('notification'), 'Notification')
+  assert.equal(kindLabel('mcp'), 'MCP')
+  assert.equal(kindLabel('source'), 'Source')
+  assert.equal(statusLabel('unconfigured'), 'Not connected')
 })

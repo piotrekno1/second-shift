@@ -121,8 +121,24 @@ export function jobState(job: { cron: string, enabled: boolean }): 'enabled' | '
 const STATUS_LABELS: Record<string, string> = {
   not_required: 'No access needed',
   manual: 'Manual only',
+  // Same words the Connections page uses for a binding with no connection.
+  unconfigured: 'Not connected',
   'policy-ready': 'Policy ready',
   'policy-blocked': 'Policy blocked',
+}
+
+const KIND_LABELS: Record<string, string> = {
+  notification: 'Notification',
+  mcp: 'MCP',
+  api: 'API',
+  model: 'Model provider',
+  identity: 'Sign-in',
+  source: 'Source',
+}
+
+/** How a binding or connection kind is named everywhere in the dashboard. */
+export function kindLabel(kind: string): string {
+  return KIND_LABELS[kind] ?? kind.toUpperCase()
 }
 
 /** A readable label for a status code such as "not_required". */
@@ -133,7 +149,7 @@ export function statusLabel(status: string): string {
 
 /** Job-level access status, worded for a pill next to "Enabled". */
 export function accessLabel(status: string): string {
-  return { pending: 'Access pending', approved: 'Access approved', denied: 'Access denied' }[status] ?? statusLabel(status)
+  return { pending: 'Needs approval', approved: 'Access approved', denied: 'Access denied' }[status] ?? statusLabel(status)
 }
 
 /** Whether a job's access status needs someone to act. */
@@ -292,10 +308,13 @@ export function runStats(run: RunStatSource, now = Date.now()): RunStat[] {
 }
 
 /** Greeting for the viewer's local hour. */
-export function greeting(hour: number): string {
-  if (hour >= 5 && hour < 12) return 'Good morning.'
-  if (hour >= 12 && hour < 18) return 'Good afternoon.'
-  return 'Good evening.'
+/** The seven days the overview numbers cover, ending today: "21–27 Oct". */
+export function weekRange(now: Date): string {
+  const start = new Date(now)
+  start.setDate(now.getDate() - 6)
+  const month = (date: Date): string => new Intl.DateTimeFormat(LOCALE, { month: 'short' }).format(date)
+  if (month(start) === month(now)) return `${start.getDate()}–${now.getDate()} ${month(now)}`
+  return `${start.getDate()} ${month(start)} – ${now.getDate()} ${month(now)}`
 }
 
 export interface JobOutcomes {
@@ -370,11 +389,29 @@ export function formatLimit(unit: RunLimitItem['unit'], value: number): string {
 }
 
 /** Week-over-week spend, e.g. "↑ 40% vs previous week". */
-export function spendTrend(current: number, previous: number): string {
-  if (previous === 0) return current === 0 ? 'No model spend yet' : 'No spend the week before'
+/** A week against the one before. `delta` is empty when there is nothing to compare. */
+export interface Trend {
+  delta: string
+  detail: string
+  /** The change is an improvement, so it can be shown in green. */
+  good: boolean
+}
+
+function weekTrend(current: number, previous: number, none: string, noneBefore: string, lowerIsBetter: boolean): Trend {
+  if (previous === 0) return { delta: '', detail: current === 0 ? none : noneBefore, good: false }
   const change = Math.round(((current - previous) / previous) * 100)
-  if (change === 0) return 'Same as previous week'
-  return `${change > 0 ? '↑' : '↓'} ${Math.abs(change)}% vs previous week`
+  if (change === 0) return { delta: '', detail: 'Same as previous week', good: false }
+  return { delta: `${change > 0 ? '↑' : '↓'} ${Math.abs(change)}%`, detail: 'vs previous week', good: lowerIsBetter && change < 0 }
+}
+
+/** Less spend for the same work is better. */
+export function spendTrend(current: number, previous: number): Trend {
+  return weekTrend(current, previous, 'No model spend yet', 'No spend the week before', true)
+}
+
+/** More or fewer runs is neither good nor bad, so it is never green. */
+export function runsTrend(current: number, previous: number): Trend {
+  return weekTrend(current, previous, 'No runs yet', 'No runs the week before', false)
 }
 
 /** One line that says whether anything needs the reader, without repeating the stat cards. */
@@ -387,6 +424,8 @@ export function healthHeadline(failingJobs: string[], enabledJobs: number, nextR
 
 /** One quiet line on how a connection is used, so it's clear before anyone disconnects it. */
 export function connectionUsageLine(usage: ConnectionUsage | null | undefined, kind: string, now = Date.now()): string {
+  // A source connection is how repositories are imported and synced, not something jobs call.
+  if (kind === 'source') return 'Imports and syncs repositories'
   if (!usage) return ''
   if (kind === 'model') {
     if (usage.runs_7d === 0) return usage.last_used_at ? `Not used this week · last used ${formatRelative(usage.last_used_at, now)}` : 'Not used yet'

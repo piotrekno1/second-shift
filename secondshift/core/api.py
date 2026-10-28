@@ -9,6 +9,7 @@ from secondshift.core.schemas import (
     FailingJobSchema,
     JobSpendSchema,
     OverviewSchema,
+    RunDaySchema,
     UserSchema,
 )
 from secondshift.core.workspace_settings import (
@@ -19,7 +20,12 @@ from secondshift.jobs.models import Job
 from secondshift.repositories.github_app import configured as github_app_configured
 from secondshift.repositories.models import Repository
 from secondshift.runs.models import Run
-from secondshift.runs.reporting.health import failing_jobs, spend_by_job, week_summary
+from secondshift.runs.reporting.health import (
+    failing_jobs,
+    runs_by_day,
+    spend_by_job,
+    week_summary,
+)
 from secondshift.workspaces.access import (
     current_membership,
     current_workspace,
@@ -89,6 +95,7 @@ def overview(request: HttpRequest) -> OverviewSchema:
             FailingJobSchema(**vars(failing)) for failing in failing_jobs(workspace)
         ],
         runs_7d=week.runs,
+        runs_previous_7d=week.previous_runs,
         finished_7d=week.finished,
         succeeded_7d=week.succeeded,
         spend_7d_usd=float(week.spend_usd),
@@ -98,4 +105,5 @@ def overview(request: HttpRequest) -> OverviewSchema:
             JobSpendSchema(**{**vars(row), "spend_usd": float(row.spend_usd)})
             for row in spend_by_job(workspace)
         ],
+        run_days=[RunDaySchema(**vars(day)) for day in runs_by_day(workspace)],
     )

@@ -41,8 +41,7 @@ watch([runId, name], load, { immediate: true })
 
 <template>
   <div class="page">
-    <PageHeader :title="`Run #${runId} · ${LABELS[name]}`" :description="DESCRIPTIONS[name]">
-      <RouterLink :to="`/runs/${runId}`" class="secondary-action"><AppIcon name="arrow-left" /> Run</RouterLink>
+    <PageHeader compact :title="LABELS[name]" :description="DESCRIPTIONS[name]" :parent="{ label: `Run #${runId}`, to: `/runs/${runId}` }">
       <div class="segmented" role="group" aria-label="File view">
         <button type="button" :class="{ active: view === 'rendered' }" :aria-pressed="view === 'rendered'" @click="view = 'rendered'">Rendered</button>
         <button type="button" :class="{ active: view === 'raw' }" :aria-pressed="view === 'raw'" @click="view = 'raw'">Raw</button>

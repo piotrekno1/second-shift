@@ -84,17 +84,20 @@ useLiveRefresh(load, () => Boolean(counts.value.queued || counts.value.running))
 
 <template>
   <div class="page">
-    <PageHeader title="Runs" :description="runsSubtitle" />
-    <div class="list-toolbar">
+    <PageHeader compact title="Runs" :description="runsSubtitle" />
+    <!-- Filters narrow the set. Status and sort shape the list, so they sit on the list itself. -->
+    <div v-if="filtered || total > 0" class="list-toolbar runs-toolbar">
       <SearchInput :model-value="query.q ?? ''" placeholder="Search job, repository, summary or #run" @update:model-value="list.update({ q: $event })" />
       <Select :model-value="query.job_id" :options="jobOptions" option-label="label" option-value="value" placeholder="All jobs" show-clear filter class="list-select" aria-label="Job" @update:model-value="list.update({ job: $event })" />
       <Select :model-value="query.repository_id" :options="repositoryOptions" option-label="label" option-value="value" placeholder="All repositories" show-clear class="list-select" aria-label="Repository" @update:model-value="list.update({ repository: $event })" />
       <Select :model-value="query.period" :options="PERIODS" option-label="label" option-value="value" placeholder="Any time" show-clear class="list-select period-select" aria-label="Time period" @update:model-value="list.update({ period: $event })" />
-      <Select :model-value="query.sort" :options="SORTS" option-label="label" option-value="value" class="list-select period-select" aria-label="Sort" @update:model-value="list.update({ sort: $event === 'newest' ? null : $event })" />
-      <FilterChips :model-value="query.status ?? ''" :options="statusOptions" label="Status" @update:model-value="list.update({ status: $event })" />
     </div>
     <p v-if="runs.error" class="page-error">{{ runs.error }}</p>
     <section class="panel table-panel" :aria-busy="runs.loading">
+      <div v-if="filtered || total > 0" class="list-head">
+        <FilterChips :model-value="query.status ?? ''" :options="statusOptions" label="Status" @update:model-value="list.update({ status: $event })" />
+        <Select :model-value="query.sort" :options="SORTS" option-label="label" option-value="value" class="list-select sort-select" aria-label="Sort" @update:model-value="list.update({ sort: $event === 'newest' ? null : $event })" />
+      </div>
       <div v-if="runs.page?.items.length" class="data-list">
         <RunRow v-for="run in runs.page.items" :key="run.id" :run="run" />
       </div>

@@ -69,15 +69,15 @@ function save(): void {
         </div>
         <strong v-else :id="`limit-${item.key}`">{{ formatLimit(item.unit, item.value) }}</strong>
         <small v-if="problems[item.key]" class="field-error">{{ problems[item.key] }}</small>
-        <small v-else>{{ source(item) }}</small>
-        <small class="run-limit-help">{{ item.help }} Server maximum: {{ formatLimit(item.unit, item.maximum) }}.</small>
+        <small v-else>{{ source(item) }} Maximum {{ formatLimit(item.unit, item.maximum) }}.</small>
+        <small class="run-limit-help">{{ item.help }}</small>
       </div>
       <p v-if="error" class="need-notice run-limit-wide">{{ error }}</p>
       <div v-if="canEdit" class="run-limit-footer run-limit-wide">
         <small>Leave a field empty to use {{ inheritedFrom }}. Runs already started or queued keep their limits.</small>
         <div class="need-actions">
           <Button v-if="dirty" label="Reset" severity="secondary" text size="small" @click="reset" />
-          <Button type="submit" label="Save limits" size="small" :loading="saving" :disabled="!dirty || invalid">
+          <Button class="main-action" type="submit" label="Save limits" size="small" :loading="saving" :disabled="!dirty || invalid">
             <template #icon><AppIcon name="check" /></template>
           </Button>
         </div>

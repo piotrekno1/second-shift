@@ -15,7 +15,7 @@ import { saveJobLimits } from '../services/settings'
 import { useAppStore } from '../stores/app'
 import type { Job, JobDetail, RunLimitUpdate } from '../types'
 import { Action } from '../utils/permissions'
-import { accessLabel, accessNeedsAction, countLabel, formatDate, historyLabel, formatRelative, formatSchedule, formatScheduled, jobState, utcTitle } from '../utils/format'
+import { accessLabel, accessNeedsAction, countLabel, formatDate, historyLabel, formatRelative, formatSchedule, formatScheduled, jobState, kindLabel, utcTitle } from '../utils/format'
 
 const route = useRoute()
 const router = useRouter()
@@ -103,12 +103,11 @@ useLiveRefresh(loadJob, () => (job.value?.recent_runs ?? []).some((run) => isRun
 
 <template>
   <div class="page">
-    <PageHeader :title="job?.name ?? 'Job'" :description="detailSubtitle">
-      <RouterLink to="/jobs" class="secondary-action"><AppIcon name="arrow-left" /> Jobs</RouterLink>
+    <PageHeader compact :title="job?.name ?? 'Job'" :description="detailSubtitle" :parent="{ label: 'Jobs', to: '/jobs' }">
       <Button v-if="job && job.cron && app.can(Action.EnableJobs)" :label="job.enabled ? 'Disable' : 'Enable'" severity="secondary" outlined :loading="action === 'toggle'" @click="toggleJob">
         <template #icon><AppIcon :name="job.enabled ? 'pause' : 'play'" /></template>
       </Button>
-      <Button v-if="job && app.can(Action.RunJobs)" label="Run now" :disabled="!job.repository_enabled" :title="job.repository_enabled ? 'Start a run and open it' : 'Enable the repository to run its jobs'" :loading="action === 'run'" @click="runNow">
+      <Button class="main-action" v-if="job && app.can(Action.RunJobs)" label="Run now" :disabled="!job.repository_enabled" :title="job.repository_enabled ? 'Start a run and open it' : 'Enable the repository to run its jobs'" :loading="action === 'run'" @click="runNow">
         <template #icon><AppIcon name="play" /></template>
       </Button>
     </PageHeader>
@@ -157,12 +156,12 @@ useLiveRefresh(loadJob, () => (job.value?.recent_runs ?? []).some((run) => isRun
 
           <section v-if="job.capabilities.length" class="panel job-access-panel">
             <div class="panel-heading">
-              <div><h2>Access and connections</h2><p>{{ countLabel(requiredCapabilities.length, 'required capability', 'required capabilities') }} · {{ countLabel(optionalCapabilities.length, 'optional capability', 'optional capabilities') }}</p></div>
-              <RouterLink v-if="app.can(Action.ReviewCapabilities)" :to="{ path: '/jobs', query: { review: String(job.id) } }">Review permissions</RouterLink>
+              <div><h2>Access and connections</h2><p>{{ countLabel(requiredCapabilities.length, 'required binding') }}<template v-if="optionalCapabilities.length"> · {{ optionalCapabilities.length }} optional</template></p></div>
+              <RouterLink v-if="app.can(Action.ReviewCapabilities)" :to="{ path: '/jobs', query: { review: String(job.id) } }">Review access</RouterLink>
             </div>
             <div class="job-capability-details">
               <div v-for="capability in job.capabilities" :key="capability.id" class="job-capability-detail">
-                <div><strong>{{ capability.binding }}</strong><span>{{ capability.kind.toUpperCase() }} · {{ capability.required ? 'Required' : 'Optional' }}</span></div>
+                <div><strong>{{ capability.binding }}</strong><span>{{ kindLabel(capability.kind) }} · {{ capability.required ? 'Required' : 'Optional' }}</span></div>
                 <div class="tool-list"><span v-for="tool in capability.requested_tools" :key="tool">{{ tool }}</span><small v-if="!capability.requested_tools.length">No tool-level scope</small></div>
                 <span class="capability-connection">{{ capability.connection_name || 'No connection selected' }}</span>
                 <StatusPill :status="capability.grant_status" />
