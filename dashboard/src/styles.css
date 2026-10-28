@@ -148,6 +148,7 @@ body .account-menu { width: 224px; }
 
 .empty-state { min-height: 160px; padding: 24px 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; color: var(--subtle); }
 .empty-state .app-icon { margin-bottom: 12px; color: var(--subtle); font-size: 28px; }.empty-state strong { color: var(--ink); font-size: 14px; }.empty-state span { max-width: 420px; margin-top: 8px; font-size: 12px; }
+.not-found-home { margin-top: 16px; }
 .empty-state.compact { min-height: 112px; width: 100%; }.empty-state.wide { grid-column: 1 / -1; }
 .card-grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 16px; }
 .local-repository-form { display: grid; grid-template-columns: minmax(240px, .8fr) minmax(320px, 1.2fr) auto; align-items: center; gap: 16px; margin-bottom: 16px; padding: 20px; }.local-repository-form h2 { margin: 0 0 4px; font-size: 16px; }.local-repository-form p { margin: 0; color: var(--muted); font-size: 11px; }.local-repository-form .p-inputtext { width: 100%; color: var(--ink); background: var(--field); border-color: var(--field-border); }.local-repository-form .form-error { grid-column: 2 / -1; color: var(--danger); }

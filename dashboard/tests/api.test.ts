@@ -37,3 +37,31 @@ test('apiGet keeps authorization details on a forbidden response', async () => {
     globalThis.fetch = originalFetch
   }
 })
+
+test('apiGet turns field validation errors into sentences', async () => {
+  const originalFetch = globalThis.fetch
+  mockResponse(422, { detail: [
+    { loc: ['body', 'payload', 'display_name'], msg: 'String should have at most 200 characters' },
+    { loc: ['body', 'payload', 'max_runs'], msg: 'Input should be greater than 0' },
+    { loc: ['query', 'q'], msg: 'String should have at most 200 characters' },
+  ] })
+  try {
+    await assert.rejects(apiGet('/settings'), {
+      message: 'Display name should have at most 200 characters. Max runs should be greater than 0. The search should have at most 200 characters.',
+    })
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})
+
+test('apiGet explains a missing item instead of echoing Not Found', async () => {
+  const originalFetch = globalThis.fetch
+  mockResponse(404, { detail: 'Not Found: No Job matches the given query.' })
+  try {
+    await assert.rejects(apiGet('/jobs/999999'), {
+      message: 'This was not found. It may have been removed, or the link is wrong.',
+    })
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})

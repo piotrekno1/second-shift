@@ -27,7 +27,7 @@ let requestSerial = 0
 
 const runId = computed(() => Number(route.params.id))
 const active = computed(() => (run.value ? isRunActive(run.value.status) : false))
-const subtitle = computed(() => (run.value ? `${run.value.job} · ${run.value.repository}` : 'Loading run…'))
+const subtitle = computed(() => (run.value ? `${run.value.job} · ${run.value.repository}` : loading.value ? 'Loading run…' : 'This run could not be loaded'))
 // Reports taller than this start collapsed, so the page never nests a scrollbar.
 const REPORT_COLLAPSED_PX = 640
 

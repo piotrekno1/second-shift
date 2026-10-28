@@ -60,7 +60,7 @@ const statusOptions = computed(() => [
 const jobOptions = computed(() => app.jobs.map((job) => ({ value: job.id, label: `${job.name} · ${job.repository}` })))
 const repositoryOptions = computed(() => app.repositories.map((repository) => ({ value: repository.id, label: repository.display_name })))
 const runsSubtitle = computed(() => {
-  if (!runs.page) return 'Loading runs…'
+  if (!runs.page) return runs.error ? 'Runs could not be loaded' : 'Loading runs…'
   if (!filtered.value && runs.page.count === 0) return 'No runs recorded yet.'
   const summary = [filtered.value ? `${countLabel(runs.page.count, 'matching run')}` : countLabel(runs.page.count, 'run')]
   const active = (counts.value.running ?? 0) + (counts.value.queued ?? 0)

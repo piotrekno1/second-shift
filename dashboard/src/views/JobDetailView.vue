@@ -31,7 +31,7 @@ const limitsError = ref<string | null>(null)
 const requiredCapabilities = computed(() => job.value?.capabilities.filter((capability) => capability.required) ?? [])
 const optionalCapabilities = computed(() => job.value?.capabilities.filter((capability) => !capability.required) ?? [])
 const detailSubtitle = computed(() => {
-  if (!job.value) return 'Loading job…'
+  if (!job.value) return loading.value ? 'Loading job…' : 'This job could not be loaded'
   return `${job.value.repository} · ${formatSchedule(job.value.cron, job.value.timezone)}`
 })
 const lastRun = computed(() => job.value?.recent_runs[0] ?? null)
