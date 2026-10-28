@@ -267,6 +267,9 @@ body .p-select-overlay { color: var(--ink); background: var(--night-800); border
 .page-notice > span { flex: 1; min-width: 0; }
 .page-notice-close { display: grid; place-items: center; width: 26px; height: 26px; padding: 0; border: 0; border-radius: 8px; background: transparent; color: var(--muted); cursor: pointer; }
 .page-notice-close:hover { color: var(--ink); background: rgba(255,255,255,.08); }
+/* A notice over the page, so the rows under the reader's pointer stay put. */
+.page-notice.floating { position: fixed; right: 24px; bottom: 24px; z-index: 30; max-width: min(440px, calc(100vw - 32px)); margin: 0; background: var(--raised); box-shadow: 0 12px 32px rgba(0,0,0,.35); }
+@media (max-width: 800px) { .page-notice.floating { right: 16px; bottom: 16px; left: 16px; max-width: none; } .page-notice.floating .page-notice-close { width: 40px; height: 40px; } }
 .run-status-panel { margin-bottom: 16px; padding: 20px 24px; }
 .run-status-line { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; color: var(--amber); }
 .run-headline { margin: 0; color: var(--ink); font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
@@ -585,6 +588,7 @@ body .p-select-overlay { color: var(--ink); background: var(--night-800); border
 .invite-link { display: grid; gap: 8px; justify-items: start; padding: 12px 16px; border: 1px solid rgba(113,219,182,.22); border-radius: 12px; background: rgba(113,219,182,.07); font-size: 12px; }
 .invite-link code { max-width: 100%; overflow-wrap: anywhere; font-size: 12px; }
 .invite-list li:first-child { border-top: 0; }
+.invite-confirm { display: inline-flex; gap: 4px; }
 .member-email small { display: block; color: var(--subtle); font-size: 11px; }
 .member-list .p-select.member-role { width: 128px; }
 .member-list .p-button { min-width: 84px; }

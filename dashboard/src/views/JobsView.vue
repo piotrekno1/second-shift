@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import AppIcon from '../components/AppIcon.vue'
-import { computed, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, reactive, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import Button from 'primevue/button'
 import Select from 'primevue/select'
@@ -81,6 +81,10 @@ function clearFilters(): void {
   list.update({ q: null, repository: null, state: null })
 }
 
+const NOTICE_MS = 6000
+let noticeTimer: number | undefined
+onBeforeUnmount(() => window.clearTimeout(noticeTimer))
+
 async function runNow(jobId: number): Promise<void> {
   action.value = `run-${jobId}`
   error.value = null
@@ -89,6 +93,9 @@ async function runNow(jobId: number): Promise<void> {
     const run = await startJobRun(jobId)
     // Stay on the list so several jobs can be started; link to the new run.
     startedRun.value = { id: run.id, job: run.job }
+    // The notice covers part of the page, so it goes away on its own.
+    window.clearTimeout(noticeTimer)
+    noticeTimer = window.setTimeout(() => { startedRun.value = null }, NOTICE_MS)
     await app.refresh()
   } catch (runError) {
     error.value = runError instanceof Error ? runError.message : 'Unable to run job'
@@ -173,7 +180,7 @@ async function toggleJob(job: Job): Promise<void> {
       <Select v-if="app.repositories.length > 1" :model-value="repositoryFilter" :options="repositoryOptions" option-label="label" option-value="value" placeholder="All repositories" show-clear class="list-select" aria-label="Repository" @update:model-value="list.update({ repository: $event })" />
     </div>
     <p v-if="error" class="page-error">{{ error }}</p>
-    <p v-if="startedRun" class="page-notice" role="status">
+    <p v-if="startedRun" class="page-notice floating" role="status">
       <AppIcon name="play-circle-outline" />
       <span>Run #{{ startedRun.id }} of {{ startedRun.job }} started.</span>
       <RouterLink :to="`/runs/${startedRun.id}`" class="detail-link">View run <AppIcon name="arrow-right" /></RouterLink>
