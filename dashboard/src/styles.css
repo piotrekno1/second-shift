@@ -140,7 +140,8 @@ body .account-menu { width: 224px; }
 .panel-heading > a { color: var(--muted); font-size: 13px; font-weight: 500; }
 .panel-heading > a:hover { color: var(--ink); }
 .activity-list { display: grid; }
-.activity-row { display: grid; grid-template-columns: minmax(0,1fr) auto auto; align-items: center; gap: 12px; padding: 12px 4px; border-top: 1px solid var(--white-8); }
+/* Fixed time and status columns, so both line up down the list. */
+.activity-row { display: grid; grid-template-columns: minmax(0,1fr) 104px 96px; align-items: center; gap: 12px; padding: 12px 4px; border-top: 1px solid var(--white-8); }
 
 .activity-main { display: flex; flex-direction: column; min-width: 0; }.activity-main strong { font-size: 13px; }.activity-main span, .activity-main > a:last-child { overflow: hidden; color: var(--subtle); text-overflow: ellipsis; font-size: 11px; }.activity-main a:hover { color: var(--ink); }
 .activity-time { color: var(--subtle); font-family: var(--font-mono); font-size: 11px; font-variant-numeric: tabular-nums; }
@@ -435,8 +436,10 @@ body .p-select-overlay { color: var(--ink); background: var(--night-800); border
 /* Color stays a small mark: a dot by the heading, not a tinted frame. */
 .attention-panel .panel-heading h2::before, .approval-inbox .panel-heading h2::before { content: ''; display: inline-block; width: 6px; height: 6px; margin-right: 12px; border-radius: 50%; vertical-align: middle; background: var(--danger); }
 .approval-inbox .panel-heading h2::before { background: var(--amber); }
-.attention-row { display: grid; grid-template-columns: minmax(160px,.8fr) minmax(0,1.4fr) auto 18px; align-items: center; gap: 16px; padding: 12px 4px; border-top: 1px solid var(--white-8); border-radius: 8px; }
+/* Fixed time column, so the failure badges start at the same x on every row. */
+.attention-row { display: grid; grid-template-columns: minmax(160px,.8fr) minmax(0,1.4fr) 104px 18px; align-items: center; gap: 16px; padding: 12px 4px; border-top: 1px solid var(--white-8); border-radius: 8px; }
 .attention-row:hover { background: var(--white-6); }
+.attention-row > .activity-time { text-align: right; }
 .activity-row.clickable-row { border-radius: 8px; color: inherit; }
 .activity-id { color: var(--subtle); font-weight: 600; }
 .activity-main .activity-failure { color: var(--muted); }
