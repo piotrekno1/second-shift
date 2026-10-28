@@ -517,6 +517,9 @@ body .p-select-overlay { color: var(--ink); background: var(--night-800); border
 .job-action:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
 .job-action:disabled { opacity: .4; cursor: not-allowed; }
 .job-action.is-loading > .app-icon { animation: job-action-spin 1s linear infinite; }
+.job-action.warn { position: relative; }
+/* A dot on the button: its run would fail, and the reason is in the title. */
+.job-action.warn::after { content: ""; position: absolute; top: 4px; right: 4px; width: 6px; height: 6px; border-radius: 50%; background: var(--amber); }
 @keyframes job-action-spin { to { transform: rotate(360deg); } }
 .job-review { padding: 20px 24px 24px; }
 .job-review-heading { align-items: flex-start; margin-bottom: 16px; }

@@ -11,6 +11,7 @@ import type { RunDetail } from '../types'
 import { Action } from '../utils/permissions'
 import { formatBytes, formatDate, formatTime, runStats, utcTitle, zoneName } from '../utils/format'
 import { renderMarkdown } from '../utils/markdown'
+import { runWarning } from '../utils/readiness'
 
 const POLL_MS = 2000
 
@@ -109,7 +110,7 @@ onUnmounted(stopPolling)
 <template>
   <div class="page">
     <PageHeader compact :title="`Run #${runId}`" :description="subtitle" :parent="{ label: 'Runs', to: '/runs' }">
-      <Button class="main-action" v-if="run && !active && app.can(Action.RunJobs)" label="Run again" :loading="rerunning" @click="runAgain">
+      <Button class="main-action" v-if="run && !active && app.can(Action.RunJobs)" label="Run again" :title="runWarning(app.connections) || undefined" :loading="rerunning" @click="runAgain">
         <template #icon><AppIcon name="replay" /></template>
       </Button>
     </PageHeader>
