@@ -169,12 +169,12 @@ onUnmounted(directories.reset)
   cursor: pointer;
 }
 .local-directory-picker .directory-row:hover {
-  background: rgba(255,255,255, .09);
+  background: var(--white-8);
 }
 .local-directory-picker .directory-row:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: -2px;
-  background: rgba(255,255,255, .09);
+  background: var(--white-8);
 }
 .local-directory-picker .directory-row > span {
   flex: 1;
