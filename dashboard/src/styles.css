@@ -72,9 +72,11 @@ h1, h2, h3 { font-weight: 600; }
 .sidebar nav a > span { flex: 1; }
 .sidebar nav a:hover { background: rgba(255,255,255,.04); color: var(--ink); }
 .sidebar nav a.active { border-color: var(--raised-border); background: var(--raised); box-shadow: var(--raised-shadow); color: var(--ink); }
-.nav-note { color: var(--amber); font-size: 12px; font-weight: 500; white-space: nowrap; }
+.nav-note { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; font-weight: 500; white-space: nowrap; }
+.nav-note::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--subtle); }
+.nav-note.warning::before { background: var(--amber); }
+.nav-note.danger::before { background: var(--danger); }
 .sidebar-foot { margin: auto -12px 0; display: grid; gap: 2px; padding: 12px 12px 0; border-top: 1px solid var(--divider); }
-.status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--amber); }
 .avatar { width: 30px; height: 30px; display: grid; place-items: center; flex: 0 0 auto; border: 1px solid var(--border); border-radius: 8px; background: rgba(255,255,255,.05); color: var(--muted); font-size: 11px; font-weight: 600; }
 /* One quiet row: who is signed in, and the way out. */
 /* Account: one quiet row like the workspace switcher. The menu holds the address and Sign out. */
