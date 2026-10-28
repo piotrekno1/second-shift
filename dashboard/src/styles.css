@@ -382,6 +382,8 @@ body .p-select-overlay { color: var(--ink); background: var(--night-800); border
 
 /* Relative times under absolute ones */
 .cell-sub { display: block; margin-top: 2px; color: var(--subtle); font-family: var(--font-mono); font-size: 11px; }
+.cell-sub.last-run:hover { color: var(--ink); }
+.cell-sub.last-run.failed { color: var(--danger); }
 
 /* Job page: status strip, outcomes, runs without the job column */
 .job-status-strip { display: flex; flex-wrap: wrap; align-items: center; gap: 16px 32px; margin-bottom: 16px; padding: 16px 24px; }

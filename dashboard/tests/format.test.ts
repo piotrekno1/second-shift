@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import type { Run } from '../src/types'
 
-import { formatLimit, accessLabel, accessNeedsAction, connectionUsageLine, countLabel, describeCron, formatDate, formatSeconds, healthHeadline, runsTrend, weekRange, jobOutcomes, spendTrend, formatRelative, formatScheduled, formatTime, utcTitle, zoneName, formatBytes, plainSummary, providerLabel, runStats, statusLabel, formatDuration, formatModelUsage, finishedBinding, formatSchedule, jobState, historyLabel, titleFromSlug, typingBinding, kindLabel } from '../src/utils/format'
+import { formatLimit, accessLabel, accessNeedsAction, connectionUsageLine, countLabel, describeCron, formatDate, formatSeconds, healthHeadline, runsTrend, weekRange, jobOutcomes, spendTrend, formatRelative, formatScheduled, formatTime, utcTitle, zoneName, formatBytes, plainSummary, providerLabel, runStats, statusLabel, formatDuration, formatModelUsage, finishedBinding, formatSchedule, jobState, historyLabel, lastRunLine, titleFromSlug, typingBinding, kindLabel } from '../src/utils/format'
 
 test('formatSchedule keeps cron and timezone visible', () => {
   assert.equal(formatSchedule('0 9 * * 1', 'Europe/Warsaw'), 'Mondays at 09:00 · Europe/Warsaw')
@@ -146,6 +146,13 @@ test('scheduled times use the job zone and add the viewer clock when it differs'
   assert.equal(formatScheduled(next, 'Europe/Warsaw', 'Europe/Warsaw'), 'Mon 26 Oct, 09:00 CET')
   assert.equal(formatScheduled(next, 'Europe/Warsaw', 'America/New_York'), 'Mon 26 Oct, 09:00 CET · 04:00 your time')
   assert.equal(formatScheduled(null, 'Europe/Warsaw'), 'Not scheduled')
+})
+
+test('lastRunLine says how the newest run went and when', () => {
+  const now = Date.parse('2026-10-23T12:00:00Z')
+  assert.equal(lastRunLine(null, now), 'Never run')
+  assert.equal(lastRunLine({ status: 'failed', at: '2026-10-23T10:00:00Z' }, now), 'Last run failed 2 hours ago')
+  assert.equal(lastRunLine({ status: 'running', at: '2026-10-23T11:59:00Z' }, now), 'Running now')
 })
 
 test('formatRelative picks a readable unit', () => {

@@ -50,6 +50,13 @@ class CapabilitySchema(Schema):
     changing_tools: list[str] = Field(default_factory=list)
 
 
+class LastRunSchema(Schema):
+    id: int
+    status: str
+    # When it finished, or when it was created if it has not finished.
+    at: datetime
+
+
 class JobSchema(Schema):
     id: int
     name: str
@@ -63,6 +70,7 @@ class JobSchema(Schema):
     requested_capabilities: int
     grant_status: str
     capabilities: list[CapabilitySchema]
+    last_run: LastRunSchema | None = None
 
 
 class JobEnabledSchema(Schema):

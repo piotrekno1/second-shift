@@ -44,6 +44,13 @@ function source(item: RunLimitItem): string {
   return `Set here. Without it: ${inherited}.`
 }
 
+// Reading a repository file is a tool call, so 0 leaves the skill with only its prompt.
+function warning(item: RunLimitItem): string {
+  if (item.key !== 'max_tool_calls') return ''
+  const next = item.key in changes.value ? changes.value[item.key] : item.override
+  return next === 0 ? ' With 0, the skill cannot read any files or use a connection.' : ''
+}
+
 function placeholder(item: RunLimitItem): string {
   return String(Math.floor(item.inherited / limitScale(item)))
 }
@@ -74,7 +81,7 @@ function save(): void {
         </div>
         <strong v-else :id="`limit-${item.key}`">{{ formatLimit(item.unit, item.value) }}</strong>
         <small v-if="problems[item.key]" class="field-error">{{ problems[item.key] }}</small>
-        <small v-else>{{ source(item) }} Maximum {{ formatLimit(item.unit, item.maximum) }}.</small>
+        <small v-else>{{ source(item) }}{{ warning(item) }} Maximum {{ formatLimit(item.unit, item.maximum) }}.</small>
         <small class="run-limit-help">{{ item.help }}</small>
       </div>
       <p v-if="error" class="need-notice run-limit-wide">{{ error }}</p>
