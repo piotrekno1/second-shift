@@ -585,6 +585,8 @@ body .p-select-overlay { color: var(--ink); background: var(--night-800); border
 .member-email small { display: block; color: var(--subtle); font-size: 11px; }
 .member-list .p-select.member-role { width: 128px; }
 .member-list .p-button { min-width: 84px; }
+/* On a phone the email gets its own line and the controls sit under it. */
+@media (max-width: 560px) { .member-list li { flex-wrap: wrap; row-gap: 8px; } .member-email { flex-basis: calc(100% - 40px); overflow-wrap: anywhere; } .member-list .p-select.member-role { flex: 1; margin-left: 40px; width: auto; } }
 .no-workspace { min-height: 100vh; display: flex; flex-direction: column; justify-content: center; padding: 24px 16px; }
 .no-workspace-card { width: min(520px, 100%); margin: 0 auto; display: flex; flex-direction: column; align-items: flex-start; }
 .no-workspace-card > img { width: 56px; margin-bottom: 28px; }
