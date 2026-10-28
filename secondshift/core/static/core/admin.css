@@ -1,66 +1,69 @@
-/* SecondShift theme for Django admin. The dashboard is dark-only, so the
-   palette is applied regardless of the admin's light/dark/auto setting. */
+/* SecondShift theme for Django admin, using the dashboard's greys and Geist
+   (dashboard/src/styles.css). The dashboard is dark-only, so the palette is
+   applied regardless of the admin's light/dark/auto setting. */
 :root,
 html[data-theme] {
-  --primary: #4d43a8;
-  --secondary: #252746;
-  --accent: #ffb454;
-  --primary-fg: #ffffff;
+  --primary: #1f1f1f;
+  --secondary: #191919;
+  --accent: #ededed;
+  --primary-fg: #ededed;
 
-  --body-fg: #e9e9f6;
-  --body-bg: #111227;
-  --body-quiet-color: #9899b2;
-  --body-medium-color: #c4c5d8;
-  --body-loud-color: #ffffff;
+  --body-fg: #c4c4c4;
+  --body-bg: #131313;
+  --body-quiet-color: #737373;
+  --body-medium-color: #a3a3a3;
+  --body-loud-color: #ededed;
 
-  --header-color: #eeeefa;
-  --header-branding-color: #eeeefa;
-  --header-bg: #16172e;
-  --header-link-color: #eeeefa;
+  --header-color: #ededed;
+  --header-branding-color: #ededed;
+  --header-bg: #0d0d0d;
+  --header-link-color: #ededed;
 
-  --breadcrumbs-fg: #9899b2;
-  --breadcrumbs-link-fg: #c5bcff;
-  --breadcrumbs-bg: #1d1e39;
+  --breadcrumbs-fg: #737373;
+  --breadcrumbs-link-fg: #a3a3a3;
+  --breadcrumbs-bg: #131313;
 
-  --link-fg: #c5bcff;
-  --link-hover-color: #ffd38c;
-  --link-selected-fg: #ffb454;
+  --link-fg: #ededed;
+  --link-hover-color: #ffffff;
+  --link-selected-fg: #ededed;
 
-  --hairline-color: rgba(197, 188, 255, 0.10);
-  --border-color: rgba(197, 188, 255, 0.20);
+  --hairline-color: rgba(255,255,255,.06);
+  --border-color: rgba(255,255,255,.08);
 
   --error-fg: #ff778b;
 
-  --message-debug-bg: #252746;
+  /* Messages sit on the card surface. Their color is the left edge below. */
+  --message-debug-bg: #191919;
   --message-debug-icon: url(../admin/img/icon-debug-dark.svg);
-  --message-info-bg: #2c2a5e;
+  --message-info-bg: #191919;
   --message-info-icon: url(../admin/img/icon-info-dark.svg);
-  --message-success-bg: #17463d;
+  --message-success-bg: #191919;
   --message-success-icon: url(../admin/img/icon-yes-dark.svg);
-  --message-warning-bg: #4f3714;
+  --message-warning-bg: #191919;
   --message-warning-icon: url(../admin/img/icon-alert-dark.svg);
-  --message-error-bg: #4f1f2a;
+  --message-error-bg: #191919;
   --message-error-icon: url(../admin/img/icon-no-dark.svg);
 
-  --darkened-bg: #0d0e1d;
-  --selected-bg: #252746;
-  --selected-row: rgba(139, 124, 255, 0.14);
+  --darkened-bg: #0d0d0d;
+  --selected-bg: #1f1f1f;
+  --selected-row: rgba(255,255,255,.06);
 
-  --button-fg: #ffffff;
-  --button-bg: #4d43a8;
-  --button-hover-bg: #6d5ee8;
-  --default-button-bg: #6d5ee8;
-  --default-button-hover-bg: #8b7cff;
-  --close-button-bg: #3a3c62;
-  --close-button-hover-bg: #4d4f7a;
-  --delete-button-bg: #b8394f;
-  --delete-button-hover-bg: #d0465e;
+  --button-fg: #ededed;
+  --button-bg: #262626;
+  --button-hover-bg: #313131;
+  --default-button-bg: #ededed;
+  --default-button-hover-bg: #ffffff;
+  --close-button-bg: #262626;
+  --close-button-hover-bg: #313131;
+  --delete-button-bg: #ff778b;
+  --delete-button-hover-bg: #ff8fa0;
 
   --object-tools-fg: var(--button-fg);
   --object-tools-bg: var(--close-button-bg);
   --object-tools-hover-bg: var(--close-button-hover-bg);
 
-  --font-family-primary: 'DM Sans', system-ui, sans-serif;
+  --font-family-primary: 'Geist', system-ui, sans-serif;
+  --font-family-monospace: 'Geist Mono', ui-monospace, monospace;
 
   color-scheme: dark;
 }
@@ -68,58 +71,65 @@ html[data-theme] {
 /* Only one theme, so the toggle has nothing to do. */
 .theme-toggle { display: none; }
 
-body {
-  background:
-    radial-gradient(circle at 73% -10%, rgba(104, 86, 230, .16), transparent 28rem),
-    var(--darkened-bg);
-  background-attachment: fixed;
-}
+body { background: var(--body-bg); }
 
-h1, h2, #site-name, .module caption { font-family: 'Manrope', system-ui, sans-serif; }
+h1, h2, #site-name, .module caption { font-weight: 600; letter-spacing: -.01em; }
 
-#header { border-bottom: 1px solid var(--hairline-color); }
+#header { border-bottom: 1px solid #1c1c1c; }
 .ss-brand { display: inline-flex; align-items: center; gap: 10px; }
 .ss-brand img { width: 32px; height: 32px; }
-#site-name .ss-brand span { font-weight: 800; letter-spacing: -.03em; color: var(--header-branding-color); }
-#user-tools a { border-bottom-color: rgba(197, 188, 255, .3); }
+#site-name .ss-brand span { font-weight: 600; color: var(--header-branding-color); }
+#user-tools a { border-bottom-color: rgba(255,255,255,.18); }
 
 div.breadcrumbs { border-bottom: 1px solid var(--hairline-color); }
 
+/* Modules are dashboard cards. */
 #content-main .module,
 #content-related .module,
 .dashboard .module,
 fieldset.module {
-  border: 1px solid var(--hairline-color);
-  border-radius: 14px;
+  border: 1px solid #232323;
+  border-radius: 16px;
   overflow: hidden;
-  background: rgba(36, 37, 69, .55);
+  background: linear-gradient(180deg, #191919, #161616);
 }
 .module h2, .module caption, .inline-group h2 {
-  background: linear-gradient(105deg, rgba(139, 124, 255, .22), rgba(139, 124, 255, .08));
-  color: #c5bcff;
+  background: transparent;
+  border-bottom: 1px solid var(--hairline-color);
+  color: #a3a3a3;
 }
 
 input[type=text], input[type=password], input[type=email], input[type=url],
 input[type=number], input[type=tel], input[type=search], textarea, select, .vTextField {
-  background: #0d0e1d;
-  color: var(--body-fg);
-  border: 1px solid var(--border-color);
+  background: #181818;
+  color: #ededed;
+  border: 1px solid #262626;
   border-radius: 8px;
 }
-input:focus, textarea:focus, select:focus { border-color: #8b7cff; outline: 2px solid rgba(139, 124, 255, .25); }
+input:focus, textarea:focus, select:focus { border-color: #a3a3a3; outline: none; }
+input:focus-visible, textarea:focus-visible, select:focus-visible { outline: 2px solid #a3a3a3; outline-offset: 2px; }
 
 .button, input[type=submit], input[type=button], .submit-row input, a.button, button { border-radius: 8px; }
+/* Save is the dashboard's light primary action, so its text is dark. */
+.button.default, input[type=submit].default, .submit-row input.default { color: #0d0d0d; font-weight: 600; }
+.submit-row a.deletelink, .delete-confirmation form input[type=submit] { color: #2a0a12; }
+
+/* The dashboard callout: the card surface with a colored left edge. */
+ul.messagelist li { border: 1px solid var(--border-color); border-left: 2px solid #737373; border-radius: 8px; color: #ededed; }
+ul.messagelist li.success { border-left-color: #71dbb6; }
+ul.messagelist li.warning { border-left-color: #ffb454; }
+ul.messagelist li.error { border-left-color: #ff778b; }
 
 /* Login page: a centered card like the dashboard sign-in. */
-body.login { background: transparent; }
 body.login #container {
-  border: 1px solid var(--border-color);
-  border-radius: 18px;
-  background: linear-gradient(145deg, rgba(36, 37, 69, .92), rgba(24, 25, 49, .92));
-  box-shadow: 0 22px 60px rgba(5, 6, 20, .34);
+  border: 1px solid #232323;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #191919, #161616);
+  box-shadow: 0 24px 64px rgba(0,0,0,.5);
 }
 body.login #header { padding: 24px 16px 12px; background: transparent; border-bottom: 0; }
 body.login #site-name .ss-brand { flex-direction: column; gap: 12px; }
 body.login .ss-brand img { width: 56px; height: 56px; }
 body.login #site-name .ss-brand span { font-size: 1.35rem; }
-body.login .submit-row input { width: 100%; padding: 11px; background: linear-gradient(120deg, #8b7cff, #6d5ee8); font-weight: 700; }
+body.login .submit-row input { width: 100%; padding: 11px; color: #0d0d0d; background: #ededed; font-weight: 600; }
+body.login .submit-row input:hover { background: #fff; }
