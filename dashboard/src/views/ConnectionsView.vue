@@ -160,14 +160,18 @@ function hasMenu(connection: Connection): boolean {
     || (connection.status === 'revoked' && app.can(Action.DeleteConnections)))
 }
 const connectionsSubtitle = computed(() => {
-  // A connection whose last check failed is not working, even if it is still connected.
-  const broken = app.connections.filter((connection) => connection.status !== 'connected' || connection.last_check?.ok === false).length
-  const working = app.connections.length - broken
-  const parts = [`${countLabel(working, 'connection')} working`]
-  if (broken) parts.push(`${broken} ${broken === 1 ? 'needs' : 'need'} fixing`)
-  const open = blockingNeeds.value.length
-  if (open) parts.push(`${countLabel(open, 'binding')} ${open === 1 ? 'needs' : 'need'} setup`)
-  else if (app.needs.length) parts.push('every job has what it needs')
+  // The same counts as the sidebar's "to fix", spelled out.
+  const broken = app.brokenConnections
+  const setUp = app.bindingsToSetUp
+  const parts = [`${countLabel(app.connections.length - broken, 'connection')} working`]
+  const fixes = [
+    broken ? `${countLabel(broken, 'connection')} failing` : '',
+    setUp ? `${countLabel(setUp, 'binding')} to set up` : '',
+  ].filter(Boolean)
+  if (fixes.length) parts.push(`${broken + setUp} to fix: ${fixes.join(', ')}`)
+  const waiting = app.needs.filter((need) => need.status === 'needs_approval').length
+  if (waiting) parts.push(`${waiting} waiting for approval`)
+  if (!fixes.length && !waiting && app.needs.length) parts.push('every job has what it needs')
   return parts.join(' · ')
 })
 

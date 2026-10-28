@@ -18,11 +18,8 @@ const mobileOpen = ref(false)
 interface NavItem { label: string; to: string; icon: string; note: string }
 
 // Something waiting on the reader is said in words, so "1" is never read as a total.
-const toFix = computed(() => {
-  const broken = app.connections.filter((connection) => connection.status !== 'connected' || connection.last_check?.ok === false).length
-  const missing = app.needs.filter((need) => need.required && need.status !== 'ready' && need.status !== 'needs_approval').length
-  return broken + missing
-})
+// Connections says what these add up to, so the two counts always match.
+const toFix = computed(() => app.brokenConnections + app.bindingsToSetUp)
 
 // Day-to-day pages first, then the ones you set up once.
 const groups = computed<{ label: string; items: NavItem[] }[]>(() => [
