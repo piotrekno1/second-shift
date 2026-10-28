@@ -68,8 +68,8 @@ test('runStats lists duration, tokens, cost and turns in order', () => {
     model_requests: 4,
     max_turns: 12,
   }
-  assert.deepEqual(runStats(base).map((stat) => stat.text), ['7s', '5.1k tok', '$0.0008', '4/12 turns'])
-  assert.equal(runStats(base)[1].title, '4.8k input · 300 output tokens')
+  assert.deepEqual(runStats(base).map((stat) => stat.text), ['7s', '5.1K tok', '$0.0008', '4/12 turns'])
+  assert.equal(runStats(base)[1].title, '4.8K input · 300 output tokens')
   assert.equal(runStats({ ...base, model_requests: 11 })[3].warn, true)
   assert.equal(runStats({ ...base, model_cost_partial: true })[2].text, '≥$0.0008')
   assert.deepEqual(
@@ -91,16 +91,16 @@ test('runStats shows tokens against the run budget', () => {
     max_turns: null,
   }
   const [tokens] = runStats({ ...base, token_budget: 2_000_000 })
-  assert.equal(tokens.text, '12.3k / 2m tok')
-  assert.equal(tokens.title, '12k input · 300 output tokens, of 2,000,000 allowed')
+  assert.equal(tokens.text, '12.3K / 2M tok')
+  assert.equal(tokens.title, '12K input · 300 output tokens, of 2,000,000 allowed')
   assert.equal(tokens.warn, false)
   assert.equal(runStats({ ...base, model_tokens: 1_700_000, token_budget: 2_000_000 })[0].warn, true)
-  assert.equal(runStats({ ...base, token_budget: null })[0].text, '12.3k tok')
+  assert.equal(runStats({ ...base, token_budget: null })[0].text, '12.3K tok')
 })
 
 test('formatLimit reads each kind of limit', () => {
   assert.equal(formatLimit('count', 1200), '1,200')
-  assert.equal(formatLimit('tokens', 2_000_000), '2m tokens')
+  assert.equal(formatLimit('tokens', 2_000_000), '2M tokens')
   assert.equal(formatLimit('seconds', 900), '15 minutes')
   assert.equal(formatLimit('seconds', 3600), '1 hour')
   assert.equal(formatLimit('seconds', 90), '90 seconds')
