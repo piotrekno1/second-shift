@@ -51,6 +51,8 @@ watch([provider, apiKey, baseUrl, discoveryReady], (_values, previous, onCleanup
   onCleanup(() => clearTimeout(timer))
 }, { immediate: true })
 onBeforeUnmount(() => { discoveryVersion++ })
+// A save error is about the values tried. Editing them makes it out of date.
+watch([provider, apiKey, baseUrl], () => { error.value = null })
 watch(provider, () => {
   allowedModels.value = []
   defaultModel.value = ''
@@ -169,7 +171,8 @@ async function submit(): Promise<void> {
       <span>Use for runs by default in this workspace</span>
     </label>
 
-    <p v-if="error" class="need-notice need-setup-wide">{{ error }}</p>
+    <!-- Discovery often refuses the same values first. Say it once, next to the field. -->
+    <p v-if="error && error !== modelError" class="need-notice need-setup-wide">{{ error }}</p>
     <div class="need-setup-footer">
       <small><AppIcon name="lock-outline" /> The key is encrypted at rest and never shown again.</small>
       <div class="need-actions">
