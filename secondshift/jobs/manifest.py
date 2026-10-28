@@ -7,7 +7,15 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 import yaml
 from croniter import croniter
 from django.conf import settings
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    ValidationError,
+    field_validator,
+    model_validator,
+)
+from pydantic_core import ErrorDetails
 
 
 class CapabilityManifest(BaseModel):
@@ -121,8 +129,46 @@ def load_manifest(path: Path) -> RepositoryManifest:
 def parse_manifest(text: str) -> RepositoryManifest:
     raw = yaml.safe_load(text)
     if not isinstance(raw, dict):
-        raise ValueError("manifest root must be a mapping")
-    return RepositoryManifest.model_validate(raw)
+        raise ManifestError("The file must be a mapping.")
+    try:
+        return RepositoryManifest.model_validate(raw)
+    except ValidationError as error:
+        raise ManifestError(describe_errors(error)) from error
+
+
+class ManifestError(ValueError):
+    """A manifest problem, worded for the person who wrote the file."""
+
+
+def describe_errors(error: ValidationError) -> str:
+    unknown = [
+        field_path(item) for item in error.errors() if item["type"] == "extra_forbidden"
+    ]
+    problems = [
+        describe_error(item)
+        for item in error.errors()
+        if item["type"] != "extra_forbidden"
+    ]
+    if unknown:
+        label = "Unknown field" if len(unknown) == 1 else "Unknown fields"
+        problems.append(
+            f"{label}: {', '.join(unknown)}. Check the spelling, or update "
+            "SecondShift if the file was written for a newer version."
+        )
+    return " ".join(problems)
+
+
+def describe_error(item: ErrorDetails) -> str:
+    path = field_path(item)
+    if item["type"] == "missing":
+        return f"{path} is required."
+    message = item["msg"].removeprefix("Value error, ").rstrip(".")
+    message = message[:1].lower() + message[1:]
+    return f"{path}: {message}." if path else f"{message[:1].upper()}{message[1:]}."
+
+
+def field_path(item: ErrorDetails) -> str:
+    return ".".join(str(part) for part in item["loc"])
 
 
 def manifest_hash(job: JobManifest) -> str:

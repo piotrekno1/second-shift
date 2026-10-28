@@ -1,9 +1,8 @@
 from pathlib import Path
 
 import pytest
-from pydantic import ValidationError
 
-from secondshift.jobs.manifest import load_manifest
+from secondshift.jobs.manifest import ManifestError, load_manifest, parse_manifest
 
 
 def write_manifest(path: Path, skill: str = ".agents/skills/review/SKILL.md") -> None:
@@ -44,7 +43,7 @@ def test_load_manifest_rejects_path_traversal(tmp_path: Path) -> None:
     path = tmp_path / ".secondshift.yaml"
     write_manifest(path, "../outside/SKILL.md")
 
-    with pytest.raises(ValidationError, match="repository-relative"):
+    with pytest.raises(ManifestError, match="repository-relative"):
         load_manifest(path)
 
 
@@ -62,5 +61,44 @@ jobs:
 """.strip()
     )
 
-    with pytest.raises(ValidationError, match="secrets"):
+    with pytest.raises(ManifestError, match=r"Unknown field: jobs\.review\.secrets\."):
         load_manifest(path)
+
+
+def test_parse_manifest_names_unknown_fields_once() -> None:
+    text = """
+jobs:
+  first:
+    name: First
+    skill: .agents/skills/first/SKILL.md
+    retries: 1
+  second:
+    name: Second
+    skill: .agents/skills/second/SKILL.md
+    retries: 1
+""".strip()
+
+    with pytest.raises(ManifestError) as error:
+        parse_manifest(text)
+
+    assert str(error.value) == (
+        "Unknown fields: jobs.first.retries, jobs.second.retries. Check the "
+        "spelling, or update SecondShift if the file was written for a newer version."
+    )
+
+
+def test_parse_manifest_reports_each_problem_plainly() -> None:
+    text = """
+jobs:
+  review:
+    skill: .agents/skills/review/SKILL.md
+    schedule: every monday
+""".strip()
+
+    with pytest.raises(ManifestError) as error:
+        parse_manifest(text)
+
+    assert str(error.value) == (
+        "jobs.review.name is required. jobs.review.schedule: schedule must be "
+        "a valid five-field cron expression."
+    )
