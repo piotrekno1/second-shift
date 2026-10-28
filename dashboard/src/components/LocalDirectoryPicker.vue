@@ -183,7 +183,7 @@ onUnmounted(directories.reset)
   font-size: 12px;
 }
 .local-directory-picker .directory-icon {
-  color: var(--amber-soft);
+  color: var(--muted);
   font-size: 16px;
 }
 .local-directory-picker .directory-chevron {

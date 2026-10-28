@@ -8,7 +8,8 @@
   background: #131313;
   font-synthesis: none;
   /* Neutral greys, layered: sidebar, page, card, raised control. No brand accent.
-     Color only marks meaning: status, failures and good trends. */
+     Color only marks meaning, one meaning each: amber needs you, danger failed,
+     mint worked. Use them as text, icons, dots and edges, never as tinted fills. */
   --night-950: #0d0d0d;
   --night-900: #131313;
   --night-850: #191919;
@@ -28,7 +29,6 @@
   --field-border: #262626;
   --divider: #1c1c1c;
   --amber: #ffb454;
-  --amber-soft: #ffd38c;
   --mint: #71dbb6;
   --danger: #ff778b;
   --border: rgba(255,255,255,.08);
@@ -146,7 +146,13 @@ body .account-menu { width: 224px; }
 .status-pill::before { content: ''; width: 6px; height: 6px; flex: none; border-radius: 50%; background: var(--dot); }
 .status-pill.succeeded, .status-pill.connected, .status-pill.enabled, .status-pill.approved, .status-pill.not_required, .status-pill.policy-ready, .status-pill.valid { --dot: var(--mint); }
 .status-pill.failed, .status-pill.expired, .status-pill.denied, .status-pill.policy-blocked, .status-pill.error { --dot: var(--danger); color: var(--ink); }
-.status-pill.running, .status-pill.queued, .status-pill.pending, .status-pill.unconfigured, .status-pill.warning { --dot: var(--amber); color: var(--ink); }
+.status-pill.pending, .status-pill.unconfigured, .status-pill.warning { --dot: var(--amber); color: var(--ink); }
+/* In progress is not a problem, so it pulses in the text color instead of amber. */
+.status-pill.running, .status-pill.queued { --dot: var(--ink); color: var(--ink); }
+.status-pill.running::before, .shift-status.live .shift-dot { animation: live-pulse 1.6s ease-in-out infinite; }
+.status-pill.queued::before { opacity: .5; }
+@keyframes live-pulse { 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .status-pill.running::before, .shift-status.live .shift-dot { animation: none; } }
 
 .empty-state { min-height: 160px; padding: 24px 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; color: var(--subtle); }
 .empty-state .app-icon { margin-bottom: 12px; color: var(--subtle); font-size: 28px; }.empty-state strong { color: var(--ink); font-size: 14px; }.empty-state span { max-width: 420px; margin-top: 8px; font-size: 12px; }
@@ -274,7 +280,7 @@ body .p-select-overlay { color: var(--ink); background: var(--night-800); border
 .page-notice.floating { position: fixed; right: 24px; bottom: 24px; z-index: 30; max-width: min(440px, calc(100vw - 32px)); margin: 0; background: var(--raised); box-shadow: 0 12px 32px rgba(0,0,0,.35); }
 @media (max-width: 800px) { .page-notice.floating { right: 16px; bottom: 16px; left: 16px; max-width: none; } .page-notice.floating .page-notice-close { width: 40px; height: 40px; } }
 .run-status-panel { margin-bottom: 16px; padding: 20px 24px; }
-.run-status-line { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; color: var(--amber); }
+.run-status-line { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
 .run-headline { margin: 0; color: var(--ink); font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
 .run-status-panel.failed .run-headline { color: var(--danger); }
 .run-timeline { display: grid; margin: 0; padding: 0; list-style: none; }
@@ -284,7 +290,7 @@ body .p-select-overlay { color: var(--ink); background: var(--night-800); border
 .run-timeline li.error::before { background: var(--danger); }
 .run-timeline li.error span { color: var(--danger); }
 .run-timeline li.pending { color: var(--muted); }
-.run-timeline li.pending::before { background: transparent; border: 1px solid var(--amber); }
+.run-timeline li.pending::before { background: transparent; border: 1px solid var(--muted); }
 .run-timeline time { color: var(--subtle); font-family: var(--font-mono); font-size: 11px; font-variant-numeric: tabular-nums; padding-top: 1px; }
 .run-timeline span { overflow-wrap: anywhere; }
 .run-output { max-height: 480px; margin: 0; padding: 16px; overflow: auto; border-radius: 8px; background: var(--night-950); color: var(--ink); font-size: 12px; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }
@@ -336,7 +342,6 @@ body .p-select-overlay { color: var(--ink); background: var(--night-800); border
 .run-stats { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .run-stat-line { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 12px; font-variant-numeric: tabular-nums; }
 .run-stat { color: var(--ink); white-space: nowrap; }
-.run-stat.warn { color: var(--amber); }
 .run-meta { overflow: hidden; color: var(--subtle); font-family: var(--font-mono); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
 .run-meta code { font-size: 11px; }
 .run-statuses { display: flex; }
@@ -360,9 +365,10 @@ body .p-select-overlay { color: var(--ink); background: var(--night-800); border
 /* Run detail: report first, details on the side */
 .run-status-line { flex-wrap: wrap; gap: 8px 16px; margin-bottom: 0; color: var(--ink); font-size: 13px; font-variant-numeric: tabular-nums; }
 .run-status-line .run-stat { color: var(--ink); }
+.run-status-line .run-stat.warn { color: var(--amber); }
 .run-stat-quiet { color: var(--subtle); font-size: 12px; }
 .run-status-panel .run-headline { margin-top: 12px; }
-.run-active-note { display: flex; align-items: center; gap: 8px; color: var(--amber) !important; font-size: 13px !important; }
+.run-active-note { display: flex; align-items: center; gap: 8px; color: var(--muted) !important; font-size: 13px !important; }
 .run-layout { display: grid; grid-template-columns: minmax(0,1fr) 300px; gap: 16px; align-items: start; }
 .run-main { display: grid; gap: 16px; min-width: 0; }
 .run-main > .job-runs-panel { margin-bottom: 0; }
@@ -404,7 +410,7 @@ body .p-select-overlay { color: var(--ink); background: var(--night-800); border
 .outcome-mark:hover, .outcome-mark:focus-visible { transform: translateY(-2px); outline: none; box-shadow: 0 0 0 2px var(--night-850), 0 0 0 4px rgba(255,255,255,.22); }
 .outcome-mark.succeeded { background: rgba(255,255,255,.06); color: var(--mint); }
 .outcome-mark.failed { background: rgba(255,255,255,.06); color: var(--danger); }
-.outcome-mark.running, .outcome-mark.queued { background: rgba(255,255,255,.06); color: var(--amber); }
+.outcome-mark.running, .outcome-mark.queued { background: rgba(255,255,255,.06); color: var(--ink); }
 .outcome-tiles { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 12px; }
 .outcome-tile { display: flex; flex-direction: column; gap: 4px; min-width: 0; padding: 16px 16px; border: 1px solid var(--border); border-radius: 12px; background: rgba(255,255,255,.02); }
 .outcome-tile > span { color: var(--subtle); font-size: 11px; font-weight: 700; }
@@ -779,7 +785,7 @@ body .p-select-label { padding: 8px 10px; font-size: 13px; }
 .shift-status:hover { color: var(--muted); }
 .shift-dot { width: 6px; height: 6px; margin: 0 7px; flex: none; border-radius: 50%; background: var(--subtle); }
 .shift-status.live { color: var(--ink); }
-.shift-status.live .shift-dot { background: var(--amber); }
+.shift-status.live .shift-dot { background: var(--ink); }
 .shift-clock { margin-left: auto; color: var(--subtle); font-variant-numeric: tabular-nums; }
 
 /* Workspace menu: same frame and rows as the account menu, one line per workspace. */
