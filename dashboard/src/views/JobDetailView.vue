@@ -200,7 +200,7 @@ useLiveRefresh(loadJob, () => (job.value?.recent_runs ?? []).some((run) => isRun
             <div><dt>Revision</dt><dd><code>{{ job.repository_revision.slice(0, 12) }}</code></dd></div>
             <div><dt>Config hash</dt><dd><code>{{ job.config_hash.slice(0, 12) }}</code></dd></div>
             <div><dt>History</dt><dd>{{ historyLabel(job.history) }}</dd></div>
-            <div><dt>External access</dt><dd>{{ job.capabilities.length ? countLabel(job.capabilities.length, 'binding') : 'None requested' }}</dd></div>
+            <div><dt>External access</dt><dd>{{ job.capabilities.length ? countLabel(job.capabilities.length, 'connection') : 'None requested' }}</dd></div>
           </dl>
         </aside>
       </div>
