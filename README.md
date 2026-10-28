@@ -69,7 +69,7 @@ git clone https://github.com/piotrekno1/second-shift.git
 3. Open **Documentation drift** in **Jobs** and click **Run now**.
 4. Inspect the report, execution timeline, and model cost.
 
-The repository already includes the skill and configuration—no edits needed.
+The repository already includes the skill and configuration.
 
 ## Deploy for your team
 
@@ -124,23 +124,21 @@ Skills run in isolated sandboxes. Every run is tied to a Git commit.
 
 ## Why use SecondShift?
 
-### How is this different from Hermes Agent?
+### Why add SecondShift if your agent already supports schedules?
 
-[Hermes Agent](https://hermes-agent.nousresearch.com/docs) is individual-first,
-centered on an agent that remembers your context and works across your tools.
-SecondShift is team-first, built around recurring engineering tasks managed
-through Git, explicit permissions, and shared run history. Both can serve
-individuals or teams.
+Review skills and schedules in Git, approve service access per job, and share
+run history across repositories. Each run records its Git revision, tool
+activity, report, and model cost. Owners grant access, admins operate jobs,
+and members view results.
 
-Hermes already supports scheduled skills and report delivery. In SecondShift,
-review the skill and schedule in Git, approve its service access separately,
-and inspect each run's revision, tool activity, report, and cost. Workspace
-roles separate who can grant access, operate jobs, and view results.
+SecondShift is self-hosted and currently in beta. Its fresh, networkless
+sandboxes suit repository checks. Jobs can use earlier successful reports as
+context through the [`history` setting](docs/repository-configuration.md#run-history).
+Sandbox files and sessions do not persist between runs. Work that needs a
+browser or persistent sessions may fit another assistant better.
 
-A merged skill cannot grant itself credentials or expand its approved access.
-Commands run in a networkless sandbox. External tool calls go through a broker
-that checks the job's approved permissions. See the
-[security model](docs/security-model.md) for the boundaries and remaining risks.
+Compare [SecondShift, Grok Bot, Hermes Agent, and Viktor](docs/comparisons.md),
+or read the [security model](docs/security-model.md).
 
 ### Why not use an existing scheduler?
 
@@ -159,6 +157,7 @@ discuss the approach.
 
 ## Documentation
 
+- [Comparisons](docs/comparisons.md): when to choose SecondShift, Grok Bot, Hermes Agent, or Viktor.
 - [Repository configuration](docs/repository-configuration.md): skills, YAML syntax, schedules, and notifications.
 - [Engineering tasks](docs/engineering-tasks.md): skill setup, approved service actions, and scheduling.
 - [Environment variables](docs/environment-variables.md): service-scoped configuration and setup file generation.
