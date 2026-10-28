@@ -59,10 +59,9 @@ const runDays = computed(() => app.overview?.run_days ?? [])
 // The chart earns its space only once something has finished. Before that, Recent runs says so.
 const hasFinishedRuns = computed(() => runDays.value.some((day) => day.succeeded + day.failed + day.canceled > 0))
 const attentionDetail = computed(() => {
-  if (failing.value.length) return `${failing.value.length === 1 ? 'Job' : 'Jobs'} whose last run failed`
-  if (!app.runs.length) return 'Nothing has run yet'
-  // Paused jobs are left out on purpose. Say so, so a failed run elsewhere does not contradict this.
-  return app.runs.some((run) => run.status === 'failed') ? 'No active job is failing. Paused jobs are not counted' : 'No job\'s last run failed'
+  const paused = failing.value.filter((job) => job.paused).length
+  if (failing.value.length) return `${failing.value.length === 1 ? 'Job' : 'Jobs'} whose last run failed${paused ? `, ${paused} paused` : ''}`
+  return app.runs.length ? 'No job\'s last run failed' : 'Nothing has run yet'
 })
 const passRate = computed(() => {
   const overview = app.overview
@@ -96,7 +95,7 @@ const passRate = computed(() => {
       </div>
       <div class="approval-list">
         <RouterLink v-for="job in failing" :key="job.job_id" :to="`/runs/${job.run_id}`" class="attention-row">
-          <div class="activity-main"><strong>{{ job.job }}</strong><span>{{ job.repository }} · run #{{ job.run_id }}</span></div>
+          <div class="activity-main"><strong>{{ job.job }}</strong><span>{{ job.repository }} · run #{{ job.run_id }}<template v-if="job.paused"> · paused</template></span></div>
           <div class="run-failure"><span class="failure-label"><AppIcon name="alert-circle-outline" />{{ job.label }}</span><span class="failure-reason">{{ job.reason }}</span></div>
           <span class="activity-time" :title="`${formatDate(job.failed_at)} · ${utcTitle(job.failed_at)}`">{{ formatRelative(job.failed_at) }}</span>
           <AppIcon name="chevron-right" class="row-chevron" />

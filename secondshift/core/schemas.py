@@ -28,6 +28,7 @@ class FailingJobSchema(Schema):
     failed_at: datetime | None
     label: str
     reason: str
+    paused: bool = False
 
 
 class JobSpendSchema(Schema):

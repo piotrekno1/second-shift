@@ -29,6 +29,8 @@ class FailingJob:
     failed_at: datetime | None
     label: str
     reason: str
+    # Scheduled but switched off, so nothing will run it again on its own.
+    paused: bool
 
 
 @dataclass(frozen=True)
@@ -65,19 +67,17 @@ class JobSpend:
 
 
 def failing_jobs(workspace: Workspace) -> list[FailingJob]:
-    """Enabled and manual-only jobs whose most recent finished run failed.
+    """Jobs whose most recent finished run failed.
 
     A job that failed last week but has succeeded since is healthy, so this
     looks only at each job's latest outcome, not at failure history. Paused
-    scheduled jobs are left out: nothing will run them until someone acts.
-    Manual-only jobs have no schedule to pause, so they always count.
+    jobs still count, marked as paused, since their last run is still broken.
     """
     latest = Run.objects.filter(job=OuterRef("pk"), status__in=FINISHED).order_by(
         "-created_at", "-pk"
     )
     jobs = (
         Job.objects.filter(
-            Q(enabled=True) | Q(cron=""),
             workspace=workspace,
             repository__removed_at__isnull=True,
         )
@@ -103,6 +103,7 @@ def failing_jobs(workspace: Workspace) -> list[FailingJob]:
                 failed_at=run.finished_at,
                 label=view.label,
                 reason=view.reason,
+                paused=bool(job.cron) and not job.enabled,
             )
         )
     return failing

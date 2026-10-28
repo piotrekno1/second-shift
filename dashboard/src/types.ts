@@ -142,6 +142,7 @@ export interface FailingJob {
   failed_at: string | null
   label: string
   reason: string
+  paused: boolean
 }
 
 export interface Repository {

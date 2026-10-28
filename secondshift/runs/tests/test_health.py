@@ -79,7 +79,10 @@ def test_failing_jobs_look_only_at_each_jobs_latest_finished_run() -> None:
 
     found = {job.job_id: job for job in failing_jobs(workspace)}
 
-    assert set(found) == {broken.pk, manual.pk}
+    assert set(found) == {broken.pk, manual.pk, paused.pk}
+    assert [job.pk for job in (broken, manual, paused) if found[job.pk].paused] == [
+        paused.pk
+    ]
     assert found[broken.pk].run_id == failed.pk
     assert (found[broken.pk].label, found[broken.pk].reason) == (
         "Model provider",
