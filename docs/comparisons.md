@@ -2,12 +2,12 @@
 
 [README](../README.md) · [Architecture](architecture.md) · [Security model](security-model.md)
 
-| Choose | When you want | What you take on |
+| Product | Best for | How it runs |
 | --- | --- | --- |
-| **SecondShift** | Recurring repository jobs with Git review, separate access approvals, and shared run history. | Hosting, connection setup, and the limits of networkless sandboxes. Currently beta. |
-| **[Grok Bot](https://docs.x.ai/grok-bot/overview)** | A hosted assistant with a persistent computer, browser sessions, and memory. | Managing persistent files and logins within a hosted service. |
-| **[Hermes Agent](https://hermes-agent.nousresearch.com/docs)** | An agent you can host and customize, with memory, skills, and messaging integrations. | Configuring and maintaining its deployment, tools, and execution environment. |
-| **[Viktor](https://viktor.com/)** | An assistant in Slack or Teams that works across business tools. | Setting up connections and managing workflows in a hosted service. |
+| **SecondShift** | Scheduled CI investigations, release checks, and repository reviews your team maintains in Git. | Open source. Run it locally or on your server, with your choice of model. Currently beta. |
+| **[Grok Bot](https://docs.x.ai/grok-bot/overview)** | Research and tasks across apps and websites, with files and context kept between tasks. | Hosted service with a persistent computer and browser. |
+| **[Hermes Agent](https://hermes-agent.nousresearch.com/docs)** | A general assistant you customize around your tools, habits, and preferred models. | Open source. Run it on your own machine or cloud infrastructure. |
+| **[Viktor](https://viktor.com/)** | Delegating reports, follow-ups, and work across business tools from Slack or Teams. | Hosted service connected to your team's apps. |
 
 ## Why choose SecondShift?
 
