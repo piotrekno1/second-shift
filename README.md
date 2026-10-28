@@ -36,12 +36,11 @@ tracking across repositories.
 
 ## See it in action
 
-Schedule a CI failure review every Monday. The task reads approved
-build history, connects recurring failures to repository code, and delivers a
-report to your team's Slack channel. Open the run to review its findings, tool
-activity, and model cost.
+Follow an infrastructure review from versioned instructions and approved tools
+to a report delivered in Slack. Inspect job history, run limits, tool activity,
+and model cost.
 
-https://github.com/user-attachments/assets/0d88e2ef-c14d-4bfa-8367-7a5c4e4fd627
+https://github.com/user-attachments/assets/0a9a7baa-f79e-4934-af81-8e5374e9cdbf
 
 ## Access, budgets, and credentials
 
