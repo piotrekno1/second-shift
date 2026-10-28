@@ -32,14 +32,14 @@ application and start Docker for job sandboxes, then run:
 # Install SecondShift
 release=https://github.com/piotrekno1/second-shift/releases
 uv tool install --force --python 3.13 \
-  "$release/download/v0.1.0b2/secondshift-0.1.0b2-py3-none-any.whl"
+  "$release/download/v0.1.0b3/secondshift-0.1.0b3-py3-none-any.whl"
 
 # Start SecondShift
 secondshift up
 ```
 
 Upgrading from an alpha? This beta resets database migrations and requires a
-fresh database. Read the [beta release notes](docs/releases/0.1.0b2.md) first.
+fresh database. Read the [beta release notes](docs/releases/0.1.0b3.md) first.
 
 Once started, the console shows:
 
