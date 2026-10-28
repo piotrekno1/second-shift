@@ -55,11 +55,11 @@ function search(event: AutoCompleteCompleteEvent): void {
 .model-picker.p-autocomplete {
   width: 100%; min-width: 0; min-height: 42px; align-items: stretch;
   border: 1px solid var(--border); border-radius: 8px;
-  background: rgba(255,255,255,.04); color: var(--ink);
+  background: var(--white-6); color: var(--ink);
   text-transform: none; letter-spacing: normal; font-size: 12px;
 }
 .model-picker.p-autocomplete:hover { border-color: var(--ink); }
-.model-picker.p-autocomplete:focus-within { border-color: var(--ink); box-shadow: 0 0 0 2px rgba(255,255,255,.18); }
+.model-picker.p-autocomplete:focus-within { border-color: var(--ink); box-shadow: 0 0 0 2px var(--white-18); }
 .need-setup .model-picker .p-autocomplete-input,
 .model-picker .p-autocomplete-input-multiple {
   flex: 1; width: 0; min-width: 0; min-height: 40px; margin: 0; padding: 8px 12px;
@@ -70,14 +70,14 @@ function search(event: AutoCompleteCompleteEvent): void {
 .model-picker .p-autocomplete-input-multiple input { width: 100%; min-width: 80px; padding: 0; color: var(--ink); background: transparent; font: inherit; }
 .model-picker input::placeholder { color: var(--muted); opacity: 1; }
 .model-picker .p-autocomplete-input-chip { flex: 1; min-width: 80px; }
-.model-picker .p-chip { max-width: 100%; padding: 4px 8px; border-radius: 4px; color: var(--ink); background: rgba(255,255,255,.16); font-size: 12px; line-height: 18px; }
+.model-picker .p-chip { max-width: 100%; padding: 4px 8px; border-radius: 4px; color: var(--ink); background: var(--white-12); font-size: 12px; line-height: 18px; }
 .model-picker .p-chip-label { overflow-wrap: anywhere; }
 .model-picker .p-autocomplete-dropdown { width: 36px; border: 0; border-radius: 0 8px 8px 0; background: transparent; color: var(--muted); }
-.model-picker .p-autocomplete-dropdown:hover { background: rgba(255,255,255,.12); color: var(--ink); }
+.model-picker .p-autocomplete-dropdown:hover { background: var(--white-12); color: var(--ink); }
 .model-picker-overlay.p-autocomplete-overlay { border: 1px solid var(--border); border-radius: 8px; background: var(--night-800); color: var(--ink); box-shadow: var(--shadow); text-transform: none; letter-spacing: normal; }
 .model-picker-overlay .p-autocomplete-option { min-height: 40px; padding: 8px 12px; color: var(--ink); font-size: 12px; }
 .model-picker-overlay .p-autocomplete-option:hover,
-.model-picker-overlay .p-autocomplete-option.p-focus { background: rgba(255,255,255,.12); color: var(--ink); }
-.model-picker-overlay .p-autocomplete-option-selected { background: rgba(255,255,255,.12); color: var(--ink); }
+.model-picker-overlay .p-autocomplete-option.p-focus { background: var(--white-12); color: var(--ink); }
+.model-picker-overlay .p-autocomplete-option-selected { background: var(--white-12); color: var(--ink); }
 .model-picker-overlay .p-autocomplete-empty-message { padding: 12px; color: var(--muted); font-size: 12px; }
 </style>

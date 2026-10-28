@@ -15,7 +15,8 @@ const route = useRoute()
 const app = useAppStore()
 const mobileOpen = ref(false)
 
-interface NavItem { label: string; to: string; icon: string; note: string }
+// A note's dot says how bad it is: danger when something is broken, warning when it waits on you.
+interface NavItem { label: string; to: string; icon: string; note: string; tone?: 'warning' | 'danger' }
 
 // Something waiting on the reader is said in words, so "1" is never read as a total.
 // Connections says what these add up to, so the two counts always match.
@@ -28,14 +29,14 @@ const groups = computed<{ label: string; items: NavItem[] }[]>(() => [
     items: [
       { label: 'Overview', to: '/', icon: 'view-dashboard-outline', note: '' },
       { label: 'Repositories', to: '/repositories', icon: 'source-repository', note: '' },
-      { label: 'Jobs', to: '/jobs', icon: 'calendar-clock-outline', note: app.jobsNeedingReview ? `${app.jobsNeedingReview} to approve` : '' },
+      { label: 'Jobs', to: '/jobs', icon: 'calendar-clock-outline', note: app.jobsNeedingReview ? `${app.jobsNeedingReview} to approve` : '', tone: 'warning' },
       { label: 'Runs', to: '/runs', icon: 'play-circle-outline', note: '' },
     ],
   },
   {
     label: 'Setup',
     items: [
-      { label: 'Connections', to: '/connections', icon: 'connection', note: toFix.value ? `${toFix.value} to fix` : '' },
+      { label: 'Connections', to: '/connections', icon: 'connection', note: toFix.value ? `${toFix.value} to fix` : '', tone: app.brokenConnections ? 'danger' : 'warning' },
       { label: 'Settings', to: '/settings', icon: 'cog-outline', note: '' },
     ],
   },
@@ -100,7 +101,7 @@ async function handleSignOut(): Promise<void> {
           >
             <AppIcon :name="item.icon" />
             <span>{{ item.label }}</span>
-            <small v-if="item.note" class="nav-note">{{ item.note }}</small>
+            <small v-if="item.note" class="nav-note" :class="item.tone">{{ item.note }}</small>
           </RouterLink>
         </section>
       </nav>

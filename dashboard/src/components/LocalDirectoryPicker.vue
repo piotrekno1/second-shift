@@ -150,7 +150,7 @@ onUnmounted(directories.reset)
   padding: 4px;
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: rgba(13, 14, 29, .45);
+  background: rgba(0, 0, 0, .45);
   scrollbar-width: thin;
   scrollbar-color: var(--night-750) transparent;
 }
@@ -169,12 +169,12 @@ onUnmounted(directories.reset)
   cursor: pointer;
 }
 .local-directory-picker .directory-row:hover {
-  background: rgba(255,255,255, .09);
+  background: var(--white-8);
 }
 .local-directory-picker .directory-row:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: -2px;
-  background: rgba(255,255,255, .09);
+  background: var(--white-8);
 }
 .local-directory-picker .directory-row > span {
   flex: 1;
@@ -183,7 +183,7 @@ onUnmounted(directories.reset)
   font-size: 12px;
 }
 .local-directory-picker .directory-icon {
-  color: var(--amber-soft);
+  color: var(--muted);
   font-size: 16px;
 }
 .local-directory-picker .directory-chevron {

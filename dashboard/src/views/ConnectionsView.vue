@@ -301,7 +301,7 @@ onMounted(async () => {
       </Button>
     </PageHeader>
 
-    <p v-if="pageNotice" class="page-notice" :class="{ ok: pageNotice.ok }" role="status">
+    <p v-if="pageNotice" class="page-notice" :class="{ error: !pageNotice.ok }" role="status">
       <AppIcon :name="pageNotice.ok ? 'check-circle-outline' : 'alert-circle-outline'" /> {{ pageNotice.text }}
     </p>
 
