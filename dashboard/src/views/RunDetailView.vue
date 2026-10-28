@@ -39,7 +39,7 @@ const outputFile = computed(() => run.value?.files.find((file) => file.name === 
 const excerptOnly = computed(() => Boolean(run.value?.output_size_bytes && run.value.output_size_bytes > run.value.output_excerpt.length))
 // Steps matter while a run is in progress or after it fails; on success they are routine.
 const timelineOpen = computed(() => run.value?.status !== 'succeeded')
-const activeNote = computed(() => (run.value?.status === 'queued' ? 'Waiting for a worker…' : 'Running now · this page updates live'))
+const activeNote = computed(() => (run.value?.status === 'queued' ? 'Waiting to start…' : 'Running now · this page updates live'))
 
 const reportElement = ref<HTMLElement | null>(null)
 const reportExpanded = ref(false)
@@ -149,7 +149,7 @@ onUnmounted(stopPolling)
               </li>
               <li v-if="active" class="pending"><time>…</time><span>Waiting for the next step</span></li>
             </ol>
-            <div v-else class="empty-state compact"><AppIcon name="timer-sand" /><strong>Nothing has happened yet</strong><span>Steps appear as soon as a worker starts the run.</span></div>
+            <div v-else class="empty-state compact"><AppIcon name="timer-sand" /><strong>Nothing has happened yet</strong><span>Steps appear here once the run starts.</span></div>
           </section>
 
           <section v-if="run.output_excerpt || !run.failure" class="panel job-runs-panel run-report-panel">

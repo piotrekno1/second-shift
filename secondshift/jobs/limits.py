@@ -76,14 +76,14 @@ LIMIT_SPECS = {
     ),
     RunLimit.TOKEN_BUDGET: LimitSpec(
         "Tokens",
-        "Input and output tokens. The model gateway refuses calls past this.",
+        "Input and output tokens. Model calls past this are refused.",
         LimitUnit.TOKENS,
         "MODEL_RUN_TOKEN_BUDGET",
         minimum=1_000,
     ),
     RunLimit.TIMEOUT_SECONDS: LimitSpec(
         "Time",
-        "Counted from when the run starts. Time in the queue is free.",
+        "Counted from when the run starts. Waiting to start does not count.",
         LimitUnit.SECONDS,
         "RUN_TIMEOUT_SECONDS",
         minimum=60,

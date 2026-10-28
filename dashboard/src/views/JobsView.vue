@@ -215,7 +215,7 @@ async function toggleJob(job: Job): Promise<void> {
             </div>
             <div class="job-actions">
               <Button v-if="accessNeedsAction(job.grant_status) && app.can(Action.ReviewCapabilities)" label="Review access" size="small" :aria-expanded="expandedJobId === job.id" :aria-controls="`job-access-${job.id}`" @click="expandedJobId = expandedJobId === job.id ? null : job.id" />
-              <button v-else-if="job.capabilities.length" type="button" class="job-action labeled" :class="{ active: expandedJobId === job.id }" title="Show the connections this job uses" :aria-expanded="expandedJobId === job.id" :aria-controls="`job-access-${job.id}`" @click="expandedJobId = expandedJobId === job.id ? null : job.id">
+              <button v-else-if="job.capabilities.length" type="button" class="job-action labeled" :class="{ active: expandedJobId === job.id }" title="See access and connections" :aria-expanded="expandedJobId === job.id" :aria-controls="`job-access-${job.id}`" @click="expandedJobId = expandedJobId === job.id ? null : job.id">
                 <AppIcon aria-hidden="true" name="shield-check-outline" /><span>Access</span>
               </button>
               <button v-if="app.can(Action.RunJobs)" type="button" class="job-action" :class="{ 'is-loading': action === `run-${job.id}` }" aria-label="Run now" :title="job.enabled || !job.cron ? 'Run now' : 'Run once. The schedule stays off'" :aria-busy="action === `run-${job.id}`" :disabled="action === `run-${job.id}`" @click="runNow(job.id)">
@@ -240,7 +240,7 @@ async function toggleJob(job: Job): Promise<void> {
                     {{ tool }}<span v-if="capability.changing_tools?.includes(tool)" class="mcp-flag" title="The service does not mark this as read-only">May change data</span>
                   </span>
                 </small>
-                <small v-else>No tool-level access requested</small>
+                <small v-else>No tool list. It can use the whole connection</small>
                 <small v-if="accessFor(capability)" :class="{ 'field-error': !accessFor(capability)?.ok }">{{ accessFor(capability)?.text }}</small>
               </div>
               <Select
@@ -261,7 +261,7 @@ async function toggleJob(job: Job): Promise<void> {
                   <AppIcon name="link-plus" /> Set up {{ capability.binding }}
                 </RouterLink>
               </div>
-              <StatusPill :status="capability.grant_status" />
+              <StatusPill :status="capability.grant_status" :label="accessLabel(capability.grant_status)" />
               <div v-if="app.can(Action.ReviewCapabilities)" class="review-actions">
                 <Button :label="capability.grant_status === 'approved' ? 'Revoke' : 'Deny'" severity="danger" text size="small" :loading="action === `denied-${capability.id}`" @click="reviewCapability(job, capability, 'denied')" />
                 <Button v-if="approvalPending(capability, selectedConnection(capability))" :label="capability.grant_status === 'approved' ? 'Approve change' : 'Approve'" size="small" :disabled="!selectedConnection(capability) || accessFor(capability)?.ok === false" :title="selectedConnection(capability) ? 'Approve this connection and scope' : 'Set up a matching connection first'" :loading="action === `approved-${capability.id}`" @click="reviewCapability(job, capability, 'approved')">
