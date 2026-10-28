@@ -351,6 +351,7 @@ body .p-select-overlay { color: var(--ink); background: var(--night-800); border
 .failure-reason { overflow: hidden; color: var(--muted); text-overflow: ellipsis; white-space: nowrap; }
 .run-failure.canceled .failure-label { border-color: var(--border); background: rgba(152,153,178,.08); color: var(--muted); }
 .run-failure-headline { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; color: var(--ink) !important; }
+.run-next-step { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin: 8px 0 0; color: var(--muted); font-size: 13px; }
 .run-failure-headline .failure-label { font-size: 12px; padding: 4px 8px 4px 8px; }
 
 /* Run detail: report first, details on the side */
@@ -519,6 +520,10 @@ body .p-select-overlay { color: var(--ink); background: var(--night-800); border
 .job-review-heading { align-items: flex-start; margin-bottom: 16px; }
 .job-review-heading p { margin-bottom: 0; line-height: 1.5; }
 .job-review-heading > .p-button { flex-shrink: 0; }
+.review-blocker { margin: -8px 0 16px; color: var(--amber); font-size: 12px; }
+.page-warning { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 0 0 16px; padding: 12px 16px; border: 1px solid color-mix(in srgb, var(--amber) 25%, transparent); border-radius: 8px; color: var(--ink); background: color-mix(in srgb, var(--amber) 6%, transparent); font-size: 13px; }
+.page-warning > .app-icon { color: var(--amber); }
+.page-warning > span { flex: 1 1 240px; }
 .capability-review-row { grid-template-columns: minmax(0, 1fr) minmax(180px, 1fr) auto auto; gap: 16px; padding: 16px 0; }
 .capability-review-row > * { min-width: 0; }
 .capability-summary { gap: 4px; overflow-wrap: anywhere; }

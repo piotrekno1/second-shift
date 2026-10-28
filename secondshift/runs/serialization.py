@@ -2,7 +2,11 @@ from secondshift.jobs.limits import RunLimit
 from secondshift.runs.execution.budgets import BUDGET_HEADLINE
 from secondshift.runs.execution.deadlines import TIMEOUT_HEADLINE
 from secondshift.runs.models import Run
-from secondshift.runs.reporting.failures import describe_failure
+from secondshift.runs.reporting.failures import (
+    MODEL_PROVIDER_LABEL,
+    describe_failure,
+    model_provider_next_step,
+)
 from secondshift.runs.schemas import (
     RunDetailSchema,
     RunEventSchema,
@@ -28,10 +32,19 @@ def run_failure(run: Run) -> RunFailureSchema | None:
     if run.status != Run.Status.FAILED:
         return None
     view = describe_failure(run.summary)
+    connection_id, next_step = None, ""
+    if view.label == MODEL_PROVIDER_LABEL:
+        model = run.execution_plan.get("model") or {}
+        if isinstance(model.get("connection_id"), int):
+            connection_id = model["connection_id"]
+        name = model.get("connection_name") or "the model connection"
+        next_step = model_provider_next_step(view.reason, name)
     return RunFailureSchema(
         label=view.label,
         reason=view.reason,
         limit=view.label in (BUDGET_HEADLINE, TIMEOUT_HEADLINE),
+        connection_id=connection_id,
+        next_step=next_step,
     )
 
 

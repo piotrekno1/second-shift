@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import AppIcon from '../components/AppIcon.vue'
 import { computed } from 'vue'
+import ModelWarning from '../components/ModelWarning.vue'
 import PageHeader from '../components/PageHeader.vue'
 import RunsChart from '../components/RunsChart.vue'
 import StatCard from '../components/StatCard.vue'
@@ -21,6 +22,8 @@ useLiveRefresh(() => (runActive() ? app.refreshRuns() : app.refresh()), runActiv
 const approvalJobs = computed(() => app.jobs.filter((job) =>
   job.capabilities.some((capability) => capability.required && capability.grant_status !== 'approved'),
 ))
+// Approving cannot start before the binding has a connection, so that comes first.
+const missingConnection = computed(() => app.needs.find((need) => need.required && need.status === 'missing') ?? null)
 const failing = computed(() => app.overview?.failing_jobs ?? [])
 // Soonest first; jobs without a next run (just enabled, not yet scheduled) go last.
 const upcoming = computed(() => app.jobs
@@ -56,7 +59,8 @@ const runDays = computed(() => app.overview?.run_days ?? [])
 // The chart earns its space only once something has finished. Before that, Recent runs says so.
 const hasFinishedRuns = computed(() => runDays.value.some((day) => day.succeeded + day.failed + day.canceled > 0))
 const attentionDetail = computed(() => {
-  if (failing.value.length) return `${failing.value.length === 1 ? 'Job' : 'Jobs'} whose last run failed`
+  const paused = failing.value.filter((job) => job.paused).length
+  if (failing.value.length) return `${failing.value.length === 1 ? 'Job' : 'Jobs'} whose last run failed${paused ? `, ${paused} paused` : ''}`
   return app.runs.length ? 'No job\'s last run failed' : 'Nothing has run yet'
 })
 const passRate = computed(() => {
@@ -70,9 +74,12 @@ const passRate = computed(() => {
   <div class="page">
     <PageHeader title="This week" :aside="weekRange(new Date())" :description="subtitle">
       <!-- The one next step: approve what blocks a job, or add the first repository. -->
-      <RouterLink v-if="approvalJobs[0] && app.can(Action.ReviewCapabilities)" :to="{ path: '/jobs', query: { review: String(approvalJobs[0].id) } }" class="primary-action"><AppIcon name="shield-key-outline" /> Review access</RouterLink>
+      <RouterLink v-if="missingConnection && app.can(Action.AddConnections)" :to="{ path: '/connections', query: { binding: missingConnection.binding } }" class="primary-action"><AppIcon name="link-plus" /> Connect {{ missingConnection.binding }}</RouterLink>
+      <RouterLink v-else-if="approvalJobs[0] && app.can(Action.ReviewCapabilities)" :to="{ path: '/jobs', query: { review: String(approvalJobs[0].id) } }" class="primary-action"><AppIcon name="shield-key-outline" /> Review access</RouterLink>
       <RouterLink v-else-if="!app.repositories.length && app.canAddLocalRepositories" to="/repositories" class="primary-action"><AppIcon name="plus" /> Add repository</RouterLink>
     </PageHeader>
+
+    <ModelWarning />
 
     <section class="stats-grid">
       <StatCard label="Needs attention" :value="failing.length" :detail="attentionDetail" :tone="failing.length ? 'danger' : undefined" :to="failing.length ? { hash: '#failing' } : undefined" />
@@ -88,7 +95,7 @@ const passRate = computed(() => {
       </div>
       <div class="approval-list">
         <RouterLink v-for="job in failing" :key="job.job_id" :to="`/runs/${job.run_id}`" class="attention-row">
-          <div class="activity-main"><strong>{{ job.job }}</strong><span>{{ job.repository }} · run #{{ job.run_id }}</span></div>
+          <div class="activity-main"><strong>{{ job.job }}</strong><span>{{ job.repository }} · run #{{ job.run_id }}<template v-if="job.paused"> · paused</template></span></div>
           <div class="run-failure"><span class="failure-label"><AppIcon name="alert-circle-outline" />{{ job.label }}</span><span class="failure-reason">{{ job.reason }}</span></div>
           <span class="activity-time" :title="`${formatDate(job.failed_at)} · ${utcTitle(job.failed_at)}`">{{ formatRelative(job.failed_at) }}</span>
           <AppIcon name="chevron-right" class="row-chevron" />

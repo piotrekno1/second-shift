@@ -13,6 +13,9 @@ class RunFailureSchema(Schema):
     reason: str
     # The run stopped at one of its limits, which an owner can change.
     limit: bool = False
+    # The connection to fix, when the failure came from one, and what to do.
+    connection_id: int | None = None
+    next_step: str = ""
 
 
 class RunSchema(Schema):

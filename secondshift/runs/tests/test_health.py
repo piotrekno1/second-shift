@@ -59,6 +59,10 @@ def test_failing_jobs_look_only_at_each_jobs_latest_finished_run() -> None:
         job.save(update_fields=["enabled"])
     paused.enabled = False
     paused.save(update_fields=["enabled"])
+    manual = make_job(workspace, "acme/web", "manual")
+    manual.cron = ""
+    manual.enabled = False
+    manual.save(update_fields=["cron", "enabled"])
 
     add_run(recovered, Run.Status.FAILED, 60, "Couldn't start the sandbox: boom.")
     add_run(recovered, Run.Status.SUCCEEDED, 30)
@@ -71,11 +75,20 @@ def test_failing_jobs_look_only_at_each_jobs_latest_finished_run() -> None:
     )
     add_run(broken, Run.Status.RUNNING, 1)
     add_run(paused, Run.Status.FAILED, 5, "Timed out")
+    manual_failed = add_run(manual, Run.Status.FAILED, 5, "Timed out")
 
-    [only] = failing_jobs(workspace)
+    found = {job.job_id: job for job in failing_jobs(workspace)}
 
-    assert (only.job_id, only.run_id) == (broken.pk, failed.pk)
-    assert (only.label, only.reason) == ("Model provider", "HTTP 401 · Nope.")
+    assert set(found) == {broken.pk, manual.pk, paused.pk}
+    assert [job.pk for job in (broken, manual, paused) if found[job.pk].paused] == [
+        paused.pk
+    ]
+    assert found[broken.pk].run_id == failed.pk
+    assert (found[broken.pk].label, found[broken.pk].reason) == (
+        "Model provider",
+        "HTTP 401 · Nope.",
+    )
+    assert found[manual.pk].run_id == manual_failed.pk
 
 
 @pytest.mark.django_db

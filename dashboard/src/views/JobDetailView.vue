@@ -3,6 +3,7 @@ import AppIcon from '../components/AppIcon.vue'
 import { computed, nextTick, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Button from 'primevue/button'
+import ModelWarning from '../components/ModelWarning.vue'
 import PageHeader from '../components/PageHeader.vue'
 import RunOutcomes from '../components/RunOutcomes.vue'
 import RunLimitsPanel from '../components/RunLimitsPanel.vue'
@@ -15,6 +16,7 @@ import { saveJobLimits } from '../services/settings'
 import { useAppStore } from '../stores/app'
 import type { Job, JobDetail, RunLimitUpdate } from '../types'
 import { Action } from '../utils/permissions'
+import { enableBlocker } from '../utils/readiness'
 import { accessLabel, accessNeedsAction, countLabel, formatDate, historyLabel, formatRelative, formatSchedule, formatScheduled, jobState, kindLabel, utcTitle } from '../utils/format'
 
 const route = useRoute()
@@ -104,7 +106,7 @@ useLiveRefresh(loadJob, () => (job.value?.recent_runs ?? []).some((run) => isRun
 <template>
   <div class="page">
     <PageHeader compact :title="job?.name ?? 'Job'" :description="detailSubtitle" :parent="{ label: 'Jobs', to: '/jobs' }">
-      <Button v-if="job && job.cron && app.can(Action.EnableJobs)" :label="job.enabled ? 'Disable' : 'Enable'" severity="secondary" outlined :loading="action === 'toggle'" @click="toggleJob">
+      <Button v-if="job && job.cron && app.can(Action.EnableJobs)" :label="job.enabled ? 'Disable' : 'Enable'" severity="secondary" outlined :disabled="Boolean(enableBlocker(job))" :title="enableBlocker(job) || undefined" :loading="action === 'toggle'" @click="toggleJob">
         <template #icon><AppIcon :name="job.enabled ? 'pause' : 'play'" /></template>
       </Button>
       <Button class="main-action" v-if="job && app.can(Action.RunJobs)" label="Run now" :disabled="!job.repository_enabled" :title="job.repository_enabled ? 'Start a run and open it' : 'Enable the repository to run its jobs'" :loading="action === 'run'" @click="runNow">
@@ -116,6 +118,7 @@ useLiveRefresh(loadJob, () => (job.value?.recent_runs ?? []).some((run) => isRun
     <div v-else-if="!job" class="panel empty-state"><AppIcon name="alert-outline" /><strong>Job unavailable</strong><span>{{ error }}</span></div>
     <template v-else>
       <p v-if="error" class="page-error">{{ error }}</p>
+      <ModelWarning />
 
       <section class="panel job-status-strip" :class="{ disabled: !job.enabled }">
         <StatusPill :status="jobState(job)" />
