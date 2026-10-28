@@ -11,10 +11,29 @@ restore and update procedures. To repeat the gVisor, upgrade and restore tests,
 run the [production end-to-end test](../scripts/production_e2e/README.md).
 
 For a local trial, use `secondshift up` as described in the
-[quick start](../README.md#try-it-out-now).
+[quick start](../README.md#try-it-locally).
 
 See [GitHub App repository access](github-app.md) to configure repository import
 and automatic syncing.
+
+## Local trial
+
+Install and start SecondShift using the [quickstart](../README.md#try-it-locally).
+The beta is distributed through
+[GitHub Releases](https://github.com/piotrekno1/second-shift/releases) until it is
+available on PyPI.
+
+Upgrading from an alpha? This beta resets database migrations and requires a
+fresh database. Read the [beta release notes](releases/0.1.0b3.md) first.
+
+Once started, the console shows:
+
+```text
+SecondShift is running at http://127.0.0.1:8000
+Sign in with this link. It works once, within 15 minutes:
+  http://127.0.0.1:8000/-/sign-in/<one-time-token>/
+Run `secondshift login` for a new link. Press Ctrl+C to stop.
+```
 
 ## Runner backends
 
@@ -114,6 +133,27 @@ revoke pending invites from the Settings page.
 Owners also change roles and remove people on the Settings page. A workspace
 always keeps at least one owner, so the last owner cannot step down or leave.
 
+## Who controls what
+
+| Role | Controls |
+| --- | --- |
+| **Repository contributors** | Propose skills, schedules, and requested capabilities through Git changes. |
+| **Repository maintainers** | Review and merge those changes through the repository's normal process. |
+| **Workspace owners** | Connect model providers and services, approve each job's access, add local repositories, and invite people and manage their roles. |
+| **Workspace admins** | Enable, run and schedule approved jobs, manage repositories, and change run limits. |
+| **Workspace members** | View repositories, jobs and runs. |
+| **Server operators** | Define sandbox images, runtimes, resource limits, and network policy. |
+
+Workspace owners can also perform admin and member actions. Admins can also
+perform member actions. The full list of actions and required roles is `POLICY` in
+[`secondshift/workspaces/access.py`](../secondshift/workspaces/access.py).
+
+A committed skill does not grant itself access. Repository configuration cannot
+choose credentials, provider endpoints, sandbox images, mounts, or network
+settings. Expanding requested capabilities requires renewed approval.
+
+Skills run in isolated sandboxes. Every run is tied to a Git commit.
+
 ## Run artifact storage
 
 Full run output is stored outside Postgres in private storage, under
@@ -135,6 +175,8 @@ A job with `history` starts each run with its earlier reports.
 Lowering it also applies to jobs that already ask for more.
 `SECONDSHIFT_RUN_HISTORY_MAX_CHARS` (default 65,536) caps their total length.
 The newest report is included first. What does not fit is cut or left out.
+
+## Run limits
 
 Each run has four limits. Each has a default and a maximum:
 

@@ -6,27 +6,61 @@
 [![CI](https://github.com/piotrekno1/second-shift/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/piotrekno1/second-shift/actions/workflows/ci.yml?query=branch%3Amain)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
 
-**Same agent. Same task. Every week?**  
-**Put it on a schedule with SecondShift.**
+**Recurring engineering tasks, managed by your team.**
 
-Give your coding agents recurring tasks: investigate CI failures, check release
-readiness, or close fixed issues through an approved service connection.
-Commit a skill, set a schedule, and follow what gets done.
+SecondShift lets engineering teams schedule AI tasks across their repositories:
+investigate CI failures, check release readiness, and find documentation drift.
 
-Your team controls their access. Every run leaves an audit trail.
+Keep procedures in Git, approve the tools each task can use, and set token limits
+for every run. Your team shares the results, execution history, and model costs.
+
+Open source, self-hosted, and currently in beta. Use your choice of model provider.
+
+[Watch the demo](#see-it-in-action) · [Try it locally](#try-it-locally) ·
+[Use it with your team](#use-it-with-your-team)
+
+## Why use SecondShift?
+
+| Your team's problem | How SecondShift helps |
+| --- | --- |
+| Checks get skipped when nobody remembers to run them. | Schedule a procedure stored alongside your code. |
+| Automation lives in one person's setup. | Share jobs, schedules, and run history with the team. |
+| Agents need access to company services. | Owners approve each job's tools. Broader access requires renewed approval. |
+| Agent usage needs limits and visibility. | Set per-run token limits and inspect usage and model cost. |
+| You need to understand what happened. | Inspect the Git revision, tool activity, and report for each run. |
+
+An existing scheduler can start an agent on a timer. SecondShift adds access
+approvals, per-run limits, sandbox execution, shared run history, and cost
+tracking across repositories.
+[Compare SecondShift with other tools](docs/comparisons.md).
+
+## See it in action
+
+Schedule a CI failure review every Monday. The task reads approved
+build history, connects recurring failures to repository code, and delivers a
+report to your team's Slack channel. Open the run to review its findings, tool
+activity, and model cost.
 
 https://github.com/user-attachments/assets/0d88e2ef-c14d-4bfa-8367-7a5c4e4fd627
 
-Commit a skill and its schedule alongside your code, connect a model, and
-approve the tools it may use. Skills can read data and take actions through
-approved MCP tools or HTTP API operations. Results can arrive in Slack or another
-webhook destination. Commands run in an isolated sandbox. Each run records its Git
-revision, tool activity, and model cost.
+## Access, budgets, and credentials
 
-## Try it out now
+- **Access:** Workspace owners approve each job's tools. Broader access requires
+  renewed approval. See [roles and permissions](docs/self-hosting.md#who-controls-what).
+- **Budgets:** Set per-run token and execution limits. Each run records usage and
+  model cost. See [run limits](docs/self-hosting.md#run-limits).
+- **Credentials:** Your installation stores them encrypted and uses them outside
+  the sandbox. Configured credentials are not passed to the model or sandbox.
+  The server operator has access to them. Your model provider receives the context
+  sent to it. See the [security model](docs/security-model.md).
 
-Install [uv](https://docs.astral.sh/uv/getting-started/installation/) to manage the
-application and start Docker for job sandboxes, then run:
+## Try it locally
+
+Run the included documentation review on this repository and inspect its report
+and cost.
+
+You need [uv](https://docs.astral.sh/uv/getting-started/installation/), Docker,
+Git, and a model provider. Model usage may incur charges. Start Docker, then run:
 
 ```bash
 # Install SecondShift
@@ -38,23 +72,8 @@ uv tool install --force --python 3.13 \
 secondshift up
 ```
 
-Upgrading from an alpha? This beta resets database migrations and requires a
-fresh database. Read the [beta release notes](docs/releases/0.1.0b3.md) first.
-
-Once started, the console shows:
-
-```text
-SecondShift is running at http://127.0.0.1:8000
-Sign in with this link. It works once, within 15 minutes:
-  http://127.0.0.1:8000/-/sign-in/<one-time-token>/
-Run `secondshift login` for a new link. Press Ctrl+C to stop.
-```
-
-SecondShift is in beta, distributed through
-[GitHub Releases](https://github.com/piotrekno1/second-shift/releases) until it is
-available on PyPI.
-
-### Let SecondShift review itself
+Open the sign-in link printed in the terminal.
+[Local sign-in and upgrade details](docs/self-hosting.md#local-trial).
 
 In another terminal, clone this repository:
 
@@ -62,8 +81,7 @@ In another terminal, clone this repository:
 git clone https://github.com/piotrekno1/second-shift.git
 ```
 
-1. In **Connections**, add a model provider and choose a default model. Model
-   usage may incur charges.
+1. In **Connections**, add a model provider and choose a default model.
 2. In **Repositories**, choose **Add local repository** and select the cloned
    directory, or enter its absolute path.
 3. Open **Documentation drift** in **Jobs** and click **Run now**.
@@ -71,87 +89,19 @@ git clone https://github.com/piotrekno1/second-shift.git
 
 The repository already includes the skill and configuration.
 
-## Deploy for your team
+## Use it with your team
 
 For a shared installation on a Linux server, follow the
-[Docker Compose deployment guide](docs/production-deployment.md). The example
-sets up Caddy with automatic HTTPS, PostgreSQL, and a gVisor runner, and connects
-to your private S3-compatible bucket. The guide covers GitHub App configuration,
-initial setup, backups, and updates.
+[Docker Compose deployment guide](docs/production-deployment.md). It covers HTTPS,
+GitHub App configuration, backups, and updates.
 
-## What you can do
+A **skill** is the written procedure the agent follows. Commit it and its
+schedule to Git so your team can review changes before they take effect.
 
-- **See what is on duty.** The control room shows upcoming shifts, recent runs,
-  failures, and model spend.
-- **Manage schedules from Git.** Discover jobs from `.secondshift.yaml`, review
-  their skills and schedules, and enable or run them manually.
-- **Connect models and report destinations.** Add a model provider and webhook,
-  then approve each job's notification access. Connections remain separately
-  revocable.
-- **Connect skills to your services.** Connect GitHub, Sentry, any MCP server (OAuth or a
-  token), or an HTTP API from its OpenAPI spec. Choose which tools jobs may use,
-  then approve each job's request, including operations that change data.
-  Calls run outside the sandbox. Built-in GitHub and Sentry tools are read-only.
-- **Follow every run.** Inspect its Git revision, execution timeline, report,
-  token usage, and model cost.
-
-## Put recurring tasks on duty
-
-Browse the [skill catalog](examples/README.md) to choose a workflow for your
-own repository. Follow the [engineering task setup guide](docs/engineering-tasks.md)
-to copy a skill, approve access, try it manually, and enable scheduling.
-
-## Who controls what
-
-| Role | Controls |
-| --- | --- |
-| **Repository contributors** | Propose skills, schedules, and requested capabilities through Git changes. |
-| **Repository maintainers** | Review and merge those changes through the repository's normal process. |
-| **Workspace owners** | Connect model providers and services, approve each job's access, add local repositories, and invite people and manage their roles. |
-| **Workspace admins** | Enable, run and schedule approved jobs, manage repositories, and change run limits. |
-| **Workspace members** | View repositories, jobs and runs. |
-| **Server operators** | Define sandbox images, runtimes, resource limits, and network policy. |
-
-Each workspace role can also do everything the roles below it can. The full
-list of actions and the role each needs is `POLICY` in
-`secondshift/workspaces/access.py`.
-
-A committed skill does not grant itself access. Repository configuration cannot
-choose credentials, provider endpoints, sandbox images, mounts, or network
-settings. Expanding requested capabilities requires renewed approval.
-
-Skills run in isolated sandboxes. Every run is tied to a Git commit.
-
-## Why use SecondShift?
-
-### Why add SecondShift if your agent already supports schedules?
-
-Make recurring tasks part of how your company operates. Keep procedures and
-schedules in Git, review changes, and give the team shared jobs that continue
-when responsibilities change.
-
-Govern who can approve access, operate jobs, and view results. Set run budgets
-and see token usage and model costs. Each run records the procedure's Git
-revision, tool activity, and report, so the team can check what ran, what it
-did, and what it cost.
-
-Compare [SecondShift, Grok Bot, Hermes Agent, and Viktor](docs/comparisons.md),
-or read the [security model](docs/security-model.md).
-
-### Why not use an existing scheduler?
-
-An existing scheduler can start an agent on a timer. SecondShift also handles
-job discovery from Git, access approvals, sandbox execution, run history, model
-cost tracking, and report delivery. It gives teams one place to manage that work
-across repositories.
-
-## Contributions welcome
-
-SecondShift is early, and contributions are welcome: bug reports, ideas,
-documentation improvements, and pull requests. See
-[CONTRIBUTING.md](CONTRIBUTING.md) to get started. For larger changes,
-[open an issue](https://github.com/piotrekno1/second-shift/issues) first so we can
-discuss the approach.
+Choose a task from the [skill catalog](examples/README.md), then follow the
+[task setup guide](docs/engineering-tasks.md) to approve access, test a run, and
+turn on scheduling. Tasks can report findings or update connected services
+through approved tools.
 
 ## Documentation
 
@@ -163,3 +113,10 @@ discuss the approach.
 - [Security model](docs/security-model.md): what a run can reach, where secrets live, and remaining risks.
 - [Self-hosting](docs/self-hosting.md) (work in progress): runner backends, sandbox images, and artifact storage.
 - [Contributing](CONTRIBUTING.md): source setup, development, verification, and releases.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for bug reports, documentation changes, and
+pull requests. For larger changes,
+[open an issue](https://github.com/piotrekno1/second-shift/issues) first to discuss
+the approach.
