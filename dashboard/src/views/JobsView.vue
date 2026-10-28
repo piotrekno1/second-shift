@@ -210,7 +210,7 @@ async function toggleJob(job: Job): Promise<void> {
               <template v-if="job.cron && job.enabled && job.next_run_at"><strong :title="utcTitle(job.next_run_at)">Next {{ formatRelative(job.next_run_at) }}</strong><small class="cell-sub">{{ formatScheduled(job.next_run_at, job.timezone) }}</small></template>
             </div>
             <div class="job-statuses">
-              <StatusPill v-if="job.cron" :status="jobState(job)" />
+              <StatusPill :status="jobState(job)" :title="job.cron ? undefined : 'No schedule. Start it with Run now'" />
               <StatusPill v-if="accessNeedsAction(job.grant_status)" :status="job.grant_status" :label="accessLabel(job.grant_status)" />
             </div>
             <div class="job-actions">
