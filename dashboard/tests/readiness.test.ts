@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 import type { Capability, Connection } from '../src/types'
-import { approvalPending, brokenModelConnection, enableBlocker } from '../src/utils/readiness'
+import { approvalPending, brokenModelConnection, enableBlocker, runWarning } from '../src/utils/readiness'
 
 function capability(binding: string, required: boolean, grant: Capability['grant_status']): Capability {
   return { id: 1, binding, kind: 'notification', requested_tools: [], required, grant_status: grant, connection_id: null, connection_name: null }
@@ -22,6 +22,12 @@ test('brokenModelConnection flags a failed check on the default model', () => {
   assert.equal(brokenModelConnection([model])?.id, 2)
   assert.equal(brokenModelConnection([{ ...model, last_check: { ...model.last_check!, ok: true } }]), null)
   assert.equal(brokenModelConnection([]), null)
+})
+
+test('runWarning names the model connection that would fail the run', () => {
+  const model = { id: 2, kind: 'model', is_default: true, status: 'connected', display_name: 'OpenRouter', last_check: { ok: false, message: 'HTTP 401', checked_at: '' } } as Connection
+  assert.equal(runWarning([model]), 'This run will fail until OpenRouter works again.')
+  assert.equal(runWarning([{ ...model, status: 'connected', last_check: null }]), '')
 })
 
 test('approvalPending hides Approve once the chosen connection is approved', () => {

@@ -10,6 +10,7 @@ import { useLiveRefresh } from '../composables/useLiveRefresh'
 import { isRunActive } from '../services/runs'
 import { useAppStore } from '../stores/app'
 import { Action } from '../utils/permissions'
+import { brokenModelConnection } from '../utils/readiness'
 import {
   accessLabel, countLabel, formatCost, formatDate, formatRelative, formatScheduled, healthHeadline, runsTrend, spendTrend, utcTitle, weekRange,
 } from '../utils/format'
@@ -24,6 +25,8 @@ const approvalJobs = computed(() => app.jobs.filter((job) =>
 ))
 // Approving cannot start before the binding has a connection, so that comes first.
 const missingConnection = computed(() => app.needs.find((need) => need.required && need.status === 'missing') ?? null)
+// While the model key is broken every run fails, so fixing it is the one next step.
+const brokenModel = computed(() => brokenModelConnection(app.connections))
 const failing = computed(() => app.overview?.failing_jobs ?? [])
 // Soonest first; jobs without a next run (just enabled, not yet scheduled) go last.
 const upcoming = computed(() => app.jobs
@@ -73,10 +76,11 @@ const passRate = computed(() => {
 <template>
   <div class="page">
     <PageHeader title="This week" :aside="weekRange(new Date())" :description="subtitle">
-      <!-- The one next step: approve what blocks a job, or add the first repository. -->
-      <RouterLink v-if="missingConnection && app.can(Action.AddConnections)" :to="{ path: '/connections', query: { binding: missingConnection.binding } }" class="primary-action"><AppIcon name="link-plus" /> Connect {{ missingConnection.binding }}</RouterLink>
-      <RouterLink v-else-if="approvalJobs[0] && app.can(Action.ReviewCapabilities)" :to="{ path: '/jobs', query: { review: String(approvalJobs[0].id) } }" class="primary-action"><AppIcon name="shield-key-outline" /> Review access</RouterLink>
-      <RouterLink v-else-if="!app.repositories.length && app.canAddLocalRepositories" to="/repositories" class="primary-action"><AppIcon name="plus" /> Add repository</RouterLink>
+      <!-- The one next step: approve what blocks a job, or add the first repository.
+           With a broken model key, the warning below carries the step instead. -->
+      <RouterLink v-if="!brokenModel && missingConnection && app.can(Action.AddConnections)" :to="{ path: '/connections', query: { binding: missingConnection.binding } }" class="primary-action"><AppIcon name="link-plus" /> Connect {{ missingConnection.binding }}</RouterLink>
+      <RouterLink v-else-if="!brokenModel && approvalJobs[0] && app.can(Action.ReviewCapabilities)" :to="{ path: '/jobs', query: { review: String(approvalJobs[0].id) } }" class="primary-action"><AppIcon name="shield-key-outline" /> Review access</RouterLink>
+      <RouterLink v-else-if="!brokenModel && !app.repositories.length && app.canAddLocalRepositories" to="/repositories" class="primary-action"><AppIcon name="plus" /> Add repository</RouterLink>
     </PageHeader>
 
     <ModelWarning />

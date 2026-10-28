@@ -19,6 +19,12 @@ export function brokenModelConnection(connections: Connection[]): Connection | n
   return model.status !== 'connected' || model.last_check?.ok === false ? model : null
 }
 
+/** A warning for a run button while every run would fail on the model key, or ''. */
+export function runWarning(connections: Connection[]): string {
+  const model = brokenModelConnection(connections)
+  return model ? `This run will fail until ${model.display_name} works again.` : ''
+}
+
 /** Approving again only makes sense when the chosen connection changed. */
 export function approvalPending(capability: Pick<Capability, 'grant_status' | 'connection_id'>, selected: number | null): boolean {
   return capability.grant_status !== 'approved' || selected !== capability.connection_id

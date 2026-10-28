@@ -16,7 +16,7 @@ import { saveJobLimits } from '../services/settings'
 import { useAppStore } from '../stores/app'
 import type { Job, JobDetail, RunLimitUpdate } from '../types'
 import { Action } from '../utils/permissions'
-import { enableBlocker } from '../utils/readiness'
+import { enableBlocker, runWarning } from '../utils/readiness'
 import { accessLabel, accessNeedsAction, countLabel, describeCron, formatDate, historyLabel, formatRelative, formatSchedule, formatScheduled, jobState, kindLabel, utcTitle } from '../utils/format'
 
 const route = useRoute()
@@ -116,7 +116,7 @@ useLiveRefresh(loadJob, () => (job.value?.recent_runs ?? []).some((run) => isRun
       <Button v-if="job && job.cron && app.can(Action.EnableJobs)" :label="job.enabled ? 'Disable' : 'Enable'" severity="secondary" outlined :disabled="Boolean(enableBlocker(job))" :title="enableBlocker(job) || undefined" :loading="action === 'toggle'" @click="toggleJob">
         <template #icon><AppIcon :name="job.enabled ? 'pause' : 'play'" /></template>
       </Button>
-      <Button class="main-action" v-if="job && app.can(Action.RunJobs)" label="Run now" :disabled="!job.repository_enabled" :title="job.repository_enabled ? 'Start a run and open it' : 'Enable the repository to run its jobs'" :loading="action === 'run'" @click="runNow">
+      <Button class="main-action" v-if="job && app.can(Action.RunJobs)" label="Run now" :disabled="!job.repository_enabled" :title="job.repository_enabled ? (runWarning(app.connections) || 'Start a run and open it') : 'Enable the repository to run its jobs'" :loading="action === 'run'" @click="runNow">
         <template #icon><AppIcon name="play" /></template>
       </Button>
     </PageHeader>
