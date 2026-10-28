@@ -4,7 +4,7 @@
 
 | Product | Best for | How it runs |
 | --- | --- | --- |
-| **SecondShift** | Making recurring tasks part of your company's operating model, with reviewed procedures, approved access, and shared run history. | Open source. Run it locally or on your server, with your choice of model. |
+| **SecondShift** | Making recurring tasks part of your company's operating model, with reviewed procedures, role-based governance, approved access, shared run history, and clear token usage and costs. | Open source. Run it locally or on your server, with your choice of model. |
 | **[Grok Bot](https://docs.x.ai/grok-bot/overview)** | Research and tasks across apps and websites, with files and context kept between tasks. | Hosted service with a persistent computer and browser. |
 | **[Hermes Agent](https://hermes-agent.nousresearch.com/docs)** | A general assistant you customize around your tools, habits, and preferred models. | Open source. Run it on your own machine or cloud infrastructure. |
 | **[Viktor](https://viktor.com/)** | Delegating reports, follow-ups, and work across business tools from Slack or Teams. | Hosted service connected to your team's apps. |
