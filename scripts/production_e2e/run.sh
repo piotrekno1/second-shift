@@ -72,8 +72,10 @@ on_host "docker run --rm --runtime=runsc hello-world >/dev/null 2>&1" || {
 echo "Copying the checkout and $UNDER_TEST to the host"
 docker save "$UNDER_TEST" | docker exec -i "$HOST" docker load >/dev/null
 on_host "mkdir -p /opt/secondshift"
+# Skip files deleted from the working tree. This works with GNU tar and macOS bsdtar.
 git ls-files -z --cached --others --exclude-standard |
-  tar --null --ignore-failed-read -T - -cf - 2>/dev/null |
+  xargs -0 sh -c 'for path; do if [ -e "$path" ]; then printf "%s\0" "$path"; fi; done' sh |
+  COPYFILE_DISABLE=1 tar --null -T - -cf - |
   docker exec -i "$HOST" tar -x -C /opt/secondshift
 
 echo "Deploying $FROM, then upgrading to $UNDER_TEST"

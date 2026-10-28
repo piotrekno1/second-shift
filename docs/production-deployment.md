@@ -39,10 +39,10 @@ application keys. Replace the example hostname with the same one in the env file
 
 ```bash
 dc() { docker compose --env-file deploy/production/compose.env -f compose.production.yaml "$@"; }
-docker pull ghcr.io/piotrekno1/second-shift:0.1.0b2
+docker pull ghcr.io/piotrekno1/second-shift:0.1.0b3
 docker run --rm --user "$(id -u):$(id -g)" \
   -v "$PWD/deploy/production:$PWD/deploy/production" \
-  -w "$PWD/deploy/production" ghcr.io/piotrekno1/second-shift:0.1.0b2 \
+  -w "$PWD/deploy/production" ghcr.io/piotrekno1/second-shift:0.1.0b3 \
   python -m secondshift.config.container_env --hostname secondshift.example.com
 ```
 
