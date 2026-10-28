@@ -13,13 +13,55 @@ class OutboundUrlError(ValueError):
     pass
 
 
+def parse_address(address: str) -> ipaddress.IPv4Address | ipaddress.IPv6Address:
+    parsed = ipaddress.ip_address(address.split("%", 1)[0])
+    if isinstance(parsed, ipaddress.IPv6Address) and parsed.ipv4_mapped:
+        return parsed.ipv4_mapped
+    return parsed
+
+
 def public_address(address: str) -> bool:
-    return ipaddress.ip_address(address.split("%", 1)[0]).is_global
+    return parse_address(address).is_global
+
+
+def link_local_address(address: str) -> bool:
+    """Link-local hosts include cloud metadata services such as 169.254.169.254.
+
+    These stay blocked even when local addresses are allowed, because they can
+    hand out the host machine's own credentials.
+    """
+    return parse_address(address).is_link_local
+
+
+def literal_address(host: str) -> str | None:
+    """The IP address a host names directly, including the short numeric
+    forms that resolvers accept, such as 2852039166 or 0xa9fea9fe."""
+    host = host.strip("[]").split("%", 1)[0]
+    try:
+        return str(ipaddress.ip_address(host))
+    except ValueError:
+        pass
+    if not host or not all(char in "0123456789abcdefx." for char in host.lower()):
+        return None
+    try:
+        return socket.inet_ntoa(socket.inet_aton(host))
+    except OSError:
+        return None
+
+
+def resolves_to_link_local(host: str, port: int) -> bool:
+    try:
+        infos = socket.getaddrinfo(host, port, proto=socket.IPPROTO_TCP)
+    except (socket.gaierror, UnicodeError):
+        return False
+    return any(link_local_address(str(info[4][0])) for info in infos)
 
 
 def validate_outbound_url(url: str, noun: str = "URL", resolve: bool = True) -> str:
     """Reject URLs the server must not call. Messages never echo the URL."""
     url = url.strip()
+    # "Base URLs", not the "Base urls" that str.capitalize would give.
+    plural = f"{noun[:1].upper()}{noun[1:]}s"
     try:
         parts = urlsplit(url)
         port = parts.port
@@ -29,15 +71,24 @@ def validate_outbound_url(url: str, noun: str = "URL", resolve: bool = True) -> 
     allowed_schemes = {"https", "http"} if allow_local else {"https"}
     if parts.scheme not in allowed_schemes:
         raise OutboundUrlError(
-            f"{noun.capitalize()}s must use HTTPS."
+            f"{plural} must use HTTPS."
             if not allow_local
-            else f"{noun.capitalize()}s must use HTTP or HTTPS."
+            else f"{plural} must use HTTP or HTTPS."
         )
     if not parts.hostname:
         raise OutboundUrlError(f"Enter a valid {noun}.")
     if parts.username or parts.password:
+        raise OutboundUrlError(f"{plural} cannot contain a username or password.")
+    literal = literal_address(parts.hostname)
+    link_local = literal is not None and link_local_address(literal)
+    if not link_local and allow_local and resolve:
+        # Local mode skips the public-address check below, but names that
+        # resolve to a metadata service are still refused.
+        link_local = resolves_to_link_local(parts.hostname, port or 443)
+    if link_local:
         raise OutboundUrlError(
-            f"{noun.capitalize()}s cannot contain a username or password."
+            f"{plural} cannot point to a link-local address, such as a cloud "
+            "metadata service."
         )
     if allow_local or not resolve:
         return url
@@ -51,7 +102,7 @@ def validate_outbound_url(url: str, noun: str = "URL", resolve: bool = True) -> 
     except (socket.gaierror, UnicodeError) as error:
         raise OutboundUrlError(f"The {noun} host could not be resolved.") from error
     if not addresses or not all(public_address(item) for item in addresses):
-        raise OutboundUrlError(f"{noun.capitalize()}s must point to a public address.")
+        raise OutboundUrlError(f"{plural} must point to a public address.")
     return url
 
 
@@ -67,6 +118,8 @@ def vetted_addresses(infos: Iterable[tuple[object, ...]]) -> list[str]:
     addresses = list(dict.fromkeys(str(info[4][0]) for info in infos))  # type: ignore[index]
     if not addresses:
         raise httpcore.ConnectError("The host could not be resolved.")
+    if any(link_local_address(address) for address in addresses):
+        raise httpcore.ConnectError("The host resolves to a link-local address.")
     if not settings.OUTBOUND_ALLOW_LOCAL and not all(
         public_address(address) for address in addresses
     ):
