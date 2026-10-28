@@ -145,7 +145,7 @@ def model_provider_next_step(reason: str, connection_name: str) -> str:
     """What to do about a model provider failure, in plain words."""
     if reason.startswith(("HTTP 401", "HTTP 403")):
         return (
-            f"The provider refused the API key of {connection_name}. "
+            f"The API key for {connection_name} was refused. "
             "Update the key, then run again."
         )
     if reason.startswith("HTTP 429"):

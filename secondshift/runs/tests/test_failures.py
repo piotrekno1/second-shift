@@ -192,8 +192,7 @@ MODEL_PLAN = {"model": {"connection_id": 2, "connection_name": "OpenRouter"}}
     [
         (
             "HTTP 401: API key expired.",
-            "The provider refused the API key of OpenRouter. "
-            "Update the key, then run again.",
+            "The API key for OpenRouter was refused. Update the key, then run again.",
         ),
         ("HTTP 429.", "The provider is limiting requests. Wait, then run again."),
         ("HTTP 503.", "The provider had a problem. Run again later."),
