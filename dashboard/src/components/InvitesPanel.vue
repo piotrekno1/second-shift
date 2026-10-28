@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import AppIcon from './AppIcon.vue'
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
 import Select from 'primevue/select'
@@ -25,6 +25,8 @@ const error = ref<string | null>(null)
 const confirming = ref<number | null>(null)
 const revoking = ref<number | null>(null)
 const NOTE_LIMIT = 160
+// An error about the last try goes once the note or role is changed.
+watch([note, role], () => { error.value = null })
 
 function message(failure: unknown): string {
   return failure instanceof Error ? failure.message : 'Something went wrong'
