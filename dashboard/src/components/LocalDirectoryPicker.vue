@@ -150,7 +150,7 @@ onUnmounted(directories.reset)
   padding: 4px;
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: rgba(13, 14, 29, .45);
+  background: rgba(0, 0, 0, .45);
   scrollbar-width: thin;
   scrollbar-color: var(--night-750) transparent;
 }
