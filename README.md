@@ -119,6 +119,7 @@ credentials. See the [MCP guide](docs/mcp.md).
 - [MCP server](docs/mcp.md): connect coding agents, API tokens, and the tools they can use.
 - [Architecture](docs/architecture.md): execution design and capability boundaries.
 - [Security model](docs/security-model.md): what a run can reach, where secrets live, and remaining risks.
+- [Data handling](docs/data-handling.md): what SecondShift reads, stores and sends, and how long it keeps it.
 - [Self-hosting](docs/self-hosting.md) (work in progress): runner backends, sandbox images, and artifact storage.
 - [Contributing](CONTRIBUTING.md): source setup, development, verification, and releases.
 
