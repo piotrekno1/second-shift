@@ -21,6 +21,6 @@ def wait_seconds(user_id: int) -> int:
     # add() only sets a missing key, so the first call in a window starts at 0.
     cache.add(key, 0, timeout=WINDOW_SECONDS * 2)
     calls = cache.incr(key)
-    if calls <= settings.API_RATE_LIMIT:
+    if calls <= settings.MCP_RATE_LIMIT:
         return 0
     return max(math.ceil((window + 1) * WINDOW_SECONDS - now), 1)

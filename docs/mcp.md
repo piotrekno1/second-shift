@@ -103,9 +103,10 @@ in the dashboard follows the same rule and links to the active run.
 
 ## Rate limit
 
-Each person can make `SECONDSHIFT_API_RATE_LIMIT` tool calls per minute (300
+Each person can make `SECONDSHIFT_MCP_RATE_LIMIT` tool calls per minute (300
 by default). All of their tokens share the limit, so a new token does not
-reset it. A call over the limit fails with a plain message and the number of
+reset it. Only tool calls count. Starting a session and listing tools do not.
+The dashboard's own API is not limited by it. A call over the limit fails with a plain message and the number of
 seconds to wait.
 
 Runs are already bounded by their own limits, the worker queue and the

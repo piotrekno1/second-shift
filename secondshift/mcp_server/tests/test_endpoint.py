@@ -200,7 +200,7 @@ def test_each_tool_call_is_audited_without_arguments(
     assert calls[0].token is not None
 
 
-@override_settings(API_RATE_LIMIT=2)
+@override_settings(MCP_RATE_LIMIT=2)
 def test_the_rate_limit_is_per_person_across_tokens(
     owner: AbstractUser, test_tools: None
 ) -> None:
