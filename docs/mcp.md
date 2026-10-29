@@ -24,6 +24,12 @@ claude mcp add --transport http secondshift https://secondshift.example.com/mcp 
 
 Other clients use the same URL and header. The server speaks Streamable HTTP.
 
+In local mode, `secondshift mcp-token` creates a token for the owner and
+prints the `claude mcp add` command with it. The server is at
+`http://127.0.0.1:8000/mcp` while `secondshift up` runs. There is no stdio
+transport. Every client uses a token, so the same scopes and expiry apply
+everywhere.
+
 ## API tokens
 
 A token belongs to one person in one workspace. It has one of two scopes.
@@ -165,9 +171,9 @@ Planned pull requests:
 3. Service moves out of views, with no behavior change.
 4. Job and run tools.
 5. Manifest tools.
-6. This page becomes the user guide. README link and client examples.
+6. This page becomes the user guide. README link, client examples and the
+   `secondshift mcp-token` command.
 
 Open questions:
 
 - Should **Run now** in the dashboard also refuse while a run is active?
-- Does local mode need a stdio transport, or is HTTP enough?
