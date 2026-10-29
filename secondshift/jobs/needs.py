@@ -4,6 +4,7 @@ from typing import Literal
 from secondshift.connections.external import EXTERNAL_KINDS, Access, external_access
 from secondshift.connections.models import Connection
 from secondshift.jobs.models import CapabilityRequest, JobGrant
+from secondshift.repositories.models import Repository
 from secondshift.workspaces.models import Workspace
 
 NeedStatus = Literal["missing", "unavailable", "needs_approval", "ready"]
@@ -38,12 +39,13 @@ class CapabilityNeed:
     jobs: list[NeedJob] = field(default_factory=list)
 
 
-def need_status(
+def connection_problem(
     kind: str,
     connection: Connection | None,
-    requests: list[CapabilityRequest],
     requested_tools: set[str],
-) -> tuple[NeedStatus, str]:
+    repositories: list[Repository],
+) -> tuple[NeedStatus, str] | None:
+    """Why a binding cannot be used yet, before anyone approves it."""
     if connection is None:
         return "missing", "No workspace connection uses this binding yet."
     if connection.kind != kind:
@@ -58,8 +60,8 @@ def need_status(
             f"The connection is {connection.get_status_display().lower()}.",
         )
     if kind in EXTERNAL_KINDS:
-        for request in requests:
-            access = external_access(connection, request.job.repository)
+        for repository in repositories:
+            access = external_access(connection, repository)
             if access and not access.ok:
                 return "unavailable", access.text
     missing_tools = requested_tools - set(connection.available_tools)
@@ -68,6 +70,23 @@ def need_status(
             "unavailable",
             "The connection does not provide: " + ", ".join(sorted(missing_tools)),
         )
+    return None
+
+
+def need_status(
+    kind: str,
+    connection: Connection | None,
+    requests: list[CapabilityRequest],
+    requested_tools: set[str],
+) -> tuple[NeedStatus, str]:
+    problem = connection_problem(
+        kind,
+        connection,
+        requested_tools,
+        [request.job.repository for request in requests],
+    )
+    if problem:
+        return problem
     unapproved = [
         request
         for request in requests
@@ -77,6 +96,15 @@ def need_status(
     if unapproved:
         return "needs_approval", "Connected. Approve it for the jobs that use it."
     return "ready", "Connected and reviewed for every job."
+
+
+def workspace_bindings(workspace: Workspace) -> dict[str, Connection]:
+    return {
+        connection.binding_key: connection
+        for connection in Connection.objects.filter(workspace=workspace).exclude(
+            binding_key=""
+        )
+    }
 
 
 def capability_needs(workspace: Workspace) -> list[CapabilityNeed]:
@@ -89,12 +117,7 @@ def capability_needs(workspace: Workspace) -> list[CapabilityNeed]:
         .select_related("job__repository", "grant")
         .order_by("binding", "job__name")
     )
-    connections = {
-        connection.binding_key: connection
-        for connection in Connection.objects.filter(workspace=workspace).exclude(
-            binding_key=""
-        )
-    }
+    connections = workspace_bindings(workspace)
     grouped: dict[tuple[str, str], list[CapabilityRequest]] = {}
     for request in requests:
         grouped.setdefault((request.binding, request.kind), []).append(request)
