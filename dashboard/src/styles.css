@@ -331,8 +331,8 @@ body .p-select-overlay { color: var(--ink); background: var(--night-800); border
 .job-skill-fields div { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 12px; }
 .job-skill-fields dt { color: var(--muted); font-family: var(--font-mono); }
 .job-skill-fields dd { margin: 0; color: var(--ink); }
-.job-skill-frame { position: relative; max-height: 480px; overflow: hidden; }
-.job-skill-frame.clipped::after { content: ""; position: absolute; inset: auto 0 0; height: 72px; background: linear-gradient(transparent, var(--card)); pointer-events: none; }
+.job-skill-frame { max-height: 480px; overflow: hidden; }
+.job-skill-frame.clipped { mask-image: linear-gradient(#000 calc(100% - 72px), transparent); }
 .job-skill-frame.expanded { max-height: none; }
 .job-skill-frame .run-output { max-height: none; }
 .job-skill-body.markdown-body h1 { font-size: 16px; }
