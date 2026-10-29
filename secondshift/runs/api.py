@@ -1,13 +1,11 @@
 from django.http import FileResponse, Http404, HttpRequest
-from django.shortcuts import get_object_or_404
 from ninja import Query, Router, Status
 from ninja.errors import HttpError
 from ninja.security import django_auth
 
-from secondshift.gateway.usage import with_model_usage
 from secondshift.jobs.access import job_for_request
+from secondshift.runs.access import run_for_request
 from secondshift.runs.artifacts import artifact_storage
-from secondshift.runs.models import Run
 from secondshift.runs.reporting.queries import RunFilters, run_page
 from secondshift.runs.schemas import (
     RunDetailSchema,
@@ -63,12 +61,7 @@ def runs(request: HttpRequest, query: Query[RunListQuery]) -> RunPageSchema:
 
 @router.get("/runs/{run_id}", response=RunDetailSchema)
 def run_detail(request: HttpRequest, run_id: int) -> RunDetailSchema:
-    run = get_object_or_404(
-        with_model_usage(Run.objects.select_related("job__repository")),
-        pk=run_id,
-        job__workspace=current_workspace(request),
-    )
-    return serialize_run_detail(run)
+    return serialize_run_detail(run_for_request(request, run_id))
 
 
 @router.get("/runs/{run_id}/files/{name}")
@@ -80,7 +73,7 @@ def run_file(
     Always served as plain text, so a browser never renders repository or model
     content as HTML; the dashboard renders Markdown itself, sanitized.
     """
-    run = get_object_or_404(Run, pk=run_id, job__workspace=current_workspace(request))
+    run = run_for_request(request, run_id)
     path = run_file_path(run, name)
     if not path:
         raise Http404
