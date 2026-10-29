@@ -17,6 +17,7 @@ from django.test import Client
 from secondshift.connections.models import Connection
 from secondshift.repositories import autosync, github_app, github_sync
 from secondshift.repositories.github_app import STATE_KEY, GitHubAppError
+from secondshift.repositories.mirrors import SYNCED_REF, mirror_path
 from secondshift.repositories.models import Repository
 from secondshift.repositories.tests.test_local import create_local_repository, run_git
 from secondshift.runner.protocol import RunnerProtocolError
@@ -226,7 +227,13 @@ def test_bundle_cannot_choose_host_paths(
         import_bundle(name, "a" * 40, "")
 
 
-def test_sync_fetches_and_publishes_before_advancing_jobs(
+def synced_ref(mirror: Path) -> str:
+    return subprocess.check_output(
+        ["git", "-C", str(mirror), "rev-parse", SYNCED_REF], text=True
+    ).strip()
+
+
+def test_sync_fetches_into_the_mirror_before_advancing_jobs(
     workspace: Any,
     source_connection: Any,
     tmp_path: Any,
@@ -249,8 +256,11 @@ def test_sync_fetches_and_publishes_before_advancing_jobs(
         github_sync, "installation_token", lambda *args: "github-secret"
     )
     original = github_sync.git_fetch
+    reachable = True
 
     def local_fetch(root: Path, token: str, *arguments: str) -> str:
+        if "fetch" in arguments and not reachable:
+            raise GitHubAppError("Could not fetch the GitHub repository and branch.")
         arguments = tuple(
             str(source)
             if argument == "https://github.com/owner/project.git"
@@ -260,21 +270,24 @@ def test_sync_fetches_and_publishes_before_advancing_jobs(
         return original(root, token, *arguments)
 
     monkeypatch.setattr(github_sync, "git_fetch", local_fetch)
-    settings.RUNNER_REPOSITORY_ROOT = tmp_path / "store"
-    runner = Mock()
-    runner.import_repository.side_effect = lambda name, sha, data: import_bundle(
-        name, sha, base64.b64encode(data).decode()
-    )
-    monkeypatch.setattr(github_sync, "get_runner_client", lambda: runner)
+    settings.SOURCE_CACHE_ROOT = tmp_path / "sources"
     synced = github_sync.sync_github_repository(repository)
     assert synced.config_sha
     assert synced.last_synced_at
     assert synced.jobs.get().key == "review"
     assert synced.enabled is False
-    old_revision = synced.config_sha
+    mirror = mirror_path(repository.pk)
+    assert synced_ref(mirror) == synced.config_sha
+    assert "github-secret" not in (mirror / "config").read_text()
+
     run_git(source, "commit", "--allow-empty", "-m", "new commit")
-    runner.import_repository.side_effect = RunnerProtocolError("Unavailable")
-    with pytest.raises(RunnerProtocolError):
+    synced = github_sync.sync_github_repository(synced)
+    assert synced_ref(mirror) == synced.config_sha
+
+    old_revision = synced.config_sha
+    run_git(source, "commit", "--allow-empty", "-m", "unreachable commit")
+    reachable = False
+    with pytest.raises(GitHubAppError):
         github_sync.sync_github_repository(synced)
     synced.refresh_from_db()
     assert synced.config_sha == old_revision

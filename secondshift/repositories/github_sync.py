@@ -1,10 +1,9 @@
-"""Fetch GitHub source in trusted infrastructure, and publish a pinned snapshot."""
+"""Fetch GitHub source into the control plane's mirror. Tokens never leave it."""
 
 import base64
 import os
 import re
 import subprocess
-import tempfile
 from pathlib import Path
 
 import yaml
@@ -13,7 +12,6 @@ from django.db import transaction
 from secondshift.config.constants import (
     GITHUB_REPOSITORY_PATTERN,
     MANIFEST_FILE,
-    MAX_REPOSITORY_BUNDLE_BYTES,
 )
 from secondshift.connections.models import Connection
 from secondshift.jobs.manifest import parse_manifest
@@ -25,8 +23,8 @@ from secondshift.repositories.github_app import (
     repository_metadata,
 )
 from secondshift.repositories.local import LocalRepositoryError, committed_file
+from secondshift.repositories.mirrors import SYNCED_REF, locked_mirror
 from secondshift.repositories.models import Repository
-from secondshift.runner.client import get_runner_client
 from secondshift.workspaces.models import Workspace
 
 
@@ -54,55 +52,47 @@ def github_repository_metadata(repository: Repository) -> dict:
     return metadata
 
 
-@transaction.atomic
 def sync_github_repository(repository: Repository) -> Repository:
-    repository = (
-        Repository.objects.select_for_update(of=("self",))
-        .select_related("github_connection")
-        .get(pk=repository.pk)
+    """Fetch the branch into the mirror and sync jobs from its newest commit.
+
+    The fetch runs outside any database transaction. The mirror's lock keeps
+    two syncs of one repository in order, so an older one never saves last.
+    """
+    repository = Repository.objects.select_related("github_connection").get(
+        pk=repository.pk
     )
     metadata = github_repository_metadata(repository)
-    connection = repository.github_connection
-    installation_id = connection.external_account_id
-    full_name = metadata["full_name"]
-    token = installation_token(installation_id, int(repository.external_id))
-    with tempfile.TemporaryDirectory(prefix="secondshift-github-") as temporary:
-        root = Path(temporary)
-        source = root / "source.git"
-        source.mkdir()
-        git_fetch(source, token, "init", "--bare")
+    token = installation_token(
+        repository.github_connection.external_account_id, int(repository.external_id)
+    )
+    with locked_mirror(repository.pk) as mirror:
         git_fetch(
-            source,
+            mirror,
             token,
             "fetch",
             "--no-tags",
             "--",
-            f"https://github.com/{full_name}.git",
+            f"https://github.com/{metadata['full_name']}.git",
             f"refs/heads/{repository.default_branch}",
         )
-        revision = git_fetch(source, token, "rev-parse", "FETCH_HEAD")
+        revision = git_fetch(mirror, token, "rev-parse", "FETCH_HEAD")
         try:
-            manifest = parse_manifest(committed_file(source, revision, MANIFEST_FILE))
+            manifest = parse_manifest(committed_file(mirror, revision, MANIFEST_FILE))
             skills = {
-                job.skill: committed_file(source, revision, job.skill)
+                job.skill: committed_file(mirror, revision, job.skill)
                 for job in manifest.jobs.values()
             }
         except (LocalRepositoryError, ValueError, yaml.YAMLError) as error:
             raise GitHubAppError(
                 f"Invalid committed repository configuration: {error}"
             ) from error
-        git_fetch(source, token, "update-ref", "refs/heads/snapshot", revision)
-        bundle = root / "source.bundle"
-        git_fetch(source, token, "bundle", "create", str(bundle), "refs/heads/snapshot")
-        if bundle.stat().st_size > MAX_REPOSITORY_BUNDLE_BYTES:
-            raise GitHubAppError("Repository exceeds the 64 MiB bundle limit.")
-        get_runner_client().import_repository(full_name, revision, bundle.read_bytes())
-    with transaction.atomic():
-        locked = Repository.objects.select_for_update().get(pk=repository.pk)
-        locked.config_sha = revision
-        locked.last_sync_error = ""
-        locked.save(update_fields=["config_sha", "last_sync_error", "updated_at"])
-        sync_jobs(locked, manifest, skills)
+        git_fetch(mirror, token, "update-ref", SYNCED_REF, revision)
+        with transaction.atomic():
+            locked = Repository.objects.select_for_update().get(pk=repository.pk)
+            locked.config_sha = revision
+            locked.last_sync_error = ""
+            locked.save(update_fields=["config_sha", "last_sync_error", "updated_at"])
+            sync_jobs(locked, manifest, skills)
     repository.refresh_from_db()
     return repository
 
