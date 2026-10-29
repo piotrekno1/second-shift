@@ -457,7 +457,7 @@ onMounted(async () => {
             <Button label="Stop serving" severity="danger" size="small" :loading="busy === `unlink-${connection.id}`" @click="stopServing(connection, confirmUnlink.binding)" />
           </div>
           <p v-if="isOpen({ mode: 'edit', id: connection.id }) && connection.bindings.length > 1" class="shared-note">
-            <AppIcon name="link" /> Shared by <template v-for="(binding, index) in connection.bindings" :key="binding"><template v-if="index">, </template><code>{{ binding }}</code></template>. Changes apply to every job that uses them.
+            <AppIcon name="link" /><span>Shared by <template v-for="(binding, index) in connection.bindings" :key="binding"><template v-if="index">, </template><code>{{ binding }}</code></template>. Changes apply to every job that uses them.</span>
           </p>
           <ConnectionForm v-if="isOpen({ mode: 'edit', id: connection.id })" class="inset" :connection="connection" @done="formDone" @cancel="openForm = null" />
         </article>
