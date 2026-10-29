@@ -9,6 +9,7 @@ from pydantic_ai.exceptions import UsageLimitExceeded
 from pydantic_ai.messages import ModelMessage
 from pydantic_ai.toolsets import FunctionToolset
 
+from secondshift.config.constants import SUMMARY_MAX_CHARS
 from secondshift.jobs.limits import RunLimit, plan_limit
 from secondshift.runner.client import get_runner_client
 from secondshift.runner.protocol import CommandRequest, CommandResult
@@ -45,9 +46,6 @@ an approved broker outside the command sandbox.
 The command sandbox has no network or credentials. Do not claim an action succeeded
 unless its tool result confirms it.
 """
-
-
-SUMMARY_MAX_CHARS = 4_000
 
 
 logger = logging.getLogger(__name__)

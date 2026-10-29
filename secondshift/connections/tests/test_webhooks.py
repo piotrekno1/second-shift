@@ -392,3 +392,21 @@ def test_identity_connections_cannot_be_removed(
 
     assert client.post(f"/api/connections/{identity.pk}/revoke").status_code == 409
     assert client.delete(f"/api/connections/{identity.pk}").status_code == 409
+
+
+def test_webhook_sample_shows_what_a_run_report_sends(
+    client: Client, owner: tuple[AbstractUser, Workspace]
+) -> None:
+    user, _ = owner
+    assert client.get("/api/connections/webhook/sample").status_code == 401
+    client.force_login(user)
+
+    body = client.get("/api/connections/webhook/sample").json()
+
+    payload = body["payload"]
+    assert payload["event"] == "run.finished"
+    assert set(payload) == {"event", "text", "run", "job", "repository"}
+    assert payload["run"]["url"].endswith("/runs/128")
+    assert body["summary_max_chars"] == 4_000
+    # Made-up records only. Nothing is saved.
+    assert not Job.objects.exists()

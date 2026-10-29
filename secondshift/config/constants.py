@@ -146,3 +146,6 @@ DEFAULT_SANDBOX_IMAGE = (
 
 # The repository file that lists jobs, at the repository root.
 MANIFEST_FILE = ".secondshift.yaml"
+
+# How much of a report a run keeps as its summary. Webhooks send the summary.
+SUMMARY_MAX_CHARS = 4_000

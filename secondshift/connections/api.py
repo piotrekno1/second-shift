@@ -8,6 +8,7 @@ from ninja import Router, Status
 from ninja.errors import HttpError
 from ninja.security import django_auth
 
+from secondshift.config.constants import SUMMARY_MAX_CHARS
 from secondshift.connections.http_api.connections import (
     create_api_connection,
     recheck_api_connection,
@@ -59,6 +60,7 @@ from secondshift.connections.schemas import (
     SecretSchema,
     WebhookConnectionCreateSchema,
     WebhookConnectionUpdateSchema,
+    WebhookSampleSchema,
 )
 from secondshift.connections.serialization import serialize_connection
 from secondshift.connections.services import (
@@ -77,6 +79,7 @@ from secondshift.runs.reporting.connection_usage import (
     ConnectionUsage,
     connection_usage,
 )
+from secondshift.runs.reporting.notifications import sample_run_report_payload
 from secondshift.workspaces.access import (
     Action,
     current_workspace,
@@ -555,6 +558,16 @@ def test_connection(request: HttpRequest, connection_id: int) -> ConnectionTestS
         ok=delivery.ok,
         status_code=delivery.status_code,
         message=delivery.message,
+    )
+
+
+@router.get(
+    "/connections/webhook/sample", response=WebhookSampleSchema, auth=django_auth
+)
+def webhook_sample(request: HttpRequest) -> WebhookSampleSchema:
+    """What a webhook connection will receive after each run."""
+    return WebhookSampleSchema(
+        payload=sample_run_report_payload(), summary_max_chars=SUMMARY_MAX_CHARS
     )
 
 
