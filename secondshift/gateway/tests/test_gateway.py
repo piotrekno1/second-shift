@@ -16,7 +16,12 @@ from django.utils import timezone
 
 from secondshift.connections.models import Connection
 from secondshift.connections.outbound import PinnedNetworkBackend, PinnedTransport
-from secondshift.gateway.metering import StreamMeter, Usage, record_usage
+from secondshift.gateway.metering import (
+    MAX_SSE_LINE_BYTES,
+    StreamMeter,
+    Usage,
+    record_usage,
+)
 from secondshift.gateway.models import ModelUsage, RunToken
 from secondshift.gateway.pricing import request_cost
 from secondshift.gateway.proxy import upstream_client
@@ -390,6 +395,25 @@ def test_stream_meter_ignores_malformed_events() -> None:
     meter = StreamMeter("anthropic")
     meter.feed(b'data: not json\n\ndata: [1, 2]\n\ndata: {"type": "message_delta"}\n')
     assert meter.usage.total == 0
+
+
+def test_stream_meter_reads_events_split_into_single_bytes() -> None:
+    stream = (
+        b'data: {"type":"message_start","message":{"usage":{"input_tokens":40}}}\n\n'
+        b'data: {"type":"message_delta","usage":{"output_tokens":12}}\n\n'
+    )
+    meter = StreamMeter("anthropic")
+    for index in range(len(stream)):
+        meter.feed(stream[index : index + 1])
+    assert (meter.usage.input_tokens, meter.usage.output_tokens) == (40, 12)
+
+
+def test_stream_meter_drops_an_oversized_line_and_keeps_reading() -> None:
+    meter = StreamMeter("anthropic")
+    meter.feed(b'data: {"text":"')
+    meter.feed(b"x" * (MAX_SSE_LINE_BYTES + 1))
+    meter.feed(b'"}\ndata: {"type":"message_delta","usage":{"output_tokens":3}}\n')
+    assert meter.usage.output_tokens == 3
 
 
 def test_gateway_is_served_only_by_the_gateway_process() -> None:

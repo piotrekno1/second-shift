@@ -88,15 +88,20 @@ class StreamMeter:
 
     family: str
     usage: Usage = field(default_factory=Usage)
-    buffer: bytes = field(default=b"", init=False, repr=False)
+    # The partial line waiting for its newline. A bytearray grows in place, so
+    # a long line read in small chunks costs time linear in its length.
+    buffer: bytearray = field(default_factory=bytearray, init=False, repr=False)
 
     def feed(self, chunk: bytes) -> None:
         self.buffer += chunk
-        *lines, self.buffer = self.buffer.split(b"\n")
+        # Only the new chunk can hold the newline that ends the partial line.
+        if b"\n" in chunk:
+            *lines, rest = self.buffer.split(b"\n")
+            self.buffer = rest
+            for line in lines:
+                self.read_line(bytes(line).strip())
         if len(self.buffer) > MAX_SSE_LINE_BYTES:
-            self.buffer = b""
-        for line in lines:
-            self.read_line(line.strip())
+            self.buffer.clear()
 
     def read_line(self, line: bytes) -> None:
         event = sse_event(line)
