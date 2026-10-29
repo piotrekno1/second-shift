@@ -15,6 +15,7 @@ uv run python manage.py runserver
 uv run secondshift up   # the installed single-machine mode (SECONDSHIFT_ENV=local)
 uv run python manage.py run_dbos_worker
 uv run pytest
+uv run pytest secondshift/benchmarks -o python_files='bench_*.py'
 uv run ruff check .
 uv run ruff format .
 

@@ -206,6 +206,28 @@ migrations on PostgreSQL as well as SQLite, since SQLite can miss dependency
 ordering problems. See [database migrations](docs/backend-architecture.md#database-migrations)
 for the reset's compatibility boundary.
 
+### Benchmarks
+
+`secondshift/benchmarks` times the paths that grow with use. These are
+manifest parsing, repository sync, stream metering in the model gateway, the
+runs and overview endpoints, MCP tool calls and gateway token lookups. The
+normal test run skips them.
+
+```bash
+# Time everything and print a table.
+uv run pytest secondshift/benchmarks -o python_files='bench_*.py'
+
+# Save a baseline, then compare a branch against it.
+uv run pytest secondshift/benchmarks -o python_files='bench_*.py' --benchmark-autosave
+uv run pytest secondshift/benchmarks -o python_files='bench_*.py' --benchmark-compare
+```
+
+Each database benchmark also has a query budget. Query counts do not depend
+on the machine, so CI runs every benchmark once with `--benchmark-disable` and
+fails when a change adds queries. If a change lowers a count, lower its
+budget too. Timings come from the in-memory SQLite test database. Treat them
+as relative numbers, not production latency.
+
 ## Installed builds and troubleshooting
 
 If uv reports that its tool directory is missing from your `PATH`, run
