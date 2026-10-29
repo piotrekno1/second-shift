@@ -29,7 +29,7 @@ const type = ref<ConnectionType>(
     ? (props.connection.kind === 'model' || props.connection.kind === 'mcp' || props.connection.kind === 'api' ? props.connection.kind : 'webhook')
     : (props.binding ? 'webhook' : 'model'),
 )
-const bindingKey = ref(props.connection?.binding_key ?? props.binding ?? '')
+const bindingKey = ref(props.binding ?? props.connection?.bindings[0] ?? '')
 const displayName = ref(props.connection?.display_name ?? titleFromSlug(bindingKey.value))
 const url = ref('')
 const approve = ref(true)
@@ -47,13 +47,14 @@ const typeOptions = computed(() => ([
 const reconnecting = computed(() => props.connection?.status === 'revoked')
 const bindingFixed = computed(() => editing.value || Boolean(props.binding))
 const bindingValid = computed(() => /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(bindingKey.value))
-const taken = computed(() => Boolean(bindingKey.value) && !editing.value && app.connections.some((item) => item.binding_key === bindingKey.value))
+const taken = computed(() => Boolean(bindingKey.value) && !editing.value && app.connections.some((item) => item.bindings.includes(bindingKey.value)))
 const need = computed(() => app.needs.find((item) => item.binding === bindingKey.value))
 const kindMismatch = computed(() => Boolean(need.value && need.value.kind !== kindFor(type.value)))
 const pendingJobs = computed(() => need.value?.jobs.filter((job) => job.grant_status === 'pending' || job.grant_status === 'unconfigured') ?? [])
 const suggestions = computed(() => app.needs.filter((item) => item.status === 'missing').map((item) => item.binding))
 const urlRequired = computed(() => !editing.value || reconnecting.value)
-const canSubmit = computed(() => bindingValid.value && !taken.value && !kindMismatch.value && (!urlRequired.value || url.value.trim() !== ''))
+// An edit keeps the connection's bindings, so only a new one needs a valid name.
+const canSubmit = computed(() => (editing.value || bindingValid.value) && !taken.value && !kindMismatch.value && (!urlRequired.value || url.value.trim() !== ''))
 
 function kindFor(value: ConnectionType): string {
   return value === 'webhook' ? 'notification' : value
@@ -93,7 +94,7 @@ async function submit(): Promise<void> {
         ok: !result || result.ok,
         text: result && !result.ok ? `${parts[0]}, but the test message failed: ${result.message}` : `${parts.join(', ')}.`,
       },
-      binding: saved.binding_key,
+      binding: props.binding ?? saved.bindings[0] ?? '',
     }
   } catch (submitError) {
     error.value = submitError instanceof Error ? submitError.message : 'Unable to save the connection'
@@ -123,7 +124,7 @@ async function submit(): Promise<void> {
       <p>After every run, SecondShift POSTs a JSON report with a <code>text</code> summary. Slack and Mattermost incoming webhooks work as they are. For Discord, add <code>/slack</code> to the end of the webhook URL.</p>
     </div>
 
-    <label>
+    <label v-if="!editing">
       <span>Binding</span>
       <InputText v-model="bindingKey" :disabled="bindingFixed" list="binding-suggestions" placeholder="engineering-alerts" autocomplete="off" spellcheck="false" @blur="bindingKey = finishedBinding(bindingKey)" />
       <datalist id="binding-suggestions"><option v-for="item in suggestions" :key="item" :value="item" /></datalist>

@@ -27,7 +27,7 @@ const editing = computed(() => Boolean(props.connection))
 const reconnecting = computed(() => props.connection?.status === 'revoked' || props.connection?.status === 'expired')
 const providerKey = ref(props.connection?.provider ?? app.mcpProviders[0]?.key ?? '')
 const provider = computed(() => app.mcpProvider(providerKey.value))
-const binding = ref(props.connection?.binding_key ?? props.binding ?? provider.value?.default_binding ?? '')
+const binding = ref(props.binding ?? props.connection?.bindings.join(', ') ?? provider.value?.default_binding ?? '')
 const name = ref(props.connection?.display_name ?? provider.value?.label ?? '')
 const token = ref('')
 const settings = ref<Record<string, string>>({ ...(props.connection?.settings ?? {}) })
@@ -134,7 +134,7 @@ async function save(): Promise<void> {
   await app.refresh()
   const verb = reconnecting.value ? 'Reconnected' : editing.value ? 'Saved' : 'Connected'
   const next = provider.value.owner_selects_tools && !editing.value ? ' Choose which tools jobs may use under Edit.' : ' Review job approvals before running.'
-  emit('done', { ok: true, text: `${verb} ${provider.value.label}. ${countLabel(connection.available_tools.length, 'tool')} enabled.${next}` }, connection.binding_key)
+  emit('done', { ok: true, text: `${verb} ${provider.value.label}. ${countLabel(connection.available_tools.length, 'tool')} enabled.${next}` }, props.binding ?? connection.bindings[0] ?? '')
 }
 
 async function submit(): Promise<void> {

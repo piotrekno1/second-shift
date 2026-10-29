@@ -40,6 +40,16 @@ export function deleteConnection(connectionId: number): Promise<void> {
   return apiDelete(`/connections/${connectionId}`)
 }
 
+/** Let a connection also serve a binding. Each job still needs approval. */
+export function linkBinding(connectionId: number, binding: string): Promise<Connection> {
+  return apiPost<Connection>(`/connections/${connectionId}/bindings`, { binding })
+}
+
+/** Stop a connection serving one binding. Jobs that used it go back to pending. */
+export function unlinkBinding(connectionId: number, binding: string): Promise<void> {
+  return apiDelete(`/connections/${connectionId}/bindings/${encodeURIComponent(binding)}`)
+}
+
 export function testConnection(connectionId: number): Promise<ConnectionTest> {
   return apiPost<ConnectionTest>(`/connections/${connectionId}/test`)
 }

@@ -111,7 +111,7 @@ async function runNow(jobId: number): Promise<void> {
 function matchingConnections(capability: Capability): Connection[] {
   return app.connections.filter((connection) =>
     connection.kind === capability.kind
-    && connection.binding_key === capability.binding
+    && connection.bindings.includes(capability.binding)
     && connection.status === 'connected',
   )
 }

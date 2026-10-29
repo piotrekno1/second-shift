@@ -22,7 +22,7 @@ const app = useAppStore()
 const editing = computed(() => Boolean(props.connection))
 const reconnecting = computed(() => Boolean(props.connection) && props.connection?.status !== 'connected')
 const saved = props.connection?.settings ?? {}
-const binding = ref(props.connection?.binding_key ?? props.binding ?? '')
+const binding = ref(props.binding ?? props.connection?.bindings.join(', ') ?? '')
 const name = ref(props.connection?.display_name ?? '')
 const specUrl = ref(saved.spec_url ?? '')
 const specText = ref('')
@@ -101,7 +101,7 @@ async function save(): Promise<void> {
   token.value = ''
   await app.refresh()
   const next = editing.value ? ' Review job approvals before running.' : ' Use Edit to choose which operations jobs may use.'
-  emit('done', { ok: true, text: `${editing.value ? 'Saved' : 'Connected'} ${connection.display_name}. ${countLabel(connection.available_tools.length, 'operation')} enabled.${next}` }, connection.binding_key)
+  emit('done', { ok: true, text: `${editing.value ? 'Saved' : 'Connected'} ${connection.display_name}. ${countLabel(connection.available_tools.length, 'operation')} enabled.${next}` }, props.binding ?? connection.bindings[0] ?? '')
 }
 
 async function submit(): Promise<void> {

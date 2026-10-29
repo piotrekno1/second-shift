@@ -4,12 +4,13 @@ import { computed, nextTick, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Button from 'primevue/button'
 import Menu from 'primevue/menu'
+import Select from 'primevue/select'
 import type { MenuItem } from 'primevue/menuitem'
 import ConnectionForm from '../components/ConnectionForm.vue'
 import PageHeader from '../components/PageHeader.vue'
 import ProviderIcon from '../components/ProviderIcon.vue'
 import StatusPill from '../components/StatusPill.vue'
-import { approveNeed, deleteConnection, revokeConnection, testConnection } from '../services/connections'
+import { approveNeed, deleteConnection, linkBinding, revokeConnection, testConnection, unlinkBinding } from '../services/connections'
 import { useAppStore } from '../stores/app'
 import type { CapabilityNeed, Connection, Notice } from '../types'
 import { Action } from '../utils/permissions'
@@ -31,6 +32,10 @@ const openForm = ref<OpenForm | null>(requestedBinding && canEdit.value ? { mode
 const busy = ref<string | null>(null)
 const confirmDelete = ref<number | null>(null)
 const confirmRevoke = ref<number | null>(null)
+// "Stop serving" asks first, because the jobs that used the binding lose access.
+const confirmUnlink = ref<{ id: number, binding: string } | null>(null)
+// The existing connection chosen for each missing binding.
+const reuseChoice = reactive<Record<string, number | null>>({})
 const notices = reactive<Record<string, Notice>>({})
 // Rows list a few tools. Servers like Grafana offer dozens.
 const TOOLS_SHOWN = 6
@@ -147,6 +152,11 @@ function openRowMenu(event: Event, connection: Connection): void {
   if (test) items.push({ label: test, appIcon: connection.kind === 'model' || connection.provider === 'webhook' ? 'send-outline' : 'refresh', command: () => sendTest(connection, `connection-${connection.id}`) })
   if (editable(connection)) items.push({ label: connection.status === 'connected' ? 'Edit' : 'Reconnect', appIcon: 'pencil-outline', command: () => toggle({ mode: 'edit', id: connection.id }) })
   const danger: MenuItem[] = []
+  if (app.can(Action.DisconnectConnections)) {
+    for (const binding of connection.bindings) {
+      danger.push({ label: `Stop serving ${binding}…`, appIcon: 'link-variant-off', danger: true, command: () => { confirmUnlink.value = { id: connection.id, binding }; confirmRevoke.value = null; confirmDelete.value = null } })
+    }
+  }
   if (connection.status !== 'revoked' && app.can(Action.DisconnectConnections)) danger.push({ label: 'Disconnect…', appIcon: 'power-plug-off-outline', danger: true, command: () => { confirmRevoke.value = connection.id; confirmDelete.value = null } })
   if (connection.status === 'revoked' && app.can(Action.DeleteConnections)) danger.push({ label: 'Delete…', appIcon: 'trash-can-outline', danger: true, command: () => { confirmDelete.value = connection.id; confirmRevoke.value = null } })
   if (items.length && danger.length) items.push({ separator: true })
@@ -156,6 +166,7 @@ function openRowMenu(event: Event, connection: Connection): void {
 
 function hasMenu(connection: Connection): boolean {
   return Boolean(testLabel(connection) || editable(connection)
+    || (connection.bindings.length && app.can(Action.DisconnectConnections))
     || (connection.status !== 'revoked' && app.can(Action.DisconnectConnections))
     || (connection.status === 'revoked' && app.can(Action.DeleteConnections)))
 }
@@ -205,7 +216,7 @@ function errorText(error: unknown, fallback: string): string {
 }
 
 function formDone(notice: Notice, binding: string): void {
-  const connection = app.connections.find((item) => item.binding_key === binding)
+  const connection = app.connections.find((item) => item.bindings.includes(binding))
   const key = openForm.value?.mode === 'need' ? binding : `connection-${connection?.id ?? binding}`
   notices[key] = notice
   openForm.value = null
@@ -252,6 +263,36 @@ async function disconnect(connection: Connection): Promise<void> {
     await app.refresh()
     return 'Disconnected. Its stored URL or token was discarded; jobs using it are blocked until you reconnect.'
   }, 'Unable to disconnect')
+}
+
+/** Connected connections of the right kind that a missing binding could use. */
+function reusable(need: CapabilityNeed): Connection[] {
+  return app.connections.filter((connection) => connection.kind === need.kind && connection.status === 'connected')
+}
+
+function reuseSelection(need: CapabilityNeed): number | null {
+  const options = reusable(need)
+  return reuseChoice[need.binding] ?? (options.length === 1 ? options[0].id : null)
+}
+
+function useExisting(need: CapabilityNeed): Promise<void> {
+  const id = reuseSelection(need)
+  return act(`link-${need.binding}`, need.binding, async () => {
+    if (id === null) throw new Error('Choose a connection first.')
+    const connection = await linkBinding(id, need.binding)
+    openForm.value = null
+    await app.refresh()
+    return `${connection.display_name} now serves ${need.binding}. Approve it for the jobs that use it.`
+  }, 'Unable to use that connection')
+}
+
+async function stopServing(connection: Connection, binding: string): Promise<void> {
+  confirmUnlink.value = null
+  await act(`unlink-${connection.id}`, `connection-${connection.id}`, async () => {
+    await unlinkBinding(connection.id, binding)
+    await app.refresh()
+    return `${connection.display_name} no longer serves ${binding}. Jobs that used it need a connection again.`
+  }, 'Unable to stop serving that binding')
 }
 
 async function remove(connection: Connection): Promise<void> {
@@ -344,6 +385,12 @@ onMounted(async () => {
           <p v-if="notices[need.binding]" class="need-notice" :class="{ ok: notices[need.binding].ok }">
             <AppIcon :name="notices[need.binding].ok ? 'check-circle-outline' : 'alert-circle-outline'" /> {{ notices[need.binding].text }}
           </p>
+          <div v-if="isOpen({ mode: 'need', binding: need.binding }) && need.status === 'missing' && reusable(need).length" class="reuse-strip">
+            <span>Use a connection you already have</span>
+            <Select :model-value="reuseSelection(need)" :options="reusable(need)" option-label="display_name" option-value="id" placeholder="Choose a connection" class="connection-select" :aria-label="`Connection for ${need.binding}`" @update:model-value="reuseChoice[need.binding] = $event" />
+            <Button label="Use it" size="small" :disabled="reuseSelection(need) === null" :loading="busy === `link-${need.binding}`" @click="useExisting(need)" />
+            <small>Each job still needs approval. Or set up a new connection below.</small>
+          </div>
           <ConnectionForm v-if="isOpen({ mode: 'need', binding: need.binding })" class="inset" :binding="need.binding" :connection="need.connection ?? undefined" @done="formDone" @cancel="openForm = null" />
         </article>
       </div>
@@ -404,6 +451,14 @@ onMounted(async () => {
             <Button label="Cancel" severity="secondary" text size="small" @click="confirmDelete = null" />
             <Button label="Delete" severity="danger" size="small" :loading="busy === `delete-${connection.id}`" @click="remove(connection)" />
           </div>
+          <div v-if="confirmUnlink?.id === connection.id" class="confirm-strip" role="alert">
+            <span>Jobs that use <code>{{ confirmUnlink.binding }}</code> lose access until it has a connection again. {{ connection.display_name }} stays connected for its other bindings.</span>
+            <Button label="Cancel" severity="secondary" text size="small" @click="confirmUnlink = null" />
+            <Button label="Stop serving" severity="danger" size="small" :loading="busy === `unlink-${connection.id}`" @click="stopServing(connection, confirmUnlink.binding)" />
+          </div>
+          <p v-if="isOpen({ mode: 'edit', id: connection.id }) && connection.bindings.length > 1" class="shared-note">
+            <AppIcon name="link" /> Shared by <template v-for="(binding, index) in connection.bindings" :key="binding"><template v-if="index">, </template><code>{{ binding }}</code></template>. Changes apply to every job that uses them.
+          </p>
           <ConnectionForm v-if="isOpen({ mode: 'edit', id: connection.id })" class="inset" :connection="connection" @done="formDone" @cancel="openForm = null" />
         </article>
       </div>

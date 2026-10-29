@@ -342,7 +342,8 @@ export interface Connection {
   id: number
   provider: 'github' | 'sentry' | 'chatgpt' | 'slack' | 'mcp' | 'api' | 'webhook' | ModelProvider
   kind: 'source' | 'identity' | 'mcp' | 'api' | 'notification' | 'model'
-  binding_key: string
+  /** The binding names this connection serves. One connection can serve several. */
+  bindings: string[]
   display_name: string
   status: 'connected' | 'expired' | 'revoked'
   expires_at: string | null

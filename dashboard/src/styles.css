@@ -862,3 +862,14 @@ body .workspace-menu { width: 224px; }
   /* Unlike members, Revoke stays on the name's line. */
   .token-list .member-email { flex: 1 1 0; }
 }
+
+/* Reusing a connection for a missing binding, and the note on shared ones */
+.reuse-strip { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 8px 0 0 56px; padding: 12px 16px; border: 1px solid var(--border); border-radius: 8px; background: var(--white-3); font-size: 12px; }
+.reuse-strip .connection-select { width: 280px; max-width: 100%; }
+.reuse-strip small { flex-basis: 100%; color: var(--subtle); font-size: 11px; }
+.shared-note { display: flex; align-items: center; gap: 6px; margin: 8px 0 0 56px; color: var(--muted); font-size: 12px; }
+.shared-note code { padding: 0; background: none; color: var(--ink); }
+@media (max-width: 720px) {
+  .reuse-strip { margin-left: 0; }
+  .shared-note { margin-left: 0; }
+}
