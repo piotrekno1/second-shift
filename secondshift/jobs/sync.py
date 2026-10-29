@@ -1,8 +1,10 @@
+from collections.abc import Mapping
 from pathlib import Path
 
 from django.db import transaction
 from django.utils import timezone
 
+from secondshift.config.constants import MAX_SKILL_PREVIEW_CHARS
 from secondshift.connections.models import Connection
 from secondshift.jobs.manifest import (
     JobManifest,
@@ -16,11 +18,24 @@ from secondshift.repositories.models import Repository
 
 
 def sync_manifest(repository: Repository, path: Path) -> list[Job]:
-    return sync_jobs(repository, load_manifest(path))
+    """Sync from a manifest on disk. Skill paths resolve next to the manifest."""
+    manifest = load_manifest(path)
+    skills = {
+        item.skill: skill_file.read_text()
+        for item in manifest.jobs.values()
+        if (skill_file := path.parent / item.skill).is_file()
+    }
+    return sync_jobs(repository, manifest, skills)
 
 
 @transaction.atomic
-def sync_jobs(repository: Repository, manifest: RepositoryManifest) -> list[Job]:
+def sync_jobs(
+    repository: Repository,
+    manifest: RepositoryManifest,
+    skills: Mapping[str, str] | None = None,
+) -> list[Job]:
+    """`skills` maps each skill path to its text at the synced commit."""
+    skills = skills or {}
     synced: list[Job] = []
     active_keys = set(manifest.jobs)
     for key, item in manifest.jobs.items():
@@ -31,6 +46,9 @@ def sync_jobs(repository: Repository, manifest: RepositoryManifest) -> list[Job]
                 "workspace": repository.workspace,
                 "name": item.name,
                 "skill_path": item.skill,
+                "skill_text": skills.get(item.skill, "")[:MAX_SKILL_PREVIEW_CHARS],
+                "skill_truncated": len(skills.get(item.skill, ""))
+                > MAX_SKILL_PREVIEW_CHARS,
                 "cron": item.schedule or "",
                 "timezone": item.timezone,
                 "history": item.history,

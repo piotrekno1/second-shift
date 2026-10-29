@@ -357,3 +357,19 @@ def test_job_without_a_schedule_cannot_be_enabled(
     assert response.json()["detail"] == (
         "This job has no schedule. Use Run now to run it."
     )
+
+
+@pytest.mark.django_db
+def test_job_detail_includes_the_synced_skill(
+    client: Client,
+    approval_setup: tuple[AbstractUser, Workspace, Job],
+) -> None:
+    user, _, job = approval_setup
+    job.skill_text = "# Review\n\nRead the changelog."
+    job.save(update_fields=["skill_text"])
+    client.force_login(user)
+
+    body = client.get(f"/api/jobs/{job.pk}").json()
+
+    assert body["skill_text"] == "# Review\n\nRead the changelog."
+    assert body["skill_truncated"] is False

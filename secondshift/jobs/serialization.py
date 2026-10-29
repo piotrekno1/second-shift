@@ -119,6 +119,8 @@ def serialize_job_detail(job: Job, can_edit_limits: bool) -> JobDetailSchema:
         history=job.history,
         repository_revision=job.repository.config_sha,
         repository_enabled=job.repository.enabled,
+        skill_text=job.skill_text,
+        skill_truncated=job.skill_truncated,
         recent_runs=[serialize_run(run) for run in recent_runs],
         limits=serialize_limits(limit_views(job.workspace, job)),
         can_edit_limits=can_edit_limits,

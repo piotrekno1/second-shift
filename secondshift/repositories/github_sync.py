@@ -83,8 +83,10 @@ def sync_github_repository(repository: Repository) -> Repository:
         revision = git_fetch(source, token, "rev-parse", "FETCH_HEAD")
         try:
             manifest = parse_manifest(committed_file(source, revision, MANIFEST_FILE))
-            for job in manifest.jobs.values():
-                committed_file(source, revision, job.skill)
+            skills = {
+                job.skill: committed_file(source, revision, job.skill)
+                for job in manifest.jobs.values()
+            }
         except (LocalRepositoryError, ValueError, yaml.YAMLError) as error:
             raise GitHubAppError(
                 f"Invalid committed repository configuration: {error}"
@@ -100,7 +102,7 @@ def sync_github_repository(repository: Repository) -> Repository:
         locked.config_sha = revision
         locked.last_sync_error = ""
         locked.save(update_fields=["config_sha", "last_sync_error", "updated_at"])
-        sync_jobs(locked, manifest)
+        sync_jobs(locked, manifest, skills)
     repository.refresh_from_db()
     return repository
 
