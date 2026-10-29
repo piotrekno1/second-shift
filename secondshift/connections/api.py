@@ -286,7 +286,7 @@ def start_mcp_sign_in(
         else None
     )
     if connection is None and not payload.binding_key:
-        raise HttpError(422, "Enter the name used by jobs.")
+        raise HttpError(422, "Enter a binding.")
     try:
         url = start_authorization(
             workspace,

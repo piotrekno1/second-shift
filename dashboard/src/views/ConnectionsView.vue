@@ -50,7 +50,7 @@ const SIGN_IN_RESULTS: Record<string, string> = {
   expired: 'The sign-in took too long. Start again.',
   refused: 'Sign-in was cancelled.',
   scope: 'The server granted more access than you asked for, so nothing was saved. On its consent page, leave only that access selected (for Grafana: Read access, with Query and Write cleared).',
-  taken: 'That name already has a connection.',
+  taken: 'That binding already has a connection.',
   failed: 'Sign-in did not finish. Check the server and try again.',
 }
 const signInResult = typeof route.query.oauth === 'string' ? route.query.oauth : ''
@@ -225,7 +225,7 @@ async function act(key: string, noticeKey: string, action: () => Promise<string>
 
 function approve(need: CapabilityNeed): Promise<void> {
   return act(`approve-${need.binding}`, need.binding, async () => {
-    if (!need.connection) throw new Error('Connect this first.')
+    if (!need.connection) throw new Error('Connect this binding first.')
     const count = pendingJobs(need)
     await approveNeed(need, need.connection.id)
     await app.refresh()
@@ -312,8 +312,8 @@ onMounted(async () => {
     <section v-if="setupNeeds.length" class="panel needs-panel">
       <div class="panel-heading">
         <div>
-          <h2>{{ blockingNeeds.length ? 'To set up' : 'Optional connections' }} <span class="heading-count">{{ blockingNeeds.length || optionalNeeds.length }}</span></h2>
-          <p>Names your jobs use in <code>.secondshift.yaml</code>. Connect each one once and every job that names it can use it.</p>
+          <h2>{{ blockingNeeds.length ? 'To set up' : 'Optional bindings' }} <span class="heading-count">{{ blockingNeeds.length || optionalNeeds.length }}</span></h2>
+          <p>A binding is the name a job uses in <code>.secondshift.yaml</code> to ask for a connection. Connect each binding once and every job that names it can use it.</p>
         </div>
         <Button label="Check again" severity="secondary" text size="small" :loading="busy === 'refresh'" @click="checkAgain">
           <template #icon><AppIcon name="refresh" /></template>
@@ -407,11 +407,11 @@ onMounted(async () => {
           <ConnectionForm v-if="isOpen({ mode: 'edit', id: connection.id })" class="inset" :connection="connection" @done="formDone" @cancel="openForm = null" />
         </article>
       </div>
-      <div v-else class="empty-state compact"><AppIcon name="power-plug-off-outline" /><strong>Nothing connected yet</strong><span v-if="canEdit">Use <strong>Add connection</strong>, or connect one of the names above.</span><span v-else>Workspace owners add connections.</span></div>
+      <div v-else class="empty-state compact"><AppIcon name="power-plug-off-outline" /><strong>Nothing connected yet</strong><span v-if="canEdit">Use <strong>Add connection</strong>, or connect a binding above.</span><span v-else>Workspace owners add connections.</span></div>
     </section>
 
     <p v-if="!app.needs.length" class="quiet-line">
-      <AppIcon name="check-decagram-outline" /> No job needs a connection yet. Names under <code>notify</code> or <code>requires</code> in a repository's <code>.secondshift.yaml</code> show up here.
+      <AppIcon name="check-decagram-outline" /> No job needs a connection yet. Bindings under <code>notify</code> or <code>requires</code> in a repository's <code>.secondshift.yaml</code> show up here.
     </p>
 
     <Menu ref="rowMenu" :model="rowMenuItems" popup class="row-menu">

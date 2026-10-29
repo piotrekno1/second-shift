@@ -143,7 +143,7 @@ function connectionSetupQuery(job: Job, capability: Capability): Record<string, 
 async function reviewCapability(job: Job, capability: Capability, decision: 'approved' | 'denied'): Promise<void> {
   const connectionId = selectedConnection(capability)
   if (decision === 'approved' && !connectionId) {
-    error.value = `Connect ${capability.binding} before reviewing it.`
+    error.value = `Connect the ${capability.binding} binding before reviewing it.`
     return
   }
   action.value = `${decision}-${capability.id}`
@@ -232,7 +232,7 @@ async function toggleJob(job: Job): Promise<void> {
           </div>
           <section v-if="expandedJobId === job.id" :id="`job-access-${job.id}`" class="job-review">
             <div class="job-review-heading">
-              <div><h3>Access review</h3><p>This job asks to use these connections. Choose which connection it gets, then approve.</p></div>
+              <div><h3>Access review</h3><p>This job asks for these bindings. Choose the connection for each one, then approve.</p></div>
               <Button v-if="job.cron && app.can(Action.EnableJobs)" :label="job.enabled ? 'Disable job' : 'Enable job'" severity="secondary" outlined :disabled="Boolean(enableBlocker(job))" :title="enableBlocker(job) || undefined" :loading="action === `toggle-${job.id}`" @click="toggleJob(job)">
                 <template #icon><AppIcon :name="job.enabled ? 'pause' : 'play'" /></template>
               </Button>

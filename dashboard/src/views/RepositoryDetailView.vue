@@ -211,7 +211,7 @@ onMounted(loadRepository)
         <div class="setup-status-icon"><AppIcon :name="setupComplete ? 'check-decagram-outline' : 'progress-check'" /></div>
         <div class="setup-copy">
           <h2>{{ setupComplete ? (justAdded ? 'Repository added and ready' : 'This repository is ready') : 'Finish setup' }}</h2>
-          <p v-if="requiredReviews.length">Approve access for {{ countLabel(requiredReviews.length, 'required connection') }} before its jobs can run.</p>
+          <p v-if="requiredReviews.length">Approve access for {{ countLabel(requiredReviews.length, 'required binding') }} before its jobs can run.</p>
           <p v-else-if="readyDisabledJobs.length">Access is ready. Enable {{ countLabel(readyDisabledJobs.length, 'job') }} to start its schedule.</p>
           <p v-else>All required access is resolved and every ready job is enabled.</p>
           <small v-if="optionalSetups.length && app.can(Action.AddConnections)">
