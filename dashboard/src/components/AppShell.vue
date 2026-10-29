@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import AppIcon from './AppIcon.vue'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import Menu from 'primevue/menu'
 import type { MenuItem } from 'primevue/menuitem'
 import { signOut } from '../services/api'
@@ -12,6 +12,7 @@ import ShiftStatus from './ShiftStatus.vue'
 import WorkspaceSwitcher from './WorkspaceSwitcher.vue'
 
 const route = useRoute()
+const router = useRouter()
 const app = useAppStore()
 const mobileOpen = ref(false)
 
@@ -60,6 +61,7 @@ const accountName = computed(() => (app.user?.email ?? '').split('@')[0] || 'Acc
 const accountMenu = ref<InstanceType<typeof Menu> | null>(null)
 const accountOpen = ref(false)
 const accountItems = computed<MenuItem[]>(() => [
+  { label: 'API tokens', appIcon: 'key-variant', command: () => void router.push('/account') },
   { label: 'Sign out', appIcon: 'logout', disabled: signingOut.value, command: () => void handleSignOut() },
 ])
 const signingOut = ref(false)

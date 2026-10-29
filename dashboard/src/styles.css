@@ -823,3 +823,6 @@ body .workspace-menu { width: 224px; }
 @media (hover: none) and (pointer: coarse) {
   input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), textarea, select, body .p-inputtext { font-size: 16px !important; }
 }
+.token-form .token-workspace { min-width: 180px; }
+.token-form .token-expiry { min-width: 120px; }
+.token-note { margin: 8px 0 0; color: var(--subtle); font-size: 12px; }
