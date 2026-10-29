@@ -21,6 +21,10 @@ class Job(RunLimitOverrides):
     key = models.SlugField(max_length=120)
     name = models.CharField(max_length=200)
     skill_path = models.CharField(max_length=500)
+    # The skill file at the synced commit, for people to read before a run.
+    # Runs read the file from the commit, never from here.
+    skill_text = models.TextField(blank=True, default="")
+    skill_truncated = models.BooleanField(default=False)
     # Empty for a job that runs only when started manually.
     cron = models.CharField(max_length=100, blank=True, default="")
     timezone = models.CharField(max_length=64, default="UTC")

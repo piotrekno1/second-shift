@@ -149,3 +149,6 @@ DEFAULT_SANDBOX_IMAGE = (
 
 # The repository file that lists jobs, at the repository root.
 MANIFEST_FILE = ".secondshift.yaml"
+
+# How much of a skill file a job keeps for people to read in the dashboard.
+MAX_SKILL_PREVIEW_CHARS = 200_000

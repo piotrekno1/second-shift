@@ -2,6 +2,7 @@ from pathlib import Path
 
 from django.contrib.auth import get_user_model
 
+from secondshift.config.constants import MAX_SKILL_PREVIEW_CHARS
 from secondshift.connections.models import Connection
 from secondshift.jobs.models import JobGrant
 from secondshift.jobs.scheduling import desired_schedules
@@ -94,3 +95,26 @@ jobs:
     assert job.next_run_at is None
     assert job.enabled is False
     assert desired_schedules() == []
+
+
+def test_sync_keeps_the_skill_text_for_people_to_read(db, tmp_path: Path) -> None:
+    user = get_user_model().objects.create_user(username="owner")
+    workspace = create_workspace(name="Test", slug="test", owner=user)
+    repository = Repository.objects.create(
+        workspace=workspace, full_name="example/project"
+    )
+    path = tmp_path / ".secondshift.yaml"
+    write_manifest(path, ["query_metrics"])
+    skill = tmp_path / ".agents/skills/review/SKILL.md"
+    skill.parent.mkdir(parents=True)
+    skill.write_text("# Review\n\nCheck the dashboards.\n")
+
+    job = sync_manifest(repository, path)[0]
+    assert job.skill_text == "# Review\n\nCheck the dashboards.\n"
+    assert job.skill_truncated is False
+
+    skill.write_text("x" * (MAX_SKILL_PREVIEW_CHARS + 1))
+    sync_manifest(repository, path)
+    job.refresh_from_db()
+    assert len(job.skill_text) == MAX_SKILL_PREVIEW_CHARS
+    assert job.skill_truncated is True

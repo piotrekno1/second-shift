@@ -12,6 +12,26 @@ from secondshift.repositories.models import Repository
 from secondshift.runs.models import Run, RunEvent
 from secondshift.workspaces.models import Workspace
 
+DEMO_SKILLS = {
+    "weekly-infra": """# Weekly infrastructure review
+
+Review infrastructure changes merged in the last seven days.
+
+## Steps
+
+1. List commits under `infra/` and `deploy/` since the last report.
+2. For each change, note what it affects and who merged it.
+3. Query the `observability` binding for error rates around each deploy.
+4. Flag drift between Terraform state and the committed configuration.
+
+## Report
+
+- Start with one line: how many changes, how many need attention.
+- List each finding with the commit, the evidence and a suggested owner.
+- Do not suggest changes you cannot point to evidence for.
+""",
+}
+
 
 @click.command()
 @click.option(
@@ -92,6 +112,7 @@ def seed_demo_data() -> None:
             key=key,
             name=name,
             skill_path=skill_path,
+            skill_text=DEMO_SKILLS.get(key, ""),
             cron=cron,
             timezone=job_timezone,
             enabled=False,
