@@ -161,8 +161,7 @@ Planned pull requests:
    `docs/environment-variables.md`, and tests. The dashboard token page with
    the expiry choice follows as its own pull request.
 2. Server skeleton: thin-mcp, the `/mcp` mount, token auth, audit and the
-   rate limit. The default cache is per process, so the rate limit counts
-   calls in the database.
+   rate limit. The rate limit counts calls in the shared cache from #98.
 3. Service moves out of views, with no behavior change.
 4. Job and run tools.
 5. Manifest tools.
