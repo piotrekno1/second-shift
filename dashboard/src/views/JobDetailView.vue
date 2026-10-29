@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import AppIcon from '../components/AppIcon.vue'
-import { computed, nextTick, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Button from 'primevue/button'
 import ModelWarning from '../components/ModelWarning.vue'
@@ -18,6 +18,7 @@ import type { Job, JobDetail, RunLimitUpdate } from '../types'
 import { Action } from '../utils/permissions'
 import { enableBlocker, runWarning } from '../utils/readiness'
 import { renderMarkdown } from '../utils/markdown'
+import { splitFrontmatter } from '../utils/frontmatter'
 import { accessLabel, accessNeedsAction, countLabel, describeCron, formatDate, historyLabel, formatRelative, formatSchedule, formatScheduled, jobState, kindLabel, utcTitle } from '../utils/format'
 
 const route = useRoute()
@@ -46,7 +47,15 @@ const accessSummary = computed(() => {
 })
 const lastRun = computed(() => job.value?.recent_runs[0] ?? null)
 const skillView = ref<'rendered' | 'raw'>('rendered')
-const renderedSkill = computed(() => renderMarkdown(job.value?.skill_text ?? ''))
+const skillExpanded = ref(false)
+const skillFrame = ref<HTMLElement | null>(null)
+const skillOverflows = ref(false)
+// Short skills fit, so they get no fade and no button.
+watch([skillView, () => job.value?.skill_text], () => {
+  skillOverflows.value = !!skillFrame.value && skillFrame.value.scrollHeight > skillFrame.value.clientHeight + 1
+}, { flush: 'post' })
+const skill = computed(() => splitFrontmatter(job.value?.skill_text ?? ''))
+const renderedSkill = computed(() => renderMarkdown(skill.value.body))
 
 async function loadJob(): Promise<void> {
   try {
@@ -177,9 +186,17 @@ useLiveRefresh(loadJob, () => (job.value?.recent_runs ?? []).some((run) => isRun
               </div>
             </div>
             <template v-if="job.skill_text">
-              <!-- eslint-disable-next-line vue/no-v-html -- sanitized by renderMarkdown -->
-              <article v-if="skillView === 'rendered'" class="markdown-body job-skill-body" v-html="renderedSkill" />
-              <pre v-else class="run-output job-skill-body">{{ job.skill_text }}</pre>
+              <dl v-if="skillView === 'rendered' && skill.fields.length" class="job-skill-fields">
+                <div v-for="field in skill.fields" :key="field.key"><dt>{{ field.key }}</dt><dd>{{ field.value }}</dd></div>
+              </dl>
+              <div ref="skillFrame" class="job-skill-frame" :class="{ expanded: skillExpanded, clipped: skillOverflows && !skillExpanded }">
+                <!-- eslint-disable-next-line vue/no-v-html -- sanitized by renderMarkdown -->
+                <article v-if="skillView === 'rendered'" class="markdown-body job-skill-body" v-html="renderedSkill" />
+                <pre v-else class="run-output job-skill-body">{{ job.skill_text }}</pre>
+              </div>
+              <button v-if="skillOverflows || skillExpanded" type="button" class="job-skill-toggle" :aria-expanded="skillExpanded" @click="skillExpanded = !skillExpanded">
+                <AppIcon :name="skillExpanded ? 'chevron-up' : 'chevron-down'" />{{ skillExpanded ? 'Show less' : 'Show full skill' }}
+              </button>
               <p v-if="job.skill_truncated" class="job-skill-note">The file is long, so only its start is shown here. Runs read the whole file.</p>
             </template>
             <div v-else class="empty-state compact"><AppIcon name="file-code-outline" /><strong>Skill not loaded yet</strong><span>Sync the repository to see the skill here.</span></div>
