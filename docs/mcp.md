@@ -46,8 +46,14 @@ Rules:
   approvals, connections, secrets, model providers, limits and members.
 - Only a hash of the token is stored. Tokens start with `ss_` so secret
   scanners can find leaked ones.
-- Tokens can expire. The default is 90 days. An owner can revoke any token in
-  the workspace. A person can revoke their own.
+- Every token expires. The creator picks 7, 30 or 90 days or a custom date.
+  The choice is capped by the server's `SECONDSHIFT_API_TOKEN_MAX_DAYS` (90 by
+  default), which is also the default choice. There is no option for a token
+  that never expires.
+- Lowering the maximum affects only new tokens. Existing tokens keep their
+  expiry.
+- An owner can revoke any token in the workspace. A person can revoke their
+  own.
 - The token list shows the name, scope, creator, creation time, expiry and
   last use.
 
@@ -137,8 +143,9 @@ For contributors. This section is removed when the server ships.
 
 Planned pull requests:
 
-1. API tokens: model, bearer auth and tests. The dashboard token page follows
-   as its own pull request.
+1. API tokens: model, bearer auth, `SECONDSHIFT_API_TOKEN_MAX_DAYS` in
+   `docs/environment-variables.md`, and tests. The dashboard token page with
+   the expiry choice follows as its own pull request.
 2. Server skeleton: thin-mcp, the `/mcp` mount, token auth and audit.
 3. Service moves out of views, with no behavior change.
 4. Job and run tools.
@@ -147,6 +154,5 @@ Planned pull requests:
 
 Open questions:
 
-- Is 90 days the right default expiry?
 - Do tokens need their own rate limit?
 - Does local mode need a stdio transport, or is HTTP enough?
