@@ -13,6 +13,9 @@ class Run(models.Model):
         FAILED = "failed", "Failed"
         CANCELED = "canceled", "Canceled"
 
+    # A run in one of these has not finished yet.
+    ACTIVE_STATUSES = (Status.QUEUED, Status.RUNNING)
+
     job = models.ForeignKey(Job, on_delete=models.PROTECT, related_name="runs")
     status = models.CharField(
         max_length=16,

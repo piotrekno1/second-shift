@@ -14,7 +14,6 @@ from secondshift.runs.execution.deadlines import run_deadline
 from secondshift.runs.models import Run
 
 TOKEN_PREFIX = "ssrt_"
-ACTIVE_RUN_STATUSES = (Run.Status.QUEUED, Run.Status.RUNNING)
 
 
 class GatewayUnavailable(Exception):
@@ -67,7 +66,7 @@ def active_tokens(token: str) -> QuerySet[RunToken]:
         token_hash=token_digest(token),
         revoked_at__isnull=True,
         expires_at__gt=timezone.now(),
-        run__status__in=ACTIVE_RUN_STATUSES,
+        run__status__in=Run.ACTIVE_STATUSES,
         connection__status=Connection.Status.CONNECTED,
         connection__kind=Connection.Kind.MODEL,
     )

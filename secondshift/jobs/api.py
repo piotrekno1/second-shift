@@ -10,7 +10,7 @@ from secondshift.jobs.access import job_for_request
 from secondshift.jobs.api_limits import limit_error_detail, limit_updates
 from secondshift.jobs.grants import GrantError, decide_grant
 from secondshift.jobs.limits import LimitError, save_overrides
-from secondshift.jobs.models import CapabilityRequest, Job
+from secondshift.jobs.models import CapabilityRequest
 from secondshift.jobs.needs import capability_needs
 from secondshift.jobs.planning import build_execution_plan
 from secondshift.jobs.schemas import (
@@ -23,10 +23,9 @@ from secondshift.jobs.schemas import (
     RunLimitsUpdateSchema,
 )
 from secondshift.jobs.serialization import (
-    binding_connections,
     serialize_job,
     serialize_job_detail,
-    with_last_run,
+    serialize_workspace_jobs,
 )
 from secondshift.workspaces.access import (
     Action,
@@ -71,19 +70,7 @@ def needs(request: HttpRequest) -> list[CapabilityNeedSchema]:
 @router.get("/jobs", response=list[JobSchema])
 def jobs(request: HttpRequest) -> list[JobSchema]:
     workspace = current_workspace(request)
-    if not workspace:
-        return []
-    queryset = with_last_run(
-        Job.objects.filter(
-            workspace=workspace,
-            repository__removed_at__isnull=True,
-        ).select_related("repository")
-    )
-    connections = binding_connections(workspace.pk)
-    return [
-        serialize_job(item, connections)
-        for item in queryset.prefetch_related("capability_requests__grant__connection")
-    ]
+    return serialize_workspace_jobs(workspace) if workspace else []
 
 
 @router.get("/jobs/{job_id}", response=JobDetailSchema)

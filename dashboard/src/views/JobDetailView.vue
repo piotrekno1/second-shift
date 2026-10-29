@@ -96,7 +96,8 @@ async function runNow(): Promise<void> {
   error.value = null
   try {
     const run = await startJobRun(jobId)
-    // Starting a run from its job means "show me this run".
+    // Starting a run from its job means "show me this run". While one is
+    // still in progress, that is the run to show.
     await router.push(`/runs/${run.id}`)
     void app.refreshRuns()
   } catch (runError) {

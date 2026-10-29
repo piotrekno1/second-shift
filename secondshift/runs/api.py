@@ -1,20 +1,18 @@
 from django.http import FileResponse, Http404, HttpRequest
 from django.shortcuts import get_object_or_404
-from django.utils import timezone
-from ninja import Query, Router
+from ninja import Query, Router, Status
 from ninja.errors import HttpError
 from ninja.security import django_auth
 
 from secondshift.gateway.usage import with_model_usage
 from secondshift.jobs.access import job_for_request
-from secondshift.jobs.planning import build_execution_plan
 from secondshift.runs.artifacts import artifact_storage
 from secondshift.runs.models import Run
-from secondshift.runs.orchestration.dispatch import enqueue_run
 from secondshift.runs.reporting.queries import RunFilters, run_page
 from secondshift.runs.schemas import (
     RunDetailSchema,
     RunFileName,
+    RunInProgressSchema,
     RunListQuery,
     RunPageSchema,
     RunSchema,
@@ -24,7 +22,7 @@ from secondshift.runs.serialization import (
     serialize_run,
     serialize_run_detail,
 )
-from secondshift.runs.services import create_run
+from secondshift.runs.services import RunInProgress, RunRefused, start_manual_run
 from secondshift.workspaces.access import (
     Action,
     current_workspace,
@@ -97,19 +95,16 @@ def run_file(
     return response
 
 
-@router.post("/jobs/{job_id}/run", response=RunSchema)
-def run_job(request: HttpRequest, job_id: int) -> RunSchema:
+@router.post("/jobs/{job_id}/run", response={200: RunSchema, 409: RunInProgressSchema})
+def run_job(
+    request: HttpRequest, job_id: int
+) -> RunSchema | Status[RunInProgressSchema]:
     job = job_for_request(request, job_id)
     require(request, Action.RUN_JOBS)
-    # A manual run does not need the schedule. It still needs the repository.
-    if not job.repository.enabled:
-        raise HttpError(409, "Enable the repository before running its jobs.")
-    execution_plan = build_execution_plan(job)
-    if not execution_plan["ready"]:
-        raise HttpError(
-            409,
-            "Connect a default model and approve all required capabilities first.",
-        )
-    run = create_run(job, timezone.now(), execution_plan=execution_plan)
-    enqueue_run(run)
+    try:
+        run = start_manual_run(job)
+    except RunInProgress as error:
+        return Status(409, RunInProgressSchema(detail=str(error), run_id=error.run.pk))
+    except RunRefused as error:
+        raise HttpError(409, str(error)) from error
     return serialize_run(run)

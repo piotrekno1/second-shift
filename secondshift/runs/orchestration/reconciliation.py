@@ -9,7 +9,6 @@ from secondshift.gateway.models import RunToken
 from secondshift.runs.models import Run, RunEvent
 from secondshift.runs.orchestration.dbos_runtime import new_dbos_client
 
-ACTIVE_RUN_STATUSES = (Run.Status.QUEUED, Run.Status.RUNNING)
 FAILED_WORKFLOW_STATUSES = {"ERROR", "MAX_RECOVERY_ATTEMPTS_EXCEEDED"}
 TERMINAL_WORKFLOW_STATUSES = {*FAILED_WORKFLOW_STATUSES, "CANCELLED", "SUCCESS"}
 
@@ -25,7 +24,7 @@ def mark_run_terminal(
 ) -> bool:
     run = (
         Run.objects.select_for_update()
-        .filter(pk=run_id, status__in=ACTIVE_RUN_STATUSES)
+        .filter(pk=run_id, status__in=Run.ACTIVE_STATUSES)
         .first()
     )
     if run is None:
@@ -49,7 +48,7 @@ def mark_run_terminal(
 def reconcile_terminal_workflows(client: DBOSClient | None = None) -> int:
     pending_runs = list(
         Run.objects.filter(
-            status__in=ACTIVE_RUN_STATUSES,
+            status__in=Run.ACTIVE_STATUSES,
         )
         .exclude(dbos_workflow_id="")
         .values_list("pk", "dbos_workflow_id")[:500]

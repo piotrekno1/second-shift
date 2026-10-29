@@ -16,7 +16,6 @@ from secondshift.repositories.github_sync import (
     GitHubRepositoryExistsError,
     attach_github_repository,
     available_github_sources,
-    sync_github_repository,
 )
 from secondshift.repositories.local import (
     LocalRepositoryError,
@@ -41,6 +40,7 @@ from secondshift.repositories.serialization import (
     serialize_repository_detail,
     validate_repository,
 )
+from secondshift.repositories.sync import SyncError, resync
 from secondshift.runner.protocol import RunnerProtocolError
 from secondshift.workspaces.access import (
     Action,
@@ -210,17 +210,9 @@ def resync_repository(
 ) -> RepositoryDetailSchema:
     repository = repository_for_request(request, repository_id)
     require(request, Action.RESYNC_REPOSITORIES)
-    if repository.source_type == Repository.SourceType.GITHUB:
-        try:
-            repository = sync_github_repository(repository)
-        except (GitHubAppError, RunnerProtocolError) as error:
-            raise HttpError(422, str(error)) from error
-        return serialize_repository_detail(request, repository)
     try:
-        repository = attach_local_repository(
-            repository.workspace, repository.local_path, repository.default_branch
-        )
-    except LocalRepositoryError as error:
+        repository = resync(repository)
+    except SyncError as error:
         raise HttpError(422, str(error)) from error
     return serialize_repository_detail(request, repository)
 
