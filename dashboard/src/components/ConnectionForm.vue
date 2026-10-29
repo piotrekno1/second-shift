@@ -9,7 +9,7 @@ import ModelProviderForm from './ModelProviderForm.vue'
 import { approveNeed, createWebhook, fetchWebhookSample, testConnection, updateWebhook } from '../services/connections'
 import { useAppStore } from '../stores/app'
 import type { Connection, Notice, WebhookSample } from '../types'
-import { DocsPage, docsUrl } from '../utils/docs'
+import { WEBHOOK_PAYLOAD_DOCS_URL } from '../utils/docs'
 import { countLabel, finishedBinding, titleFromSlug, typingBinding } from '../utils/format'
 
 type ConnectionType = 'webhook' | 'model' | 'mcp' | 'api'
@@ -170,7 +170,7 @@ async function submit(): Promise<void> {
           <p v-if="sampleError" class="field-error">{{ sampleError }}</p>
           <pre v-else-if="sample" class="run-output" aria-label="Sample webhook payload">{{ sampleJson }}</pre>
           <p v-else class="webhook-sample-loading"><AppIcon name="loading" spin /> Loading a sample</p>
-          <a :href="docsUrl(DocsPage.RepositoryConfiguration, 'webhook-payload')" target="_blank" rel="noopener noreferrer">Payload format in the docs <AppIcon name="open-in-new" /></a>
+          <a :href="WEBHOOK_PAYLOAD_DOCS_URL" target="_blank" rel="noopener noreferrer">Payload format in the docs <AppIcon name="open-in-new" /></a>
         </div>
       </details>
       <label v-if="!editing && pendingJobs.length" class="need-setup-check">
