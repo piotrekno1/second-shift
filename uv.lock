@@ -1139,6 +1139,7 @@ dependencies = [
     { name = "pyyaml" },
     { name = "redis" },
     { name = "requests" },
+    { name = "thin-mcp", extra = ["django"] },
     { name = "uvicorn-worker" },
     { name = "whitenoise" },
 ]
@@ -1181,6 +1182,7 @@ requires-dist = [
     { name = "pyyaml", specifier = ">=6.0.2" },
     { name = "redis", specifier = ">=6" },
     { name = "requests", specifier = ">=2.32.0" },
+    { name = "thin-mcp", extras = ["django"], specifier = ">=0.2,<0.3" },
     { name = "uvicorn-worker", specifier = ">=0.4.0" },
     { name = "whitenoise", specifier = ">=6.11.0" },
 ]
@@ -1271,6 +1273,24 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/ad/eb/4e197bf26b023abafc5e9043ec8710d7de0fcb032d0969045236d72aa0b1/starlette-1.9.0.tar.gz", hash = "sha256:3d931de246ed870e35ce605974440816ef895e592f255d1396cfdf191d4c4318", size = 2732466, upload-time = "2026-10-18T15:50:33.189Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/f3/93/181df62699d9b5aca1d87e5cfda131dac87e3cdaebf668662f7206ca3470/starlette-1.9.0-py3-none-any.whl", hash = "sha256:fd3f159936e882d06c1108f84688f7cda2cf85fc6a592a50edbd175e882c2ddc", size = 80335, upload-time = "2026-10-18T15:50:31.526Z" },
+]
+
+[[package]]
+name = "thin-mcp"
+version = "0.2.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pydantic" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/28/96/b2bb8403dd4ad42ea1feead864444cebdcd017c46acb6f149517b584ce5e/thin_mcp-0.2.0.tar.gz", hash = "sha256:c185acc5c55283abb5ba7550a333ede237132831dc9eed9ac4f17dd78f73e418", size = 84028, upload-time = "2026-10-28T13:22:49.719Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c4/de/cb6ae39200ec3fda01dd901e4d85047f004a2ec0f4c487adeb890a3caba5/thin_mcp-0.2.0-py3-none-any.whl", hash = "sha256:571dfa3bd981d9eea7c80c3d0b2666802d0ccf2a24a7f39d1e851f16f194f80e", size = 16214, upload-time = "2026-10-28T13:22:48.518Z" },
+]
+
+[package.optional-dependencies]
+django = [
+    { name = "django" },
+    { name = "django-ninja" },
 ]
 
 [[package]]

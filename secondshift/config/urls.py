@@ -7,6 +7,7 @@ from health_check.views import HealthCheckView
 from secondshift.config.api import api
 from secondshift.core.signin import sign_in
 from secondshift.core.views import password_reset
+from secondshift.mcp_server.api import api as mcp_api
 from secondshift.repositories.github_views import github_callback, github_start
 from secondshift.workspaces.views import open_invite
 
@@ -29,6 +30,7 @@ urlpatterns = [
     path("-/sign-in/<str:token>/", sign_in, name="sign-in"),
     path("-/invite/<str:token>/", open_invite, name="invite"),
     path("api/", api.urls),
+    path("mcp", mcp_api.urls),
     path(
         "-/health/",
         HealthCheckView.as_view(

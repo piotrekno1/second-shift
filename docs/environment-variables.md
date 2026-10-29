@@ -45,6 +45,7 @@ file, recreate its container to apply the changes. A restart does not reload it.
 | `SECONDSHIFT_LOG_LEVEL` | All | Application log level, e.g. `INFO`, `WARNING` or `DEBUG`. Default `INFO`. |
 | `SECONDSHIFT_DEBUG` | Web, gateway, worker | Default `false`. Production refuses `true`. Log verbosity is controlled separately. |
 | `SECONDSHIFT_API_TOKEN_MAX_DAYS` | Web | The longest an API token can last. Its creator can choose a shorter time. Lowering it affects only new tokens. Default `90`. |
+| `SECONDSHIFT_API_RATE_LIMIT` | Web | MCP tool calls each person can make per minute. All of their API tokens share it. Default `300`. |
 | `SECONDSHIFT_DATA_DIR` | All | Container-local persistent data directory. Image default `/var/lib/secondshift`. The generated runner file overrides it to the host-mounted runner directory. |
 
 | `SECONDSHIFT_CACHE_URL` | Web, gateway, worker | Default `dbcache://secondshift_cache`. Also supported: Redis or Valkey, e.g. `redis://cache:6379/0`. |

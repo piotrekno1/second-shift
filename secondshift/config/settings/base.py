@@ -109,6 +109,7 @@ INSTALLED_APPS = [
     "secondshift.jobs",
     "secondshift.runs",
     "secondshift.gateway",
+    "secondshift.mcp_server",
 ]
 
 MIDDLEWARE = [
@@ -427,6 +428,10 @@ if JOB_HISTORY_MAX < 0:
 API_TOKEN_MAX_DAYS = env.int("SECONDSHIFT_API_TOKEN_MAX_DAYS", default=90)
 if API_TOKEN_MAX_DAYS < 1:
     raise ImproperlyConfigured("SECONDSHIFT_API_TOKEN_MAX_DAYS must be positive")
+# Tool calls each person can make per minute, shared by all their API tokens.
+API_RATE_LIMIT = env.int("SECONDSHIFT_API_RATE_LIMIT", default=300)
+if API_RATE_LIMIT < 1:
+    raise ImproperlyConfigured("SECONDSHIFT_API_RATE_LIMIT must be positive")
 # Total text a run starts with from its job's earlier reports, newest first.
 RUN_HISTORY_MAX_CHARS = env.int("SECONDSHIFT_RUN_HISTORY_MAX_CHARS", default=65_536)
 if RUN_HISTORY_MAX_CHARS < 1:
