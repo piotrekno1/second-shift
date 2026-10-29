@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
+import AccountView from './views/AccountView.vue'
 import ConnectionsView from './views/ConnectionsView.vue'
 import JobsView from './views/JobsView.vue'
 import JobDetailView from './views/JobDetailView.vue'
@@ -27,6 +28,7 @@ export default createRouter({
     { path: '/runs/:id(\\d+)/files/:name(input|output)', component: RunFileView },
     { path: '/connections', component: ConnectionsView },
     { path: '/settings', component: SettingsView },
+    { path: '/account', component: AccountView },
     // Ids are numbers, so /runs/abc lands here instead of asking the server.
     { path: '/:unknown(.*)*', component: NotFoundView },
   ],
