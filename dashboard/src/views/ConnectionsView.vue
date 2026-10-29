@@ -116,6 +116,11 @@ function servedBindings(connection: Connection): CapabilityNeed[] {
   return app.needs.filter((need) => need.status === 'ready' && need.connection?.id === connection.id)
 }
 
+// Webhooks keep their last delivery, a test or a run report, as their check.
+function isWebhook(connection: Connection): boolean {
+  return connection.provider === 'webhook'
+}
+
 function editable(connection: Connection): boolean {
   return canEdit.value && (connection.kind === 'mcp' || connection.kind === 'api' || connection.kind === 'model' || connection.provider === 'webhook')
 }
@@ -196,10 +201,6 @@ function needAccessLine(need: CapabilityNeed): string {
   return need.jobs.map((job) => `${job.job_name} → ${job.access?.ok ? job.access.scope : 'unavailable'}`).join(' · ')
 }
 
-function jobSummary(need: CapabilityNeed): string {
-  return need.jobs.map((job) => `${job.job_name}${need.required && !job.required ? ' (optional)' : ''}`).join(', ')
-}
-
 function errorText(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback
 }
@@ -236,8 +237,8 @@ function approve(need: CapabilityNeed): Promise<void> {
 function sendTest(connection: Connection, noticeKey: string): Promise<void> {
   return act(`test-${connection.id}`, noticeKey, async () => {
     const result = await testConnection(connection.id)
-    // Model checks are saved on the connection; refresh so its pill reflects the result.
-    if (connection.kind === 'model' || connection.kind === 'mcp' || connection.kind === 'api') await app.refresh()
+    // Checks and deliveries are saved on the connection; refresh so its pill reflects the result.
+    await app.refresh()
     if (!result.ok) throw new Error(result.message)
     if (connection.kind === 'model' || connection.kind === 'mcp' || connection.kind === 'api') return result.message
     return 'Test message delivered.'
@@ -296,6 +297,9 @@ onMounted(async () => {
       <RouterLink v-if="returnReview" :to="{ path: '/jobs', query: { review: returnReview } }" class="secondary-action">
         <AppIcon name="arrow-left" /> Back to {{ returnJob || 'job review' }}
       </RouterLink>
+      <Button label="Check again" severity="secondary" text :loading="busy === 'refresh'" @click="checkAgain">
+        <template #icon><AppIcon name="refresh" /></template>
+      </Button>
       <Button class="main-action" v-if="canEdit" label="Add connection" @click="toggle({ mode: 'add' })">
         <template #icon><AppIcon name="plus" /></template>
       </Button>
@@ -315,9 +319,6 @@ onMounted(async () => {
           <h2>{{ blockingNeeds.length ? 'To set up' : 'Optional bindings' }} <span class="heading-count">{{ blockingNeeds.length || optionalNeeds.length }}</span></h2>
           <p>A binding is the name a job uses in <code>.secondshift.yaml</code> to ask for a connection. Connect each binding once and every job that names it can use it.</p>
         </div>
-        <Button label="Check again" severity="secondary" text size="small" :loading="busy === 'refresh'" @click="checkAgain">
-          <template #icon><AppIcon name="refresh" /></template>
-        </Button>
       </div>
 
       <div v-for="group in needGroups" :key="group.key" class="need-list">
@@ -332,7 +333,7 @@ onMounted(async () => {
               <small v-if="need.kind === 'mcp' || need.kind === 'api'" class="mono-line">{{ need.requested_tools.join(', ') }}</small>
               <small v-if="need.status === 'unavailable'" class="need-detail">{{ need.detail }}</small>
             </div>
-            <span class="status-pill" :class="isOffer(need) ? 'optional' : needStatus[need.status].pill">{{ isOffer(need) ? 'Not used' : needStatus[need.status].label }}</span>
+            <span class="status-pill" :class="isOffer(need) ? 'optional' : needStatus[need.status].pill">{{ needStatus[need.status].label }}</span>
             <div class="need-actions">
               <Button v-if="need.status === 'missing' && canEdit" :label="isOpen({ mode: 'need', binding: need.binding }) ? 'Cancel' : 'Connect'" size="small" :severity="isOpen({ mode: 'need', binding: need.binding }) ? 'secondary' : undefined" :text="isOffer(need) || isOpen({ mode: 'need', binding: need.binding })" @click="toggle({ mode: 'need', binding: need.binding })" />
               <template v-else-if="need.status === 'unavailable' && need.connection">
@@ -352,9 +353,6 @@ onMounted(async () => {
     <section class="panel services-panel">
       <div class="panel-heading">
         <div><h2>Connections <span class="heading-count">{{ app.connections.length }}</span></h2><p>Shared by the whole workspace. A job uses one when its <code>.secondshift.yaml</code> names it.</p></div>
-        <Button v-if="!setupNeeds.length" label="Check again" severity="secondary" text size="small" :loading="busy === 'refresh'" @click="checkAgain">
-          <template #icon><AppIcon name="refresh" /></template>
-        </Button>
       </div>
       <div v-if="app.connections.length" class="need-list">
         <article v-for="connection in app.connections" :id="`connection-${connection.id}`" :key="connection.id" class="need" :class="{ unavailable: connection.status !== 'connected' }">
@@ -367,7 +365,7 @@ onMounted(async () => {
                 {{ connection.default_model ? `Default model ${connection.default_model}` : 'No default model' }} · {{ connection.allowed_models.length ? `${connection.allowed_models.length} allowed` : 'any model allowed' }}
               </small>
               <small v-if="servedBindings(connection).length" class="served">
-                Serves <template v-for="(need, index) in servedBindings(connection)" :key="need.binding"><template v-if="index">, </template><code>{{ need.binding }}</code> for {{ jobSummary(need) }}</template>
+                Serves <template v-for="(need, index) in servedBindings(connection)" :key="need.binding"><template v-if="index">, </template><code>{{ need.binding }}</code> for <template v-for="(job, jobIndex) in need.jobs" :key="job.job_id"><template v-if="jobIndex">, </template><RouterLink :to="`/jobs/${job.job_id}`" class="need-job">{{ job.job_name }}</RouterLink><template v-if="need.required && !job.required"> (optional)</template></template></template>
               </small>
               <small v-else-if="connectionUsageLine(connection.usage, connection.kind)" :title="connection.usage?.last_used_at ? `Last used ${formatDate(connection.usage.last_used_at)}` : undefined">
                 {{ connectionUsageLine(connection.usage, connection.kind) }}
@@ -379,7 +377,7 @@ onMounted(async () => {
                 </button>
               </small>
             </div>
-            <StatusPill v-if="connection.status === 'connected' && connection.last_check && !connection.last_check.ok" status="error" label="Check failed" :title="connection.last_check.message" />
+            <StatusPill v-if="connection.status === 'connected' && connection.last_check && !connection.last_check.ok" status="error" :label="isWebhook(connection) ? 'Delivery failed' : 'Check failed'" :title="connection.last_check.message" />
             <StatusPill v-else :status="connection.status" />
             <div class="need-actions">
               <Button v-if="fixLabel(connection)" :label="isOpen({ mode: 'edit', id: connection.id }) ? 'Cancel' : fixLabel(connection)!" size="small" :loading="busy === `test-${connection.id}`" @click="toggle({ mode: 'edit', id: connection.id })" />
@@ -392,7 +390,7 @@ onMounted(async () => {
             <AppIcon :name="notices[`connection-${connection.id}`].ok ? 'check-circle-outline' : 'alert-circle-outline'" /> {{ notices[`connection-${connection.id}`].text }}
           </p>
           <p v-else-if="connection.last_check" class="need-notice" :class="{ ok: connection.last_check.ok }" :title="`${formatDate(connection.last_check.checked_at)} · ${utcTitle(connection.last_check.checked_at)}`">
-            <AppIcon :name="connection.last_check.ok ? 'check-circle-outline' : 'alert-circle-outline'" /> {{ connection.last_check.message }} <span class="check-age">Checked {{ formatRelative(connection.last_check.checked_at) }}</span>
+            <AppIcon :name="connection.last_check.ok ? 'check-circle-outline' : 'alert-circle-outline'" /> {{ connection.last_check.message }} <span class="check-age">{{ isWebhook(connection) ? 'Last delivery' : 'Checked' }} {{ formatRelative(connection.last_check.checked_at) }}</span>
           </p>
           <div v-if="confirmRevoke === connection.id" class="confirm-strip" role="alert">
             <span>Disconnecting discards the stored URL or token. {{ connection.usage?.jobs ? `${countLabel(connection.usage.jobs, 'job')} that use${connection.usage.jobs === 1 ? 's' : ''} it will be blocked` : 'Jobs that use it are blocked' }} until you reconnect.</span>
