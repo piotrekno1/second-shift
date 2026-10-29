@@ -24,6 +24,8 @@ jobs:
       - run: uv sync --frozen
       - run: uv run ruff check .
       - run: uv run pytest
+      - name: Benchmark query budgets
+        run: uv run pytest secondshift/benchmarks -o python_files='bench_*.py' --benchmark-disable
 
   frontend:
     runs-on: ubuntu-latest
