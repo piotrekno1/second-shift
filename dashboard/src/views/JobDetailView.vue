@@ -197,12 +197,17 @@ useLiveRefresh(loadJob, () => (job.value?.recent_runs ?? []).some((run) => isRun
             <div><dt>Repository</dt><dd><RouterLink :to="`/repositories/${job.repository_id}`" class="detail-link">{{ job.repository }}</RouterLink></dd></div>
             <div><dt>Skill</dt><dd><code>{{ job.skill_path }}</code></dd></div>
             <div><dt>Schedule</dt><dd v-if="job.cron" :title="job.cron">{{ describeCron(job.cron) }} <span class="run-details-muted">· {{ job.timezone }}</span></dd><dd v-else>Manual only. Start it with Run now.</dd></div>
-            <div><dt>Job key</dt><dd><code>{{ job.key }}</code></dd></div>
-            <div><dt>Revision</dt><dd><code>{{ job.repository_revision.slice(0, 12) }}</code></dd></div>
-            <div><dt>Config hash</dt><dd><code>{{ job.config_hash.slice(0, 12) }}</code></dd></div>
             <div><dt>History</dt><dd>{{ historyLabel(job.history) }}</dd></div>
             <div><dt>External access</dt><dd>{{ job.capabilities.length ? countLabel(job.capabilities.length, 'connection') : 'None requested' }}</dd></div>
           </dl>
+          <details class="run-details-more">
+            <summary>Technical details</summary>
+            <dl>
+              <div><dt>Job ID in .secondshift.yaml</dt><dd><code>{{ job.key }}</code></dd></div>
+              <div><dt>Synced commit</dt><dd><code>{{ job.repository_revision.slice(0, 12) }}</code></dd></div>
+              <div><dt>Config fingerprint</dt><dd><code>{{ job.config_hash.slice(0, 12) }}</code></dd></div>
+            </dl>
+          </details>
         </aside>
       </div>
     </template>

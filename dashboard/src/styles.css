@@ -394,6 +394,9 @@ body .p-select-overlay { color: var(--ink); background: var(--night-800); border
 .run-details dd { margin: 0; min-width: 0; overflow-wrap: anywhere; font-size: 13px; }
 .run-details code { font-size: 12px; }
 .run-details-muted { color: var(--subtle); }
+.run-details-more { margin-top: 16px; }
+.run-details-more summary { color: var(--muted); font-size: 13px; font-weight: 700; cursor: pointer; }
+.run-details-more[open] summary { margin-bottom: 12px; }
 @media (max-width: 1100px) { .run-layout { grid-template-columns: 1fr; } .run-details { position: static; } }
 
 /* Relative times under absolute ones */

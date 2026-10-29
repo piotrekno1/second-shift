@@ -124,17 +124,17 @@ async function submit(): Promise<void> {
     </div>
 
     <label>
-      <span>Capability name</span>
+      <span>Name used by jobs</span>
       <InputText v-model="bindingKey" :disabled="bindingFixed" list="binding-suggestions" placeholder="engineering-alerts" autocomplete="off" spellcheck="false" @blur="bindingKey = finishedBinding(bindingKey)" />
       <datalist id="binding-suggestions"><option v-for="item in suggestions" :key="item" :value="item" /></datalist>
       <small v-if="bindingKey && !bindingValid && !bindingKey.endsWith('-')" class="field-error">Lowercase letters, numbers and single dashes.</small>
-      <small v-else-if="taken" class="field-error">This binding already has a connection.</small>
+      <small v-else-if="taken" class="field-error">This name already has a connection.</small>
       <small v-else-if="kindMismatch && need" class="field-error">Jobs request {{ need.binding }} as {{ need.kind === 'notification' ? 'a notification' : need.kind.toUpperCase() }}.</small>
       <small v-else-if="need && !editing">Used by {{ need.jobs.map((job) => job.job_name).join(', ') }}.</small>
-      <small v-else-if="!editing">Matches the <code>binding</code> in your repository configuration.</small>
+      <small v-else-if="!editing">Jobs use it as <code>binding</code> in <code>.secondshift.yaml</code>.</small>
     </label>
     <label>
-      <span>Name</span>
+      <span>Display name</span>
       <InputText v-model="displayName" maxlength="200" />
     </label>
 

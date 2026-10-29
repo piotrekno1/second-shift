@@ -124,8 +124,8 @@ async function submit(): Promise<void> {
       <h3>{{ heading }}</h3>
       <p>Each operation in an OpenAPI spec becomes a tool. SecondShift builds every request itself: jobs only fill in the values the spec declares.</p>
     </div>
-    <label><span>Capability name</span><InputText v-model="binding" :disabled="editing || Boolean(props.binding)" required pattern="[a-z0-9]+(-[a-z0-9]+)*" maxlength="120" autocomplete="off" spellcheck="false" @blur="binding = finishedBinding(binding)" /><small>Matches the <code>binding</code> in your repository configuration. Lowercase, with dashes.</small></label>
-    <label><span>Name</span><InputText v-model.trim="name" maxlength="200" :placeholder="summary?.title || 'Billing API'" /></label>
+    <label><span>Name used by jobs</span><InputText v-model="binding" :disabled="editing || Boolean(props.binding)" required pattern="[a-z0-9]+(-[a-z0-9]+)*" maxlength="120" autocomplete="off" spellcheck="false" @blur="binding = finishedBinding(binding)" /><small>Jobs use it as <code>binding</code> in <code>.secondshift.yaml</code>. Lowercase, with dashes.</small></label>
+    <label><span>Display name</span><InputText v-model.trim="name" maxlength="200" :placeholder="summary?.title || 'Billing API'" /></label>
 
     <template v-if="!editing">
       <label v-if="!pasting" class="need-setup-wide">
