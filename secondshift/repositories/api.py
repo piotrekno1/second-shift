@@ -7,6 +7,7 @@ from ninja.errors import HttpError
 from ninja.security import django_auth
 
 from secondshift.connections.models import Connection
+from secondshift.repositories.access import repository_for_request
 from secondshift.repositories.github_app import (
     GitHubAppError,
     configured,
@@ -49,16 +50,6 @@ from secondshift.workspaces.access import (
 )
 
 router = Router(auth=django_auth, tags=["repositories"])
-
-
-def repository_for_request(request: HttpRequest, repository_id: int) -> Repository:
-    workspace = current_workspace(request)
-    return get_object_or_404(
-        Repository,
-        pk=repository_id,
-        workspace=workspace,
-        removed_at__isnull=True,
-    )
 
 
 @router.get("/repositories", response=list[RepositorySchema], auth=django_auth)
