@@ -410,3 +410,25 @@ def test_webhook_sample_shows_what_a_run_report_sends(
     assert body["summary_max_chars"] == 4_000
     # Made-up records only. Nothing is saved.
     assert not Job.objects.exists()
+
+
+@pytest.mark.django_db
+def test_connections_show_the_last_delivery(
+    client: Client,
+    settings: Any,
+    monkeypatch: pytest.MonkeyPatch,
+    owner: tuple[AbstractUser, Workspace],
+) -> None:
+    settings.OUTBOUND_ALLOW_LOCAL = True
+    user, workspace = owner
+    connection = webhook(workspace)
+    use_transport(monkeypatch, lambda request: httpx.Response(404))
+    client.force_login(user)
+
+    deliver_webhook(connection, {"text": "run report"})
+    listed = client.get("/api/connections").json()
+
+    last = next(item for item in listed if item["id"] == connection.pk)["last_check"]
+    assert last["ok"] is False
+    assert last["message"] == "The webhook answered HTTP 404."
+    assert SECRET_URL not in json.dumps(listed)
