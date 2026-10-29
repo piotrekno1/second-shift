@@ -451,3 +451,37 @@ export interface Notice {
   ok: boolean
   text: string
 }
+
+export type ApiTokenScope = 'read' | 'run'
+
+export interface ApiToken {
+  id: number
+  name: string
+  scope: ApiTokenScope
+  workspace_id: number
+  workspace_name: string
+  workspace_slug: string
+  created_at: string
+  expires_at: string
+  last_used_at: string | null
+}
+
+export interface NewApiToken extends ApiToken {
+  /** Shown once, right after creating the token. */
+  token: string
+}
+
+/** A workspace the signed-in person can create a token for. */
+export interface TokenWorkspace {
+  id: number
+  name: string
+  slug: string
+  current: boolean
+  can_create_run_tokens: boolean
+}
+
+export interface ApiTokenList {
+  items: ApiToken[]
+  workspaces: TokenWorkspace[]
+  max_days: number
+}
