@@ -419,6 +419,10 @@ RUN_OUTPUT_EXCERPT_BYTES = 16 * 1024
 JOB_HISTORY_MAX = env.int("SECONDSHIFT_JOB_HISTORY_MAX", default=5)
 if JOB_HISTORY_MAX < 0:
     raise ImproperlyConfigured("SECONDSHIFT_JOB_HISTORY_MAX cannot be negative")
+# The longest an API token can last. Its creator can choose a shorter time.
+API_TOKEN_MAX_DAYS = env.int("SECONDSHIFT_API_TOKEN_MAX_DAYS", default=90)
+if API_TOKEN_MAX_DAYS < 1:
+    raise ImproperlyConfigured("SECONDSHIFT_API_TOKEN_MAX_DAYS must be positive")
 # Total text a run starts with from its job's earlier reports, newest first.
 RUN_HISTORY_MAX_CHARS = env.int("SECONDSHIFT_RUN_HISTORY_MAX_CHARS", default=65_536)
 if RUN_HISTORY_MAX_CHARS < 1:

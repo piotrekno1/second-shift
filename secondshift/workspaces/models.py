@@ -94,3 +94,38 @@ class WorkspaceInvite(models.Model):
 
     def __str__(self) -> str:
         return f"{self.get_role_display()} invite to {self.workspace}"
+
+
+class ApiToken(models.Model):
+    """A bearer token for the MCP server, for one person in one workspace.
+
+    Only a hash of the token is stored. See secondshift.workspaces.tokens.
+    """
+
+    class Scope(models.TextChoices):
+        READ = "read", "Read"
+        RUN = "run", "Read and run"
+
+    workspace = models.ForeignKey(
+        Workspace,
+        on_delete=models.CASCADE,
+        related_name="api_tokens",
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="api_tokens",
+    )
+    name = models.CharField(max_length=160)
+    scope = models.CharField(max_length=16, choices=Scope.choices, default=Scope.READ)
+    token_hash = models.CharField(max_length=64, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    last_used_at = models.DateTimeField(null=True, blank=True)
+    revoked_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at", "-pk"]
+
+    def __str__(self) -> str:
+        return f"{self.name} ({self.get_scope_display()})"
