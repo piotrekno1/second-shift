@@ -428,7 +428,7 @@ if JOB_HISTORY_MAX < 0:
 API_TOKEN_MAX_DAYS = env.int("SECONDSHIFT_API_TOKEN_MAX_DAYS", default=90)
 if API_TOKEN_MAX_DAYS < 1:
     raise ImproperlyConfigured("SECONDSHIFT_API_TOKEN_MAX_DAYS must be positive")
-# MCP tool calls each person can make per minute, across all their API tokens.
+# Requests to /mcp each person can make per minute, across all their API tokens.
 MCP_RATE_LIMIT = env.int("SECONDSHIFT_MCP_RATE_LIMIT", default=300)
 if MCP_RATE_LIMIT < 1:
     raise ImproperlyConfigured("SECONDSHIFT_MCP_RATE_LIMIT must be positive")

@@ -101,17 +101,6 @@ returns that run's ID instead, so the agent can follow it with `get_run`. An
 agent stuck in a loop cannot queue runs faster than they finish. **Run now**
 in the dashboard follows the same rule and links to the active run.
 
-## Rate limit
-
-Each person can make `SECONDSHIFT_MCP_RATE_LIMIT` tool calls per minute (300
-by default). All of their tokens share the limit, so a new token does not
-reset it. Only tool calls count. Starting a session and listing tools do not.
-The dashboard's own API is not limited by it. A call over the limit fails with a plain message and the number of
-seconds to wait.
-
-Runs are already bounded by their own limits, the worker queue and the
-workspace token budget. The rate limit only stops runaway clients.
-
 ### Writing manifests
 
 | Tool | Scope | Arguments | Returns |
@@ -128,6 +117,17 @@ approval requests.
 `check_manifest` does not read the repository. It checks that skill paths
 are well formed but cannot check that the files exist. A sync reads them from
 the committed revision.
+
+## Rate limit
+
+Each person can make `SECONDSHIFT_MCP_RATE_LIMIT` requests to `/mcp` per
+minute (300 by default). All of their tokens share the limit, so a new token
+does not reset it. The dashboard's own API is not limited by it. A request over
+the limit fails with "Too many requests." and a `Retry-After` header with the
+seconds to wait.
+
+Runs are already bounded by their own limits, the worker queue and the
+workspace token budget. The rate limit only stops runaway clients.
 
 ## What is not exposed
 

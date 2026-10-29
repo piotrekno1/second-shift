@@ -6,11 +6,12 @@ import pytest
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 from django.http import Http404
-from django.test import Client, override_settings
+from django.test import Client
 from django.utils import timezone
 from ninja import Schema
 from thin_mcp import EmptyToolArguments, ToolContext
 
+from secondshift.mcp_server.api import throttle
 from secondshift.mcp_server.audit import prune_tool_calls
 from secondshift.mcp_server.models import ToolCall
 from secondshift.mcp_server.tools_registry import (
@@ -200,10 +201,10 @@ def test_each_tool_call_is_audited_without_arguments(
     assert calls[0].token is not None
 
 
-@override_settings(MCP_RATE_LIMIT=2)
 def test_the_rate_limit_is_per_person_across_tokens(
-    owner: AbstractUser, test_tools: None
+    owner: AbstractUser, test_tools: None, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    monkeypatch.setattr(throttle, "num_requests", 2)
     first, second = token(owner, "read"), token(owner, "read")
     other = get_user_model().objects.create_user(username="other", email="t@x.dev")
     WorkspaceMembership.objects.create(
@@ -216,10 +217,9 @@ def test_the_rate_limit_is_per_person_across_tokens(
 
     assert limited.status_code == 429
     assert 1 <= int(limited["Retry-After"]) <= 60
-    assert limited.json()["error"]["message"].startswith("Too many tool calls.")
-    assert limited.json()["id"] == 1
+    assert limited.json()["error"]["message"] == "Too many requests."
     assert call(token(other, "read"), "test_workspace").status_code == 200
-    assert ToolCall.objects.filter(outcome="rate_limited").count() == 1
+    assert ToolCall.objects.count() == 3
 
 
 def test_browser_csrf_checks_do_not_apply(

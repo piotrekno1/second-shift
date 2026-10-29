@@ -13,7 +13,6 @@ class ToolCall(models.Model):
     class Outcome(models.TextChoices):
         OK = "ok", "Succeeded"
         ERROR = "error", "Failed"
-        RATE_LIMITED = "rate_limited", "Rate limited"
 
     workspace = models.ForeignKey(
         Workspace, on_delete=models.CASCADE, related_name="tool_calls"

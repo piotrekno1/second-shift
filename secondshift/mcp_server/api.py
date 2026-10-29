@@ -1,8 +1,10 @@
-"""The /mcp endpoint: token auth, rate limit, audit, then protocol dispatch."""
+"""The /mcp endpoint: token auth, a rate limit, protocol dispatch and audit."""
 
 import logging
 
+from django.conf import settings
 from django.http import HttpRequest, HttpResponse
+from ninja.throttling import UserRateThrottle
 from thin_mcp import (
     JsonRpcErrorCode,
     McpHttpResult,
@@ -15,17 +17,22 @@ from thin_mcp.django_ninja import McpAPI, render_mcp_result
 from secondshift.mcp_server.audit import record_call
 from secondshift.mcp_server.core import server
 from secondshift.mcp_server.models import ToolCall
-from secondshift.mcp_server.rate_limit import wait_seconds
 from secondshift.mcp_server.tools_registry import McpCall
 from secondshift.workspaces.models import ApiToken
 from secondshift.workspaces.tokens import ApiTokenAuth
 
 logger = logging.getLogger(__name__)
 
+# Counts requests per person, across all their tokens. It runs after token
+# auth, which signs the request in as the token's creator, and keeps its
+# counts in the shared cache.
+throttle = UserRateThrottle(f"{settings.MCP_RATE_LIMIT}/m")
+
 api = McpAPI(
     title="SecondShift MCP",
     urls_namespace="mcp",
     auth=ApiTokenAuth(),
+    throttle=throttle,
     docs_url=None,
     openapi_url=None,
 )
@@ -34,19 +41,6 @@ api = McpAPI(
 def tool_name(payload: McpRequest) -> str:
     name = payload.params.get("name")
     return name if isinstance(name, str) else ""
-
-
-def rate_limited(payload: McpRequest, wait: int) -> HttpResponse:
-    response = render_mcp_result(
-        McpHttpResult.error(
-            payload.id,
-            JsonRpcErrorCode.SERVER_ERROR,
-            f"Too many tool calls. Try again in {wait} seconds.",
-            status=429,
-        )
-    )
-    response["Retry-After"] = str(wait)
-    return response
 
 
 def dispatch(request: HttpRequest, payload: McpRequest) -> McpHttpResult:
@@ -80,10 +74,6 @@ def mcp_endpoint(request: HttpRequest, payload: McpRequest) -> HttpResponse:
         return render_mcp_result(invalid)
     if payload.method != McpMethodName.TOOLS_CALL:
         return render_mcp_result(dispatch(request, payload))
-    name = tool_name(payload)
-    if wait := wait_seconds(token.created_by_id):
-        record_call(token, name, ToolCall.Outcome.RATE_LIMITED)
-        return rate_limited(payload, wait)
     result = dispatch(request, payload)
-    record_call(token, name, outcome(result))
+    record_call(token, tool_name(payload), outcome(result))
     return render_mcp_result(result)
