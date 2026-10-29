@@ -18,9 +18,7 @@ def start_run_in_the_past(run_id: int) -> None:
 def fake_stages(monkeypatch: pytest.MonkeyPatch) -> list[str]:
     stopped: list[str] = []
     monkeypatch.setattr(workflows, "mark_run_started_step", start_run_in_the_past)
-    monkeypatch.setattr(
-        workflows, "materialize_local_repository_step", lambda run_id: None
-    )
+    monkeypatch.setattr(workflows, "prepare_source_step", lambda run_id: None)
     monkeypatch.setattr(
         workflows, "start_runner_session_step", lambda run_id: f"run-{run_id}"
     )

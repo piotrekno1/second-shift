@@ -19,6 +19,7 @@ def active_session(tmp_path: Path) -> RunnerSession:
         repository="example/project",
         commit_sha="a" * 40,
         image="secondshift-runner:test",
+        source_sha256="d" * 64,
         container_name="secondshift-run-7",
         workspace_path=str(tmp_path / "sessions" / "run-7" / "workspace"),
         status=RunnerSession.Status.ACTIVE,
@@ -150,6 +151,7 @@ def test_an_old_session_with_the_same_run_id_does_not_block_a_new_run(
         repository="old/project",
         commit_sha="b" * 40,
         image="secondshift-runner:test",
+        source_sha256="d" * 64,
         container_name="secondshift-run-7",
         workspace_path=str(tmp_path / "sessions" / "run-7" / "workspace"),
         status=RunnerSession.Status.ERROR,
@@ -157,14 +159,19 @@ def test_an_old_session_with_the_same_run_id_does_not_block_a_new_run(
     monkeypatch.setattr(
         DockerRunnerService, "run_command", staticmethod(lambda *a, **k: completed(0))
     )
-    for name in ("export_repository", "prepare_workspace_permissions"):
-        monkeypatch.setattr(DockerRunnerService, name, lambda *a, **k: None)
+    monkeypatch.setattr(
+        DockerRunnerService, "prepare_workspace_permissions", lambda *a, **k: None
+    )
+    monkeypatch.setattr(
+        "secondshift.runner.services.unpack_source", lambda *a, **k: None
+    )
     spec = RunnerSessionSpec(
         run_id=7,
         session_key="c" * 32,
         repository="example/project",
         commit_sha="a" * 40,
         image="secondshift-runner:test",
+        source_sha256="d" * 64,
     )
 
     session_id = DockerRunnerService().start(spec)

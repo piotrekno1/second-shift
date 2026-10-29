@@ -1,3 +1,6 @@
+import subprocess
+from pathlib import Path
+
 import pytest
 from django.contrib.auth import get_user_model
 from django.utils import timezone
@@ -5,11 +8,12 @@ from django.utils import timezone
 from secondshift.config.constants import RunSandbox
 from secondshift.jobs.models import Job
 from secondshift.repositories.models import Repository
+from secondshift.repositories.sources import SourceSnapshot
 from secondshift.runner.protocol import RunnerSessionSpec
-from secondshift.runs.models import Run
+from secondshift.runs.models import Run, RunEvent
 from secondshift.runs.orchestration import workflows
 from secondshift.runs.orchestration.workflows import (
-    materialize_local_repository_step,
+    prepare_source_step,
     start_runner_session_step,
     stop_runner_session_step,
 )
@@ -20,6 +24,10 @@ class FakeRunnerClient:
     def __init__(self) -> None:
         self.started: list[RunnerSessionSpec] = []
         self.stopped: list[str] = []
+        self.uploaded: list[tuple[str, Path]] = []
+
+    def upload_source(self, sha256: str, path: Path) -> None:
+        self.uploaded.append((sha256, path))
 
     def start(self, spec: RunnerSessionSpec) -> str:
         self.started.append(spec)
@@ -64,6 +72,9 @@ def execution_run(db) -> Run:
     )
 
 
+SNAPSHOT = SourceSnapshot(path=Path("/cache/a.tar.gz"), sha256="e" * 64, size_bytes=1)
+
+
 @pytest.mark.django_db
 def test_runner_session_uses_only_the_frozen_server_plan(db, monkeypatch) -> None:
     run = execution_run(db)
@@ -71,6 +82,13 @@ def test_runner_session_uses_only_the_frozen_server_plan(db, monkeypatch) -> Non
     monkeypatch.setattr(
         "secondshift.runs.orchestration.workflows.get_runner_client", lambda: client
     )
+    snapshots = []
+
+    def source_snapshot(repository: Repository, commit_sha: str) -> SourceSnapshot:
+        snapshots.append((repository.pk, commit_sha))
+        return SNAPSHOT
+
+    monkeypatch.setattr(workflows, "source_snapshot", source_snapshot)
 
     session_id = start_runner_session_step(run.pk)
     stop_runner_session_step(session_id)
@@ -82,8 +100,11 @@ def test_runner_session_uses_only_the_frozen_server_plan(db, monkeypatch) -> Non
             repository="frozen/project",
             commit_sha="a" * 40,
             image="server-owned:test",
+            source_sha256="e" * 64,
         )
     ]
+    assert snapshots == [(run.job.repository.pk, "a" * 40)]
+    assert client.uploaded == [("e" * 64, SNAPSHOT.path)]
     assert client.stopped == [session_id]
     run.refresh_from_db()
     assert run.sandbox_runtime == RunSandbox.ISOLATED_RUNNER
@@ -105,37 +126,60 @@ def test_runner_session_rejects_a_networked_plan(db, monkeypatch) -> None:
     assert client.started == []
 
 
+def git(repository: Path, *arguments: str) -> str:
+    return subprocess.run(
+        ["git", "-C", str(repository), *arguments],
+        capture_output=True,
+        check=True,
+        text=True,
+    ).stdout.strip()
+
+
 @pytest.mark.django_db
-def test_local_materialization_uses_frozen_name_and_revision(
-    db, settings, tmp_path, monkeypatch
+def test_prepare_source_builds_the_runs_commit_from_a_local_repository(
+    db, settings, tmp_path
 ) -> None:
+    source = tmp_path / "source"
+    source.mkdir()
+    git(source, "init")
+    git(source, "config", "user.email", "test@example.com")
+    git(source, "config", "user.name", "Test")
+    (source / "README.md").write_text("first\n")
+    git(source, "add", "README.md")
+    git(source, "commit", "-m", "first")
+    revision = git(source, "rev-parse", "HEAD")
     run = execution_run(db)
+    Run.objects.filter(pk=run.pk).update(commit_sha=revision)
     repository = run.job.repository
     repository.source_type = Repository.SourceType.LOCAL
-    repository.local_path = str(tmp_path / "source")
+    repository.local_path = str(source)
     repository.save(update_fields=["source_type", "local_path"])
     settings.LOCAL_REPOSITORIES_ENABLED = True
-    settings.LOCAL_REPOSITORY_MIRROR_ROOT = tmp_path / "runner-repositories"
-    calls = []
+    settings.SOURCE_CACHE_ROOT = tmp_path / "sources"
 
-    def materialize(**kwargs) -> None:
-        calls.append(kwargs)
+    prepare_source_step(run.pk)
 
+    snapshot = tmp_path / "sources" / "snapshots" / str(repository.pk)
+    assert [path.name for path in snapshot.iterdir()] == [f"{revision}.tar.gz"]
+    assert RunEvent.objects.filter(
+        run=run, message__startswith=f"Checked out the repository at {revision[:12]}"
+    ).exists()
+
+
+@pytest.mark.django_db
+def test_prepare_source_checks_github_access_first(db, monkeypatch) -> None:
+    run = execution_run(db)
+
+    def removed(repository: Repository) -> dict:
+        raise RuntimeError("This repository has been removed.")
+
+    monkeypatch.setattr(workflows, "github_repository_metadata", removed)
     monkeypatch.setattr(
-        "secondshift.runs.orchestration.workflows.materialize_local_repository",
-        materialize,
+        workflows, "source_snapshot", lambda *args: pytest.fail("built a snapshot")
     )
 
-    materialize_local_repository_step(run.pk)
-
-    assert calls == [
-        {
-            "source": tmp_path / "source",
-            "repository_name": "frozen/project",
-            "commit_sha": "a" * 40,
-            "repository_root": tmp_path / "runner-repositories",
-        }
-    ]
+    with pytest.raises(RuntimeError, match="removed"):
+        prepare_source_step(run.pk)
 
 
 @pytest.mark.django_db

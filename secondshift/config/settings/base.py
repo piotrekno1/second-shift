@@ -346,14 +346,6 @@ SECURE_CSP = {
 LOCAL_REPOSITORIES_ENABLED = SINGLE_HOST and env.bool(
     "SECONDSHIFT_LOCAL_REPOSITORIES_ENABLED", default=True
 )
-# The worker copies a local repository's commit here for the runner. It is the
-# runner's repository folder, so both default to the same place.
-LOCAL_REPOSITORY_MIRROR_ROOT = Path(
-    env.str(
-        AppEnv.RUNNER_REPOSITORY_ROOT,
-        default=str(DATA_DIR / "runner" / "repositories"),
-    )
-).resolve()
 # The control plane's copies of repository sources: one Git mirror per
 # repository and the snapshots runs get. Both are caches. Deleting them only
 # costs a fetch from the source again.

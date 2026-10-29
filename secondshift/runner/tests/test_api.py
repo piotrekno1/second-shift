@@ -20,6 +20,7 @@ def test_runner_api_requires_service_auth(settings, monkeypatch) -> None:
         "repository": "example/project",
         "commit_sha": "a" * 40,
         "image": settings.RUNNER_IMAGE,
+        "source_sha256": "d" * 64,
     }
 
     denied = Client().post("/v1/sessions", payload, content_type="application/json")

@@ -20,6 +20,7 @@ from secondshift.runner.schemas import (
     SessionOutput,
 )
 from secondshift.runner.services import get_runner_service
+from secondshift.runner.sources import has_source, receive_source
 
 
 class RunnerBearer(HttpBearer):
@@ -71,6 +72,19 @@ def execute_command(request: HttpRequest, session_id: str, payload: CommandInput
 @api.delete("/v1/sessions/{session_id}", response={204: None})
 def stop_session(request: HttpRequest, session_id: str):
     get_runner_service().stop(session_id)
+    return Status(204, None)
+
+
+@api.api_operation(["HEAD"], "/v1/sources/{sha256}", response={204: None, 404: None})
+def source_exists(request: HttpRequest, sha256: str) -> Status[None]:
+    return Status(204 if has_source(sha256) else 404, None)
+
+
+@api.put("/v1/sources/{sha256}", response={204: None})
+def upload_source(request: HttpRequest, sha256: str) -> Status[None]:
+    # Read the body as a stream, so a snapshot never sits in memory whole.
+    length = request.headers.get("Content-Length")
+    receive_source(sha256, request, int(length) if length else None)
     return Status(204, None)
 
 

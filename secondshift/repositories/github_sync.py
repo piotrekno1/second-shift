@@ -107,6 +107,28 @@ def sync_github_repository(repository: Repository) -> Repository:
     return repository
 
 
+def fetch_github_commit(repository: Repository, commit_sha: str, mirror: Path) -> None:
+    """Fetch one commit by its SHA into the repository's mirror."""
+    metadata = github_repository_metadata(repository)
+    token = installation_token(
+        repository.github_connection.external_account_id, int(repository.external_id)
+    )
+    try:
+        git_fetch(
+            mirror,
+            token,
+            "fetch",
+            "--no-tags",
+            "--",
+            f"https://github.com/{metadata['full_name']}.git",
+            commit_sha,
+        )
+    except GitHubAppError as error:
+        raise GitHubAppError(
+            f"The commit {commit_sha[:12]} is no longer available from GitHub."
+        ) from error
+
+
 def git_fetch(root: Path, token: str, *arguments: str) -> str:
     # Never put credentials in URLs, arguments, persisted config, or errors.
     authorization = base64.b64encode(f"x-access-token:{token}".encode()).decode()

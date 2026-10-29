@@ -73,7 +73,9 @@ def write_snapshot(git_dir: Path, commit_sha: str, output: IO[bytes]) -> None:
         raise SnapshotError("The commit's files are too large to run.")
     limited = LimitedWriter(output, MAX_SOURCE_SNAPSHOT_BYTES)
     with (
-        gzip.GzipFile(fileobj=limited, mode="wb", mtime=0, filename="") as compressed,
+        gzip.GzipFile(
+            fileobj=limited, mode="wb", mtime=0, filename="", compresslevel=6
+        ) as compressed,
         tarfile.open(
             fileobj=compressed, mode="w", format=tarfile.PAX_FORMAT
         ) as archive,

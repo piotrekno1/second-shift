@@ -16,6 +16,7 @@ def spec() -> RunnerSessionSpec:
         repository="example/project",
         commit_sha="a" * 40,
         image="secondshift-runner@sha256:abc",
+        source_sha256="d" * 64,
     )
 
 
@@ -66,6 +67,7 @@ def test_runner_session_cannot_be_replaced_with_another_spec() -> None:
                 repository="attacker/project",
                 commit_sha="b" * 40,
                 image="attacker/image",
+                source_sha256="d" * 64,
             )
         )
 
@@ -79,6 +81,7 @@ def test_repository_name_must_be_a_normalized_relative_path(repository: str) -> 
             repository=repository,
             commit_sha="a" * 40,
             image="secondshift-runner:test",
+            source_sha256="d" * 64,
         )
 
 
@@ -93,6 +96,7 @@ def test_a_reused_run_id_with_a_new_key_gets_its_own_session() -> None:
             repository="other/project",
             commit_sha="b" * 40,
             image="secondshift-runner@sha256:abc",
+            source_sha256="d" * 64,
         )
     )
 
@@ -108,4 +112,5 @@ def test_session_key_must_be_lowercase_hex(session_key: str) -> None:
             repository="example/project",
             commit_sha="a" * 40,
             image="secondshift-runner:test",
+            source_sha256="d" * 64,
         )
