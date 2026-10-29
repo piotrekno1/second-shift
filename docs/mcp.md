@@ -86,7 +86,8 @@ capability is not approved.
 
 `run_job` also refuses while the job already has a queued or running run. It
 returns that run's ID instead, so the agent can follow it with `get_run`. An
-agent stuck in a loop cannot queue runs faster than they finish.
+agent stuck in a loop cannot queue runs faster than they finish. **Run now**
+in the dashboard follows the same rule and links to the active run.
 
 ## Rate limit
 
@@ -168,12 +169,9 @@ Planned pull requests:
    the expiry choice follows as its own pull request.
 2. Server skeleton: thin-mcp, the `/mcp` mount, token auth, audit and the
    rate limit. The rate limit counts calls in the shared cache from #98.
-3. Service moves out of views, with no behavior change.
+3. Service moves out of views. The one behavior change: **Run now** refuses
+   while the job has a queued or running run.
 4. Job and run tools.
 5. Manifest tools.
 6. This page becomes the user guide. README link, client examples and the
    `secondshift mcp-token` command.
-
-Open questions:
-
-- Should **Run now** in the dashboard also refuse while a run is active?
