@@ -3,6 +3,10 @@
 Access comes only from WorkspaceMembership. Each request works in one
 workspace: the one the person chose in this session, or else the first one
 they joined. Every check names an Action, and POLICY says which role it needs.
+
+A request signed with an API token works in the token's workspace. It can
+take only the actions its scope lists in TOKEN_ACTIONS, and only while its
+creator's role still allows them.
 """
 
 from enum import StrEnum
@@ -10,7 +14,7 @@ from enum import StrEnum
 from django.db.models import QuerySet
 from django.http import HttpRequest
 
-from secondshift.workspaces.models import Workspace, WorkspaceMembership
+from secondshift.workspaces.models import ApiToken, Workspace, WorkspaceMembership
 
 Role = WorkspaceMembership.Role
 
@@ -20,6 +24,8 @@ ROLE_RANK = {Role.MEMBER: 1, Role.ADMIN: 2, Role.OWNER: 3}
 CURRENT_WORKSPACE_SESSION_KEY = "secondshift.workspace"
 # The resolved membership is kept on the request under this name.
 MEMBERSHIP_ATTRIBUTE = "secondshift_membership"
+# The API token that signed the request, if any, is kept under this name.
+API_TOKEN_ATTRIBUTE = "secondshift_api_token"
 
 
 class Action(StrEnum):
@@ -64,6 +70,14 @@ POLICY = {
 }
 
 
+# What each API token scope may change. Reading needs no action. Owner
+# actions are never listed, so no token can grant access or touch credentials.
+TOKEN_ACTIONS = {
+    ApiToken.Scope.READ: frozenset[Action](),
+    ApiToken.Scope.RUN: frozenset({Action.RUN_JOBS, Action.RESYNC_REPOSITORIES}),
+}
+
+
 class AccessDenied(Exception):
     pass
 
@@ -94,11 +108,21 @@ def user_memberships(request: HttpRequest) -> QuerySet[WorkspaceMembership]:
     )
 
 
+def request_token(request: HttpRequest) -> ApiToken | None:
+    return getattr(request, API_TOKEN_ATTRIBUTE, None)
+
+
 def current_membership(request: HttpRequest) -> WorkspaceMembership | None:
     if hasattr(request, MEMBERSHIP_ATTRIBUTE):
         return getattr(request, MEMBERSHIP_ATTRIBUTE)
     membership = None
-    if request.user.is_authenticated:
+    token = request_token(request)
+    if token is not None:
+        # A token works only in its own workspace, whatever the session says.
+        membership = (
+            user_memberships(request).filter(workspace_id=token.workspace_id).first()
+        )
+    elif request.user.is_authenticated:
         memberships = user_memberships(request)
         chosen = request.session.get(CURRENT_WORKSPACE_SESSION_KEY)
         if chosen is not None:
@@ -119,8 +143,14 @@ def current_role(request: HttpRequest) -> str | None:
     return membership.role if membership else None
 
 
+def token_allows(request: HttpRequest, action: Action) -> bool:
+    """True without a token. With one, whether its scope lists the action."""
+    token = request_token(request)
+    return token is None or action in TOKEN_ACTIONS[ApiToken.Scope(token.scope)]
+
+
 def allows(request: HttpRequest, action: Action) -> bool:
-    return role_allows(current_role(request), action)
+    return token_allows(request, action) and role_allows(current_role(request), action)
 
 
 def permitted_actions(request: HttpRequest) -> list[Action]:
@@ -130,7 +160,9 @@ def permitted_actions(request: HttpRequest) -> list[Action]:
 def require(request: HttpRequest, action: Action) -> Workspace:
     """The current workspace, when the person's role allows the action."""
     membership = current_membership(request)
-    if membership is None or not role_allows(membership.role, action):
+    if membership is None or not allows(request, action):
+        if not token_allows(request, action):
+            raise AccessDenied(f"This API token cannot {action}.")
         raise AccessDenied(denial_message(action))
     return membership.workspace
 
