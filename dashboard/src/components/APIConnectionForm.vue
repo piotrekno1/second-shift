@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import DocsLink from './DocsLink.vue'
+import { DocsPage } from '../utils/docs'
 import AppIcon from './AppIcon.vue'
 import { computed, ref, watch } from 'vue'
 import Button from 'primevue/button'
@@ -200,7 +202,7 @@ async function submit(): Promise<void> {
 
     <p v-if="error" class="need-notice need-setup-wide">{{ error }}</p>
     <div class="need-setup-footer">
-      <small><AppIcon name="lock-outline" /> The credential is encrypted at rest and stays outside command sandboxes.</small>
+      <small><AppIcon name="lock-outline" /> The credential is encrypted at rest and stays outside command sandboxes. <DocsLink :page="DocsPage.SecurityModel" section="where-secrets-live" label="How keys are stored" /></small>
       <div class="need-actions"><Button label="Cancel" severity="secondary" text size="small" @click="emit('cancel')" /><Button type="submit" :label="submitLabel" :loading="saving" /></div>
     </div>
   </form>

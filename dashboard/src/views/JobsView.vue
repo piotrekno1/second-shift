@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import DocsLink from '../components/DocsLink.vue'
+import { DocsPage } from '../utils/docs'
 import AppIcon from '../components/AppIcon.vue'
 import { computed, onBeforeUnmount, reactive, ref } from 'vue'
 import { useRoute } from 'vue-router'
@@ -276,6 +278,7 @@ async function toggleJob(job: Job): Promise<void> {
                 </Button>
               </div>
             </div>
+            <p class="job-review-help">Jobs can only use what you approve here. Credentials never reach the sandbox or the model. <DocsLink :page="DocsPage.SecurityModel" section="who-grants-what" label="How access works" /></p>
           </section>
         </template>
       </div>

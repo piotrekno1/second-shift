@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import DocsLink from './DocsLink.vue'
+import { DocsPage } from '../utils/docs'
 import AppIcon from './AppIcon.vue'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import Button from 'primevue/button'
@@ -174,7 +176,7 @@ async function submit(): Promise<void> {
     <!-- Discovery often refuses the same values first. Say it once, next to the field. -->
     <p v-if="error && error !== modelError" class="need-notice need-setup-wide">{{ error }}</p>
     <div class="need-setup-footer">
-      <small><AppIcon name="lock-outline" /> The key is encrypted at rest and never shown again.</small>
+      <small><AppIcon name="lock-outline" /> The key is encrypted at rest and never shown again. <DocsLink :page="DocsPage.SecurityModel" section="where-secrets-live" label="How keys are stored" /></small>
       <div class="need-actions">
         <Button label="Cancel" severity="secondary" text size="small" @click="emit('cancel')" />
         <Button class="main-action" type="submit" :label="editing ? 'Save and check' : 'Connect and check'" :loading="saving" :disabled="!canSubmit">

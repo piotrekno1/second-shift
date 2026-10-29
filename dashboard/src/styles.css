@@ -841,3 +841,11 @@ body .workspace-menu { width: 224px; }
   /* Unlike members, Revoke stays on the name's line. */
   .token-list .member-email { flex: 1 1 0; }
 }
+
+/* Links to the user guide */
+.docs-link { display: inline-flex; align-items: center; gap: 4px; color: var(--ink); text-decoration: underline; text-decoration-color: var(--subtle); text-underline-offset: 3px; white-space: nowrap; }
+.docs-link .app-icon { font-size: .9em; }
+.sidebar-links { display: flex; gap: 16px; padding: 6px var(--row-inset); }
+.sidebar-links a { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; font-weight: 500; }
+.sidebar-links a:hover { color: var(--ink); }
+.job-review-help { margin: 12px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }

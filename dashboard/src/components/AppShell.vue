@@ -10,6 +10,7 @@ import { useAppStore } from '../stores/app'
 import InvitePrompt from './InvitePrompt.vue'
 import ShiftStatus from './ShiftStatus.vue'
 import WorkspaceSwitcher from './WorkspaceSwitcher.vue'
+import { DOCS_HOME_URL, DocsPage, docsUrl } from '../utils/docs'
 
 const route = useRoute()
 const router = useRouter()
@@ -110,6 +111,10 @@ async function handleSignOut(): Promise<void> {
 
       <div class="sidebar-foot">
         <ShiftStatus />
+        <div class="sidebar-links">
+          <a :href="DOCS_HOME_URL" target="_blank" rel="noopener noreferrer"><AppIcon name="text-box-outline" /> Docs</a>
+          <a :href="docsUrl(DocsPage.DataHandling)" target="_blank" rel="noopener noreferrer"><AppIcon name="shield-check-outline" /> Privacy</a>
+        </div>
         <button
           type="button"
           class="account"
