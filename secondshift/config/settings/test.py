@@ -30,7 +30,6 @@ STORAGES = {
 # Tests install every first-party app in one Django process. Deployment settings
 # remain separate and are checked independently.
 RUNNER_SERVICE_TOKEN = "test-runner-service-token-value"
-RUNNER_REPOSITORY_ROOT = BASE_DIR
 RUNNER_WORK_ROOT = BASE_DIR / ".secondshift-runner-test"
 RUNNER_COMMAND_TIMEOUT_SECONDS = 120
 RUNNER_COMMAND_OUTPUT_MAX_BYTES = 1024 * 1024

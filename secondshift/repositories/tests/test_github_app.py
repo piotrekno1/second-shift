@@ -20,8 +20,6 @@ from secondshift.repositories.github_app import STATE_KEY, GitHubAppError
 from secondshift.repositories.mirrors import SYNCED_REF, mirror_path
 from secondshift.repositories.models import Repository
 from secondshift.repositories.tests.test_local import create_local_repository, run_git
-from secondshift.runner.protocol import RunnerProtocolError
-from secondshift.runner.repositories import import_bundle
 from secondshift.workspaces.models import WorkspaceMembership
 from secondshift.workspaces.services import create_workspace
 
@@ -178,53 +176,6 @@ def test_available_repositories_enforces_workspace(
             "default_branch": "main",
         }
     ]
-
-
-def test_bundle_import_pins_commit_without_credentials(
-    tmp_path: Any, settings: Any
-) -> None:
-    source = tmp_path / "source"
-    create_local_repository(source)
-    revision = subprocess.check_output(
-        ["git", "-C", str(source), "rev-parse", "HEAD"], text=True
-    ).strip()
-    run_git(source, "branch", "snapshot")
-    bundle = tmp_path / "source.bundle"
-    run_git(source, "bundle", "create", str(bundle), "refs/heads/snapshot")
-    settings.RUNNER_REPOSITORY_ROOT = tmp_path / "store"
-    import_bundle(
-        "owner/project", revision, base64.b64encode(bundle.read_bytes()).decode()
-    )
-    target = settings.RUNNER_REPOSITORY_ROOT / "owner/project"
-    assert (
-        subprocess.check_output(
-            [
-                "git",
-                "-C",
-                str(target),
-                "show",
-                f"{revision}:.agents/skills/review/SKILL.md",
-            ],
-            text=True,
-        ).strip()
-        == "# Review"
-    )
-    assert "remote" not in (target / "config").read_text()
-    with pytest.raises(RunnerProtocolError, match="does not match"):
-        import_bundle(
-            "owner/project", "a" * 40, base64.b64encode(bundle.read_bytes()).decode()
-        )
-
-
-@pytest.mark.parametrize(
-    "name", ["../escape", "owner/..", "/tmp/project", "owner/project/extra"]
-)
-def test_bundle_cannot_choose_host_paths(
-    name: Any, settings: Any, tmp_path: Any
-) -> None:
-    settings.RUNNER_REPOSITORY_ROOT = tmp_path
-    with pytest.raises(RunnerProtocolError):
-        import_bundle(name, "a" * 40, "")
 
 
 def synced_ref(mirror: Path) -> str:

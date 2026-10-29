@@ -30,8 +30,7 @@ class DockerRunnerService(RunnerBackend):
     """Container operations and ORM-backed idempotency for the runner service."""
 
     def verify_configuration(self) -> None:
-        for root in (settings.RUNNER_WORK_ROOT, settings.RUNNER_REPOSITORY_ROOT):
-            root.mkdir(parents=True, exist_ok=True, mode=0o700)
+        settings.RUNNER_WORK_ROOT.mkdir(parents=True, exist_ok=True, mode=0o700)
         sweep_sources()
         self.verify_runtime()
         self.ensure_image()

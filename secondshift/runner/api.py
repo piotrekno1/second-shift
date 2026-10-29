@@ -11,11 +11,9 @@ from secondshift.runner.protocol import (
     RunnerProtocolError,
     RunnerSessionSpec,
 )
-from secondshift.runner.repositories import import_bundle
 from secondshift.runner.schemas import (
     CommandInput,
     CommandOutput,
-    RepositoryImportInput,
     SessionInput,
     SessionOutput,
 )
@@ -85,12 +83,4 @@ def upload_source(request: HttpRequest, sha256: str) -> Status[None]:
     # Read the body as a stream, so a snapshot never sits in memory whole.
     length = request.headers.get("Content-Length")
     receive_source(sha256, request, int(length) if length else None)
-    return Status(204, None)
-
-
-@api.post("/v1/repositories", response={204: None})
-def import_repository(
-    request: HttpRequest, payload: RepositoryImportInput
-) -> Status[None]:
-    import_bundle(payload.repository, payload.commit_sha, payload.bundle)
     return Status(204, None)

@@ -130,10 +130,10 @@ This deliberately drops and recreates the configured development database,
 applies migrations, runs the base bootstrap, and then adds disabled demo jobs
 and representative completed runs. Never use it for normal startup.
 
-The development stack also starts the separate runner API on port 8002. Before
-a local-repository run, the worker copies the frozen Git commit into
-`~/.secondshift/runner/repositories`. The runner never receives the
-repository's original host path.
+The development stack also starts the separate runner API on port 8002. When a
+local-repository run starts, the worker builds a snapshot of the run's commit
+from the repository folder and uploads it to the runner. The runner never
+receives the repository's host path.
 
 ### Data folder
 

@@ -1,4 +1,3 @@
-import base64
 from dataclasses import asdict
 from pathlib import Path
 
@@ -27,24 +26,6 @@ class HttpRunnerClient(RunnerBackend):
         self.session.headers.update(
             {"Authorization": f"Bearer {auth_token}", "Accept": "application/json"}
         )
-
-    def import_repository(
-        self, repository: str, commit_sha: str, bundle: bytes
-    ) -> None:
-        try:
-            response = self.session.post(
-                f"{self.base_url}/v1/repositories",
-                json={
-                    "repository": repository,
-                    "commit_sha": commit_sha,
-                    "bundle": base64.b64encode(bundle).decode(),
-                },
-                timeout=180,
-            )
-        except requests.RequestException as error:
-            raise RunnerProtocolError("Runner repository import failed.") from error
-        if response.status_code != 204:
-            self.response_payload(response)
 
     def upload_source(self, sha256: str, path: Path) -> None:
         """Send a run's snapshot as a raw stream, unless the runner has it."""

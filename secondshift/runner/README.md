@@ -12,7 +12,9 @@ the control-plane database URL.
 
 Its API is deliberately narrow:
 
-- `POST /v1/sessions` creates a sandbox for one immutable repository commit
+- `HEAD /v1/sources/{sha256}` asks whether a source snapshot is already here
+- `PUT /v1/sources/{sha256}` uploads a snapshot of one commit's files
+- `POST /v1/sessions` creates a sandbox from one uploaded snapshot
 - `POST /v1/sessions/{id}/commands` executes one idempotent tool call
 - `DELETE /v1/sessions/{id}` destroys the container and workspace
 - `GET /-/health/` is the only unauthenticated endpoint.
@@ -20,17 +22,16 @@ Its API is deliberately narrow:
 All other routes require `SECONDSHIFT_RUNNER_SERVICE_TOKEN`. Session and command
 state live in runner-owned Django models and a runner-only database.
 
-The runner reads repositories only from `SECONDSHIFT_RUNNER_REPOSITORY_ROOT`.
-In development, the worker maintains bare Git mirrors there under a per-source
-lock. This bridge is enabled only for locally attached repositories under dev
-settings. Hosted deployments should populate the same immutable source store
-through their GitHub ingestion service. The runner never accepts a checkout
-path or clone credential in its session API.
+The runner keeps no repositories. When a run starts, the control plane uploads a
+snapshot of the run's commit, named by its SHA-256. The runner checks the bytes
+against that name, unpacks them into the session workspace with size, file
+count and entry type limits, and deletes snapshots an hour after their last
+use. The runner never accepts a checkout path or clone credential.
 
 Production runners must:
 
 - verify `runsc` is registered and refuse to start otherwise
-- export the repository at the recorded full commit SHA
+- unpack only the uploaded snapshot named in the session spec
 - accept only server-owned images, mounts and OCI flags
 - give command sandboxes no network and no credentials
 - use a dedicated sandbox per run with bounded resources
