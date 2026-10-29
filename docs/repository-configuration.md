@@ -139,6 +139,41 @@ The server posts the run status, report summary, and a link to the run in
 SecondShift after the run finishes. Failed runs are sent too, with the reason
 they failed. Delivery happens outside the offline sandbox.
 
+### Webhook payload
+
+After each run, the server sends one `POST` with a JSON body like this:
+
+```json
+{
+  "event": "run.finished",
+  "text": "✅ Weekly review succeeded · acme/web\n\nFound 2 stale setup steps in README.md. Details are in the report.\n\n<https://secondshift.example.com/runs/128|Open run #128>",
+  "run": {
+    "id": 128,
+    "status": "succeeded",
+    "summary": "Found 2 stale setup steps in README.md. Details are in the report.",
+    "commit_sha": "8f3c9d28f3c9d28f3c9d28f3c9d28f3c9d28f3c9",
+    "scheduled_for": "2026-10-26T09:00:00+00:00",
+    "finished_at": "2026-10-26T09:04:00+00:00",
+    "url": "https://secondshift.example.com/runs/128"
+  },
+  "job": { "key": "weekly-review", "name": "Weekly review" },
+  "repository": { "full_name": "acme/web" }
+}
+```
+
+- `status` is `succeeded`, `failed` or `canceled`.
+- `summary` is the start of the report, up to 4,000 characters. For a failed
+  run it says why the run failed. The full report stays in SecondShift.
+- `text` is the same summary with the status and a link, ready for chat.
+- `url` opens the run in SecondShift. Opening it needs a sign-in.
+- No secrets, connection details, tool calls or file contents are sent.
+
+**Send test** posts a smaller message instead, with `event` set to
+`connection.test`, a `text` line and the `binding`.
+
+The webhook form in the dashboard shows the same sample under
+**What gets sent**.
+
 Each notification needs a `binding`. Its `required` flag defaults to `true`.
 Set it to `false` if a missing notification approval should not block the job.
 Binding names use lowercase letters, numbers, and single dashes. A job cannot

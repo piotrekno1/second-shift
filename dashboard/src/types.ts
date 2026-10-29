@@ -445,6 +445,13 @@ export interface CapabilityNeed {
   jobs: CapabilityNeedJob[]
 }
 
+/** A run report as a webhook receives it, built from made-up records. */
+export interface WebhookSample {
+  payload: Record<string, unknown>
+  /** How many characters of the report the summary field holds. */
+  summary_max_chars: number
+}
+
 export interface ConnectionTest {
   ok: boolean
   status_code: number | null

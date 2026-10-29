@@ -55,6 +55,9 @@ GITHUB_MCP_URL = "https://api.githubcopilot.com/mcp/readonly"
 # The model gateway refuses a run past its token budget with this message.
 TOKEN_BUDGET_MESSAGE = "This run has used its token budget."
 
+# How much of a report a run keeps as its summary. Webhooks send the summary.
+SUMMARY_MAX_CHARS = 4_000
+
 
 class GitHubMCPTool(StrEnum):
     """Read tools for pull requests, commits, and Actions runs.

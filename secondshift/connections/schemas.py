@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
 
 from ninja import Schema
 from pydantic import Field
@@ -184,6 +184,13 @@ class ConnectionTestSchema(Schema):
     status_code: int | None
     message: str
     models: list[str] = Field(default_factory=list)
+
+
+class WebhookSampleSchema(Schema):
+    # A run report as a webhook receives it, built from made-up records.
+    payload: dict[str, Any]
+    # How many characters of the report the summary field can hold.
+    summary_max_chars: int
 
 
 class SecretSchema(Schema):

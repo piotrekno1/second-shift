@@ -8,8 +8,8 @@ import anthropic
 import requests
 from django.conf import settings
 from django.db import transaction
-from django.utils import timezone
 
+from secondshift.connections.checks import record_check
 from secondshift.connections.models import Connection
 from secondshift.connections.outbound import (
     OutboundUrlError,
@@ -334,18 +334,6 @@ def closest_model(model: str, models: list[str]) -> str | None:
         comparable_model(model), list(by_key), n=1, cutoff=0.8
     )
     return by_key[matches[0]] if matches else None
-
-
-def record_check(connection: Connection, ok: bool, message: str) -> None:
-    connection.metadata = {
-        **connection.metadata,
-        "last_check": {
-            "ok": ok,
-            "message": message,
-            "checked_at": timezone.now().isoformat(),
-        },
-    }
-    connection.save(update_fields=["metadata", "updated_at"])
 
 
 def check_model_connection(connection: Connection) -> ModelProviderCheck:

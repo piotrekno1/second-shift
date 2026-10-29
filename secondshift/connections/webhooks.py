@@ -5,6 +5,7 @@ from typing import Any
 import httpx
 from django.conf import settings
 
+from secondshift.connections.checks import record_check
 from secondshift.connections.models import Connection
 from secondshift.connections.outbound import (
     OutboundUrlError,
@@ -44,6 +45,14 @@ def webhook_transport() -> httpx.BaseTransport:
 
 
 def deliver_webhook(connection: Connection, payload: dict[str, Any]) -> WebhookDelivery:
+    """Send the payload and keep the result, so the dashboard shows the last delivery."""
+    delivery = post_webhook(connection, payload)
+    if connection.pk:
+        record_check(connection, delivery.ok, delivery.message)
+    return delivery
+
+
+def post_webhook(connection: Connection, payload: dict[str, Any]) -> WebhookDelivery:
     if (
         connection.provider != Connection.Provider.WEBHOOK
         or not connection.delivery_url

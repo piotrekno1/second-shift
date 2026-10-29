@@ -6,9 +6,10 @@ import InputText from 'primevue/inputtext'
 import APIConnectionForm from './APIConnectionForm.vue'
 import MCPConnectionForm from './MCPConnectionForm.vue'
 import ModelProviderForm from './ModelProviderForm.vue'
-import { approveNeed, createWebhook, testConnection, updateWebhook } from '../services/connections'
+import { approveNeed, createWebhook, fetchWebhookSample, testConnection, updateWebhook } from '../services/connections'
 import { useAppStore } from '../stores/app'
-import type { Connection, Notice } from '../types'
+import type { Connection, Notice, WebhookSample } from '../types'
+import { WEBHOOK_PAYLOAD_DOCS_URL } from '../utils/docs'
 import { countLabel, finishedBinding, titleFromSlug, typingBinding } from '../utils/format'
 
 type ConnectionType = 'webhook' | 'model' | 'mcp' | 'api'
@@ -35,6 +36,21 @@ const url = ref('')
 const approve = ref(true)
 const saving = ref(false)
 const error = ref<string | null>(null)
+
+const sample = ref<WebhookSample | null>(null)
+const sampleError = ref<string | null>(null)
+const sampleJson = computed(() => (sample.value ? JSON.stringify(sample.value.payload, null, 2) : ''))
+
+// Loaded the first time someone opens the sample, not with every form.
+async function loadSample(event: Event): Promise<void> {
+  if (!(event.target as HTMLDetailsElement).open || sample.value) return
+  sampleError.value = null
+  try {
+    sample.value = await fetchWebhookSample()
+  } catch (loadError) {
+    sampleError.value = loadError instanceof Error ? loadError.message : 'Unable to load the sample'
+  }
+}
 
 const editing = computed(() => Boolean(props.connection))
 const typeOptions = computed(() => ([
@@ -142,6 +158,21 @@ async function submit(): Promise<void> {
         <span>Webhook URL</span>
         <InputText v-model="url" type="url" :required="urlRequired" autocomplete="off" spellcheck="false" :placeholder="editing && !reconnecting ? `Leave blank to keep the current URL (${connection?.target})` : 'https://hooks.slack.com/services/…'" />
       </label>
+      <details class="webhook-sample need-setup-wide" @toggle="loadSample">
+        <summary><AppIcon name="chevron-right" /> What gets sent</summary>
+        <div class="webhook-sample-body">
+          <ul>
+            <li>Sent once per finished run, including failed and canceled runs.</li>
+            <li>The <code>summary</code> is the start of the report, up to {{ (sample?.summary_max_chars ?? 4000).toLocaleString('en') }} characters. The full report stays in SecondShift.</li>
+            <li>It names the repository, job and commit, and links to the run. Opening the link needs a sign-in.</li>
+            <li>No secrets, connection details, tool calls or file contents are sent.</li>
+          </ul>
+          <p v-if="sampleError" class="field-error">{{ sampleError }}</p>
+          <pre v-else-if="sample" class="run-output" aria-label="Sample webhook payload">{{ sampleJson }}</pre>
+          <p v-else class="webhook-sample-loading"><AppIcon name="loading" spin /> Loading a sample</p>
+          <a :href="WEBHOOK_PAYLOAD_DOCS_URL" target="_blank" rel="noopener noreferrer">Payload format in the docs <AppIcon name="open-in-new" /></a>
+        </div>
+      </details>
       <label v-if="!editing && pendingJobs.length" class="need-setup-check">
         <input v-model="approve" type="checkbox">
         <span>Also approve it for {{ countLabel(pendingJobs.length, 'job') }}: {{ pendingJobs.map((job) => job.job_name).join(', ') }}</span>
