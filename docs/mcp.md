@@ -78,6 +78,20 @@ and the HTTP API.
 when the repository is disabled, no default model is connected, or a required
 capability is not approved.
 
+`run_job` also refuses while the job already has a queued or running run. It
+returns that run's ID instead, so the agent can follow it with `get_run`. An
+agent stuck in a loop cannot queue runs faster than they finish.
+
+## Rate limit
+
+Each person can make `SECONDSHIFT_API_RATE_LIMIT` tool calls per minute (300
+by default). All of their tokens share the limit, so a new token does not
+reset it. A call over the limit fails with a plain message and the number of
+seconds to wait.
+
+Runs are already bounded by their own limits, the worker queue and the
+workspace token budget. The rate limit only stops runaway clients.
+
 ### Writing manifests
 
 | Tool | Scope | Arguments | Returns |
@@ -146,7 +160,9 @@ Planned pull requests:
 1. API tokens: model, bearer auth, `SECONDSHIFT_API_TOKEN_MAX_DAYS` in
    `docs/environment-variables.md`, and tests. The dashboard token page with
    the expiry choice follows as its own pull request.
-2. Server skeleton: thin-mcp, the `/mcp` mount, token auth and audit.
+2. Server skeleton: thin-mcp, the `/mcp` mount, token auth, audit and the
+   rate limit. The default cache is per process, so the rate limit counts
+   calls in the database.
 3. Service moves out of views, with no behavior change.
 4. Job and run tools.
 5. Manifest tools.
@@ -154,5 +170,5 @@ Planned pull requests:
 
 Open questions:
 
-- Do tokens need their own rate limit?
+- Should **Run now** in the dashboard also refuse while a run is active?
 - Does local mode need a stdio transport, or is HTTP enough?
