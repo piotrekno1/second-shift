@@ -144,11 +144,12 @@ report and artifacts are readable. Push a change and verify **Resync** imports
 it. Enabled repositories with automatic sync are also polled by the worker
 every five minutes.
 
-Repositories and pinned Git objects live under `RUNNER_ROOT/repositories` on
-the server, not in S3. Temporary execution workspaces also use the runner disk.
+The worker keeps a Git mirror of each repository and a size-limited cache of
+run snapshots. Both are caches, rebuilt from GitHub when missing. The runner
+keeps no repositories. It holds each run's files only while the run lasts.
 S3 stores run artifacts. PostgreSQL stores metadata, job definitions and history.
-Monitor disk space and preserve the runner directory: a force-pushed commit
-may no longer be recoverable from GitHub.
+A rerun of a commit that a force push removed from GitHub can fail once the
+cache no longer has it.
 
 ## Update and back up
 

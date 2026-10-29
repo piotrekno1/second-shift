@@ -2,7 +2,7 @@
 
 | App | Owns |
 | --- | --- |
-| `repositories` | Repository sources, revisions, checkout/materialization, sync triggers |
+| `repositories` | Repository sources, revisions, mirrors and run snapshots, sync triggers |
 | `jobs` | Manifest interpretation, job reconciliation, capability requests, grants, execution-plan compilation, schedule registration |
 | `runs` | Execution records, audit events, agent execution, durable workflows, recovery, artifacts, retention, report delivery |
 | `connections` | Connection lifecycle, encrypted credentials, OAuth sign-ins, provider adapters for MCP, HTTP APIs, models and webhooks |
