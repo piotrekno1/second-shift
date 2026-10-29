@@ -11,16 +11,19 @@ Approvals, connections and secrets stay in the dashboard.
 
 ## Connect a client
 
-1. Open **Settings → API tokens** and create a token.
-2. Pick a scope. Copy the token. It is shown once.
-3. Add the server to your client.
+1. Open the account menu and choose **API tokens**.
+2. Create a token. Pick the workspace it works in, a scope and an expiry.
+3. Copy the setup command. The token is shown once.
 
 Claude Code:
 
 ```bash
-claude mcp add --transport http secondshift https://secondshift.example.com/mcp \
+claude mcp add --transport http secondshift-acme https://secondshift.example.com/mcp \
   --header "Authorization: Bearer ss_..."
 ```
+
+The server name ends with the workspace's slug. Someone in several
+workspaces adds one server per workspace, and the names do not clash.
 
 Other clients use the same URL and header. The server speaks Streamable HTTP.
 
@@ -32,7 +35,9 @@ everywhere.
 
 ## API tokens
 
-A token belongs to one person in one workspace. It has one of two scopes.
+A token belongs to one person and works in one workspace. People manage
+their own tokens from their account, across every workspace they belong to.
+A token has one of two scopes.
 
 | Scope | Allows | Creator needs at least |
 | --- | --- | --- |
@@ -41,7 +46,13 @@ A token belongs to one person in one workspace. It has one of two scopes.
 
 The `run` scope can start runs. Runs spend model budget. A run may change
 data in connected services through tools the owner approved. The token form
-says so.
+says so. It offers `run` only for workspaces where the person is an admin or
+owner. With one workspace, the form shows its name instead of a picker.
+
+A token covers one workspace so that content from one workspace cannot steer
+an agent into another. A prompt injection in one workspace's report cannot
+reach a second workspace's reports or jobs. A leaked token exposes one
+workspace.
 
 Rules:
 
@@ -58,9 +69,10 @@ Rules:
   that never expires.
 - Lowering the maximum affects only new tokens. Existing tokens keep their
   expiry.
-- An owner can revoke any token in the workspace. A person can revoke their
-  own.
-- The token list shows the name, scope, creator, creation time, expiry and
+- A person can revoke their own tokens. An owner limits other people's
+  tokens through membership. Removing someone stops their tokens at once.
+  Demoting them to member makes their `run` tokens read only.
+- The token list shows the name, workspace, scope, creation time, expiry and
   last use.
 
 ## Tools
@@ -164,9 +176,9 @@ For contributors. This section is removed when the server ships.
 
 Planned pull requests:
 
-1. API tokens: model, bearer auth, `SECONDSHIFT_API_TOKEN_MAX_DAYS` in
-   `docs/environment-variables.md`, and tests. The dashboard token page with
-   the expiry choice follows as its own pull request.
+1. API tokens (#99): model, bearer auth, account endpoints and
+   `SECONDSHIFT_API_TOKEN_MAX_DAYS`. The dashboard account page with the
+   workspace picker and expiry choice follows as its own pull request.
 2. Server skeleton: thin-mcp, the `/mcp` mount, token auth, audit and the
    rate limit. The rate limit counts calls in the shared cache from #98.
 3. Service moves out of views. The one behavior change: **Run now** refuses
