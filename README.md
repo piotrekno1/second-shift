@@ -102,12 +102,21 @@ Choose a task from the [skill catalog](examples/README.md), then follow the
 turn on scheduling. Tasks can report findings or update connected services
 through approved tools.
 
+## Use it from your coding agent
+
+SecondShift serves an MCP server at `/mcp`. Create a token under
+**API tokens** in the account menu and paste the setup command it shows. Your
+agent can then read runs and reports, start approved jobs, and check a
+`.secondshift.yaml` before you commit it. It cannot approve access or see
+credentials. See the [MCP guide](docs/mcp.md).
+
 ## Documentation
 
 - [Comparisons](docs/comparisons.md): when to choose SecondShift, Grok Bot, Hermes Agent, or Viktor.
 - [Repository configuration](docs/repository-configuration.md): skills, YAML syntax, schedules, and notifications.
 - [Engineering tasks](docs/engineering-tasks.md): skill setup, approved service actions, and scheduling.
 - [Environment variables](docs/environment-variables.md): service-scoped configuration and setup file generation.
+- [MCP server](docs/mcp.md): connect coding agents, API tokens, and the tools they can use.
 - [Architecture](docs/architecture.md): execution design and capability boundaries.
 - [Security model](docs/security-model.md): what a run can reach, where secrets live, and remaining risks.
 - [Self-hosting](docs/self-hosting.md) (work in progress): runner backends, sandbox images, and artifact storage.
