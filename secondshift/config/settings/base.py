@@ -354,6 +354,16 @@ LOCAL_REPOSITORY_MIRROR_ROOT = Path(
         default=str(DATA_DIR / "runner" / "repositories"),
     )
 ).resolve()
+# The control plane's copies of repository sources: one Git mirror per
+# repository and the snapshots runs get. Both are caches. Deleting them only
+# costs a fetch from the source again.
+SOURCE_CACHE_ROOT = Path(
+    env.str(AppEnv.SOURCE_CACHE_ROOT, default=str(DATA_DIR / "sources"))
+).resolve()
+# Snapshots past this size are removed, oldest first.
+SOURCE_CACHE_MAX_BYTES = env.int(
+    AppEnv.SOURCE_CACHE_MAX_BYTES, default=2 * 1024 * 1024 * 1024
+)
 # Run limits. These are the defaults. A workspace owner can choose other values
 # for the workspace or a job, up to the *_CEILING maximums. Repository manifests
 # cannot set them. The values that apply are frozen into each execution plan.
