@@ -197,3 +197,11 @@ def remove_empty_parents(directory: Path, root: Path) -> None:
         except OSError:  # not empty, or already gone
             return
         directory = directory.parent
+
+
+def read_text(path: str, max_bytes: int) -> tuple[str, bool]:
+    """The start of a stored file, and whether it was cut at max_bytes."""
+    storage = artifact_storage()
+    with storage.open(path, "rb") as stream:
+        raw = stream.read(max_bytes + 1)
+    return raw[:max_bytes].decode(errors="replace"), len(raw) > max_bytes
