@@ -50,7 +50,7 @@ const SIGN_IN_RESULTS: Record<string, string> = {
   expired: 'The sign-in took too long. Start again.',
   refused: 'Sign-in was cancelled.',
   scope: 'The server granted more access than you asked for, so nothing was saved. On its consent page, leave only that access selected (for Grafana: Read access, with Query and Write cleared).',
-  taken: 'That capability name already has a connection.',
+  taken: 'That binding already has a connection.',
   failed: 'Sign-in did not finish. Check the server and try again.',
 }
 const signInResult = typeof route.query.oauth === 'string' ? route.query.oauth : ''
@@ -313,7 +313,7 @@ onMounted(async () => {
       <div class="panel-heading">
         <div>
           <h2>{{ blockingNeeds.length ? 'To set up' : 'Optional bindings' }} <span class="heading-count">{{ blockingNeeds.length || optionalNeeds.length }}</span></h2>
-          <p>Names your jobs use in <code>.secondshift.yaml</code>. Connect each one once and every job that names it can use it.</p>
+          <p>A binding is the name a job uses in <code>.secondshift.yaml</code> to ask for a connection. Connect each binding once and every job that names it can use it.</p>
         </div>
         <Button label="Check again" severity="secondary" text size="small" :loading="busy === 'refresh'" @click="checkAgain">
           <template #icon><AppIcon name="refresh" /></template>

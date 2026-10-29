@@ -268,14 +268,14 @@ onMounted(loadRepository)
               <button v-if="app.can(Action.ChangeRepositoryState)" type="button" class="link-button" :disabled="action === 'auto-sync'" @click="toggleAutoSync">{{ repository.auto_sync ? 'Turn off' : 'Turn on' }}</button>
             </dd>
           </div>
-          <div><dt>Synced revision</dt><dd><code>{{ repository.revision.slice(0, 12) || '—' }}</code></dd></div>
+          <div><dt>Synced commit</dt><dd><code>{{ repository.revision.slice(0, 12) || '—' }}</code></dd></div>
           <div><dt>Manifest</dt><dd><code>{{ repository.config_path }}</code></dd></div>
           <div><dt>Last synced</dt><dd :title="`${formatDate(repository.last_synced_at)} · ${utcTitle(repository.last_synced_at)}`">{{ formatRelative(repository.last_synced_at) }}</dd></div>
         </dl>
       </section>
 
       <section class="panel repository-jobs-panel">
-        <div class="panel-heading"><div><h2>Discovered jobs</h2><p>Read from <code>{{ repository.config_path }}</code> at the synced revision.</p></div><RouterLink to="/jobs">All jobs</RouterLink></div>
+        <div class="panel-heading"><div><h2>Discovered jobs</h2><p>Read from <code>{{ repository.config_path }}</code> at the synced commit.</p></div><RouterLink to="/jobs">All jobs</RouterLink></div>
         <div v-if="repository.jobs.length" class="repository-job-list">
           <div v-for="job in repository.jobs" :key="job.id" class="repository-job-row">
             <div class="job-primary"><strong>{{ job.name }}</strong><span :title="job.skill_path">{{ job.skill_path }}</span></div>

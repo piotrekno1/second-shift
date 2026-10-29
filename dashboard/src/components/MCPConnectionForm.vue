@@ -168,8 +168,8 @@ async function submit(): Promise<void> {
         <h3>{{ heading }}</h3>
         <p>{{ provider.description }}</p>
       </div>
-      <label><span>Capability name</span><InputText v-model="binding" :disabled="editing || Boolean(props.binding)" required pattern="[a-z0-9]+(-[a-z0-9]+)*" maxlength="120" autocomplete="off" spellcheck="false" @blur="binding = finishedBinding(binding)" /><small>Matches the <code>binding</code> in your repository configuration. Lowercase, with dashes.</small></label>
-      <label><span>Name</span><InputText v-model.trim="name" required maxlength="200" /></label>
+      <label><span>Binding</span><InputText v-model="binding" :disabled="editing || Boolean(props.binding)" required pattern="[a-z0-9]+(-[a-z0-9]+)*" maxlength="120" autocomplete="off" spellcheck="false" @blur="binding = finishedBinding(binding)" /><small>The name jobs use to ask for this connection, as <code>binding: {{ binding || 'my-service' }}</code> in <code>.secondshift.yaml</code>. Lowercase, with dashes.</small></label>
+      <label><span>Display name</span><InputText v-model.trim="name" required maxlength="200" /></label>
       <label v-for="setting in provider.settings" :key="setting.key" :class="{ 'need-setup-wide': provider.owner_selects_tools }">
         <span>{{ setting.label }}<template v-if="!setting.required"> (optional)</template></span>
         <InputText v-model.trim="settings[setting.key]" :required="setting.required" :pattern="setting.pattern" :placeholder="setting.placeholder" :disabled="signedIn" autocomplete="off" spellcheck="false" maxlength="200" />

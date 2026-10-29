@@ -156,7 +156,7 @@ async function reviewCapability(job: Job, capability: Capability, decision: 'app
     })
     await app.refresh()
   } catch (reviewError) {
-    error.value = reviewError instanceof Error ? reviewError.message : 'Unable to review capability'
+    error.value = reviewError instanceof Error ? reviewError.message : 'Unable to save the review'
   } finally {
     action.value = null
   }
@@ -232,7 +232,7 @@ async function toggleJob(job: Job): Promise<void> {
           </div>
           <section v-if="expandedJobId === job.id" :id="`job-access-${job.id}`" class="job-review">
             <div class="job-review-heading">
-              <div><h3>Access review</h3><p>Repository code requests capabilities. You choose the connection and approve access.</p></div>
+              <div><h3>Access review</h3><p>This job asks for these bindings. Choose the connection for each one, then approve.</p></div>
               <Button v-if="job.cron && app.can(Action.EnableJobs)" :label="job.enabled ? 'Disable job' : 'Enable job'" severity="secondary" outlined :disabled="Boolean(enableBlocker(job))" :title="enableBlocker(job) || undefined" :loading="action === `toggle-${job.id}`" @click="toggleJob(job)">
                 <template #icon><AppIcon :name="job.enabled ? 'pause' : 'play'" /></template>
               </Button>
