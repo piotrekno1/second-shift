@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.http import HttpRequest
 from django.shortcuts import get_object_or_404
 from ninja import Router, Status
@@ -28,9 +29,12 @@ from secondshift.workspaces.models import (
     WorkspaceMembership,
 )
 from secondshift.workspaces.schemas import (
+    ApiTokenCreateSchema,
+    ApiTokenListSchema,
     InviteCreateSchema,
     InviteSchema,
     MemberSchema,
+    NewApiTokenSchema,
     NewInviteSchema,
     PendingInviteSchema,
     RoleChangeSchema,
@@ -40,10 +44,12 @@ from secondshift.workspaces.schemas import (
     WorkspaceSettingsSchema,
 )
 from secondshift.workspaces.serialization import (
+    serialize_api_token,
     serialize_choice,
     serialize_invite,
     serialize_member,
     serialize_settings,
+    serialize_token_workspace,
 )
 from secondshift.workspaces.services import (
     MembershipError,
@@ -53,6 +59,12 @@ from secondshift.workspaces.services import (
     create_workspace_for,
     members_in_order,
     remove_member,
+)
+from secondshift.workspaces.tokens import (
+    TokenError,
+    create_api_token,
+    own_tokens,
+    revoke_api_token,
 )
 
 router = Router(auth=django_auth, tags=["workspaces"])
@@ -214,4 +226,47 @@ def remove_person(request: HttpRequest, membership_id: int) -> Status[None]:
         remove_member(membership)
     except MembershipError as error:
         raise HttpError(409, str(error)) from error
+    return Status(204, None)
+
+
+# API tokens belong to the person and are managed from their account. Each
+# works in one workspace, chosen when it is created. These endpoints accept
+# only a signed-in browser session, so a token cannot create or extend another.
+
+
+@router.get("/account/api-tokens", response=ApiTokenListSchema)
+def api_tokens(request: HttpRequest) -> ApiTokenListSchema:
+    current = current_workspace(request)
+    current_id = current.pk if current else None
+    return ApiTokenListSchema(
+        items=[serialize_api_token(token) for token in own_tokens(request.user)],
+        workspaces=[
+            serialize_token_workspace(membership, current_id)
+            for membership in user_memberships(request)
+        ],
+        max_days=settings.API_TOKEN_MAX_DAYS,
+    )
+
+
+@router.post("/account/api-tokens", response=NewApiTokenSchema)
+def new_api_token(
+    request: HttpRequest, payload: ApiTokenCreateSchema
+) -> NewApiTokenSchema:
+    membership = get_object_or_404(
+        user_memberships(request), workspace_id=payload.workspace_id
+    )
+    try:
+        new = create_api_token(
+            membership, payload.name.strip(), payload.scope, payload.expires_in_days
+        )
+    except TokenError as error:
+        raise HttpError(422, str(error)) from error
+    return NewApiTokenSchema(
+        **serialize_api_token(new.token).model_dump(), token=new.secret
+    )
+
+
+@router.delete("/account/api-tokens/{token_id}", response={204: None})
+def revoke_token(request: HttpRequest, token_id: int) -> Status[None]:
+    revoke_api_token(get_object_or_404(own_tokens(request.user), pk=token_id))
     return Status(204, None)

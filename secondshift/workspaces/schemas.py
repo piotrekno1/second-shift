@@ -84,3 +84,47 @@ class PendingInviteSchema(Schema):
     workspace_name: str
     role: str
     invited_by: str | None
+
+
+ScopeName = Literal["read", "run"]
+
+
+class ApiTokenSchema(Schema):
+    id: int
+    name: str
+    scope: str
+    workspace_id: int
+    workspace_name: str
+    workspace_slug: str
+    created_at: datetime
+    expires_at: datetime
+    last_used_at: datetime | None
+
+
+class TokenWorkspaceSchema(Schema):
+    """A workspace the person can create a token for."""
+
+    id: int
+    name: str
+    slug: str
+    current: bool
+    can_create_run_tokens: bool
+
+
+class ApiTokenListSchema(Schema):
+    items: list[ApiTokenSchema]
+    workspaces: list[TokenWorkspaceSchema]
+    # The longest expiry, in days, a new token can have.
+    max_days: int
+
+
+class ApiTokenCreateSchema(Schema):
+    workspace_id: int
+    name: str = Field(min_length=1, max_length=160)
+    scope: ScopeName = "read"
+    expires_in_days: int
+
+
+class NewApiTokenSchema(ApiTokenSchema):
+    # Shown once, right after creating it. It cannot be looked up later.
+    token: str

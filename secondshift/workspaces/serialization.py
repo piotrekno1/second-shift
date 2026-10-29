@@ -14,18 +14,22 @@ from secondshift.workspaces.access import (
     is_operator,
 )
 from secondshift.workspaces.models import (
+    ApiToken,
     Workspace,
     WorkspaceInvite,
     WorkspaceMembership,
 )
 from secondshift.workspaces.schemas import (
+    ApiTokenSchema,
     InviteSchema,
     MemberSchema,
     SettingGroupSchema,
     SettingValueSchema,
+    TokenWorkspaceSchema,
     WorkspaceChoiceSchema,
     WorkspaceSettingsSchema,
 )
+from secondshift.workspaces.tokens import scope_allowed
 
 
 def serialize_setting(request: HttpRequest, item: SettingValue) -> SettingValueSchema:
@@ -93,4 +97,31 @@ def serialize_member(
         role=membership.role,
         joined_at=membership.created_at,
         you=membership.user_id == request.user.pk,
+    )
+
+
+def serialize_api_token(token: ApiToken) -> ApiTokenSchema:
+    return ApiTokenSchema(
+        id=token.pk,
+        name=token.name,
+        scope=token.scope,
+        workspace_id=token.workspace_id,
+        workspace_name=token.workspace.name,
+        workspace_slug=token.workspace.slug,
+        created_at=token.created_at,
+        expires_at=token.expires_at,
+        last_used_at=token.last_used_at,
+    )
+
+
+def serialize_token_workspace(
+    membership: WorkspaceMembership, current_id: int | None
+) -> TokenWorkspaceSchema:
+    workspace = membership.workspace
+    return TokenWorkspaceSchema(
+        id=workspace.pk,
+        name=workspace.name,
+        slug=workspace.slug,
+        current=workspace.pk == current_id,
+        can_create_run_tokens=scope_allowed(membership.role, ApiToken.Scope.RUN),
     )

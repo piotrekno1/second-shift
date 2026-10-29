@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from datetime import timedelta
 
 from django.conf import settings
+from django.contrib.auth.models import AbstractBaseUser
 from django.db.models import F, Q, QuerySet
 from django.http import HttpRequest
 from django.utils import timezone
@@ -21,7 +22,6 @@ from secondshift.workspaces.access import (
     API_TOKEN_ATTRIBUTE,
     MEMBERSHIP_ATTRIBUTE,
     TOKEN_ACTIONS,
-    Role,
     role_allows,
 )
 from secondshift.workspaces.models import ApiToken, WorkspaceMembership
@@ -81,12 +81,16 @@ def create_api_token(
     return NewApiToken(token, secret)
 
 
-def visible_tokens(membership: WorkspaceMembership) -> QuerySet[ApiToken]:
-    """Owners see every usable token in the workspace. Others see their own."""
-    tokens = usable_tokens().filter(workspace_id=membership.workspace_id)
-    if membership.role != Role.OWNER:
-        tokens = tokens.filter(created_by_id=membership.user_id)
-    return tokens.select_related("created_by")
+def own_tokens(user: AbstractBaseUser) -> QuerySet[ApiToken]:
+    """The person's usable tokens, in workspaces they still belong to."""
+    return (
+        usable_tokens()
+        .filter(
+            created_by_id=user.pk,
+            created_by__workspace_memberships__workspace_id=F("workspace_id"),
+        )
+        .select_related("workspace")
+    )
 
 
 def revoke_api_token(token: ApiToken) -> None:

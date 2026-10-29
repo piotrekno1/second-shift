@@ -44,6 +44,7 @@ file, recreate its container to apply the changes. A restart does not reload it.
 | `SECONDSHIFT_CSRF_TRUSTED_ORIGINS` | Web | Optional extra browser origins, including `https://`. Defaults to the public URL. Normally leave unset. |
 | `SECONDSHIFT_LOG_LEVEL` | All | Application log level, e.g. `INFO`, `WARNING` or `DEBUG`. Default `INFO`. |
 | `SECONDSHIFT_DEBUG` | Web, gateway, worker | Default `false`. Production refuses `true`. Log verbosity is controlled separately. |
+| `SECONDSHIFT_API_TOKEN_MAX_DAYS` | Web | The longest an API token can last. Its creator can choose a shorter time. Lowering it affects only new tokens. Default `90`. |
 | `SECONDSHIFT_DATA_DIR` | All | Container-local persistent data directory. Image default `/var/lib/secondshift`. The generated runner file overrides it to the host-mounted runner directory. |
 
 Changing a database URL does not move existing data. For PostgreSQL, provision
