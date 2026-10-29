@@ -823,6 +823,21 @@ body .workspace-menu { width: 224px; }
 @media (hover: none) and (pointer: coarse) {
   input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), textarea, select, body .p-inputtext { font-size: 16px !important; }
 }
-.token-form .token-workspace { min-width: 180px; }
-.token-form .token-expiry { min-width: 120px; }
-.token-note { margin: 8px 0 0; color: var(--subtle); font-size: 12px; }
+.api-tokens { margin-bottom: 16px; padding: 20px; }
+.token-list .default-badge { margin-left: 8px; }
+.token-empty { margin: 0; padding: 12px 2px; border-top: 1px solid var(--white-8); color: var(--subtle); font-size: 12px; }
+.token-create { display: grid; gap: 12px; margin-top: 4px; padding-top: 16px; border-top: 1px solid var(--white-8); }
+.token-form { display: grid; grid-template-columns: minmax(200px, 1fr) minmax(240px, auto) 120px auto; gap: 8px; }
+.token-form.with-workspace { grid-template-columns: minmax(200px, 1fr) minmax(160px, auto) minmax(240px, auto) 120px auto; }
+.token-note { display: flex; align-items: center; gap: 8px; margin: 0; color: var(--amber); font-size: 12px; }
+/* On narrow screens the name and the button take a full row each. */
+@media (max-width: 900px) {
+  .token-form, .token-form.with-workspace { grid-template-columns: 1fr 1fr; }
+  .token-form .token-name, .token-form .p-button { grid-column: 1 / -1; }
+  .token-form.with-workspace .p-select:first-of-type { grid-column: 1 / -1; }
+}
+@media (max-width: 560px) {
+  .token-form, .token-form.with-workspace { grid-template-columns: 1fr; }
+  /* Unlike members, Revoke stays on the name's line. */
+  .token-list .member-email { flex: 1 1 0; }
+}

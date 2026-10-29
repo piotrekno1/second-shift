@@ -7,7 +7,7 @@ import Select from 'primevue/select'
 import { createApiToken, fetchApiTokens, revokeApiToken } from '../services/apiTokens'
 import type { ApiToken, ApiTokenScope, NewApiToken, TokenWorkspace } from '../types'
 import { defaultExpiry, expiryOptions, serverName, setupCommand } from '../utils/apiTokens'
-import { formatRelative } from '../utils/format'
+import { formatDate, formatRelative } from '../utils/format'
 
 const NAME_LIMIT = 160
 
@@ -118,53 +118,26 @@ onMounted(load)
 </script>
 
 <template>
-  <div class="api-tokens">
-    <form v-if="loaded && workspaces.length" class="invite-form token-form" @submit.prevent="create">
-      <InputText v-model="name" :maxlength="NAME_LIMIT" placeholder="Name, for example Work laptop" aria-label="Token name" />
-      <Select
-        v-if="workspaces.length > 1"
-        v-model="workspaceId"
-        :options="workspaces"
-        option-label="name"
-        option-value="id"
-        aria-label="Workspace"
-        class="token-workspace"
-      />
-      <Select v-model="scope" :options="scopeOptions" option-label="label" option-value="value" aria-label="Access" class="invite-role" />
-      <Select v-model="days" :options="expiries" option-label="label" option-value="value" aria-label="Expires after" class="token-expiry" />
-      <Button type="submit" label="Create token" :loading="busy" :disabled="busy">
-        <template #icon><AppIcon name="key-variant" /></template>
-      </Button>
-    </form>
-    <p v-if="scope === 'run'" class="token-note">
-      A run token can start runs, and runs can change data through the tools their job is approved for.
-    </p>
-
-    <div v-if="created" class="invite-link" role="status">
-      <span>
-        Run this to add <bdi>{{ created.workspace_name }}</bdi> to Claude Code as <code>{{ serverName(created.workspace_slug) }}</code>.
-        The token expires {{ formatRelative(created.expires_at) }}. This is the only time it is shown.
-      </span>
-      <code>{{ command }}</code>
-      <Button :label="copied ? 'Copied' : 'Copy command'" severity="secondary" size="small" @click="copyCommand">
-        <template #icon><AppIcon :name="copied ? 'check' : 'content-copy'" /></template>
-      </Button>
+  <section class="panel api-tokens">
+    <div class="panel-heading">
+      <div>
+        <h2>API tokens <span v-if="tokens.length" class="heading-count">{{ tokens.length }}</span></h2>
+        <p>Connect coding agents and other MCP clients to SecondShift. A token works in one workspace and can do no more than you can there.</p>
+      </div>
     </div>
 
-    <p v-if="error" class="page-error">{{ error }}</p>
-
-    <ul v-if="tokens.length" class="member-list invite-list">
+    <ul v-if="tokens.length" class="member-list token-list">
       <li v-for="token in tokens" :key="token.id">
         <span class="avatar small"><AppIcon name="key-variant" /></span>
         <span class="member-email">
-          <bdi>{{ token.name }}</bdi>
+          <bdi>{{ token.name }}</bdi><span class="default-badge">{{ token.scope === 'run' ? 'Run' : 'Read' }}</span>
           <small>
             <template v-if="workspaces.length > 1"><bdi>{{ token.workspace_name }}</bdi> · </template>
-            Expires {{ formatRelative(token.expires_at) }} ·
-            {{ token.last_used_at ? `Used ${formatRelative(token.last_used_at)}` : 'Not used yet' }}
+            <span :title="formatDate(token.expires_at)">Expires {{ formatRelative(token.expires_at) }}</span> ·
+            <span v-if="token.last_used_at" :title="formatDate(token.last_used_at)">Used {{ formatRelative(token.last_used_at) }}</span>
+            <template v-else>Not used yet</template>
           </small>
         </span>
-        <span class="status-pill">{{ token.scope === 'run' ? 'Run' : 'Read' }}</span>
         <span v-if="confirming === token.id" class="invite-confirm">
           <Button label="Keep" severity="secondary" text size="small" :disabled="revoking === token.id" @click="confirming = null" />
           <Button label="Revoke token" severity="danger" size="small" :loading="revoking === token.id" @click="revoke(token)" />
@@ -172,6 +145,41 @@ onMounted(load)
         <Button v-else label="Revoke" severity="secondary" text size="small" @click="confirming = token.id" />
       </li>
     </ul>
-    <p v-else-if="loaded" class="token-note">No tokens yet.</p>
-  </div>
+    <p v-else-if="loaded" class="token-empty">No tokens yet. Create one to connect an agent.</p>
+
+    <div v-if="loaded && workspaces.length" class="token-create">
+      <form class="token-form" :class="{ 'with-workspace': workspaces.length > 1 }" @submit.prevent="create">
+        <InputText v-model="name" :maxlength="NAME_LIMIT" placeholder="Name, for example Work laptop" aria-label="Token name" class="token-name" />
+        <Select
+          v-if="workspaces.length > 1"
+          v-model="workspaceId"
+          :options="workspaces"
+          option-label="name"
+          option-value="id"
+          aria-label="Workspace"
+        />
+        <Select v-model="scope" :options="scopeOptions" option-label="label" option-value="value" aria-label="Access" />
+        <Select v-model="days" :options="expiries" option-label="label" option-value="value" aria-label="Expires after" />
+        <Button type="submit" label="Create token" :loading="busy" :disabled="busy">
+          <template #icon><AppIcon name="key-variant" /></template>
+        </Button>
+      </form>
+      <p v-if="scope === 'run'" class="token-note">
+        <AppIcon name="alert-outline" /> A run token can start runs, and runs can change data through the tools their job is approved for.
+      </p>
+
+      <div v-if="created" class="invite-link" role="status">
+        <span>
+          Run this to add <bdi>{{ created.workspace_name }}</bdi> to Claude Code as <code>{{ serverName(created.workspace_slug) }}</code>.
+          The token expires {{ formatRelative(created.expires_at) }}. This is the only time it is shown.
+        </span>
+        <code>{{ command }}</code>
+        <Button :label="copied ? 'Copied' : 'Copy command'" severity="secondary" size="small" @click="copyCommand">
+          <template #icon><AppIcon :name="copied ? 'check' : 'content-copy'" /></template>
+        </Button>
+      </div>
+    </div>
+
+    <p v-if="error" class="page-error">{{ error }}</p>
+  </section>
 </template>
