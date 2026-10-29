@@ -24,6 +24,11 @@ FIELD_ENCRYPTION_KEY = required(AppEnv.ENCRYPTION_KEY)
 required(AppEnv.DATABASE_URL)
 if DEBUG:
     errors.append(f"{AppEnv.DEBUG} must be off")
+if CACHES["default"]["BACKEND"] in {
+    "django.core.cache.backends.locmem.LocMemCache",
+    "django.core.cache.backends.dummy.DummyCache",
+}:
+    errors.append(f"{AppEnv.CACHE_URL} must be shared by every process")
 if SERVICE == Service.WEB and not CSRF_TRUSTED_ORIGINS:
     errors.append(f"{AppEnv.CSRF_TRUSTED_ORIGINS} must be set")
 if SERVICE in {Service.WEB, Service.WORKER}:

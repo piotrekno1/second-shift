@@ -46,6 +46,8 @@ file, recreate its container to apply the changes. A restart does not reload it.
 | `SECONDSHIFT_DEBUG` | Web, gateway, worker | Default `false`. Production refuses `true`. Log verbosity is controlled separately. |
 | `SECONDSHIFT_DATA_DIR` | All | Container-local persistent data directory. Image default `/var/lib/secondshift`. The generated runner file overrides it to the host-mounted runner directory. |
 
+| `SECONDSHIFT_CACHE_URL` | Web, gateway, worker | Default `dbcache://secondshift_cache`. Also supported: Redis or Valkey, e.g. `redis://cache:6379/0`. |
+
 Changing a database URL does not move existing data. For PostgreSQL, provision
 a database and account, then put the same URL in web, gateway and worker before
 initializing a fresh installation. Do not reuse that account for the runner.
