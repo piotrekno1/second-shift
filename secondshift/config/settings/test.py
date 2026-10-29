@@ -19,6 +19,9 @@ DBOS_SYSTEM_DATABASE_URL = "sqlite:///:memory:"
 PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
 SIGNUP_ENABLED = False
 # Tests run without collectstatic, so they cannot use the manifest storage.
+# An empty folder keeps WhiteNoise from warning that STATIC_ROOT is missing,
+# and keeps a local collectstatic build out of the tests.
+STATIC_ROOT = tempfile.mkdtemp(prefix="secondshift-static-")
 STORAGES = {
     **STORAGES,
     "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
