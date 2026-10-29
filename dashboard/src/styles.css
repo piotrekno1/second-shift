@@ -521,6 +521,16 @@ body .p-select-overlay { color: var(--ink); background: var(--night-800); border
 .need-primary > span, .need-primary > small { overflow-wrap: anywhere; }
 .need-actions { flex-wrap: wrap; }
 .need-setup-footer > small { min-width: 0; line-height: 1.5; }
+.webhook-sample { border: 1px solid var(--border); border-radius: 8px; }
+.webhook-sample > summary { display: flex; align-items: center; gap: 8px; padding: 12px; color: var(--ink); font-size: 13px; font-weight: 600; cursor: pointer; list-style: none; }
+.webhook-sample > summary::-webkit-details-marker { display: none; }
+.webhook-sample > summary .app-icon { transition: transform .15s; }
+.webhook-sample[open] > summary .app-icon { transform: rotate(90deg); }
+.webhook-sample-body { display: grid; gap: 12px; padding: 0 12px 12px; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.webhook-sample-body ul { margin: 0; padding-left: 1.2em; }
+.webhook-sample-body .run-output { max-height: 320px; }
+.webhook-sample-body a { display: inline-flex; align-items: center; gap: 4px; color: var(--ink); font-weight: 600; }
+.webhook-sample-loading { display: flex; align-items: center; gap: 8px; margin: 0; }
 .need-setup-footer > .need-actions { flex-shrink: 0; }
 
 /* Reserve identical status and action columns for every job row. */
