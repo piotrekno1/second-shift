@@ -373,3 +373,22 @@ def test_job_detail_includes_the_synced_skill(
 
     assert body["skill_text"] == "# Review\n\nRead the changelog."
     assert body["skill_truncated"] is False
+
+
+def test_job_detail_links_the_skill_on_github_at_the_synced_commit(
+    client: Client,
+    approval_setup: tuple[AbstractUser, Workspace, Job],
+) -> None:
+    user, _, job = approval_setup
+    client.force_login(user)
+    assert client.get(f"/api/jobs/{job.pk}").json()["skill_url"] == ""
+
+    Repository.objects.filter(pk=job.repository_id).update(
+        source_type=Repository.SourceType.GITHUB, full_name="acme/api"
+    )
+
+    body = client.get(f"/api/jobs/{job.pk}").json()
+
+    assert body["skill_url"] == (
+        f"https://github.com/acme/api/blob/abc123/{job.skill_path}"
+    )

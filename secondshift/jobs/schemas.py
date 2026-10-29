@@ -113,6 +113,8 @@ class JobDetailSchema(JobSchema):
     # The skill file at the synced commit. Empty until the next sync.
     skill_text: str
     skill_truncated: bool
+    # The skill on GitHub at the synced commit. Empty for local repositories.
+    skill_url: str
     recent_runs: list[RunSchema]
     limits: list[LimitSchema]
     can_edit_limits: bool
