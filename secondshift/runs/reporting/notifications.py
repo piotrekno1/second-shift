@@ -1,9 +1,11 @@
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from django.conf import settings
 
 from secondshift.connections.models import Connection
-from secondshift.jobs.models import JobGrant
+from secondshift.jobs.models import Job, JobGrant
+from secondshift.repositories.models import Repository
 from secondshift.runs.models import Run
 
 STATUS_LABELS = {
@@ -78,3 +80,23 @@ def run_report_text(run: Run, run_url: str) -> str:
             f"<{run_url}|Open run #{run.pk}>",
         )
     )
+
+
+def sample_run_report_payload() -> dict[str, Any]:
+    """What a webhook receives after a run, built from made-up records.
+
+    It uses the same code as real deliveries, so the sample cannot drift.
+    """
+    finished_at = datetime(2026, 10, 26, 9, 4, tzinfo=UTC)
+    repository = Repository(full_name="acme/web")
+    job = Job(key="weekly-review", name="Weekly review", repository=repository)
+    run = Run(
+        pk=128,
+        job=job,
+        status=Run.Status.SUCCEEDED,
+        summary="Found 2 stale setup steps in README.md. Details are in the report.",
+        commit_sha="8f3c9d2" * 5 + "8f3c9",
+        scheduled_for=finished_at - timedelta(minutes=4),
+        finished_at=finished_at,
+    )
+    return run_report_payload(run)

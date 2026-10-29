@@ -29,6 +29,8 @@ class LocalRepositoryMetadata:
     revision: str
     manifest: RepositoryManifest
     repository_name: str
+    # Each job's skill text at the revision, keyed by skill path.
+    skills: dict[str, str]
     clone_url: str = ""
 
 
@@ -117,8 +119,10 @@ def inspect_local_repository(
         manifest = parse_manifest(text)
     except (ValueError, yaml.YAMLError) as error:
         raise LocalRepositoryError(f"Invalid {MANIFEST_FILE}: {error}") from error
-    for job in manifest.jobs.values():
-        committed_file(root, revision, job.skill)
+    skills = {
+        job.skill: committed_file(root, revision, job.skill)
+        for job in manifest.jobs.values()
+    }
 
     try:
         github_name = github_remote_name(git(root, "remote", "get-url", "origin"))
@@ -130,6 +134,7 @@ def inspect_local_repository(
         revision=revision,
         manifest=manifest,
         repository_name=local_repository_name(root),
+        skills=skills,
         clone_url=f"{GITHUB_BASE_URL}/{github_name}" if github_name else "",
     )
 
@@ -163,7 +168,7 @@ def attach_local_repository(
             "removed_at": None,
         },
     )
-    sync_jobs(repository, metadata.manifest)
+    sync_jobs(repository, metadata.manifest, metadata.skills)
     if scope_changed:
         JobGrant.objects.filter(
             capability_request__job__repository=repository,

@@ -221,6 +221,11 @@ export interface JobDetail extends Job {
   history: number
   repository_revision: string
   repository_enabled: boolean
+  /** The skill file at the synced commit. Empty until the repository syncs again. */
+  skill_text: string
+  skill_truncated: boolean
+  /** The skill on GitHub at the synced commit. Empty for local repositories. */
+  skill_url: string
   recent_runs: Run[]
   limits: RunLimitItem[]
   can_edit_limits: boolean
@@ -438,6 +443,13 @@ export interface CapabilityNeed {
   detail: string
   connection: Connection | null
   jobs: CapabilityNeedJob[]
+}
+
+/** A run report as a webhook receives it, built from made-up records. */
+export interface WebhookSample {
+  payload: Record<string, unknown>
+  /** How many characters of the report the summary field holds. */
+  summary_max_chars: number
 }
 
 export interface ConnectionTest {

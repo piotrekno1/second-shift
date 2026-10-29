@@ -234,7 +234,7 @@ async function toggleJob(job: Job): Promise<void> {
           </div>
           <section v-if="expandedJobId === job.id" :id="`job-access-${job.id}`" class="job-review">
             <div class="job-review-heading">
-              <div><h3>Access review</h3><p>This job asks for these bindings. Choose the connection for each one, then approve.</p></div>
+              <div><h3>Access review</h3><p>This job asks for these bindings. Choose the connection for each one, then approve. <RouterLink :to="`/jobs/${job.id}#skill`" class="review-skill-link">Read the skill first</RouterLink></p></div>
               <Button v-if="job.cron && app.can(Action.EnableJobs)" :label="job.enabled ? 'Disable job' : 'Enable job'" severity="secondary" outlined :disabled="Boolean(enableBlocker(job))" :title="enableBlocker(job) || undefined" :loading="action === `toggle-${job.id}`" @click="toggleJob(job)">
                 <template #icon><AppIcon :name="job.enabled ? 'pause' : 'play'" /></template>
               </Button>

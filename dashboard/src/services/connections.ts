@@ -1,10 +1,14 @@
 import { apiDelete, apiGet, apiPost } from './api'
-import type { CapabilityNeed, Connection, ConnectionTest, Job, MCPProviderInfo, MCPServerInfo, ModelProvider } from '../types'
+import type { CapabilityNeed, Connection, ConnectionTest, Job, MCPProviderInfo, MCPServerInfo, ModelProvider, WebhookSample } from '../types'
 
 export interface WebhookInput {
   binding_key: string
   display_name: string
   url: string
+}
+
+export function fetchWebhookSample(): Promise<WebhookSample> {
+  return apiGet<WebhookSample>('/connections/webhook/sample')
 }
 
 export function createWebhook(input: WebhookInput): Promise<Connection> {
