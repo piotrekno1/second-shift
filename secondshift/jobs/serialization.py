@@ -16,6 +16,7 @@ from secondshift.jobs.schemas import (
 )
 from secondshift.runs.models import Run
 from secondshift.runs.serialization import serialize_run
+from secondshift.workspaces.models import Workspace
 
 
 def with_last_run(jobs: QuerySet[Job]) -> QuerySet[Job]:
@@ -122,3 +123,18 @@ def serialize_job_detail(job: Job, can_edit_limits: bool) -> JobDetailSchema:
         limits=serialize_limits(limit_views(job.workspace, job)),
         can_edit_limits=can_edit_limits,
     )
+
+
+def serialize_workspace_jobs(workspace: Workspace) -> list[JobSchema]:
+    """Every job in the workspace whose repository was not removed."""
+    queryset = with_last_run(
+        Job.objects.filter(
+            workspace=workspace,
+            repository__removed_at__isnull=True,
+        ).select_related("repository")
+    )
+    connections = binding_connections(workspace.pk)
+    return [
+        serialize_job(item, connections)
+        for item in queryset.prefetch_related("capability_requests__grant__connection")
+    ]
