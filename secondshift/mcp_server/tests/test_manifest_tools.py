@@ -6,6 +6,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 from django.test import Client
 
+from secondshift.connections.bindings import bind
 from secondshift.connections.models import Connection
 from secondshift.jobs.models import CapabilityRequest, Job, JobGrant
 from secondshift.repositories.models import Repository
@@ -45,11 +46,10 @@ def owner(db: object) -> AbstractUser:
 @pytest.fixture
 def workspace(owner: AbstractUser) -> Workspace:
     workspace = create_workspace("Acme", "acme", owner)
-    Connection.objects.create(
+    connection = Connection.objects.create(
         workspace=workspace,
         provider=Connection.Provider.MCP,
         kind=Connection.Kind.MCP,
-        binding_key="observability",
         display_name="Grafana",
         endpoint_url=SERVER_URL,
         status=Connection.Status.CONNECTED,
@@ -70,6 +70,7 @@ def workspace(owner: AbstractUser) -> Workspace:
             },
         },
     )
+    bind(connection, "observability")
     operations = {
         name: {
             "method": method,
@@ -80,11 +81,10 @@ def workspace(owner: AbstractUser) -> Workspace:
         }
         for name, method in (("listCharges", "GET"), ("deleteCharge", "DELETE"))
     }
-    Connection.objects.create(
+    connection = Connection.objects.create(
         workspace=workspace,
         provider=Connection.Provider.API,
         kind=Connection.Kind.API,
-        binding_key="billing",
         display_name="Billing",
         status=Connection.Status.CONNECTED,
         available_tools=["listCharges"],
@@ -94,14 +94,15 @@ def workspace(owner: AbstractUser) -> Workspace:
             "offered_tools": operations,
         },
     )
-    Connection.objects.create(
+    bind(connection, "billing")
+    connection = Connection.objects.create(
         workspace=workspace,
         provider=Connection.Provider.WEBHOOK,
         kind=Connection.Kind.NOTIFICATION,
-        binding_key="engineering-reports",
         display_name="Reports",
         status=Connection.Status.CONNECTED,
     )
+    bind(connection, "engineering-reports")
     return workspace
 
 
@@ -203,7 +204,7 @@ def test_check_manifest_counts_approvals_the_synced_job_already_has(
     )
     JobGrant.objects.create(
         capability_request=request,
-        connection=Connection.objects.get(binding_key="observability"),
+        connection=Connection.objects.get(bindings__key="observability"),
         status=JobGrant.Status.APPROVED,
         allowed_tools=["query_metrics"],
         reviewed_by=owner,

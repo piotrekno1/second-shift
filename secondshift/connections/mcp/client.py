@@ -9,12 +9,14 @@ import anyio
 import httpx
 from asgiref.sync import async_to_sync
 from django.conf import settings
-from django.db import IntegrityError, transaction
+from django.db import transaction
 from django.utils import timezone
 from jsonschema import Draft202012Validator
 from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
 
+from secondshift.connections.bindings import bind, ensure_binding_free
+from secondshift.connections.errors import ConnectionConflict
 from secondshift.connections.mcp.base import (
     MCPError,
     MCPProvider,
@@ -29,7 +31,6 @@ from secondshift.connections.mcp.transport import (
 )
 from secondshift.connections.models import Connection
 from secondshift.connections.outbound import host_label
-from secondshift.connections.services import ConnectionConflict
 from secondshift.workspaces.models import Workspace
 
 MCP_MAX_PAGES = 10
@@ -252,13 +253,11 @@ def create_mcp_connection(
     if not re.fullmatch(provider.token_pattern, token):
         raise MCPError(provider.token_hint)
     cleaned = provider.clean_settings(settings or {})
-    if Connection.objects.filter(workspace=workspace, binding_key=binding_key).exists():
-        raise ConnectionConflict("This binding already has a connection.")
+    ensure_binding_free(workspace.pk, binding_key)
     connection = Connection(
         workspace=workspace,
         provider=provider.key,
         kind=Connection.Kind.MCP,
-        binding_key=binding_key,
         display_name=display_name.strip() or provider.label,
         endpoint_url=provider.endpoint(cleaned),
         auth_strategy=Connection.AuthStrategy.API_KEY,
@@ -267,11 +266,9 @@ def create_mcp_connection(
     )
     select_tools(connection, provider, discover_tools(connection))
     connection.full_clean()
-    try:
-        with transaction.atomic():
-            connection.save()
-    except IntegrityError:
-        raise ConnectionConflict("This binding already has a connection.") from None
+    with transaction.atomic():
+        connection.save()
+        bind(connection, binding_key)
     return connection
 
 

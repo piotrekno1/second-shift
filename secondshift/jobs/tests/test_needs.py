@@ -9,6 +9,7 @@ from django.contrib.auth.models import AbstractUser
 from django.test import Client
 
 from secondshift.connections import webhooks
+from secondshift.connections.bindings import bind
 from secondshift.connections.models import Connection
 from secondshift.jobs.models import CapabilityRequest, Job, JobGrant
 from secondshift.jobs.needs import capability_needs
@@ -58,15 +59,16 @@ def notify_request(job: Job, required: bool = True) -> CapabilityRequest:
 
 
 def alerts_webhook(workspace: Workspace) -> Connection:
-    return Connection.objects.create(
+    connection = Connection.objects.create(
         workspace=workspace,
         provider=Connection.Provider.WEBHOOK,
         kind=Connection.Kind.NOTIFICATION,
-        binding_key="engineering-alerts",
         display_name="Alerts",
         auth_strategy=Connection.AuthStrategy.NONE,
         delivery_url="http://localhost:9000/hook",
     )
+    bind(connection, "engineering-alerts")
+    return connection
 
 
 @pytest.mark.django_db
@@ -115,13 +117,13 @@ def test_needs_flag_binding_used_by_other_kind(
 ) -> None:
     _, workspace, repository = setup
     notify_request(make_job(repository, "health"))
-    Connection.objects.create(
+    connection = Connection.objects.create(
         workspace=workspace,
         provider=Connection.Provider.MCP,
         kind=Connection.Kind.MCP,
-        binding_key="engineering-alerts",
         display_name="Wrong kind",
     )
+    bind(connection, "engineering-alerts")
 
     need = capability_needs(workspace)[0]
 

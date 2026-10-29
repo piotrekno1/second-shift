@@ -6,6 +6,7 @@ from django.contrib.auth.models import AbstractUser
 from django.test import Client
 from django.utils import timezone
 
+from secondshift.connections.bindings import bind
 from secondshift.connections.models import Connection
 from secondshift.jobs.models import CapabilityRequest, Job, JobGrant
 from secondshift.repositories.models import Repository
@@ -91,11 +92,11 @@ def test_owner_can_approve_required_capability_and_enable_job(
         workspace=workspace,
         provider=Connection.Provider.GITHUB,
         kind=Connection.Kind.MCP,
-        binding_key="observability",
         display_name="Local Grafana",
         status=Connection.Status.CONNECTED,
         available_tools=["query_metrics"],
     )
+    bind(connection, "observability")
     if existing_grant:
         JobGrant.objects.create(
             capability_request=capability,
@@ -171,10 +172,10 @@ def test_approval_rejects_connection_that_does_not_match_binding(
         workspace=workspace,
         provider=Connection.Provider.GITHUB,
         kind=Connection.Kind.MCP,
-        binding_key="other-service",
         display_name="Other MCP",
         available_tools=["query_metrics"],
     )
+    bind(connection, "other-service")
     client.force_login(user)
 
     response = client.post(

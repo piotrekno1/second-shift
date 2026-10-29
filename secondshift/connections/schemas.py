@@ -29,7 +29,8 @@ class ConnectionSchema(Schema):
     id: int
     provider: str
     kind: str
-    binding_key: str
+    # The binding names this connection serves. A connection can serve several.
+    bindings: list[str]
     display_name: str
     status: str
     expires_at: datetime | None
@@ -71,6 +72,12 @@ class MCPConnectionCreateSchema(Schema):
     display_name: str = Field(default="", max_length=200)
     token: str = Field(min_length=1, max_length=2000)
     settings: dict[str, str] = Field(default_factory=dict, max_length=10)
+
+
+class ConnectionBindingSchema(Schema):
+    binding: str = Field(
+        min_length=1, max_length=120, pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$"
+    )
 
 
 class MCPConnectionUpdateSchema(Schema):

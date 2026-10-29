@@ -3,6 +3,7 @@ from pathlib import Path
 from django.contrib.auth import get_user_model
 
 from secondshift.config.constants import MAX_SKILL_PREVIEW_CHARS
+from secondshift.connections.bindings import bind
 from secondshift.connections.models import Connection
 from secondshift.jobs.models import JobGrant
 from secondshift.jobs.scheduling import desired_schedules
@@ -40,9 +41,9 @@ def test_expanding_tools_returns_existing_grant_to_pending(db, tmp_path: Path) -
         workspace=workspace,
         provider=Connection.Provider.MCP,
         kind=Connection.Kind.MCP,
-        binding_key="observability",
         display_name="Grafana",
     )
+    bind(connection, "observability")
     path = tmp_path / ".secondshift.yaml"
     write_manifest(path, ["query_metrics"])
     job = sync_manifest(repository, path)[0]

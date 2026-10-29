@@ -1,5 +1,6 @@
 import pytest
 
+from secondshift.connections.bindings import bind
 from secondshift.connections.models import Connection
 from secondshift.jobs.grants import GrantError, decide_grant
 from secondshift.jobs.models import CapabilityRequest, Job, JobGrant
@@ -30,13 +31,15 @@ def mcp(job: Job, **overrides: object) -> Connection:
         "workspace": job.workspace,
         "provider": Connection.Provider.MCP,
         "kind": Connection.Kind.MCP,
-        "binding_key": "observability",
         "display_name": "Grafana",
         "status": Connection.Status.CONNECTED,
         "available_tools": ["query_metrics", "list_alerts"],
         "metadata": {"settings": {"url": "https://mcp.example.com/mcp"}},
     }
-    return Connection.objects.create(**(values | overrides))
+    binding = str(overrides.pop("binding", "observability"))
+    connection = Connection.objects.create(**(values | overrides))
+    bind(connection, binding)
+    return connection
 
 
 def decide(
@@ -68,7 +71,7 @@ def test_denying_grants_nothing(job: Job, capability: CapabilityRequest) -> None
     ("connection", "tools", "status", "message"),
     [
         (None, None, 422, "Choose a connection before approving"),
-        ({"binding_key": "other"}, None, 422, "kind and binding must match"),
+        ({"binding": "other"}, None, 422, "kind and binding must match"),
         ({"status": Connection.Status.REVOKED}, None, 409, "is not connected"),
         ({}, ["query_metrics", "drop_tables"], 422, "must be requested by the job"),
         ({}, ["query_metrics"], 422, "Approve every requested tool"),

@@ -5,7 +5,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from secondshift.config.constants import MAX_SKILL_PREVIEW_CHARS
-from secondshift.connections.models import Connection
+from secondshift.connections.bindings import binding_connection
 from secondshift.jobs.manifest import (
     JobManifest,
     RepositoryManifest,
@@ -106,12 +106,8 @@ def sync_capability_requests(job: Job, item: JobManifest) -> None:
         expanded = not set(tools).issubset(previous_tools) or previous_kind != kind
         grant = JobGrant.objects.filter(capability_request=request).first()
         if not grant:
-            connection = Connection.objects.filter(
-                workspace=job.workspace,
-                binding_key=request.binding,
-                kind=request.kind,
-            ).first()
-            if connection:
+            connection = binding_connection(job.workspace_id, request.binding)
+            if connection and connection.kind == request.kind:
                 grant = JobGrant.objects.create(
                     capability_request=request,
                     connection=connection,

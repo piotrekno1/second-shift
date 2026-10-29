@@ -11,6 +11,7 @@ from django.db import connection as db_connection
 from django.test import Client
 
 from secondshift.connections import webhooks
+from secondshift.connections.bindings import bind
 from secondshift.connections.models import Connection
 from secondshift.connections.webhooks import (
     WebhookError,
@@ -40,16 +41,17 @@ def owner(db: object) -> tuple[AbstractUser, Workspace]:
 
 
 def webhook(workspace: Workspace, url: str = SECRET_URL) -> Connection:
-    return Connection.objects.create(
+    connection = Connection.objects.create(
         workspace=workspace,
         provider=Connection.Provider.WEBHOOK,
         kind=Connection.Kind.NOTIFICATION,
-        binding_key="engineering-alerts",
         display_name="Alerts",
         auth_strategy=Connection.AuthStrategy.NONE,
         delivery_url=url,
         metadata={"target": "hooks.example.com"},
     )
+    bind(connection, "engineering-alerts")
+    return connection
 
 
 @pytest.mark.parametrize(

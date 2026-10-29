@@ -51,11 +51,6 @@ class Connection(models.Model):
         choices=Kind.choices,
         default=Kind.IDENTITY,
     )
-    binding_key = models.SlugField(
-        max_length=120,
-        blank=True,
-        help_text="Logical name used by repository manifests, for example observability.",
-    )
     display_name = models.CharField(max_length=200)
     endpoint_url = models.URLField(blank=True)
     external_account_id = models.CharField(max_length=255, blank=True)
@@ -101,11 +96,6 @@ class Connection(models.Model):
                 name="unique_workspace_provider_account",
             ),
             models.UniqueConstraint(
-                fields=["workspace", "binding_key"],
-                condition=~models.Q(binding_key=""),
-                name="unique_workspace_connection_binding",
-            ),
-            models.UniqueConstraint(
                 fields=["workspace"],
                 condition=models.Q(is_default=True),
                 name="unique_workspace_default_model",
@@ -114,20 +104,19 @@ class Connection(models.Model):
         ordering = ["provider", "display_name"]
 
     def __str__(self) -> str:
-        binding = f" [{self.binding_key}]" if self.binding_key else ""
-        return f"{self.get_provider_display()}: {self.display_name}{binding}"
+        return f"{self.get_provider_display()}: {self.display_name}"
+
+    def binding_keys(self) -> list[str]:
+        """The binding names this connection serves. Uses prefetched rows."""
+        return sorted(binding.key for binding in self.bindings.all())
+
+    def serves(self, binding: str) -> bool:
+        return binding in self.binding_keys()
 
     def clean(self) -> None:
         if self.is_default and self.kind != self.Kind.MODEL:
             raise ValidationError(
                 {"is_default": "Only model providers can be the workspace default."}
-            )
-        # Repositories never name identities or model providers, so neither
-        # needs a logical binding.
-        unbound = {self.Kind.IDENTITY, self.Kind.MODEL}
-        if self.kind not in unbound and not self.binding_key:
-            raise ValidationError(
-                {"binding_key": "Capability connections require a logical binding."}
             )
         if (
             self.auth_strategy == self.AuthStrategy.SECRET_REFERENCE
@@ -139,6 +128,48 @@ class Connection(models.Model):
                         "A credential reference is required for this auth strategy."
                     )
                 }
+            )
+
+
+class ConnectionBinding(models.Model):
+    """A binding name that jobs ask for, and the connection it points to.
+
+    Each name points to one connection in a workspace. One connection can
+    serve several names, so a key or URL is changed in one place.
+    """
+
+    workspace = models.ForeignKey(
+        Workspace,
+        on_delete=models.CASCADE,
+        related_name="connection_bindings",
+    )
+    connection = models.ForeignKey(
+        Connection,
+        on_delete=models.CASCADE,
+        related_name="bindings",
+    )
+    key = models.SlugField(
+        max_length=120,
+        help_text="The name used in .secondshift.yaml, for example engineering-reports.",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["workspace", "key"],
+                name="unique_workspace_binding",
+            ),
+        ]
+        ordering = ["key"]
+
+    def __str__(self) -> str:
+        return self.key
+
+    def clean(self) -> None:
+        if self.connection.workspace_id != self.workspace_id:
+            raise ValidationError(
+                "Binding and connection must belong to one workspace."
             )
 
 

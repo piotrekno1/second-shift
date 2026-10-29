@@ -8,6 +8,8 @@ from ninja import Router, Status
 from ninja.errors import HttpError
 from ninja.security import django_auth
 
+from secondshift.connections.bindings import bind, unbind
+from secondshift.connections.errors import ConnectionConflict
 from secondshift.connections.http_api.connections import (
     create_api_connection,
     recheck_api_connection,
@@ -44,6 +46,7 @@ from secondshift.connections.schemas import (
     APIConnectionUpdateSchema,
     APISpecSchema,
     APISpecSummarySchema,
+    ConnectionBindingSchema,
     ConnectionSchema,
     ConnectionTestSchema,
     MCPConnectionCreateSchema,
@@ -62,7 +65,6 @@ from secondshift.connections.schemas import (
 )
 from secondshift.connections.serialization import serialize_connection
 from secondshift.connections.services import (
-    ConnectionConflict,
     create_webhook_connection,
     delete_connection,
     revoke_connection,
@@ -94,7 +96,9 @@ def connections(request: HttpRequest) -> list[ConnectionSchema]:
     usage = connection_usage(workspace)
     return [
         serialize_connection(item, usage.get(item.pk, ConnectionUsage()))
-        for item in Connection.objects.filter(workspace=workspace)
+        for item in Connection.objects.filter(workspace=workspace).prefetch_related(
+            "bindings"
+        )
     ]
 
 
@@ -327,7 +331,8 @@ def finish_mcp_sign_in(request: HttpRequest) -> HttpResponseRedirect:
         return HttpResponseRedirect(f"{back}?{urlencode({'oauth': 'taken'})}")
     except (MCPError, ValidationError):
         return HttpResponseRedirect(f"{back}?{urlencode({'oauth': 'failed'})}")
-    query = {"oauth": "connected", "capability": connection.binding_key}
+    keys = connection.binding_keys()
+    query = {"oauth": "connected", "capability": keys[0] if keys else ""}
     return HttpResponseRedirect(f"{back}?{urlencode(query)}")
 
 
@@ -509,6 +514,42 @@ def remove_connection(request: HttpRequest, connection_id: int) -> Status[None]:
     except ConnectionConflict as error:
         raise HttpError(409, str(error)) from error
     return Status(204, None)
+
+
+@router.post(
+    "/connections/{connection_id}/bindings",
+    response=ConnectionSchema,
+    auth=django_auth,
+)
+def add_binding(
+    request: HttpRequest, connection_id: int, payload: ConnectionBindingSchema
+) -> ConnectionSchema:
+    """Let this connection also serve a binding. Each job still needs approval."""
+    connection = owned_connection(request, connection_id, Action.EDIT_CONNECTIONS)
+    if connection.status != Connection.Status.CONNECTED:
+        raise HttpError(409, "Reconnect this connection before adding a binding.")
+    try:
+        bind(connection, payload.binding)
+    except ConnectionConflict as error:
+        raise HttpError(409, str(error)) from error
+    return serialize_connection(connection)
+
+
+@router.delete(
+    "/connections/{connection_id}/bindings/{binding}",
+    response=ConnectionSchema,
+    auth=django_auth,
+)
+def remove_binding(
+    request: HttpRequest, connection_id: int, binding: str
+) -> ConnectionSchema:
+    """Stop serving one binding. Jobs that used it go back to pending."""
+    connection = owned_connection(request, connection_id, Action.DISCONNECT_CONNECTIONS)
+    try:
+        unbind(connection, binding)
+    except ConnectionConflict as error:
+        raise HttpError(404, str(error)) from error
+    return serialize_connection(connection)
 
 
 @router.post(

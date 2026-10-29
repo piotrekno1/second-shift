@@ -9,6 +9,7 @@ from django.contrib.auth import get_user_model
 from django.test import Client
 
 from secondshift.config.constants import GITHUB_MCP_TOOLS, GITHUB_MCP_URL
+from secondshift.connections.bindings import bind
 from secondshift.connections.mcp.base import MCPError, MCPRequestError
 from secondshift.connections.mcp.client import (
     create_mcp_connection,
@@ -127,7 +128,6 @@ def github_connection() -> Connection:
         provider=Connection.Provider.GITHUB,
         kind=Connection.Kind.MCP,
         endpoint_url=GITHUB_MCP_URL,
-        binding_key="github",
         auth_strategy=Connection.AuthStrategy.API_KEY,
         access_token="github_pat_test_token",
     )
@@ -211,12 +211,12 @@ def test_unknown_mcp_providers_fail_closed() -> None:
         workspace=workspace,
         provider=Connection.Provider.API,
         kind=Connection.Kind.MCP,
-        binding_key="custom",
         display_name="Custom",
         endpoint_url="https://mcp.example.com/",
         auth_strategy=Connection.AuthStrategy.API_KEY,
         access_token="token",
     )
+    bind(connection, "custom")
     with pytest.raises(MCPError, match="not supported"):
         validate_mcp_connection(connection)
 
@@ -432,7 +432,7 @@ def test_create_rejects_unknown_provider(client: Client) -> None:
         content_type="application/json",
     )
     assert response.status_code == 422
-    assert not Connection.objects.filter(binding_key="custom").exists()
+    assert not Connection.objects.filter(bindings__key="custom").exists()
 
 
 ACTIONS_SCHEMAS = {

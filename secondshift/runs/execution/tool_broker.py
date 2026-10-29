@@ -42,7 +42,7 @@ def broker_connection(run: Run, name: str) -> Authorization:
         or not grant.connection
         or grant.connection.kind != tool.kind
         or grant.connection.workspace_id != run.job.workspace_id
-        or grant.connection.binding_key != tool.binding
+        or not grant.connection.serves(tool.binding)
         or tool.provider_tool not in grant.allowed_tools
         or tool.provider_tool not in grant.capability_request.requested_tools
         or tool.provider_tool not in grant.connection.available_tools

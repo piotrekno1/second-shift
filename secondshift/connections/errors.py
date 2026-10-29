@@ -1,4 +1,4 @@
-"""Errors shared by every kind of external tool (MCP servers, HTTP APIs)."""
+"""Errors shared by the connection services and external tools."""
 
 
 class ExternalToolError(ValueError):
@@ -7,3 +7,7 @@ class ExternalToolError(ValueError):
 
 class ExternalRequestError(ExternalToolError):
     """A remote failure the agent may report as unavailable evidence."""
+
+
+class ConnectionConflict(ValueError):
+    """A request that clashes with an existing connection. Safe to show."""

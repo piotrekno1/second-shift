@@ -1,12 +1,10 @@
-from django.db import IntegrityError, transaction
+from django.db import transaction
 
+from secondshift.connections.bindings import bind, ensure_binding_free
+from secondshift.connections.errors import ConnectionConflict
 from secondshift.connections.models import Connection
 from secondshift.connections.webhooks import validate_webhook_url, webhook_target_label
 from secondshift.workspaces.models import Workspace
-
-
-class ConnectionConflict(ValueError):
-    pass
 
 
 def connection_target(connection: Connection) -> str:
@@ -24,28 +22,20 @@ def create_webhook_connection(
     url: str,
 ) -> Connection:
     url = validate_webhook_url(url)
-    if Connection.objects.filter(workspace=workspace, binding_key=binding_key).exists():
-        raise ConnectionConflict(
-            f"A connection for {binding_key} already exists in this workspace."
-        )
+    ensure_binding_free(workspace.pk, binding_key)
     connection = Connection(
         workspace=workspace,
         provider=Connection.Provider.WEBHOOK,
         kind=Connection.Kind.NOTIFICATION,
-        binding_key=binding_key,
         display_name=display_name.strip() or binding_key,
         auth_strategy=Connection.AuthStrategy.NONE,
         delivery_url=url,
         metadata={"target": webhook_target_label(url)},
     )
     connection.full_clean()
-    try:
-        with transaction.atomic():
-            connection.save()
-    except IntegrityError as error:
-        raise ConnectionConflict(
-            f"A connection for {binding_key} already exists in this workspace."
-        ) from error
+    with transaction.atomic():
+        connection.save()
+        bind(connection, binding_key)
     return connection
 
 
@@ -57,7 +47,7 @@ def update_webhook_connection(
     if connection.provider != Connection.Provider.WEBHOOK:
         raise ConnectionConflict("Only webhook connections can be edited here.")
     if display_name is not None:
-        connection.display_name = display_name.strip() or connection.binding_key
+        connection.display_name = display_name.strip() or connection.display_name
     if url:
         url = validate_webhook_url(url)
         connection.delivery_url = url

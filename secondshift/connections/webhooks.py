@@ -96,8 +96,8 @@ def connection_test_payload(connection: Connection) -> dict[str, Any]:
     return {
         "event": "connection.test",
         "text": (
-            f"SecondShift test message for {connection.binding_key}. "
-            "Run reports for jobs using this binding will arrive here."
+            f"SecondShift test message for {connection.display_name}. "
+            "Run reports for jobs using this connection will arrive here."
         ),
-        "binding": connection.binding_key,
+        "bindings": connection.binding_keys(),
     }

@@ -51,7 +51,7 @@ def blocking_reasons(
             reasons.append("connection_workspace_mismatch")
         if connection.kind != request.kind:
             reasons.append("connection_kind_mismatch")
-        if connection.binding_key != request.binding:
+        if not connection.serves(request.binding):
             reasons.append("connection_binding_mismatch")
     if grant and requested - set(grant.allowed_tools):
         reasons.append("tools_not_granted")

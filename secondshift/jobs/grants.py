@@ -20,10 +20,7 @@ def check_connection(
     capability: CapabilityRequest, connection: Connection, approving: bool
 ) -> None:
     """The connection must fit the request, be connected, and reach the repository."""
-    if (
-        connection.kind != capability.kind
-        or connection.binding_key != capability.binding
-    ):
+    if connection.kind != capability.kind or not connection.serves(capability.binding):
         raise GrantError(422, "Connection kind and binding must match capability.")
     if connection.status != Connection.Status.CONNECTED:
         raise GrantError(409, "The selected connection is not connected.")

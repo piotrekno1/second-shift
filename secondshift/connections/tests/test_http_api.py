@@ -9,6 +9,7 @@ from django.contrib.auth import get_user_model
 from django.test import Client
 from django.utils import timezone
 
+from secondshift.connections.bindings import bind
 from secondshift.connections.errors import ExternalToolError
 from secondshift.connections.external import external_access
 from secondshift.connections.http_api.client import APIRequest, build_request, send
@@ -435,7 +436,7 @@ def test_job_calls_an_approved_operation(fake: FakeAPI, api_run: Run) -> None:
     assert capability["external"]["base_url"] == BASE
     assert capability["external"]["scope"] == "api.example.com"
     access = external_access(
-        Connection.objects.get(binding_key="billing"), api_run.job.repository
+        Connection.objects.get(bindings__key="billing"), api_run.job.repository
     )
     assert access and access.text == (
         "Allow these operations to use anything the credential can reach on api.example.com."
@@ -469,7 +470,7 @@ def test_unapproved_operations_and_changed_base_urls_stop_the_call(
         call_external_tool_step(
             api_run.pk, "api.billing.listCharges", {"limit": "two"}, "c3"
         )
-    connection = Connection.objects.get(binding_key="billing")
+    connection = Connection.objects.get(bindings__key="billing")
     update_api_connection(connection, None, None, "https://other.example.com", None)
     with pytest.raises(ExternalToolError, match="base URL changed"):
         call_external_tool_step(
@@ -508,15 +509,15 @@ def test_access_review_flags_operations_that_change_data(
         binding="billing",
         requested_tools=["listCharges", "deleteCharge"],
     )
-    Connection.objects.create(
+    connection = Connection.objects.create(
         workspace=workspace,
         provider=Connection.Provider.GITHUB,
         kind=Connection.Kind.MCP,
-        binding_key="github",
         display_name="GitHub",
         available_tools=["get_commit"],
         metadata={"tools": {"get_commit": {"readOnly": False}}},
     )
+    bind(connection, "github")
     CapabilityRequest.objects.create(
         job=job, kind="mcp", binding="github", requested_tools=["get_commit"]
     )

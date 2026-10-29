@@ -2,6 +2,7 @@ from django.db.models import OuterRef, QuerySet, Subquery
 from django.db.models.functions import Coalesce
 
 from secondshift.config.constants import GITHUB_BASE_URL
+from secondshift.connections.bindings import binding_connections
 from secondshift.connections.external import changing_tools, external_access
 from secondshift.connections.models import Connection
 from secondshift.gateway.usage import with_model_usage
@@ -41,15 +42,6 @@ def last_run(job: Job) -> LastRunSchema | None:
     return LastRunSchema(
         id=job.last_run_id, status=job.last_run_status, at=job.last_run_at
     )
-
-
-def binding_connections(workspace_id: int) -> dict[str, Connection]:
-    return {
-        connection.binding_key: connection
-        for connection in Connection.objects.filter(workspace_id=workspace_id).exclude(
-            binding_key=""
-        )
-    }
 
 
 def serialize_job(

@@ -1,15 +1,22 @@
 from django.contrib import admin
 
 from secondshift.connections.forms import SecretAdminForm
-from secondshift.connections.models import Connection, Secret
+from secondshift.connections.models import Connection, ConnectionBinding, Secret
+
+
+class ConnectionBindingInline(admin.TabularInline):
+    model = ConnectionBinding
+    fields = ("key", "workspace", "created_at")
+    readonly_fields = ("created_at",)
+    extra = 0
 
 
 @admin.register(Connection)
 class ConnectionAdmin(admin.ModelAdmin):
+    inlines = (ConnectionBindingInline,)
     list_display = (
         "provider",
         "display_name",
-        "binding_key",
         "kind",
         "workspace",
         "status",
@@ -18,7 +25,7 @@ class ConnectionAdmin(admin.ModelAdmin):
     list_filter = ("provider", "kind", "status", "auth_strategy")
     search_fields = (
         "display_name",
-        "binding_key",
+        "bindings__key",
         "workspace__name",
         "external_account_id",
     )

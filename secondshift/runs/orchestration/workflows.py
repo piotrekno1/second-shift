@@ -210,22 +210,22 @@ def deliver_run_notification_step(run_id: int, connection_id: int) -> None:
     RunEvent.objects.create(
         run=run,
         level="info" if delivery.ok else "warning",
-        message=f"Notification to {connection.binding_key}: {delivery.message}",
+        message=f"Notification to {connection.display_name}: {delivery.message}",
         metadata={"connection_id": connection_id, "status_code": delivery.status_code},
     )
 
 
 @DBOS.step(name="secondshift.record_notification_failure")
 def record_notification_failure_step(run_id: int, connection_id: int) -> None:
-    binding = (
+    name = (
         Connection.objects.filter(pk=connection_id)
-        .values_list("binding_key", flat=True)
+        .values_list("display_name", flat=True)
         .first()
     )
     RunEvent.objects.create(
         run_id=run_id,
         level="warning",
-        message=f"Notification to {binding or 'a connection'} failed after retries.",
+        message=f"Notification to {name or 'a connection'} failed after retries.",
         metadata={"connection_id": connection_id},
     )
 

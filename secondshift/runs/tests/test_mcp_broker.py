@@ -12,6 +12,7 @@ from pydantic_ai import ToolFailed
 from pydantic_ai.models.test import TestModel
 
 from secondshift.config.constants import GITHUB_MCP_URL
+from secondshift.connections.bindings import bind
 from secondshift.connections.errors import ExternalToolError
 from secondshift.connections.mcp.base import MCPError, MCPRequestError
 from secondshift.connections.models import Connection
@@ -74,7 +75,6 @@ def planned_run() -> Run:
         workspace=workspace,
         provider="github",
         kind="mcp",
-        binding_key="github",
         display_name="GitHub",
         endpoint_url=GITHUB_MCP_URL,
         access_token="github_pat_test_token",
@@ -82,6 +82,7 @@ def planned_run() -> Run:
         available_tools=list(TOOL_SCHEMAS),
         metadata={"tools": TOOL_SCHEMAS},
     )
+    bind(connection, "github")
     request = CapabilityRequest.objects.create(
         job=job,
         kind="mcp",
@@ -156,8 +157,7 @@ def test_policy_changes_stop_active_run(planned_run, change, mcp_http) -> None:
         connection.workspace = other
         connection.save()
     elif change == "binding":
-        connection.binding_key = "other-binding"
-        connection.save()
+        connection.bindings.update(key="other-binding")
     elif change == "canceled":
         planned_run.status = "canceled"
         planned_run.save()
@@ -222,10 +222,10 @@ def test_agent_mcp_report_and_webhook_payload_flow(
         workspace=planned_run.job.workspace,
         provider="webhook",
         kind="notification",
-        binding_key="engineering-reports",
         display_name="Reports",
         delivery_url="https://example.com/hook",
     )
+    bind(webhook, "engineering-reports")
     request = CapabilityRequest.objects.create(
         job=planned_run.job, kind="notification", binding="engineering-reports"
     )
@@ -293,7 +293,7 @@ def test_briefing_report_is_received_by_real_webhook(planned_run, settings) -> N
 def test_one_connection_is_reused_with_independent_job_scopes(
     planned_run, mcp_http
 ) -> None:
-    connection = Connection.objects.get(binding_key="github")
+    connection = Connection.objects.get(bindings__key="github")
     other_repository = Repository.objects.create(
         workspace=planned_run.job.workspace,
         full_name="example/another",

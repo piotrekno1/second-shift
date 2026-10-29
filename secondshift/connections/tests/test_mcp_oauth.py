@@ -236,7 +236,7 @@ def test_expired_and_refused_sign_ins(
     with pytest.raises(SignInError) as caught:
         complete_authorization(owner, state, "", "access_denied")
     assert caught.value.code == "refused"
-    assert not Connection.objects.filter(binding_key="metrics").exists()
+    assert not Connection.objects.filter(bindings__key="metrics").exists()
 
 
 def test_extra_granted_scope_saves_nothing(
@@ -247,7 +247,7 @@ def test_extra_granted_scope_saves_nothing(
     with pytest.raises(SignInError) as caught:
         complete_authorization(owner, state, "good-code", "")
     assert caught.value.code == "scope"
-    assert not Connection.objects.filter(binding_key="metrics").exists()
+    assert not Connection.objects.filter(bindings__key="metrics").exists()
 
 
 def test_scopes_must_come_from_the_server_list(
@@ -378,7 +378,6 @@ def test_built_in_tools_cannot_be_chosen(workspace: Workspace) -> None:
         workspace=workspace,
         provider=Connection.Provider.GITHUB,
         kind=Connection.Kind.MCP,
-        binding_key="github",
         auth_strategy=Connection.AuthStrategy.API_KEY,
         access_token="github_pat_x",
     )

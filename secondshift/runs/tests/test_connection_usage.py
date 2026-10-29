@@ -3,6 +3,7 @@ from decimal import Decimal
 import pytest
 from django.test import Client
 
+from secondshift.connections.bindings import bind
 from secondshift.connections.models import Connection
 from secondshift.gateway.models import ModelUsage
 from secondshift.jobs.models import CapabilityRequest, JobGrant
@@ -14,19 +15,21 @@ from secondshift.workspaces.services import workspace_owner
 
 
 def make_connection(workspace: object, key: str, kind: str) -> Connection:
-    return Connection.objects.create(
+    connection = Connection.objects.create(
         workspace=workspace,
         provider=Connection.Provider.WEBHOOK,
         kind=kind,
-        binding_key=key,
         display_name=key,
         auth_strategy=Connection.AuthStrategy.NONE,
     )
+    if kind == Connection.Kind.NOTIFICATION:
+        bind(connection, key)
+    return connection
 
 
 def grant(job: object, connection: Connection, status: str) -> None:
     capability = CapabilityRequest.objects.create(
-        job=job, binding=connection.binding_key, kind="notification"
+        job=job, binding=connection.display_name, kind="notification"
     )
     JobGrant.objects.create(
         capability_request=capability, connection=connection, status=status

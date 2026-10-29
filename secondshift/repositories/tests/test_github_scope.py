@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 from django.contrib.auth import get_user_model
 
+from secondshift.connections.bindings import bind
 from secondshift.connections.models import Connection
 from secondshift.jobs.models import JobGrant
 from secondshift.repositories.github import github_remote_name, github_repository_scope
@@ -80,14 +81,14 @@ def test_changing_origin_requires_a_new_approval(tmp_path: Path) -> None:
 
     owner = get_user_model().objects.create_user(username="origin-owner")
     workspace = create_workspace(name="Origin", slug="origin", owner=owner)
-    Connection.objects.create(
+    connection = Connection.objects.create(
         workspace=workspace,
         provider="github",
         kind="mcp",
-        binding_key="github",
         display_name="GitHub",
         available_tools=["search_pull_requests"],
     )
+    bind(connection, "github")
     root = tmp_path / "project"
     create_local_repository(root)
     manifest = root / ".secondshift.yaml"

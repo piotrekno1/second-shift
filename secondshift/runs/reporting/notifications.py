@@ -31,15 +31,18 @@ def notification_targets(run: Run) -> list[int]:
     if not planned:
         return []
     # A grant revoked or a connection disconnected after planning stops delivery.
+    # Two bindings may share one connection, so each connection is sent once.
     return sorted(
-        JobGrant.objects.filter(
-            capability_request__job_id=run.job_id,
-            capability_request__kind="notification",
-            status=JobGrant.Status.APPROVED,
-            connection_id__in=planned,
-            connection__status=Connection.Status.CONNECTED,
-            connection__workspace_id=run.job.workspace_id,
-        ).values_list("connection_id", flat=True)
+        set(
+            JobGrant.objects.filter(
+                capability_request__job_id=run.job_id,
+                capability_request__kind="notification",
+                status=JobGrant.Status.APPROVED,
+                connection_id__in=planned,
+                connection__status=Connection.Status.CONNECTED,
+                connection__workspace_id=run.job.workspace_id,
+            ).values_list("connection_id", flat=True)
+        )
     )
 
 

@@ -7,9 +7,10 @@ from urllib.parse import urlencode
 
 from asgiref.sync import async_to_sync
 from django.contrib.auth.models import AbstractBaseUser
-from django.db import IntegrityError, transaction
+from django.db import transaction
 from django.utils import timezone
 
+from secondshift.connections.bindings import bind, ensure_binding_free
 from secondshift.connections.mcp.base import MCPError
 from secondshift.connections.mcp.client import (
     connection_target,
@@ -31,7 +32,6 @@ from secondshift.connections.mcp.oauth import (
 )
 from secondshift.connections.mcp.providers import mcp_provider
 from secondshift.connections.models import Connection, OAuthAuthorization
-from secondshift.connections.services import ConnectionConflict
 from secondshift.workspaces.models import Workspace
 
 logger = logging.getLogger(__name__)
@@ -59,13 +59,8 @@ def start_authorization(
     provider = mcp_provider(provider_key)
     if OAUTH not in provider.auth_methods:
         raise MCPError(f"{provider.label} does not support sign-in.")
-    if (
-        connection is None
-        and Connection.objects.filter(
-            workspace=workspace, binding_key=binding_key
-        ).exists()
-    ):
-        raise ConnectionConflict("This binding already has a connection.")
+    if connection is None:
+        ensure_binding_free(workspace.pk, binding_key)
     cleaned = provider.clean_settings(values)
     server = async_to_sync(discover)(provider.endpoint(cleaned))
     if server is None:
@@ -90,7 +85,8 @@ def start_authorization(
         state=state,
         code_verifier=verifier,
         provider=provider.key,
-        binding_key=connection.binding_key if connection else binding_key,
+        # A reconnect keeps the bindings the connection already serves.
+        binding_key="" if connection else binding_key,
         display_name=display_name,
         connection_settings=cleaned,
         scopes=scopes,
@@ -169,7 +165,6 @@ def complete_authorization(
         workspace=authorization.workspace,
         provider=provider.key,
         kind=Connection.Kind.MCP,
-        binding_key=authorization.binding_key,
     )
     if connection.workspace_id != authorization.workspace_id:
         raise SignInError("invalid", "This sign-in is not valid. Start again.")
@@ -197,9 +192,8 @@ def complete_authorization(
         connection.available_tools if authorization.connection else None,
     )
     connection.full_clean()
-    try:
-        with transaction.atomic():
-            connection.save()
-    except IntegrityError:
-        raise ConnectionConflict("This binding already has a connection.") from None
+    with transaction.atomic():
+        connection.save()
+        if authorization.connection is None:
+            bind(connection, authorization.binding_key)
     return connection

@@ -86,7 +86,6 @@ def test_model_access_ends_at_the_deadline(db: object, settings: Any) -> None:
         workspace=run.job.workspace,
         provider=Connection.Provider.ANTHROPIC,
         kind=Connection.Kind.MODEL,
-        binding_key="model",
         display_name="Model",
         status=Connection.Status.CONNECTED,
         is_default=True,

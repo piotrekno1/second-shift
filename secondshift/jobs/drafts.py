@@ -11,10 +11,11 @@ from dataclasses import dataclass, field
 import yaml
 
 from secondshift.config.constants import MANIFEST_FILE
+from secondshift.connections.bindings import binding_connections
 from secondshift.connections.models import Connection
 from secondshift.jobs.manifest import JobManifest, ManifestError, parse_manifest
 from secondshift.jobs.models import CapabilityRequest, JobGrant
-from secondshift.jobs.needs import NeedStatus, connection_problem, workspace_bindings
+from secondshift.jobs.needs import NeedStatus, connection_problem
 from secondshift.repositories.models import Repository
 from secondshift.workspaces.models import Workspace
 
@@ -93,7 +94,7 @@ def check_draft(
     except (ValueError, yaml.YAMLError) as error:
         # The same wording a sync shows for the committed file.
         raise ManifestError(f"Invalid {MANIFEST_FILE}: {error}") from error
-    connections = workspace_bindings(workspace)
+    connections = binding_connections(workspace.pk)
     repositories = [repository] if repository else []
     jobs = []
     for key, job in manifest.jobs.items():

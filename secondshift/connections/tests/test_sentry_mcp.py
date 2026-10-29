@@ -7,6 +7,7 @@ from django.contrib.auth import get_user_model
 from django.test import Client
 
 from secondshift.config.constants import SENTRY_MCP_URL
+from secondshift.connections.bindings import bind
 from secondshift.connections.external import external_access
 from secondshift.connections.mcp.base import MCPError
 from secondshift.connections.mcp.client import (
@@ -242,7 +243,6 @@ def test_access_text_and_frozen_plan_follow_the_connection(
         workspace=workspace,
         provider=Connection.Provider.SENTRY,
         kind=Connection.Kind.MCP,
-        binding_key="sentry",
         display_name="Sentry",
         endpoint_url=f"{SENTRY_MCP_URL}/acme",
         auth_strategy=Connection.AuthStrategy.API_KEY,
@@ -253,6 +253,7 @@ def test_access_text_and_frozen_plan_follow_the_connection(
             "tools": {"get_sentry_resource": {"inputSchema": OBJECT_SCHEMA}},
         },
     )
+    bind(connection, "sentry")
     request = CapabilityRequest.objects.create(
         job=job,
         binding="sentry",

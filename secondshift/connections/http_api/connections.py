@@ -4,8 +4,10 @@ import re
 from dataclasses import dataclass
 from typing import Any
 
-from django.db import IntegrityError, transaction
+from django.db import transaction
 
+from secondshift.connections.bindings import bind, ensure_binding_free
+from secondshift.connections.errors import ConnectionConflict
 from secondshift.connections.http_api.client import (
     AUTH_TYPES,
     BEARER,
@@ -20,7 +22,6 @@ from secondshift.connections.outbound import (
     host_label,
     validate_outbound_url,
 )
-from secondshift.connections.services import ConnectionConflict
 from secondshift.workspaces.models import Workspace
 
 TOKEN_PATTERN = r"\S{1,2000}"
@@ -108,8 +109,7 @@ def create_api_connection(
 ) -> Connection:
     if not re.fullmatch(TOKEN_PATTERN, token):
         raise APIError("Enter the credential without spaces.")
-    if Connection.objects.filter(workspace=workspace, binding_key=binding_key).exists():
-        raise ConnectionConflict("This binding already has a connection.")
+    ensure_binding_free(workspace.pk, binding_key)
     # Cheap checks first, before downloading the spec.
     auth_settings = clean_auth(auth, header)
     base_url = clean_base_url(base_url)
@@ -118,7 +118,6 @@ def create_api_connection(
         workspace=workspace,
         provider=Connection.Provider.API,
         kind=Connection.Kind.API,
-        binding_key=binding_key,
         display_name=display_name.strip() or spec.title or host_label(base_url),
         endpoint_url=base_url,
         auth_strategy=Connection.AuthStrategy.API_KEY,
@@ -133,11 +132,9 @@ def create_api_connection(
     )
     select_operations(connection, offered(spec), None)
     connection.full_clean()
-    try:
-        with transaction.atomic():
-            connection.save()
-    except IntegrityError:
-        raise ConnectionConflict("This binding already has a connection.") from None
+    with transaction.atomic():
+        connection.save()
+        bind(connection, binding_key)
     return connection
 
 
@@ -160,7 +157,7 @@ def update_api_connection(
     ):
         raise APIError("Enter a new credential to reconnect.")
     if display_name is not None:
-        connection.display_name = display_name.strip() or connection.binding_key
+        connection.display_name = display_name.strip() or connection.display_name
     if base_url is not None:
         cleaned = clean_base_url(base_url)
         connection.endpoint_url = cleaned

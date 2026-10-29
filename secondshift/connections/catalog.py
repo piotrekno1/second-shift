@@ -8,15 +8,15 @@ the owner has not allowed are counted but not named.
 from dataclasses import dataclass, field
 from typing import Any
 
+from secondshift.connections.bindings import BINDING_KINDS
 from secondshift.connections.external import changing_tools
 from secondshift.connections.mcp.github import GITHUB_MCP
 from secondshift.connections.mcp.sentry import SENTRY_MCP
-from secondshift.connections.models import Connection
+from secondshift.connections.models import Connection, ConnectionBinding
 from secondshift.workspaces.models import Workspace
 
 # Descriptions come from third-party servers. Long ones are cut.
 DESCRIPTION_MAX = 500
-BINDING_KINDS = (Connection.Kind.MCP, Connection.Kind.API, Connection.Kind.NOTIFICATION)
 BUILT_IN_PROVIDERS = (GITHUB_MCP, SENTRY_MCP)
 
 
@@ -57,13 +57,13 @@ def catalog_tool(name: str, definition: dict[str, Any], changing: bool) -> Catal
     )
 
 
-def catalog_binding(connection: Connection) -> CatalogBinding:
+def catalog_binding(key: str, connection: Connection) -> CatalogBinding:
     definitions = connection.metadata.get("tools") or {}
     offered = connection.metadata.get("offered_tools") or {}
     allowed = sorted(connection.available_tools)
     changing = set(changing_tools(connection, allowed))
     return CatalogBinding(
-        binding=connection.binding_key,
+        binding=key,
         kind=connection.kind,
         provider=connection.get_provider_display(),
         connected=connection.status == Connection.Status.CONNECTED,
@@ -78,10 +78,12 @@ def catalog_binding(connection: Connection) -> CatalogBinding:
 def workspace_catalog(
     workspace: Workspace,
 ) -> tuple[list[CatalogBinding], list[BuiltInProvider]]:
-    connections = list(
-        Connection.objects.filter(workspace=workspace, kind__in=BINDING_KINDS)
-        .exclude(binding_key="")
-        .order_by("binding_key")
+    bindings = list(
+        ConnectionBinding.objects.filter(
+            workspace=workspace, connection__kind__in=BINDING_KINDS
+        )
+        .select_related("connection")
+        .order_by("key")
     )
     built_ins = [
         BuiltInProvider(
@@ -89,11 +91,13 @@ def workspace_catalog(
             kind=Connection.Kind.MCP,
             tools=list(provider.tools),
             bindings=[
-                connection.binding_key
-                for connection in connections
-                if connection.provider == provider.key
+                binding.key
+                for binding in bindings
+                if binding.connection.provider == provider.key
             ],
         )
         for provider in BUILT_IN_PROVIDERS
     ]
-    return [catalog_binding(connection) for connection in connections], built_ins
+    return [
+        catalog_binding(binding.key, binding.connection) for binding in bindings
+    ], built_ins

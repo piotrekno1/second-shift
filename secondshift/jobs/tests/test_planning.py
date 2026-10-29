@@ -1,5 +1,6 @@
 from django.contrib.auth import get_user_model
 
+from secondshift.connections.bindings import bind
 from secondshift.connections.models import Connection
 from secondshift.jobs.models import CapabilityRequest, Job, JobGrant
 from secondshift.jobs.planning import build_execution_plan
@@ -72,11 +73,11 @@ def test_plan_contains_only_effective_approved_tools(db) -> None:
         workspace=job.workspace,
         provider=Connection.Provider.GITHUB,
         kind=Connection.Kind.MCP,
-        binding_key="observability",
         display_name="Grafana production",
         available_tools=["query_metrics", "delete_dashboard"],
         credential_reference="vault://grafana/production",
     )
+    bind(connection, "observability")
     JobGrant.objects.create(
         capability_request=request,
         connection=connection,
@@ -121,10 +122,10 @@ def test_plan_fails_closed_when_requested_tool_was_not_discovered(db) -> None:
         workspace=job.workspace,
         provider=Connection.Provider.MCP,
         kind=Connection.Kind.MCP,
-        binding_key="observability",
         display_name="Grafana production",
         available_tools=[],
     )
+    bind(connection, "observability")
     JobGrant.objects.create(
         capability_request=request,
         connection=connection,
@@ -150,10 +151,10 @@ def test_plan_fails_closed_for_unsupported_mcp_providers(db) -> None:
         workspace=job.workspace,
         provider=Connection.Provider.API,
         kind=Connection.Kind.MCP,
-        binding_key="observability",
         display_name="Custom server",
         available_tools=["query_metrics"],
     )
+    bind(connection, "observability")
     JobGrant.objects.create(
         capability_request=request,
         connection=connection,

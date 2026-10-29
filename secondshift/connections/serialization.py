@@ -30,7 +30,7 @@ def serialize_connection(
         id=connection.id,
         provider=connection.provider,
         kind=connection.kind,
-        binding_key=connection.binding_key,
+        bindings=connection.binding_keys(),
         display_name=connection.display_name,
         status=connection.status,
         expires_at=connection.expires_at,

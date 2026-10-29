@@ -151,7 +151,7 @@ class JobGrant(models.Model):
             raise ValidationError(
                 "Connection kind must match the requested capability."
             )
-        if request.binding != connection.binding_key:
+        if not connection.serves(request.binding):
             raise ValidationError(
                 "Connection binding must match the requested capability."
             )
