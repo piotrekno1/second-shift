@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import AppIcon from '../components/AppIcon.vue'
-import { computed, nextTick, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Button from 'primevue/button'
 import ModelWarning from '../components/ModelWarning.vue'
@@ -17,6 +17,8 @@ import { useAppStore } from '../stores/app'
 import type { Job, JobDetail, RunLimitUpdate } from '../types'
 import { Action } from '../utils/permissions'
 import { enableBlocker, runWarning } from '../utils/readiness'
+import { renderMarkdown } from '../utils/markdown'
+import { splitFrontmatter } from '../utils/frontmatter'
 import { accessLabel, accessNeedsAction, countLabel, describeCron, formatDate, historyLabel, formatRelative, formatSchedule, formatScheduled, jobState, kindLabel, utcTitle } from '../utils/format'
 
 const route = useRoute()
@@ -44,6 +46,16 @@ const accessSummary = computed(() => {
   return parts.join(' · ')
 })
 const lastRun = computed(() => job.value?.recent_runs[0] ?? null)
+const skillView = ref<'rendered' | 'raw'>('rendered')
+const skillExpanded = ref(false)
+const skillFrame = ref<HTMLElement | null>(null)
+const skillOverflows = ref(false)
+// Short skills fit, so they get no fade and no button.
+watch([skillView, () => job.value?.skill_text], () => {
+  skillOverflows.value = !!skillFrame.value && skillFrame.value.scrollHeight > skillFrame.value.clientHeight + 1
+}, { flush: 'post' })
+const skill = computed(() => splitFrontmatter(job.value?.skill_text ?? ''))
+const renderedSkill = computed(() => renderMarkdown(skill.value.body))
 
 async function loadJob(): Promise<void> {
   try {
@@ -70,10 +82,10 @@ async function saveLimits(values: RunLimitUpdate): Promise<void> {
 
 async function openFromLink(): Promise<void> {
   await loadJob()
-  // The panel exists only after the job loads, so the router cannot scroll to it.
-  if (route.hash === '#limits') {
+  // Panels exist only after the job loads, so the router cannot scroll to them.
+  if (['#limits', '#skill'].includes(route.hash)) {
     await nextTick()
-    document.getElementById('limits')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    document.getElementById(route.hash.slice(1))?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 }
 
@@ -165,6 +177,37 @@ useLiveRefresh(loadJob, () => (job.value?.recent_runs ?? []).some((run) => isRun
             <div v-else class="empty-state compact"><AppIcon name="history" /><strong>No runs yet</strong><span>Use Run now to try the job, or wait for its schedule.</span></div>
           </section>
 
+          <section id="skill" class="panel job-skill-panel">
+            <div class="panel-heading">
+              <div>
+                <h2>Skill</h2>
+                <p class="job-skill-origin">
+                  <a v-if="job.skill_url" :href="job.skill_url" target="_blank" rel="noopener noreferrer" class="job-skill-source" title="Open this file on GitHub at this commit"><code>{{ job.skill_path }}</code> @ <code>{{ job.repository_revision.slice(0, 7) }}</code><AppIcon name="open-in-new" /></a>
+                  <template v-else><code>{{ job.skill_path }}</code> @ <code>{{ job.repository_revision.slice(0, 7) }}</code></template>
+                </p>
+              </div>
+              <div v-if="job.skill_text" class="segmented" role="group" aria-label="Skill view">
+                <button type="button" :class="{ active: skillView === 'rendered' }" :aria-pressed="skillView === 'rendered'" @click="skillView = 'rendered'">Rendered</button>
+                <button type="button" :class="{ active: skillView === 'raw' }" :aria-pressed="skillView === 'raw'" @click="skillView = 'raw'">Raw</button>
+              </div>
+            </div>
+            <template v-if="job.skill_text">
+              <dl v-if="skillView === 'rendered' && skill.fields.length" class="job-skill-fields">
+                <div v-for="field in skill.fields" :key="field.key"><dt>{{ field.key }}</dt><dd>{{ field.value }}</dd></div>
+              </dl>
+              <div ref="skillFrame" class="job-skill-frame" :class="{ expanded: skillExpanded, clipped: skillOverflows && !skillExpanded }">
+                <!-- eslint-disable-next-line vue/no-v-html -- sanitized by renderMarkdown -->
+                <article v-if="skillView === 'rendered'" class="markdown-body job-skill-body" v-html="renderedSkill" />
+                <pre v-else class="run-output job-skill-body">{{ job.skill_text }}</pre>
+              </div>
+              <button v-if="skillOverflows || skillExpanded" type="button" class="job-skill-toggle" :aria-expanded="skillExpanded" @click="skillExpanded = !skillExpanded">
+                <AppIcon :name="skillExpanded ? 'chevron-up' : 'chevron-down'" />{{ skillExpanded ? 'Show less' : 'Show full skill' }}
+              </button>
+              <p v-if="job.skill_truncated" class="job-skill-note">The file is long, so only its start is shown here. Runs read the whole file.</p>
+            </template>
+            <div v-else class="empty-state compact"><AppIcon name="file-code-outline" /><strong>Skill not loaded yet</strong><span>Sync the repository to see the skill here.</span></div>
+          </section>
+
           <section v-if="job.capabilities.length" class="panel job-access-panel">
             <div class="panel-heading">
               <div><h2>Access and connections</h2><p>{{ accessSummary }}</p></div>
@@ -196,7 +239,6 @@ useLiveRefresh(loadJob, () => (job.value?.recent_runs ?? []).some((run) => isRun
           <dl>
             <div><dt>Repository</dt><dd><RouterLink :to="`/repositories/${job.repository_id}`" class="detail-link">{{ job.repository }}</RouterLink></dd></div>
             <div><dt>Defined in</dt><dd><code>.secondshift.yaml</code> → <code>{{ job.key }}</code></dd></div>
-            <div><dt>Skill</dt><dd><code>{{ job.skill_path }}</code></dd></div>
             <div><dt>Schedule</dt><dd v-if="job.cron" :title="job.cron">{{ describeCron(job.cron) }} <span class="run-details-muted">· {{ job.timezone }}</span></dd><dd v-else>Manual only. Start it with Run now.</dd></div>
             <div><dt>Synced commit</dt><dd><code>{{ job.repository_revision.slice(0, 12) }}</code></dd></div>
             <div><dt>History</dt><dd>{{ historyLabel(job.history) }}</dd></div>

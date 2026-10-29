@@ -325,6 +325,27 @@ body .p-select-overlay { color: var(--ink); background: var(--night-800); border
 .markdown-body blockquote { padding-left: 16px; border-left: 3px solid var(--border); color: var(--muted); }
 .markdown-body table { border-collapse: collapse; display: block; overflow-x: auto; }
 .markdown-body th, .markdown-body td { padding: 8px 12px; border: 1px solid var(--border); }
+.job-skill-panel { padding: 24px; margin-bottom: 16px; scroll-margin-top: 16px; }
+.job-skill-panel .panel-heading p { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+.job-skill-fields { display: grid; gap: 6px; margin: 0 0 16px; padding: 12px 16px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; }
+.job-skill-fields div { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 12px; }
+.job-skill-fields dt { color: var(--muted); font-family: var(--font-mono); }
+.job-skill-fields dd { margin: 0; color: var(--ink); }
+.job-skill-frame { max-height: 480px; overflow: hidden; }
+.job-skill-frame.clipped { mask-image: linear-gradient(#000 calc(100% - 72px), transparent); }
+.job-skill-frame.expanded { max-height: none; }
+.job-skill-frame .run-output { max-height: none; }
+.job-skill-body.markdown-body h1 { font-size: 16px; }
+.job-skill-body.markdown-body h2 { font-size: 14px; }
+.job-skill-body.markdown-body h3 { font-size: 13px; }
+.job-skill-toggle { display: inline-flex; align-items: center; gap: 6px; margin-top: 12px; padding: 0; border: 0; background: none; color: var(--muted); font: inherit; font-size: 13px; cursor: pointer; }
+.job-skill-toggle:hover, .job-skill-toggle:focus-visible { color: var(--ink); }
+.job-skill-source { color: var(--muted); text-decoration: none; overflow-wrap: anywhere; }
+.job-skill-source:hover, .job-skill-source:focus-visible { color: var(--ink); text-decoration: underline; text-decoration-color: var(--subtle); text-underline-offset: 3px; }
+.job-skill-origin code { font-size: 12px; }
+.job-skill-source .app-icon { margin-left: 3px; color: var(--subtle); font-size: 11px; vertical-align: -1px; }
+.job-skill-note { margin: 12px 0 0; color: var(--muted); font-size: 13px; }
+.review-skill-link { color: var(--ink); text-decoration: underline; text-decoration-color: var(--subtle); text-underline-offset: 3px; white-space: nowrap; }
 @media (max-width: 720px) {
   .run-file-panel { padding: 16px 16px; }
 }

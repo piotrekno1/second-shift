@@ -78,7 +78,10 @@ def test_edits_in_the_working_folder_are_ignored(
 
     repository = attach_local_repository(workspace, str(root))
 
-    assert repository.jobs.get().name == "Review"
+    job = repository.jobs.get()
+    assert job.name == "Review"
+    # The dashboard shows the committed skill, not the edited one.
+    assert job.skill_text == "# Review"
 
 
 def test_a_repository_follows_its_branch_not_the_checkout(

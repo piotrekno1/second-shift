@@ -1,6 +1,7 @@
 from django.db.models import OuterRef, QuerySet, Subquery
 from django.db.models.functions import Coalesce
 
+from secondshift.config.constants import GITHUB_BASE_URL
 from secondshift.connections.external import changing_tools, external_access
 from secondshift.connections.models import Connection
 from secondshift.gateway.usage import with_model_usage
@@ -14,6 +15,7 @@ from secondshift.jobs.schemas import (
     JobSchema,
     LastRunSchema,
 )
+from secondshift.repositories.models import Repository
 from secondshift.runs.models import Run
 from secondshift.runs.serialization import serialize_run
 from secondshift.workspaces.models import Workspace
@@ -106,6 +108,20 @@ def serialize_job(
     )
 
 
+def skill_url(job: Job) -> str:
+    """The skill file on GitHub at the synced commit, or empty when there is none."""
+    repository = job.repository
+    if (
+        repository.source_type != Repository.SourceType.GITHUB
+        or not repository.config_sha
+    ):
+        return ""
+    return (
+        f"{GITHUB_BASE_URL}/{repository.full_name}/blob/"
+        f"{repository.config_sha}/{job.skill_path}"
+    )
+
+
 def serialize_job_detail(job: Job, can_edit_limits: bool) -> JobDetailSchema:
     summary = serialize_job(job)
     # Aggregation drops Meta.ordering, so order explicitly: newest first.
@@ -119,6 +135,9 @@ def serialize_job_detail(job: Job, can_edit_limits: bool) -> JobDetailSchema:
         history=job.history,
         repository_revision=job.repository.config_sha,
         repository_enabled=job.repository.enabled,
+        skill_text=job.skill_text,
+        skill_truncated=job.skill_truncated,
+        skill_url=skill_url(job),
         recent_runs=[serialize_run(run) for run in recent_runs],
         limits=serialize_limits(limit_views(job.workspace, job)),
         can_edit_limits=can_edit_limits,
