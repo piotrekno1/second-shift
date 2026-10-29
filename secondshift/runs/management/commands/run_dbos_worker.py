@@ -8,6 +8,7 @@ from dbos import DBOS, DBOSClient
 from django.conf import settings
 
 from secondshift.jobs.scheduling import synchronize_schedules
+from secondshift.mcp_server.audit import prune_tool_calls
 from secondshift.repositories.autosync import server_syncs, sync_moved_repositories
 from secondshift.runs.orchestration.dbos_runtime import (
     launch_dbos_worker,
@@ -34,6 +35,7 @@ def worker_tasks(client: DBOSClient) -> list[PeriodicTask]:
 
     def prune() -> None:
         logger.info("pruned %s run(s) past retention", prune_runs(client=client))
+        logger.info("pruned %s MCP tool call(s) past retention", prune_tool_calls())
 
     def repositories() -> None:
         if synced := sync_moved_repositories():

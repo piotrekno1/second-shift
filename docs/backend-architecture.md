@@ -8,7 +8,8 @@
 | `connections` | Connection lifecycle, encrypted credentials, OAuth sign-ins, provider adapters for MCP, HTTP APIs, models and webhooks |
 | `runner` | The isolated service's sandbox sessions, runtime enforcement, command execution, shared protocol and client |
 | `gateway` | Model proxy, run tokens, model usage |
-| `workspaces` | Membership, workspace selection, authorization and workspace settings endpoints |
+| `mcp_server` | The `/mcp` endpoint, MCP tool adapters, tool call audit and rate limit |
+| `workspaces` | Membership, workspace selection, authorization, API tokens and workspace settings endpoints |
 | `core` | Account and application infrastructure, cross-domain dashboard overview |
 
 Each HTTP app uses `api.py` for endpoints, `schemas.py` for its transport
