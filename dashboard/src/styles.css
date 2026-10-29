@@ -340,8 +340,9 @@ body .p-select-overlay { color: var(--ink); background: var(--night-800); border
 .job-skill-body.markdown-body h3 { font-size: 13px; }
 .job-skill-toggle { display: inline-flex; align-items: center; gap: 6px; margin-top: 12px; padding: 0; border: 0; background: none; color: var(--muted); font: inherit; font-size: 13px; cursor: pointer; }
 .job-skill-toggle:hover, .job-skill-toggle:focus-visible { color: var(--ink); }
-.job-skill-source { color: var(--ink); text-decoration: underline; text-decoration-color: var(--subtle); text-underline-offset: 3px; white-space: nowrap; }
-.job-skill-source:hover, .job-skill-source:focus-visible { text-decoration-color: var(--ink); }
+.job-skill-source { color: var(--muted); text-decoration: none; overflow-wrap: anywhere; }
+.job-skill-source:hover, .job-skill-source:focus-visible { color: var(--ink); text-decoration: underline; text-decoration-color: var(--subtle); text-underline-offset: 3px; }
+.job-skill-origin code { font-size: 12px; }
 .job-skill-source .app-icon { margin-left: 3px; color: var(--subtle); font-size: 11px; vertical-align: -1px; }
 .job-skill-note { margin: 12px 0 0; color: var(--muted); font-size: 13px; }
 .review-skill-link { color: var(--ink); text-decoration: underline; text-decoration-color: var(--subtle); text-underline-offset: 3px; white-space: nowrap; }
