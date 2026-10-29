@@ -17,6 +17,7 @@ import { useAppStore } from '../stores/app'
 import type { Job, JobDetail, RunLimitUpdate } from '../types'
 import { Action } from '../utils/permissions'
 import { enableBlocker, runWarning } from '../utils/readiness'
+import { renderMarkdown } from '../utils/markdown'
 import { accessLabel, accessNeedsAction, countLabel, describeCron, formatDate, historyLabel, formatRelative, formatSchedule, formatScheduled, jobState, kindLabel, utcTitle } from '../utils/format'
 
 const route = useRoute()
@@ -44,6 +45,8 @@ const accessSummary = computed(() => {
   return parts.join(' · ')
 })
 const lastRun = computed(() => job.value?.recent_runs[0] ?? null)
+const skillView = ref<'rendered' | 'raw'>('rendered')
+const renderedSkill = computed(() => renderMarkdown(job.value?.skill_text ?? ''))
 
 async function loadJob(): Promise<void> {
   try {
@@ -70,10 +73,10 @@ async function saveLimits(values: RunLimitUpdate): Promise<void> {
 
 async function openFromLink(): Promise<void> {
   await loadJob()
-  // The panel exists only after the job loads, so the router cannot scroll to it.
-  if (route.hash === '#limits') {
+  // Panels exist only after the job loads, so the router cannot scroll to them.
+  if (['#limits', '#skill'].includes(route.hash)) {
     await nextTick()
-    document.getElementById('limits')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    document.getElementById(route.hash.slice(1))?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 }
 
@@ -163,6 +166,23 @@ useLiveRefresh(loadJob, () => (job.value?.recent_runs ?? []).some((run) => isRun
               <RunRow v-for="run in job.recent_runs" :key="run.id" :run="run" :show-job="false" />
             </div>
             <div v-else class="empty-state compact"><AppIcon name="history" /><strong>No runs yet</strong><span>Use Run now to try the job, or wait for its schedule.</span></div>
+          </section>
+
+          <section id="skill" class="panel job-skill-panel">
+            <div class="panel-heading">
+              <div><h2>Skill</h2><p>What the agent follows, from <code>{{ job.skill_path }}</code> at commit <code>{{ job.repository_revision.slice(0, 7) }}</code>.</p></div>
+              <div v-if="job.skill_text" class="segmented" role="group" aria-label="Skill view">
+                <button type="button" :class="{ active: skillView === 'rendered' }" :aria-pressed="skillView === 'rendered'" @click="skillView = 'rendered'">Rendered</button>
+                <button type="button" :class="{ active: skillView === 'raw' }" :aria-pressed="skillView === 'raw'" @click="skillView = 'raw'">Raw</button>
+              </div>
+            </div>
+            <template v-if="job.skill_text">
+              <!-- eslint-disable-next-line vue/no-v-html -- sanitized by renderMarkdown -->
+              <article v-if="skillView === 'rendered'" class="markdown-body job-skill-body" v-html="renderedSkill" />
+              <pre v-else class="run-output job-skill-body">{{ job.skill_text }}</pre>
+              <p v-if="job.skill_truncated" class="job-skill-note">The file is long, so only its start is shown here. Runs read the whole file.</p>
+            </template>
+            <div v-else class="empty-state compact"><AppIcon name="file-code-outline" /><strong>Skill not loaded yet</strong><span>Sync the repository to see the skill here.</span></div>
           </section>
 
           <section v-if="job.capabilities.length" class="panel job-access-panel">
