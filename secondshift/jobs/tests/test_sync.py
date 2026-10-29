@@ -1,12 +1,14 @@
 from pathlib import Path
 
+import pytest
 from django.contrib.auth import get_user_model
 
 from secondshift.config.constants import MAX_SKILL_PREVIEW_CHARS
 from secondshift.connections.models import Connection
-from secondshift.jobs.models import JobGrant
+from secondshift.jobs.manifest import parse_manifest
+from secondshift.jobs.models import CapabilityRequest, Job, JobGrant
 from secondshift.jobs.scheduling import desired_schedules
-from secondshift.jobs.sync import sync_manifest
+from secondshift.jobs.sync import sync_jobs, sync_manifest
 from secondshift.repositories.models import Repository
 from secondshift.workspaces.services import create_workspace
 
@@ -118,3 +120,121 @@ def test_sync_keeps_the_skill_text_for_people_to_read(db, tmp_path: Path) -> Non
     job.refresh_from_db()
     assert len(job.skill_text) == MAX_SKILL_PREVIEW_CHARS
     assert job.skill_truncated is True
+
+
+def sync_text(repository: Repository, text: str) -> list[Job]:
+    return sync_jobs(repository, parse_manifest(text))
+
+
+TWO_JOBS = """
+jobs:
+  review:
+    name: Review
+    skill: .agents/skills/review/SKILL.md
+    schedule: "0 9 * * 1"
+    requires:
+      mcps:
+        - binding: observability
+          tools: [search_dashboards, query_metrics]
+    notify:
+      - binding: alerts
+  digest:
+    name: Digest
+    skill: .agents/skills/digest/SKILL.md
+"""
+
+ONE_JOB_FEWER_TOOLS = """
+jobs:
+  review:
+    name: Review
+    skill: .agents/skills/review/SKILL.md
+    schedule: "0 9 * * 1"
+    requires:
+      mcps:
+        - binding: observability
+          tools: [query_metrics]
+"""
+
+
+@pytest.fixture
+def repository(db: object) -> Repository:
+    user = get_user_model().objects.create_user(username="owner")
+    workspace = create_workspace(name="Test", slug="test", owner=user)
+    Connection.objects.create(
+        workspace=workspace,
+        provider=Connection.Provider.MCP,
+        kind=Connection.Kind.MCP,
+        binding_key="observability",
+        display_name="Grafana",
+    )
+    return Repository.objects.create(workspace=workspace, full_name="example/project")
+
+
+def updated_at(repository: Repository) -> list[object]:
+    jobs = Job.objects.filter(repository=repository)
+    return [
+        *jobs.values_list("updated_at", flat=True),
+        *CapabilityRequest.objects.filter(job__in=jobs).values_list(
+            "updated_at", flat=True
+        ),
+        *JobGrant.objects.filter(capability_request__job__in=jobs).values_list(
+            "updated_at", flat=True
+        ),
+    ]
+
+
+def test_an_unchanged_manifest_saves_no_rows(repository: Repository) -> None:
+    sync_text(repository, TWO_JOBS)
+    before = updated_at(repository)
+
+    sync_text(repository, TWO_JOBS)
+
+    assert updated_at(repository) == before
+
+
+def test_removing_tools_narrows_an_approved_grant(repository: Repository) -> None:
+    sync_text(repository, TWO_JOBS)
+    grant = JobGrant.objects.get(capability_request__binding="observability")
+    assert grant.allowed_tools == ["query_metrics", "search_dashboards"]
+    grant.status = JobGrant.Status.APPROVED
+    grant.save(update_fields=["status"])
+
+    sync_text(repository, ONE_JOB_FEWER_TOOLS)
+
+    grant.refresh_from_db()
+    assert grant.status == JobGrant.Status.APPROVED
+    assert grant.allowed_tools == ["query_metrics"]
+
+
+def test_removed_bindings_are_deleted_and_removed_jobs_disabled(
+    repository: Repository,
+) -> None:
+    review, digest = sync_text(repository, TWO_JOBS)
+    Job.objects.filter(pk=digest.pk).update(enabled=True)
+
+    sync_text(repository, ONE_JOB_FEWER_TOOLS)
+
+    assert list(review.capability_requests.values_list("binding", flat=True)) == [
+        "observability"
+    ]
+    digest.refresh_from_db()
+    assert digest.enabled is False
+
+
+def test_a_connection_added_later_is_granted_on_the_next_sync(
+    repository: Repository,
+) -> None:
+    sync_text(repository, TWO_JOBS)
+    assert not JobGrant.objects.filter(capability_request__binding="alerts").exists()
+    Connection.objects.create(
+        workspace=repository.workspace,
+        provider=Connection.Provider.WEBHOOK,
+        kind=Connection.Kind.NOTIFICATION,
+        binding_key="alerts",
+        display_name="Alerts",
+    )
+
+    sync_text(repository, TWO_JOBS)
+
+    grant = JobGrant.objects.get(capability_request__binding="alerts")
+    assert grant.status == JobGrant.Status.PENDING

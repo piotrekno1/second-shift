@@ -14,11 +14,10 @@ from secondshift.repositories.models import Repository
 pytestmark = pytest.mark.django_db
 
 JOBS = 50
-# Sync runs a few queries for each job and each capability it requests, so
-# the count grows with the manifest. These budgets hold today's cost per job.
-# Lower them when sync starts batching its writes.
-FIRST_SYNC_QUERIES = 49 * JOBS
-RESYNC_QUERIES = 34 * JOBS
+# Sync reads once and writes in bulk, so neither count depends on JOBS.
+FIRST_SYNC_QUERIES = 10
+# An unchanged manifest writes nothing.
+RESYNC_QUERIES = 7
 
 
 @pytest.fixture
