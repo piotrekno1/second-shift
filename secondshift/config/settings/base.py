@@ -182,7 +182,11 @@ if DATABASES["default"]["ENGINE"] == "django.db.backends.sqlite3":
         "transaction_mode": "IMMEDIATE",
         "timeout": 20,
     }
-CACHES = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}
+# Sign-in rate limits and the health check use the cache. Every process must
+# see the same counts, so the default is a table in the application database.
+CACHES = {
+    "default": env.cache_url(AppEnv.CACHE_URL, default="dbcache://secondshift_cache")
+}
 
 DBOS_SYSTEM_DATABASE_URL = sqlalchemy_url(
     env.str(AppEnv.WORKFLOW_DATABASE_URL, default=DATABASE_URL)

@@ -3,6 +3,7 @@
 import pytest
 from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
+from django.core.cache import cache
 from django.db import connection
 from django.db.migrations.loader import MigrationLoader
 from django.test import override_settings
@@ -28,6 +29,18 @@ def test_runner_migrations_do_not_require_control_plane() -> None:
         loader = MigrationLoader(None)
         assert ("runner", "0001_initial") in loader.graph.leaf_nodes()
         assert {app for app, name in loader.graph.nodes} == {"contenttypes", "runner"}
+
+
+@pytest.mark.django_db
+def test_migrate_creates_the_cache_table() -> None:
+    assert "secondshift_cache" in connection.introspection.table_names()
+
+    cache.set("probe", "shared")
+
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT COUNT(*) FROM secondshift_cache")
+        assert cursor.fetchone() == (1,)
+    assert cache.get("probe") == "shared"
 
 
 @pytest.mark.django_db

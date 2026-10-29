@@ -95,6 +95,48 @@ def test_production_loads_with_required_values_and_ignores_dev_flags(
     assert result.stdout.split() == ["False", "False", "False"]
 
 
+def test_cache_defaults_to_the_application_database(tmp_path: Path) -> None:
+    result = load_settings(
+        "secondshift.config.settings.production",
+        tmp_path,
+        SECONDSHIFT_ENV="production",
+        script="print(s.CACHES['default'])",
+        **PRODUCTION_ENV,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "django.core.cache.backends.db.DatabaseCache" in result.stdout
+    assert "secondshift_cache" in result.stdout
+
+
+def test_cache_url_can_point_at_redis(tmp_path: Path) -> None:
+    result = load_settings(
+        "secondshift.config.settings.production",
+        tmp_path,
+        SECONDSHIFT_ENV="production",
+        script="print(s.CACHES['default']['BACKEND'])",
+        **{**PRODUCTION_ENV, "SECONDSHIFT_CACHE_URL": "redis://cache:6379/0"},
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == "django.core.cache.backends.redis.RedisCache"
+
+
+@pytest.mark.parametrize("url", ["locmemcache://", "dummycache://"])
+def test_production_refuses_a_cache_each_process_keeps_alone(
+    tmp_path: Path, url: str
+) -> None:
+    result = load_settings(
+        "secondshift.config.settings.production",
+        tmp_path,
+        SECONDSHIFT_ENV="production",
+        **{**PRODUCTION_ENV, "SECONDSHIFT_CACHE_URL": url},
+    )
+
+    assert result.returncode != 0
+    assert "SECONDSHIFT_CACHE_URL must be shared by every process" in result.stderr
+
+
 def test_dev_defaults_apply_only_in_dev(tmp_path: Path) -> None:
     result = load_settings(
         "secondshift.config.settings.dev", tmp_path, SECONDSHIFT_ENV="dev"
