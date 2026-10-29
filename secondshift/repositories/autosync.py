@@ -22,7 +22,6 @@ from secondshift.repositories.local import (
     branch_revision,
 )
 from secondshift.repositories.models import Repository
-from secondshift.runner.protocol import RunnerProtocolError
 
 logger = logging.getLogger(__name__)
 
@@ -76,7 +75,7 @@ def sync_moved_repositories() -> int:
             attach_local_repository(
                 repository.workspace, repository.local_path, repository.default_branch
             )
-        except (LocalRepositoryError, GitHubAppError, RunnerProtocolError) as error:
+        except (LocalRepositoryError, GitHubAppError) as error:
             # The repository page shows the same problem when opened. Runs
             # keep using the last good sync until it is fixed.
             if repository.source_type == Repository.SourceType.GITHUB:

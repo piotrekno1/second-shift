@@ -12,7 +12,9 @@ import requests
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
 from django.contrib.auth import get_user_model
+from django.db import connection
 from django.test import Client
+from django.utils import timezone
 
 from secondshift.connections.models import Connection
 from secondshift.repositories import autosync, github_app, github_sync
@@ -432,3 +434,71 @@ def test_session_reports_the_github_app_without_calling_github(
     ):
         body = owner_client.get("/api/me").json()
     assert body["github_app_configured"] is True
+
+
+@pytest.fixture
+def github_metadata(monkeypatch: Any) -> None:
+    monkeypatch.setattr(
+        github_sync,
+        "repository_metadata",
+        lambda *args: {"full_name": "owner/project", "default_branch": "main"},
+    )
+
+
+def test_adding_a_repository_syncs_outside_a_transaction(
+    workspace: Any, source_connection: Any, github_metadata: None, monkeypatch: Any
+) -> None:
+    outer = len(connection.atomic_blocks)
+    depths = []
+
+    def sync(repository: Repository) -> Repository:
+        depths.append(len(connection.atomic_blocks))
+        return repository
+
+    monkeypatch.setattr(github_sync, "sync_github_repository", sync)
+
+    github_sync.attach_github_repository(workspace, source_connection, 7, "")
+
+    assert depths == [outer]
+
+
+def test_a_failed_first_sync_removes_the_new_repository(
+    workspace: Any, source_connection: Any, github_metadata: None, monkeypatch: Any
+) -> None:
+    def fail(repository: Repository) -> Repository:
+        raise GitHubAppError("Could not fetch the GitHub repository and branch.")
+
+    monkeypatch.setattr(github_sync, "sync_github_repository", fail)
+
+    with pytest.raises(GitHubAppError):
+        github_sync.attach_github_repository(workspace, source_connection, 7, "")
+
+    assert not Repository.objects.filter(full_name="owner/project").exists()
+
+
+def test_a_failed_sync_leaves_a_readded_repository_removed(
+    workspace: Any, source_connection: Any, github_metadata: None, monkeypatch: Any
+) -> None:
+    removed_at = timezone.now()
+    repository = Repository.objects.create(
+        workspace=workspace,
+        github_connection=source_connection,
+        full_name="owner/project",
+        external_id="7",
+        installation_id="old",
+        default_branch="old-branch",
+        removed_at=removed_at,
+    )
+
+    def fail(repository: Repository) -> Repository:
+        raise GitHubAppError("Could not fetch the GitHub repository and branch.")
+
+    monkeypatch.setattr(github_sync, "sync_github_repository", fail)
+
+    with pytest.raises(GitHubAppError):
+        github_sync.attach_github_repository(workspace, source_connection, 7, "dev")
+
+    repository.refresh_from_db()
+    assert repository.removed_at == removed_at
+    assert repository.installation_id == "old"
+    assert repository.default_branch == "old-branch"

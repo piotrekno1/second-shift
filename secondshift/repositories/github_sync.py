@@ -181,12 +181,47 @@ def available_github_sources(
     return available, errors
 
 
-@transaction.atomic
+# A removed repository that is added again gets these back if its sync fails.
+RESTORED_FIELDS = (
+    "removed_at",
+    "github_connection",
+    "installation_id",
+    "default_branch",
+)
+
+
 def attach_github_repository(
     workspace: Workspace, connection: Connection, repository_id: int, branch: str
 ) -> Repository:
+    """Add a repository, or restore a removed one, then sync it.
+
+    The row is saved first in a short transaction, so the GitHub fetch never
+    holds a database lock. If the first sync fails, the row is put back.
+    """
     metadata = repository_metadata(connection.external_account_id, repository_id)
-    repository, created = Repository.objects.get_or_create(
+    with transaction.atomic():
+        repository, previous = save_attached_repository(
+            workspace, connection, repository_id, branch, metadata
+        )
+    try:
+        return sync_github_repository(repository)
+    except Exception:
+        if previous is None:
+            repository.delete()
+        else:
+            Repository.objects.filter(pk=repository.pk).update(**previous)
+        raise
+
+
+def save_attached_repository(
+    workspace: Workspace,
+    connection: Connection,
+    repository_id: int,
+    branch: str,
+    metadata: dict,
+) -> tuple[Repository, dict | None]:
+    """The new or restored row, and a restored row's earlier values."""
+    repository, created = Repository.objects.select_for_update().get_or_create(
         workspace=workspace,
         full_name=metadata["full_name"],
         defaults={
@@ -198,16 +233,18 @@ def attach_github_repository(
             "default_branch": branch or metadata["default_branch"],
         },
     )
-    if not created:
-        if (
-            repository.removed_at is None
-            or repository.source_type != Repository.SourceType.GITHUB
-            or repository.external_id != str(repository_id)
-        ):
-            raise GitHubRepositoryExistsError("This repository is already connected.")
-        repository.removed_at = None
-        repository.github_connection = connection
-        repository.installation_id = connection.external_account_id
-        repository.default_branch = branch or metadata["default_branch"]
-        repository.save()
-    return sync_github_repository(repository)
+    if created:
+        return repository, None
+    if (
+        repository.removed_at is None
+        or repository.source_type != Repository.SourceType.GITHUB
+        or repository.external_id != str(repository_id)
+    ):
+        raise GitHubRepositoryExistsError("This repository is already connected.")
+    previous = {field: getattr(repository, field) for field in RESTORED_FIELDS}
+    repository.removed_at = None
+    repository.github_connection = connection
+    repository.installation_id = connection.external_account_id
+    repository.default_branch = branch or metadata["default_branch"]
+    repository.save()
+    return repository, previous
