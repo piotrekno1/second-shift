@@ -186,8 +186,11 @@ useLiveRefresh(loadJob, () => (job.value?.recent_runs ?? []).some((run) => isRun
             <div class="panel-heading">
               <div>
                 <h2>Skill</h2>
-                <p>What the agent follows, from <code>{{ job.skill_path }}</code> at commit <code>{{ job.repository_revision.slice(0, 7) }}</code>.</p>
-                <a v-if="job.skill_url" :href="job.skill_url" target="_blank" rel="noopener noreferrer" class="job-skill-source"><AppIcon name="github" />Open on GitHub<AppIcon name="open-in-new" /></a>
+                <p>
+                  What the agent follows, from <code>{{ job.skill_path }}</code> at
+                  <a v-if="job.skill_url" :href="job.skill_url" target="_blank" rel="noopener noreferrer" class="job-skill-source" title="Open this file on GitHub at this commit">commit <code>{{ job.repository_revision.slice(0, 7) }}</code><AppIcon name="open-in-new" /></a>
+                  <template v-else>commit <code>{{ job.repository_revision.slice(0, 7) }}</code></template>.
+                </p>
               </div>
               <div v-if="job.skill_text" class="segmented" role="group" aria-label="Skill view">
                 <button type="button" :class="{ active: skillView === 'rendered' }" :aria-pressed="skillView === 'rendered'" @click="skillView = 'rendered'">Rendered</button>
