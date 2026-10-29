@@ -26,7 +26,7 @@ const expandedJobId = ref<number | null>(Number.isFinite(requestedReview) && req
 const connectionSelections = reactive<Record<number, number>>({})
 const action = ref<string | null>(null)
 const error = ref<string | null>(null)
-const startedRun = ref<{ id: number; job: string } | null>(null)
+const startedRun = ref<{ id: number; job: string; started: boolean } | null>(null)
 const jobsSubtitle = computed(() => {
   const total = app.jobs.length
   if (total === 0) return 'No jobs discovered yet.'
@@ -93,8 +93,10 @@ async function runNow(jobId: number): Promise<void> {
   startedRun.value = null
   try {
     const run = await startJobRun(jobId)
-    // Stay on the list so several jobs can be started; link to the new run.
-    startedRun.value = { id: run.id, job: run.job }
+    // Stay on the list so several jobs can be started. Link to the run, which
+    // is the one still in progress when the job already had one.
+    const job = app.jobs.find((item) => item.id === jobId)?.name ?? 'the job'
+    startedRun.value = { id: run.id, job, started: run.started }
     // The notice covers part of the page, so it goes away on its own.
     window.clearTimeout(noticeTimer)
     noticeTimer = window.setTimeout(() => { startedRun.value = null }, NOTICE_MS)
@@ -185,7 +187,8 @@ async function toggleJob(job: Job): Promise<void> {
     <p v-if="error" class="page-error">{{ error }}</p>
     <p v-if="startedRun" class="page-notice floating" role="status">
       <AppIcon name="play-circle-outline" />
-      <span>Run #{{ startedRun.id }} of {{ startedRun.job }} started.</span>
+      <span v-if="startedRun.started">Run #{{ startedRun.id }} of {{ startedRun.job }} started.</span>
+      <span v-else>Run #{{ startedRun.id }} of {{ startedRun.job }} is still in progress.</span>
       <RouterLink :to="`/runs/${startedRun.id}`" class="detail-link">View run <AppIcon name="arrow-right" /></RouterLink>
       <button type="button" class="page-notice-close" aria-label="Dismiss" @click="startedRun = null"><AppIcon name="close" /></button>
     </p>

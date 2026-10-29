@@ -1,5 +1,12 @@
 export class AuthenticationRequired extends Error {}
 
+/** A refused request. Keeps the status and body for callers that need more than the message. */
+export class ApiError extends Error {
+  constructor(message: string, readonly status: number, readonly payload: unknown = null) {
+    super(message)
+  }
+}
+
 export async function apiGet<T>(path: string): Promise<T> {
   const response = await fetch(`/api${path}`, {
     credentials: 'include',
@@ -61,20 +68,23 @@ const STATUS_MESSAGES: Record<number, string> = {
   429: 'Too many requests. Wait a moment and try again.',
 }
 
-async function responseError(response: Response): Promise<Error> {
+async function responseError(response: Response): Promise<ApiError> {
+  let payload: { detail?: unknown } | null = null
   try {
-    const payload = (await response.json()) as { detail?: unknown }
-    if (Array.isArray(payload.detail) && payload.detail.length) {
-      return new Error([...new Set((payload.detail as FieldProblem[]).map(fieldMessage))].join(' '))
-    }
-    // Django's "Not Found: No Job matches the given query." is less useful than the message below.
-    if (typeof payload.detail === 'string' && payload.detail && !payload.detail.startsWith('Not Found')) return new Error(payload.detail)
+    payload = (await response.json()) as { detail?: unknown }
   } catch {
     // The status messages below cover responses without JSON.
   }
-  if (STATUS_MESSAGES[response.status]) return new Error(STATUS_MESSAGES[response.status])
-  if (response.status >= 500) return new Error('The server had a problem. Try again in a moment.')
-  return new Error(`Request failed with status ${response.status}`)
+  const detail = payload?.detail
+  const fail = (message: string): ApiError => new ApiError(message, response.status, payload)
+  if (Array.isArray(detail) && detail.length) {
+    return fail([...new Set((detail as FieldProblem[]).map(fieldMessage))].join(' '))
+  }
+  // Django's "Not Found: No Job matches the given query." is less useful than the message below.
+  if (typeof detail === 'string' && detail && !detail.startsWith('Not Found')) return fail(detail)
+  if (STATUS_MESSAGES[response.status]) return fail(STATUS_MESSAGES[response.status])
+  if (response.status >= 500) return fail('The server had a problem. Try again in a moment.')
+  return fail(`Request failed with status ${response.status}`)
 }
 
 export async function apiPost<T>(path: string, body?: unknown): Promise<T> {

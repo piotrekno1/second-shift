@@ -1,4 +1,4 @@
-import { apiGet, apiPost, apiText } from './api'
+import { ApiError, apiGet, apiPost, apiText } from './api'
 import type { Run, RunDetail, RunFileName, RunPage, RunQuery } from '../types'
 
 export function runQueryString(query: RunQuery): string {
@@ -23,8 +23,24 @@ export function fetchRun(runId: number): Promise<RunDetail> {
   return apiGet<RunDetail>(`/runs/${runId}`)
 }
 
-export function startJobRun(jobId: number): Promise<Run> {
-  return apiPost<Run>(`/jobs/${jobId}/run`)
+export interface RunStart {
+  id: number
+  /** False when the job already had a run in progress, so no new one was made. */
+  started: boolean
+}
+
+/** Run now. While the job has an unfinished run, that run is returned instead. */
+export async function startJobRun(jobId: number): Promise<RunStart> {
+  try {
+    const run = await apiPost<Run>(`/jobs/${jobId}/run`)
+    return { id: run.id, started: true }
+  } catch (error) {
+    const runId = error instanceof ApiError && error.status === 409
+      ? (error.payload as { run_id?: unknown } | null)?.run_id
+      : undefined
+    if (typeof runId === 'number') return { id: runId, started: false }
+    throw error
+  }
 }
 
 export function isRunActive(status: Run['status']): boolean {

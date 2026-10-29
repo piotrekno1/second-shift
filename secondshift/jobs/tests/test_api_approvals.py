@@ -258,7 +258,7 @@ def test_run_now_works_while_the_schedule_is_off(
     user, _, job = approval_setup
     queued: list[int] = []
     monkeypatch.setattr(
-        "secondshift.runs.api.enqueue_run", lambda run: queued.append(run.pk)
+        "secondshift.runs.services.enqueue_run", lambda run: queued.append(run.pk)
     )
     client.force_login(user)
 
@@ -278,7 +278,7 @@ def test_run_now_needs_an_enabled_repository(
 ) -> None:
     user, _, job = approval_setup
     Repository.objects.filter(pk=job.repository_id).update(enabled=False)
-    monkeypatch.setattr("secondshift.runs.api.enqueue_run", lambda run: None)
+    monkeypatch.setattr("secondshift.runs.services.enqueue_run", lambda run: None)
     client.force_login(user)
 
     response = client.post(f"/api/jobs/{job.pk}/run")
@@ -286,6 +286,56 @@ def test_run_now_needs_an_enabled_repository(
     assert response.status_code == 409
     assert response.json()["detail"] == "Enable the repository before running its jobs."
     assert not Run.objects.filter(job=job).exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("status", Run.ACTIVE_STATUSES)
+def test_run_now_refuses_while_a_run_is_active_and_names_it(
+    client: Client,
+    approval_setup: tuple[AbstractUser, Workspace, Job],
+    monkeypatch: pytest.MonkeyPatch,
+    status: str,
+) -> None:
+    user, _, job = approval_setup
+    queued: list[int] = []
+    monkeypatch.setattr(
+        "secondshift.runs.services.enqueue_run", lambda run: queued.append(run.pk)
+    )
+    client.force_login(user)
+    first = client.post(f"/api/jobs/{job.pk}/run").json()
+    Run.objects.filter(pk=first["id"]).update(status=status)
+
+    response = client.post(f"/api/jobs/{job.pk}/run")
+
+    assert response.status_code == 409
+    assert response.json() == {
+        "detail": "This job already has a queued or running run.",
+        "run_id": first["id"],
+    }
+    assert queued == [first["id"]]
+    assert Run.objects.filter(job=job).count() == 1
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "status", [Run.Status.SUCCEEDED, Run.Status.FAILED, Run.Status.CANCELED]
+)
+def test_run_now_works_again_once_the_last_run_finished(
+    client: Client,
+    approval_setup: tuple[AbstractUser, Workspace, Job],
+    monkeypatch: pytest.MonkeyPatch,
+    status: str,
+) -> None:
+    user, _, job = approval_setup
+    monkeypatch.setattr("secondshift.runs.services.enqueue_run", lambda run: None)
+    client.force_login(user)
+    first = client.post(f"/api/jobs/{job.pk}/run").json()
+    Run.objects.filter(pk=first["id"]).update(status=status)
+
+    response = client.post(f"/api/jobs/{job.pk}/run")
+
+    assert response.status_code == 200
+    assert response.json()["id"] != first["id"]
 
 
 @pytest.mark.django_db

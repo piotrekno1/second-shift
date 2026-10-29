@@ -201,9 +201,10 @@ def test_job_limits_inherit_from_the_workspace(client: Client, job: Job) -> None
 def test_a_created_run_keeps_its_limits(
     client: Client, job: Job, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr("secondshift.runs.api.enqueue_run", lambda run: None)
+    monkeypatch.setattr("secondshift.runs.services.enqueue_run", lambda run: None)
     client.force_login(workspace_owner(job.workspace))
     first = client.post(f"/api/jobs/{job.pk}/run").json()
+    Run.objects.filter(pk=first["id"]).update(status=Run.Status.SUCCEEDED)
 
     post(client, f"/api/jobs/{job.pk}/limits", {"token_budget": 6_000_000})
     second = client.post(f"/api/jobs/{job.pk}/run").json()

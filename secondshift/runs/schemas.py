@@ -93,3 +93,9 @@ class RunPageSchema(Schema):
     page: int
     page_size: int
     status_counts: dict[str, int]
+
+
+class RunInProgressSchema(Schema):
+    detail: str
+    # The run that has not finished yet, so the client can follow it.
+    run_id: int
