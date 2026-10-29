@@ -15,3 +15,6 @@ export type DocsPage = (typeof DocsPage)[keyof typeof DocsPage]
 export function docsUrl(page: DocsPage, section?: string): string {
   return `${DOCS_BASE_URL}/${page}${section ? `#${section}` : ''}`
 }
+
+/** The run report a webhook receives, field by field. */
+export const WEBHOOK_PAYLOAD_DOCS_URL = docsUrl(DocsPage.RepositoryConfiguration, 'webhook-payload')
