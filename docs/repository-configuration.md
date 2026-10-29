@@ -144,6 +144,19 @@ Set it to `false` if a missing notification approval should not block the job.
 Binding names use lowercase letters, numbers, and single dashes. A job cannot
 reuse a binding across its notification, MCP, or API declarations.
 
+### Share a connection between bindings
+
+One connection can serve several bindings. If `engineering-alerts` should go to
+the same channel as `engineering-reports`, choose **Connect** on
+`engineering-alerts` and pick the existing connection under **Use a connection
+you already have**. A changed URL or key then applies to every binding that
+uses the connection.
+
+Each binding still points to one connection. Sharing a connection approves
+nothing: every job that uses the binding still needs its own approval. To
+split a binding off again, choose **Stop serving** in the connection's menu.
+The jobs that used that binding wait for a new connection and approval.
+
 Repository configuration must never contain webhook URLs, secrets, credential
 references, provider endpoints, or OAuth scopes. The workspace owns those
 settings and can revoke access independently.
