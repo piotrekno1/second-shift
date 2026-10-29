@@ -224,6 +224,8 @@ export interface JobDetail extends Job {
   /** The skill file at the synced commit. Empty until the repository syncs again. */
   skill_text: string
   skill_truncated: boolean
+  /** The skill on GitHub at the synced commit. Empty for local repositories. */
+  skill_url: string
   recent_runs: Run[]
   limits: RunLimitItem[]
   can_edit_limits: boolean

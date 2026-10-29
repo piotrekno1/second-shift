@@ -89,6 +89,11 @@ async function openFromLink(): Promise<void> {
   }
 }
 
+function showSkill(): void {
+  document.getElementById('skill')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  void router.replace({ hash: '#skill' })
+}
+
 async function toggleJob(): Promise<void> {
   if (!job.value) return
   action.value = 'toggle'
@@ -179,7 +184,11 @@ useLiveRefresh(loadJob, () => (job.value?.recent_runs ?? []).some((run) => isRun
 
           <section id="skill" class="panel job-skill-panel">
             <div class="panel-heading">
-              <div><h2>Skill</h2><p>What the agent follows, from <code>{{ job.skill_path }}</code> at commit <code>{{ job.repository_revision.slice(0, 7) }}</code>.</p></div>
+              <div>
+                <h2>Skill</h2>
+                <p>What the agent follows, from <code>{{ job.skill_path }}</code> at commit <code>{{ job.repository_revision.slice(0, 7) }}</code>.</p>
+                <a v-if="job.skill_url" :href="job.skill_url" target="_blank" rel="noopener noreferrer" class="job-skill-source"><AppIcon name="github" />Open on GitHub<AppIcon name="open-in-new" /></a>
+              </div>
               <div v-if="job.skill_text" class="segmented" role="group" aria-label="Skill view">
                 <button type="button" :class="{ active: skillView === 'rendered' }" :aria-pressed="skillView === 'rendered'" @click="skillView = 'rendered'">Rendered</button>
                 <button type="button" :class="{ active: skillView === 'raw' }" :aria-pressed="skillView === 'raw'" @click="skillView = 'raw'">Raw</button>
@@ -233,7 +242,7 @@ useLiveRefresh(loadJob, () => (job.value?.recent_runs ?? []).some((run) => isRun
           <dl>
             <div><dt>Repository</dt><dd><RouterLink :to="`/repositories/${job.repository_id}`" class="detail-link">{{ job.repository }}</RouterLink></dd></div>
             <div><dt>Defined in</dt><dd><code>.secondshift.yaml</code> → <code>{{ job.key }}</code></dd></div>
-            <div><dt>Skill</dt><dd><code>{{ job.skill_path }}</code></dd></div>
+            <div><dt>Skill</dt><dd><a href="#skill" class="detail-link" @click.prevent="showSkill"><code>{{ job.skill_path }}</code></a></dd></div>
             <div><dt>Schedule</dt><dd v-if="job.cron" :title="job.cron">{{ describeCron(job.cron) }} <span class="run-details-muted">· {{ job.timezone }}</span></dd><dd v-else>Manual only. Start it with Run now.</dd></div>
             <div><dt>Synced commit</dt><dd><code>{{ job.repository_revision.slice(0, 12) }}</code></dd></div>
             <div><dt>History</dt><dd>{{ historyLabel(job.history) }}</dd></div>

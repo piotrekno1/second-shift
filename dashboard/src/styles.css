@@ -340,6 +340,9 @@ body .p-select-overlay { color: var(--ink); background: var(--night-800); border
 .job-skill-body.markdown-body h3 { font-size: 13px; }
 .job-skill-toggle { display: inline-flex; align-items: center; gap: 6px; margin-top: 12px; padding: 0; border: 0; background: none; color: var(--muted); font: inherit; font-size: 13px; cursor: pointer; }
 .job-skill-toggle:hover, .job-skill-toggle:focus-visible { color: var(--ink); }
+.job-skill-source { display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; color: var(--muted); font-size: 13px; }
+.job-skill-source:hover, .job-skill-source:focus-visible { color: var(--ink); }
+.job-skill-source .app-icon:last-child { font-size: 12px; color: var(--subtle); }
 .job-skill-note { margin: 12px 0 0; color: var(--muted); font-size: 13px; }
 .review-skill-link { color: var(--ink); text-decoration: underline; text-decoration-color: var(--subtle); text-underline-offset: 3px; white-space: nowrap; }
 @media (max-width: 720px) {
