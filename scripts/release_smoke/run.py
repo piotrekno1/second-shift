@@ -14,6 +14,11 @@ It checks two runs:
 - `smoke-failure` is rejected by the fake model with HTTP 401. The run must
   fail with a readable reason, and the failure must reach the webhook too.
 
+It then checks the MCP server with two API tokens. A read token can list jobs
+and check a manifest but cannot start a run. A run token starts
+`smoke-report` again, and the read token reads its report. Missing, unknown
+and revoked tokens are refused.
+
 Needs uv, git and a running Docker. Uses only the standard library, so it
 never imports SecondShift from the checkout.
 """
@@ -48,6 +53,7 @@ FAILURE_SKILL = "smoke-failure"
 START_SECONDS = 240
 RUN_SECONDS = 300
 FINISHED = {"succeeded", "failed", "canceled"}
+MCP_PROTOCOL_VERSION = "2025-06-18"
 
 
 class SmokeFailure(Exception):
@@ -540,6 +546,130 @@ def check_secret_kept(
     log("The provider key reached only the provider.")
 
 
+def mcp_request(
+    base_url: str, token: str, method: str, params: dict[str, Any] | None = None
+) -> tuple[int, dict[str, Any]]:
+    message: dict[str, Any] = {"jsonrpc": "2.0", "id": 1, "method": method}
+    if params is not None:
+        message["params"] = params
+    request = urllib.request.Request(
+        f"{base_url}/mcp", data=json.dumps(message).encode(), method="POST"
+    )
+    request.add_header("Content-Type", "application/json")
+    request.add_header("Accept", "application/json, text/event-stream")
+    request.add_header("MCP-Protocol-Version", MCP_PROTOCOL_VERSION)
+    if token:
+        request.add_header("Authorization", f"Bearer {token}")
+    try:
+        with urllib.request.urlopen(request, timeout=30) as response:
+            status, text = response.status, response.read().decode()
+    except urllib.error.HTTPError as error:
+        status, text = error.code, error.read().decode()
+    # A streamable HTTP server may answer with one server-sent event.
+    events = [line[5:] for line in text.splitlines() if line.startswith("data:")]
+    if events:
+        text = events[0]
+    try:
+        return status, json.loads(text) if text.strip() else {}
+    except json.JSONDecodeError:
+        return status, {"text": text[:500]}
+
+
+def call_tool(
+    base_url: str, token: str, name: str, arguments: dict[str, Any]
+) -> dict[str, Any]:
+    status, body = mcp_request(
+        base_url, token, "tools/call", {"name": name, "arguments": arguments}
+    )
+    check(status == 200, f"The MCP tool {name} answered HTTP {status}: {body}")
+    check("result" in body, f"The MCP tool {name} answered {body}")
+    return body["result"]
+
+
+def create_token(client: Client, workspace_id: int, scope: str) -> dict[str, Any]:
+    token = client.json(
+        "POST",
+        "/api/account/api-tokens",
+        {
+            "workspace_id": workspace_id,
+            "name": f"Smoke {scope}",
+            "scope": scope,
+            "expires_in_days": 1,
+        },
+    )
+    check(token["token"].startswith("ss_"), "An API token does not start with ss_.")
+    return token
+
+
+def check_refused(base_url: str, token: str, label: str) -> None:
+    status, _ = mcp_request(base_url, token, "tools/list")
+    check(status == 401, f"The MCP server answered HTTP {status} to {label}.")
+
+
+def check_mcp(
+    client: Client, job_id: int, manifest: str, marker: str
+) -> dict[str, Any]:
+    base_url = client.base_url
+    workspaces = client.json("GET", "/api/account/api-tokens")["workspaces"]
+    check(workspaces, "The account page lists no workspace for API tokens.")
+    read = create_token(client, workspaces[0]["id"], "read")
+    runner = create_token(client, workspaces[0]["id"], "run")
+    check_refused(base_url, "", "a request without a token")
+    check_refused(base_url, "ss_unknown", "an unknown token")
+
+    status, body = mcp_request(
+        base_url,
+        read["token"],
+        "initialize",
+        {
+            "protocolVersion": MCP_PROTOCOL_VERSION,
+            "capabilities": {},
+            "clientInfo": {"name": "release-smoke", "version": "1"},
+        },
+    )
+    check(status == 200 and "result" in body, f"MCP initialize answered {body}")
+    status, body = mcp_request(base_url, read["token"], "tools/list")
+    tools = {tool["name"] for tool in body.get("result", {}).get("tools", [])}
+    check(
+        {"list_jobs", "check_manifest", "run_job", "get_run_report"} <= tools,
+        f"The MCP server lists {sorted(tools)}.",
+    )
+
+    jobs = call_tool(base_url, read["token"], "list_jobs", {})
+    check("smoke-report" in json.dumps(jobs), "MCP list_jobs misses smoke-report.")
+    checked = call_tool(base_url, read["token"], "check_manifest", {"yaml": manifest})
+    check(
+        (checked.get("structuredContent") or {}).get("valid") is True,
+        f"MCP check_manifest rejected the fixture: {checked}",
+    )
+    denied = call_tool(base_url, read["token"], "run_job", {"job_id": job_id})
+    check(denied.get("isError"), "A read token started a run.")
+    log("MCP: a read token lists jobs and checks a manifest, but cannot run.")
+
+    started = call_tool(base_url, runner["token"], "run_job", {"job_id": job_id})
+    run_id = (started.get("structuredContent") or {}).get("run_id")
+    check(not started.get("isError") and run_id, f"MCP run_job answered {started}")
+    deadline = time.monotonic() + RUN_SECONDS
+    run: dict[str, Any] = {}
+    while time.monotonic() < deadline:
+        result = call_tool(base_url, read["token"], "get_run", {"run_id": run_id})
+        run = (result.get("structuredContent") or {}).get("run") or {}
+        if run.get("status") in FINISHED:
+            break
+        time.sleep(2)
+    check(run.get("status") == "succeeded", f"The MCP run ended as {run}.")
+    report = call_tool(base_url, read["token"], "get_run_report", {"run_id": run_id})
+    report_text = (report.get("structuredContent") or {}).get("report", "")
+    check(marker in report_text, "The MCP run report has no README marker.")
+    log(f"MCP: a run token started run {run_id}. Its report reads back.")
+
+    status, _ = client.raw("DELETE", f"/api/account/api-tokens/{read['id']}")
+    check(status == 204, f"Revoking a token answered HTTP {status}.")
+    check_refused(base_url, read["token"], "a revoked token")
+    log("MCP: missing, unknown and revoked tokens are refused.")
+    return run
+
+
 # Main --------------------------------------------------------------------------
 
 
@@ -602,6 +732,8 @@ def main() -> int:
             check_success(client, recorder, jobs["smoke-report"], marker),
             check_failure(client, recorder, jobs["smoke-failure"]),
         ]
+        manifest = (repository / ".secondshift.yaml").read_text()
+        runs.append(check_mcp(client, jobs["smoke-report"], manifest, marker))
         check_secret_kept(api_key, recorder, runs, root / "data")
         failed = False
         log("Passed.")
