@@ -101,8 +101,10 @@ The release smoke test installs the wheel into a clean environment outside the
 checkout and starts `secondshift up` with its own data folder. A fake model
 and a webhook receiver stand in for real services. It runs one skill that must
 read a file in the sandbox and deliver its report, and one that the fake model
-rejects, which must fail with a readable reason and still notify. On failure
-it keeps the logs in `smoke-diagnostics`. To run it locally, Docker must be
+rejects, which must fail with a readable reason and still notify. It then
+uses the MCP server with a read token and a run token, and checks that
+missing, unknown and revoked tokens are refused. On failure it keeps the logs
+in `smoke-diagnostics`. To run it locally, Docker must be
 running:
 
 ```bash
