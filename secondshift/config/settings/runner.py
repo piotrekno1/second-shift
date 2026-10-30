@@ -61,12 +61,6 @@ DATABASES = {
 RUNNER_SERVICE_TOKEN = env.str(AppEnv.RUNNER_SERVICE_TOKEN, default="")
 RUNNER_IMAGE = env.str(AppEnv.RUNNER_IMAGE, default=DEFAULT_SANDBOX_IMAGE)
 RUNNER_RUNTIME = env.str(AppEnv.RUNNER_RUNTIME, default=SandboxRuntime.GVISOR)
-RUNNER_REPOSITORY_ROOT = Path(
-    env.str(
-        AppEnv.RUNNER_REPOSITORY_ROOT,
-        default=str(RUNNER_WORK_ROOT / "repositories"),
-    )
-).resolve()
 RUNNER_COMMAND_TIMEOUT_SECONDS = env.int(
     "SECONDSHIFT_RUNNER_COMMAND_TIMEOUT_SECONDS", default=120
 )
@@ -110,6 +104,3 @@ if os.geteuid() != 0 and (
 LOGGING = logging_config(
     env.str(AppEnv.LOG_LEVEL, default="INFO").upper(), Service.RUNNER
 )
-
-# Internal credential-free repository bundle imports (64 MiB before base64).
-DATA_UPLOAD_MAX_MEMORY_SIZE = 90 * 1024 * 1024

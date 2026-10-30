@@ -1,4 +1,3 @@
-from typing import Any
 from unittest.mock import Mock
 
 import pytest
@@ -20,6 +19,7 @@ def test_runner_api_requires_service_auth(settings, monkeypatch) -> None:
         "repository": "example/project",
         "commit_sha": "a" * 40,
         "image": settings.RUNNER_IMAGE,
+        "source_sha256": "d" * 64,
     }
 
     denied = Client().post("/v1/sessions", payload, content_type="application/json")
@@ -91,32 +91,3 @@ def test_command_result_is_returned_without_exposing_runner_state(
         "output": "ok",
         "timed_out": False,
     }
-
-
-def test_repository_import_requires_service_auth(
-    settings: Any, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    importer = Mock()
-    monkeypatch.setattr("secondshift.runner.api.import_bundle", importer)
-    payload = {"repository": "owner/project", "commit_sha": "a" * 40, "bundle": ""}
-    assert (
-        Client()
-        .post("/v1/repositories", payload, content_type="application/json")
-        .status_code
-        == 401
-    )
-    response = Client().post(
-        "/v1/repositories",
-        payload,
-        content_type="application/json",
-        HTTP_AUTHORIZATION=f"Bearer {settings.RUNNER_SERVICE_TOKEN}",
-    )
-    assert response.status_code == 204
-    importer.assert_called_once_with("owner/project", "a" * 40, "")
-    response = Client().post(
-        "/v1/repositories",
-        {**payload, "mounts": ["/"]},
-        content_type="application/json",
-        HTTP_AUTHORIZATION=f"Bearer {settings.RUNNER_SERVICE_TOKEN}",
-    )
-    assert response.status_code == 422

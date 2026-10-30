@@ -2,7 +2,6 @@ import json
 import os
 import shutil
 import subprocess
-import tarfile
 import tempfile
 from pathlib import Path
 
@@ -18,6 +17,7 @@ from secondshift.runner.protocol import (
     RunnerProtocolError,
     RunnerSessionSpec,
 )
+from secondshift.runner.sources import sweep_sources, unpack_source
 
 TRUNCATION_MARKER = b"\n[... command output truncated by SecondShift ...]\n"
 
@@ -30,8 +30,8 @@ class DockerRunnerService(RunnerBackend):
     """Container operations and ORM-backed idempotency for the runner service."""
 
     def verify_configuration(self) -> None:
-        for root in (settings.RUNNER_WORK_ROOT, settings.RUNNER_REPOSITORY_ROOT):
-            root.mkdir(parents=True, exist_ok=True, mode=0o700)
+        settings.RUNNER_WORK_ROOT.mkdir(parents=True, exist_ok=True, mode=0o700)
+        sweep_sources()
         self.verify_runtime()
         self.ensure_image()
 
@@ -93,6 +93,7 @@ class DockerRunnerService(RunnerBackend):
                         repository=spec.repository,
                         commit_sha=spec.commit_sha,
                         image=spec.image,
+                        source_sha256=spec.source_sha256,
                         container_name=container_name,
                         workspace_path=str(workspace),
                     )
@@ -116,7 +117,7 @@ class DockerRunnerService(RunnerBackend):
         self.remove_workspace(session_root)
         workspace.mkdir(parents=True, mode=0o700)
         try:
-            self.export_repository(spec, workspace)
+            unpack_source(spec.source_sha256, workspace)
             self.prepare_workspace_permissions(workspace)
             completed = self.run_command(
                 self.create_command(spec, container_name, workspace)
@@ -264,51 +265,17 @@ class DockerRunnerService(RunnerBackend):
             session.repository,
             session.commit_sha,
             session.image,
+            session.source_sha256,
         )
-        requested = (spec.run_id, spec.repository, spec.commit_sha, spec.image)
+        requested = (
+            spec.run_id,
+            spec.repository,
+            spec.commit_sha,
+            spec.image,
+            spec.source_sha256,
+        )
         if recorded != requested:
             raise RunnerProtocolError("The run already has a different session spec.")
-
-    def export_repository(self, spec: RunnerSessionSpec, workspace: Path) -> None:
-        source = (settings.RUNNER_REPOSITORY_ROOT / spec.repository).resolve()
-        if (
-            not source.is_relative_to(settings.RUNNER_REPOSITORY_ROOT)
-            or not source.is_dir()
-        ):
-            raise RunnerProtocolError("The repository is not available to this runner.")
-        archive = workspace.parent / "repository.tar"
-        verified = self.run_command(
-            [
-                "git",
-                "-C",
-                str(source),
-                "cat-file",
-                "-e",
-                f"{spec.commit_sha}^{{commit}}",
-            ],
-            timeout=30,
-        )
-        if verified.returncode:
-            raise RunnerProtocolError("The recorded commit is unavailable.")
-        exported = self.run_command(
-            [
-                "git",
-                "-C",
-                str(source),
-                "archive",
-                "--format=tar",
-                f"--output={archive}",
-                spec.commit_sha,
-            ],
-            timeout=60,
-        )
-        if exported.returncode:
-            raise RunnerProtocolError("The runner could not export the repository.")
-        try:
-            with tarfile.open(archive) as bundle:
-                bundle.extractall(workspace, filter="data")
-        finally:
-            archive.unlink(missing_ok=True)
 
     @staticmethod
     def create_command(

@@ -14,6 +14,7 @@ class RunnerProtocolError(RuntimeError):
 REPOSITORY_NAME = re.compile(r"^[A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)+$")
 COMMIT_SHA = re.compile(r"^[0-9a-f]{40,64}$")
 SESSION_KEY = re.compile(r"^[0-9a-f]{32}$")
+SOURCE_SHA256 = re.compile(r"^[0-9a-f]{64}$")
 
 
 @dataclass(frozen=True)
@@ -23,6 +24,8 @@ class RunnerSessionSpec:
     repository: str
     commit_sha: str
     image: str
+    # The uploaded snapshot of the commit's files the session unpacks.
+    source_sha256: str
 
     def __post_init__(self) -> None:
         if self.run_id < 1:
@@ -37,6 +40,8 @@ class RunnerSessionSpec:
             raise ValueError("commit_sha must be a full lowercase hexadecimal SHA")
         if not self.image.strip():
             raise ValueError("a server-owned image is required")
+        if not SOURCE_SHA256.fullmatch(self.source_sha256):
+            raise ValueError("source_sha256 must be a lowercase SHA-256")
 
     @property
     def session_id(self) -> str:

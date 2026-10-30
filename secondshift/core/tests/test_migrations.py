@@ -27,7 +27,7 @@ def test_runner_migrations_do_not_require_control_plane() -> None:
         INSTALLED_APPS=["django.contrib.contenttypes", "secondshift.runner"]
     ):
         loader = MigrationLoader(None)
-        assert ("runner", "0001_initial") in loader.graph.leaf_nodes()
+        assert "runner" in {app for app, name in loader.graph.leaf_nodes()}
         assert {app for app, name in loader.graph.nodes} == {"contenttypes", "runner"}
 
 

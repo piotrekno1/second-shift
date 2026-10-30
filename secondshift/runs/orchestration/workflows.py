@@ -1,10 +1,8 @@
 import logging
 from datetime import datetime
-from pathlib import Path
 from typing import Any
 
 from dbos import DBOS
-from django.conf import settings
 from django.utils import timezone
 
 from secondshift.config.constants import (
@@ -18,8 +16,8 @@ from secondshift.gateway.tokens import revoke_run_tokens
 from secondshift.jobs.models import Job
 from secondshift.jobs.scheduling import next_occurrence
 from secondshift.repositories.github_sync import github_repository_metadata
-from secondshift.repositories.materialization import materialize_local_repository
 from secondshift.repositories.models import Repository
+from secondshift.repositories.sources import source_snapshot
 from secondshift.runner.client import get_runner_client
 from secondshift.runner.protocol import RunnerSessionSpec
 from secondshift.runs.artifacts import read_output_excerpt
@@ -78,27 +76,27 @@ def record_run_event_step(run_id: int, message: str) -> None:
     RunEvent.objects.create(run_id=run_id, message=message)
 
 
+# The name stays from when this step copied local repositories, so runs that
+# were in flight during an upgrade still replay.
 @DBOS.step(
     name="secondshift.materialize_local_repository",
     retries_allowed=True,
     max_attempts=3,
 )
-def materialize_local_repository_step(run_id: int) -> None:
+def prepare_source_step(run_id: int) -> None:
+    """Build the snapshot of the run's commit, fetching it if needed."""
     run = Run.objects.select_related("job__repository").get(pk=run_id)
     repository = run.job.repository
     if repository.source_type != Repository.SourceType.LOCAL:
+        # Lost access stops the run here, even if the snapshot is cached.
         github_repository_metadata(repository)
-        return
-    if not settings.LOCAL_REPOSITORIES_ENABLED:
-        raise RuntimeError("Local repositories are available only on a single host.")
-    materialize_local_repository(
-        source=Path(repository.local_path),
-        repository_name=str(run.execution_plan["repository"]["full_name"]),
-        commit_sha=run.commit_sha,
-        repository_root=settings.LOCAL_REPOSITORY_MIRROR_ROOT,
-    )
+    snapshot = source_snapshot(repository, run.commit_sha)
     RunEvent.objects.create(
-        run=run, message=f"Checked out the repository at {run.commit_sha[:12]}."
+        run=run,
+        message=(
+            f"Checked out the repository at {run.commit_sha[:12]} "
+            f"({snapshot.size_bytes / (1024 * 1024):.1f} MiB compressed)."
+        ),
     )
 
 
@@ -118,13 +116,17 @@ def start_runner_session_step(run_id: int) -> str:
     repository_plan = plan.get("repository", {})
     if repository_plan.get("config_sha") != run.commit_sha:
         raise RuntimeError("The run commit does not match its execution plan.")
-    session_id = get_runner_client().start(
+    snapshot = source_snapshot(run.job.repository, run.commit_sha)
+    client = get_runner_client()
+    client.upload_source(snapshot.sha256, snapshot.path)
+    session_id = client.start(
         RunnerSessionSpec(
             run_id=run.pk,
             session_key=run.runner_session_key.hex,
             repository=str(repository_plan["full_name"]),
             commit_sha=run.commit_sha,
             image=str(runner_plan["image"]),
+            source_sha256=snapshot.sha256,
         )
     )
     Run.objects.filter(pk=run.pk).update(sandbox_runtime=RunSandbox.ISOLATED_RUNNER)
@@ -264,7 +266,7 @@ def execute_run(run_id: int) -> None:
     try:
         mark_run_started_step(run_id)
         stage = "checkout"
-        materialize_local_repository_step(run_id)
+        prepare_source_step(run_id)
         stage = "sandbox"
         session_id = start_runner_session_step(run_id)
         stage = "skill"

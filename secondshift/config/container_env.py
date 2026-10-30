@@ -77,7 +77,6 @@ def generate_environment(hostname: str, directory: Path) -> None:
             AppEnv.RUNNER_RUNTIME: SandboxRuntime.GVISOR,
             AppEnv.DATA_DIR: str(runner),
             AppEnv.RUNNER_WORK_ROOT: str(runner),
-            AppEnv.RUNNER_REPOSITORY_ROOT: str(runner / "repositories"),
         },
     }
     for role, values in configs.items():

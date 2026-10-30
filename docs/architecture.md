@@ -42,6 +42,41 @@ Run finished -> Worker -> Webhook
 - DBOS checkpoints each turn and deduplicates retried calls. Large output goes
   to private artifact storage.
 
+## Repository data flow
+
+```text
+Control plane (holds the GitHub token)            Runner (no credentials)
+--------------------------------------            -----------------------
+Sync
+  fetch new commits into the repository's mirror
+  read .secondshift.yaml and skills at the commit
+  save the commit as the repository's revision
+
+Run start
+  build a snapshot of the run's commit       HEAD /v1/sources/{sha256}
+  (cached, reused for the same commit)  ---> skip the upload if present
+                                             PUT /v1/sources/{sha256}
+                                        ---> check the bytes match the name
+                                             POST /v1/sessions
+                                        ---> unpack into a new workspace
+                                             start the networkless sandbox
+
+Run end                                      DELETE /v1/sessions/{id}
+                                        ---> remove the sandbox and workspace
+```
+
+- The GitHub token never leaves the control plane. The runner never talks to
+  GitHub.
+- A snapshot is the files of one commit, built from Git objects. It has no Git
+  history. The repository's `.gitattributes` cannot hide or change files in it.
+- The runner keeps no repositories. It deletes snapshots an hour after their
+  last use.
+- The mirror and snapshots are caches on the control plane. Deleting them only
+  costs a fetch from GitHub. A rerun of a commit that a force push removed from
+  GitHub can fail once the cache no longer has it.
+- Local repositories skip the mirror. Their snapshots are built from the folder
+  on disk.
+
 ## Capability and policy boundary
 
 A run receives only tools that are requested by the repository, available on a

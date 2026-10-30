@@ -7,7 +7,6 @@ from secondshift.repositories.local import (
     attach_local_repository,
 )
 from secondshift.repositories.models import Repository
-from secondshift.runner.protocol import RunnerProtocolError
 
 
 class SyncError(Exception):
@@ -22,5 +21,5 @@ def resync(repository: Repository) -> Repository:
         return attach_local_repository(
             repository.workspace, repository.local_path, repository.default_branch
         )
-    except (GitHubAppError, RunnerProtocolError, LocalRepositoryError) as error:
+    except (GitHubAppError, LocalRepositoryError) as error:
         raise SyncError(str(error)) from error

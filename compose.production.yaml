@@ -85,7 +85,6 @@ services:
       SECONDSHIFT_RUNNER_DATABASE_URL: postgres://secondshift_runner:${RUNNER_DATABASE_PASSWORD:?}@postgres:5432/secondshift_runner
       SECONDSHIFT_DATA_DIR: ${RUNNER_ROOT:?Set RUNNER_ROOT to an absolute host path}
       SECONDSHIFT_RUNNER_WORK_ROOT: ${RUNNER_ROOT:?}
-      SECONDSHIFT_RUNNER_REPOSITORY_ROOT: ${RUNNER_ROOT:?}/repositories
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       # The host daemon must see sandbox workspaces at the identical path.

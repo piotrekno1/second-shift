@@ -1,5 +1,5 @@
-import base64
 from dataclasses import asdict
+from pathlib import Path
 
 import requests
 from django.conf import settings
@@ -27,21 +27,23 @@ class HttpRunnerClient(RunnerBackend):
             {"Authorization": f"Bearer {auth_token}", "Accept": "application/json"}
         )
 
-    def import_repository(
-        self, repository: str, commit_sha: str, bundle: bytes
-    ) -> None:
+    def upload_source(self, sha256: str, path: Path) -> None:
+        """Send a run's snapshot as a raw stream, unless the runner has it."""
         try:
-            response = self.session.post(
-                f"{self.base_url}/v1/repositories",
-                json={
-                    "repository": repository,
-                    "commit_sha": commit_sha,
-                    "bundle": base64.b64encode(bundle).decode(),
-                },
-                timeout=180,
+            found = self.session.head(
+                f"{self.base_url}/v1/sources/{sha256}", timeout=self.timeout
             )
+            if found.status_code == 204:
+                return
+            with path.open("rb") as stream:
+                response = self.session.put(
+                    f"{self.base_url}/v1/sources/{sha256}",
+                    data=stream,
+                    headers={"Content-Type": "application/gzip"},
+                    timeout=180,
+                )
         except requests.RequestException as error:
-            raise RunnerProtocolError("Runner repository import failed.") from error
+            raise RunnerProtocolError("Runner source upload failed.") from error
         if response.status_code != 204:
             self.response_payload(response)
 

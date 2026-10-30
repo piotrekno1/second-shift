@@ -18,7 +18,6 @@ def load_runner_settings(
         {
             "SECONDSHIFT_RUNNER_SERVICE_TOKEN": "t" * 32,
             "SECONDSHIFT_RUNNER_IMAGE": "secondshift-runner:test",
-            "SECONDSHIFT_RUNNER_REPOSITORY_ROOT": str(tmp_path),
             "SECONDSHIFT_RUNNER_WORK_ROOT": str(tmp_path / "work"),
             "SECONDSHIFT_DATA_DIR": str(tmp_path / "data"),
             **(extra or {}),
@@ -86,7 +85,7 @@ def test_runner_reads_only_its_token_from_the_data_folder(tmp_path: Path) -> Non
     environment["SECONDSHIFT_DATA_DIR"] = str(tmp_path)
     script = (
         "import os, secondshift.config.settings.runner as s; "
-        "print(s.RUNNER_SERVICE_TOKEN); print(s.RUNNER_REPOSITORY_ROOT); "
+        "print(s.RUNNER_SERVICE_TOKEN); print(s.RUNNER_WORK_ROOT); "
         "print('SECONDSHIFT_ENCRYPTION_KEY' in os.environ)"
     )
     result = subprocess.run(
@@ -100,6 +99,6 @@ def test_runner_reads_only_its_token_from_the_data_folder(tmp_path: Path) -> Non
     assert result.returncode == 0, result.stderr
     assert result.stdout.split() == [
         "r" * 40,
-        str(tmp_path / "runner" / "repositories"),
+        str(tmp_path / "runner"),
         "False",
     ]

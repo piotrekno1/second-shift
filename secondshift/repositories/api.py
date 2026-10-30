@@ -42,7 +42,6 @@ from secondshift.repositories.serialization import (
     validate_repository,
 )
 from secondshift.repositories.sync import SyncError, resync
-from secondshift.runner.protocol import RunnerProtocolError
 from secondshift.workspaces.access import (
     Action,
     current_workspace,
@@ -160,7 +159,7 @@ def create_github_repository(
         )
     except GitHubRepositoryExistsError as error:
         raise HttpError(409, str(error)) from error
-    except (GitHubAppError, RunnerProtocolError) as error:
+    except GitHubAppError as error:
         raise HttpError(422, str(error)) from error
     return serialize_repository(request, repository)
 

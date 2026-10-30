@@ -126,6 +126,7 @@ def test_pydantic_agent_calls_the_runner_backed_tool(monkeypatch) -> None:
             repository="example/project",
             commit_sha="a" * 40,
             image="server-owned:test",
+            source_sha256="d" * 64,
         )
     )
 

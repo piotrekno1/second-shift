@@ -12,15 +12,16 @@ import requests
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
 from django.contrib.auth import get_user_model
+from django.db import connection
 from django.test import Client
+from django.utils import timezone
 
 from secondshift.connections.models import Connection
 from secondshift.repositories import autosync, github_app, github_sync
 from secondshift.repositories.github_app import STATE_KEY, GitHubAppError
+from secondshift.repositories.mirrors import SYNCED_REF, mirror_path
 from secondshift.repositories.models import Repository
 from secondshift.repositories.tests.test_local import create_local_repository, run_git
-from secondshift.runner.protocol import RunnerProtocolError
-from secondshift.runner.repositories import import_bundle
 from secondshift.workspaces.models import WorkspaceMembership
 from secondshift.workspaces.services import create_workspace
 
@@ -179,54 +180,13 @@ def test_available_repositories_enforces_workspace(
     ]
 
 
-def test_bundle_import_pins_commit_without_credentials(
-    tmp_path: Any, settings: Any
-) -> None:
-    source = tmp_path / "source"
-    create_local_repository(source)
-    revision = subprocess.check_output(
-        ["git", "-C", str(source), "rev-parse", "HEAD"], text=True
+def synced_ref(mirror: Path) -> str:
+    return subprocess.check_output(
+        ["git", "-C", str(mirror), "rev-parse", SYNCED_REF], text=True
     ).strip()
-    run_git(source, "branch", "snapshot")
-    bundle = tmp_path / "source.bundle"
-    run_git(source, "bundle", "create", str(bundle), "refs/heads/snapshot")
-    settings.RUNNER_REPOSITORY_ROOT = tmp_path / "store"
-    import_bundle(
-        "owner/project", revision, base64.b64encode(bundle.read_bytes()).decode()
-    )
-    target = settings.RUNNER_REPOSITORY_ROOT / "owner/project"
-    assert (
-        subprocess.check_output(
-            [
-                "git",
-                "-C",
-                str(target),
-                "show",
-                f"{revision}:.agents/skills/review/SKILL.md",
-            ],
-            text=True,
-        ).strip()
-        == "# Review"
-    )
-    assert "remote" not in (target / "config").read_text()
-    with pytest.raises(RunnerProtocolError, match="does not match"):
-        import_bundle(
-            "owner/project", "a" * 40, base64.b64encode(bundle.read_bytes()).decode()
-        )
 
 
-@pytest.mark.parametrize(
-    "name", ["../escape", "owner/..", "/tmp/project", "owner/project/extra"]
-)
-def test_bundle_cannot_choose_host_paths(
-    name: Any, settings: Any, tmp_path: Any
-) -> None:
-    settings.RUNNER_REPOSITORY_ROOT = tmp_path
-    with pytest.raises(RunnerProtocolError):
-        import_bundle(name, "a" * 40, "")
-
-
-def test_sync_fetches_and_publishes_before_advancing_jobs(
+def test_sync_fetches_into_the_mirror_before_advancing_jobs(
     workspace: Any,
     source_connection: Any,
     tmp_path: Any,
@@ -249,8 +209,11 @@ def test_sync_fetches_and_publishes_before_advancing_jobs(
         github_sync, "installation_token", lambda *args: "github-secret"
     )
     original = github_sync.git_fetch
+    reachable = True
 
     def local_fetch(root: Path, token: str, *arguments: str) -> str:
+        if "fetch" in arguments and not reachable:
+            raise GitHubAppError("Could not fetch the GitHub repository and branch.")
         arguments = tuple(
             str(source)
             if argument == "https://github.com/owner/project.git"
@@ -260,21 +223,24 @@ def test_sync_fetches_and_publishes_before_advancing_jobs(
         return original(root, token, *arguments)
 
     monkeypatch.setattr(github_sync, "git_fetch", local_fetch)
-    settings.RUNNER_REPOSITORY_ROOT = tmp_path / "store"
-    runner = Mock()
-    runner.import_repository.side_effect = lambda name, sha, data: import_bundle(
-        name, sha, base64.b64encode(data).decode()
-    )
-    monkeypatch.setattr(github_sync, "get_runner_client", lambda: runner)
+    settings.SOURCE_CACHE_ROOT = tmp_path / "sources"
     synced = github_sync.sync_github_repository(repository)
     assert synced.config_sha
     assert synced.last_synced_at
     assert synced.jobs.get().key == "review"
     assert synced.enabled is False
-    old_revision = synced.config_sha
+    mirror = mirror_path(repository.pk)
+    assert synced_ref(mirror) == synced.config_sha
+    assert "github-secret" not in (mirror / "config").read_text()
+
     run_git(source, "commit", "--allow-empty", "-m", "new commit")
-    runner.import_repository.side_effect = RunnerProtocolError("Unavailable")
-    with pytest.raises(RunnerProtocolError):
+    synced = github_sync.sync_github_repository(synced)
+    assert synced_ref(mirror) == synced.config_sha
+
+    old_revision = synced.config_sha
+    run_git(source, "commit", "--allow-empty", "-m", "unreachable commit")
+    reachable = False
+    with pytest.raises(GitHubAppError):
         github_sync.sync_github_repository(synced)
     synced.refresh_from_db()
     assert synced.config_sha == old_revision
@@ -468,3 +434,71 @@ def test_session_reports_the_github_app_without_calling_github(
     ):
         body = owner_client.get("/api/me").json()
     assert body["github_app_configured"] is True
+
+
+@pytest.fixture
+def github_metadata(monkeypatch: Any) -> None:
+    monkeypatch.setattr(
+        github_sync,
+        "repository_metadata",
+        lambda *args: {"full_name": "owner/project", "default_branch": "main"},
+    )
+
+
+def test_adding_a_repository_syncs_outside_a_transaction(
+    workspace: Any, source_connection: Any, github_metadata: None, monkeypatch: Any
+) -> None:
+    outer = len(connection.atomic_blocks)
+    depths = []
+
+    def sync(repository: Repository) -> Repository:
+        depths.append(len(connection.atomic_blocks))
+        return repository
+
+    monkeypatch.setattr(github_sync, "sync_github_repository", sync)
+
+    github_sync.attach_github_repository(workspace, source_connection, 7, "")
+
+    assert depths == [outer]
+
+
+def test_a_failed_first_sync_removes_the_new_repository(
+    workspace: Any, source_connection: Any, github_metadata: None, monkeypatch: Any
+) -> None:
+    def fail(repository: Repository) -> Repository:
+        raise GitHubAppError("Could not fetch the GitHub repository and branch.")
+
+    monkeypatch.setattr(github_sync, "sync_github_repository", fail)
+
+    with pytest.raises(GitHubAppError):
+        github_sync.attach_github_repository(workspace, source_connection, 7, "")
+
+    assert not Repository.objects.filter(full_name="owner/project").exists()
+
+
+def test_a_failed_sync_leaves_a_readded_repository_removed(
+    workspace: Any, source_connection: Any, github_metadata: None, monkeypatch: Any
+) -> None:
+    removed_at = timezone.now()
+    repository = Repository.objects.create(
+        workspace=workspace,
+        github_connection=source_connection,
+        full_name="owner/project",
+        external_id="7",
+        installation_id="old",
+        default_branch="old-branch",
+        removed_at=removed_at,
+    )
+
+    def fail(repository: Repository) -> Repository:
+        raise GitHubAppError("Could not fetch the GitHub repository and branch.")
+
+    monkeypatch.setattr(github_sync, "sync_github_repository", fail)
+
+    with pytest.raises(GitHubAppError):
+        github_sync.attach_github_repository(workspace, source_connection, 7, "dev")
+
+    repository.refresh_from_db()
+    assert repository.removed_at == removed_at
+    assert repository.installation_id == "old"
+    assert repository.default_branch == "old-branch"

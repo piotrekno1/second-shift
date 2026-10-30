@@ -12,6 +12,7 @@ class SessionInput(StrictSchema):
     repository: str = Field(min_length=3, max_length=300)
     commit_sha: str = Field(min_length=40, max_length=64)
     image: str = Field(min_length=1, max_length=300)
+    source_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
 
 
 class SessionOutput(Schema):
@@ -30,9 +31,3 @@ class CommandOutput(Schema):
     exit_code: int | None
     output: str
     timed_out: bool
-
-
-class RepositoryImportInput(StrictSchema):
-    repository: str = Field(min_length=3, max_length=255)
-    commit_sha: str = Field(pattern=r"^[a-f0-9]{40}$")
-    bundle: str = Field(max_length=90 * 1024 * 1024)

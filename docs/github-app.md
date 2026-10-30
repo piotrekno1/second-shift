@@ -81,8 +81,9 @@ validation. It does not silently replace a working job definition.
 
 SecondShift creates short-lived installation tokens scoped to the repository
 and read-only contents permission. Tokens stay in trusted source-fetching
-processes. The runner receives a credential-free Git bundle. Sandboxes receive
-only the checkout at the run's recorded commit. GitHub's
+processes. When a run starts, the worker sends the runner a snapshot of the
+files at the run's recorded commit. The snapshot holds no Git history and no
+credentials. See [repository data flow](architecture.md#repository-data-flow). GitHub's
 [installation authentication guide](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/authenticating-as-a-github-app-installation)
 describes token permissions and expiry.
 
@@ -92,9 +93,8 @@ validation, or run checkout. Already running sandboxes can finish their pinned
 checkout. Reinstall/re-authorize through **Connect GitHub** to reconnect.
 The GitHub App does not automatically authorize a job's GitHub MCP tools.
 
-This first version uses polling, not webhooks. It fetches the full selected branch
-history on each changed revision and accepts bundles up to 64 MiB. Git LFS objects
-and submodule contents are not downloaded. Repository renames require a new
-import so existing capability approvals cannot silently change scope. Back up
-the runner repository store alongside its database. Restoring only the control
-plane database does not restore the pinned Git objects.
+This first version uses polling, not webhooks. Each sync fetches only new
+commits into a mirror kept by SecondShift. A run's files may be up to 64 MiB
+compressed, 1 GiB unpacked and 200,000 files. Git LFS objects and submodule
+contents are not downloaded. Repository renames require a new import so
+existing capability approvals cannot silently change scope.

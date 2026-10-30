@@ -25,7 +25,8 @@ class AppEnv(StrEnum):
     RUNNER_SERVICE_TOKEN = "SECONDSHIFT_RUNNER_SERVICE_TOKEN"
     MODEL_GATEWAY_URL = "SECONDSHIFT_MODEL_GATEWAY_URL"
     RUNNER_WORK_ROOT = "SECONDSHIFT_RUNNER_WORK_ROOT"
-    RUNNER_REPOSITORY_ROOT = "SECONDSHIFT_RUNNER_REPOSITORY_ROOT"
+    SOURCE_CACHE_ROOT = "SECONDSHIFT_SOURCE_CACHE_ROOT"
+    SOURCE_CACHE_MAX_BYTES = "SECONDSHIFT_SOURCE_CACHE_MAX_BYTES"
 
     SECRET_KEY = "SECONDSHIFT_SECRET_KEY"
     ENCRYPTION_KEY = "SECONDSHIFT_ENCRYPTION_KEY"
@@ -50,7 +51,11 @@ GITHUB_HOST = "github.com"
 GITHUB_BASE_URL = f"https://{GITHUB_HOST}"
 GITHUB_SSH_PREFIX = f"git@{GITHUB_HOST}:"
 GITHUB_REPOSITORY_PATTERN = r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+"
-MAX_REPOSITORY_BUNDLE_BYTES = 64 * 1024 * 1024
+# Limits for the files of one commit that a run gets. The control plane checks
+# them while it builds a snapshot, and the runner checks them again.
+MAX_SOURCE_SNAPSHOT_BYTES = 64 * 1024 * 1024
+MAX_SOURCE_UNPACKED_BYTES = 1024 * 1024 * 1024
+MAX_SOURCE_FILES = 200_000
 GITHUB_MCP_URL = "https://api.githubcopilot.com/mcp/readonly"
 # The model gateway refuses a run past its token budget with this message.
 TOKEN_BUDGET_MESSAGE = "This run has used its token budget."

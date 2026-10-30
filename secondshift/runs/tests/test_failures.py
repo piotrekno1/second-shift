@@ -99,9 +99,7 @@ def test_failed_run_records_stage_events_and_a_clear_summary(db, monkeypatch) ->
     def fail_to_start(run_id: int) -> str:
         raise RetriesExceeded([RunnerProtocolError("Runner answered HTTP 500.")])
 
-    monkeypatch.setattr(
-        workflows, "materialize_local_repository_step", lambda run_id: None
-    )
+    monkeypatch.setattr(workflows, "prepare_source_step", lambda run_id: None)
     monkeypatch.setattr(workflows, "start_runner_session_step", fail_to_start)
     # Outside a real workflow DBOS has no workflow id to record.
     monkeypatch.setattr(workflows, "DBOS", SimpleNamespace(workflow_id="wf-test"))

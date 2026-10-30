@@ -82,7 +82,6 @@ Put these in `runner.env` unless the table names other services:
 | `SECONDSHIFT_RUNNER_ALLOWED_HOSTS` | Comma-separated runner hostnames. Generated value `secondshift-runner`. Separate from the dashboard/gateway hosts. |
 | `SECONDSHIFT_RUNNER_DATABASE_URL` | Optional runner-only database. Defaults to SQLite in the runner work directory. Can use a separate PostgreSQL database/account. |
 | `SECONDSHIFT_RUNNER_WORK_ROOT` | Persistent runner workspace and session directory. The generated absolute path must be mounted at the identical path on the Docker host. |
-| `SECONDSHIFT_RUNNER_REPOSITORY_ROOT` | Runner's Git source store. Defaults to `repositories/` inside its work directory. GitHub imports populate this store with pinned Git objects. Back it up with the runner database. |
 | `SECONDSHIFT_RUNNER_RUNTIME` | Sandbox OCI runtime, not the HTTP server. Use `runsc` in web, worker and runner for production. Gateway does not need it. |
 | `SECONDSHIFT_RUNNER_IMAGE` | Optional command-sandbox image. If overridden, keep the value identical in web, worker and runner. Default is the pinned Python image supplied by SecondShift. |
 | `SECONDSHIFT_RUNNER_SANDBOX_UID`, `SECONDSHIFT_RUNNER_SANDBOX_GID` | Identity inside command sandboxes. Image defaults `10001:10001`. Separate from the runner container's root user. |
@@ -106,11 +105,13 @@ App and configure the callback.
 | `SECONDSHIFT_GITHUB_APP_CLIENT_SECRET` | Generated App client secret. |
 | `SECONDSHIFT_GITHUB_APP_PRIVATE_KEY` | Downloaded PEM contents. Accepts real newlines or literal `\n` escapes. |
 | `SECONDSHIFT_REPOSITORY_SYNC_INTERVAL_SECONDS` | Worker polling interval. Default `300`. Set `0` to disable polling. |
+| `SECONDSHIFT_SOURCE_CACHE_ROOT` | Where web and worker keep each repository's Git mirror and the snapshots runs get. Default `sources/` in the data directory. It is a cache. Deleting it only costs a fetch from GitHub. |
+| `SECONDSHIFT_SOURCE_CACHE_MAX_BYTES` | Size limit for cached snapshots. Default 2 GiB. Past it, the least recently used snapshots are removed. Mirrors are not counted. |
 
-Production rejects partial App configuration. The private runner API must be
-reachable from web and worker. Imports are synchronous: generated role files
-set the web HTTP timeout to 300 seconds and runner to 180 seconds. For a checkout,
-set `SECONDSHIFT_HTTP_TIMEOUT_SECONDS=300` when testing imports and restart
+Production rejects partial App configuration. Adding a repository and
+**Resync** fetch from GitHub during the request. Generated role files set the
+web HTTP timeout to 300 seconds. For a checkout, set
+`SECONDSHIFT_HTTP_TIMEOUT_SECONDS=300` when testing imports and restart
 process-compose to apply it.
 
 ## GitHub sign-in
