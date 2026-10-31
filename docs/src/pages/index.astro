@@ -1,6 +1,14 @@
 ---
 const github = 'https://github.com/piotrekno1/second-shift';
 import demoPoster from '../assets/demo-poster.jpg';
+import githubIcon from '../assets/brands/github.svg';
+import sentryIcon from '../assets/brands/sentry.svg';
+import anthropicIcon from '../assets/brands/anthropic.svg';
+import openRouterIcon from '../assets/brands/openrouter.svg';
+import discordIcon from '../assets/brands/discord.svg';
+import grafanaIcon from '../assets/brands/grafana.svg';
+import datadogIcon from '../assets/brands/datadog.svg';
+import pagerDutyIcon from '../assets/brands/pagerduty.svg';
 ---
 <!doctype html>
 <html lang="en">
@@ -8,7 +16,7 @@ import demoPoster from '../assets/demo-poster.jpg';
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="SecondShift schedules the repository checks your team keeps meaning to run." />
-    <title>SecondShift — give the boring checks a shift</title>
+    <title>SecondShift gives the boring checks a shift</title>
     <style>
       @import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap');
       :root { font-family: Geist, system-ui, sans-serif; background: #131313; color: #ededed; font-synthesis: none; }
@@ -16,25 +24,46 @@ import demoPoster from '../assets/demo-poster.jpg';
       body { min-width: 320px; margin: 0; }
       a { color: inherit; text-decoration: none; }
       .shell { width: min(100% - 48px, 1280px); margin: auto; }
-      header { display: flex; align-items: center; justify-content: space-between; height: 76px; border-bottom: 1px solid #262626; }
-      .brand { display: inline-flex; align-items: center; gap: 10px; font-size: 16px; font-weight: 600; letter-spacing: -.02em; }
-      .brand img { width: 27px; height: 27px; }
-      nav { display: flex; align-items: center; gap: 24px; color: #a3a3a3; font-size: 13px; font-weight: 500; }
-      nav a:hover, .text-link:hover { color: #fff; }
-      .star-link { display: inline-flex; align-items: center; gap: 8px; min-height: 34px; padding: 0 11px; border: 1px solid #343434; border-radius: 6px; color: #d5d5d5; }
-      .star-link:hover { border-color: #777; background: #1c1c1c; }
-      .star-link svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; }
-      .star-count { padding-left: 8px; border-left: 1px solid #343434; font: 11px 'Geist Mono', ui-monospace, monospace; }
+      header { display: flex; align-items: center; justify-content: flex-end; height: 60px; }
+      nav { display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; }
+      nav a { display: inline-flex; align-items: center; min-height: 38px; border-radius: 6px; }
+      .docs-link { padding: 0 15px; color: #ededed; }
+      .docs-link:hover { background: #252525; }
+      .star-link { gap: 8px; padding: 0 12px; border: 1px solid #555; background: #242424; color: #f3f3f3; }
+      .star-link:hover { border-color: #ffb454; background: #303030; }
+      .star-link svg { width: 16px; height: 16px; fill: none; stroke: #ffb454; stroke-width: 1.8; stroke-linejoin: round; }
+      .star-count { padding-left: 8px; border-left: 1px solid #555; color: #ededed; font: 12px 'Geist Mono', ui-monospace, monospace; }
       main { padding: 0 0 56px; }
-      .hero { min-height: min(720px, calc(100svh - 76px)); display: grid; grid-template-columns: minmax(0, .82fr) minmax(0, 1.18fr); align-items: center; gap: clamp(32px, 6vw, 90px); padding: 46px 0; }
+      .hero { min-height: min(720px, calc(100svh - 60px)); display: grid; grid-template-columns: minmax(0, .82fr) minmax(0, 1.18fr); align-items: center; gap: clamp(32px, 6vw, 90px); padding: 46px 0; }
+      .hero-copy { min-width: 0; }
       .label { margin: 0 0 25px; color: #ffb454; font: 11px 'Geist Mono', ui-monospace, monospace; letter-spacing: .06em; }
       h1 { max-width: 570px; margin: 0; font-size: clamp(48px, 5vw, 76px); font-weight: 500; line-height: 1.02; letter-spacing: -.07em; }
+      .hero-wordmark { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; font-size: clamp(25px, 2.4vw, 32px); font-weight: 600; letter-spacing: -.035em; }
+      .hero-wordmark img { width: 34px; height: 34px; flex: none; }
+      .hero-statement { display: block; }
       h1 em { color: #ffb454; font-style: normal; }
       .lead { max-width: 470px; margin: 29px 0 0; color: #b5b5b5; font-size: clamp(16px, 1.45vw, 18px); line-height: 1.6; }
-      .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 22px; margin-top: 32px; }
+      .actions { margin-top: 32px; }
       .button { display: inline-flex; align-items: center; min-height: 44px; padding: 0 17px; border-radius: 8px; background: #ededed; color: #0d0d0d; font-size: 13px; font-weight: 600; }
       .button:hover { background: #fff; }
-      .text-link { color: #c4c4c4; font-size: 13px; font-weight: 500; }
+      .integration-section { padding: 72px 0 96px; border-top: 1px solid #303030; }
+      .integration-intro { margin-bottom: 26px; }
+      .integration-intro h2 { max-width: 620px; margin: 0; font-size: clamp(32px, 4vw, 50px); font-weight: 500; line-height: 1.08; letter-spacing: -.055em; }
+      .integration-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+      .integration-card { display: flex; min-height: 205px; flex-direction: column; padding: 22px; border: 1px solid #303030; border-radius: 9px; background: #191919; transition: transform .2s ease, border-color .2s ease, background .2s ease; }
+      .integration-card:hover { transform: translateY(-4px); border-color: #8f6b3f; background: #202020; }
+      .integration-card:focus-visible { outline: 2px solid #ffb454; outline-offset: 3px; }
+      .integration-icons { display: flex; align-items: center; gap: 14px; min-height: 28px; margin-bottom: 22px; }
+      .integration-icons img { width: 25px; height: 25px; filter: invert(.9); transition: transform .2s ease; }
+      .integration-card:hover .integration-icons img, .integration-card:hover .integration-mark { transform: translateY(-2px); }
+      .integration-mark { display: inline-grid; width: 25px; height: 25px; place-items: center; transition: transform .2s ease; }
+      .openai-mark { color: #ededed; font-size: 26px; }
+      .slack-mark { color: #e87a9d; font-size: 27px; font-weight: 700; }
+      .teams-mark { border-radius: 5px; background: #6868ac; color: #fff; font-size: 16px; font-weight: 700; }
+      .integration-card h3 { margin: 0 0 7px; font-size: 19px; font-weight: 600; letter-spacing: -.025em; }
+      .integration-card p { margin: 0; color: #aaa; font-size: 13px; line-height: 1.55; }
+      .integration-card .card-link { margin-top: auto; padding-top: 20px; color: #ffb454; font-size: 12px; font-weight: 600; }
+      @media (prefers-reduced-motion: reduce) { .integration-card, .integration-icons img, .integration-mark { transition: none; } .integration-card:hover, .integration-card:hover .integration-icons img, .integration-card:hover .integration-mark { transform: none; } }
       .showcase { min-width: 0; transform: rotate(1deg); }
       .showcase video { display: block; width: 100%; aspect-ratio: 16 / 9; border: 1px solid #373737; border-radius: 4px; background: #0d0d0d; object-fit: contain; box-shadow: 18px 20px 0 #222; }
       .example { padding: 54px 0 90px; border-top: 1px solid #303030; }
@@ -50,33 +79,34 @@ import demoPoster from '../assets/demo-poster.jpg';
       .file .key { color: #ffb454; }
       .file .muted { color: #808080; }
       @media (min-width: 1100px) and (min-height: 760px) {
-        main { min-height: calc(100svh - 76px); display: grid; grid-template-rows: minmax(0, 1fr) auto; padding: 0; }
+        main { padding: 0; }
+        .first-screen { min-height: calc(100svh - 60px); display: grid; grid-template-rows: minmax(0, 1fr) auto; }
         .hero { min-height: 0; padding: 14px 0 18px; }
-        h1 { font-size: clamp(46px, 4.25vw, 66px); }
+        h1 { font-size: clamp(46px, 4vw, 62px); }
         .lead { margin-top: 20px; }
-        .actions { margin-top: 26px; }
-        .example { padding: 12px 0 12px; }
+        .actions { margin-top: 20px; }
+        .example { padding: 12px 0 32px; }
         .example-heading { margin-bottom: 9px; }
         .example h2 { font-size: 25px; }
         .file-name { padding: 7px 13px; font-size: 11px; }
         .file pre { padding: 8px 13px 9px; font-size: 11px; line-height: 1.45; }
       }
-      @media (max-width: 900px) { .hero { min-height: 0; grid-template-columns: 1fr; gap: 52px; padding: 70px 0 80px; } h1 { max-width: 760px; font-size: clamp(48px, 8vw, 72px); } .showcase { max-width: 760px; } }
-      @media (max-width: 640px) { .shell { width: min(100% - 36px, 1280px); } header { height: 66px; } nav { gap: 16px; } .hero { gap: 42px; padding: 54px 0 68px; } h1 { font-size: clamp(43px, 11vw, 58px); } .lead { margin-top: 22px; font-size: 16px; } .actions { gap: 18px; } .showcase { transform: none; } .showcase video { box-shadow: 8px 9px 0 #222; } .example { padding: 40px 0 70px; } .example-heading { align-items: start; flex-direction: column; gap: 10px; } .files { grid-template-columns: 1fr; } }
+      @media (max-width: 900px) { .hero { min-height: 0; grid-template-columns: 1fr; gap: 52px; padding: 70px 0 80px; } h1 { max-width: 760px; font-size: clamp(48px, 8vw, 72px); } .showcase { max-width: 760px; } .integration-grid { grid-template-columns: 1fr; } .integration-card { min-height: 170px; } }
+      @media (max-width: 640px) { .shell { width: min(100% - 36px, 1280px); } header { height: 60px; } nav { gap: 16px; } .hero { gap: 42px; padding: 46px 0 68px; } h1 { font-size: clamp(43px, 11vw, 58px); } .hero-wordmark { margin-bottom: 16px; font-size: 25px; } .hero-wordmark img { width: 28px; height: 28px; } .lead { margin-top: 22px; font-size: 16px; } .showcase { transform: none; } .showcase video { box-shadow: 8px 9px 0 #222; } .example { padding: 40px 0 70px; } .example-heading { align-items: start; flex-direction: column; gap: 10px; } .files { grid-template-columns: 1fr; } .integration-section { padding: 54px 0 70px; } }
     </style>
   </head>
   <body>
     <div class="shell">
       <header>
-        <a class="brand" href="/"><img src="/secondshift-mark.svg" alt="" />SecondShift</a>
-        <nav><a href="/docs/overview/">Docs</a><a class="star-link" href={github} target="_blank" rel="noopener noreferrer" aria-label="Star SecondShift on GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2.5 2.9 6 6.6 1-4.8 4.7 1.1 6.7-5.8-3.1-5.8 3.1 1.1-6.7-4.8-4.7 6.6-1z"/></svg><span>Star</span><span class="star-count" id="star-count" hidden></span></a></nav>
+        <nav><a class="docs-link" href="/docs/overview/">Docs</a><a class="star-link" href={github} target="_blank" rel="noopener noreferrer" aria-label="Star SecondShift on GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2.5 2.9 6 6.6 1-4.8 4.7 1.1 6.7-5.8-3.1-5.8 3.1 1.1-6.7-4.8-4.7 6.6-1z"/></svg><span>Star</span><span class="star-count" id="star-count" hidden></span></a></nav>
       </header>
       <main>
+        <div class="first-screen">
         <div class="hero">
           <div class="hero-copy">
-            <h1>Give the boring checks <em>a shift.</em></h1>
+            <h1><span class="hero-wordmark"><img src="/secondshift-mark.svg" alt="" />SecondShift</span><span class="hero-statement">gives the boring checks <em>a shift.</em></span></h1>
             <p class="lead">Put the agent skills you already use on a schedule. Let SecondShift do the work.</p>
-            <div class="actions"><a class="button" href="/docs/quickstart/">Try it locally →</a><a class="text-link" href="/docs/overview/">Read the docs →</a></div>
+            <div class="actions"><a class="button" href="/docs/quickstart/">Run it locally →</a></div>
           </div>
           <div class="showcase">
             <video controls playsinline preload="metadata" poster={demoPoster.src} aria-label="SecondShift product demo">
@@ -87,7 +117,7 @@ import demoPoster from '../assets/demo-poster.jpg';
         </div>
         <section class="example" aria-labelledby="example-title">
           <div class="example-heading">
-            <h2 id="example-title">Two files. One weekly check.</h2>
+            <h2 id="example-title">Simplest example</h2>
             <a href="/docs/repository-configuration/">How jobs work →</a>
           </div>
           <div class="files">
@@ -115,6 +145,32 @@ Do not modify files.</code></pre>
     <span class="key">schedule:</span> "0 8 * * 1"
     <span class="key">timezone:</span> UTC</code></pre>
             </div>
+          </div>
+        </section>
+        </div>
+        <section class="integration-section" aria-labelledby="integrations-title">
+          <div class="integration-intro">
+            <h2 id="integrations-title">The stack you already have, on shift.</h2>
+          </div>
+          <div class="integration-grid">
+            <a class="integration-card" href="/docs/quickstart/">
+              <div class="integration-icons" aria-hidden="true"><span class="integration-mark openai-mark">✳</span><img src={anthropicIcon.src} alt="" /><img src={openRouterIcon.src} alt="" /></div>
+              <h3>Your model</h3>
+              <p>OpenAI, Anthropic, OpenRouter, or an OpenAI-compatible gateway.</p>
+              <span class="card-link">Connect a model →</span>
+            </a>
+            <a class="integration-card" href="/docs/repository-configuration/#mcp-and-api-declarations">
+              <div class="integration-icons" aria-hidden="true"><img src={githubIcon.src} alt="" /><img src={sentryIcon.src} alt="" /><img src={grafanaIcon.src} alt="" /><img src={datadogIcon.src} alt="" /><img src={pagerDutyIcon.src} alt="" /></div>
+              <h3>Your tools</h3>
+              <p>GitHub and Sentry built in. Connect Grafana, Datadog, PagerDuty, and more through MCP or HTTP APIs.</p>
+              <span class="card-link">Connect tools →</span>
+            </a>
+            <a class="integration-card" href="/docs/repository-configuration/#deliver-reports-to-a-webhook">
+              <div class="integration-icons" aria-hidden="true"><span class="integration-mark slack-mark">#</span><img src={discordIcon.src} alt="" /><span class="integration-mark teams-mark">T</span></div>
+              <h3>Your team</h3>
+              <p>Send reports to Slack or Discord. Route them to Teams or elsewhere with a webhook flow.</p>
+              <span class="card-link">Set up delivery →</span>
+            </a>
           </div>
         </section>
       </main>
