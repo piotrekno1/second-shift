@@ -6,18 +6,57 @@
 [![CI](https://github.com/piotrekno1/second-shift/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/piotrekno1/second-shift/actions/workflows/ci.yml?query=branch%3Amain)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
 
-**Recurring engineering tasks, managed by your team.**
+**Give recurring engineering work a shift.**
 
-SecondShift lets engineering teams schedule AI tasks across their repositories:
-investigate CI failures, check release readiness, and find documentation drift.
+Write skills with the coding agent you already use. Commit them alongside your
+code. SecondShift runs them on a schedule, with approved service access,
+execution limits, and a shared history of results and costs.
 
-Keep procedures in Git, approve the tools each task can use, and set token limits
-for every run. Your team shares the results, execution history, and model costs.
+Investigate CI failures every morning. Review release readiness every Friday.
+Deliver a weekly report on production errors. Your team reviews the procedure
+in Git and controls what each job can access.
 
 Open source, self-hosted, and currently in beta. Use your choice of model provider.
 
-[Website and docs](https://second-shift.app/) · [Watch the demo](#see-it-in-action) ·
-[Try it locally](#try-it-locally) · [Use it with your team](#use-it-with-your-team)
+[Try it locally](#try-it-locally) · [Deploy for your team](#use-it-with-your-team) ·
+[Watch the demo](#see-it-in-action) · [Website and docs](https://second-shift.app/)
+
+## From a developer's task to a team's recurring workflow
+
+```mermaid
+flowchart LR
+    A[Write a skill in your coding agent] --> B[Review and merge through Git]
+    B --> C[Approve access in SecondShift]
+    C --> D[Enable a schedule]
+    D --> E[Run and deliver results]
+```
+
+**Developers use their existing tools.** Author skills in Codex, Claude Code,
+OpenCode, or another coding agent. Connect that agent to SecondShift
+[over MCP](https://second-shift.app/docs/mcp/) to discover available service
+tools, validate job configuration, and inspect jobs and reports.
+
+**Workspace owners and admins use the dashboard.** Owners configure model
+providers and service connections and approve each job's requested access.
+Admins set run limits, enable schedules, and follow execution history.
+
+**SecondShift executes the scheduled work.** Each run uses SecondShift's
+execution agent and an isolated sandbox. External service calls pass through
+the job's approved connections. Runs record the Git revision, tool activity,
+report, and model cost.
+
+## Run it for yourself or your team
+
+**On your computer:** install SecondShift locally, connect a model, and schedule
+skills from local repositories. You author the skills and manage their access.
+
+**On your server:** provide a shared installation where contributors propose
+skills through Git, owners approve service access, and admins manage scheduled
+jobs.
+
+A committed skill requests capabilities; it cannot grant itself credentials or
+expand its approved access. Changes that request additional capabilities require
+renewed approval.
 
 ## Why use SecondShift?
 

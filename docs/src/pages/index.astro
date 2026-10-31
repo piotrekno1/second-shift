@@ -3,7 +3,7 @@ const github = 'https://github.com/piotrekno1/second-shift';
 const site = 'https://second-shift.app/';
 const shareImage = new URL(shareImageAsset.src, site).href;
 const title = 'SecondShift gives the boring checks a shift';
-const description = 'Put the agent skills you already use on a schedule. Open source and self-hosted.';
+const description = 'Write skills with your coding agent. SecondShift runs them on a schedule with approved service access, execution limits, and shared results. Open source and self-hosted.';
 import demoPoster from '../assets/demo-poster.jpg';
 import shareImageAsset from '../assets/og.png';
 import githubIcon from '../assets/brands/github.svg';
@@ -93,16 +93,40 @@ const stackRows = [
       .star-link svg { width: 16px; height: 16px; fill: none; stroke: #ffb454; stroke-width: 1.8; stroke-linejoin: round; }
       .star-count { padding-left: 8px; border-left: 1px solid #555; color: #ededed; font: 12px 'Geist Mono', ui-monospace, monospace; }
       main { padding: 0 0 56px; }
-      .hero { min-height: min(720px, calc(100svh - 60px)); display: grid; grid-template-columns: minmax(0, .82fr) minmax(0, 1.18fr); align-items: center; gap: clamp(32px, 6vw, 90px); padding: 46px 0; }
+      .hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); align-items: center; gap: clamp(30px, 5vw, 64px); padding: 30px 0 36px; }
       .hero-copy { min-width: 0; }
       .label { margin: 0 0 25px; color: #ffb454; font: 11px 'Geist Mono', ui-monospace, monospace; letter-spacing: .06em; }
-      h1 { max-width: 570px; margin: 0; font-size: clamp(48px, 5vw, 76px); font-weight: 500; line-height: 1.02; letter-spacing: -.07em; }
+      h1 { max-width: 570px; margin: 0; font-size: clamp(42px, 4.2vw, 60px); font-weight: 500; line-height: 1.02; letter-spacing: -.07em; }
       .hero-wordmark { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; font-size: clamp(25px, 2.4vw, 32px); font-weight: 600; letter-spacing: -.035em; }
       .hero-wordmark img { width: 34px; height: 34px; flex: none; }
       .hero-statement { display: block; }
       h1 em { color: #ffb454; font-style: normal; }
-      .lead { max-width: 470px; margin: 29px 0 0; color: #b5b5b5; font-size: clamp(16px, 1.45vw, 18px); line-height: 1.6; }
-      .actions { margin-top: 32px; }
+      .lead { max-width: 470px; margin: 18px 0 0; color: #b5b5b5; font-size: 16px; line-height: 1.6; }
+      .actions { margin-top: 22px; display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+      .secondary-action { font-size: 13px; color: #ededed; }
+      .secondary-action:hover { color: #ffb454; }
+      .workflow { padding: 28px 0; border-top: 1px solid #303030; }
+      .workflow h2 { margin: 0 0 8px; font-size: 25px; font-weight: 500; letter-spacing: -.035em; }
+      .workflow h3 { margin: 16px 0 10px; font-size: 23px; font-weight: 500; }
+      .workflow p { margin: 0 0 12px; color: #b5b5b5; font-size: 14px; line-height: 1.65; }
+      .workflow a, .setup-strip a { color: #ffb454; font-size: 13px; }
+      .workflow a:hover, .setup-strip a:hover { text-decoration: underline; }
+      .workflow-intro { margin-bottom: 20px !important; }
+      .workflow-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); list-style: none; padding: 0; margin: 0; gap: 30px; }
+      .workflow-steps li { position: relative; min-width: 0; padding: 12px 0 4px; border-top: 1px solid #45413a; display: flex; flex-direction: column; }
+      .step-top { display: flex; align-items: center; gap: 10px; }
+      .step-number { color: #ffb454; font-size: 13px; font-weight: 500; font-variant-numeric: tabular-nums; }
+      .step-label { color: #b5b5b5; font-size: 13px; font-weight: 400; }
+      .workflow-steps h3 { margin: 12px 0 8px; font-size: 21px; }
+      .workflow-steps li > a, .step-links { margin-top: auto; padding-top: 4px; }
+      .step-links { display: flex; flex-wrap: wrap; gap: 6px 16px; }
+      @media (max-width: 700px) {
+        .workflow-steps { grid-template-columns: 1fr; gap: 18px; }
+        .workflow h2 { font-size: 23px; }
+      }
+      .setup-strip { display: flex; flex-wrap: wrap; gap: 8px 28px; padding: 18px 0; border-top: 1px solid #303030; color: #b5b5b5; font-size: 13px; line-height: 1.6; }
+      .setup-strip p { margin: 0; }
+      .setup-strip strong { color: #ededed; font-weight: 500; }
       .button { display: inline-flex; align-items: center; min-height: 44px; padding: 0 17px; border-radius: 8px; background: #ededed; color: #0d0d0d; font-size: 13px; font-weight: 600; }
       .button:hover { background: #fff; }
       .stack-strip { display: flex; align-items: center; gap: 22px; min-width: 0; padding: 0 0 14px; }
@@ -138,9 +162,9 @@ const stackRows = [
       }
       .showcase { min-width: 0; transform: rotate(1deg); }
       .showcase video { display: block; width: 100%; aspect-ratio: 16 / 9; border: 1px solid #373737; border-radius: 4px; background: #0d0d0d; object-fit: contain; box-shadow: 18px 20px 0 #222; }
-      .example { padding: 54px 0 90px; border-top: 1px solid #303030; }
-      .example-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 24px; margin-bottom: 28px; }
-      .example h2 { margin: 0; font-size: clamp(26px, 3vw, 38px); font-weight: 500; letter-spacing: -.045em; }
+      .example { padding: 24px 0 32px; border-top: 1px solid #303030; }
+      .example-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 24px; margin-bottom: 16px; }
+      .example h2 { margin: 0; font-size: 25px; font-weight: 500; letter-spacing: -.045em; }
       .example-heading a { color: #a3a3a3; font-size: 13px; white-space: nowrap; }
       .example-heading a:hover { color: #ededed; }
       .files { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
@@ -150,40 +174,25 @@ const stackRows = [
       .file pre { margin: 0; padding: 19px 18px 23px; overflow-x: auto; color: #d0d0d0; font: 12px/1.8 'Geist Mono', ui-monospace, monospace; tab-size: 2; }
       .file .key { color: #ffb454; }
       .file .muted { color: #808080; }
-      @media (min-width: 1100px) and (min-height: 760px) {
-        main { padding: 0; }
-        .first-screen { min-height: calc(100svh - 60px); display: grid; grid-template-rows: minmax(0, 1fr) auto auto; }
-        .hero { min-height: 0; padding: 14px 0 18px; }
-        .showcase { width: 100%; max-width: 600px; justify-self: end; }
-        h1 { font-size: clamp(46px, 4vw, 62px); }
-        .lead { margin-top: 20px; }
-        .actions { margin-top: 20px; }
-        .example { padding: 12px 0 32px; }
-        .example-heading { margin-bottom: 9px; }
-        .example h2 { font-size: 25px; }
-        .file-name { padding: 7px 13px; font-size: 11px; }
-        .file pre { padding: 8px 13px 9px; font-size: 11px; line-height: 1.45; }
+      @media (min-width: 1600px) { .shell { width: min(100% - 96px, 1440px); } }
+      @media (max-width: 900px) { .hero { gap: 30px; } h1 { font-size: 44px; } }
+      @media (max-width: 700px) {
+        .shell { width: calc(100% - 36px); }
+        .hero { grid-template-columns: 1fr; gap: 26px; padding: 24px 0 32px; }
+        h1 { font-size: clamp(38px, 9vw, 48px); }
+        .hero-wordmark { font-size: 24px; margin-bottom: 14px; }
+        .hero-wordmark img { width: 28px; height: 28px; }
+        .lead { margin-top: 16px; }
+        .showcase { transform: none; }
+        .showcase video { box-shadow: 6px 7px 0 #222; }
+        .stack-strip { gap: 8px; }
+        .stack-row { gap: 8px; padding: 0 4px; }
+        .stack-kind { width: 51px; font-size: 11px; }
+        .stack-brands { gap: 12px; }
+        .stack-brand-name { display: none; }
+        .example-heading { align-items: start; flex-direction: column; gap: 10px; }
+        .files { grid-template-columns: 1fr; }
       }
-      @media (min-width: 1600px) {
-        .shell { width: min(100% - 96px, 1440px); }
-      }
-      /* Large laptops are wide but short. Grow the hero only on tall monitors. */
-      @media (min-width: 1600px) and (min-height: 1100px) {
-        .hero { grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); }
-        .showcase { max-width: 800px; }
-        h1 { font-size: 72px; }
-        .lead { max-width: 520px; font-size: 19px; }
-        main { display: flex; min-height: calc(100svh - 60px); flex-direction: column; justify-content: center; padding-bottom: 60px; }
-        .first-screen { min-height: 0; }
-        .hero { padding: 40px 0 56px; }
-        .example { padding: 24px 0 64px; }
-        .example h2 { font-size: 30px; }
-        .example-heading { margin-bottom: 18px; }
-        .file-name { padding: 11px 16px; font-size: 12px; }
-        .file pre { padding: 16px 16px 20px; font-size: 13px; line-height: 1.7; }
-      }
-      @media (max-width: 900px) { .hero { min-height: 0; grid-template-columns: 1fr; gap: 52px; padding: 70px 0 80px; } h1 { max-width: 760px; font-size: clamp(48px, 8vw, 72px); } .showcase { max-width: 760px; } }
-      @media (max-width: 640px) { .shell { width: min(100% - 36px, 1280px); } header { height: 60px; } nav { gap: 16px; } .hero { gap: 42px; padding: 46px 0 68px; } h1 { font-size: clamp(43px, 11vw, 58px); } .hero-wordmark { margin-bottom: 16px; font-size: 25px; } .hero-wordmark img { width: 28px; height: 28px; } .lead { margin-top: 22px; font-size: 16px; } .showcase { transform: none; } .showcase video { box-shadow: 8px 9px 0 #222; } .stack-strip { gap: 8px; } .stack-row { gap: 8px; padding: 0 4px; } .stack-kind { width: 51px; font-size: 11px; } .stack-brands { gap: 12px; } .stack-brand-name { display: none; } .stack-arrow { font-size: 14px; } .example { padding: 40px 0 70px; } .example-heading { align-items: start; flex-direction: column; gap: 10px; } .files { grid-template-columns: 1fr; } }
     </style>
   </head>
   <body>
@@ -196,8 +205,8 @@ const stackRows = [
         <div class="hero">
           <div class="hero-copy">
             <h1><span class="hero-wordmark"><img src="/secondshift-mark.svg" alt="" />SecondShift</span><span class="hero-statement">gives the boring checks <em>a shift.</em></span></h1>
-            <p class="lead">Put the agent skills you already use on a schedule. Let SecondShift do the work.</p>
-            <div class="actions"><a class="button" href="/docs/quickstart/">Run it locally →</a></div>
+            <p class="lead">Write skills with your coding agent. Commit them to Git. SecondShift runs them on a schedule with approved access, execution limits, and shared results.</p>
+            <div class="actions"><a class="button" href="/docs/quickstart/">Try it locally →</a><a class="secondary-action" href="/docs/production-deployment/">Deploy for your team →</a></div>
           </div>
           <div class="showcase">
             <video controls playsinline preload="metadata" poster={demoPoster.src} aria-label="SecondShift product demo">
@@ -205,6 +214,7 @@ const stackRows = [
               <a href="https://github.com/user-attachments/assets/0a9a7baa-f79e-4934-af81-8e5374e9cdbf">Watch the product demo</a>
             </video>
           </div>
+        </div>
         </div>
         <div class="stack-strip" aria-label="Services that work with SecondShift">
           <span class="stack-intro">Works with</span>
@@ -228,6 +238,34 @@ const stackRows = [
               ))}
             </div>
           </div>
+        </div>
+        <section class="workflow" aria-labelledby="workflow-title">
+          <h2 id="workflow-title">Turn your skills into your team’s heartbeat.</h2>
+          <p class="workflow-intro">Schedule the checks, reviews, and reports that keep your team running.</p>
+          <ol class="workflow-steps" aria-label="How a skill becomes a scheduled job">
+            <li>
+              <div class="step-top"><span class="step-number">01</span><span class="step-label">Developers</span></div>
+              <h3>Write a skill.</h3>
+              <p>Use Codex, Claude Code, or OpenCode. Connect to SecondShift over MCP to discover allowed tools and validate your configuration. Review and merge in Git.</p>
+              <a href="/docs/mcp/">Connect your coding agent →</a>
+            </li>
+            <li>
+              <div class="step-top"><span class="step-number">02</span><span class="step-label">Owners &amp; admins</span></div>
+              <h3>Approve its access.</h3>
+              <p>Owners connect models and services and approve job access. Admins set limits and enable schedules. Skills cannot expand their own permissions.</p>
+              <div class="step-links"><a href="/docs/self-hosting/#who-controls-what">Roles and permissions →</a><a href="/docs/security-model/">Security model →</a></div>
+            </li>
+            <li>
+              <div class="step-top"><span class="step-number">03</span><span class="step-label">SecondShift</span></div>
+              <h3>Run on schedule.</h3>
+              <p>SecondShift runs the skill in an isolated sandbox with approved tools. Reports reach your team, with shared run history, tool activity, and costs.</p>
+              <a href="/docs/architecture/">How execution works →</a>
+            </li>
+          </ol>
+        </section>
+        <div class="setup-strip" aria-label="Deployment options">
+          <p><strong>For yourself:</strong> run locally and manage your own skills. <a href="/docs/quickstart/">Try it locally →</a></p>
+          <p><strong>For your team:</strong> share a server, approvals, and run history. <a href="/docs/production-deployment/">Deploy →</a></p>
         </div>
         <section class="example" aria-labelledby="example-title">
           <div class="example-heading">
@@ -261,7 +299,6 @@ Do not modify files.</code></pre>
             </div>
           </div>
         </section>
-        </div>
       </main>
     </div>
     <script>
