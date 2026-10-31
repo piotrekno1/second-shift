@@ -25,21 +25,21 @@ const stackRows = [
   { label: 'Models', href: '/docs/self-hosting/#model-providers', brands: [
     { name: 'OpenAI', icon: openAiIcon.src, color: '#ededed' },
     { name: 'Anthropic', icon: anthropicIcon.src, color: '#ededed' },
-    { name: 'OpenRouter', icon: openRouterIcon.src, color: '#94a3b8' },
+    { name: 'OpenRouter', icon: openRouterIcon.src, color: '#ededed' },
     { name: 'Fireworks', icon: fireworksIcon.src, color: '#9b6bff' },
     { name: 'Together AI', icon: togetherIcon.src, color: '#3d8bff' },
-    { name: 'Baseten', icon: basetenIcon.src, color: '#ededed' },
+    { name: 'Baseten', icon: basetenIcon.src, color: '#19e76e' },
   ] },
   { label: 'Tools', href: '/docs/repository-configuration/#mcp-and-api-declarations', brands: [
     { name: 'GitHub', icon: githubIcon.src, color: '#ededed' },
     { name: 'Sentry', icon: sentryIcon.src, color: '#9b83c2' },
-    { name: 'Grafana', icon: grafanaIcon.src, color: '#f46800' },
+    { name: 'Grafana', icon: grafanaIcon.src, color: 'linear-gradient(#fbca0a, #f46800)' },
     { name: 'Datadog', icon: datadogIcon.src, color: '#9d73db' },
     { name: 'PagerDuty', icon: pagerDutyIcon.src, color: '#06ac38' },
     { name: 'WildEdge', icon: wildEdgeIcon.src, color: '#00b78b', wide: true },
   ] },
   { label: 'Delivery', href: '/docs/repository-configuration/#deliver-reports-to-a-webhook', brands: [
-    { name: 'Slack', icon: slackIcon.src, color: '#e01e5a' },
+    { name: 'Slack', icon: slackIcon.src, fullColor: true },
     { name: 'Discord', icon: discordIcon.src, color: '#5865f2' },
     { name: 'Teams', icon: teamsIcon.src, color: '#7b83eb' },
   ] },
@@ -121,6 +121,7 @@ const stackRows = [
       .stack-brand { display: inline-flex; align-items: center; gap: 6px; color: #bdbdbd; font-size: 12px; white-space: nowrap; }
       .stack-brand-icon { width: 18px; height: 18px; flex: none; background: var(--brand-color); -webkit-mask: var(--icon-url) center / contain no-repeat; mask: var(--icon-url) center / contain no-repeat; }
       .stack-brand-icon.wide { width: 25px; }
+      .stack-brand-icon.full-color { background: none; -webkit-mask: none; mask: none; }
       .stack-arrow { margin-left: auto; color: #999; font-size: 17px; }
       .stack-row:hover .stack-arrow { color: #ffb454; }
       @keyframes stack-scroll {
@@ -215,7 +216,9 @@ const stackRows = [
                   <span class="stack-brands">
                     {row.brands.map((brand) => (
                       <span class="stack-brand" role="img" aria-label={brand.name}>
-                        <span class:list={['stack-brand-icon', { wide: brand.wide }]} style={`--brand-color: ${brand.color}; --icon-url: url(${brand.icon})`} aria-hidden="true"></span>
+                        {brand.fullColor
+                          ? <img class="stack-brand-icon full-color" src={brand.icon} alt="" aria-hidden="true" />
+                          : <span class:list={['stack-brand-icon', { wide: brand.wide }]} style={`--brand-color: ${brand.color}; --icon-url: url(${brand.icon})`} aria-hidden="true"></span>}
                         <span class="stack-brand-name">{brand.name}</span>
                       </span>
                     ))}
