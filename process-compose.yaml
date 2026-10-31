@@ -93,3 +93,8 @@ processes:
     depends_on:
       backend:
         condition: process_started
+
+  docs:
+    description: Public landing page and documentation at http://127.0.0.1:4321
+    command: npm run dev
+    working_dir: docs
