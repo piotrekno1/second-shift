@@ -1,10 +1,11 @@
 ---
 const github = 'https://github.com/piotrekno1/second-shift';
 const site = 'https://second-shift.app/';
-const shareImage = new URL('/og.png', site).href;
+const shareImage = new URL(shareImageAsset.src, site).href;
 const title = 'SecondShift gives the boring checks a shift';
 const description = 'Put the agent skills you already use on a schedule. Open source and self-hosted.';
 import demoPoster from '../assets/demo-poster.jpg';
+import shareImageAsset from '../assets/og.png';
 import githubIcon from '../assets/brands/github.svg';
 import sentryIcon from '../assets/brands/sentry.svg';
 import anthropicIcon from '../assets/brands/anthropic.svg';
@@ -58,6 +59,8 @@ const stackRows = [
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:image" content={shareImage} />
+    <meta property="og:image:secure_url" content={shareImage} />
+    <meta property="og:image:type" content="image/png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content="SecondShift gives the boring checks a shift." />
@@ -65,6 +68,12 @@ const stackRows = [
     <meta name="twitter:title" content={title} />
     <meta name="twitter:description" content={description} />
     <meta name="twitter:image" content={shareImage} />
+    <meta name="twitter:label1" content="License" />
+    <meta name="twitter:data1" content="Apache 2.0, open source" />
+    <meta name="twitter:label2" content="Runs on" />
+    <meta name="twitter:data2" content="Your own server" />
+    <meta property="og:locale" content="en_US" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <title>{title}</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <style>
