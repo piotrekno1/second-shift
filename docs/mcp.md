@@ -9,6 +9,9 @@ grant access. Approvals, connections and secrets stay in the dashboard.
 
 ![API tokens on the account page](screenshots/07-api-tokens.png)
 
+For a guided example from drafting a skill to reading its first report, follow
+[Put your first skill on duty](first-scheduled-skill.md).
+
 ## Connect a client
 
 1. Open the account menu and choose **API tokens**.

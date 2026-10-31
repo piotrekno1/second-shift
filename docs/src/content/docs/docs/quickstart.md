@@ -31,4 +31,4 @@ git clone https://github.com/piotrekno1/second-shift.git
 3. Open **Documentation drift** in **Jobs** and select **Run now**.
 4. Open the finished run to see its report, activity, and model cost.
 
-Model usage may incur charges. For local sign-in and upgrade details, see [self-hosting](/docs/self-hosting/#local-trial). To add your own task, continue with [Add a task](/docs/engineering-tasks/).
+Model usage may incur charges. For local sign-in and upgrade details, see [self-hosting](/docs/self-hosting/#local-trial). To put a skill on duty with your coding agent, continue with [the walkthrough](/docs/first-scheduled-skill/).

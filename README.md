@@ -58,6 +58,10 @@ A committed skill requests capabilities; it cannot grant itself credentials or
 expand its approved access. Changes that request additional capabilities require
 renewed approval.
 
+Follow [Put your first skill on duty](https://second-shift.app/docs/first-scheduled-skill/)
+for a walkthrough with your coding agent, a small example repository, and your
+first scheduled documentation review.
+
 ## Why use SecondShift?
 
 | Your team's problem | How SecondShift helps |
