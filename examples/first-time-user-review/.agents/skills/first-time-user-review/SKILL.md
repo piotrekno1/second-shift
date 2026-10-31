@@ -49,14 +49,26 @@ Run the users one at a time, in this order, and keep each walk short. If the
 run limits stop the review early, report the users you finished and name the
 ones you skipped.
 
+## Start each user from the same state
+
+If an approved tool resets the app's test data or signs in the test account,
+use it before each user. Otherwise start each user from the app's first page,
+and say in the report that the app was not reset between users. The breaker
+goes last so its leftovers do not affect the others.
+
 ## How to record a problem
 
-For each problem, note the page address, what the user did, what they expected,
-and what happened. Take a screenshot with the browser tool when it shows the
-problem, and note its file name. Check the browser console and failed network
-requests when something looks broken.
+For each problem, note the page address, the numbered steps from the first page,
+what the user expected, and what happened. Take a screenshot with the browser
+tool when it shows the problem, and note the file name the tool returns. Check
+the browser console and failed network requests when something looks broken.
 
-Report something only when you saw it happen. Judge severity by the user:
+Report something only when you saw it happen. Before you call a problem a
+blocker or major, repeat its steps once. If it does not happen again, or it
+came from a timeout or connection error, list it under flaky results with the
+failed request and its status. Do not rank it.
+
+Judge severity by the user:
 
 - **Blocker:** the user cannot reach the first success.
 - **Major:** they reach it, but only after a wrong turn, a guess or a workaround.
@@ -68,11 +80,15 @@ Keep the report under 800 words.
 
 - **Ranked problems:** merge problems that more than one user hit. Rank by how
   many users hit each one, then by severity. For each, give the count and which
-  users, the severity, the page, what happened, and the screenshot name.
+  users, the severity, the page, the steps to reproduce, what happened, and the
+  screenshot name.
+- **Flaky results:** problems that did not happen again, with the failed
+  request and status. Leave this out if there were none.
 - **First success:** for each user, whether they reached it and in how many
   steps.
 - **Working well:** up to three things that helped new users.
 - **Coverage:** the address and window sizes used, pages visited, users
-  skipped, and anything the browser tools could not check.
+  skipped, whether the app was reset between users, and anything the browser
+  tools could not check.
 
 Return the report. The host handles configured notification delivery.
