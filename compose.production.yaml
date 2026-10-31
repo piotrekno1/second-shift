@@ -2,7 +2,7 @@
 name: secondshift
 
 x-application: &application
-  image: ${SECONDSHIFT_IMAGE:-ghcr.io/piotrekno1/second-shift:0.1.0b3}
+  image: ${SECONDSHIFT_IMAGE:-ghcr.io/piotrekno1/second-shift:0.1.0b4}
   restart: unless-stopped
 
 x-artifacts: &artifacts
