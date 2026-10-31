@@ -1,0 +1,21 @@
+version: 1
+jobs:
+  first-time-user-review:
+    name: First-time user review
+    skill: .agents/skills/first-time-user-review/SKILL.md
+    # No schedule: run it before a release, or add one once the report is useful.
+    requires:
+      mcps:
+        # Tool names from Playwright MCP. Use your browser server's own names.
+        - binding: browser
+          tools:
+            - browser_navigate
+            - browser_navigate_back
+            - browser_snapshot
+            - browser_click
+            - browser_type
+            - browser_press_key
+            - browser_resize
+            - browser_take_screenshot
+            - browser_console_messages
+            - browser_network_requests
