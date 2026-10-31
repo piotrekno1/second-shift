@@ -13,6 +13,7 @@ import discordIcon from '../assets/brands/discord.svg';
 import grafanaIcon from '../assets/brands/grafana.svg';
 import datadogIcon from '../assets/brands/datadog.svg';
 import pagerDutyIcon from '../assets/brands/pagerduty.svg';
+import wildEdgeIcon from '../assets/brands/wildedge.svg';
 import openAiIcon from '../assets/brands/openai.svg';
 import slackIcon from '../assets/brands/slack.svg';
 import teamsIcon from '../assets/brands/microsoftteams.svg';
@@ -34,6 +35,7 @@ const stackRows = [
     { name: 'Grafana', icon: grafanaIcon.src, color: '#f46800' },
     { name: 'Datadog', icon: datadogIcon.src, color: '#9d73db' },
     { name: 'PagerDuty', icon: pagerDutyIcon.src, color: '#06ac38' },
+    { name: 'WildEdge', icon: wildEdgeIcon.src, color: '#00b78b', wide: true },
   ] },
   { label: 'Delivery', href: '/docs/repository-configuration/#deliver-reports-to-a-webhook', brands: [
     { name: 'Slack', icon: slackIcon.src, color: '#e01e5a' },
@@ -109,6 +111,7 @@ const stackRows = [
       .stack-brands { display: flex; align-items: center; gap: 18px; min-width: 0; }
       .stack-brand { display: inline-flex; align-items: center; gap: 6px; color: #bdbdbd; font-size: 12px; white-space: nowrap; }
       .stack-brand-icon { width: 18px; height: 18px; flex: none; background: var(--brand-color); -webkit-mask: var(--icon-url) center / contain no-repeat; mask: var(--icon-url) center / contain no-repeat; }
+      .stack-brand-icon.wide { width: 25px; }
       .stack-arrow { margin-left: auto; color: #999; font-size: 17px; }
       .stack-row:hover .stack-arrow { color: #ffb454; }
       @keyframes stack-scroll {
@@ -202,7 +205,7 @@ const stackRows = [
                   <span class="stack-brands">
                     {row.brands.map((brand) => (
                       <span class="stack-brand" role="img" aria-label={brand.name}>
-                        <span class="stack-brand-icon" style={`--brand-color: ${brand.color}; --icon-url: url(${brand.icon})`} aria-hidden="true"></span>
+                        <span class:list={['stack-brand-icon', { wide: brand.wide }]} style={`--brand-color: ${brand.color}; --icon-url: url(${brand.icon})`} aria-hidden="true"></span>
                         <span class="stack-brand-name">{brand.name}</span>
                       </span>
                     ))}
