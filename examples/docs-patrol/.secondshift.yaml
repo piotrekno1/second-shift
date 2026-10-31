@@ -1,0 +1,7 @@
+version: 1
+jobs:
+  docs-patrol:
+    name: Monday docs patrol
+    skill: .agents/skills/docs-patrol/SKILL.md
+    schedule: "0 9 * * 1"
+    timezone: Europe/Warsaw

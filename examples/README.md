@@ -17,6 +17,13 @@ Individual examples provide service-specific setup and suggested cadences.
 Skills are grouped by the role that usually owns them. Many are useful to
 more than one team.
 
+## Learn the workflow
+
+[Put your first skill on duty](../docs/first-scheduled-skill.md) walks through
+MCP setup, a Git review, a manual run, and scheduling. Its Lunchroom fixture is
+in `docs-patrol/`. That fixture deliberately contains a stale README command
+and link; it is separate from the reusable production skills below.
+
 ## Developers and code health
 
 | Skill | What it does | Data needed |

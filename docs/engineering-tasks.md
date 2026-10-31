@@ -2,6 +2,10 @@
 
 [README](../README.md) · [Repository configuration](repository-configuration.md)
 
+For a complete first run with your coding agent, follow
+[Put your first skill on duty](first-scheduled-skill.md). It includes a small
+repository, MCP prompts, and the handoff to the dashboard.
+
 SecondShift executes tasks defined by repository skills. A task can investigate
 code, produce a briefing, or change connected service data through explicitly
 approved MCP tools or HTTP API operations.
