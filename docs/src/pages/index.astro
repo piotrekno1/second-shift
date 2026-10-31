@@ -9,9 +9,12 @@ import discordIcon from '../assets/brands/discord.svg';
 import grafanaIcon from '../assets/brands/grafana.svg';
 import datadogIcon from '../assets/brands/datadog.svg';
 import pagerDutyIcon from '../assets/brands/pagerduty.svg';
+import openAiIcon from '../assets/brands/openai.svg';
+import slackIcon from '../assets/brands/slack.svg';
+import teamsIcon from '../assets/brands/microsoftteams.svg';
 const stackRows = [
   { label: 'Models', href: '/docs/quickstart/', brands: [
-    { name: 'OpenAI', mark: '✳', markClass: 'openai-mark' },
+    { name: 'OpenAI', icon: openAiIcon.src, color: '#ededed' },
     { name: 'Anthropic', icon: anthropicIcon.src, color: '#ededed' },
     { name: 'OpenRouter', icon: openRouterIcon.src, color: '#94a3b8' },
   ] },
@@ -23,9 +26,9 @@ const stackRows = [
     { name: 'PagerDuty', icon: pagerDutyIcon.src, color: '#06ac38' },
   ] },
   { label: 'Delivery', href: '/docs/repository-configuration/#deliver-reports-to-a-webhook', brands: [
-    { name: 'Slack', mark: '#', markClass: 'slack-mark' },
-    { name: 'Discord', icon: discordIcon.src },
-    { name: 'Teams', mark: 'T', markClass: 'teams-mark' },
+    { name: 'Slack', icon: slackIcon.src, color: '#e01e5a' },
+    { name: 'Discord', icon: discordIcon.src, color: '#5865f2' },
+    { name: 'Teams', icon: teamsIcon.src, color: '#7b83eb' },
   ] },
 ];
 ---
@@ -82,10 +85,6 @@ const stackRows = [
       .stack-brands { display: flex; align-items: center; gap: 18px; min-width: 0; }
       .stack-brand { display: inline-flex; align-items: center; gap: 6px; color: #bdbdbd; font-size: 12px; white-space: nowrap; }
       .stack-brand-icon { width: 18px; height: 18px; flex: none; background: var(--brand-color); -webkit-mask: var(--icon-url) center / contain no-repeat; mask: var(--icon-url) center / contain no-repeat; }
-      .stack-mark { display: inline-grid; width: 18px; height: 18px; place-items: center; }
-      .openai-mark { color: #ededed; font-size: 19px; }
-      .slack-mark { color: #e01e5a; font-size: 20px; font-weight: 700; }
-      .teams-mark { border-radius: 4px; background: #6264a7; color: #fff; font-size: 11px; font-weight: 700; }
       .stack-arrow { margin-left: auto; color: #999; font-size: 17px; }
       .stack-row:hover .stack-arrow { color: #ffb454; }
       @keyframes stack-scroll {
@@ -162,7 +161,7 @@ const stackRows = [
                   <span class="stack-brands">
                     {row.brands.map((brand) => (
                       <span class="stack-brand" role="img" aria-label={brand.name}>
-                        {brand.icon ? <span class="stack-brand-icon" style={`--brand-color: ${brand.color}; --icon-url: url(${brand.icon})`} aria-hidden="true"></span> : <span class:list={['stack-mark', brand.markClass]} aria-hidden="true">{brand.mark}</span>}
+                        <span class="stack-brand-icon" style={`--brand-color: ${brand.color}; --icon-url: url(${brand.icon})`} aria-hidden="true"></span>
                         <span class="stack-brand-name">{brand.name}</span>
                       </span>
                     ))}
