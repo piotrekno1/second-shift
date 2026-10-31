@@ -38,6 +38,13 @@ dependencies = [
     "whitenoise>=6.11.0",
 ]
 
+[project.urls]
+Homepage = "https://second-shift.app/"
+Documentation = "https://second-shift.app/docs/overview/"
+Repository = "https://github.com/piotrekno1/second-shift"
+Issues = "https://github.com/piotrekno1/second-shift/issues"
+Changelog = "https://github.com/piotrekno1/second-shift/releases"
+
 [project.scripts]
 secondshift = "secondshift.cli:main"
 

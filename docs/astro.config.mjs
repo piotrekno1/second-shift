@@ -2,6 +2,7 @@ import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 
 export default defineConfig({
+  site: 'https://second-shift.app',
   integrations: [starlight({
     title: 'SecondShift',
     customCss: ['./src/styles/docs.css'],
