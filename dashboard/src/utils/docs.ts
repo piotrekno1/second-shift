@@ -1,19 +1,18 @@
-/** Where the user guide lives. Pages are Markdown files in the repository. */
-export const DOCS_BASE_URL = 'https://github.com/piotrekno1/second-shift/blob/main/docs'
+/** Where the user guide lives. */
+export const DOCS_BASE_URL = 'https://second-shift.app/docs'
 
 /** The guide's starting point, which links to every page. */
-export const DOCS_HOME_URL = 'https://github.com/piotrekno1/second-shift#readme'
+export const DOCS_HOME_URL = `${DOCS_BASE_URL}/overview/`
 
 export const DocsPage = {
-  DataHandling: 'data-handling.md',
-  RepositoryConfiguration: 'repository-configuration.md',
-  SecurityModel: 'security-model.md',
+  RepositoryConfiguration: 'repository-configuration',
+  SecurityModel: 'security-model',
 } as const
 export type DocsPage = (typeof DocsPage)[keyof typeof DocsPage]
 
 /** A docs page, with an optional section anchor. */
 export function docsUrl(page: DocsPage, section?: string): string {
-  return `${DOCS_BASE_URL}/${page}${section ? `#${section}` : ''}`
+  return `${DOCS_BASE_URL}/${page}/${section ? `#${section}` : ''}`
 }
 
 /** The run report a webhook receives, field by field. */
