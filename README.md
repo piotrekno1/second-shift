@@ -8,164 +8,102 @@
 
 **Give recurring engineering work a shift.**
 
-Write skills with the coding agent you already use. Commit them alongside your
-code. SecondShift runs them on a schedule, with approved service access,
-execution limits, and a shared history of results and costs.
+Commit an agent skill next to your code. SecondShift runs it on a schedule in a
+sandbox, with only the access your team approved, and keeps every report and
+its cost.
 
-Investigate CI failures every morning. Review release readiness every Friday.
-Deliver a weekly report on production errors. Your team reviews the procedure
-in Git and controls what each job can access.
+Open source, self-hosted, and in beta. Bring your own model provider.
 
-Open source, self-hosted, and currently in beta. Use your choice of model provider.
-
-[Try it locally](#try-it-locally) · [Deploy for your team](#use-it-with-your-team) ·
-[Watch the demo](#see-it-in-action) · [Website and docs](https://second-shift.app/)
-
-## From a developer's task to a team's recurring workflow
-
-```mermaid
-flowchart LR
-    A[Write a skill in your coding agent] --> B[Review and merge through Git]
-    B --> C[Approve access in SecondShift]
-    C --> D[Enable a schedule]
-    D --> E[Run and deliver results]
-```
-
-**Developers use their existing tools.** Author skills in Codex, Claude Code,
-OpenCode, or another coding agent. Connect that agent to SecondShift
-[over MCP](https://second-shift.app/docs/mcp/) to discover available service
-tools, validate job configuration, and inspect jobs and reports.
-
-**Workspace owners and admins use the dashboard.** Owners configure model
-providers and service connections and approve each job's requested access.
-Admins set run limits, enable schedules, and follow execution history.
-
-**SecondShift executes the scheduled work.** Each run uses SecondShift's
-execution agent and an isolated sandbox. External service calls pass through
-the job's approved connections. Runs record the Git revision, tool activity,
-report, and model cost.
-
-## Run it for yourself or your team
-
-**On your computer:** install SecondShift locally, connect a model, and schedule
-skills from local repositories. You author the skills and manage their access.
-
-**On your server:** provide a shared installation where contributors propose
-skills through Git, owners approve service access, and admins manage scheduled
-jobs.
-
-A committed skill requests capabilities; it cannot grant itself credentials or
-expand its approved access. Changes that request additional capabilities require
-renewed approval.
-
-## Why use SecondShift?
-
-| Your team's problem | How SecondShift helps |
-| --- | --- |
-| Checks get skipped when nobody remembers to run them. | Schedule a procedure stored alongside your code. |
-| Automation lives in one person's setup. | Share jobs, schedules, and run history with the team. |
-| Agents need access to company services. | Owners approve each job's tools. Broader access requires renewed approval. |
-| Agent usage needs limits and visibility. | Set per-run token limits and inspect usage and model cost. |
-| You need to understand what happened. | Inspect the Git revision, tool activity, and report for each run. |
-
-An existing scheduler can start an agent on a timer. SecondShift adds access
-approvals, per-run limits, sandbox execution, shared run history, and cost
-tracking across repositories.
-[Compare SecondShift with other tools](https://second-shift.app/docs/comparisons/).
-
-## See it in action
-
-Follow an infrastructure review from versioned instructions and approved tools
-to a report delivered in Slack. Inspect job history, run limits, tool activity,
-and model cost.
+[Quick start](#quick-start) · [Skill catalog](examples/README.md) ·
+[Docs](https://second-shift.app/docs/overview/) · [Website](https://second-shift.app/)
 
 https://github.com/user-attachments/assets/0a9a7baa-f79e-4934-af81-8e5374e9cdbf
 
-## Access, budgets, and credentials
+## How it works
 
-- **Access:** Workspace owners approve each job's tools. Broader access requires
-  renewed approval. See [roles and permissions](https://second-shift.app/docs/self-hosting/#who-controls-what).
-- **Budgets:** Set per-run token and execution limits. Each run records usage and
-  model cost. See [run limits](https://second-shift.app/docs/self-hosting/#run-limits).
-- **Credentials:** Your installation stores them encrypted and uses them outside
-  the sandbox. Configured credentials are not passed to the model or sandbox.
-  The server operator has access to them. Your model provider receives the context
-  sent to it. See the [security model](https://second-shift.app/docs/security-model/).
+A job is a skill and a schedule in `.secondshift.yaml`:
 
-## Try it locally
+```yaml
+jobs:
+  engineering-briefing:
+    name: Monday engineering briefing
+    skill: examples/engineering-briefing/.agents/skills/engineering-briefing/SKILL.md
+    schedule: "0 9 * * 1"
+    requires:
+      mcps:
+        - binding: github
+          tools:
+            - search_pull_requests
+            - list_commits
+    notify:
+      - binding: engineering-reports
+```
 
-Run the included documentation review on this repository and inspect its report
-and cost.
+1. **Write** the skill with Claude Code, Codex, or any coding agent. Merge it
+   through your normal review.
+2. **Approve** its access in the dashboard. A repository can ask for tools. Only
+   a workspace owner can grant them.
+3. **Run** on schedule in an isolated sandbox. Service calls go through the
+   approved connections, outside the sandbox.
+4. **Review** the report in the dashboard, Slack, or a webhook. Every run records
+   its Git commit, tool calls, and model cost.
+
+## Why SecondShift
+
+- **Checks happen even when nobody remembers.** Investigate CI failures every
+  morning or review release readiness every Friday.
+- **The whole team shares it.** Jobs, schedules, and run history live in one
+  place, not in one person's setup.
+- **Access is approved, not assumed.** Credentials stay encrypted on your server
+  and never reach the model or the sandbox.
+- **Spending has limits.** Set per-run token and time limits and see what each
+  run cost.
+
+[Compare SecondShift with Hermes Agent and other tools](https://second-shift.app/docs/comparisons/).
+
+## Quick start
 
 You need [uv](https://docs.astral.sh/uv/getting-started/installation/), Docker,
-Git, and a model provider. Model usage may incur charges. Start Docker, then run:
+and a model provider API key. Start Docker, then run:
 
 ```bash
-# Install SecondShift
 release=https://github.com/piotrekno1/second-shift/releases
 uv tool install --force --python 3.13 \
   "$release/download/v0.1.0b4/secondshift-0.1.0b4-py3-none-any.whl"
-
-# Start SecondShift
 secondshift up
 ```
 
-Open the sign-in link printed in the terminal.
-[Local sign-in and upgrade details](https://second-shift.app/docs/self-hosting/#local-trial).
+Open the sign-in link printed in the terminal. Then let SecondShift review its
+own documentation:
 
-In another terminal, clone this repository:
+1. Clone this repository: `git clone https://github.com/piotrekno1/second-shift.git`
+2. In **Connections**, add a model provider.
+3. In **Repositories**, choose **Add local repository** and select the clone.
+4. In **Jobs**, open **Documentation drift** and click **Run now**.
 
-```bash
-git clone https://github.com/piotrekno1/second-shift.git
-```
+## Deploy for your team
 
-1. In **Connections**, add a model provider and choose a default model.
-2. In **Repositories**, choose **Add local repository** and select the cloned
-   directory, or enter its absolute path.
-3. Open **Documentation drift** in **Jobs** and click **Run now**.
-4. Inspect the report, execution timeline, and model cost.
-
-The repository already includes the skill and configuration.
-
-## Use it with your team
-
-For a shared installation on a Linux server, follow the
-[Docker Compose deployment guide](https://second-shift.app/docs/production-deployment/). It covers HTTPS,
-GitHub App configuration, backups, and updates.
-
-A **skill** is the written procedure the agent follows. Commit it and its
-schedule to Git so your team can review changes before they take effect.
-
-Choose a task from the [skill catalog](examples/README.md), then follow the
-[task setup guide](https://second-shift.app/docs/engineering-tasks/) to approve access, test a run, and
-turn on scheduling. Tasks can report findings or update connected services
-through approved tools.
+Follow the [Docker Compose deployment guide](https://second-shift.app/docs/production-deployment/)
+for a shared Linux server with HTTPS, a GitHub App, and backups. Then pick a task
+from the [skill catalog](examples/README.md) and follow the
+[task setup guide](https://second-shift.app/docs/engineering-tasks/).
 
 ## Use it from your coding agent
 
-SecondShift serves an MCP server at `/mcp`. Create a token under
-**API tokens** in the account menu and paste the setup command it shows. Your
-agent can then read runs and reports, start approved jobs, and check a
-`.secondshift.yaml` before you commit it. It cannot approve access or see
-credentials. See the [MCP guide](https://second-shift.app/docs/mcp/).
+SecondShift serves an MCP server at `/mcp`. Your agent can check a
+`.secondshift.yaml` before you commit it, start approved jobs, and read reports.
+It cannot approve access or see credentials. See the
+[MCP guide](https://second-shift.app/docs/mcp/).
 
-## Documentation
+## Learn more
 
-The full guide is at [second-shift.app/docs](https://second-shift.app/docs/overview/).
-
-- [Comparisons](https://second-shift.app/docs/comparisons/): when to choose SecondShift, Grok Bot, Hermes Agent, or Viktor.
-- [Repository configuration](https://second-shift.app/docs/repository-configuration/): skills, YAML syntax, schedules, and notifications.
-- [Engineering tasks](https://second-shift.app/docs/engineering-tasks/): skill setup, approved service actions, and scheduling.
-- [Environment variables](https://second-shift.app/docs/environment-variables/): service-scoped configuration and setup file generation.
-- [MCP server](https://second-shift.app/docs/mcp/): connect coding agents, API tokens, and the tools they can use.
-- [Architecture](https://second-shift.app/docs/architecture/): execution design and capability boundaries.
-- [Security model](https://second-shift.app/docs/security-model/): what a run can reach, where secrets live, and remaining risks.
-- [Self-hosting](https://second-shift.app/docs/self-hosting/) (work in progress): runner backends, sandbox images, and artifact storage.
-- [Contributing](CONTRIBUTING.md): source setup, development, verification, and releases.
+- [Repository configuration](https://second-shift.app/docs/repository-configuration/): YAML syntax, schedules, and notifications
+- [Security model](https://second-shift.app/docs/security-model/): what a run can reach and where secrets live
+- [Self-hosting](https://second-shift.app/docs/self-hosting/): roles, run limits, runners, and storage
+- [Full documentation](https://second-shift.app/docs/overview/)
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for bug reports, documentation changes, and
-pull requests. For larger changes,
-[open an issue](https://github.com/piotrekno1/second-shift/issues) first to discuss
-the approach.
+Bug reports, docs fixes, and pull requests are welcome. See
+[CONTRIBUTING.md](CONTRIBUTING.md). For larger changes,
+[open an issue](https://github.com/piotrekno1/second-shift/issues) first.
