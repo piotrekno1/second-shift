@@ -1,0 +1,15 @@
+{
+  "name": "secondshift-site",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "prepare:content": "node scripts/prepare-content.mjs",
+    "dev": "npm run prepare:content && ASTRO_TELEMETRY_DISABLED=1 astro dev --host 127.0.0.1 --port 4321",
+    "build": "npm run prepare:content && ASTRO_TELEMETRY_DISABLED=1 astro build",
+    "preview": "ASTRO_TELEMETRY_DISABLED=1 astro preview --host 127.0.0.1 --port 4321"
+  },
+  "dependencies": {
+    "@astrojs/starlight": "^0.42.8",
+    "astro": "^7.2.10"
+  }
+}

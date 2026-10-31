@@ -16,6 +16,13 @@ db.sqlite3
 staticfiles/
 secondshift/web/
 dashboard/node_modules/
+docs/node_modules/
+docs/dist/
+docs/.astro/
+docs/public/
+docs/src/content/docs/docs/*.md
+!docs/src/content/docs/docs/overview.md
+!docs/src/content/docs/docs/quickstart.md
 .secondshift-work/
 .secondshift-artifacts/
 .secondshift-runner/

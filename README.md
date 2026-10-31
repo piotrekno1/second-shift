@@ -112,6 +112,10 @@ credentials. See the [MCP guide](docs/mcp.md).
 
 ## Documentation
 
+Preview the public landing page and documentation locally with `cd docs && npm ci && npm run dev`,
+then open `http://127.0.0.1:4321`. The `docs` service also starts with `process-compose up`.
+The Markdown files in `docs/` remain the source for the generated documentation pages.
+
 - [Comparisons](docs/comparisons.md): when to choose SecondShift, Grok Bot, Hermes Agent, or Viktor.
 - [Repository configuration](docs/repository-configuration.md): skills, YAML syntax, schedules, and notifications.
 - [Engineering tasks](docs/engineering-tasks.md): skill setup, approved service actions, and scheduling.
