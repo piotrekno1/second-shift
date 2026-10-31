@@ -14,18 +14,49 @@ the list in the skill to match your own users.
 A browser the job can drive, and a test or staging copy of the app with an
 account prepared for the review.
 
-1. Run a browser MCP server where SecondShift can reach it. The sample uses the
-   tool names of [Playwright MCP](https://github.com/microsoft/playwright-mcp).
-   For other servers, replace the names in `.secondshift.yaml` with theirs.
-2. Limit the server to the app's test address, with Playwright MCP's
-   `--allowed-origins` option, so the job cannot browse anywhere else.
-3. Sign the browser in to a test account before the run, through the browser
-   server's saved session or profile. The skill never types passwords.
+1. Save a signed-in browser state for the test account. Sign in once by hand
+   with `npx playwright codegen --save-storage=auth.json <app address>`. The
+   skill never types passwords, so the password stays on this machine.
+2. Run a browser MCP server where SecondShift can reach it, and where the
+   browser can reach the app. The sample uses the tool names of
+   [Playwright MCP](https://github.com/microsoft/playwright-mcp). For other
+   servers, replace the names in `.secondshift.yaml` with theirs.
+
+   ```bash
+   npx @playwright/mcp --port 8931 \
+     --isolated --storage-state auth.json \
+     --shared-browser-context \
+     --allowed-origins "https://staging.example.com" \
+     --image-responses omit --output-dir ./qa-screenshots
+   ```
+
+   - `--isolated --storage-state` starts every run signed in, from the same
+     clean state.
+   - `--shared-browser-context` keeps the page open between tool calls.
+     SecondShift opens a new MCP session for each call, so without it every
+     click starts on a blank page.
+   - `--allowed-origins` keeps the browser on the app. Playwright says it is
+     not a security boundary, so use a test environment.
+   - `--image-responses omit` saves screenshots to `--output-dir` and returns
+     only the file name. Inline images are too large for a tool result.
+3. Restart the server before each run, so a run never sees the last run's
+   pages or cookies. Saved sign-ins expire. Repeat step 1 when runs start on a
+   sign-in page.
 4. Add a custom MCP connection with binding `browser`, and choose the tools
-   above. Clicking and typing can change data in the app, so the access review
-   marks them. Use a test environment, never production.
+   above. In local mode, `http://localhost:8931/mcp` works. A hosted
+   SecondShift needs an HTTPS address and a bearer token. Playwright MCP checks
+   neither, so put it behind a proxy that does. Clicking and typing can change
+   data in the app, so the access review marks them. Use a test environment,
+   never production.
 5. Put the test address in the request, or document it in the repository, for
    example in the README. Endpoints never go in the manifest.
+6. Optional: connect a tool that resets the app's test data. Add its binding
+   and tool to the job's `requires`, then approve it. The skill calls it before
+   each user. Without one, the report says
+   the app was not reset.
+
+Screenshots stay in `--output-dir` on the browser server. The report names
+each file.
 
 Five walks take more steps than most jobs. Raise this job's model call and tool
 call limits on its job page, within the server maximums. If the limits stop a
