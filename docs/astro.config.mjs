@@ -11,6 +11,8 @@ export default defineConfig({
       { tag: 'meta', attrs: { property: 'og:image:width', content: '1200' } },
       { tag: 'meta', attrs: { property: 'og:image:height', content: '630' } },
       { tag: 'meta', attrs: { name: 'twitter:image', content: 'https://second-shift.app/og.png' } },
+      { tag: 'meta', attrs: { property: 'og:image:type', content: 'image/png' } },
+      { tag: 'link', attrs: { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' } },
     ],
     social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/piotrekno1/second-shift' }],
     sidebar: [
