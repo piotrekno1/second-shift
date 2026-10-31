@@ -65,7 +65,7 @@ Git, and a model provider. Model usage may incur charges. Start Docker, then run
 # Install SecondShift
 release=https://github.com/piotrekno1/second-shift/releases
 uv tool install --force --python 3.13 \
-  "$release/download/v0.1.0b3/secondshift-0.1.0b3-py3-none-any.whl"
+  "$release/download/v0.1.0b4/secondshift-0.1.0b4-py3-none-any.whl"
 
 # Start SecondShift
 secondshift up

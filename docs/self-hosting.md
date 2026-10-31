@@ -24,7 +24,7 @@ The beta is distributed through
 available on PyPI.
 
 Upgrading from an alpha? This beta resets database migrations and requires a
-fresh database. Read the [beta release notes](releases/0.1.0b3.md) first.
+fresh database. Read the [beta 1 release notes](releases/0.1.0b1.md) first.
 
 Once started, the console shows:
 
