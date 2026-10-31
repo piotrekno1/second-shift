@@ -1,5 +1,9 @@
 ---
 const github = 'https://github.com/piotrekno1/second-shift';
+const site = 'https://second-shift.app/';
+const shareImage = new URL('/og.png', site).href;
+const title = 'SecondShift gives the boring checks a shift';
+const description = 'Put the agent skills you already use on a schedule. Open source and self-hosted.';
 import demoPoster from '../assets/demo-poster.jpg';
 import githubIcon from '../assets/brands/github.svg';
 import sentryIcon from '../assets/brands/sentry.svg';
@@ -37,9 +41,23 @@ const stackRows = [
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="SecondShift schedules the repository checks your team keeps meaning to run." />
-    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-    <title>SecondShift gives the boring checks a shift</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={site} />
+    <meta name="theme-color" content="#131313" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="SecondShift" />
+    <meta property="og:url" content={site} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content={shareImage} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="SecondShift gives the boring checks a shift." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={shareImage} />
+    <title>{title}</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <style>
       @import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap');

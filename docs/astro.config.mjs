@@ -6,6 +6,12 @@ export default defineConfig({
   integrations: [starlight({
     title: 'SecondShift',
     customCss: ['./src/styles/docs.css'],
+    head: [
+      { tag: 'meta', attrs: { property: 'og:image', content: 'https://second-shift.app/og.png' } },
+      { tag: 'meta', attrs: { property: 'og:image:width', content: '1200' } },
+      { tag: 'meta', attrs: { property: 'og:image:height', content: '630' } },
+      { tag: 'meta', attrs: { name: 'twitter:image', content: 'https://second-shift.app/og.png' } },
+    ],
     social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/piotrekno1/second-shift' }],
     sidebar: [
       { label: 'Start', items: [{ label: 'Overview', slug: 'docs/overview' }, { label: 'Try locally', slug: 'docs/quickstart' }, { label: 'Add a task', slug: 'docs/engineering-tasks' }] },

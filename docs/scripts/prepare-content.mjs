@@ -6,10 +6,12 @@ const output = new URL('../src/content/docs/docs/', import.meta.url);
 const publicScreenshots = new URL('../public/screenshots/', import.meta.url);
 const publicMark = new URL('../public/secondshift-mark.svg', import.meta.url);
 const publicFavicon = new URL('../public/favicon.svg', import.meta.url);
+const publicShareImage = new URL('../public/og.png', import.meta.url);
 await mkdir(output, { recursive: true });
 await mkdir(publicScreenshots, { recursive: true });
 await copyFile(new URL('../../dashboard/public/secondshift-mark.svg', import.meta.url), publicMark);
 await copyFile(new URL('../../dashboard/public/favicon.svg', import.meta.url), publicFavicon);
+await copyFile(new URL('../src/assets/og.png', import.meta.url), publicShareImage);
 const files = (await readdir(root)).filter((name) => name.endsWith('.md'));
 for (const name of files) {
   let body = await readFile(new URL(name, root), 'utf8');
