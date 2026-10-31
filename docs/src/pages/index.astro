@@ -1,5 +1,9 @@
 ---
 const github = 'https://github.com/piotrekno1/second-shift';
+const site = 'https://second-shift.app/';
+const shareImage = new URL('/og.png', site).href;
+const title = 'SecondShift gives the boring checks a shift';
+const description = 'Put the agent skills you already use on a schedule. Open source and self-hosted.';
 import demoPoster from '../assets/demo-poster.jpg';
 import githubIcon from '../assets/brands/github.svg';
 import sentryIcon from '../assets/brands/sentry.svg';
@@ -9,9 +13,12 @@ import discordIcon from '../assets/brands/discord.svg';
 import grafanaIcon from '../assets/brands/grafana.svg';
 import datadogIcon from '../assets/brands/datadog.svg';
 import pagerDutyIcon from '../assets/brands/pagerduty.svg';
+import openAiIcon from '../assets/brands/openai.svg';
+import slackIcon from '../assets/brands/slack.svg';
+import teamsIcon from '../assets/brands/microsoftteams.svg';
 const stackRows = [
   { label: 'Models', href: '/docs/quickstart/', brands: [
-    { name: 'OpenAI', mark: '✳', markClass: 'openai-mark' },
+    { name: 'OpenAI', icon: openAiIcon.src, color: '#ededed' },
     { name: 'Anthropic', icon: anthropicIcon.src, color: '#ededed' },
     { name: 'OpenRouter', icon: openRouterIcon.src, color: '#94a3b8' },
   ] },
@@ -23,9 +30,9 @@ const stackRows = [
     { name: 'PagerDuty', icon: pagerDutyIcon.src, color: '#06ac38' },
   ] },
   { label: 'Delivery', href: '/docs/repository-configuration/#deliver-reports-to-a-webhook', brands: [
-    { name: 'Slack', mark: '#', markClass: 'slack-mark' },
-    { name: 'Discord', icon: discordIcon.src },
-    { name: 'Teams', mark: 'T', markClass: 'teams-mark' },
+    { name: 'Slack', icon: slackIcon.src, color: '#e01e5a' },
+    { name: 'Discord', icon: discordIcon.src, color: '#5865f2' },
+    { name: 'Teams', icon: teamsIcon.src, color: '#7b83eb' },
   ] },
 ];
 ---
@@ -34,9 +41,23 @@ const stackRows = [
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="SecondShift schedules the repository checks your team keeps meaning to run." />
-    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-    <title>SecondShift gives the boring checks a shift</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={site} />
+    <meta name="theme-color" content="#131313" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="SecondShift" />
+    <meta property="og:url" content={site} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content={shareImage} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="SecondShift gives the boring checks a shift." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={shareImage} />
+    <title>{title}</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <style>
       @import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap');
@@ -82,10 +103,6 @@ const stackRows = [
       .stack-brands { display: flex; align-items: center; gap: 18px; min-width: 0; }
       .stack-brand { display: inline-flex; align-items: center; gap: 6px; color: #bdbdbd; font-size: 12px; white-space: nowrap; }
       .stack-brand-icon { width: 18px; height: 18px; flex: none; background: var(--brand-color); -webkit-mask: var(--icon-url) center / contain no-repeat; mask: var(--icon-url) center / contain no-repeat; }
-      .stack-mark { display: inline-grid; width: 18px; height: 18px; place-items: center; }
-      .openai-mark { color: #ededed; font-size: 19px; }
-      .slack-mark { color: #e01e5a; font-size: 20px; font-weight: 700; }
-      .teams-mark { border-radius: 4px; background: #6264a7; color: #fff; font-size: 11px; font-weight: 700; }
       .stack-arrow { margin-left: auto; color: #999; font-size: 17px; }
       .stack-row:hover .stack-arrow { color: #ffb454; }
       @keyframes stack-scroll {
@@ -128,6 +145,23 @@ const stackRows = [
         .file-name { padding: 7px 13px; font-size: 11px; }
         .file pre { padding: 8px 13px 9px; font-size: 11px; line-height: 1.45; }
       }
+      @media (min-width: 1600px) {
+        .shell { width: min(100% - 96px, 1440px); }
+        .hero { grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); }
+        .showcase { max-width: 800px; }
+        h1 { font-size: 72px; }
+        .lead { max-width: 520px; font-size: 19px; }
+      }
+      @media (min-width: 1600px) and (min-height: 760px) {
+        main { display: flex; min-height: calc(100svh - 60px); flex-direction: column; justify-content: center; padding-bottom: 60px; }
+        .first-screen { min-height: 0; }
+        .hero { padding: 40px 0 56px; }
+        .example { padding: 24px 0 64px; }
+        .example h2 { font-size: 30px; }
+        .example-heading { margin-bottom: 18px; }
+        .file-name { padding: 11px 16px; font-size: 12px; }
+        .file pre { padding: 16px 16px 20px; font-size: 13px; line-height: 1.7; }
+      }
       @media (max-width: 900px) { .hero { min-height: 0; grid-template-columns: 1fr; gap: 52px; padding: 70px 0 80px; } h1 { max-width: 760px; font-size: clamp(48px, 8vw, 72px); } .showcase { max-width: 760px; } }
       @media (max-width: 640px) { .shell { width: min(100% - 36px, 1280px); } header { height: 60px; } nav { gap: 16px; } .hero { gap: 42px; padding: 46px 0 68px; } h1 { font-size: clamp(43px, 11vw, 58px); } .hero-wordmark { margin-bottom: 16px; font-size: 25px; } .hero-wordmark img { width: 28px; height: 28px; } .lead { margin-top: 22px; font-size: 16px; } .showcase { transform: none; } .showcase video { box-shadow: 8px 9px 0 #222; } .stack-strip { gap: 8px; } .stack-row { gap: 8px; padding: 0 4px; } .stack-kind { width: 51px; font-size: 11px; } .stack-brands { gap: 12px; } .stack-brand-name { display: none; } .stack-arrow { font-size: 14px; } .example { padding: 40px 0 70px; } .example-heading { align-items: start; flex-direction: column; gap: 10px; } .files { grid-template-columns: 1fr; } }
     </style>
@@ -162,7 +196,7 @@ const stackRows = [
                   <span class="stack-brands">
                     {row.brands.map((brand) => (
                       <span class="stack-brand" role="img" aria-label={brand.name}>
-                        {brand.icon ? <span class="stack-brand-icon" style={`--brand-color: ${brand.color}; --icon-url: url(${brand.icon})`} aria-hidden="true"></span> : <span class:list={['stack-mark', brand.markClass]} aria-hidden="true">{brand.mark}</span>}
+                        <span class="stack-brand-icon" style={`--brand-color: ${brand.color}; --icon-url: url(${brand.icon})`} aria-hidden="true"></span>
                         <span class="stack-brand-name">{brand.name}</span>
                       </span>
                     ))}
