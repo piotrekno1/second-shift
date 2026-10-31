@@ -9,6 +9,25 @@ import discordIcon from '../assets/brands/discord.svg';
 import grafanaIcon from '../assets/brands/grafana.svg';
 import datadogIcon from '../assets/brands/datadog.svg';
 import pagerDutyIcon from '../assets/brands/pagerduty.svg';
+const stackRows = [
+  { label: 'Models', href: '/docs/quickstart/', brands: [
+    { name: 'OpenAI', mark: '✳', markClass: 'openai-mark' },
+    { name: 'Anthropic', icon: anthropicIcon.src, color: '#ededed' },
+    { name: 'OpenRouter', icon: openRouterIcon.src, color: '#94a3b8' },
+  ] },
+  { label: 'Tools', href: '/docs/repository-configuration/#mcp-and-api-declarations', brands: [
+    { name: 'GitHub', icon: githubIcon.src, color: '#ededed' },
+    { name: 'Sentry', icon: sentryIcon.src, color: '#9b83c2' },
+    { name: 'Grafana', icon: grafanaIcon.src, color: '#f46800' },
+    { name: 'Datadog', icon: datadogIcon.src, color: '#9d73db' },
+    { name: 'PagerDuty', icon: pagerDutyIcon.src, color: '#06ac38' },
+  ] },
+  { label: 'Delivery', href: '/docs/repository-configuration/#deliver-reports-to-a-webhook', brands: [
+    { name: 'Slack', mark: '#', markClass: 'slack-mark' },
+    { name: 'Discord', icon: discordIcon.src },
+    { name: 'Teams', mark: 'T', markClass: 'teams-mark' },
+  ] },
+];
 ---
 <!doctype html>
 <html lang="en">
@@ -16,6 +35,7 @@ import pagerDutyIcon from '../assets/brands/pagerduty.svg';
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="SecondShift schedules the repository checks your team keeps meaning to run." />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <title>SecondShift gives the boring checks a shift</title>
     <style>
       @import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap');
@@ -46,24 +66,39 @@ import pagerDutyIcon from '../assets/brands/pagerduty.svg';
       .actions { margin-top: 32px; }
       .button { display: inline-flex; align-items: center; min-height: 44px; padding: 0 17px; border-radius: 8px; background: #ededed; color: #0d0d0d; font-size: 13px; font-weight: 600; }
       .button:hover { background: #fff; }
-      .integration-section { padding: 72px 0 96px; border-top: 1px solid #303030; }
-      .integration-intro { margin-bottom: 26px; }
-      .integration-intro h2 { max-width: 620px; margin: 0; font-size: clamp(32px, 4vw, 50px); font-weight: 500; line-height: 1.08; letter-spacing: -.055em; }
-      .integration-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
-      .integration-card { display: flex; min-height: 205px; flex-direction: column; padding: 22px; border: 1px solid #303030; border-radius: 9px; background: #191919; transition: transform .2s ease, border-color .2s ease, background .2s ease; }
-      .integration-card:hover { transform: translateY(-4px); border-color: #8f6b3f; background: #202020; }
-      .integration-card:focus-visible { outline: 2px solid #ffb454; outline-offset: 3px; }
-      .integration-icons { display: flex; align-items: center; gap: 14px; min-height: 28px; margin-bottom: 22px; }
-      .integration-icons img { width: 25px; height: 25px; filter: invert(.9); transition: transform .2s ease; }
-      .integration-card:hover .integration-icons img, .integration-card:hover .integration-mark { transform: translateY(-2px); }
-      .integration-mark { display: inline-grid; width: 25px; height: 25px; place-items: center; transition: transform .2s ease; }
-      .openai-mark { color: #ededed; font-size: 26px; }
-      .slack-mark { color: #e87a9d; font-size: 27px; font-weight: 700; }
-      .teams-mark { border-radius: 5px; background: #6868ac; color: #fff; font-size: 16px; font-weight: 700; }
-      .integration-card h3 { margin: 0 0 7px; font-size: 19px; font-weight: 600; letter-spacing: -.025em; }
-      .integration-card p { margin: 0; color: #aaa; font-size: 13px; line-height: 1.55; }
-      .integration-card .card-link { margin-top: auto; padding-top: 20px; color: #ffb454; font-size: 12px; font-weight: 600; }
-      @media (prefers-reduced-motion: reduce) { .integration-card, .integration-icons img, .integration-mark { transition: none; } .integration-card:hover, .integration-card:hover .integration-icons img, .integration-card:hover .integration-mark { transform: none; } }
+      .stack-strip { display: flex; align-items: center; gap: 22px; min-width: 0; padding: 0 0 14px; }
+      .stack-intro { flex: none; color: #ffb454; font: 11px 'Geist Mono', ui-monospace, monospace; white-space: nowrap; }
+      .stack-window { height: 42px; flex: 1; min-width: 0; overflow: hidden; }
+      .stack-track { animation: stack-scroll 15s linear infinite; }
+      .stack-strip:hover .stack-track { animation-play-state: paused; }
+      .stack-strip:focus-within .stack-window { height: auto; overflow: visible; }
+      .stack-strip:focus-within .stack-track { animation: none; }
+      .stack-strip:focus-within .stack-row[aria-hidden="true"] { display: none; }
+      .stack-row { display: flex; align-items: center; gap: 18px; height: 42px; padding: 0 10px; border-radius: 6px; }
+      .stack-row:hover { background: #202020; }
+      .stack-row:focus-visible { outline: 2px solid #ffb454; outline-offset: -2px; }
+      .stack-kind { width: 64px; flex: none; color: #ededed; font-size: 13px; font-weight: 600; }
+      .stack-brands { display: flex; align-items: center; gap: 18px; min-width: 0; }
+      .stack-brand { display: inline-flex; align-items: center; gap: 6px; color: #bdbdbd; font-size: 12px; white-space: nowrap; }
+      .stack-brand-icon { width: 18px; height: 18px; flex: none; background: var(--brand-color); -webkit-mask: var(--icon-url) center / contain no-repeat; mask: var(--icon-url) center / contain no-repeat; }
+      .stack-mark { display: inline-grid; width: 18px; height: 18px; place-items: center; }
+      .openai-mark { color: #ededed; font-size: 19px; }
+      .slack-mark { color: #e01e5a; font-size: 20px; font-weight: 700; }
+      .teams-mark { border-radius: 4px; background: #6264a7; color: #fff; font-size: 11px; font-weight: 700; }
+      .stack-arrow { margin-left: auto; color: #999; font-size: 17px; }
+      .stack-row:hover .stack-arrow { color: #ffb454; }
+      @keyframes stack-scroll {
+        0%, 20% { transform: translateY(0); }
+        30%, 50% { transform: translateY(-42px); }
+        60%, 80% { transform: translateY(-84px); }
+        90%, 100% { transform: translateY(-126px); }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .stack-window { height: auto; }
+        .stack-track { animation: none; }
+        .stack-row[aria-hidden="true"] { display: none; }
+        .first-screen { display: block; }
+      }
       .showcase { min-width: 0; transform: rotate(1deg); }
       .showcase video { display: block; width: 100%; aspect-ratio: 16 / 9; border: 1px solid #373737; border-radius: 4px; background: #0d0d0d; object-fit: contain; box-shadow: 18px 20px 0 #222; }
       .example { padding: 54px 0 90px; border-top: 1px solid #303030; }
@@ -80,8 +115,9 @@ import pagerDutyIcon from '../assets/brands/pagerduty.svg';
       .file .muted { color: #808080; }
       @media (min-width: 1100px) and (min-height: 760px) {
         main { padding: 0; }
-        .first-screen { min-height: calc(100svh - 60px); display: grid; grid-template-rows: minmax(0, 1fr) auto; }
+        .first-screen { min-height: calc(100svh - 60px); display: grid; grid-template-rows: minmax(0, 1fr) auto auto; }
         .hero { min-height: 0; padding: 14px 0 18px; }
+        .showcase { width: 100%; max-width: 600px; justify-self: end; }
         h1 { font-size: clamp(46px, 4vw, 62px); }
         .lead { margin-top: 20px; }
         .actions { margin-top: 20px; }
@@ -91,8 +127,8 @@ import pagerDutyIcon from '../assets/brands/pagerduty.svg';
         .file-name { padding: 7px 13px; font-size: 11px; }
         .file pre { padding: 8px 13px 9px; font-size: 11px; line-height: 1.45; }
       }
-      @media (max-width: 900px) { .hero { min-height: 0; grid-template-columns: 1fr; gap: 52px; padding: 70px 0 80px; } h1 { max-width: 760px; font-size: clamp(48px, 8vw, 72px); } .showcase { max-width: 760px; } .integration-grid { grid-template-columns: 1fr; } .integration-card { min-height: 170px; } }
-      @media (max-width: 640px) { .shell { width: min(100% - 36px, 1280px); } header { height: 60px; } nav { gap: 16px; } .hero { gap: 42px; padding: 46px 0 68px; } h1 { font-size: clamp(43px, 11vw, 58px); } .hero-wordmark { margin-bottom: 16px; font-size: 25px; } .hero-wordmark img { width: 28px; height: 28px; } .lead { margin-top: 22px; font-size: 16px; } .showcase { transform: none; } .showcase video { box-shadow: 8px 9px 0 #222; } .example { padding: 40px 0 70px; } .example-heading { align-items: start; flex-direction: column; gap: 10px; } .files { grid-template-columns: 1fr; } .integration-section { padding: 54px 0 70px; } }
+      @media (max-width: 900px) { .hero { min-height: 0; grid-template-columns: 1fr; gap: 52px; padding: 70px 0 80px; } h1 { max-width: 760px; font-size: clamp(48px, 8vw, 72px); } .showcase { max-width: 760px; } }
+      @media (max-width: 640px) { .shell { width: min(100% - 36px, 1280px); } header { height: 60px; } nav { gap: 16px; } .hero { gap: 42px; padding: 46px 0 68px; } h1 { font-size: clamp(43px, 11vw, 58px); } .hero-wordmark { margin-bottom: 16px; font-size: 25px; } .hero-wordmark img { width: 28px; height: 28px; } .lead { margin-top: 22px; font-size: 16px; } .showcase { transform: none; } .showcase video { box-shadow: 8px 9px 0 #222; } .stack-strip { gap: 8px; } .stack-row { gap: 8px; padding: 0 4px; } .stack-kind { width: 51px; font-size: 11px; } .stack-brands { gap: 12px; } .stack-brand-name { display: none; } .stack-arrow { font-size: 14px; } .example { padding: 40px 0 70px; } .example-heading { align-items: start; flex-direction: column; gap: 10px; } .files { grid-template-columns: 1fr; } }
     </style>
   </head>
   <body>
@@ -113,6 +149,27 @@ import pagerDutyIcon from '../assets/brands/pagerduty.svg';
               <source src="https://github.com/user-attachments/assets/0a9a7baa-f79e-4934-af81-8e5374e9cdbf" type="video/mp4" />
               <a href="https://github.com/user-attachments/assets/0a9a7baa-f79e-4934-af81-8e5374e9cdbf">Watch the product demo</a>
             </video>
+          </div>
+        </div>
+        <div class="stack-strip" aria-label="Services that work with SecondShift">
+          <span class="stack-intro">Works with</span>
+          <div class="stack-window">
+            <div class="stack-track">
+              {[...stackRows, stackRows[0]].map((row, index) => (
+                <a class="stack-row" href={row.href} aria-hidden={index === stackRows.length ? 'true' : undefined} tabindex={index === stackRows.length ? -1 : undefined}>
+                  <span class="stack-kind">{row.label}</span>
+                  <span class="stack-brands">
+                    {row.brands.map((brand) => (
+                      <span class="stack-brand" role="img" aria-label={brand.name}>
+                        {brand.icon ? <span class="stack-brand-icon" style={`--brand-color: ${brand.color}; --icon-url: url(${brand.icon})`} aria-hidden="true"></span> : <span class:list={['stack-mark', brand.markClass]} aria-hidden="true">{brand.mark}</span>}
+                        <span class="stack-brand-name">{brand.name}</span>
+                      </span>
+                    ))}
+                  </span>
+                  <span class="stack-arrow" aria-hidden="true">↗</span>
+                </a>
+              ))}
+            </div>
           </div>
         </div>
         <section class="example" aria-labelledby="example-title">
@@ -148,31 +205,6 @@ Do not modify files.</code></pre>
           </div>
         </section>
         </div>
-        <section class="integration-section" aria-labelledby="integrations-title">
-          <div class="integration-intro">
-            <h2 id="integrations-title">The stack you already have, on shift.</h2>
-          </div>
-          <div class="integration-grid">
-            <a class="integration-card" href="/docs/quickstart/">
-              <div class="integration-icons" aria-hidden="true"><span class="integration-mark openai-mark">✳</span><img src={anthropicIcon.src} alt="" /><img src={openRouterIcon.src} alt="" /></div>
-              <h3>Your model</h3>
-              <p>OpenAI, Anthropic, OpenRouter, or an OpenAI-compatible gateway.</p>
-              <span class="card-link">Connect a model →</span>
-            </a>
-            <a class="integration-card" href="/docs/repository-configuration/#mcp-and-api-declarations">
-              <div class="integration-icons" aria-hidden="true"><img src={githubIcon.src} alt="" /><img src={sentryIcon.src} alt="" /><img src={grafanaIcon.src} alt="" /><img src={datadogIcon.src} alt="" /><img src={pagerDutyIcon.src} alt="" /></div>
-              <h3>Your tools</h3>
-              <p>GitHub and Sentry built in. Connect Grafana, Datadog, PagerDuty, and more through MCP or HTTP APIs.</p>
-              <span class="card-link">Connect tools →</span>
-            </a>
-            <a class="integration-card" href="/docs/repository-configuration/#deliver-reports-to-a-webhook">
-              <div class="integration-icons" aria-hidden="true"><span class="integration-mark slack-mark">#</span><img src={discordIcon.src} alt="" /><span class="integration-mark teams-mark">T</span></div>
-              <h3>Your team</h3>
-              <p>Send reports to Slack or Discord. Route them to Teams or elsewhere with a webhook flow.</p>
-              <span class="card-link">Set up delivery →</span>
-            </a>
-          </div>
-        </section>
       </main>
     </div>
     <script>
