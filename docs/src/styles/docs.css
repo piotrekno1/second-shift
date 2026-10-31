@@ -49,6 +49,18 @@
   --sl-color-hairline-shade: #dedbd5;
 }
 
+/* On wide screens, keep the header, sidebar, and content together in a centered frame. */
+@media (min-width: 50rem) {
+  :root { --frame-gutter: max(0px, (100vw - 100rem) / 2); }
+  header.header { inset-inline-start: var(--frame-gutter) !important; width: calc(100% - 2 * var(--frame-gutter)) !important; }
+  header.header::before { position: absolute; z-index: -1; inset: 0 calc(-1 * var(--frame-gutter)) -1px; border-bottom: 1px solid var(--sl-color-hairline-shade); background: var(--sl-color-bg-nav); content: ''; }
+  .sidebar-pane { inset-inline-start: var(--frame-gutter) !important; }
+  .main-frame { padding-inline: calc(var(--frame-gutter) + var(--sl-content-inline-start, 0rem)) var(--frame-gutter) !important; }
+}
+@media (min-width: 100rem) {
+  .sidebar-pane { border-inline-start: 1px solid var(--sl-color-hairline-light) !important; }
+}
+
 .site-title { gap: .65rem !important; color: var(--sl-color-white) !important; font-size: 1rem !important; letter-spacing: -.025em; }
 .site-title::before { display: inline-block; width: 1.65rem; height: 1.65rem; flex: none; background: url('/secondshift-mark.svg') center / contain no-repeat; content: ''; }
 .sl-markdown-content :is(h2, h3, h4) { letter-spacing: -.035em; font-weight: 500; }
