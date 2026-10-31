@@ -23,6 +23,7 @@ Requirements: Python 3.13, `uv`, Node.js 24+, Docker, and process-compose.
 cp .env.example .env
 uv sync
 cd dashboard && npm install && cd ..
+npm --prefix docs ci
 process-compose up
 ```
 
@@ -38,6 +39,20 @@ The template contains the development overrides. See the
 [environment reference](docs/environment-variables.md) for optional integrations,
 email, logging, and sandbox settings. In dev and local mode, keys are generated in `SECONDSHIFT_DATA_DIR` (default `~/.secondshift`),
 email defaults to terminal output, and plain Docker sandboxes are supported.
+
+### Landing page and documentation
+
+Process Compose serves the public site at <http://127.0.0.1:4321>. To run it
+without the rest of the stack:
+
+```bash
+npm --prefix docs ci
+npm --prefix docs run dev
+```
+
+The Markdown files in `docs/` are the source for the published guides. Restart
+the docs dev server after editing one of those files so it regenerates the pages.
+Run `npm --prefix docs run build` to check the production site.
 
 To use the optional local RustFS service, uncomment its block in `.env`
 (copied from `.env.example`):
