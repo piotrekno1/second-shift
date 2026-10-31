@@ -36,7 +36,7 @@ const stackRows = [
     { name: 'Grafana', icon: grafanaIcon.src, color: 'linear-gradient(#fbca0a, #f46800)' },
     { name: 'Datadog', icon: datadogIcon.src, color: '#9d73db' },
     { name: 'PagerDuty', icon: pagerDutyIcon.src, color: '#06ac38' },
-    { name: 'WildEdge', icon: wildEdgeIcon.src, color: '#00b78b', wide: true },
+    { name: 'WildEdge', icon: wildEdgeIcon.src, fullColor: true, wide: true },
   ] },
   { label: 'Delivery', href: '/docs/repository-configuration/#deliver-reports-to-a-webhook', brands: [
     { name: 'Slack', icon: slackIcon.src, fullColor: true },
@@ -121,7 +121,7 @@ const stackRows = [
       .stack-brand { display: inline-flex; align-items: center; gap: 6px; color: #bdbdbd; font-size: 12px; white-space: nowrap; }
       .stack-brand-icon { width: 18px; height: 18px; flex: none; background: var(--brand-color); -webkit-mask: var(--icon-url) center / contain no-repeat; mask: var(--icon-url) center / contain no-repeat; }
       .stack-brand-icon.wide { width: 25px; }
-      .stack-brand-icon.full-color { background: none; -webkit-mask: none; mask: none; }
+      .stack-brand-icon.full-color { background: none; -webkit-mask: none; mask: none; object-fit: contain; }
       .stack-arrow { margin-left: auto; color: #999; font-size: 17px; }
       .stack-row:hover .stack-arrow { color: #ffb454; }
       @keyframes stack-scroll {
@@ -217,7 +217,7 @@ const stackRows = [
                     {row.brands.map((brand) => (
                       <span class="stack-brand" role="img" aria-label={brand.name}>
                         {brand.fullColor
-                          ? <img class="stack-brand-icon full-color" src={brand.icon} alt="" aria-hidden="true" />
+                          ? <img class:list={['stack-brand-icon', 'full-color', { wide: brand.wide }]} src={brand.icon} alt="" aria-hidden="true" />
                           : <span class:list={['stack-brand-icon', { wide: brand.wide }]} style={`--brand-color: ${brand.color}; --icon-url: url(${brand.icon})`} aria-hidden="true"></span>}
                         <span class="stack-brand-name">{brand.name}</span>
                       </span>
