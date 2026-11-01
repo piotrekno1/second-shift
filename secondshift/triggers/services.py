@@ -136,7 +136,7 @@ def receive(trigger: JobTrigger, headers: Mapping[str, str], body: bytes) -> Rec
             f"The job's configuration no longer names a {trigger.kind} trigger.",
         )
     try:
-        run = start_run(job, RUN_STARTS[TriggerKind(trigger.kind)])
+        run = start_run(job, RUN_STARTS[TriggerKind(trigger.kind)], body)
     except RunInProgress as error:
         return refuse(
             trigger, 409, f"Run #{error.run.pk} of this job has not finished."

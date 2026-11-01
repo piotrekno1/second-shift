@@ -106,6 +106,33 @@ def input_path(run: Run) -> str:
     return f"{run_artifact_prefix(run)}/input.md"
 
 
+def payload_path(run: Run) -> str:
+    return f"{run_artifact_prefix(run)}/payload.txt"
+
+
+def store_run_payload(run: Run, body: bytes) -> dict[str, Any]:
+    """Keep the request body that started a run, cut to TRIGGER_PAYLOAD_MAX_BYTES.
+
+    Returns what the run's input snapshot records about it.
+    """
+    kept = body[: settings.TRIGGER_PAYLOAD_MAX_BYTES]
+    storage = artifact_storage()
+    path = payload_path(run)
+    storage.delete(path)
+    saved = storage.save(path, ContentFile(kept))
+    return {
+        "path": saved,
+        "size_bytes": len(body),
+        "kept_bytes": len(kept),
+        "truncated": len(kept) < len(body),
+    }
+
+
+def run_payload(run: Run) -> dict[str, Any] | None:
+    """What the input snapshot records about the run's payload, if it has one."""
+    return run.input_snapshot.get("payload")
+
+
 def store_run_input(run: Run, text: str) -> StoredOutput:
     """Store the rendered input, bounded like output, at a retry-stable path."""
     raw = text.encode()

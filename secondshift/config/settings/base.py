@@ -460,6 +460,8 @@ OUTBOUND_TIMEOUT_SECONDS = 10
 TRIGGER_MAX_BODY_BYTES = 1024 * 1024
 TRIGGER_SIGNATURE_MAX_AGE_SECONDS = 300
 TRIGGER_EVENTS_KEPT = 100
+# A run keeps this much of the body that started it. The rest is cut.
+TRIGGER_PAYLOAD_MAX_BYTES = 64 * 1024
 # Per-run token budget (input + output + cache tokens), largest accepted
 # request body, and how long to wait between streamed chunks.
 MODEL_RUN_TOKEN_BUDGET = env.int(

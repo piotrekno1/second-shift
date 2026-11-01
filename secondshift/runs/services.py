@@ -10,7 +10,7 @@ from secondshift.config.constants import RunStart
 from secondshift.jobs.models import Job
 from secondshift.jobs.planning import build_execution_plan
 from secondshift.jobs.readiness import plan_problems
-from secondshift.runs.artifacts import job_input_snapshot
+from secondshift.runs.artifacts import job_input_snapshot, store_run_payload
 from secondshift.runs.history import previous_run_ids
 from secondshift.runs.models import Run, RunEvent
 from secondshift.runs.orchestration.dispatch import enqueue_run
@@ -57,11 +57,12 @@ class RunNotReady(RunRefused):
         self.problems = problems
 
 
-def start_run(job: Job, started_by: RunStart) -> Run:
+def start_run(job: Job, started_by: RunStart, payload: bytes | None = None) -> Run:
     """Start a job now. Refuses while another run of the job has not finished.
 
     One run at a time per job also stops a client stuck in a loop from
-    queuing runs faster than they finish.
+    queuing runs faster than they finish. A trigger passes the request body as
+    payload. The run keeps it with its input.
     """
     # Starting now does not need the schedule. It still needs the repository.
     if not job.repository.enabled:
@@ -81,6 +82,9 @@ def start_run(job: Job, started_by: RunStart) -> Run:
             started_by=started_by,
             execution_plan=execution_plan,
         )
+        if payload is not None:
+            run.input_snapshot["payload"] = store_run_payload(run, payload)
+            run.save(update_fields=["input_snapshot"])
     enqueue_run(run)
     return run
 
