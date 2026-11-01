@@ -35,7 +35,7 @@ from secondshift.runs.reporting.notifications import (
     notification_targets,
     run_report_payload,
 )
-from secondshift.runs.services import create_run
+from secondshift.runs.services import create_scheduled_run
 
 logger = logging.getLogger(__name__)
 
@@ -53,9 +53,12 @@ def create_scheduled_run_step(scheduled_time: datetime, context: Any) -> int | N
         logger.info("skipping disabled or deleted scheduled job %s", job_id)
         return None
 
-    run = create_run(job, scheduled_time, reuse_existing=True)
+    run = create_scheduled_run(job, scheduled_time)
     job.next_run_at = next_occurrence(job, after=scheduled_time)
     job.save(update_fields=["next_run_at", "updated_at"])
+    if run is None:
+        logger.info("skipped scheduled job %s: a run has not finished", job_id)
+        return None
     return run.pk
 
 

@@ -1,8 +1,15 @@
+import hashlib
+import json
 from pathlib import Path
 
 import pytest
 
-from secondshift.jobs.manifest import ManifestError, load_manifest, parse_manifest
+from secondshift.jobs.manifest import (
+    ManifestError,
+    load_manifest,
+    manifest_hash,
+    parse_manifest,
+)
 
 
 def write_manifest(path: Path, skill: str = ".agents/skills/review/SKILL.md") -> None:
@@ -102,3 +109,43 @@ jobs:
         "jobs.review.name is required. jobs.review.schedule: schedule must be "
         "a valid five-field cron expression."
     )
+
+
+def job_with(extra: str) -> str:
+    return f"""
+version: 1
+jobs:
+  triage:
+    name: Triage
+    skill: .agents/skills/triage/SKILL.md
+{extra}
+""".strip()
+
+
+def test_manifest_names_a_webhook_trigger() -> None:
+    manifest = parse_manifest(job_with("    triggers: [webhook]"))
+
+    assert manifest.jobs["triage"].triggers == ["webhook"]
+
+
+@pytest.mark.parametrize(
+    "extra",
+    [
+        "    triggers: [email]",
+        "    triggers: [webhook, webhook]",
+        "    triggers:\n      - url: https://example.com",
+    ],
+)
+def test_manifest_refuses_unknown_or_repeated_triggers(extra: str) -> None:
+    with pytest.raises(ManifestError):
+        parse_manifest(job_with(extra))
+
+
+def test_jobs_without_triggers_keep_their_hash() -> None:
+    plain = parse_manifest(job_with("")).jobs["triage"]
+    triggered = parse_manifest(job_with("    triggers: [webhook]")).jobs["triage"]
+    before_triggers = plain.model_dump(exclude={"triggers"})
+    canonical = json.dumps(before_triggers, sort_keys=True, separators=(",", ":"))
+
+    assert manifest_hash(plain) == hashlib.sha256(canonical.encode()).hexdigest()
+    assert manifest_hash(triggered) != manifest_hash(plain)

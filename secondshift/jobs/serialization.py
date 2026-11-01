@@ -154,6 +154,7 @@ def serialize_job_detail(job: Job, can_edit_limits: bool) -> JobDetailSchema:
         key=job.key,
         config_hash=job.config_hash,
         history=job.history,
+        triggers=job.triggers,
         repository_revision=job.repository.config_sha,
         repository_enabled=job.repository.enabled,
         skill_text=job.skill_text,

@@ -172,7 +172,7 @@ function run(id: number, status: Run['status'], durationSeconds: number | null, 
   const start = Date.parse('2026-10-23T08:00:00Z')
   return {
     id, job_id: 1, job: 'Review', repository_id: 1, repository: 'demo', status,
-    scheduled_for: new Date(start).toISOString(),
+    scheduled_for: new Date(start).toISOString(), started_by: 'schedule',
     started_at: durationSeconds === null ? null : new Date(start).toISOString(),
     finished_at: durationSeconds === null ? null : new Date(start + durationSeconds * 1000).toISOString(),
     summary: '', plan_ready: true, commit_sha: 'abc', model: null, max_turns: 24, token_budget: null,

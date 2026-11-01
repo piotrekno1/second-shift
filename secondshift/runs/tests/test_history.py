@@ -14,6 +14,7 @@ from secondshift.runs.artifacts import artifact_storage, store_run_text
 from secondshift.runs.execution.run import run_prompt
 from secondshift.runs.history import CUT_NOTE, previous_reports
 from secondshift.runs.models import Run
+from secondshift.runs.orchestration.workflows import create_scheduled_run_step
 from secondshift.runs.services import create_run
 from secondshift.workspaces.services import create_workspace
 
@@ -175,3 +176,13 @@ def test_lowering_the_server_cap_applies_without_a_resync(settings, repository) 
 )
 def test_review_examples_read_their_previous_report(manifest: str, job: str) -> None:
     assert load_manifest(Path(manifest)).jobs[job].history == 1
+
+
+def test_runs_record_what_started_them(repository) -> None:
+    job = make_job(repository)
+    Job.objects.filter(pk=job.pk).update(enabled=True, cron="0 9 * * 1")
+    Repository.objects.filter(pk=repository.pk).update(enabled=True)
+
+    run_id = create_scheduled_run_step.__wrapped__(timezone.now(), {"job_id": job.pk})
+
+    assert Run.objects.get(pk=run_id).started_by == "schedule"

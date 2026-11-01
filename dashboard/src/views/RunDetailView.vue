@@ -12,6 +12,7 @@ import { Action } from '../utils/permissions'
 import { formatBytes, formatDate, formatTime, runStats, utcTitle, zoneName } from '../utils/format'
 import { renderMarkdown } from '../utils/markdown'
 import { runWarning } from '../utils/readiness'
+import { startedByLabel } from '../utils/triggers'
 
 const POLL_MS = 2000
 
@@ -189,6 +190,7 @@ onUnmounted(stopPolling)
             <div><dt>Repository</dt><dd><RouterLink :to="`/repositories/${run.repository_id}`" class="detail-link">{{ run.repository }}</RouterLink></dd></div>
             <div><dt>Skill</dt><dd><code>{{ run.skill_path }}</code></dd></div>
             <div><dt>Provider</dt><dd>{{ run.model_provider ?? 'None' }}</dd></div>
+            <div><dt>Started by</dt><dd>{{ startedByLabel(run.started_by) }}</dd></div>
             <div><dt>Queued</dt><dd :title="utcTitle(run.created_at)">{{ formatDate(run.created_at) }}</dd></div>
             <div><dt>Started</dt><dd :title="utcTitle(run.started_at)">{{ formatDate(run.started_at) }}</dd></div>
             <div><dt>Finished</dt><dd :title="utcTitle(run.finished_at)">{{ formatDate(run.finished_at) }}</dd></div>

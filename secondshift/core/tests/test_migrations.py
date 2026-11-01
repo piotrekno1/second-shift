@@ -15,7 +15,7 @@ def test_control_plane_migrations_do_not_require_runner() -> None:
     ]
     with override_settings(INSTALLED_APPS=control_plane_apps):
         loader = MigrationLoader(None)
-        assert ("runs", "0001_initial") in loader.graph.leaf_nodes()
+        assert "runs" in {app for app, name in loader.graph.leaf_nodes()}
         assert not any(
             app in {"runner", "automations", "integrations"}
             for app, name in loader.graph.nodes

@@ -74,10 +74,11 @@ standard-library tests work without installing packages.
 | `jobs` | Yes | Mapping of job keys to job definitions. |
 | `jobs.<key>.name` | Yes | Display name in SecondShift. |
 | `jobs.<key>.skill` | Yes | Repository-relative path to a `SKILL.md` file. |
-| `jobs.<key>.schedule` | No | Cron schedule, such as `0 9 * * 1` for Monday at 09:00. Leave it out for a job that runs only with **Run now**. |
+| `jobs.<key>.schedule` | No | Cron schedule, such as `0 9 * * 1` for Monday at 09:00. Leave it out for a job that runs only with **Run now**. A tick is skipped while the job has a run that has not finished. |
 | `jobs.<key>.timezone` | No | IANA timezone, such as `Europe/Warsaw`. Defaults to `UTC`. |
 | `jobs.<key>.history` | No | How many of the job's own earlier reports each run starts with, up to the server's `SECONDSHIFT_JOB_HISTORY_MAX` (5 by default). Defaults to 0. See [run history](#run-history). |
 | `jobs.<key>.notify` | No | Webhook notification bindings requested by this job. |
+| `jobs.<key>.triggers` | No | Events that can start the job. Only `webhook` is supported. An owner or admin turns it on. See [webhook triggers](#webhook-triggers). |
 | `jobs.<key>.requires` | No | MCP tools and HTTP API operations the job needs. See below. |
 
 Skill paths must stay inside the repository. Unknown fields are rejected.
@@ -111,6 +112,39 @@ Reports are kept as long as their runs, `SECONDSHIFT_RUN_RETENTION_DAYS` (90 by
 default). A job that runs less often than that, such as a quarterly review,
 finds its previous report already removed: raise the retention or leave
 `history` off for that job.
+
+## Webhook triggers
+
+A webhook trigger starts the job when a request arrives at its URL, for
+example from an alerting tool. Name it in the job:
+
+```yaml
+jobs:
+  alert-triage:
+    name: Alert triage
+    skill: .agents/skills/alert-triage/SKILL.md
+    triggers: [webhook]
+```
+
+An owner or admin turns the trigger on from the job page. This creates its URL
+and secret. Copy the secret then. It is not shown again. Neither the URL nor the
+secret goes in the repository.
+
+Each request must carry the secret in one of two ways:
+
+- `Authorization: Bearer <secret>`. Any scheme works.
+- A hex HMAC-SHA256 of the body, keyed with the secret, in
+  `X-SecondShift-Signature`. A `sha256=` prefix is allowed. To block replays,
+  also send a Unix timestamp in `X-SecondShift-Timestamp` and sign
+  `<timestamp>:<body>`. Requests older than five minutes are then refused.
+
+Tools that sign with their own header names usually let you rename them. Set
+them to the names above.
+
+A request starts a run only if the trigger is on, the job is ready, and no run
+of the job is active. Otherwise it is refused with a reason. The job page lists
+recent requests and what happened to each. Turning the trigger off or rotating
+the secret applies from the next request.
 
 ## Deliver reports to a webhook
 

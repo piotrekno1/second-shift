@@ -58,6 +58,7 @@ All credentials are encrypted in the database with `SECONDSHIFT_ENCRYPTION_KEY`.
 | MCP and API credentials | The worker, inside the broker call | The sandbox, the model, audit events |
 | OAuth refresh tokens | The worker, when a token expires | The sandbox, the model |
 | Webhook URL | The worker, when delivering | The sandbox, the model |
+| Webhook trigger secret | The web app, to check a request | The sandbox, the model. Shown once |
 | Gateway run token | Held by the agent loop for one run | The sandbox. Only its hash is stored |
 
 The agent loop and the broker run in the same worker process. The model never
@@ -174,6 +175,11 @@ the `#alerts` and `#ops` channels.
 - **The credential sets the reach.** For custom MCP servers and HTTP APIs,
   SecondShift cannot narrow what the credential itself can access. Use the
   narrowest token the service offers.
+
+- **A webhook trigger starts runs for whoever holds its secret.** Each run uses
+  tokens and the job's approved tools. Turn a trigger off or rotate its secret
+  if it may have leaked. A request signed without a timestamp header can be
+  sent again later, so set the timestamp header when signing.
 
 Approve only the tools a job needs, restrict the arguments that pick a target,
 and prefer read-only credentials.
