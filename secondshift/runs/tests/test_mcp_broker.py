@@ -384,3 +384,80 @@ def test_remote_failures_are_reportable_but_policy_denials_still_stop_the_run(
     )
     with pytest.raises(ExternalToolError, match="no longer approved"):
         tool.function(context)
+
+
+def set_rules(run: Run, rules: dict) -> None:
+    grant = JobGrant.objects.get(capability_request__job=run.job)
+    grant.tool_rules = rules
+    grant.save()
+    run.execution_plan = build_execution_plan(run.job)
+    run.save()
+
+
+@pytest.mark.django_db
+def test_owner_rules_cannot_loosen_the_github_scope(planned_run, mcp_http) -> None:
+    set_rules(
+        planned_run,
+        {
+            "search_pull_requests": {
+                "owner": {"type": "fixed", "value": "attacker"},
+                "repo": {"type": "fixed", "value": "private"},
+            }
+        },
+    )
+
+    with pytest.raises(ExternalToolError, match="approved repository"):
+        call_external_tool_step(planned_run.pk, NAME, {"query": "x"}, "call-1")
+
+    assert not mcp_http
+
+
+@pytest.mark.django_db
+def test_a_call_that_breaks_an_owner_rule_never_reaches_mcp(
+    planned_run, mcp_http
+) -> None:
+    set_rules(
+        planned_run,
+        {"search_pull_requests": {"owner": {"type": "forbidden"}}},
+    )
+
+    with pytest.raises(ExternalToolError, match="owner"):
+        call_external_tool_step(
+            planned_run.pk, NAME, {"query": "x", "owner": "someone"}, "blocked"
+        )
+
+    assert not mcp_http
+    event = planned_run.events.get()
+    assert event.message == f"Tool blocked by a restriction: {NAME}"
+    assert "someone" not in json.dumps(event.metadata)
+
+
+@pytest.mark.django_db
+def test_rules_changed_mid_run_do_not_affect_the_run(planned_run, mcp_http) -> None:
+    grant = JobGrant.objects.get(capability_request__job=planned_run.job)
+    grant.tool_rules = {"search_pull_requests": {"owner": {"type": "forbidden"}}}
+    grant.save()
+
+    call_external_tool_step(
+        planned_run.pk, NAME, {"query": "x", "owner": "example"}, "call-1"
+    )
+
+    assert any(message["method"] == "tools/call" for message in mcp_http)
+
+
+@pytest.mark.django_db
+def test_the_model_sees_the_narrowed_schema(planned_run) -> None:
+    set_rules(
+        planned_run,
+        {"search_pull_requests": {"owner": {"type": "allowed", "values": ["a"]}}},
+    )
+
+    tool = next(
+        item
+        for item in external_tools(planned_run)
+        if "search_pull_requests" in item.name
+    )
+
+    schema = tool.function_schema.json_schema
+    assert schema["properties"]["owner"]["enum"] == ["a"]
+    assert "owner" in schema["required"]

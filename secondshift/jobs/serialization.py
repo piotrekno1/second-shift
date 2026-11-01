@@ -14,6 +14,7 @@ from secondshift.jobs.schemas import (
     JobDetailSchema,
     JobSchema,
     LastRunSchema,
+    ToolInputSchema,
 )
 from secondshift.repositories.models import Repository
 from secondshift.runs.models import Run
@@ -52,6 +53,18 @@ def binding_connections(workspace_id: int) -> dict[str, Connection]:
     }
 
 
+def tool_inputs(connection: Connection, tools: list[str]) -> dict[str, ToolInputSchema]:
+    definitions = connection.metadata.get("tools", {})
+    inputs = {}
+    for tool in tools:
+        schema = (definitions.get(tool) or {}).get("inputSchema") or {}
+        inputs[tool] = ToolInputSchema(
+            properties=schema.get("properties") or {},
+            required=schema.get("required") or [],
+        )
+    return inputs
+
+
 def serialize_job(
     job: Job, connections: dict[str, Connection] | None = None
 ) -> JobSchema:
@@ -81,6 +94,14 @@ def serialize_job(
                     and connection.kind == capability.kind
                     and (access := external_access(connection, job.repository))
                     else None
+                ),
+                tool_rules=grant.tool_rules if grant else {},
+                tool_inputs=(
+                    tool_inputs(connection, capability.requested_tools)
+                    if connection
+                    and connection.kind == capability.kind
+                    and connection.kind in (Connection.Kind.MCP, Connection.Kind.API)
+                    else {}
                 ),
                 grant_status=grant.status if grant else "unconfigured",
                 connection_id=grant.connection_id if grant else None,

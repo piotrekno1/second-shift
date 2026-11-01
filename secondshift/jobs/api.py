@@ -138,6 +138,14 @@ def review_job_capability(
             connection,
             payload.allowed_tools,
             request.user,
+            (
+                None
+                if payload.tool_rules is None
+                else {
+                    tool: {name: rule.dict() for name, rule in rules.items()}
+                    for tool, rules in payload.tool_rules.items()
+                }
+            ),
         )
     except GrantError as error:
         raise HttpError(error.status, str(error)) from error

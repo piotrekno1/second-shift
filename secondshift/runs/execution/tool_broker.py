@@ -10,10 +10,21 @@ from jsonschema import ValidationError, validate
 from secondshift.connections.errors import ExternalToolError
 from secondshift.connections.external import Authorization, external_kind
 from secondshift.jobs.models import JobGrant
-from secondshift.jobs.tool_policy import resolve_tool
+from secondshift.jobs.tool_policy import AuthorizedTool, resolve_tool
+from secondshift.jobs.tool_rules import ToolRuleViolation, apply_rules
 from secondshift.runs.models import Run, RunEvent
 
 FINISHED = {Run.Status.CANCELED, Run.Status.FAILED, Run.Status.SUCCEEDED}
+
+
+def frozen_rules(run: Run, tool: AuthorizedTool) -> dict[str, Any]:
+    """The owner's rules for this tool, as copied into the run's plan."""
+    capability = next(
+        item
+        for item in run.execution_plan["capabilities"]
+        if item["kind"] == tool.kind and item["binding"] == tool.binding
+    )
+    return capability.get("tool_rules", {}).get(str(tool.provider_tool), {})
 
 
 def broker_connection(run: Run, name: str) -> Authorization:
@@ -63,6 +74,19 @@ def call_external_tool_step(
     run = Run.objects.select_related("job__repository").get(pk=run_id)
     authorization = broker_connection(run, name)
     tool = resolve_tool(run.execution_plan, name)
+    # Owner rules first. The provider's own scope rules run last, inside call,
+    # so a restriction can never loosen them.
+    try:
+        arguments = apply_rules(name, frozen_rules(run, tool), arguments)
+    except ToolRuleViolation as error:
+        # The message names the property and the rule, never the value sent.
+        RunEvent.objects.create(
+            run=run,
+            level="warning",
+            message=f"Tool blocked by a restriction: {name}",
+            metadata={"tool": name, "ok": False, "reason": str(error)},
+        )
+        raise
     try:
         validate(arguments, authorization.definition["inputSchema"])
     except ValidationError:

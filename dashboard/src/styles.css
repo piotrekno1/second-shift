@@ -872,3 +872,17 @@ body .workspace-menu { width: 224px; }
   /* Unlike members, Revoke stays on the name's line. */
   .token-list .member-email { flex: 1 1 0; }
 }
+.tool-rule-grid { display: grid; gap: 8px; margin-top: 4px; }
+.tool-rule-tool { display: grid; gap: 4px; }
+.tool-rule-tool > code { color: var(--ink); font-size: 11px; }
+.tool-rules { display: grid; gap: 4px; }
+.tool-rule-list { display: flex; flex-wrap: wrap; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.tool-rule-list li { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; color: var(--ink); background: var(--white-6); font-size: 11px; }
+.tool-rule-list .app-icon { width: 12px; height: 12px; color: var(--muted); }
+.tool-rule-remove { display: inline-flex; padding: 0; border: 0; color: var(--muted); background: none; cursor: pointer; }
+.tool-rule-remove:hover { color: var(--ink); }
+.tool-rule-add { display: inline-flex; align-items: center; gap: 4px; justify-self: start; font-size: 11px; }
+.tool-rule-add .app-icon { width: 12px; height: 12px; }
+.tool-rule-form { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.tool-rule-form .p-select { min-width: 140px; font-size: 12px; }
+.tool-rule-form .p-inputtext { flex: 1 1 180px; min-height: 30px; padding: 4px 8px; font-size: 12px; }

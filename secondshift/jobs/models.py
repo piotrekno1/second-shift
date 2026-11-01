@@ -121,6 +121,8 @@ class JobGrant(models.Model):
         default=Status.PENDING,
     )
     allowed_tools = models.JSONField(default=list, blank=True)
+    # The owner's argument rules per approved tool. See jobs.tool_rules.
+    tool_rules = models.JSONField(default=dict, blank=True)
     reviewed_by = models.ForeignKey(
         "auth.User",
         on_delete=models.PROTECT,
@@ -159,4 +161,8 @@ class JobGrant(models.Model):
         if unknown_tools:
             raise ValidationError(
                 {"allowed_tools": "Allowed tools must be requested by the job."}
+            )
+        if set(self.tool_rules) - set(self.allowed_tools):
+            raise ValidationError(
+                {"tool_rules": "Rules can only apply to approved tools."}
             )

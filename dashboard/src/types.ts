@@ -244,6 +244,32 @@ export interface Capability {
   grant_status: 'approved' | 'pending' | 'denied' | 'unconfigured'
   connection_id: number | null
   connection_name: string | null
+  /** The owner's argument rules per approved tool. */
+  tool_rules?: ToolRules
+  /** External tools only: each requested tool's top-level arguments. */
+  tool_inputs?: Record<string, ToolInput>
+}
+
+export type ToolRule =
+  | { type: 'fixed'; value: unknown }
+  | { type: 'allowed'; values: unknown[] }
+  | { type: 'maximum'; value: number }
+  | { type: 'forbidden' }
+
+/** Tool name, then argument name, then the rule. */
+export type ToolRules = Record<string, Record<string, ToolRule>>
+
+export interface ToolInputProperty {
+  type?: string | string[]
+  description?: string
+  enum?: unknown[]
+  minimum?: number
+  maximum?: number
+}
+
+export interface ToolInput {
+  properties: Record<string, ToolInputProperty>
+  required: string[]
 }
 
 export interface RunFailure {

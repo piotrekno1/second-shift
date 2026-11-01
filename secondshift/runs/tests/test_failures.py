@@ -4,6 +4,7 @@ import pytest
 import requests
 from pydantic_ai.exceptions import ModelHTTPError
 
+from secondshift.jobs.tool_rules import ToolRuleViolation
 from secondshift.repositories.github_app import GitHubAppError
 from secondshift.runner.protocol import RunnerProtocolError
 from secondshift.runs.models import Run
@@ -62,6 +63,22 @@ def test_summary_hides_messages_it_did_not_write(error: Exception, detail: str) 
     assert detail in summary
     assert "secret-looking-value" not in summary
     assert "runner:8002" not in summary
+
+
+def test_a_broken_tool_restriction_is_not_blamed_on_the_skill() -> None:
+    error = ToolRuleViolation(
+        "mcp.slack.post_message: `channel` must be one of the approved values."
+    )
+    run = Run(status=Run.Status.FAILED, summary=failure_summary("skill", error))
+
+    failure = run_failure(run)
+
+    assert failure is not None
+    assert failure.label == "Tool restriction"
+    assert failure.reason == (
+        "mcp.slack.post_message: `channel` must be one of the approved values."
+    )
+    assert "access review" in failure.next_step
 
 
 @pytest.mark.parametrize(

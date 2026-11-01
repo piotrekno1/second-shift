@@ -246,6 +246,11 @@ supplies only the path and query values the spec declares, plus a JSON body for
 operations that take one. Requests go only to the base URL the owner confirmed
 when connecting. Redirects are not followed.
 
+The owner can also restrict a tool's arguments for one job, for example to
+post only to certain Slack channels. The repository cannot set restrictions.
+Write the skill so it stays within them: a call that breaks a restriction fails
+the run. See [tool restrictions](security-model.md#tool-restrictions).
+
 An approved tool can still be misused by a prompt injection. See
 [remaining risks](security-model.md#remaining-risks) before approving tools
 that change data.

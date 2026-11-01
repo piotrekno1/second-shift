@@ -6,6 +6,7 @@ from typing import Literal
 import requests
 from pydantic_ai.exceptions import ModelHTTPError
 
+from secondshift.jobs.tool_rules import ToolRuleViolation
 from secondshift.repositories.github_app import GitHubAppError
 from secondshift.runner.protocol import RunnerProtocolError
 from secondshift.runs.execution.budgets import BUDGET_HEADLINE
@@ -21,6 +22,12 @@ STAGE_FAILURES: dict[str, str] = {
     "finishing": "The run could not be recorded",
 }
 MAX_DETAIL_CHARS = 300
+TOOL_RULE_PREFIX = "Blocked by a tool restriction: "
+TOOL_RULE_LABEL = "Tool restriction"
+TOOL_RULE_NEXT_STEP = (
+    "The model used a tool in a way the job's access review does not allow. "
+    "Change the restriction or the skill, then run again."
+)
 
 # Messages of these types come from SecondShift or Pydantic AI (whose run errors
 # are RuntimeErrors) and never carry credentials, so they are shown. Anything
@@ -70,6 +77,9 @@ def failure_detail(error: BaseException) -> str:
         message = provider_message(error.body)
         reply = f"The model provider answered HTTP {error.status_code}"
         return one_line(f"{reply}: {message}" if message else f"{reply}.")
+    if isinstance(error, ToolRuleViolation):
+        # Names the argument and the rule, never the value the model sent.
+        return one_line(f"{TOOL_RULE_PREFIX}{error}")
     if isinstance(error, requests.Timeout):
         return "The runner did not answer in time."
     if isinstance(error, requests.ConnectionError):
@@ -133,6 +143,8 @@ def describe_failure(summary: str) -> FailureView:
                     MODEL_PROVIDER_LABEL,
                     detail[len(MODEL_PROVIDER_PREFIX) :].replace(": ", " · ", 1),
                 )
+            if detail.startswith(TOOL_RULE_PREFIX):
+                return FailureView(TOOL_RULE_LABEL, detail[len(TOOL_RULE_PREFIX) :])
             return FailureView(STAGE_LABELS[stage], detail)
     if text.startswith(LEGACY_WORKFLOW_PREFIX) and text.endswith(")."):
         return FailureView(

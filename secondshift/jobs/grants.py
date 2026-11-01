@@ -7,6 +7,12 @@ from django.utils import timezone
 from secondshift.connections.external import external_access
 from secondshift.connections.models import Connection
 from secondshift.jobs.models import CapabilityRequest, JobGrant
+from secondshift.jobs.tool_rules import (
+    ToolRuleError,
+    ToolRules,
+    kept_rules,
+    validate_rules,
+)
 
 
 class GrantError(Exception):
@@ -64,7 +70,9 @@ def decide_grant(
     connection: Connection | None,
     chosen_tools: list[str] | None,
     reviewer: AbstractBaseUser,
+    tool_rules: ToolRules | None = None,
 ) -> JobGrant:
+    """`tool_rules` None keeps the rules for tools that stay approved."""
     approving = decision == JobGrant.Status.APPROVED
     if connection is not None:
         check_connection(capability, connection, approving)
@@ -75,9 +83,18 @@ def decide_grant(
     grant = JobGrant.objects.filter(capability_request=capability).first() or JobGrant(
         capability_request=capability
     )
+    rules = kept_rules(grant.tool_rules if tool_rules is None else tool_rules, allowed)
+    if tool_rules is not None and set(tool_rules) - allowed:
+        raise GrantError(422, "Rules can only apply to approved tools.")
+    if rules and connection is not None:
+        try:
+            validate_rules(rules, connection.metadata.get("tools", {}), sorted(allowed))
+        except ToolRuleError as error:
+            raise GrantError(422, str(error)) from error
     grant.connection = connection
     grant.status = decision
     grant.allowed_tools = sorted(allowed)
+    grant.tool_rules = rules
     grant.reviewed_by = reviewer
     grant.reviewed_at = timezone.now()
     grant.full_clean()
