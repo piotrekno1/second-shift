@@ -295,16 +295,16 @@ SOCIALACCOUNT_ADAPTER = "secondshift.core.adapters.SocialAccountAdapter"
 SIGNUP_ENABLED = env.bool("SECONDSHIFT_SIGNUP_ENABLED", default=DEV)
 LOGIN_REDIRECT_URL = "/"
 LOGOUT_REDIRECT_URL = "/"
-SOCIALACCOUNT_PROVIDERS = {
-    "github": {
-        "APP": {
-            "client_id": env.str("GITHUB_CLIENT_ID", default=""),
-            "secret": env.str("GITHUB_CLIENT_SECRET", default=""),
-            "key": "",
-        },
-        "SCOPE": ["read:user", "user:email"],
+GITHUB_CLIENT_ID = env.str("GITHUB_CLIENT_ID", default="")
+GITHUB_CLIENT_SECRET = env.str("GITHUB_CLIENT_SECRET", default="")
+SOCIALACCOUNT_PROVIDERS = {"github": {"SCOPE": ["read:user", "user:email"]}}
+# Without an app, allauth hides the GitHub button on the sign-in page.
+if GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET:
+    SOCIALACCOUNT_PROVIDERS["github"]["APP"] = {
+        "client_id": GITHUB_CLIENT_ID,
+        "secret": GITHUB_CLIENT_SECRET,
+        "key": "",
     }
-}
 
 # Lock out an IP after repeated failed logins (admin and allauth alike).
 AXES_FAILURE_LIMIT = env.int("AXES_FAILURE_LIMIT", default=5)
