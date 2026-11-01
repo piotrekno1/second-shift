@@ -63,3 +63,16 @@ def test_github_sign_in_is_offered_with_credentials(client: Client) -> None:
         page = client.get("/accounts/login/").content.decode()
 
     assert "/accounts/github/login/" in page
+
+
+@pytest.mark.django_db
+@override_settings(SIGNUP_ENABLED=True)
+@pytest.mark.parametrize("path", ["/accounts/login/", "/accounts/signup/"])
+def test_github_button_shows_its_logo(client: Client, path: str) -> None:
+    providers = {"github": {"SCOPE": ["read:user"], "APP": GITHUB_APP}}
+    with override_settings(SOCIALACCOUNT_PROVIDERS=providers):
+        page = client.get(path).content.decode()
+
+    assert "Continue with GitHub" in page
+    assert '<svg viewBox="0 0 24 24"' in page
+    assert "third-party" not in page
