@@ -42,6 +42,7 @@ class FakeServer:
         self.refresh = "rt-1"
         self.issued = 1
         self.grant_scope: str | None = None
+        self.input_schema = OBJECT_SCHEMA
         self.static_token = "static-token"
         self.mcp_auth: list[str] = []
         self.register_body: dict[str, Any] = {"client_id": "client-1"}
@@ -128,7 +129,7 @@ class FakeServer:
                     "tools": [
                         {
                             "name": "read_metrics",
-                            "inputSchema": OBJECT_SCHEMA,
+                            "inputSchema": self.input_schema,
                             "annotations": {"readOnlyHint": True},
                         },
                         {"name": "delete_dashboard", "inputSchema": OBJECT_SCHEMA},
@@ -412,3 +413,24 @@ def test_sign_in_keeps_the_approval_choice(
     reconnected = sign_in(connection, False)
     reconnected.refresh_from_db()
     assert reconnected.require_approval is True
+
+
+def test_sign_in_accepts_local_tool_schema_references(
+    fake: FakeServer, workspace: Workspace, owner: Any
+) -> None:
+    fake.input_schema = {
+        "type": "object",
+        "$defs": {
+            "Cursor": {"type": "object", "properties": {"id": {"type": "string"}}}
+        },
+        "properties": {
+            "cursor": {"anyOf": [{"$ref": "#/$defs/Cursor"}, {"type": "null"}]}
+        },
+    }
+    state = begin(fake, workspace, owner)
+    connection = complete_authorization(owner, state, "good-code", "")
+    connection.refresh_from_db()
+    assert connection.status == Connection.Status.CONNECTED
+    assert (
+        connection.metadata["tools"]["read_metrics"]["inputSchema"] == fake.input_schema
+    )

@@ -23,6 +23,7 @@ from secondshift.connections.mcp.base import (
 )
 from secondshift.connections.mcp.oauth import fresh_connection
 from secondshift.connections.mcp.providers import connection_settings, mcp_provider
+from secondshift.connections.mcp.schemas import validate_tool_schema
 from secondshift.connections.mcp.transport import (
     MCP_RESPONSE_MAX_BYTES,
     MCPTransport,
@@ -33,7 +34,6 @@ from secondshift.connections.services import ConnectionConflict
 from secondshift.workspaces.models import Workspace
 
 MCP_MAX_PAGES = 10
-MCP_SCHEMA_MAX_DEPTH = 30
 # Custom servers keep every tool for the owner to choose from, up to this many.
 MCP_MAX_OFFERED_TOOLS = 200
 AUTH_STRATEGIES = {
@@ -171,19 +171,6 @@ async def offered_tools(
     if not tools:
         raise MCPError(f"{provider.label} exposed no supported tools.")
     return tools
-
-
-def validate_tool_schema(value: Any, depth: int = 0) -> None:
-    if depth > MCP_SCHEMA_MAX_DEPTH:
-        raise MCPError("The MCP schema is too deeply nested.")
-    if isinstance(value, dict):
-        if any(key in value for key in ("$ref", "$dynamicRef", "$recursiveRef")):
-            raise MCPError("MCP schema references are not supported.")
-        for item in value.values():
-            validate_tool_schema(item, depth + 1)
-    elif isinstance(value, list):
-        for item in value:
-            validate_tool_schema(item, depth + 1)
 
 
 def discover_tools(connection: Connection) -> dict[str, Any]:
