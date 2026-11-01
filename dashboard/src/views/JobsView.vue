@@ -5,6 +5,7 @@ import { useRoute } from 'vue-router'
 import Button from 'primevue/button'
 import Select from 'primevue/select'
 import FilterChips from '../components/FilterChips.vue'
+import DocsLink from '../components/DocsLink.vue'
 import ModelWarning from '../components/ModelWarning.vue'
 import PageHeader from '../components/PageHeader.vue'
 import SearchInput from '../components/SearchInput.vue'
@@ -15,6 +16,7 @@ import { apiPost } from '../services/api'
 import { startJobRun } from '../services/runs'
 import { useAppStore } from '../stores/app'
 import type { Access, Capability, Connection, Job, ToolRules } from '../types'
+import { DocsPage } from '../utils/docs'
 import { Action } from '../utils/permissions'
 import { approvalPending, enableBlocker, runWarning } from '../utils/readiness'
 import { sameRules } from '../utils/toolRules'
@@ -259,7 +261,7 @@ async function toggleJob(job: Job): Promise<void> {
           </div>
           <section v-if="expandedJobId === job.id" :id="`job-access-${job.id}`" class="job-review">
             <div class="job-review-heading">
-              <div><h3>Access review</h3><p>This job asks for these bindings. Choose the connection for each one, then approve. <RouterLink :to="`/jobs/${job.id}#skill`" class="review-skill-link">Read the skill first</RouterLink></p></div>
+              <div><h3>Access review</h3><p>This job asks for these bindings. Choose the connection for each one, then approve. <RouterLink :to="`/jobs/${job.id}#skill`" class="review-skill-link">Read the skill first</RouterLink> <DocsLink :page="DocsPage.SecurityModel" section="who-grants-what" class="review-skill-link">How access works</DocsLink></p></div>
               <Button v-if="job.cron && app.can(Action.EnableJobs)" :label="job.enabled ? 'Disable job' : 'Enable job'" severity="secondary" outlined :disabled="Boolean(enableBlocker(job))" :title="enableBlocker(job) || undefined" :loading="action === `toggle-${job.id}`" @click="toggleJob(job)">
                 <template #icon><AppIcon :name="job.enabled ? 'pause' : 'play'" /></template>
               </Button>
