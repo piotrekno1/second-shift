@@ -17,7 +17,7 @@ export default defineConfig({
     social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/piotrekno1/second-shift' }],
     sidebar: [
       { label: 'Start', items: [{ label: 'Overview', slug: 'docs/overview' }, { label: 'Try locally', slug: 'docs/quickstart' }, { label: 'Add a task', slug: 'docs/engineering-tasks' }] },
-      { label: 'Set up', items: [{ label: 'Repository config', slug: 'docs/repository-configuration' }, { label: 'GitHub App', slug: 'docs/github-app' }, { label: 'Deploy', slug: 'docs/production-deployment' }] },
+      { label: 'Set up', items: [{ label: 'Repository config', slug: 'docs/repository-configuration' }, { label: 'GitHub App', slug: 'docs/github-app' }, { label: 'Vendor MCP servers', slug: 'docs/mcp-recipes' }, { label: 'Deploy', slug: 'docs/production-deployment' }] },
       { label: 'Reference', collapsed: true, items: [{ label: 'Self-hosting', slug: 'docs/self-hosting' }, { label: 'Environment variables', slug: 'docs/environment-variables' }, { label: 'MCP server', slug: 'docs/mcp' }, { label: 'Security', slug: 'docs/security-model' }, 'docs/architecture', 'docs/comparisons'] },
     ],
   })],
