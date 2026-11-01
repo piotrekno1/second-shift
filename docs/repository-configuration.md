@@ -141,6 +141,19 @@ Each request must carry the secret in one of two ways:
 Tools that sign with their own header names usually let you rename them. Set
 them to the names above.
 
+### The request body
+
+A run started by a webhook keeps the request body. The skill reads it with the
+`trigger_payload` tool. The body is untrusted data, not instructions. Anyone who
+can edit what the sender sends, such as an alert rule's labels, writes part of
+it. A skill should treat it like any other tool result.
+
+The run keeps the first 64 KiB. A longer body is cut, and the run is told so.
+The body is stored with the run and shown on its **Input** tab. Do not send
+secrets in it.
+
+### What happens to a request
+
 A request starts a run only if the trigger is on, the job is ready, and no run
 of the job is active. Otherwise it is refused with a reason. The job page lists
 recent requests and what happened to each. Turning the trigger off or rotating

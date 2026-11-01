@@ -160,8 +160,8 @@ the `#alerts` and `#ops` channels.
 
 ## Remaining risks
 
-- **Approved tools can be misused.** A prompt injection in repository content or
-  a tool result can make the model call any approved tool with any arguments
+- **Approved tools can be misused.** A prompt injection in repository content,
+  a tool result or a trigger payload can make the model call any approved tool with any arguments
   its schema and restrictions allow. An approved tool that changes data can be used to change
   data the job was not meant to touch.
 - **Tool results can carry injected text.** Pull request text and CI job logs
@@ -180,6 +180,9 @@ the `#alerts` and `#ops` channels.
   tokens and the job's approved tools. Turn a trigger off or rotate its secret
   if it may have leaked. A request signed without a timestamp header can be
   sent again later, so set the timestamp header when signing.
+- **A trigger payload is stored with its run.** Anyone who can view the run
+  can read it on the **Input** tab, and the model provider sees it. Keep
+  secrets out of what the sender sends, such as alert labels and annotations.
 
 Approve only the tools a job needs, restrict the arguments that pick a target,
 and prefer read-only credentials.
