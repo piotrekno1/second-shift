@@ -156,8 +156,12 @@ def refuse_unauthorized(trigger: JobTrigger, reason: str) -> Received:
     return Received(401, reason)
 
 
-def runs_per_hour(trigger: JobTrigger) -> int:
-    return trigger.max_runs_per_hour or settings.TRIGGER_MAX_RUNS_PER_HOUR
+def runs_per_hour(trigger: JobTrigger | None) -> int:
+    """The owner's cap or the server default, never above the server ceiling."""
+    chosen = (trigger and trigger.max_runs_per_hour) or (
+        settings.TRIGGER_MAX_RUNS_PER_HOUR
+    )
+    return min(chosen, settings.TRIGGER_MAX_RUNS_PER_HOUR_CEILING)
 
 
 def earlier_run(job: Job, key: str, webhook: dict[str, Any]) -> Run | None:

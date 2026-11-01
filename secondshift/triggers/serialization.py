@@ -42,9 +42,7 @@ def serialize_trigger(
             )
             for event in events
         ],
-        runs_per_hour=(
-            runs_per_hour(trigger) if trigger else settings.TRIGGER_MAX_RUNS_PER_HOUR
-        ),
+        runs_per_hour=runs_per_hour(trigger),
         custom_runs_per_hour=trigger.max_runs_per_hour if trigger else None,
         default_runs_per_hour=settings.TRIGGER_MAX_RUNS_PER_HOUR,
         max_runs_per_hour=settings.TRIGGER_MAX_RUNS_PER_HOUR_CEILING,

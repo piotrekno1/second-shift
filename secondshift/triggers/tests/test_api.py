@@ -468,7 +468,8 @@ def test_owner_sets_the_hourly_cap_up_to_the_ceiling(
 
     client.force_login(owner)
     reset = set_cap(client, job, None).json()
-    assert (reset["runs_per_hour"], reset["custom_runs_per_hour"]) == (10, None)
+    # The default of 10 is above this server's ceiling of 5.
+    assert (reset["runs_per_hour"], reset["custom_runs_per_hour"]) == (5, None)
 
 
 def test_members_cannot_change_the_hourly_cap(
@@ -495,3 +496,16 @@ def test_trigger_shows_the_repository_settings(
 
     assert trigger["skip_when"] == {"status": "resolved"}
     assert (trigger["repeat_key"], trigger["repeat_window"]) == ("groupKey", "1h")
+
+
+def test_lowering_the_ceiling_caps_an_owner_value(
+    client: Client, owner: AbstractUser, job: Job, settings
+) -> None:
+    turn_on(client, owner, job)
+    JobTrigger.objects.update(max_runs_per_hour=30)
+    settings.TRIGGER_MAX_RUNS_PER_HOUR_CEILING = 5
+    client.force_login(owner)
+
+    trigger = client.get(f"/api/jobs/{job.pk}/triggers").json()[0]
+
+    assert (trigger["runs_per_hour"], trigger["custom_runs_per_hour"]) == (5, 30)
