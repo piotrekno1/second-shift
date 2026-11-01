@@ -4,6 +4,7 @@
 | --- | --- |
 | `repositories` | Repository sources, revisions, mirrors and run snapshots, sync triggers |
 | `jobs` | Manifest interpretation, job reconciliation, capability requests, grants, execution-plan compilation, schedule registration |
+| `triggers` | Job triggers, their secrets, the public endpoint that starts runs, received requests |
 | `runs` | Execution records, audit events, agent execution, durable workflows, recovery, artifacts, retention, report delivery |
 | `connections` | Connection lifecycle, encrypted credentials, OAuth sign-ins, provider adapters for MCP, HTTP APIs, models and webhooks |
 | `runner` | The isolated service's sandbox sessions, runtime enforcement, command execution, shared protocol and client |
@@ -25,8 +26,9 @@ capability requests. Connections make external services available. Job grants
 authorize their use. `jobs.planning` freezes effective policy for a future run.
 It does not import the agent execution framework.
 
-Manual and scheduled triggers use `runs.services.create_run`. Manual execution
-checks authorization and readiness first. Scheduled creation retains its existing
+Manual and scheduled triggers use `runs.services.create_run`. Run now and
+webhook triggers go through `runs.services.start_run`, which checks
+authorization and readiness first. Scheduled creation retains its existing
 idempotency and execution-time readiness checks. Existing execution plans and
 input snapshots remain attached to their run. Runtime checks still enforce
 connection ownership and revocation.

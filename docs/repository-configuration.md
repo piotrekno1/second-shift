@@ -78,6 +78,7 @@ standard-library tests work without installing packages.
 | `jobs.<key>.timezone` | No | IANA timezone, such as `Europe/Warsaw`. Defaults to `UTC`. |
 | `jobs.<key>.history` | No | How many of the job's own earlier reports each run starts with, up to the server's `SECONDSHIFT_JOB_HISTORY_MAX` (5 by default). Defaults to 0. See [run history](#run-history). |
 | `jobs.<key>.notify` | No | Webhook notification bindings requested by this job. |
+| `jobs.<key>.triggers` | No | Events that may start the job. Only `webhook` is supported. An owner or admin still turns it on. See [webhook triggers](#webhook-triggers). |
 | `jobs.<key>.requires` | No | MCP tools and HTTP API operations the job needs. See below. |
 
 Skill paths must stay inside the repository. Unknown fields are rejected.
@@ -111,6 +112,55 @@ Reports are kept as long as their runs, `SECONDSHIFT_RUN_RETENTION_DAYS` (90 by
 default). A job that runs less often than that, such as a quarterly review,
 finds its previous report already removed: raise the retention or leave
 `history` off for that job.
+
+## Webhook triggers
+
+A job can start when a webhook arrives, for example when a Grafana alert fires.
+Name the trigger in the job:
+
+```yaml
+jobs:
+  alert-triage:
+    name: Alert triage
+    skill: .agents/skills/alert-triage/SKILL.md
+    triggers: [webhook]
+```
+
+The key is `triggers`, not `on`. YAML reads a bare `on` as `true`.
+
+The configuration names the trigger and nothing else: no URL and no secret.
+An owner or admin turns it on from the job page. SecondShift then shows the
+trigger's URL and a secret. The secret is shown once. Turning the trigger off
+or rotating the secret takes effect on the next request.
+
+A request must prove it knows the secret in one of two ways:
+
+- An `Authorization` header with the secret as its credentials, with any
+  scheme, such as `Authorization: Bearer <secret>`.
+- A hex HMAC-SHA256 of the request body, keyed with the secret, in the
+  `X-Grafana-Alerting-Signature` or `X-SecondShift-Signature` header. With an
+  `X-Grafana-Alerting-Timestamp` or `X-SecondShift-Timestamp` header, the
+  signature covers `<timestamp>:<body>`, and the timestamp must be within five
+  minutes.
+
+A trigger starts a run only when the job is ready and has no run that has not
+finished. Otherwise the request is refused. The job page lists recent requests,
+with the reason for each refusal. A run started this way shows **Webhook** as
+what started it.
+
+### Grafana
+
+1. Add `triggers: [webhook]` to the job and sync the repository.
+2. On the job page, turn on the webhook trigger. Copy the URL and the secret.
+3. In Grafana, add a **Webhook** contact point with that URL.
+4. In the contact point's optional settings, set the Authorization header
+   scheme to `Bearer` and its credentials to the secret. To sign requests
+   instead, use the secret as the HMAC secret, and set the HMAC timestamp
+   header to `X-Grafana-Alerting-Timestamp`.
+5. Use **Test** to send a test alert. The job page shows the request, and a run
+   starts if the job is ready.
+
+Keep an existing Slack contact point next to it in the same notification policy.
 
 ## Deliver reports to a webhook
 
