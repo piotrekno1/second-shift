@@ -5,6 +5,7 @@ import { useRoute, useRouter } from 'vue-router'
 import Menu from 'primevue/menu'
 import type { MenuItem } from 'primevue/menuitem'
 import { signOut } from '../services/api'
+import { DOCS_HOME_URL } from '../utils/docs'
 import { SIGN_IN_PATH } from '../utils/signIn'
 import { useAppStore } from '../stores/app'
 import InvitePrompt from './InvitePrompt.vue'
@@ -62,6 +63,7 @@ const accountMenu = ref<InstanceType<typeof Menu> | null>(null)
 const accountOpen = ref(false)
 const accountItems = computed<MenuItem[]>(() => [
   { label: 'API tokens', appIcon: 'key-variant', command: () => void router.push('/account') },
+  { label: 'Docs', appIcon: 'book-open-variant-outline', url: DOCS_HOME_URL, target: '_blank' },
   { label: 'Sign out', appIcon: 'logout', disabled: signingOut.value, command: () => void handleSignOut() },
 ])
 const signingOut = ref(false)
@@ -127,7 +129,7 @@ async function handleSignOut(): Promise<void> {
         <Menu id="account-menu" ref="accountMenu" :model="accountItems" popup class="row-menu account-menu" @show="accountOpen = true" @hide="accountOpen = false">
           <template #start><div class="account-menu-heading">Signed in as<strong>{{ app.user?.email }}</strong></div></template>
           <template #item="{ item, props }">
-            <a v-bind="props.action" class="row-menu-item"><AppIcon :name="item.appIcon" /> {{ item.label }}</a>
+            <a v-bind="props.action" :href="item.url" :target="item.target" :rel="item.url ? 'noopener noreferrer' : undefined" class="row-menu-item"><AppIcon :name="item.appIcon" /> {{ item.label }}</a>
           </template>
         </Menu>
       </div>
