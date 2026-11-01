@@ -26,10 +26,12 @@ capability requests. Connections make external services available. Job grants
 authorize their use. `jobs.planning` freezes effective policy for a future run.
 It does not import the agent execution framework.
 
-Manual and scheduled triggers use `runs.services.create_run`. Run now and
-webhook triggers go through `runs.services.start_run`, which checks
-authorization and readiness first. Scheduled creation retains its existing
-idempotency and execution-time readiness checks. Existing execution plans and
+A job runs one run at a time. Run now and webhook triggers go through
+`runs.services.start_run`, which refuses while a run is active and checks
+readiness first. Cron goes through `runs.services.create_scheduled_run`, which
+skips the tick while a run is active and notes the skip on that run. A replayed
+tick returns the run it already created. Readiness for cron runs is checked when
+they execute. Existing execution plans and
 input snapshots remain attached to their run. Runtime checks still enforce
 connection ownership and revocation.
 

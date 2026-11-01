@@ -1,4 +1,4 @@
-"""Create execution records from job policy for manual and scheduled triggers."""
+"""Create runs from job policy, whether started by cron, by hand or by a trigger."""
 
 from datetime import datetime
 from typing import Any
@@ -12,7 +12,7 @@ from secondshift.jobs.planning import build_execution_plan
 from secondshift.jobs.readiness import plan_problems
 from secondshift.runs.artifacts import job_input_snapshot
 from secondshift.runs.history import previous_run_ids
-from secondshift.runs.models import Run
+from secondshift.runs.models import Run, RunEvent
 from secondshift.runs.orchestration.dispatch import enqueue_run
 
 
@@ -34,7 +34,6 @@ def create_run(
     *,
     started_by: RunStart = RunStart.SCHEDULE,
     execution_plan: dict[str, Any] | None = None,
-    reuse_existing: bool = False,
 ) -> Run:
     defaults = {
         "started_by": started_by,
@@ -45,10 +44,6 @@ def create_run(
             build_execution_plan(job) if execution_plan is None else execution_plan
         ),
     }
-    if reuse_existing:
-        return Run.objects.get_or_create(
-            job=job, scheduled_for=scheduled_for, defaults=defaults
-        )[0]
     return Run.objects.create(job=job, scheduled_for=scheduled_for, **defaults)
 
 
@@ -88,6 +83,30 @@ def start_run(job: Job, started_by: RunStart) -> Run:
         )
     enqueue_run(run)
     return run
+
+
+def create_scheduled_run(job: Job, scheduled_for: datetime) -> Run | None:
+    """Create the run for one cron tick, or skip it while another run is active.
+
+    A replayed tick returns the run it already created. A skipped tick is
+    noted on the active run.
+    """
+    with transaction.atomic():
+        Job.objects.select_for_update().filter(pk=job.pk).first()
+        existing = job.runs.filter(scheduled_for=scheduled_for).first()
+        if existing is not None:
+            return existing
+        active = job.runs.filter(status__in=Run.ACTIVE_STATUSES).order_by("-pk").first()
+        if active is not None:
+            RunEvent.objects.create(
+                run=active,
+                message=(
+                    f"Skipped the scheduled run at {scheduled_for:%Y-%m-%d %H:%M %Z} "
+                    "because this run had not finished."
+                ),
+            )
+            return None
+        return create_run(job, scheduled_for)
 
 
 def start_manual_run(job: Job) -> Run:
