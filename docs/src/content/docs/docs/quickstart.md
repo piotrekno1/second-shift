@@ -10,7 +10,7 @@ You’ll run the documentation drift check included in the SecondShift repositor
 ```bash
 release=https://github.com/piotrekno1/second-shift/releases
 uv tool install --force --python 3.13 \
-  "$release/download/v0.1.0b5/secondshift-0.1.0b5-py3-none-any.whl"
+  "$release/download/v0.1.0b6/secondshift-0.1.0b6-py3-none-any.whl"
 secondshift up
 ```
 
