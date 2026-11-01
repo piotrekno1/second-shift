@@ -539,6 +539,8 @@ export interface TriggerEvent {
   reason: string
   run_id: number | null
   received_at: string
+  /** Back-to-back requests with the same outcome and reason share one row. */
+  count: number
 }
 
 export interface JobTrigger {

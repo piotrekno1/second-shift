@@ -178,7 +178,7 @@ defineExpose({ load })
               :model-value="capDraft(trigger)"
               inputmode="numeric"
               autocomplete="off"
-              :placeholder="String(trigger.default_runs_per_hour)"
+              :placeholder="`Default, ${trigger.default_runs_per_hour}`"
               :invalid="Boolean(capParsed(trigger).problem)"
               @update:model-value="(value) => (capDrafts[trigger.kind] = value ?? '')"
             />
@@ -198,6 +198,7 @@ defineExpose({ load })
             <span class="job-trigger-reason">
               <RouterLink v-if="event.run_id" :to="`/runs/${event.run_id}`" class="detail-link">Run #{{ event.run_id }}</RouterLink>
               <template v-else>{{ event.reason }}</template>
+              <span v-if="event.count > 1" class="job-trigger-count">×{{ event.count }}</span>
             </span>
             <small :title="formatDate(event.received_at)">{{ formatRelative(event.received_at) }}</small>
           </li>

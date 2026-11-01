@@ -35,7 +35,7 @@ test('describes the repository webhook settings', () => {
 })
 
 test('labels each request outcome', () => {
-  const event = { id: 1, reason: '', run_id: null, received_at: '' }
+  const event = { id: 1, reason: '', run_id: null, received_at: '', count: 1 }
   assert.deepEqual(eventOutcome({ ...event, outcome: 'ignored' }), { status: 'optional', label: 'Ignored' })
   assert.deepEqual(eventOutcome({ ...event, outcome: 'started' }), { status: 'succeeded', label: 'Started' })
 })
