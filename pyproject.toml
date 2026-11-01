@@ -32,7 +32,6 @@ dependencies = [
     "pydantic-ai-slim[anthropic,dbos,openai]>=2.57.0",
     "pyyaml>=6.0.2",
     "redis>=6",
-    "requests>=2.32.0",
     "thin-mcp[django]>=0.2,<0.3",
     "uvicorn-worker>=0.4.0",
     "whitenoise>=6.11.0",
@@ -78,12 +77,15 @@ line-length = 88
 extend-exclude = ["migrations"]
 
 [tool.ruff.lint]
-select = ["E4", "E7", "E9", "F", "I", "B", "DTZ", "G", "LOG", "PLC0415", "UP", "RUF", "SIM", "C4", "C901"]
+select = ["E4", "E7", "E9", "F", "I", "B", "DTZ", "G", "LOG", "PLC0415", "UP", "RUF", "SIM", "C4", "C901", "TID251"]
 ignore = ["B008", "RUF012"]
 
 [tool.ruff.lint.mccabe]
 # Functions marked noqa: C901 are waiting to be split up.
 max-complexity = 10
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"requests".msg = "Use httpx, the project's one HTTP client."
 
 [tool.ruff.lint.per-file-ignores]
 "**/tests/**" = ["S101"]
