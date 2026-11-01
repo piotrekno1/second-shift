@@ -13,6 +13,8 @@ export default defineConfig(({ command }) => ({
       '/static': { target: process.env.VITE_PROXY_API ?? 'http://localhost:8000', changeOrigin: true },
       '/accounts': { target: process.env.VITE_PROXY_API ?? 'http://localhost:8000', changeOrigin: true },
       '/mcp': { target: process.env.VITE_PROXY_API ?? 'http://localhost:8000', changeOrigin: true },
+      '/invite/': { target: process.env.VITE_PROXY_API ?? 'http://localhost:8000', changeOrigin: true },
+      '/sign-in/': { target: process.env.VITE_PROXY_API ?? 'http://localhost:8000', changeOrigin: true },
       '/-/': { target: process.env.VITE_PROXY_API ?? 'http://localhost:8000', changeOrigin: true },
     },
   },

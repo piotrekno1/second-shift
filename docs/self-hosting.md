@@ -31,7 +31,7 @@ Once started, the console shows:
 ```text
 SecondShift is running at http://127.0.0.1:8000
 Sign in with this link. It works once, within 15 minutes:
-  http://127.0.0.1:8000/-/sign-in/<one-time-token>/
+  http://127.0.0.1:8000/sign-in/<one-time-token>/
 Run `secondshift login` for a new link. Press Ctrl+C to stop.
 ```
 

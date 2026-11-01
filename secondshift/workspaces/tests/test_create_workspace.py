@@ -8,7 +8,7 @@ from secondshift.workspaces.models import Workspace
 
 
 def link_from(output: str) -> str:
-    return next(line.strip() for line in output.splitlines() if "/-/invite/" in line)
+    return next(line.strip() for line in output.splitlines() if "/invite/" in line)
 
 
 @pytest.mark.django_db
@@ -18,7 +18,7 @@ def test_the_printed_link_makes_the_first_owner(
     call_command("create_workspace", "Acme Labs", "--url", "https://ss.example.com/")
     link = link_from(capsys.readouterr().out)
 
-    assert link.startswith("https://ss.example.com/-/invite/")
+    assert link.startswith("https://ss.example.com/invite/")
     workspace = Workspace.objects.get(slug="acme-labs")
     assert workspace.memberships.count() == 0
 

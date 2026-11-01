@@ -27,8 +27,8 @@ urlpatterns = [
     path("-/admin/", admin.site.urls),
     path("accounts/password/reset/", password_reset),
     path("accounts/", include("allauth.urls")),
-    path("-/sign-in/<str:token>/", sign_in, name="sign-in"),
-    path("-/invite/<str:token>/", open_invite, name="invite"),
+    path("sign-in/<str:token>/", sign_in, name="sign-in"),
+    path("invite/<str:token>/", open_invite, name="invite"),
     path("api/", api.urls),
     path("mcp", mcp_api.urls),
     path(

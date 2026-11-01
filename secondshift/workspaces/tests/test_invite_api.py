@@ -36,7 +36,7 @@ def test_owners_get_a_link_once_and_see_pending_invites(
 
     assert created.status_code == 200
     body = created.json()
-    assert body["link"].startswith("http://testserver/-/invite/")
+    assert body["link"].startswith("http://testserver/invite/")
     assert (body["role"], body["note"], body["created_by"]) == (
         "admin",
         "Ana",

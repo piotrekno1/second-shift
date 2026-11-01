@@ -342,7 +342,7 @@ class App:
             cwd=self.root,
             env=self.env,
         )
-        links = re.findall(r"http://\S+/-/sign-in/\S+", output)
+        links = re.findall(r"http://\S+/sign-in/\S+", output)
         check(links, f"secondshift login printed no link:\n{output}")
         return links[0]
 
