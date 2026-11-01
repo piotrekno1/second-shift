@@ -14,6 +14,7 @@ from django.utils import timezone
 
 from secondshift.config.constants import MAX_SKILL_PREVIEW_CHARS
 from secondshift.connections.models import Connection
+from secondshift.jobs.automatic_grants import automatic_approval
 from secondshift.jobs.manifest import (
     CapabilityManifest,
     JobManifest,
@@ -188,7 +189,11 @@ def sync_capability_requests(
 
 
 def sync_grants(repository: Repository, requests: list[SyncedRequest]) -> None:
-    """Grant matching connections, and send changed requests back for review."""
+    """Grant matching connections, and send changed requests back for review.
+
+    A waiting request is approved here when its connection does not require
+    approval and allows every tool it asks for.
+    """
     connections = {
         (connection.binding_key, connection.kind): connection
         for connection in Connection.objects.filter(
@@ -199,9 +204,9 @@ def sync_grants(repository: Repository, requests: list[SyncedRequest]) -> None:
     for synced in requests:
         request = synced.request
         grant = getattr(request, "grant", None) if synced.existed else None
+        connection = connections.get((request.binding, request.kind))
         new = grant is None
         if grant is None:
-            connection = connections.get((request.binding, request.kind))
             if connection is None:
                 continue
             grant = JobGrant(
@@ -209,12 +214,18 @@ def sync_grants(repository: Repository, requests: list[SyncedRequest]) -> None:
                 connection=connection,
                 allowed_tools=sorted(synced.tools),
             )
-        if synced.existed:
-            changed = assign(grant, review_fields(grant, synced))
-            if not new:
-                save_changes(grant, changed)
+        changed = assign(grant, review_fields(grant, synced)) if synced.existed else []
+        if (
+            grant.status == JobGrant.Status.PENDING
+            and connection is not None
+            and grant.connection_id in (None, connection.pk)
+            and (fields := automatic_approval(request, connection, repository))
+        ):
+            changed += assign(grant, fields)
         if new:
             created.append(grant)
+        else:
+            save_changes(grant, changed)
     JobGrant.objects.bulk_create(created)
 
 

@@ -87,6 +87,7 @@ def test_changing_origin_requires_a_new_approval(tmp_path: Path) -> None:
         binding_key="github",
         display_name="GitHub",
         available_tools=["search_pull_requests"],
+        require_approval=True,
     )
     root = tmp_path / "project"
     create_local_repository(root)

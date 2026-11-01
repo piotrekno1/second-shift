@@ -90,6 +90,9 @@ class Connection(models.Model):
     refresh_token = EncryptedTextField(blank=True, default="")
     expires_at = models.DateTimeField(null=True, blank=True)
     metadata = models.JSONField(default=dict, blank=True)
+    # Capability connections only. When off, a job that asks only for allowed
+    # tools is approved without an owner, so merging the manifest is the review.
+    require_approval = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -196,6 +199,8 @@ class OAuthAuthorization(models.Model):
     display_name = models.CharField(max_length=200, blank=True)
     connection_settings = models.JSONField(default=dict, blank=True)
     scopes = models.JSONField(default=list, blank=True)
+    # The new connection's setting. A reconnect keeps the connection's own.
+    require_approval = models.BooleanField(default=False)
     # Issuer, token endpoint, client ID, and resource. None of these are secret.
     oauth = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
