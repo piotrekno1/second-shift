@@ -16,8 +16,15 @@ risks that remain.
 | Model output | No | Repository content and tool results can steer it. |
 | Tool results | No | They come from outside services. |
 
-A merged change to `.secondshift.yaml` can only request access. It cannot grant
-access, choose a credential or endpoint, or change the sandbox.
+A merged change to `.secondshift.yaml` can request access. It cannot choose a
+credential or endpoint, use a tool the owner did not allow, or change the
+sandbox.
+
+Whether a request also needs an owner's approval is set on each connection with
+**Require approval for each job**. It is off for new connections. Then merge
+rights on a connected repository are the gate: anyone who can merge can give a
+job any of the connection's allowed tools. Connections created before this
+setting existed keep requiring approval.
 
 ## What a run can reach
 
@@ -67,12 +74,26 @@ A tool becomes available to a run only when all of these hold:
 
 - the job's committed configuration requests it,
 - the owner allowed it on the connection,
-- the owner approved the job's request,
+- the owner approved the job's request, or the connection does not require
+  approval,
 - it was in the execution plan when the run started.
+
+Without approval, a request is granted at sync when every tool it asks for is
+allowed on the connection. A request for any other tool waits for an owner.
+Turning approval back on keeps existing grants, and new or changed requests wait
+again. An owner's denial is never overridden.
+
+Teams that turn approval off and want a specific reviewer can require one with
+a `CODEOWNERS` entry for `.secondshift.yaml`:
+
+```text
+/.secondshift.yaml @your-org/platform-owners
+```
 
 Revoking a grant or a connection takes effect at the next tool call, and the
 run fails. A run that requests a missing required grant fails before it starts.
-Requesting more tools in the repository needs a new approval.
+Requesting more tools in the repository needs a new approval when the
+connection requires one.
 
 GitHub and Sentry offer only read tools that SecondShift allowlists, limited to
 the job's repository or the chosen Sentry organization. For custom MCP servers
