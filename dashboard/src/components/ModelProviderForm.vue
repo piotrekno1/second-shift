@@ -129,7 +129,7 @@ async function submit(): Promise<void> {
   <form class="need-setup-fields" @submit.prevent="submit">
     <div class="need-setup-copy">
       <h3>{{ editing ? (reconnecting ? 'Reconnect model provider' : 'Edit model provider') : 'Connect a model provider' }}</h3>
-      <p>Runs call models through SecondShift with a token that works only for that run. The API key stays on the server. It never enters the sandbox. Each run can use only the models you allow, within its token budget from Run limits in Settings. Repository content the model reads goes to this provider. <DocsLink :page="DocsPage.SecurityModel" section="remaining-risks">What leaves your environment</DocsLink></p>
+      <p>The key stays on the server. Runs can use only the models you allow. The provider sees the code a run reads. <DocsLink :page="DocsPage.SecurityModel" section="remaining-risks">Security model</DocsLink></p>
     </div>
 
     <div v-if="!editing" class="need-setup-type need-setup-wide" role="radiogroup" aria-label="Provider">
