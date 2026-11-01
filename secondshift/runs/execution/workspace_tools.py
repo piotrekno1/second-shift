@@ -47,6 +47,8 @@ class WorkspaceToolDeps:
     max_output_chars: int
     deadline: datetime
     allowed_tools: tuple[str, ...] = LOCAL_TOOLS
+    # What the input snapshot records about a trigger's request body, if any.
+    payload: dict[str, Any] | None = None
 
     def execute(
         self,
