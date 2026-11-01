@@ -1,12 +1,16 @@
+import json
 from pathlib import Path
 
 import pytest
+from django.contrib.auth.models import AbstractUser
+from django.test import Client
 
 from secondshift.connections.models import Connection
 from secondshift.jobs.grants import GrantError, decide_grant
 from secondshift.jobs.models import CapabilityRequest, Job, JobGrant
 from secondshift.jobs.planning import build_execution_plan
 from secondshift.jobs.sync import sync_manifest
+from secondshift.jobs.tests.test_api_approvals import approval_setup  # noqa: F401
 from secondshift.jobs.tests.test_grants import decide
 from secondshift.jobs.tests.test_planning import create_job
 from secondshift.jobs.tests.test_sync import write_manifest
@@ -18,6 +22,7 @@ from secondshift.jobs.tool_rules import (
     narrow_schema,
     validate_rules,
 )
+from secondshift.workspaces.models import Workspace
 from secondshift.workspaces.services import workspace_owner
 
 APPROVED = JobGrant.Status.APPROVED
@@ -278,3 +283,42 @@ def test_manifest_cannot_carry_rules(db, tmp_path: Path) -> None:
 
     with pytest.raises(Exception, match="rules"):
         sync_manifest(job.repository, path)
+
+
+@pytest.mark.django_db
+def test_owner_sets_rules_through_the_api(
+    client: Client,
+    approval_setup: tuple[AbstractUser, Workspace, Job],  # noqa: F811
+) -> None:
+    user, _, job = approval_setup
+    capability = CapabilityRequest.objects.create(
+        job=job, binding="chat", kind="mcp", requested_tools=["post_message"]
+    )
+    connection = chat(job)
+    client.force_login(user)
+
+    def review(rules: object) -> object:
+        return client.post(
+            f"/api/jobs/{job.pk}/capabilities/{capability.pk}/grant",
+            data=json.dumps(
+                {
+                    "decision": "approved",
+                    "connection_id": connection.pk,
+                    "tool_rules": rules,
+                }
+            ),
+            content_type="application/json",
+        )
+
+    saved = review(RULES)
+    refused = review({"post_message": {"text": {"type": "forbidden"}}})
+    malformed = review({"post_message": {"url": {"type": "sometimes"}}})
+
+    assert saved.status_code == 200
+    assert saved.json()["capabilities"][0]["tool_rules"] == RULES
+    inputs = saved.json()["capabilities"][0]["tool_inputs"]["post_message"]
+    assert set(inputs["properties"]) == set(SCHEMA["properties"])
+    assert refused.status_code == 422
+    assert "required" in refused.json()["detail"]
+    assert malformed.status_code == 422
+    assert JobGrant.objects.get(capability_request=capability).tool_rules == RULES

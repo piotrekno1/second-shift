@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Literal
+from typing import Annotated, Any, Literal
 
 from ninja import Schema
 from pydantic import Field
@@ -35,6 +35,40 @@ class CapabilityNeedSchema(Schema):
     jobs: list[NeedJobSchema]
 
 
+class FixedRuleSchema(Schema):
+    type: Literal["fixed"]
+    value: Any
+
+
+class AllowedRuleSchema(Schema):
+    type: Literal["allowed"]
+    values: list[Any] = Field(min_length=1)
+
+
+class MaximumRuleSchema(Schema):
+    type: Literal["maximum"]
+    value: int | float
+
+
+class ForbiddenRuleSchema(Schema):
+    type: Literal["forbidden"]
+
+
+ToolRuleSchema = Annotated[
+    FixedRuleSchema | AllowedRuleSchema | MaximumRuleSchema | ForbiddenRuleSchema,
+    Field(discriminator="type"),
+]
+# Tool name, then top-level argument name, then the rule.
+ToolRulesSchema = dict[str, dict[str, ToolRuleSchema]]
+
+
+class ToolInputSchema(Schema):
+    """A tool's top-level arguments, so the review screen can offer rules."""
+
+    properties: dict[str, dict[str, Any]]
+    required: list[str]
+
+
 class CapabilitySchema(Schema):
     id: int
     binding: str
@@ -48,6 +82,9 @@ class CapabilitySchema(Schema):
     access: AccessSchema | None = None
     # Requested tools that may change data on the service.
     changing_tools: list[str] = Field(default_factory=list)
+    tool_rules: ToolRulesSchema = Field(default_factory=dict)
+    # External tools only: each requested tool's arguments on the connection.
+    tool_inputs: dict[str, ToolInputSchema] = Field(default_factory=dict)
 
 
 class LastRunSchema(Schema):
@@ -81,6 +118,8 @@ class GrantDecisionSchema(Schema):
     decision: Literal["approved", "denied"]
     connection_id: int | None = None
     allowed_tools: list[str] | None = None
+    # Left out keeps the current rules. An empty object removes them all.
+    tool_rules: ToolRulesSchema | None = None
 
 
 class LimitSchema(Schema):
