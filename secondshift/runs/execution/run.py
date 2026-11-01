@@ -11,6 +11,7 @@ from pydantic_ai.toolsets import FunctionToolset
 
 from secondshift.config.constants import SUMMARY_MAX_CHARS
 from secondshift.jobs.limits import RunLimit, plan_limit
+from secondshift.jobs.models import CapabilityRequest
 from secondshift.runner.client import get_runner_client
 from secondshift.runner.protocol import CommandRequest, CommandResult
 from secondshift.runs.artifacts import store_run_input, store_run_text
@@ -62,12 +63,39 @@ def task_prompt(skill_path: str) -> str:
     return f"Read {skill_path} with workspace_read_file, then execute that skill."
 
 
+def missing_bindings(plan: dict[str, Any]) -> str:
+    """Optional bindings the job asked for but this run does not have.
+
+    Only the binding name and a short reason. Never connection details.
+    """
+    lines = [
+        f"- `{capability['binding']}`: {capability['missing']}"
+        for capability in plan.get("capabilities", [])
+        if capability["kind"] != CapabilityRequest.Kind.NOTIFICATION
+        and not capability["required"]
+        and not capability["authorized"]
+        and capability.get("missing")
+    ]
+    if not lines:
+        return ""
+    return "\n".join(
+        [
+            "These optional bindings are not available in this run. Their sources "
+            "were not checked. Say so in the report instead of leaving them out.",
+            *lines,
+        ]
+    )
+
+
 def run_prompt(run: Run) -> str:
-    """The first user message: the task, the reporting time, and any history."""
+    """The first user message: the task, the reporting time, missing optional
+    bindings and any history."""
     prompt = (
         task_prompt(str(run.input_snapshot["skill_path"]))
         + f"\nReporting time (UTC): {run.scheduled_for.isoformat()}"
     )
+    if missing := missing_bindings(run.execution_plan):
+        prompt = f"{prompt}\n\n{missing}"
     history = previous_reports(run)
     return f"{prompt}\n\n{history}" if history else prompt
 

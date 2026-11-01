@@ -1,3 +1,4 @@
+from enum import StrEnum
 from typing import Any
 
 from django.conf import settings
@@ -67,6 +68,30 @@ def rules_broken(grant: JobGrant, connection: Connection) -> bool:
     return bool(grant.tool_rules and broken_rules(grant.tool_rules, definitions))
 
 
+class Missing(StrEnum):
+    """Why a run does not have a binding, in words safe to show the model."""
+
+    NOT_CONNECTED = "not connected"
+    WAITING_FOR_APPROVAL = "waiting for approval"
+    DENIED = "denied"
+    UNAVAILABLE = "not available"
+
+
+def missing_reason(
+    job: Job, request: CapabilityRequest, grant: JobGrant | None, reasons: list[str]
+) -> Missing:
+    if grant and grant.status == JobGrant.Status.DENIED:
+        return Missing.DENIED
+    connection = (grant.connection if grant else None) or Connection.objects.filter(
+        workspace_id=job.workspace_id, binding_key=request.binding
+    ).first()
+    if connection is None or connection.status != Connection.Status.CONNECTED:
+        return Missing.NOT_CONNECTED
+    if {"no_grant", "grant_pending", "tools_not_granted"} & set(reasons):
+        return Missing.WAITING_FOR_APPROVAL
+    return Missing.UNAVAILABLE
+
+
 def capability_plan(job: Job, request: CapabilityRequest) -> dict[str, Any]:
     """One requested capability, with the tools the run may use."""
     grant = getattr(request, "grant", None)
@@ -100,6 +125,8 @@ def capability_plan(job: Job, request: CapabilityRequest) -> dict[str, Any]:
         "authorized": authorized,
         "reasons": reasons,
     }
+    if not authorized:
+        capability["missing"] = missing_reason(job, request, grant, reasons)
     if adapter and connection and access and access.scope and authorized:
         capability["external"] = adapter.freeze(connection, access.scope, effective)
         # Copied into the plan so a rule changed mid-run does not affect the run.

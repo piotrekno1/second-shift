@@ -213,6 +213,12 @@ requires:
 Place `requires` inside a job definition. Each entry needs a logical `binding`
 and a nonempty list of unique `tools`. The `required` flag defaults to `true`.
 
+A job with an optional binding (`required: false`) still runs without it. The
+run prompt then names each optional binding the run does not have, with a short
+reason: not connected, waiting for approval or denied. The skill can say a
+source was not checked, instead of leaving it out. The run's **Input** tab shows
+the same list.
+
 ### What a binding can connect to
 
 | Connection | Tool names | Sign-in | Scope |
