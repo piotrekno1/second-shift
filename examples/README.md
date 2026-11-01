@@ -50,6 +50,12 @@ more than one team.
 | [Ticket follow-up brief](ticket-follow-up/README.md) | Finds tickets that may be ready to close or update and explains what still needs checking. | Repository history and approved tracker read access. |
 | [Ticket reconciliation](ticket-reconciliation/README.md) | Updates or closes tickets that meet the team's completion rules. | Repository history, explicit workflow rules, and approved tracker read and write operations. |
 
+## QA
+
+| Skill | What it does | Data needed |
+| --- | --- | --- |
+| [First-time user review](first-time-user-review/README.md) | Walks a web app as five kinds of new user and ranks where they get stuck. | A browser MCP connection, a test copy of the app, and a prepared test account. |
+
 ## Reuse in your project
 
 Copy the actual skill directory from its example into your project's
