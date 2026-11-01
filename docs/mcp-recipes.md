@@ -76,6 +76,136 @@ members with their email addresses (`list_users`, `get_user`), and fetch
 images from issue text (`extract_images`). Allow them only for a job that
 needs them.
 
+## Example: Grafana
+
+Checked on 2026-11-01 with `mcp-grafana` 2.1.1, Grafana 12.2, Prometheus and
+Loki. The tools and `requires` block below are a sample for a job that triages
+alerts. Pick the tools your own job needs.
+
+Grafana's MCP server, `mcp-grafana`, runs next to your Grafana. It holds the
+Grafana credential. SecondShift holds a separate token that only lets it call
+the server.
+
+| Setting | Value |
+| --- | --- |
+| Binding | `grafana` |
+| Server URL | Where you run `mcp-grafana`, ending in `/mcp` |
+| Sign-in | **Bearer token**, set to the server's `--server-auth-token` |
+
+### Run the server
+
+1. In Grafana, add a service account with the **Viewer** role, and create a
+   token for it. Viewer can read dashboards, alert rules and data sources, and
+   cannot change them.
+2. Run `mcp-grafana` with that token and a second, random token for callers:
+
+   ```sh
+   docker run -d -p 8000:8000 \
+     -e GRAFANA_URL=https://grafana.example.com \
+     -e GRAFANA_SERVICE_ACCOUNT_TOKEN=<service account token> \
+     grafana/mcp-grafana:2.1.1 \
+     -t streamable-http --address 0.0.0.0:8000 \
+     --disable-write \
+     --server-auth-token <random token> \
+     --allowed-hosts mcp-grafana.example.com \
+     --loki-guardrail-mode enforce --loki-guardrail-max-range 24h
+   ```
+
+   - `--disable-write` removes the tools that change Grafana.
+   - `--server-auth-token` refuses callers without it. Without it, anyone who
+     can reach the server uses the service account.
+   - `--allowed-hosts` lists the host names callers use. The server refuses
+     others, so include the one in the URL SecondShift calls.
+   - The Loki flags refuse a log query over 24 hours. The run sees a failed
+     tool call, and the server logs why. A query returns at most 100 lines, set
+     with `--max-loki-log-limit`. Version 2.1.1 has no matching limit for
+     Prometheus queries. Prometheus's own query limits still apply.
+3. Serve it over HTTPS. Outside local mode, SecondShift calls only HTTPS URLs.
+
+### Connect it
+
+Add a **Custom server** connection with the URL, such as
+`https://mcp-grafana.example.com/mcp`, and the random token as the bearer
+token. With `--disable-write`, the server marks every tool it offers
+read-only, so every tool starts selected. Clear the ones jobs do not need.
+
+This example allows these tools. A run read a Prometheus range and Loki error
+lines for a 30 minute window with them.
+
+| Tool | Returns |
+| --- | --- |
+| `list_datasources` | Data sources and their IDs, which the query tools take |
+| `alerting_rules_read` | Alert rules, with their queries and state |
+| `query_prometheus` | A PromQL query, instant or over a range |
+| `list_prometheus_metric_names` | Metric names, to find the right one |
+| `query_loki_logs` | Log lines from a LogQL query |
+| `list_loki_label_names` | Log labels, to build a query |
+| `search_dashboards` | Dashboards by title |
+
+```yaml
+requires:
+  mcps:
+    - binding: grafana
+      required: false
+      tools:
+        - list_datasources
+        - alerting_rules_read
+        - query_prometheus
+        - list_prometheus_metric_names
+        - query_loki_logs
+        - list_loki_label_names
+        - search_dashboards
+```
+
+`required: false` lets the job run, and say Grafana was not checked, when the
+connection is missing.
+
+**What the credential reaches.** The service account reads every dashboard,
+alert rule and data source a Viewer can see in its organization. Through the
+data sources, that is all their metrics and logs. Other tools reach more:
+
+- `grafana_api_request` calls any Grafana API path. The server marks it
+  read-only, but it is not limited to reads.
+- `search_docs` and `get_doc` fetch pages from the internet.
+- The OnCall, Incident and Sift tools read people's schedules and incidents.
+
+Allow them only for a job that needs them.
+
+### Start a job from a Grafana alert
+
+A job with `triggers: [webhook]` can start when a Grafana alert fires. See
+[webhook triggers](repository-configuration.md#webhook-triggers) for how
+triggers work.
+
+1. Add the trigger and these settings to the job, and sync the repository:
+
+   ```yaml
+   triggers: [webhook]
+   webhook:
+     skip_when:
+       status: resolved
+     repeat_key: groupKey
+     repeat_window: 1h
+   ```
+
+   Grafana sends `status: resolved` when an alert stops firing, and the same
+   `groupKey` each time it repeats a notification for the same group.
+2. On the job page, turn on the webhook trigger. Copy the URL and the secret.
+3. In Grafana, add a contact point with the **Webhook** integration and that
+   URL. Set **Authorization Header - Scheme** to `Bearer` and **Authorization
+   Header - Credentials** to the secret.
+4. Add a notification policy that routes the alerts to it. Keep an existing
+   Slack contact point on the same policy, so people still get the alert.
+5. Use **Test** on the contact point. The job page lists the request.
+
+To sign requests instead of sending the secret, leave the Authorization header
+empty. Under **HMAC Signature**, set **Secret** to the secret, **Header** to
+`X-SecondShift-Signature` and **Timestamp header** to `X-SecondShift-Timestamp`.
+
+Grafana must reach the trigger URL. A Grafana in Docker reaches a SecondShift
+on the same machine at `host.docker.internal`. Add that name to
+`SECONDSHIFT_ALLOWED_HOSTS`, or SecondShift answers 400.
+
 ## Other vendors
 
 On 2026-11-01, SecondShift found sign-in settings on these servers. Nobody
