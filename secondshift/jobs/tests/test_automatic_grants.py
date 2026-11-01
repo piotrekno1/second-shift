@@ -1,9 +1,11 @@
+import json
 from importlib import import_module
 from typing import Any
 
 import pytest
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
+from django.test import Client
 
 from secondshift.connections.models import Connection
 from secondshift.jobs.automatic_grants import set_require_approval
@@ -12,7 +14,7 @@ from secondshift.jobs.manifest import parse_manifest
 from secondshift.jobs.models import CapabilityRequest, JobGrant
 from secondshift.jobs.sync import sync_jobs
 from secondshift.repositories.models import Repository
-from secondshift.workspaces.models import Workspace
+from secondshift.workspaces.models import Workspace, WorkspaceMembership
 from secondshift.workspaces.services import create_workspace
 
 COMMIT = "a" * 40
@@ -183,3 +185,84 @@ def test_repository_input_cannot_turn_off_approval_or_pick_a_connection() -> Non
         text = manifest(["listCharges"]) + f"\n          {extra}"
         with pytest.raises(ValueError):
             parse_manifest(text)
+
+
+def webhook_payload(**fields: Any) -> str:
+    return json.dumps(
+        {"binding_key": "alerts", "url": "https://hooks.example.com/x", **fields}
+    )
+
+
+NOTIFY = """
+jobs:
+  review:
+    name: Review
+    skill: .agents/skills/review/SKILL.md
+    notify:
+      - binding: alerts
+""".strip()
+
+
+@pytest.mark.django_db
+def test_creating_a_connection_approves_jobs_waiting_for_it(
+    client: Client, settings: Any, repository: Repository, owner: AbstractUser
+) -> None:
+    settings.OUTBOUND_ALLOW_LOCAL = True
+    sync(repository, NOTIFY)
+    client.force_login(owner)
+
+    response = client.post(
+        "/api/connections/webhook",
+        data=webhook_payload(),
+        content_type="application/json",
+    )
+
+    assert response.status_code == 200
+    assert response.json()["require_approval"] is False
+    saved = JobGrant.objects.get(capability_request__binding="alerts")
+    assert saved.status == JobGrant.Status.APPROVED
+
+
+@pytest.mark.django_db
+def test_owner_can_create_a_connection_that_requires_approval(
+    client: Client, settings: Any, repository: Repository, owner: AbstractUser
+) -> None:
+    settings.OUTBOUND_ALLOW_LOCAL = True
+    sync(repository, NOTIFY)
+    client.force_login(owner)
+
+    response = client.post(
+        "/api/connections/webhook",
+        data=webhook_payload(require_approval=True),
+        content_type="application/json",
+    )
+
+    assert response.json()["require_approval"] is True
+    assert not JobGrant.objects.filter(status=JobGrant.Status.APPROVED).exists()
+
+
+@pytest.mark.django_db
+def test_only_owners_can_change_the_setting(
+    client: Client, workspace: Workspace
+) -> None:
+    connection = Connection.objects.create(
+        workspace=workspace,
+        provider=Connection.Provider.WEBHOOK,
+        kind=Connection.Kind.NOTIFICATION,
+        binding_key="alerts",
+        display_name="Alerts",
+        require_approval=True,
+    )
+    admin = get_user_model().objects.create_user(username="admin")
+    workspace.memberships.create(user=admin, role=WorkspaceMembership.Role.ADMIN)
+    client.force_login(admin)
+
+    response = client.post(
+        f"/api/connections/{connection.pk}/webhook",
+        data=json.dumps({"require_approval": False}),
+        content_type="application/json",
+    )
+
+    assert response.status_code == 403
+    connection.refresh_from_db()
+    assert connection.require_approval is True

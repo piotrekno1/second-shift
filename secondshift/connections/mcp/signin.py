@@ -54,6 +54,7 @@ def start_authorization(
     values: dict[str, str],
     scopes: list[str],
     connection: Connection | None = None,
+    require_approval: bool = False,
 ) -> str:
     """Record a pending sign-in and return the address to send the browser to."""
     provider = mcp_provider(provider_key)
@@ -94,6 +95,7 @@ def start_authorization(
         display_name=display_name,
         connection_settings=cleaned,
         scopes=scopes,
+        require_approval=require_approval,
         oauth={
             "issuer": server.issuer,
             "token_endpoint": server.token_endpoint,
@@ -170,6 +172,7 @@ def complete_authorization(
         provider=provider.key,
         kind=Connection.Kind.MCP,
         binding_key=authorization.binding_key,
+        require_approval=authorization.require_approval,
     )
     if connection.workspace_id != authorization.workspace_id:
         raise SignInError("invalid", "This sign-in is not valid. Start again.")
