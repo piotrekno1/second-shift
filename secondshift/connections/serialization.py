@@ -1,3 +1,4 @@
+from secondshift.connections.mcp.oauth import requested_scopes
 from secondshift.connections.models import Connection
 from secondshift.connections.schemas import (
     ConnectionSchema,
@@ -53,6 +54,10 @@ def serialize_connection(
         ),
         scopes=list(connection.scopes)
         if connection.kind == Connection.Kind.MCP
+        else [],
+        requested_scopes=requested_scopes(connection)
+        if connection.kind == Connection.Kind.MCP
+        and connection.auth_strategy == Connection.AuthStrategy.OAUTH
         else [],
         offered_tools=[
             OfferedToolSchema(

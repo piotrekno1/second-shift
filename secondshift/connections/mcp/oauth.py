@@ -226,7 +226,27 @@ async def token_request(endpoint: str, form: dict[str, str]) -> dict[str, Any]:
 
 def granted_scopes(tokens: dict[str, Any], requested: list[str]) -> list[str]:
     scope = tokens.get("scope")
-    return sorted(str(scope).split()) if scope else sorted(requested)
+    if scope is None:
+        return sorted(set(requested))
+    if not isinstance(scope, str):
+        raise MCPError("The server returned invalid OAuth scopes.")
+    granted = sorted(set(scope.split()))
+    if len(granted) > MAX_SCOPES or any(
+        not re.fullmatch(SCOPE_PATTERN, item) for item in granted
+    ):
+        raise MCPError("The server returned invalid OAuth scopes.")
+    return granted
+
+
+def requested_scopes(connection: Connection) -> list[str]:
+    """Keep the original requirement separate from the server's actual grant.
+
+    Older connections did not retain this distinction; use their last known
+    scopes as the baseline until their next successful refresh or sign-in.
+    """
+    return list(
+        connection.metadata.get("oauth", {}).get("requested_scopes", connection.scopes)
+    )
 
 
 def apply_tokens(connection: Connection, tokens: dict[str, Any]) -> None:
@@ -309,11 +329,25 @@ def refresh_locked(connection: Connection) -> str | None:
             copy_tokens(latest, connection)
             return None
         return expired
-    if set(granted_scopes(tokens, locked.scopes)) - set(locked.scopes):
-        return "{label} granted more access than approved. Reconnect it."
+    required = requested_scopes(locked)
+    granted = granted_scopes(tokens, locked.scopes)
+    if set(required) - set(granted):
+        return "{label} did not grant the required access. Reconnect it."
+    locked.scopes = granted
+    locked.metadata = {
+        **locked.metadata,
+        "oauth": {**oauth, "requested_scopes": required},
+    }
     apply_tokens(locked, tokens)
     locked.save(
-        update_fields=["access_token", "refresh_token", "expires_at", "updated_at"]
+        update_fields=[
+            "access_token",
+            "refresh_token",
+            "expires_at",
+            "scopes",
+            "metadata",
+            "updated_at",
+        ]
     )
     copy_tokens(locked, connection)
     return None
@@ -324,3 +358,5 @@ def copy_tokens(source: Connection, target: Connection) -> None:
     target.refresh_token = source.refresh_token
     target.expires_at = source.expires_at
     target.status = source.status
+    target.scopes = list(source.scopes)
+    target.metadata = source.metadata

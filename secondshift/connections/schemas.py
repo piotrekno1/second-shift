@@ -46,6 +46,7 @@ class ConnectionSchema(Schema):
     # MCP only: "oauth" for a browser sign-in, "token" for a pasted token.
     auth: str = ""
     scopes: list[str] = Field(default_factory=list)
+    requested_scopes: list[str] = Field(default_factory=list)
     # Custom MCP servers: every tool the server offers, for the owner to choose.
     offered_tools: list[OfferedToolSchema] = Field(default_factory=list)
     # Capability connections: whether each job's request waits for an owner.

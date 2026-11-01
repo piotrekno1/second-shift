@@ -17,7 +17,11 @@ from secondshift.connections.mcp.client import (
     create_mcp_connection,
     update_mcp_connection,
 )
-from secondshift.connections.mcp.oauth import fresh_connection, redirect_uri
+from secondshift.connections.mcp.oauth import (
+    fresh_connection,
+    granted_scopes,
+    redirect_uri,
+)
 from secondshift.connections.mcp.signin import (
     SignInError,
     complete_authorization,
@@ -240,11 +244,31 @@ def test_expired_and_refused_sign_ins(
     assert not Connection.objects.filter(binding_key="metrics").exists()
 
 
-def test_extra_granted_scope_saves_nothing(
-    fake: FakeServer, workspace: Workspace, owner: Any
+def test_extra_granted_scopes_connect_and_remain_visible(
+    client: Client, fake: FakeServer, workspace: Workspace, owner: Any
 ) -> None:
-    fake.grant_scope = "read write"
-    state = begin(fake, workspace, owner)
+    fake.grant_scope = "read mcp:admin mcp:raw-api"
+    connection = complete_authorization(
+        owner, begin(fake, workspace, owner), "good-code", ""
+    )
+    connection.refresh_from_db()
+    assert connection.scopes == ["mcp:admin", "mcp:raw-api", "read"]
+    assert connection.metadata["oauth"]["requested_scopes"] == ["read"]
+    assert connection.available_tools == ["read_metrics"]
+    client.force_login(owner)
+    payload = client.get("/api/connections").json()[0]
+    assert payload["scopes"] == connection.scopes
+    assert payload["requested_scopes"] == ["read"]
+    assert "at-1" not in json.dumps(payload)
+    assert "rt-1" not in json.dumps(payload)
+
+
+@pytest.mark.parametrize("granted", ["read", "", "mcp:admin"])
+def test_missing_required_scopes_save_nothing(
+    granted: str, fake: FakeServer, workspace: Workspace, owner: Any
+) -> None:
+    fake.grant_scope = granted
+    state = begin(fake, workspace, owner, scopes=("read", "write"))
     with pytest.raises(SignInError) as caught:
         complete_authorization(owner, state, "good-code", "")
     assert caught.value.code == "scope"
@@ -434,3 +458,85 @@ def test_sign_in_accepts_local_tool_schema_references(
     assert (
         connection.metadata["tools"]["read_metrics"]["inputSchema"] == fake.input_schema
     )
+
+
+def test_refresh_saves_changed_grants_and_keeps_original_requirement(
+    fake: FakeServer, workspace: Workspace, owner: Any
+) -> None:
+    connection = complete_authorization(
+        owner, begin(fake, workspace, owner), "good-code", ""
+    )
+    for scope in ("read mcp:admin", "read mcp:raw-api", "read"):
+        fake.grant_scope = scope
+        Connection.objects.filter(pk=connection.pk).update(expires_at=timezone.now())
+        connection.refresh_from_db()
+        fresh_connection(connection)
+        assert connection.scopes == sorted(scope.split())
+        assert connection.metadata["oauth"]["requested_scopes"] == ["read"]
+        saved = Connection.objects.get(pk=connection.pk)
+        assert saved.scopes == connection.scopes
+        assert saved.metadata["oauth"]["requested_scopes"] == ["read"]
+
+
+def test_refresh_expires_when_required_scope_is_missing(
+    fake: FakeServer, workspace: Workspace, owner: Any
+) -> None:
+    connection = complete_authorization(
+        owner, begin(fake, workspace, owner), "good-code", ""
+    )
+    fake.grant_scope = "write"
+    Connection.objects.filter(pk=connection.pk).update(expires_at=timezone.now())
+    connection.refresh_from_db()
+    with pytest.raises(MCPRequestError, match="required access"):
+        fresh_connection(connection)
+    saved = Connection.objects.get(pk=connection.pk)
+    assert saved.status == Connection.Status.EXPIRED
+    assert saved.access_token == "at-1"
+    assert saved.scopes == ["read"]
+
+
+def test_legacy_refresh_persists_its_existing_scope_baseline(
+    fake: FakeServer, workspace: Workspace, owner: Any
+) -> None:
+    connection = complete_authorization(
+        owner, begin(fake, workspace, owner), "good-code", ""
+    )
+    del connection.metadata["oauth"]["requested_scopes"]
+    connection.expires_at = timezone.now()
+    connection.save()
+    fake.grant_scope = "read mcp:admin"
+    fresh_connection(connection)
+    assert connection.scopes == ["mcp:admin", "read"]
+    assert connection.metadata["oauth"]["requested_scopes"] == ["read"]
+
+
+def test_reconnect_requests_original_scopes_not_server_added_permissions(
+    client: Client, fake: FakeServer, workspace: Workspace, owner: Any
+) -> None:
+    fake.grant_scope = "read mcp:admin"
+    connection = complete_authorization(
+        owner, begin(fake, workspace, owner), "good-code", ""
+    )
+    client.force_login(owner)
+    response = client.post(
+        "/api/connections/mcp/oauth/start",
+        data=json.dumps({"provider": "mcp", "connection_id": connection.pk}),
+        content_type="application/json",
+    )
+    assert response.status_code == 200, response.content
+    query = parse_qs(urlsplit(response.json()["authorize_url"]).query)
+    assert query["scope"] == ["read"]
+
+
+@pytest.mark.parametrize(
+    "scope",
+    [
+        ["read"],
+        "read " + "x" * 101,
+        " ".join(f"s{i}" for i in range(21)),
+        "read bad\x00scope",
+    ],
+)
+def test_invalid_granted_scope_response_is_rejected(scope: Any) -> None:
+    with pytest.raises(MCPError, match="invalid OAuth scopes"):
+        granted_scopes({"scope": scope}, ["read"])

@@ -23,7 +23,7 @@ from secondshift.connections.mcp.client import (
     select_tools,
     update_mcp_connection,
 )
-from secondshift.connections.mcp.oauth import inspect_server
+from secondshift.connections.mcp.oauth import inspect_server, requested_scopes
 from secondshift.connections.mcp.providers import MCP_PROVIDERS, mcp_provider
 from secondshift.connections.mcp.signin import (
     SignInError,
@@ -301,7 +301,7 @@ def start_mcp_sign_in(
             dict(connection.metadata.get("settings", {}))
             if connection
             else payload.settings,
-            list(connection.scopes) if connection else payload.scopes,
+            requested_scopes(connection) if connection else payload.scopes,
             connection,
             payload.require_approval,
         )
