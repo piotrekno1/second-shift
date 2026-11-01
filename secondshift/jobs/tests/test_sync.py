@@ -256,14 +256,23 @@ jobs:
     name: Triage
     skill: .agents/skills/triage/SKILL.md
     triggers: [webhook]
+    webhook:
+      repeat_key: groupKey
 """.strip()
     )
 
     job = sync_manifest(repository, path)[0]
 
-    assert Job.objects.get(pk=job.pk).triggers == ["webhook"]
+    stored = Job.objects.get(pk=job.pk)
+    assert stored.triggers == ["webhook"]
+    assert stored.webhook == {
+        "skip_when": {},
+        "repeat_key": "groupKey",
+        "repeat_window": None,
+    }
 
-    path.write_text(path.read_text().replace("\n    triggers: [webhook]", ""))
+    path.write_text(path.read_text().split("\n    triggers:")[0])
     sync_manifest(repository, path)
 
-    assert Job.objects.get(pk=job.pk).triggers == []
+    stored = Job.objects.get(pk=job.pk)
+    assert (stored.triggers, stored.webhook) == ([], {})

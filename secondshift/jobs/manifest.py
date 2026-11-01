@@ -1,7 +1,8 @@
 import hashlib
 import json
+import re
 from pathlib import Path, PurePosixPath
-from typing import Self
+from typing import Annotated, Self
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import yaml
@@ -51,6 +52,53 @@ class NotificationManifest(BaseModel):
     required: bool = True
 
 
+# A dotted path to a field in a JSON body, such as "status" or "labels.team".
+FieldPath = Annotated[
+    str,
+    Field(pattern=r"^[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)*$", max_length=200),
+]
+DURATION = re.compile(r"^(\d+)([mhd])$")
+DURATION_UNITS = {"m": 60, "h": 3600, "d": 86400}
+REPEAT_WINDOW_MAX_SECONDS = 7 * 86400
+
+
+def duration_seconds(value: str) -> int:
+    """Seconds in a duration such as "30m", "1h" or "2d"."""
+    match = DURATION.match(value)
+    if match is None:
+        raise ValueError("must be a number followed by m, h or d, such as 1h")
+    return int(match.group(1)) * DURATION_UNITS[match.group(2)]
+
+
+class WebhookManifest(BaseModel):
+    """Which webhook requests start a run. Field names are the sender's."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    # Skip a request when every listed field has the listed value.
+    skip_when: dict[FieldPath, str | int | float | bool] = Field(default_factory=dict)
+    # Requests with the same value in this field are the same event.
+    repeat_key: FieldPath | None = None
+    # How long after its run a repeat is still skipped.
+    repeat_window: str | None = None
+
+    @field_validator("repeat_window")
+    @classmethod
+    def validate_repeat_window(cls, value: str | None) -> str | None:
+        if value is None:
+            return value
+        seconds = duration_seconds(value)
+        if not 0 < seconds <= REPEAT_WINDOW_MAX_SECONDS:
+            raise ValueError("must be between 1m and 7d")
+        return value
+
+    @model_validator(mode="after")
+    def validate_window_has_key(self) -> Self:
+        if self.repeat_window is not None and self.repeat_key is None:
+            raise ValueError("repeat_window needs a repeat_key")
+        return self
+
+
 class JobManifest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -65,6 +113,7 @@ class JobManifest(BaseModel):
     notify: list[NotificationManifest] = Field(default_factory=list)
     # Events that may start the job. An owner still turns each one on.
     triggers: list[TriggerKind] = Field(default_factory=list)
+    webhook: WebhookManifest | None = None
 
     @field_validator("skill")
     @classmethod
@@ -107,6 +156,12 @@ class JobManifest(BaseModel):
         except ZoneInfoNotFoundError as error:
             raise ValueError("timezone must be an IANA timezone") from error
         return value
+
+    @model_validator(mode="after")
+    def validate_webhook_is_a_trigger(self) -> Self:
+        if self.webhook is not None and TriggerKind.WEBHOOK not in self.triggers:
+            raise ValueError("webhook settings need triggers: [webhook]")
+        return self
 
     @model_validator(mode="after")
     def validate_unique_bindings(self) -> Self:
@@ -183,7 +238,10 @@ def field_path(item: ErrorDetails) -> str:
 
 
 def manifest_hash(job: JobManifest) -> str:
-    # Jobs without triggers keep the hash they had before triggers existed.
-    data = job.model_dump(exclude={"triggers"} if not job.triggers else None)
+    # Jobs keep the hash they had before these optional fields existed.
+    unset = {"triggers"} if not job.triggers else set()
+    if job.webhook is None:
+        unset.add("webhook")
+    data = job.model_dump(exclude=unset or None)
     canonical = json.dumps(data, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(canonical.encode()).hexdigest()
