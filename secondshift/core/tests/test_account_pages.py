@@ -44,3 +44,22 @@ def test_password_resets_are_offered_only_when_email_arrives(
 
     assert ("Forgot your password?" in login) is delivered
     assert reset.status_code == (200 if delivered else 404)
+
+
+GITHUB_APP = {"client_id": "client", "secret": "secret", "key": ""}
+
+
+@pytest.mark.django_db
+def test_github_sign_in_is_hidden_without_credentials(client: Client) -> None:
+    page = client.get("/accounts/login/").content.decode()
+
+    assert "/accounts/github/login/" not in page
+
+
+@pytest.mark.django_db
+def test_github_sign_in_is_offered_with_credentials(client: Client) -> None:
+    providers = {"github": {"SCOPE": ["read:user"], "APP": GITHUB_APP}}
+    with override_settings(SOCIALACCOUNT_PROVIDERS=providers):
+        page = client.get("/accounts/login/").content.decode()
+
+    assert "/accounts/github/login/" in page
