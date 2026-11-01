@@ -4,6 +4,7 @@ import { computed, ref, watch } from 'vue'
 import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
 import APIConnectionForm from './APIConnectionForm.vue'
+import ApprovalSetting from './ApprovalSetting.vue'
 import MCPConnectionForm from './MCPConnectionForm.vue'
 import ModelProviderForm from './ModelProviderForm.vue'
 import { approveNeed, createWebhook, fetchWebhookSample, testConnection, updateWebhook } from '../services/connections'
@@ -34,6 +35,7 @@ const bindingKey = ref(props.connection?.binding_key ?? props.binding ?? '')
 const displayName = ref(props.connection?.display_name ?? titleFromSlug(bindingKey.value))
 const url = ref('')
 const approve = ref(true)
+const requireApproval = ref(props.connection?.require_approval ?? false)
 const saving = ref(false)
 const error = ref<string | null>(null)
 
@@ -96,10 +98,11 @@ async function submit(): Promise<void> {
   let outcome: { notice: Notice, binding: string } | null = null
   try {
     const saved = props.connection
-      ? await updateWebhook(props.connection.id, { display_name: displayName.value.trim(), url: url.value.trim() || undefined })
-      : await createWebhook({ binding_key: bindingKey.value, display_name: displayName.value.trim(), url: url.value.trim() })
-    const approved = !editing.value && approve.value && need.value && pendingJobs.value.length > 0
-    if (approved && need.value) await approveNeed(need.value, saved.id)
+      ? await updateWebhook(props.connection.id, { display_name: displayName.value.trim(), url: url.value.trim() || undefined, require_approval: requireApproval.value })
+      : await createWebhook({ binding_key: bindingKey.value, display_name: displayName.value.trim(), url: url.value.trim(), require_approval: requireApproval.value })
+    // Without approval, the server has already granted the waiting jobs.
+    const approved = !editing.value && (approve.value || !requireApproval.value) && need.value && pendingJobs.value.length > 0
+    if (approved && requireApproval.value && need.value) await approveNeed(need.value, saved.id)
     const result = url.value.trim() ? await testConnection(saved.id) : null
     const parts = [editing.value ? (reconnecting.value ? 'Reconnected' : 'Saved') : 'Connected']
     if (result?.ok) parts.push('a test message was delivered')
@@ -173,7 +176,8 @@ async function submit(): Promise<void> {
           <a :href="WEBHOOK_PAYLOAD_DOCS_URL" target="_blank" rel="noopener noreferrer">Payload format in the docs <AppIcon name="open-in-new" /></a>
         </div>
       </details>
-      <label v-if="!editing && pendingJobs.length" class="need-setup-check">
+      <ApprovalSetting v-model="requireApproval" />
+      <label v-if="!editing && requireApproval && pendingJobs.length" class="need-setup-check">
         <input v-model="approve" type="checkbox">
         <span>Also approve it for {{ countLabel(pendingJobs.length, 'job') }}: {{ pendingJobs.map((job) => job.job_name).join(', ') }}</span>
       </label>

@@ -5,6 +5,7 @@ export interface WebhookInput {
   binding_key: string
   display_name: string
   url: string
+  require_approval: boolean
 }
 
 export function fetchWebhookSample(): Promise<WebhookSample> {
@@ -32,7 +33,7 @@ export function updateModelProvider(connectionId: number, input: ModelProviderIn
   return apiPost<Connection>(`/connections/${connectionId}/model`, input)
 }
 
-export function updateWebhook(connectionId: number, input: { display_name: string, url?: string }): Promise<Connection> {
+export function updateWebhook(connectionId: number, input: { display_name: string, url?: string, require_approval?: boolean }): Promise<Connection> {
   return apiPost<Connection>(`/connections/${connectionId}/webhook`, input)
 }
 
@@ -60,7 +61,7 @@ export async function approveNeed(need: CapabilityNeed, connectionId: number): P
   }
 }
 
-export function updateMCPConnection(connectionId: number, input: { display_name?: string, token?: string, settings?: Record<string, string>, tools?: string[] }): Promise<Connection> {
+export function updateMCPConnection(connectionId: number, input: { display_name?: string, token?: string, settings?: Record<string, string>, tools?: string[], require_approval?: boolean }): Promise<Connection> {
   return apiPost<Connection>(`/connections/${connectionId}/mcp`, input)
 }
 
@@ -75,6 +76,8 @@ export interface MCPSignInInput {
   display_name?: string
   settings?: Record<string, string>
   scopes?: string[]
+  /** New connections only. A reconnect keeps the connection's setting. */
+  require_approval?: boolean
   /** Sign in again for this connection instead of creating one. */
   connection_id?: number
 }
@@ -89,7 +92,7 @@ export function fetchMCPProviders(): Promise<MCPProviderInfo[]> {
   return apiGet<MCPProviderInfo[]>('/connections/mcp-providers')
 }
 
-export function createMCPConnection(input: { provider: string, binding_key: string, display_name: string, token: string, settings: Record<string, string> }): Promise<Connection> {
+export function createMCPConnection(input: { provider: string, binding_key: string, display_name: string, token: string, settings: Record<string, string>, require_approval: boolean }): Promise<Connection> {
   return apiPost<Connection>('/connections/mcp', input)
 }
 
@@ -116,13 +119,14 @@ export interface APIConnectionInput extends APISpecInput {
   auth: 'bearer' | 'header'
   header?: string
   token: string
+  require_approval: boolean
 }
 
 export function createAPIConnection(input: APIConnectionInput): Promise<Connection> {
   return apiPost<Connection>('/connections/api', input)
 }
 
-export function updateAPIConnection(connectionId: number, input: { display_name?: string, token?: string, base_url?: string, operations?: string[] }): Promise<Connection> {
+export function updateAPIConnection(connectionId: number, input: { display_name?: string, token?: string, base_url?: string, operations?: string[], require_approval?: boolean }): Promise<Connection> {
   return apiPost<Connection>(`/connections/${connectionId}/api`, input)
 }
 

@@ -3,6 +3,7 @@ import AppIcon from './AppIcon.vue'
 import { computed, ref, watch } from 'vue'
 import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
+import ApprovalSetting from './ApprovalSetting.vue'
 import ProviderIcon from './ProviderIcon.vue'
 import { createMCPConnection, inspectMCPServer, startMCPSignIn, updateMCPConnection } from '../services/connections'
 import { useAppStore } from '../stores/app'
@@ -35,6 +36,7 @@ const server = ref<MCPServerInfo | null>(null)
 const useToken = ref(false)
 const scopes = ref<string[]>([])
 const tools = ref<string[]>([...(props.connection?.available_tools ?? [])])
+const requireApproval = ref(props.connection?.require_approval ?? false)
 const saving = ref(false)
 const error = ref('')
 
@@ -114,7 +116,7 @@ async function signIn(): Promise<void> {
   if (!provider.value) return
   const url = props.connection
     ? await startMCPSignIn({ provider: provider.value.key, connection_id: props.connection.id })
-    : await startMCPSignIn({ provider: provider.value.key, binding_key: binding.value, display_name: name.value, settings: cleanSettings(), scopes: scopes.value })
+    : await startMCPSignIn({ provider: provider.value.key, binding_key: binding.value, display_name: name.value, settings: cleanSettings(), scopes: scopes.value, require_approval: requireApproval.value })
   // The server sends the browser back to Connections when sign-in finishes.
   window.location.assign(url)
 }
@@ -128,12 +130,13 @@ async function save(): Promise<void> {
         token: mode.value === 'token' ? token.value || undefined : undefined,
         settings: signedIn.value ? undefined : cleanSettings(),
         tools: chooseTools ? tools.value : undefined,
+        require_approval: requireApproval.value,
       })
-    : await createMCPConnection({ provider: provider.value.key, binding_key: binding.value, display_name: name.value, token: token.value, settings: cleanSettings() })
+    : await createMCPConnection({ provider: provider.value.key, binding_key: binding.value, display_name: name.value, token: token.value, settings: cleanSettings(), require_approval: requireApproval.value })
   token.value = ''
   await app.refresh()
   const verb = reconnecting.value ? 'Reconnected' : editing.value ? 'Saved' : 'Connected'
-  const next = provider.value.owner_selects_tools && !editing.value ? ' Choose which tools jobs may use under Edit.' : ' Review job approvals before running.'
+  const next = provider.value.owner_selects_tools && !editing.value ? ' Choose which tools jobs may use under Edit.' : requireApproval.value ? ' Review job approvals before running.' : ''
   emit('done', { ok: true, text: `${verb} ${provider.value.label}. ${countLabel(connection.available_tools.length, 'tool')} enabled.${next}` }, connection.binding_key)
 }
 
@@ -220,6 +223,8 @@ async function submit(): Promise<void> {
       </p>
     </template>
     <p v-else class="need-notice need-setup-wide">No MCP servers are available.</p>
+
+    <ApprovalSetting v-if="provider" v-model="requireApproval" />
 
     <p v-if="error" class="need-notice need-setup-wide">{{ error }}</p>
     <div class="need-setup-footer">

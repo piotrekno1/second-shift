@@ -347,6 +347,8 @@ export interface Connection {
   status: 'connected' | 'expired' | 'revoked'
   expires_at: string | null
   available_tools: string[]
+  /** Capability connections: whether each job's request waits for an owner. */
+  require_approval: boolean
   /** Redacted delivery target (host only); never the full URL. */
   target: string
   allowed_models: string[]
