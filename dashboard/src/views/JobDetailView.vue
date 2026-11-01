@@ -6,6 +6,7 @@ import Button from 'primevue/button'
 import ModelWarning from '../components/ModelWarning.vue'
 import PageHeader from '../components/PageHeader.vue'
 import RunOutcomes from '../components/RunOutcomes.vue'
+import JobTriggersPanel from '../components/JobTriggersPanel.vue'
 import RunLimitsPanel from '../components/RunLimitsPanel.vue'
 import RunRow from '../components/RunRow.vue'
 import StatusPill from '../components/StatusPill.vue'
@@ -83,7 +84,7 @@ async function saveLimits(values: RunLimitUpdate): Promise<void> {
 async function openFromLink(): Promise<void> {
   await loadJob()
   // Panels exist only after the job loads, so the router cannot scroll to them.
-  if (['#limits', '#skill'].includes(route.hash)) {
+  if (['#limits', '#skill', '#triggers'].includes(route.hash)) {
     await nextTick()
     document.getElementById(route.hash.slice(1))?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
@@ -147,7 +148,7 @@ useLiveRefresh(loadJob, () => (job.value?.recent_runs ?? []).some((run) => isRun
           <strong :title="utcTitle(job.next_run_at)">{{ formatScheduled(job.next_run_at, job.timezone) }}</strong>
           <small>{{ formatRelative(job.next_run_at) }}</small>
         </div>
-        <div v-else-if="!job.cron" class="job-status-item"><span>No schedule</span><strong>Runs only when you choose Run now</strong></div>
+        <div v-else-if="!job.cron" class="job-status-item"><span>No schedule</span><strong>{{ job.triggers.length ? 'Runs when a webhook or Run now starts it' : 'Runs only when you choose Run now' }}</strong></div>
         <div v-else class="job-status-item"><span>Schedule paused</span><strong>Run now still works. Enable the job to run on schedule</strong></div>
         <div class="job-status-item">
           <span>Last run</span>
@@ -223,6 +224,8 @@ useLiveRefresh(loadJob, () => (job.value?.recent_runs ?? []).some((run) => isRun
             </div>
           </section>
 
+          <JobTriggersPanel v-if="job.triggers.length" :job-id="job.id" :can-manage="app.can(Action.ManageTriggers)" />
+
           <RunLimitsPanel
             :limits="job.limits"
             :can-edit="job.can_edit_limits"
@@ -239,7 +242,8 @@ useLiveRefresh(loadJob, () => (job.value?.recent_runs ?? []).some((run) => isRun
           <dl>
             <div><dt>Repository</dt><dd><RouterLink :to="`/repositories/${job.repository_id}`" class="detail-link">{{ job.repository }}</RouterLink></dd></div>
             <div><dt>Defined in</dt><dd><code>.secondshift.yaml</code> → <code>{{ job.key }}</code></dd></div>
-            <div><dt>Schedule</dt><dd v-if="job.cron" :title="job.cron">{{ describeCron(job.cron) }} <span class="run-details-muted">· {{ job.timezone }}</span></dd><dd v-else>Manual only. Start it with Run now.</dd></div>
+            <div><dt>Schedule</dt><dd v-if="job.cron" :title="job.cron">{{ describeCron(job.cron) }} <span class="run-details-muted">· {{ job.timezone }}</span></dd><dd v-else>{{ job.triggers.length ? 'None. A webhook or Run now starts it.' : 'Manual only. Start it with Run now.' }}</dd></div>
+            <div v-if="job.triggers.length"><dt>Triggers</dt><dd><a href="#triggers" class="detail-link">Webhook</a></dd></div>
             <div><dt>Synced commit</dt><dd><code>{{ job.repository_revision.slice(0, 12) }}</code></dd></div>
             <div><dt>History</dt><dd>{{ historyLabel(job.history) }}</dd></div>
             <div><dt>External access</dt><dd>{{ job.capabilities.length ? countLabel(job.capabilities.length, 'connection') : 'None requested' }}</dd></div>

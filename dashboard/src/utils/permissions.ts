@@ -21,6 +21,7 @@ export const Action = {
   RemoveRepositories: 'remove repositories',
   EnableJobs: 'enable jobs',
   RunJobs: 'run jobs',
+  ManageTriggers: 'turn job triggers on or off',
 } as const
 
 export type Action = (typeof Action)[keyof typeof Action]

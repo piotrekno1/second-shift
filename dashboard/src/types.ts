@@ -219,6 +219,8 @@ export interface JobDetail extends Job {
   config_hash: string
   /** How many of its own earlier reports each run starts with. */
   history: number
+  /** Trigger kinds the configuration names, such as "webhook". */
+  triggers: TriggerKind[]
   repository_revision: string
   repository_enabled: boolean
   /** The skill file at the synced commit. Empty until the repository syncs again. */
@@ -291,6 +293,8 @@ export interface Run {
   repository: string
   status: 'queued' | 'running' | 'succeeded' | 'failed' | 'canceled'
   scheduled_for: string
+  /** What started the run. Empty for runs from before this was recorded. */
+  started_by: RunStart
   started_at: string | null
   finished_at: string | null
   summary: string
@@ -524,4 +528,33 @@ export interface ApiTokenList {
   items: ApiToken[]
   workspaces: TokenWorkspace[]
   max_days: number
+}
+
+export type TriggerKind = 'webhook'
+export type RunStart = 'schedule' | 'manual' | 'webhook' | ''
+
+export interface TriggerEvent {
+  id: number
+  outcome: 'started' | 'refused'
+  reason: string
+  run_id: number | null
+  received_at: string
+}
+
+export interface JobTrigger {
+  kind: TriggerKind
+  /** The repository's configuration names this trigger. */
+  declared: boolean
+  /** It was turned on at least once, so it has a URL and a secret. */
+  set_up: boolean
+  enabled: boolean
+  url: string | null
+  secret_rotated_at: string | null
+  events: TriggerEvent[]
+}
+
+export interface TriggerChange {
+  trigger: JobTrigger
+  /** Only right after it was created or rotated. Never returned again. */
+  secret: string | null
 }

@@ -147,6 +147,8 @@ class JobDetailSchema(JobSchema):
     key: str
     config_hash: str
     history: int
+    # Trigger kinds the configuration names, such as "webhook".
+    triggers: list[str]
     repository_revision: str
     repository_enabled: bool
     # The skill file at the synced commit. Empty until the next sync.

@@ -887,3 +887,17 @@ body .workspace-menu { width: 224px; }
 .tool-rule-form { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .tool-rule-form .p-select { min-width: 140px; font-size: 12px; }
 .tool-rule-form .p-inputtext { flex: 1 1 180px; min-height: 30px; padding: 4px 8px; font-size: 12px; }
+/* Job triggers */
+.job-triggers-panel { padding: 24px; margin-bottom: 16px; }
+.job-trigger { display: grid; gap: 12px; }
+.job-trigger-actions { display: inline-flex; align-items: center; gap: 4px; }
+.job-trigger-url { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--white-3); }
+.job-trigger-url > span { color: var(--subtle); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
+.job-trigger-url code { flex: 1; min-width: 0; overflow-wrap: anywhere; font-size: 12px; }
+.job-trigger-note { margin: 0; color: var(--subtle); font-size: 12px; }
+.job-trigger-events h3 { margin: 4px 0 8px; font-size: 12px; color: var(--muted); }
+.job-trigger-events ul { display: grid; margin: 0; padding: 0; list-style: none; }
+.job-trigger-events li { display: grid; grid-template-columns: 84px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 8px 4px; border-top: 1px solid var(--white-8); font-size: 12px; }
+.job-trigger-reason { min-width: 0; overflow-wrap: anywhere; }
+.job-trigger-events small { color: var(--subtle); font-size: 11px; white-space: nowrap; }
+@media (max-width: 640px) { .job-trigger-url { flex-wrap: wrap; } .job-trigger-events li { grid-template-columns: 1fr auto; } .job-trigger-events li > .status-pill { grid-column: 1 / -1; justify-self: start; } }
