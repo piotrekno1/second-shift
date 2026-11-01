@@ -8,9 +8,8 @@
 
 **Give recurring engineering work a shift.**
 
-Commit an agent skill next to your code. SecondShift runs it on a schedule in a
-sandbox, with only the access your team approved, and keeps every report and
-its cost.
+Commit an agent skill next to your code. SecondShift runs it in a sandbox,
+with only the access your team approved, and keeps its results and cost.
 
 Open source, self-hosted, and in beta. Bring your own model provider.
 
@@ -21,7 +20,7 @@ https://github.com/user-attachments/assets/0a9a7baa-f79e-4934-af81-8e5374e9cdbf
 
 ## How it works
 
-A job is a skill and a schedule in `.secondshift.yaml`:
+Define a job in `.secondshift.yaml`. This example runs a skill every Monday:
 
 ```yaml
 jobs:
@@ -43,9 +42,10 @@ jobs:
    through your normal review.
 2. **Approve** its access in the dashboard. A repository can ask for tools. Only
    a workspace owner can grant them.
-3. **Run** on schedule in an isolated sandbox. Service calls go through the
-   approved connections, outside the sandbox.
-4. **Review** the report in the dashboard, Slack, or a webhook. Every run records
+3. **Run skills when you need them.** Start a run yourself, set a schedule, or
+   trigger it from another service. Each run executes in an isolated sandbox
+   with approved access.
+4. **Review** the results in the dashboard, Slack, or a webhook. Every run records
    its Git commit, tool calls, and model cost.
 
 ## Why SecondShift
@@ -91,7 +91,7 @@ from the [skill catalog](examples/README.md) and follow the
 ## Use it from your coding agent
 
 SecondShift serves an MCP server at `/mcp`. Your agent can check a
-`.secondshift.yaml` before you commit it, start approved jobs, and read reports.
+`.secondshift.yaml` before you commit it, start approved jobs, and read results.
 It cannot approve access or see credentials. See the
 [MCP guide](https://second-shift.app/docs/mcp/).
 
