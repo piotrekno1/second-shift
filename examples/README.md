@@ -29,6 +29,7 @@ more than one team.
 
 | Skill | What it does | Data needed |
 | --- | --- | --- |
+| [Alert triage](alert-triage/README.md) | Triages an alert as it fires, from metrics, logs and errors around it. | The alert from a webhook trigger, plus Grafana and Sentry when connected. Grafana setup is included. |
 | [Production errors](production-error-review/README.md) | Investigates new or worsening runtime errors and their impact. | Error events or traces, project/environment scope, and repository code. Sentry setup is included. |
 | [Monitoring coverage](monitoring-coverage-review/README.md) | Finds failure paths left without useful detection. | Alert rules, routing, failure paths, and a baseline from committed configuration or a monitoring API. |
 | [Incident follow-up](incident-follow-up-review/README.md) | Verifies completed actions against their promised outcome. | Incident actions, acceptance criteria, and implementation links from documents or a ticket API. |

@@ -1,0 +1,31 @@
+version: 1
+jobs:
+  alert-triage:
+    name: Alert triage
+    skill: .agents/skills/alert-triage/SKILL.md
+    triggers: [webhook]
+    webhook:
+      skip_when:
+        status: resolved
+      repeat_key: groupKey
+      repeat_window: 1h
+    requires:
+      mcps:
+      - binding: grafana
+        required: false
+        tools:
+        - list_datasources
+        - alerting_rules_read
+        - query_prometheus
+        - list_prometheus_metric_names
+        - query_loki_logs
+        - list_loki_label_names
+        - search_dashboards
+      - binding: sentry
+        required: false
+        tools:
+        - search_issues
+        - search_errors
+        - get_sentry_resource
+    notify:
+    - binding: alerts-slack

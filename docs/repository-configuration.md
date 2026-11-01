@@ -142,6 +142,10 @@ Each request must carry the secret in one of two ways:
 Tools that sign with their own header names usually let you rename them. Set
 them to the names above.
 
+The [alert triage example](../examples/alert-triage/README.md) is a complete
+job started this way. The [Grafana recipe](mcp-recipes.md#example-grafana)
+sets Grafana up to call it.
+
 ### The request body
 
 A run started by a webhook keeps the request body. The skill reads it with the
