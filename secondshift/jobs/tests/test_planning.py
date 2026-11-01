@@ -166,3 +166,66 @@ def test_plan_fails_closed_for_unsupported_mcp_providers(db) -> None:
     assert plan["ready"] is False
     assert plan["capabilities"][0]["reasons"] == ["mcp_provider_unsupported"]
     assert "external" not in plan["capabilities"][0]
+
+
+def optional_request(job: Job, binding: str) -> CapabilityRequest:
+    return CapabilityRequest.objects.create(
+        job=job,
+        binding=binding,
+        kind=CapabilityRequest.Kind.MCP,
+        requested_tools=["search"],
+        required=False,
+    )
+
+
+def mcp_connection(job: Job, binding: str, **fields: object) -> Connection:
+    return Connection.objects.create(
+        workspace=job.workspace,
+        provider=Connection.Provider.GITHUB,
+        kind=Connection.Kind.MCP,
+        binding_key=binding,
+        display_name=binding,
+        status=Connection.Status.CONNECTED,
+        available_tools=["search"],
+        **fields,
+    )
+
+
+def test_plan_says_why_each_binding_is_missing(db) -> None:
+    job = create_job(db)
+    optional_request(job, "sentry")
+    waiting = optional_request(job, "grafana")
+    mcp_connection(job, "grafana")
+    denied = optional_request(job, "linear")
+    JobGrant.objects.create(
+        capability_request=denied,
+        connection=mcp_connection(job, "linear"),
+        status=JobGrant.Status.DENIED,
+    )
+    JobGrant.objects.create(capability_request=waiting)
+
+    plan = build_execution_plan(job)
+
+    missing = {item["binding"]: item["missing"] for item in plan["capabilities"]}
+    assert missing == {
+        "grafana": "waiting for approval",
+        "linear": "denied",
+        "sentry": "not connected",
+    }
+    assert plan["ready"] is True
+
+
+def test_plan_says_nothing_is_missing_for_authorized_bindings(db) -> None:
+    job = create_job(db)
+    request = optional_request(job, "grafana")
+    JobGrant.objects.create(
+        capability_request=request,
+        connection=mcp_connection(job, "grafana"),
+        status=JobGrant.Status.APPROVED,
+        allowed_tools=["search"],
+    )
+
+    plan = build_execution_plan(job)
+
+    assert plan["capabilities"][0]["authorized"] is True
+    assert "missing" not in plan["capabilities"][0]
