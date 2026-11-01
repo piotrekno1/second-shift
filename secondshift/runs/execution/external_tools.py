@@ -7,12 +7,14 @@ from pydantic_ai import RunContext, Tool, ToolFailed
 
 from secondshift.connections.errors import ExternalRequestError
 from secondshift.jobs.tool_policy import authorized_tools
+from secondshift.jobs.tool_rules import narrow_schema
 from secondshift.runs.execution.deadlines import (
     check_deadline,
 )
 from secondshift.runs.execution.tool_broker import (
     broker_connection,
     call_external_tool_step,
+    frozen_rules,
 )
 from secondshift.runs.execution.workspace_tools import WorkspaceToolDeps
 from secondshift.runs.models import Run
@@ -60,7 +62,10 @@ def external_tools(run: Run) -> tuple[Tool[WorkspaceToolDeps], ...]:
                     f"{tool.name}. Approved {authorization.scope_label}: "
                     f"{authorization.scope}. {authorization.definition['description']}"
                 ),
-                json_schema=authorization.definition["inputSchema"],
+                json_schema=narrow_schema(
+                    authorization.definition["inputSchema"],
+                    frozen_rules(run, tool),
+                ),
                 takes_ctx=True,
                 sequential=True,
             )

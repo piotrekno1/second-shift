@@ -4,6 +4,8 @@ from secondshift.runs.execution.deadlines import TIMEOUT_HEADLINE
 from secondshift.runs.models import Run
 from secondshift.runs.reporting.failures import (
     MODEL_PROVIDER_LABEL,
+    TOOL_RULE_LABEL,
+    TOOL_RULE_NEXT_STEP,
     describe_failure,
     model_provider_next_step,
 )
@@ -39,6 +41,8 @@ def run_failure(run: Run) -> RunFailureSchema | None:
             connection_id = model["connection_id"]
         name = model.get("connection_name") or "the model connection"
         next_step = model_provider_next_step(view.reason, name)
+    elif view.label == TOOL_RULE_LABEL:
+        next_step = TOOL_RULE_NEXT_STEP
     return RunFailureSchema(
         label=view.label,
         reason=view.reason,
