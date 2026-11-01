@@ -3,7 +3,6 @@
 from dataclasses import dataclass
 from typing import Literal
 
-import requests
 from pydantic_ai.exceptions import ModelHTTPError
 
 from secondshift.jobs.tool_rules import ToolRuleViolation
@@ -80,10 +79,6 @@ def failure_detail(error: BaseException) -> str:
     if isinstance(error, ToolRuleViolation):
         # Names the argument and the rule, never the value the model sent.
         return one_line(f"{TOOL_RULE_PREFIX}{error}")
-    if isinstance(error, requests.Timeout):
-        return "The runner did not answer in time."
-    if isinstance(error, requests.ConnectionError):
-        return "The runner service could not be reached."
     if isinstance(error, SHOWN_ERROR_TYPES) and str(error).strip():
         return one_line(str(error))
     return f"Unexpected {type(error).__name__}."
