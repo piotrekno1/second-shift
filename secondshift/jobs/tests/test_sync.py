@@ -239,3 +239,31 @@ def test_a_connection_added_later_is_granted_on_the_next_sync(
 
     grant = JobGrant.objects.get(capability_request__binding="alerts")
     assert grant.status == JobGrant.Status.PENDING
+
+
+def test_sync_stores_the_triggers_a_job_names(db, tmp_path: Path) -> None:
+    user = get_user_model().objects.create_user(username="owner")
+    workspace = create_workspace(name="Test", slug="test", owner=user)
+    repository = Repository.objects.create(
+        workspace=workspace, full_name="example/project"
+    )
+    path = tmp_path / ".secondshift.yaml"
+    path.write_text(
+        """
+version: 1
+jobs:
+  triage:
+    name: Triage
+    skill: .agents/skills/triage/SKILL.md
+    triggers: [webhook]
+""".strip()
+    )
+
+    job = sync_manifest(repository, path)[0]
+
+    assert Job.objects.get(pk=job.pk).triggers == ["webhook"]
+
+    path.write_text(path.read_text().replace("\n    triggers: [webhook]", ""))
+    sync_manifest(repository, path)
+
+    assert Job.objects.get(pk=job.pk).triggers == []

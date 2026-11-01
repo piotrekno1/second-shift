@@ -93,6 +93,7 @@ def job_fields(
         "cron": item.schedule or "",
         "timezone": item.timezone,
         "history": item.history,
+        "triggers": [str(kind) for kind in item.triggers],
         "config_hash": manifest_hash(item),
     }
 

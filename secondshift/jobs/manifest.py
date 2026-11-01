@@ -17,6 +17,8 @@ from pydantic import (
 )
 from pydantic_core import ErrorDetails
 
+from secondshift.config.constants import TriggerKind
+
 
 class CapabilityManifest(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -61,6 +63,8 @@ class JobManifest(BaseModel):
     history: int = Field(default=0, ge=0)
     requires: RequirementsManifest = Field(default_factory=RequirementsManifest)
     notify: list[NotificationManifest] = Field(default_factory=list)
+    # Events that may start the job. An owner still turns each one on.
+    triggers: list[TriggerKind] = Field(default_factory=list)
 
     @field_validator("skill")
     @classmethod
@@ -71,6 +75,13 @@ class JobManifest(BaseModel):
         if path.name != "SKILL.md":
             raise ValueError("skill must point to a SKILL.md file")
         return value
+
+    @field_validator("triggers")
+    @classmethod
+    def validate_triggers(cls, values: list[TriggerKind]) -> list[TriggerKind]:
+        if len(values) != len(set(values)):
+            raise ValueError("triggers must be unique within a job")
+        return values
 
     @field_validator("history")
     @classmethod
@@ -172,5 +183,7 @@ def field_path(item: ErrorDetails) -> str:
 
 
 def manifest_hash(job: JobManifest) -> str:
-    canonical = json.dumps(job.model_dump(), sort_keys=True, separators=(",", ":"))
+    # Jobs without triggers keep the hash they had before triggers existed.
+    data = job.model_dump(exclude={"triggers"} if not job.triggers else None)
+    canonical = json.dumps(data, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(canonical.encode()).hexdigest()
