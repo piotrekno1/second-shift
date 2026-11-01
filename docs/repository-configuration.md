@@ -231,7 +231,7 @@ custom MCP server, the owner chooses tools after connecting, and tools the
 server marks read-only start selected. For an HTTP API, GET operations start
 selected. The access review marks any requested tool that may change data.
 
-[Vendor MCP servers](mcp-recipes.md) has recipes for vendors that run an
+[Vendor MCP servers](mcp-recipes.md) has examples for vendors that run an
 official MCP server.
 
 An operation without an `operationId` gets a name built from its method and

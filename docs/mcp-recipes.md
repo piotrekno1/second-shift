@@ -3,16 +3,22 @@
 [README](../README.md) · [Repository configuration](repository-configuration.md) · [Security model](security-model.md)
 
 Some vendors run an official MCP server. Connect one as a **Custom server**
-under **Connections** → **Add connection**. Each recipe below gives the server
-URL, how to sign in, the tools to allow, and a `requires` block for a job.
+under **Connections** → **Add connection**. SecondShift has no built-in
+support for these vendors. Any MCP server that offers sign-in or a bearer
+token connects the same way.
 
-The recipes use read-only tools. A recipe was checked against the vendor's
-server on the date it gives. Vendors add and rename tools, so compare the
-list with what the connection shows after you sign in.
+The recipes below are examples. Each gives the server URL, how to sign in,
+the tools to allow, and a `requires` block for a job. Pick the tools your own
+job needs. The examples use read-only tools.
 
-## Linear
+Each example was checked against the vendor's server on the date it gives.
+Vendors add and rename tools, so compare the list with what the connection
+shows after you sign in.
 
-Checked on 2026-11-01.
+## Example: Linear
+
+Checked on 2026-11-01. The tools and `requires` block below are a sample for
+a job that reads issues and projects.
 
 | Setting | Value |
 | --- | --- |
@@ -28,7 +34,7 @@ Linear marks none of its tools read-only. No tool starts selected, and every
 tool shows **May change data**. On this endpoint with the `read` scope, none
 of them can change data.
 
-Allow these tools on the connection:
+This example allows these tools on the connection:
 
 | Tool | Returns |
 | --- | --- |
