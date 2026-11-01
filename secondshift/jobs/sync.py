@@ -25,6 +25,7 @@ from secondshift.jobs.manifest import (
 )
 from secondshift.jobs.models import CapabilityRequest, Job, JobGrant
 from secondshift.jobs.scheduling import next_occurrence
+from secondshift.jobs.tool_rules import kept_rules
 from secondshift.repositories.models import Repository
 
 
@@ -235,8 +236,14 @@ def review_fields(grant: JobGrant, synced: SyncedRequest) -> dict[str, object]:
         return {
             "status": JobGrant.Status.PENDING,
             "allowed_tools": sorted(synced.tools),
+            # Kept so the owner reviews them again with the new tools.
+            "tool_rules": kept_rules(grant.tool_rules, synced.tools),
             "reviewed_by_id": None,
             "reviewed_at": None,
         }
     # Tools the job stopped asking for are no longer allowed.
-    return {"allowed_tools": sorted(set(grant.allowed_tools) & set(synced.tools))}
+    allowed = sorted(set(grant.allowed_tools) & set(synced.tools))
+    return {
+        "allowed_tools": allowed,
+        "tool_rules": kept_rules(grant.tool_rules, allowed),
+    }

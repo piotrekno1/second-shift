@@ -9,6 +9,7 @@ from secondshift.jobs.agent_policy import AgentPolicy, agent_plan
 from secondshift.jobs.limits import RunLimit, effective_limits
 from secondshift.jobs.models import CapabilityRequest, Job, JobGrant
 from secondshift.jobs.tool_policy import authorized_tools
+from secondshift.jobs.tool_rules import broken_rules, kept_rules
 
 
 def model_plan(job: Job) -> dict[str, Any] | None:
@@ -60,6 +61,12 @@ def blocking_reasons(
     return reasons
 
 
+def rules_broken(grant: JobGrant, connection: Connection) -> bool:
+    """The connection's schemas changed under the owner's rules. Fail closed."""
+    definitions = connection.metadata.get("tools", {})
+    return bool(grant.tool_rules and broken_rules(grant.tool_rules, definitions))
+
+
 def capability_plan(job: Job, request: CapabilityRequest) -> dict[str, Any]:
     """One requested capability, with the tools the run may use."""
     grant = getattr(request, "grant", None)
@@ -69,6 +76,8 @@ def capability_plan(job: Job, request: CapabilityRequest) -> dict[str, Any]:
     available = set(connection.available_tools) if connection else set()
     effective = requested & allowed & available
     reasons = blocking_reasons(job, request, grant, connection)
+    if grant and connection and rules_broken(grant, connection):
+        reasons.append("tool_rules_broken")
 
     adapter = EXTERNAL_KINDS.get(request.kind)
     access = (
@@ -93,6 +102,8 @@ def capability_plan(job: Job, request: CapabilityRequest) -> dict[str, Any]:
     }
     if adapter and connection and access and access.scope and authorized:
         capability["external"] = adapter.freeze(connection, access.scope, effective)
+        # Copied into the plan so a rule changed mid-run does not affect the run.
+        capability["tool_rules"] = kept_rules(grant.tool_rules, effective)
     return capability
 
 
@@ -118,7 +129,7 @@ def build_execution_plan(job: Job) -> dict[str, Any]:
         RunLimit.TIMEOUT_SECONDS: limits[RunLimit.TIMEOUT_SECONDS],
     }
     plan = {
-        "version": 4,
+        "version": 5,
         "ready": ready,
         "agent": agent,
         "job": {

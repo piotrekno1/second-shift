@@ -16,6 +16,7 @@ REASON_TEXT = {
     "connection_binding_mismatch": "is approved for a connection that does not match",
     "tools_not_granted": "requests tools the owner did not approve",
     "tools_unavailable": "requests tools the connection does not offer",
+    "tool_rules_broken": "has tool restrictions that no longer fit the connection",
 }
 OTHER_REASON = "cannot reach what the job needs through its connection"
 
