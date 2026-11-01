@@ -2,6 +2,7 @@ import uuid
 
 from django.db import models
 
+from secondshift.config.constants import RunStart
 from secondshift.jobs.models import Job
 
 
@@ -24,6 +25,12 @@ class Run(models.Model):
     )
     commit_sha = models.CharField(max_length=64)
     scheduled_for = models.DateTimeField()
+    # Blank for runs created before this was recorded.
+    started_by = models.CharField(
+        max_length=16,
+        choices=[(item.value, item.value.title()) for item in RunStart],
+        blank=True,
+    )
     started_at = models.DateTimeField(null=True, blank=True)
     finished_at = models.DateTimeField(null=True, blank=True)
     sandbox_runtime = models.CharField(max_length=32, blank=True)

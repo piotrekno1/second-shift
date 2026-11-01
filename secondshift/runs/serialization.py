@@ -61,6 +61,7 @@ def serialize_run(run: Run) -> RunSchema:
         repository=run.job.repository.display_name,
         status=run.status,
         scheduled_for=run.scheduled_for,
+        started_by=run.started_by,
         started_at=run.started_at,
         finished_at=run.finished_at,
         summary=run.summary,

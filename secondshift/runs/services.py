@@ -6,6 +6,7 @@ from typing import Any
 from django.db import transaction
 from django.utils import timezone
 
+from secondshift.config.constants import RunStart
 from secondshift.jobs.models import Job
 from secondshift.jobs.planning import build_execution_plan
 from secondshift.runs.artifacts import job_input_snapshot
@@ -30,10 +31,12 @@ def create_run(
     job: Job,
     scheduled_for: datetime,
     *,
+    started_by: RunStart = RunStart.SCHEDULE,
     execution_plan: dict[str, Any] | None = None,
     reuse_existing: bool = False,
 ) -> Run:
     defaults = {
+        "started_by": started_by,
         "commit_sha": job.repository.config_sha,
         "input_snapshot": job_input_snapshot(job)
         | {"history_run_ids": previous_run_ids(job)},
@@ -68,6 +71,11 @@ def start_manual_run(job: Job) -> Run:
             raise RunRefused(
                 "Connect a default model and approve all required capabilities first."
             )
-        run = create_run(job, timezone.now(), execution_plan=execution_plan)
+        run = create_run(
+            job,
+            timezone.now(),
+            started_by=RunStart.MANUAL,
+            execution_plan=execution_plan,
+        )
     enqueue_run(run)
     return run

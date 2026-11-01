@@ -67,6 +67,14 @@ class TriggerKind(StrEnum):
     WEBHOOK = "webhook"
 
 
+class RunStart(StrEnum):
+    """What started a run."""
+
+    SCHEDULE = "schedule"
+    MANUAL = "manual"
+    WEBHOOK = "webhook"
+
+
 # How much of a report a run keeps as its summary. Webhooks send the summary.
 SUMMARY_MAX_CHARS = 4_000
 

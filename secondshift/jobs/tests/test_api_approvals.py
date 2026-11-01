@@ -268,6 +268,7 @@ def test_run_now_works_while_the_schedule_is_off(
     job.refresh_from_db()
     assert job.enabled is False
     assert queued == [response.json()["id"]]
+    assert response.json()["started_by"] == "manual"
 
 
 @pytest.mark.django_db
