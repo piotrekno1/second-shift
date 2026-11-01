@@ -207,8 +207,9 @@ def hourly_refusal(trigger: JobTrigger) -> Received | None:
     ).count()
     if started < limit:
         return None
+    runs = "run" if limit == 1 else "runs"
     return refuse(
-        trigger, 429, f"This trigger already started {limit} runs in the last hour."
+        trigger, 429, f"This trigger already started {limit} {runs} in the last hour."
     )
 
 

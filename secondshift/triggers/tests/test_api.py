@@ -464,7 +464,9 @@ def test_owner_sets_the_hourly_cap_up_to_the_ceiling(
     client.logout()
     secret = str(change["secret"])
     finish(send(client, path_of(change), secret).json()["run_id"], timedelta())
-    assert send(client, path_of(change), secret).status_code == 429
+    capped = send(client, path_of(change), secret)
+    assert capped.status_code == 429
+    assert capped.json()["detail"].endswith("started 1 run in the last hour.")
 
     client.force_login(owner)
     reset = set_cap(client, job, None).json()
