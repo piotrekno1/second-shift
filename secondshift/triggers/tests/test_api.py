@@ -117,6 +117,7 @@ def test_webhook_starts_one_run(
     assert queued == [run.pk]
     event = TriggerEvent.objects.get()
     assert (event.outcome, event.run_id) == ("started", run.pk)
+    assert run.input_snapshot["payload"]["size_bytes"] == len(json.dumps(ALERT))
 
 
 def test_signed_request_starts_a_run(
