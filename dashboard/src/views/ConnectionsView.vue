@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import AppIcon from '../components/AppIcon.vue'
+import OAuthScopeWarning from '../components/OAuthScopeWarning.vue'
 import { computed, nextTick, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Button from 'primevue/button'
@@ -49,7 +50,7 @@ const SIGN_IN_RESULTS: Record<string, string> = {
   invalid: 'That sign-in is no longer valid. Start again.',
   expired: 'The sign-in took too long. Start again.',
   refused: 'Sign-in was cancelled.',
-  scope: 'The server granted more access than you asked for, so nothing was saved. On its consent page, leave only that access selected (for Grafana: Read access, with Query and Write cleared).',
+  scope: 'The server did not grant all the access you requested, so nothing was saved. Sign in again and grant the selected access, or start a new connection requesting less.',
   taken: 'That binding already has a connection.',
   failed: 'Sign-in did not finish. Check the server and try again.',
 }
@@ -392,6 +393,7 @@ onMounted(async () => {
           <p v-else-if="connection.last_check" class="need-notice" :class="{ ok: connection.last_check.ok }" :title="`${formatDate(connection.last_check.checked_at)} · ${utcTitle(connection.last_check.checked_at)}`">
             <AppIcon :name="connection.last_check.ok ? 'check-circle-outline' : 'alert-circle-outline'" /> {{ connection.last_check.message }} <span class="check-age">{{ isWebhook(connection) ? 'Last delivery' : 'Checked' }} {{ formatRelative(connection.last_check.checked_at) }}</span>
           </p>
+          <OAuthScopeWarning :connection="connection" />
           <div v-if="confirmRevoke === connection.id" class="confirm-strip" role="alert">
             <span>Disconnecting discards the stored URL or token. {{ connection.usage?.jobs ? `${countLabel(connection.usage.jobs, 'job')} that use${connection.usage.jobs === 1 ? 's' : ''} it will be blocked` : 'Jobs that use it are blocked' }} until you reconnect.</span>
             <Button label="Cancel" severity="secondary" text size="small" @click="confirmRevoke = null" />

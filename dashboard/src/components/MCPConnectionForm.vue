@@ -189,7 +189,7 @@ async function submit(): Promise<void> {
           <code>{{ scope }}</code>
           <span v-if="RISKY_SCOPE.test(scope)" class="mcp-flag">May allow changes</span>
         </label>
-        <small>SecondShift refuses the sign-in if the server grants more than you tick here.</small>
+        <small>The selected scopes are required. Sign-in fails if any are missing; additional scopes appear as a warning on the connection.</small>
       </fieldset>
 
       <label v-if="showToken" class="need-setup-wide">

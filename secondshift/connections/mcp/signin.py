@@ -157,16 +157,13 @@ def complete_authorization(
         },
     )
     granted = granted_scopes(tokens, authorization.scopes)
-    if set(granted) - set(authorization.scopes):
-        # Scope names are not secret. Logged so an owner can see what to untick.
-        logger.warning(
-            "MCP sign-in refused: requested scopes %s, server granted %s",
-            sorted(authorization.scopes),
-            [scope for scope in granted if re.fullmatch(SCOPE_PATTERN, scope)][:20],
-        )
+    missing = set(authorization.scopes) - set(granted)
+    if missing:
+        logger.warning("MCP sign-in missing required scopes: %s", sorted(missing))
         raise SignInError(
-            "scope", "The server granted more access than requested. Nothing was saved."
+            "scope", "The server did not grant the required access. Nothing was saved."
         )
+    oauth = {**oauth, "requested_scopes": list(authorization.scopes)}
     connection = authorization.connection or Connection(
         workspace=authorization.workspace,
         provider=provider.key,

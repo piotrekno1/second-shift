@@ -395,6 +395,8 @@ export interface Connection {
   auth?: 'oauth' | 'token' | ''
   /** MCP only: OAuth scopes the server granted. */
   scopes?: string[]
+  /** MCP only: scopes selected when signing in; required on refresh and reconnect. */
+  requested_scopes?: string[]
   /** Custom MCP servers: every tool the server offers. */
   offered_tools?: OfferedTool[]
 }
