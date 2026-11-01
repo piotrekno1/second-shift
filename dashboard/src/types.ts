@@ -535,10 +535,12 @@ export type RunStart = 'schedule' | 'manual' | 'webhook' | ''
 
 export interface TriggerEvent {
   id: number
-  outcome: 'started' | 'refused'
+  outcome: 'started' | 'ignored' | 'refused'
   reason: string
   run_id: number | null
   received_at: string
+  /** Requests with the same outcome and reason share one row. */
+  count: number
 }
 
 export interface JobTrigger {
@@ -551,6 +553,15 @@ export interface JobTrigger {
   url: string | null
   secret_rotated_at: string | null
   events: TriggerEvent[]
+  /** The cap that applies, the owner's own value if set, and the server's. */
+  runs_per_hour: number
+  custom_runs_per_hour: number | null
+  default_runs_per_hour: number
+  max_runs_per_hour: number
+  /** From the repository's webhook settings. */
+  skip_when: Record<string, string | number | boolean>
+  repeat_key: string | null
+  repeat_window: string | null
 }
 
 export interface TriggerChange {

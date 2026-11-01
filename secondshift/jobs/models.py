@@ -32,6 +32,8 @@ class Job(RunLimitOverrides):
     history = models.PositiveSmallIntegerField(default=0)
     # Trigger kinds the repository names, such as "webhook". See JobTrigger.
     triggers = models.JSONField(default=list, blank=True)
+    # The repository's webhook settings: skip_when, repeat_key, repeat_window.
+    webhook = models.JSONField(default=dict, blank=True)
     enabled = models.BooleanField(default=False)
     next_run_at = models.DateTimeField(null=True, blank=True)
     config_hash = models.CharField(max_length=64)

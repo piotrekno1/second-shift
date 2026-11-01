@@ -29,6 +29,9 @@ class JobTrigger(models.Model):
     # Encrypted, not hashed: checking an HMAC signature needs the secret itself.
     secret = EncryptedTextField()
     enabled = models.BooleanField(default=False)
+    # The owner's cap on runs this trigger starts per hour. Empty uses the
+    # server default.
+    max_runs_per_hour = models.PositiveIntegerField(null=True, blank=True)
     secret_rotated_at = models.DateTimeField()
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -49,13 +52,15 @@ class TriggerEvent(models.Model):
 
     class Outcome(models.TextChoices):
         STARTED = "started", "Started a run"
+        # Not a run, by the job's own settings: a skipped or repeated event.
+        IGNORED = "ignored", "Ignored"
         REFUSED = "refused", "Refused"
 
     trigger = models.ForeignKey(
         JobTrigger, on_delete=models.CASCADE, related_name="events"
     )
     outcome = models.CharField(max_length=16, choices=Outcome.choices)
-    # Why it was refused, in words for the person who set the trigger up.
+    # Why it was ignored or refused, in words for the person who set it up.
     reason = models.CharField(max_length=500, blank=True)
     run = models.ForeignKey(
         Run,

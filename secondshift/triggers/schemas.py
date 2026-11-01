@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from ninja import Schema
+from pydantic import Field
 
 from secondshift.config.constants import TriggerKind
 
@@ -11,6 +12,9 @@ class TriggerEventSchema(Schema):
     reason: str
     run_id: int | None
     received_at: datetime
+    # Requests with the same outcome and reason share one row.
+    # received_at is the newest of them.
+    count: int = 1
 
 
 class TriggerSchema(Schema):
@@ -23,6 +27,15 @@ class TriggerSchema(Schema):
     url: str | None
     secret_rotated_at: datetime | None
     events: list[TriggerEventSchema]
+    # The cap that applies, the owner's own value if set, and the server's.
+    runs_per_hour: int
+    custom_runs_per_hour: int | None
+    default_runs_per_hour: int
+    max_runs_per_hour: int
+    # From the repository's webhook settings. repeat_window includes the default.
+    skip_when: dict[str, str | int | float | bool]
+    repeat_key: str | None
+    repeat_window: str | None
 
 
 class TriggerChangeSchema(Schema):
@@ -33,6 +46,11 @@ class TriggerChangeSchema(Schema):
 
 class TriggerEnabledSchema(Schema):
     enabled: bool
+
+
+class TriggerLimitSchema(Schema):
+    # Empty goes back to the server default.
+    runs_per_hour: int | None = Field(default=None, ge=1)
 
 
 class TriggerReceivedSchema(Schema):

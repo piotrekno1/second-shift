@@ -462,6 +462,12 @@ TRIGGER_SIGNATURE_MAX_AGE_SECONDS = 300
 TRIGGER_EVENTS_KEPT = 100
 # A run keeps this much of the body that started it. The rest is cut.
 TRIGGER_PAYLOAD_MAX_BYTES = 64 * 1024
+# Runs one trigger may start per hour. An owner can change it per trigger, up
+# to the ceiling.
+TRIGGER_MAX_RUNS_PER_HOUR = env.int("SECONDSHIFT_TRIGGER_MAX_RUNS_PER_HOUR", default=10)
+TRIGGER_MAX_RUNS_PER_HOUR_CEILING = env.int(
+    "SECONDSHIFT_TRIGGER_MAX_RUNS_PER_HOUR_CEILING", default=60
+)
 # Per-run token budget (input + output + cache tokens), largest accepted
 # request body, and how long to wait between streamed chunks.
 MODEL_RUN_TOKEN_BUDGET = env.int(

@@ -177,7 +177,8 @@ the `#alerts` and `#ops` channels.
   narrowest token the service offers.
 
 - **A webhook trigger starts runs for whoever holds its secret.** Each run uses
-  tokens and the job's approved tools. Turn a trigger off or rotate its secret
+  tokens and the job's approved tools. Each trigger starts at most its hourly
+  cap of runs, 10 by default. Turn a trigger off or rotate its secret
   if it may have leaked. A request signed without a timestamp header can be
   sent again later, so set the timestamp header when signing.
 - **A trigger payload is stored with its run.** Anyone who can view the run

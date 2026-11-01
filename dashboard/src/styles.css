@@ -900,4 +900,14 @@ body .workspace-menu { width: 224px; }
 .job-trigger-events li { display: grid; grid-template-columns: 84px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 8px 4px; border-top: 1px solid var(--white-8); font-size: 12px; }
 .job-trigger-reason { min-width: 0; overflow-wrap: anywhere; }
 .job-trigger-events small { color: var(--subtle); font-size: 11px; white-space: nowrap; }
+.job-trigger-rules { display: grid; gap: 8px; }
+.job-trigger-rules h3 { margin: 0; font-size: 12px; color: var(--muted); }
+.job-trigger-rules ul { margin: 0; padding-left: 18px; font-size: 13px; }
+.job-trigger-rules p { margin: 0; font-size: 13px; color: var(--muted); }
+.job-trigger-cap { display: grid; gap: 4px; max-width: 420px; }
+.job-trigger-cap label { font-size: 12px; color: var(--muted); }
+.job-trigger-cap-input { display: flex; align-items: center; gap: 8px; }
+.job-trigger-cap-input input { width: 120px; }
+.job-trigger-count { margin-left: 8px; color: var(--subtle); font-size: 12px; }
+.job-trigger-cap small { color: var(--subtle); font-size: 12px; }
 @media (max-width: 640px) { .job-trigger-url { flex-wrap: wrap; } .job-trigger-events li { grid-template-columns: 1fr auto; } .job-trigger-events li > .status-pill { grid-column: 1 / -1; justify-self: start; } }

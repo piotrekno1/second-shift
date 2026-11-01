@@ -79,6 +79,7 @@ standard-library tests work without installing packages.
 | `jobs.<key>.history` | No | How many of the job's own earlier reports each run starts with, up to the server's `SECONDSHIFT_JOB_HISTORY_MAX` (5 by default). Defaults to 0. See [run history](#run-history). |
 | `jobs.<key>.notify` | No | Webhook notification bindings requested by this job. |
 | `jobs.<key>.triggers` | No | Events that can start the job. Only `webhook` is supported. An owner or admin turns it on. See [webhook triggers](#webhook-triggers). |
+| `jobs.<key>.webhook` | No | Which webhook requests start a run: `skip_when`, `repeat_key` and `repeat_window`. Needs `triggers: [webhook]`. See [ignore requests and repeats](#ignore-requests-and-repeats). |
 | `jobs.<key>.requires` | No | MCP tools and HTTP API operations the job needs. See below. |
 
 Skill paths must stay inside the repository. Unknown fields are rejected.
@@ -152,12 +153,51 @@ The run keeps the first 64 KiB. A longer body is cut, and the run is told so.
 The body is stored with the run and shown on its **Input** tab. Do not send
 secrets in it.
 
+### Ignore requests and repeats
+
+A sender may notify again while an event lasts, and again when it ends. Add a
+`webhook` block so these do not each start a run:
+
+```yaml
+jobs:
+  incident-triage:
+    name: Incident triage
+    skill: .agents/skills/incident-triage/SKILL.md
+    triggers: [webhook]
+    webhook:
+      skip_when:
+        status: resolved
+      repeat_key: incident.id
+      repeat_window: 2h
+```
+
+- `skip_when` ignores a request when every listed field has the listed value.
+- `repeat_key` names the field that identifies an event. A request with the same
+  value is ignored while that event's run is active, and for `repeat_window`
+  after it finished.
+- `repeat_window` is a number followed by `m`, `h` or `d`, up to `7d`. It is
+  `1h` when left out.
+
+Fields are the sender's own. Use a dot for a nested field, such as
+`labels.team`. A request whose body is not JSON, or lacks the field, is never
+ignored by these rules. The setup guide for each sender lists the fields to use.
+
 ### What happens to a request
 
-A request starts a run only if the trigger is on, the job is ready, and no run
-of the job is active. Otherwise it is refused with a reason. The job page lists
-recent requests and what happened to each. Turning the trigger off or rotating
-the secret applies from the next request.
+A request starts a run when all of these hold:
+
+1. It carries the secret. Otherwise it gets 401.
+2. The trigger is on and the job still names it. Otherwise it gets 409.
+3. The job's `webhook` settings do not ignore it. An ignored request gets 200,
+   so the sender does not retry it.
+4. The trigger has started fewer runs in the last hour than its cap. The cap is
+   10 by default. An owner or admin can change it on the job page. Otherwise
+   the request gets 429.
+5. The job is ready and has no active run. Otherwise it gets 409.
+
+The job page lists recent requests and what happened to each. It keeps the
+newest 100 of each outcome. A failed sign-in is listed at most once a minute.
+Turning the trigger off or rotating the secret applies from the next request.
 
 ## Deliver reports to a webhook
 

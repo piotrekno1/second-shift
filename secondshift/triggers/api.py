@@ -12,17 +12,20 @@ from secondshift.triggers.models import JobTrigger
 from secondshift.triggers.schemas import (
     TriggerChangeSchema,
     TriggerEnabledSchema,
+    TriggerLimitSchema,
     TriggerReceivedSchema,
     TriggerSchema,
 )
 from secondshift.triggers.serialization import (
     serialize_change,
     serialize_job_triggers,
+    serialize_trigger,
 )
 from secondshift.triggers.services import (
     TriggerError,
     receive,
     rotate_secret,
+    set_runs_per_hour,
     set_trigger_enabled,
 )
 from secondshift.workspaces.access import Action, require
@@ -61,14 +64,24 @@ def rotate(request: HttpRequest, job_id: int, kind: TriggerKind) -> TriggerChang
     return serialize_change(job, change)
 
 
+@router.post("/jobs/{job_id}/triggers/{kind}/limit", response=TriggerSchema)
+def set_limit(
+    request: HttpRequest, job_id: int, kind: TriggerKind, payload: TriggerLimitSchema
+) -> TriggerSchema:
+    job = job_for_request(request, job_id)
+    require(request, Action.MANAGE_TRIGGERS)
+    try:
+        trigger = set_runs_per_hour(job, kind, payload.runs_per_hour)
+    except TriggerError as error:
+        raise HttpError(409, str(error)) from error
+    return serialize_trigger(job, kind, trigger)
+
+
 @router.post(
     "/triggers/{public_id}",
     auth=None,
     response={
-        202: TriggerReceivedSchema,
-        401: TriggerReceivedSchema,
-        409: TriggerReceivedSchema,
-        413: TriggerReceivedSchema,
+        frozenset({200, 202, 401, 409, 413, 429}): TriggerReceivedSchema,
     },
     include_in_schema=False,
 )
@@ -95,7 +108,7 @@ def receive_trigger(
         )
     received = receive(trigger, request.headers, body)
     if received.run is None:
-        logger.info("trigger %s refused a request: %s", trigger.pk, received.detail)
+        logger.info("trigger %s did not start a run: %s", trigger.pk, received.detail)
     return Status(
         received.status,
         TriggerReceivedSchema(

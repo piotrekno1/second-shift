@@ -144,8 +144,66 @@ def test_manifest_refuses_unknown_or_repeated_triggers(extra: str) -> None:
 def test_jobs_without_triggers_keep_their_hash() -> None:
     plain = parse_manifest(job_with("")).jobs["triage"]
     triggered = parse_manifest(job_with("    triggers: [webhook]")).jobs["triage"]
-    before_triggers = plain.model_dump(exclude={"triggers"})
+    before_triggers = plain.model_dump(exclude={"triggers", "webhook"})
     canonical = json.dumps(before_triggers, sort_keys=True, separators=(",", ":"))
 
     assert manifest_hash(plain) == hashlib.sha256(canonical.encode()).hexdigest()
     assert manifest_hash(triggered) != manifest_hash(plain)
+
+
+WEBHOOK = """    triggers: [webhook]
+    webhook:
+      skip_when:
+        status: resolved
+      repeat_key: groupKey
+      repeat_window: 2h"""
+
+
+def test_manifest_reads_webhook_settings() -> None:
+    webhook = parse_manifest(job_with(WEBHOOK)).jobs["triage"].webhook
+
+    assert webhook is not None
+    assert webhook.skip_when == {"status": "resolved"}
+    assert (webhook.repeat_key, webhook.repeat_window) == ("groupKey", "2h")
+
+
+@pytest.mark.parametrize(
+    ("extra", "message"),
+    [
+        ("    webhook:\n      repeat_key: groupKey", "need triggers: [webhook]"),
+        (
+            "    triggers: [webhook]\n    webhook:\n      repeat_window: 1h",
+            "repeat_window needs a repeat_key",
+        ),
+        (
+            "    triggers: [webhook]\n    webhook:\n      repeat_key: a\n"
+            "      repeat_window: 8d",
+            "between 1m and 7d",
+        ),
+        (
+            "    triggers: [webhook]\n    webhook:\n      repeat_key: a\n"
+            "      repeat_window: soon",
+            "followed by m, h or d",
+        ),
+        (
+            "    triggers: [webhook]\n    webhook:\n      repeat_key: alerts[0]",
+            "repeat_key",
+        ),
+    ],
+)
+def test_manifest_refuses_bad_webhook_settings(extra: str, message: str) -> None:
+    with pytest.raises(ManifestError) as error:
+        parse_manifest(job_with(extra))
+
+    assert message in str(error.value)
+
+
+def test_jobs_without_webhook_settings_keep_their_hash() -> None:
+    triggered = parse_manifest(job_with("    triggers: [webhook]")).jobs["triage"]
+    canonical = json.dumps(
+        triggered.model_dump(exclude={"webhook"}), sort_keys=True, separators=(",", ":")
+    )
+
+    assert manifest_hash(triggered) == hashlib.sha256(canonical.encode()).hexdigest()
+    with_settings = parse_manifest(job_with(WEBHOOK)).jobs["triage"]
+    assert manifest_hash(with_settings) != manifest_hash(triggered)

@@ -57,12 +57,18 @@ class RunNotReady(RunRefused):
         self.problems = problems
 
 
-def start_run(job: Job, started_by: RunStart, payload: bytes | None = None) -> Run:
+def start_run(
+    job: Job,
+    started_by: RunStart,
+    payload: bytes | None = None,
+    repeat_key: str | None = None,
+) -> Run:
     """Start a job now. Refuses while another run of the job has not finished.
 
     One run at a time per job also stops a client stuck in a loop from
     queuing runs faster than they finish. A trigger passes the request body as
-    payload. The run keeps it with its input.
+    payload. The run keeps it with its input. repeat_key lets later requests
+    for the same event find this run.
     """
     # Starting now does not need the schedule. It still needs the repository.
     if not job.repository.enabled:
@@ -84,6 +90,9 @@ def start_run(job: Job, started_by: RunStart, payload: bytes | None = None) -> R
         )
         if payload is not None:
             run.input_snapshot["payload"] = store_run_payload(run, payload)
+        if repeat_key is not None:
+            run.input_snapshot["repeat_key"] = repeat_key
+        if payload is not None or repeat_key is not None:
             run.save(update_fields=["input_snapshot"])
     enqueue_run(run)
     return run

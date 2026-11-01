@@ -94,6 +94,7 @@ def job_fields(
         "timezone": item.timezone,
         "history": item.history,
         "triggers": [str(kind) for kind in item.triggers],
+        "webhook": item.webhook.model_dump(mode="json") if item.webhook else {},
         "config_hash": manifest_hash(item),
     }
 

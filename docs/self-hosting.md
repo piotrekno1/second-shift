@@ -218,6 +218,12 @@ limit, so owners can only lower a limit until you raise the maximum. Lowering a
 maximum later also caps values owners already chose. `.secondshift.yaml` cannot
 set limits.
 
+Webhook triggers have their own cap on runs.
+`SECONDSHIFT_TRIGGER_MAX_RUNS_PER_HOUR` (default 10) is how many runs one
+trigger may start in an hour. Above it, requests are refused. An owner or admin
+can change it for each trigger on the job page, up to
+`SECONDSHIFT_TRIGGER_MAX_RUNS_PER_HOUR_CEILING` (default 60).
+
 A run's limits are fixed when it is created and stored in its execution plan.
 Changing a limit affects the next run, not one that is queued or running.
 
