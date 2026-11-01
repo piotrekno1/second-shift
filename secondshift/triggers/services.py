@@ -103,6 +103,19 @@ def rotate_secret(job: Job, kind: TriggerKind) -> TriggerChange:
     return TriggerChange(trigger, secret)
 
 
+def set_runs_per_hour(job: Job, kind: TriggerKind, value: int | None) -> JobTrigger:
+    """Set the trigger's hourly cap. None goes back to the server default."""
+    trigger = JobTrigger.objects.filter(job=job, kind=kind).first()
+    if trigger is None:
+        raise TriggerError("This trigger is not set up.")
+    ceiling = settings.TRIGGER_MAX_RUNS_PER_HOUR_CEILING
+    if value is not None and value > ceiling:
+        raise TriggerError(f"This server allows at most {ceiling} runs per hour.")
+    trigger.max_runs_per_hour = value
+    trigger.save(update_fields=["max_runs_per_hour", "updated_at"])
+    return trigger
+
+
 def record(
     trigger: JobTrigger, outcome: str, reason: str = "", run: Run | None = None
 ) -> None:

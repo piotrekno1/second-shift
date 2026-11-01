@@ -2,13 +2,14 @@ from django.conf import settings
 
 from secondshift.config.constants import TriggerKind
 from secondshift.jobs.models import Job
+from secondshift.triggers.filters import REPEAT_WINDOW_DEFAULT
 from secondshift.triggers.models import JobTrigger
 from secondshift.triggers.schemas import (
     TriggerChangeSchema,
     TriggerEventSchema,
     TriggerSchema,
 )
-from secondshift.triggers.services import TriggerChange
+from secondshift.triggers.services import TriggerChange, runs_per_hour
 
 # How many received requests the job page shows for each trigger.
 EVENTS_SHOWN = 20
@@ -22,6 +23,8 @@ def serialize_trigger(
     job: Job, kind: TriggerKind, trigger: JobTrigger | None
 ) -> TriggerSchema:
     events = trigger.events.all()[:EVENTS_SHOWN] if trigger else []
+    webhook = job.webhook if kind == TriggerKind.WEBHOOK else {}
+    key = webhook.get("repeat_key")
     return TriggerSchema(
         kind=kind,
         declared=kind in job.triggers,
@@ -39,6 +42,17 @@ def serialize_trigger(
             )
             for event in events
         ],
+        runs_per_hour=(
+            runs_per_hour(trigger) if trigger else settings.TRIGGER_MAX_RUNS_PER_HOUR
+        ),
+        custom_runs_per_hour=trigger.max_runs_per_hour if trigger else None,
+        default_runs_per_hour=settings.TRIGGER_MAX_RUNS_PER_HOUR,
+        max_runs_per_hour=settings.TRIGGER_MAX_RUNS_PER_HOUR_CEILING,
+        skip_when=webhook.get("skip_when") or {},
+        repeat_key=key,
+        repeat_window=(webhook.get("repeat_window") or REPEAT_WINDOW_DEFAULT)
+        if key
+        else None,
     )
 
 

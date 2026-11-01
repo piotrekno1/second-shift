@@ -436,3 +436,62 @@ def test_hourly_cap_refuses_and_records(
         "This trigger already started 2 runs in the last hour."
     )
     assert TriggerEvent.objects.filter(outcome="refused").count() == 1
+
+
+def set_cap(client: Client, job: Job, value: int | None) -> object:
+    return client.post(
+        f"/api/jobs/{job.pk}/triggers/webhook/limit",
+        {"runs_per_hour": value},
+        content_type="application/json",
+    )
+
+
+def test_owner_sets_the_hourly_cap_up_to_the_ceiling(
+    client: Client, owner: AbstractUser, job: Job, queued: list[int], settings
+) -> None:
+    settings.TRIGGER_MAX_RUNS_PER_HOUR_CEILING = 5
+    change = turn_on(client, owner, job)
+    client.force_login(owner)
+
+    assert set_cap(client, job, 6).status_code == 409
+    response = set_cap(client, job, 1)
+    assert response.status_code == 200
+    assert (
+        response.json()["runs_per_hour"],
+        response.json()["custom_runs_per_hour"],
+    ) == (1, 1)
+
+    client.logout()
+    secret = str(change["secret"])
+    finish(send(client, path_of(change), secret).json()["run_id"], timedelta())
+    assert send(client, path_of(change), secret).status_code == 429
+
+    client.force_login(owner)
+    reset = set_cap(client, job, None).json()
+    assert (reset["runs_per_hour"], reset["custom_runs_per_hour"]) == (10, None)
+
+
+def test_members_cannot_change_the_hourly_cap(
+    client: Client, owner: AbstractUser, job: Job
+) -> None:
+    turn_on(client, owner, job)
+    member = get_user_model().objects.create_user(username="member")
+    WorkspaceMembership.objects.create(
+        workspace=job.workspace, user=member, role=WorkspaceMembership.Role.MEMBER
+    )
+    client.force_login(member)
+
+    assert set_cap(client, job, 1).status_code == 403
+    assert JobTrigger.objects.get().max_runs_per_hour is None
+
+
+def test_trigger_shows_the_repository_settings(
+    client: Client, owner: AbstractUser, job: Job
+) -> None:
+    with_webhook(job, skip_when={"status": "resolved"}, repeat_key="groupKey")
+    client.force_login(owner)
+
+    trigger = client.get(f"/api/jobs/{job.pk}/triggers").json()[0]
+
+    assert trigger["skip_when"] == {"status": "resolved"}
+    assert (trigger["repeat_key"], trigger["repeat_window"]) == ("groupKey", "1h")
