@@ -529,3 +529,28 @@ def test_repeated_requests_share_one_row(
         ("ignored", 24),
         ("started", 1),
     ]
+
+
+def test_interleaved_repeats_of_several_events_still_fold(
+    client: Client, owner: AbstractUser, job: Job, queued: list[int]
+) -> None:
+    with_webhook(job, repeat_key="groupKey")
+    change = turn_on(client, owner, job)
+    secret = str(change["secret"])
+    first = send(client, path_of(change), secret, FIRING).json()["run_id"]
+    finish(first, timedelta())
+    second = send(client, path_of(change), secret, {**FIRING, "groupKey": "b"})
+    finish(second.json()["run_id"], timedelta())
+    for _ in range(10):
+        send(client, path_of(change), secret, FIRING)
+        send(client, path_of(change), secret, {**FIRING, "groupKey": "b"})
+    client.force_login(owner)
+
+    events = client.get(f"/api/jobs/{job.pk}/triggers").json()[0]["events"]
+
+    assert [(item["outcome"], item["count"]) for item in events] == [
+        ("ignored", 10),
+        ("ignored", 10),
+        ("started", 1),
+        ("started", 1),
+    ]

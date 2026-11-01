@@ -20,33 +20,31 @@ def trigger_url(trigger: JobTrigger) -> str:
 
 
 def grouped_events(trigger: JobTrigger) -> list[TriggerEventSchema]:
-    """The newest requests, with back-to-back repeats folded into one row.
+    """The newest requests, with repeats of the same outcome and reason folded
+    into one row at their newest time. Rows for started runs stay apart.
 
-    A burst of ignored repeats would otherwise push the run they repeat out of
-    view.
+    A burst of ignored repeats, even for several alerts at once, would
+    otherwise push the runs they repeat out of view.
     """
     groups: list[TriggerEventSchema] = []
+    folded: dict[tuple[str, str], TriggerEventSchema] = {}
     for event in trigger.events.all()[: settings.TRIGGER_EVENTS_KEPT * 3]:
-        last = groups[-1] if groups else None
-        if (
-            last is not None
-            and last.run_id is None
-            and event.run_id is None
-            and (last.outcome, last.reason) == (event.outcome, event.reason)
-        ):
-            last.count += 1
+        key = (event.outcome, event.reason)
+        if event.run_id is None and key in folded:
+            folded[key].count += 1
             continue
         if len(groups) == EVENTS_SHOWN:
-            break
-        groups.append(
-            TriggerEventSchema(
-                id=event.pk,
-                outcome=event.outcome,
-                reason=event.reason,
-                run_id=event.run_id,
-                received_at=event.received_at,
-            )
+            continue
+        row = TriggerEventSchema(
+            id=event.pk,
+            outcome=event.outcome,
+            reason=event.reason,
+            run_id=event.run_id,
+            received_at=event.received_at,
         )
+        groups.append(row)
+        if event.run_id is None:
+            folded[key] = row
     return groups
 
 

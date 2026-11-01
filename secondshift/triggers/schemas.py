@@ -12,7 +12,7 @@ class TriggerEventSchema(Schema):
     reason: str
     run_id: int | None
     received_at: datetime
-    # Back-to-back requests with the same outcome and reason share one row.
+    # Requests with the same outcome and reason share one row.
     # received_at is the newest of them.
     count: int = 1
 
