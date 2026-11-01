@@ -51,16 +51,15 @@ def repository(workspace: Workspace) -> Repository:
 
 
 def api_connection(workspace: Workspace, **fields: Any) -> Connection:
-    return Connection.objects.create(
-        workspace=workspace,
-        provider=Connection.Provider.API,
-        kind=Connection.Kind.API,
-        binding_key="billing",
-        display_name="Billing",
-        available_tools=["listCharges"],
-        metadata={"base_url": "https://billing.example.com"},
-        **fields,
-    )
+    defaults: dict[str, Any] = {
+        "provider": Connection.Provider.API,
+        "kind": Connection.Kind.API,
+        "binding_key": "billing",
+        "display_name": "Billing",
+        "available_tools": ["listCharges"],
+        "metadata": {"base_url": "https://billing.example.com"},
+    }
+    return Connection.objects.create(workspace=workspace, **{**defaults, **fields})
 
 
 def sync(repository: Repository, text: str) -> None:
@@ -266,3 +265,67 @@ def test_only_owners_can_change_the_setting(
     assert response.status_code == 403
     connection.refresh_from_db()
     assert connection.require_approval is True
+
+
+def test_asking_for_more_allowed_tools_stays_approved(repository: Repository) -> None:
+    connection = api_connection(repository.workspace)
+    connection.available_tools = ["listCharges", "getCharge"]
+    connection.save()
+    sync(repository, manifest(["listCharges"]))
+
+    sync(repository, manifest(["listCharges", "getCharge"]))
+
+    assert grant().status == JobGrant.Status.APPROVED
+    assert grant().allowed_tools == ["getCharge", "listCharges"]
+
+
+def test_asking_for_a_tool_outside_the_list_sends_a_grant_back(
+    repository: Repository,
+) -> None:
+    api_connection(repository.workspace)
+    sync(repository, manifest(["listCharges"]))
+
+    sync(repository, manifest(["listCharges", "createRefund"]))
+
+    assert grant().status == JobGrant.Status.PENDING
+    assert grant().reviewed_at is None
+
+
+def test_removed_repositories_are_never_granted(
+    repository: Repository,
+) -> None:
+    connection = api_connection(repository.workspace, require_approval=True)
+    sync(repository, manifest(["listCharges"]))
+    repository.removed_at = repository.created_at
+    repository.save()
+
+    set_require_approval(connection, False)
+
+    assert grant().status == JobGrant.Status.PENDING
+
+
+@pytest.mark.django_db
+def test_allowing_a_tool_approves_jobs_waiting_for_it(
+    client: Client, repository: Repository, owner: AbstractUser
+) -> None:
+    offered = {
+        "listCharges": {"readOnly": True, "description": "GET /charges"},
+        "createRefund": {"readOnly": False, "description": "POST /refunds"},
+    }
+    connection = api_connection(
+        repository.workspace,
+        access_token="token",
+        metadata={"base_url": "https://billing.example.com", "offered_tools": offered},
+    )
+    sync(repository, manifest(["listCharges", "createRefund"]))
+    assert grant().status == JobGrant.Status.PENDING
+    client.force_login(owner)
+
+    response = client.post(
+        f"/api/connections/{connection.pk}/api",
+        data=json.dumps({"operations": ["listCharges", "createRefund"]}),
+        content_type="application/json",
+    )
+
+    assert response.status_code == 200
+    assert grant().status == JobGrant.Status.APPROVED

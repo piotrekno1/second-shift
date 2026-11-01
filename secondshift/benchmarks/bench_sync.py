@@ -7,7 +7,7 @@ from secondshift.benchmarks.bench_manifest import manifest_text
 from secondshift.benchmarks.seed import make_workspace, query_budget
 from secondshift.connections.models import Connection
 from secondshift.jobs.manifest import RepositoryManifest, parse_manifest
-from secondshift.jobs.models import Job
+from secondshift.jobs.models import Job, JobGrant
 from secondshift.jobs.sync import sync_jobs
 from secondshift.repositories.models import Repository
 
@@ -68,3 +68,28 @@ def test_resync_without_changes(
     jobs = benchmark(sync_jobs, repository, manifest)
 
     assert len(jobs) == JOBS
+
+
+def test_first_sync_with_automatic_grants(
+    repository: Repository, manifest: RepositoryManifest
+) -> None:
+    """Approving without an owner happens in the same bulk writes."""
+    tools = {
+        "github": ["search_pull_requests", "list_commits"],
+        "linear": ["list_issues"],
+        "sentry": ["GET /issues"],
+    }
+    for connection in Connection.objects.filter(workspace=repository.workspace):
+        connection.available_tools = tools.get(connection.binding_key, [])
+        connection.metadata = {
+            "base_url": "https://sentry.example.com",
+            "settings": {"url": "https://mcp.example.com"},
+        }
+        connection.save()
+
+    with query_budget(FIRST_SYNC_QUERIES):
+        sync_jobs(repository, manifest)
+
+    grants = JobGrant.objects.filter(capability_request__job__repository=repository)
+    assert grants.count() == JOBS * 4
+    assert not grants.exclude(status=JobGrant.Status.APPROVED).exists()

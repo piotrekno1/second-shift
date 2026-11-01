@@ -384,3 +384,31 @@ def test_built_in_tools_cannot_be_chosen(workspace: Workspace) -> None:
     )
     with pytest.raises(MCPError, match="fixed by SecondShift"):
         update_mcp_connection(connection, None, None, None, ["get_commit"])
+
+
+def test_sign_in_keeps_the_approval_choice(
+    fake: FakeServer, workspace: Workspace, owner: Any
+) -> None:
+    def sign_in(connection: Connection | None, require_approval: bool) -> Connection:
+        url = start_authorization(
+            workspace,
+            owner,
+            "mcp",
+            "metrics",
+            "",
+            {"url": SERVER},
+            ["read"],
+            connection,
+            require_approval,
+        )
+        query = parse_qs(urlsplit(url).query)
+        fake.challenge = query["code_challenge"][0]
+        return complete_authorization(owner, query["state"][0], "good-code", "")
+
+    connection = sign_in(None, True)
+    assert connection.require_approval is True
+
+    # A reconnect keeps the connection's own setting.
+    reconnected = sign_in(connection, False)
+    reconnected.refresh_from_db()
+    assert reconnected.require_approval is True
