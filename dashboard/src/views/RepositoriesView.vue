@@ -133,7 +133,7 @@ function chooseDirectory(path: string): void {
       <Button class="main-action" v-if="app.can(Action.AddGitHubRepositories) && githubConfigured && githubConnected" label="Add GitHub repository" :loading="github.loading" :disabled="github.loading" @click="addingGitHub = !addingGitHub">
         <template #icon><AppIcon name="github" /></template>
       </Button>
-      <Button class="main-action" v-else-if="app.can(Action.AddGitHubRepositories) && githubConfigured" label="Connect GitHub" as="a" href="/-/github/connect/">
+      <Button class="main-action" v-else-if="app.can(Action.AddGitHubRepositories) && githubConfigured" label="Connect GitHub" as="a" href="/github/connect/">
         <template #icon><AppIcon name="github" /></template>
       </Button>
     </PageHeader>
@@ -166,7 +166,7 @@ function chooseDirectory(path: string): void {
       <p v-if="githubError" class="form-error github-import-error" role="alert">{{ githubError }}</p>
       <div class="github-import-footer">
         <span>Schedules stay off until you review the imported jobs.</span>
-        <a href="/-/github/connect/?install=1">Missing a repository? Manage access <AppIcon name="open-in-new" /></a>
+        <a href="/github/connect/?install=1">Missing a repository? Manage access <AppIcon name="open-in-new" /></a>
       </div>
     </form>
     <form v-if="addingLocal" class="panel local-repository-form" @submit.prevent="addLocalRepository">

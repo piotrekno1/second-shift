@@ -22,8 +22,8 @@ def spa(request: HttpRequest, path: str = "") -> FileResponse:
 
 
 urlpatterns = [
-    path("-/github/connect/", github_start),
-    path("-/github/callback/", github_callback),
+    path("github/connect/", github_start),
+    path("github/callback/", github_callback, name="github-callback"),
     path("-/admin/", admin.site.urls),
     path("accounts/password/reset/", password_reset),
     path("accounts/", include("allauth.urls")),

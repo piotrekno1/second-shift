@@ -92,26 +92,26 @@ def test_installation_token_is_repository_scoped(monkeypatch: Any) -> None:
 def test_start_is_owner_only_and_callback_rejects_forgery(
     owner_client: Any, workspace: Any, app_settings: Any
 ) -> None:
-    response = owner_client.get("/-/github/connect/")
+    response = owner_client.get("/github/connect/")
     assert response.status_code == 302
     state = parse_qs(urlparse(response.url).query)["state"][0]
     assert state
     assert (
         owner_client.get(
-            "/-/github/callback/", {"state": "forged", "installation_id": "999"}
+            "/github/callback/", {"state": "forged", "installation_id": "999"}
         ).status_code
         == 400
     )
     membership = workspace.memberships.get()
     membership.role = WorkspaceMembership.Role.ADMIN
     membership.save()
-    assert owner_client.get("/-/github/connect/").status_code == 403
+    assert owner_client.get("/github/connect/").status_code == 403
 
 
 def test_callback_links_only_verified_installations(
     owner_client: Any, workspace: Any, app_settings: Any, monkeypatch: Any
 ) -> None:
-    owner_client.get("/-/github/connect/")
+    owner_client.get("/github/connect/")
     state = owner_client.session[STATE_KEY]["state"]
     requests = Mock(
         side_effect=[
@@ -126,7 +126,7 @@ def test_callback_links_only_verified_installations(
     )
     monkeypatch.setattr("secondshift.repositories.github_views.request_json", requests)
     result = owner_client.get(
-        "/-/github/callback/",
+        "/github/callback/",
         {"state": state, "code": "code", "installation_id": "666"},
     )
     assert result.status_code == 302
@@ -136,7 +136,7 @@ def test_callback_links_only_verified_installations(
     assert connection.access_token == ""
     assert (
         owner_client.get(
-            "/-/github/callback/", {"state": state, "code": "code"}
+            "/github/callback/", {"state": state, "code": "code"}
         ).status_code
         == 400
     )
@@ -145,7 +145,7 @@ def test_callback_links_only_verified_installations(
 def test_callback_expiry_and_workspace_binding(
     owner_client: Any, workspace: Any, app_settings: Any
 ) -> None:
-    owner_client.get("/-/github/connect/")
+    owner_client.get("/github/connect/")
     session = owner_client.session
     pending = session[STATE_KEY]
     pending["time"] = time.time() - 601
@@ -153,7 +153,7 @@ def test_callback_expiry_and_workspace_binding(
     session.save()
     assert (
         owner_client.get(
-            "/-/github/callback/", {"state": pending["state"], "code": "code"}
+            "/github/callback/", {"state": pending["state"], "code": "code"}
         ).status_code
         == 400
     )
@@ -341,14 +341,14 @@ def test_repository_rename_does_not_reuse_existing_scope(
 def test_new_user_is_sent_to_install_after_authorization(
     owner_client: Any, workspace: Any, app_settings: Any, monkeypatch: Any
 ) -> None:
-    response = owner_client.get("/-/github/connect/")
+    response = owner_client.get("/github/connect/")
     assert response.url.startswith("https://github.com/login/oauth/authorize?")
     state = owner_client.session[STATE_KEY]["state"]
     monkeypatch.setattr(
         "secondshift.repositories.github_views.request_json",
         Mock(side_effect=[{"access_token": "user-secret"}, {"installations": []}]),
     )
-    response = owner_client.get("/-/github/callback/", {"state": state, "code": "code"})
+    response = owner_client.get("/github/callback/", {"state": state, "code": "code"})
     assert response.url.startswith(
         "https://github.com/apps/secondshift-test/installations/new?"
     )
