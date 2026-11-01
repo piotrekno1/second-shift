@@ -69,7 +69,7 @@ and a model provider API key. Start Docker, then run:
 ```bash
 release=https://github.com/piotrekno1/second-shift/releases
 uv tool install --force --python 3.13 \
-  "$release/download/v0.1.0b4/secondshift-0.1.0b4-py3-none-any.whl"
+  "$release/download/v0.1.0b5/secondshift-0.1.0b5-py3-none-any.whl"
 secondshift up
 ```
 
