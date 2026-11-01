@@ -108,13 +108,12 @@ defineExpose({ load })
         </Button>
       </div>
       <p v-if="trigger.secret_rotated_at && !secret" class="job-trigger-note">
-        Secret created <span :title="formatDate(trigger.secret_rotated_at)">{{ formatRelative(trigger.secret_rotated_at) }}</span>. It is shown only once. Rotate it if it was lost.
+        Secret created <span :title="formatDate(trigger.secret_rotated_at)">{{ formatRelative(trigger.secret_rotated_at) }}</span>. Rotate it if it was lost.
       </p>
 
       <div v-if="secret" class="invite-link" role="status">
         <span>
-          Send this secret in the Authorization header. In Grafana's webhook contact point, set the scheme to Bearer and paste it as the credentials.
-          You can also use it as the HMAC secret. This is the only time it is shown.
+          Copy the secret now. It is not shown again. Send it in the Authorization header, or use it to sign requests with HMAC-SHA256.
         </span>
         <code>{{ authorizationHeader(secret) }}</code>
         <Button :label="copied === 'secret' ? 'Copied' : 'Copy secret'" severity="secondary" size="small" @click="copy('secret', secret ?? '')">

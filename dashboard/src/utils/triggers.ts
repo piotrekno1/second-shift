@@ -19,7 +19,7 @@ export function triggerState(trigger: JobTrigger): string {
   return 'On. A request with the secret starts a run when the job is ready.'
 }
 
-/** The bit of the Authorization header Grafana and most tools ask for. */
+/** The Authorization header value a sender should send. */
 export function authorizationHeader(secret: string): string {
   return `Bearer ${secret}`
 }

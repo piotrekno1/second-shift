@@ -13,6 +13,7 @@ from secondshift.jobs.models import CapabilityRequest, Job
 from secondshift.repositories.models import Repository
 from secondshift.runs.models import Run
 from secondshift.triggers.models import JobTrigger, TriggerEvent
+from secondshift.triggers.verification import SIGNATURE_HEADER, TIMESTAMP_HEADER
 from secondshift.workspaces.models import WorkspaceMembership
 from secondshift.workspaces.services import create_workspace
 
@@ -118,7 +119,7 @@ def test_webhook_starts_one_run(
     assert (event.outcome, event.run_id) == ("started", run.pk)
 
 
-def test_grafana_signed_request_starts_a_run(
+def test_signed_request_starts_a_run(
     client: Client, owner: AbstractUser, job: Job, queued: list[int]
 ) -> None:
     change = turn_on(client, owner, job)
@@ -133,8 +134,8 @@ def test_grafana_signed_request_starts_a_run(
         body,
         content_type="application/json",
         headers={
-            "X-Grafana-Alerting-Signature": signature,
-            "X-Grafana-Alerting-Timestamp": timestamp,
+            SIGNATURE_HEADER: signature,
+            TIMESTAMP_HEADER: timestamp,
         },
     )
 

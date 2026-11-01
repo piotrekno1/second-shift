@@ -3,10 +3,13 @@
 A request passes with either:
 
 - an Authorization header whose credentials are the secret, with any scheme,
-  such as "Bearer <secret>". Grafana's webhook contact point sends this.
-- a hex HMAC-SHA256 of the body, keyed with the secret, in a signature header.
-  With a timestamp header, the signature covers "<timestamp>:<body>" and the
-  timestamp must be recent. This is how Grafana signs webhooks.
+  such as "Bearer <secret>".
+- a hex HMAC-SHA256 of the body, keyed with the secret, in SIGNATURE_HEADER.
+  With TIMESTAMP_HEADER, the signature covers "<timestamp>:<body>" and the
+  timestamp must be recent.
+
+Senders that sign with their own header names, such as Grafana, let you set
+the names. Point them at these.
 """
 
 import hashlib
@@ -14,8 +17,8 @@ import hmac
 from collections.abc import Mapping
 from dataclasses import dataclass
 
-SIGNATURE_HEADERS = ("X-Grafana-Alerting-Signature", "X-SecondShift-Signature")
-TIMESTAMP_HEADERS = ("X-Grafana-Alerting-Timestamp", "X-SecondShift-Timestamp")
+SIGNATURE_HEADER = "X-SecondShift-Signature"
+TIMESTAMP_HEADER = "X-SecondShift-Timestamp"
 SIGNATURE_PREFIX = "sha256="
 
 
@@ -30,12 +33,9 @@ WRONG = Verdict(False, "The request's credentials did not match the secret.")
 STALE = Verdict(False, "The signed timestamp is missing, invalid or too old.")
 
 
-def first_header(headers: Mapping[str, str], names: tuple[str, ...]) -> str | None:
-    for name in names:
-        value = headers.get(name)
-        if value is not None:
-            return value.strip()
-    return None
+def header(headers: Mapping[str, str], name: str) -> str | None:
+    value = headers.get(name)
+    return None if value is None else value.strip()
 
 
 def same(given: str, expected: str) -> bool:
@@ -72,11 +72,11 @@ def verify(
     authorization = headers.get("Authorization")
     if authorization is not None:
         return Verdict(True) if authorization_matches(authorization, secret) else WRONG
-    given = first_header(headers, SIGNATURE_HEADERS)
+    given = header(headers, SIGNATURE_HEADER)
     if given is None:
         return MISSING
     given = given.removeprefix(SIGNATURE_PREFIX).lower()
-    timestamp = first_header(headers, TIMESTAMP_HEADERS)
+    timestamp = header(headers, TIMESTAMP_HEADER)
     if not same(given, signature(secret, body, timestamp)):
         return WRONG
     if timestamp is not None and not fresh(timestamp, now, max_age_seconds):

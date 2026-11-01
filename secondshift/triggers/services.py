@@ -1,8 +1,6 @@
-"""Set up job triggers and start runs from the requests they receive.
+"""Turn job triggers on and off, and start runs from the requests they receive.
 
-The repository names a trigger kind. An owner or admin turns it on, which
-creates its URL and secret. The secret is shown once. Turning a trigger off
-or rotating its secret takes effect on the next request.
+The repository names the trigger. Turning it on creates its URL and secret.
 """
 
 import secrets
