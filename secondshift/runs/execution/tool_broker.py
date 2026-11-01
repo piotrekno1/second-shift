@@ -75,7 +75,7 @@ def call_external_tool_step(
     authorization = broker_connection(run, name)
     tool = resolve_tool(run.execution_plan, name)
     # Owner rules first. The provider's own scope rules run last, inside call,
-    # so an owner rule can never loosen them.
+    # so a restriction can never loosen them.
     try:
         arguments = apply_rules(name, frozen_rules(run, tool), arguments)
     except ToolRuleViolation as error:
@@ -83,7 +83,7 @@ def call_external_tool_step(
         RunEvent.objects.create(
             run=run,
             level="warning",
-            message=f"Tool blocked by an owner rule: {name}",
+            message=f"Tool blocked by a restriction: {name}",
             metadata={"tool": name, "ok": False, "reason": str(error)},
         )
         raise

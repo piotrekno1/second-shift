@@ -428,7 +428,7 @@ def test_a_call_that_breaks_an_owner_rule_never_reaches_mcp(
 
     assert not mcp_http
     event = planned_run.events.get()
-    assert event.message == f"Tool blocked by an owner rule: {NAME}"
+    assert event.message == f"Tool blocked by a restriction: {NAME}"
     assert "someone" not in json.dumps(event.metadata)
 
 
