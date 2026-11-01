@@ -140,7 +140,7 @@ drive)
     python /e2e/drive.py "$2" "${3:-}"
   ;;
 invite-link)
-  grep -o 'https://[^ ]*/-/invite/[^ ]*' "$STATE/invite.txt"
+  grep -o 'https://[^ ]*/invite/[^ ]*' "$STATE/invite.txt"
   ;;
 restart)
   load_env

@@ -187,7 +187,7 @@ def sign_in(client: Client) -> None:
 
 
 def connect_github(client: Client) -> int:
-    status, _, headers = client.raw("GET", "/-/github/connect/", follow=False)
+    status, _, headers = client.raw("GET", "/github/connect/", follow=False)
     location = headers.get("Location", "")
     check(
         "connect redirects to GitHub authorization",
@@ -198,7 +198,7 @@ def connect_github(client: Client) -> int:
     state = parse_qs(urlsplit(location).query)["state"][0]
     status, _, headers = client.raw(
         "GET",
-        f"/-/github/callback/?code=e2e-code&installation_id=7001&setup_action=install&state={state}",
+        f"/github/callback/?code=e2e-code&installation_id=7001&setup_action=install&state={state}",
         follow=False,
     )
     check(

@@ -65,9 +65,9 @@ def test_tampered_link_is_refused(client: Client) -> None:
     ensure_owner()
     other = get_user_model().objects.create(username="other")
     url = sign_in_url(BASE_URL, get_owner()).removeprefix(BASE_URL)
-    payload, rest = url.removeprefix("/-/sign-in/").split(":", 1)
+    payload, rest = url.removeprefix("/sign-in/").split(":", 1)
 
-    response = client.get(f"/-/sign-in/{payload}x:{rest}")
+    response = client.get(f"/sign-in/{payload}x:{rest}")
 
     assert response.status_code == 400
     assert signed_in_user(client) != str(other.pk)

@@ -10,7 +10,7 @@ Register an App under your GitHub account or organization in **Settings →
 Developer settings → GitHub Apps → New GitHub App**.
 
 - Homepage URL: your public SecondShift HTTPS address.
-- Callback URL: `https://secondshift.example.com/-/github/callback/`.
+- Callback URL: `https://secondshift.example.com/github/callback/`.
 - Enable **Request user authorization (OAuth) during installation**.
 - Leave the setup URL empty. Installation uses the authorization callback.
 - Disable webhooks for now. The worker polls for changes instead.

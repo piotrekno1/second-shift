@@ -9,6 +9,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.http import HttpRequest, HttpResponse, HttpResponseBadRequest
 from django.shortcuts import redirect
+from django.urls import reverse
 from django.views.decorators.http import require_GET
 
 from secondshift.connections.models import Connection
@@ -83,8 +84,7 @@ def github_callback(request: HttpRequest) -> HttpResponse:
                 "client_id": settings.GITHUB_APP_CLIENT_ID,
                 "client_secret": settings.GITHUB_APP_CLIENT_SECRET,
                 "code": code,
-                "redirect_uri": settings.FRONTEND_URL.rstrip("/")
-                + "/-/github/callback/",
+                "redirect_uri": callback_url(),
             },
         )
         token = data.get("access_token")
@@ -132,12 +132,16 @@ def link_installations(workspace: Workspace, token: str) -> int:
     return linked
 
 
+def callback_url() -> str:
+    return settings.FRONTEND_URL.rstrip("/") + reverse("github-callback")
+
+
 def authorization_url(state: str) -> str:
     return f"{OAUTH_URL}/authorize?" + urlencode(
         {
             "client_id": settings.GITHUB_APP_CLIENT_ID,
             "state": state,
-            "redirect_uri": settings.FRONTEND_URL.rstrip("/") + "/-/github/callback/",
+            "redirect_uri": callback_url(),
         }
     )
 

@@ -66,7 +66,7 @@ for upgrades.
 ## Configure repository access
 
 Register a [GitHub App](github-app.md#register-the-app) with callback URL
-`https://secondshift.example.com/-/github/callback/`, using your hostname.
+`https://secondshift.example.com/github/callback/`, using your hostname.
 Enable user authorization during installation, grant read-only repository
 contents access, and disable webhooks.
 
