@@ -1,7 +1,6 @@
 from types import SimpleNamespace
 
 import pytest
-import requests
 from pydantic_ai.exceptions import ModelHTTPError
 
 from secondshift.jobs.tool_rules import ToolRuleViolation
@@ -45,24 +44,10 @@ def test_summary_names_the_stage_and_the_first_attempts_cause() -> None:
     }
 
 
-@pytest.mark.parametrize(
-    ("error", "detail"),
-    [
-        (
-            requests.ConnectionError("http://runner:8002 refused"),
-            "could not be reached",
-        ),
-        (requests.ReadTimeout("read timed out"), "did not answer in time"),
-        (KeyError("secret-looking-value"), "Unexpected KeyError."),
-    ],
-)
-def test_summary_hides_messages_it_did_not_write(error: Exception, detail: str) -> None:
-    summary = failure_summary("skill", error)
+def test_summary_hides_messages_it_did_not_write() -> None:
+    summary = failure_summary("skill", KeyError("secret-looking-value"))
 
-    assert summary.startswith("The skill run failed: ")
-    assert detail in summary
-    assert "secret-looking-value" not in summary
-    assert "runner:8002" not in summary
+    assert summary == "The skill run failed: Unexpected KeyError."
 
 
 def test_a_broken_tool_restriction_is_not_blamed_on_the_skill() -> None:

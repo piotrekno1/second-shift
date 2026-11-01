@@ -2,8 +2,8 @@ import json
 from types import SimpleNamespace
 from typing import Any
 
+import httpx
 import pytest
-import requests
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 from django.test import Client
@@ -148,7 +148,7 @@ def test_openai_check_reports_rejected_key(
         "validate_outbound_url",
         lambda url, noun: url,
     )
-    monkeypatch.setattr(requests, "get", fake_get)
+    monkeypatch.setattr(httpx, "get", fake_get)
 
     response = client.post(f"/api/connections/{created.json()['id']}/test")
 
@@ -210,7 +210,7 @@ def fake_provider(
     posts: list[dict[str, Any]] = []
     monkeypatch.setattr(model_providers, "validate_outbound_url", lambda url, noun: url)
     monkeypatch.setattr(
-        requests,
+        httpx,
         "get",
         lambda url, **kwargs: FakeResponse(
             200, {"data": [{"id": "anthropic/claude-haiku-5.5"}]}
@@ -221,7 +221,7 @@ def fake_provider(
         posts.append({"url": url, **kwargs})
         return call
 
-    monkeypatch.setattr(requests, "post", fake_post)
+    monkeypatch.setattr(httpx, "post", fake_post)
     return posts
 
 
@@ -250,7 +250,7 @@ def test_check_catches_a_key_that_lists_models_but_cannot_run_them(
     assert call["json"]["model"] == "anthropic/claude-haiku-5.5"
     assert call["json"]["max_tokens"] == 16
     assert call["headers"]["Authorization"] == f"Bearer {KEY}"
-    assert call["allow_redirects"] is False
+    assert call["follow_redirects"] is False
     listed = client.get("/api/connections").json()[0]
     assert listed["last_check"]["ok"] is False
     assert "User not found." in listed["last_check"]["message"]

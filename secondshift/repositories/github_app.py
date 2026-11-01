@@ -5,7 +5,7 @@ import json
 import time
 from urllib.parse import quote
 
-import requests
+import httpx
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding
 from django.conf import settings
@@ -56,7 +56,7 @@ def app_token() -> str:
 
 def request_payload(method: str, url: str, token: str = "", **kwargs: object) -> object:
     try:
-        response = requests.request(
+        response = httpx.request(
             method,
             url,
             headers={
@@ -69,7 +69,7 @@ def request_payload(method: str, url: str, token: str = "", **kwargs: object) ->
         )
         response.raise_for_status()
         result = response.json()
-    except (requests.RequestException, ValueError) as error:
+    except (httpx.HTTPError, httpx.InvalidURL, ValueError) as error:
         raise GitHubAppError(
             "GitHub access failed. Check the installation and permissions."
         ) from error

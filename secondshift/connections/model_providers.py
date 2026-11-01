@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from typing import Any
 
 import anthropic
-import requests
+import httpx
 from django.conf import settings
 from django.db import transaction
 
@@ -200,11 +200,11 @@ def list_openai_models(connection: Connection) -> list[str]:
     headers = {"Accept": "application/json"}
     if connection.access_token:
         headers["Authorization"] = f"Bearer {connection.access_token}"
-    response = requests.get(
+    response = httpx.get(
         url,
         headers=headers,
         timeout=settings.OUTBOUND_TIMEOUT_SECONDS,
-        allow_redirects=False,
+        follow_redirects=False,
     )
     if response.status_code in {401, 403}:
         raise ModelProviderError("The provider rejected the API key.")
@@ -233,7 +233,7 @@ def shorten(text: str) -> str:
     )
 
 
-def provider_message(response: requests.Response) -> str:
+def provider_message(response: httpx.Response) -> str:
     try:
         body: Any = response.json()
     except ValueError:
@@ -296,12 +296,12 @@ def call_openai_family(connection: Connection, model: str) -> str | None:
     headers = {"Accept": "application/json", "Content-Type": "application/json"}
     if connection.access_token:
         headers["Authorization"] = f"Bearer {connection.access_token}"
-    response = requests.post(
+    response = httpx.post(
         url,
         json=body,
         headers=headers,
         timeout=settings.OUTBOUND_TIMEOUT_SECONDS,
-        allow_redirects=False,
+        follow_redirects=False,
     )
     if response.status_code == 200:
         return None
@@ -395,7 +395,7 @@ def fetch_models(connection: Connection) -> list[str]:
         raise CheckFailed("The provider could not be reached.") from error
     except (ModelProviderError, OutboundUrlError) as error:
         raise CheckFailed(str(error)) from error
-    except requests.RequestException as error:
+    except httpx.HTTPError as error:
         logger.warning(
             "model provider check for connection %s failed: %s",
             connection.pk,
@@ -417,7 +417,7 @@ def model_call_failure(connection: Connection) -> str | None:
         return "The provider could not be reached for a test call."
     except OutboundUrlError as error:
         return str(error)
-    except requests.RequestException as error:
+    except httpx.HTTPError as error:
         logger.warning(
             "model call check for connection %s failed: %s",
             connection.pk,

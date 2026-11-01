@@ -7,8 +7,8 @@ from typing import Any
 from unittest.mock import Mock, patch
 from urllib.parse import parse_qs, urlparse
 
+import httpx
 import pytest
-import requests
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
 from django.contrib.auth import get_user_model
@@ -311,9 +311,9 @@ def test_import_rejects_another_workspaces_connection(
 
 def test_github_transport_errors_are_sanitized(monkeypatch: Any) -> None:
     monkeypatch.setattr(
-        github_app.requests,
+        github_app.httpx,
         "request",
-        Mock(side_effect=requests.ConnectionError("private-secret")),
+        Mock(side_effect=httpx.ConnectError("private-secret")),
     )
     with pytest.raises(GitHubAppError) as caught:
         github_app.request_json("GET", "https://api.github.com/user", "private-secret")
@@ -371,7 +371,7 @@ def test_failed_installation_still_offers_reconnection(
 
 def test_oauth_exchange_does_not_send_an_empty_bearer_token(monkeypatch: Any) -> None:
     request = Mock(return_value=Mock(json=lambda: {"access_token": "user-secret"}))
-    monkeypatch.setattr(github_app.requests, "request", request)
+    monkeypatch.setattr(github_app.httpx, "request", request)
     github_app.request_json(
         "POST", github_app.OAUTH_URL + "/access_token", json={"code": "code"}
     )
@@ -429,7 +429,7 @@ def test_session_reports_the_github_app_without_calling_github(
     owner_client: Any, app_settings: Any
 ) -> None:
     with patch(
-        "secondshift.repositories.github_app.requests.request",
+        "secondshift.repositories.github_app.httpx.request",
         side_effect=AssertionError("The session must not call GitHub."),
     ):
         body = owner_client.get("/api/me").json()
