@@ -19,8 +19,9 @@ edits in the folder and other branches never change what runs. The worker
 checks the branch every five minutes and syncs new commits on its own. A commit
 with a broken manifest is skipped, and runs keep the last good sync. Owners and
 admins can turn auto-sync off on the repository's page and press **Resync**
-instead. Syncing never grants access: a job that requests new access still
-waits for an owner's approval.
+instead. Syncing grants access only through connections that do not require
+approval, and only for tools the owner allowed. Other requests wait for an
+owner.
 
 ## Your first job
 
@@ -132,7 +133,8 @@ jobs:
 1. Create a webhook connection in SecondShift with the binding
    `engineering-reports` and your destination URL.
 2. Send a test message to verify delivery.
-3. Sync the committed manifest and approve the job's notification access.
+3. Sync the committed manifest. Approve the job's notification access if the
+   connection requires approval.
 4. Start a run with **Run now**. Enable the job when you want it to run on schedule.
 
 The server posts the run status, report summary, and a link to the run in
@@ -187,8 +189,11 @@ settings and can revoke access independently.
 
 A job can ask for tools from an MCP server or operations from an HTTP API. The
 repository names only a logical binding and the tools it needs. The workspace
-owner connects the service, chooses which tools any job may use, and approves
-each job's request.
+owner connects the service and chooses which tools any job may use. If the
+connection has **Require approval for each job** turned on, the owner also
+approves each job's request. It is off for new connections: then a job that
+asks only for allowed tools is ready after sync. See
+[who grants what](security-model.md#who-grants-what).
 
 ```yaml
 requires:

@@ -48,6 +48,8 @@ class ConnectionSchema(Schema):
     scopes: list[str] = Field(default_factory=list)
     # Custom MCP servers: every tool the server offers, for the owner to choose.
     offered_tools: list[OfferedToolSchema] = Field(default_factory=list)
+    # Capability connections: whether each job's request waits for an owner.
+    require_approval: bool = False
 
 
 class WebhookConnectionCreateSchema(Schema):
@@ -56,11 +58,13 @@ class WebhookConnectionCreateSchema(Schema):
     )
     display_name: str = Field(default="", max_length=200)
     url: str = Field(min_length=1, max_length=2000)
+    require_approval: bool = False
 
 
 class WebhookConnectionUpdateSchema(Schema):
     display_name: str | None = Field(default=None, max_length=200)
     url: str | None = Field(default=None, max_length=2000)
+    require_approval: bool | None = None
 
 
 class MCPConnectionCreateSchema(Schema):
@@ -71,6 +75,7 @@ class MCPConnectionCreateSchema(Schema):
     display_name: str = Field(default="", max_length=200)
     token: str = Field(min_length=1, max_length=2000)
     settings: dict[str, str] = Field(default_factory=dict, max_length=10)
+    require_approval: bool = False
 
 
 class MCPConnectionUpdateSchema(Schema):
@@ -78,6 +83,7 @@ class MCPConnectionUpdateSchema(Schema):
     token: str | None = Field(default=None, max_length=2000)
     settings: dict[str, str] | None = Field(default=None, max_length=10)
     tools: list[str] | None = Field(default=None, max_length=200)
+    require_approval: bool | None = None
 
 
 class APISpecSchema(Schema):
@@ -101,6 +107,7 @@ class APIConnectionCreateSchema(APISpecSchema):
     auth: str = Field(default="bearer", max_length=20)
     header: str = Field(default="", max_length=64)
     token: str = Field(min_length=1, max_length=2000)
+    require_approval: bool = False
 
 
 class APIConnectionUpdateSchema(Schema):
@@ -108,6 +115,7 @@ class APIConnectionUpdateSchema(Schema):
     token: str | None = Field(default=None, max_length=2000)
     base_url: str | None = Field(default=None, max_length=200)
     operations: list[str] | None = Field(default=None, max_length=500)
+    require_approval: bool | None = None
 
 
 class MCPInspectSchema(Schema):
@@ -128,6 +136,8 @@ class MCPSignInSchema(Schema):
     display_name: str = Field(default="", max_length=200)
     settings: dict[str, str] = Field(default_factory=dict, max_length=10)
     scopes: list[str] = Field(default_factory=list, max_length=20)
+    # New connections only. A reconnect keeps the connection's setting.
+    require_approval: bool = False
     # Reconnect this connection instead of creating one.
     connection_id: int | None = None
 

@@ -9,8 +9,9 @@ from django.db import transaction
 
 from secondshift.config.constants import GITHUB_BASE_URL, MANIFEST_FILE
 from secondshift.connections.models import Connection
+from secondshift.jobs.automatic_grants import approve_waiting
 from secondshift.jobs.manifest import RepositoryManifest, parse_manifest
-from secondshift.jobs.models import JobGrant
+from secondshift.jobs.models import CapabilityRequest, JobGrant
 from secondshift.jobs.sync import sync_jobs
 from secondshift.repositories.github import github_remote_name
 from secondshift.repositories.models import Repository
@@ -175,7 +176,12 @@ def attach_local_repository(
             capability_request__kind=Connection.Kind.MCP,
             connection__provider=Connection.Provider.GITHUB,
             status=JobGrant.Status.APPROVED,
-        ).update(status=JobGrant.Status.PENDING, reviewed_by=None, reviewed_at=None)
+        ).update(
+            status=JobGrant.Status.PENDING,
+            reviewed_by=None,
+            reviewed_at=None,
+        )
+        approve_waiting(CapabilityRequest.objects.filter(job__repository=repository))
     return repository
 
 

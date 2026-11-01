@@ -64,6 +64,7 @@ def serialize_connection(
                 (connection.metadata.get("offered_tools") or {}).items()
             )
         ],
+        require_approval=connection.require_approval,
         usage=None
         if usage is None
         else ConnectionUsageSchema(

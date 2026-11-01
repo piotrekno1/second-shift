@@ -232,6 +232,7 @@ def test_a_connection_added_later_is_granted_on_the_next_sync(
         kind=Connection.Kind.NOTIFICATION,
         binding_key="alerts",
         display_name="Alerts",
+        require_approval=True,
     )
 
     sync_text(repository, TWO_JOBS)

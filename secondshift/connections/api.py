@@ -75,6 +75,7 @@ from secondshift.connections.webhooks import (
     connection_test_payload,
     deliver_webhook,
 )
+from secondshift.jobs.automatic_grants import approve_waiting_for, set_require_approval
 from secondshift.runs.reporting.connection_usage import (
     ConnectionUsage,
     connection_usage,
@@ -155,7 +156,7 @@ def create_mcp(
         raise HttpError(422, str(error)) from error
     except ValidationError as error:
         raise HttpError(422, "The MCP connection configuration is invalid.") from error
-    return serialize_connection(connection)
+    return apply_approval(request, connection, payload.require_approval)
 
 
 @router.post(
@@ -181,7 +182,7 @@ def update_mcp(
         raise HttpError(422, str(error)) from error
     except ValidationError as error:
         raise HttpError(422, "The MCP connection configuration is invalid.") from error
-    return serialize_connection(connection)
+    return apply_approval(request, connection, payload.require_approval)
 
 
 @router.post(
@@ -227,7 +228,7 @@ def create_api(
         raise HttpError(422, str(error)) from error
     except ValidationError as error:
         raise HttpError(422, "The API connection configuration is invalid.") from error
-    return serialize_connection(connection)
+    return apply_approval(request, connection, payload.require_approval)
 
 
 @router.post(
@@ -251,7 +252,7 @@ def update_api(
         raise HttpError(422, str(error)) from error
     except ValidationError as error:
         raise HttpError(422, "The API connection configuration is invalid.") from error
-    return serialize_connection(connection)
+    return apply_approval(request, connection, payload.require_approval)
 
 
 @router.post(
@@ -302,6 +303,7 @@ def start_mcp_sign_in(
             else payload.settings,
             list(connection.scopes) if connection else payload.scopes,
             connection,
+            payload.require_approval,
         )
     except ConnectionConflict as error:
         raise HttpError(409, str(error)) from error
@@ -330,6 +332,7 @@ def finish_mcp_sign_in(request: HttpRequest) -> HttpResponseRedirect:
         return HttpResponseRedirect(f"{back}?{urlencode({'oauth': 'taken'})}")
     except (MCPError, ValidationError):
         return HttpResponseRedirect(f"{back}?{urlencode({'oauth': 'failed'})}")
+    approve_waiting_for(connection)
     query = {"oauth": "connected", "capability": connection.binding_key}
     return HttpResponseRedirect(f"{back}?{urlencode(query)}")
 
@@ -353,6 +356,17 @@ def create_webhook(
         raise HttpError(422, str(error)) from error
     except ValidationError as error:
         raise HttpError(422, " ".join(error.messages)) from error
+    return apply_approval(request, connection, payload.require_approval)
+
+
+def apply_approval(
+    request: HttpRequest, connection: Connection, require_approval: bool | None
+) -> ConnectionSchema:
+    """Save the owner's approval choice and approve requests it now allows."""
+    if require_approval is None:
+        approve_waiting_for(connection)
+    else:
+        set_require_approval(connection, require_approval)
     return serialize_connection(connection)
 
 
@@ -384,7 +398,7 @@ def update_webhook(
         raise HttpError(422, str(error)) from error
     except ValidationError as error:
         raise HttpError(422, " ".join(error.messages)) from error
-    return serialize_connection(connection)
+    return apply_approval(request, connection, payload.require_approval)
 
 
 @router.post("/connections/model/models", response=list[str], auth=django_auth)

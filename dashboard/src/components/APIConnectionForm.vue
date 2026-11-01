@@ -4,6 +4,7 @@ import { computed, ref, watch } from 'vue'
 import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
 import Textarea from 'primevue/textarea'
+import ApprovalSetting from './ApprovalSetting.vue'
 import { createAPIConnection, inspectAPISpec, updateAPIConnection } from '../services/connections'
 import type { APISpecSummary } from '../services/connections'
 import { useAppStore } from '../stores/app'
@@ -35,6 +36,7 @@ const header = ref(saved.header ?? 'X-API-Key')
 const token = ref('')
 const operations = ref<string[]>([...(props.connection?.available_tools ?? [])])
 const operationFilter = ref('')
+const requireApproval = ref(props.connection?.require_approval ?? false)
 const saving = ref(false)
 const error = ref('')
 
@@ -88,6 +90,7 @@ async function save(): Promise<void> {
         token: token.value || undefined,
         base_url: baseChanged.value ? baseUrl.value.trim() : undefined,
         operations: operations.value,
+        require_approval: requireApproval.value,
       })
     : await createAPIConnection({
         binding_key: finishedBinding(binding.value),
@@ -97,10 +100,11 @@ async function save(): Promise<void> {
         auth: auth.value,
         header: auth.value === 'header' ? header.value.trim() : '',
         token: token.value,
+        require_approval: requireApproval.value,
       })
   token.value = ''
   await app.refresh()
-  const next = editing.value ? ' Review job approvals before running.' : ' Use Edit to choose which operations jobs may use.'
+  const next = editing.value ? (requireApproval.value ? ' Review job approvals before running.' : '') : ' Use Edit to choose which operations jobs may use.'
   emit('done', { ok: true, text: `${editing.value ? 'Saved' : 'Connected'} ${connection.display_name}. ${countLabel(connection.available_tools.length, 'operation')} enabled.${next}` }, connection.binding_key)
 }
 
@@ -197,6 +201,8 @@ async function submit(): Promise<void> {
       </div>
       <small>GET operations start selected. Others can change data on the service.</small>
     </fieldset>
+
+    <ApprovalSetting v-if="!needsSpec" v-model="requireApproval" />
 
     <p v-if="error" class="need-notice need-setup-wide">{{ error }}</p>
     <div class="need-setup-footer">
