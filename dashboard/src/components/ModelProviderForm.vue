@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import DocsLink from './DocsLink.vue'
+import { DocsPage } from '../utils/docs'
 import AppIcon from './AppIcon.vue'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import Button from 'primevue/button'
@@ -127,7 +129,7 @@ async function submit(): Promise<void> {
   <form class="need-setup-fields" @submit.prevent="submit">
     <div class="need-setup-copy">
       <h3>{{ editing ? (reconnecting ? 'Reconnect model provider' : 'Edit model provider') : 'Connect a model provider' }}</h3>
-      <p>Runs call models through SecondShift with a token that works only for that run. The API key stays on the server. It never enters the sandbox. Each run can use only the models you allow, within its token budget from Run limits in Settings.</p>
+      <p>Runs call models through SecondShift with a token that works only for that run. The API key stays on the server. It never enters the sandbox. Each run can use only the models you allow, within its token budget from Run limits in Settings. Repository content the model reads goes to this provider. <DocsLink :page="DocsPage.SecurityModel" section="remaining-risks">What leaves your environment</DocsLink></p>
     </div>
 
     <div v-if="!editing" class="need-setup-type need-setup-wide" role="radiogroup" aria-label="Provider">
@@ -174,7 +176,7 @@ async function submit(): Promise<void> {
     <!-- Discovery often refuses the same values first. Say it once, next to the field. -->
     <p v-if="error && error !== modelError" class="need-notice need-setup-wide">{{ error }}</p>
     <div class="need-setup-footer">
-      <small><AppIcon name="lock-outline" /> The key is encrypted at rest and never shown again.</small>
+      <small><AppIcon name="lock-outline" /> The key is encrypted at rest and never shown again. <DocsLink :page="DocsPage.SecurityModel" section="where-secrets-live">Where secrets live</DocsLink></small>
       <div class="need-actions">
         <Button label="Cancel" severity="secondary" text size="small" @click="emit('cancel')" />
         <Button class="main-action" type="submit" :label="editing ? 'Save and check' : 'Connect and check'" :loading="saving" :disabled="!canSubmit">
