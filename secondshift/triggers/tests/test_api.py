@@ -2,11 +2,13 @@ import hashlib
 import hmac
 import json
 import time
+from datetime import timedelta
 
 import pytest
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 from django.test import Client
+from django.utils import timezone
 
 from secondshift.connections.models import Connection
 from secondshift.jobs.models import CapabilityRequest, Job
@@ -261,16 +263,30 @@ def test_large_body_is_refused(
     assert queued == []
 
 
-def test_only_the_newest_events_are_kept(
-    client: Client, owner: AbstractUser, job: Job, settings
+def test_only_the_newest_events_of_each_outcome_are_kept(
+    client: Client, owner: AbstractUser, job: Job, queued: list[int], settings
 ) -> None:
     settings.TRIGGER_EVENTS_KEPT = 3
     change = turn_on(client, owner, job)
+    secret = str(change["secret"])
+    send(client, path_of(change), secret)
 
     for _ in range(5):
-        send(client, path_of(change), "sst_wrong")
+        send(client, path_of(change), secret)
 
-    assert TriggerEvent.objects.count() == 3
+    outcomes = list(TriggerEvent.objects.values_list("outcome", flat=True))
+    assert sorted(outcomes) == ["refused", "refused", "refused", "started"]
+
+
+def test_failed_sign_ins_are_recorded_once_a_minute(
+    client: Client, owner: AbstractUser, job: Job
+) -> None:
+    change = turn_on(client, owner, job)
+
+    for _ in range(5):
+        assert send(client, path_of(change), "sst_wrong").status_code == 401
+
+    assert TriggerEvent.objects.count() == 1
 
 
 def test_configuration_must_name_the_trigger(
@@ -317,3 +333,106 @@ def test_another_workspace_cannot_see_or_change_triggers(
 
     assert client.get(f"/api/jobs/{job.pk}/triggers").status_code == 404
     assert client.post(f"/api/jobs/{job.pk}/triggers/webhook/rotate").status_code == 404
+
+
+FIRING = {"status": "firing", "groupKey": "a", "alerts": [{"fingerprint": "x"}]}
+
+
+def with_webhook(job: Job, **webhook: object) -> None:
+    Job.objects.filter(pk=job.pk).update(webhook=webhook)
+
+
+def finish(run_id: int, ago: timedelta) -> None:
+    Run.objects.filter(pk=run_id).update(
+        status=Run.Status.SUCCEEDED, finished_at=timezone.now() - ago
+    )
+
+
+def test_matching_skip_rule_is_ignored_with_200(
+    client: Client, owner: AbstractUser, job: Job, queued: list[int]
+) -> None:
+    with_webhook(job, skip_when={"status": "resolved"})
+    change = turn_on(client, owner, job)
+
+    response = send(
+        client, path_of(change), str(change["secret"]), {**FIRING, "status": "resolved"}
+    )
+
+    assert response.status_code == 200
+    assert response.json()["detail"] == (
+        "Skipped by the job's settings: status is resolved."
+    )
+    assert queued == []
+    assert TriggerEvent.objects.get().outcome == "ignored"
+    assert (
+        send(client, path_of(change), str(change["secret"]), FIRING).status_code == 202
+    )
+
+
+def test_repeat_of_a_running_event_is_ignored(
+    client: Client, owner: AbstractUser, job: Job, queued: list[int]
+) -> None:
+    with_webhook(job, repeat_key="groupKey")
+    change = turn_on(client, owner, job)
+    secret = str(change["secret"])
+    first = send(client, path_of(change), secret, FIRING).json()
+
+    for _ in range(19):
+        response = send(client, path_of(change), secret, FIRING)
+        assert response.status_code == 200
+        assert f"started run #{first['run_id']}" in response.json()["detail"]
+
+    assert len(queued) == 1
+    other = send(client, path_of(change), secret, {**FIRING, "groupKey": "b"})
+    assert other.status_code == 409
+
+
+@pytest.mark.parametrize(
+    ("ago", "status"), [(timedelta(minutes=50), 200), (timedelta(minutes=70), 202)]
+)
+def test_repeat_is_ignored_only_within_the_window(
+    client: Client,
+    owner: AbstractUser,
+    job: Job,
+    queued: list[int],
+    ago: timedelta,
+    status: int,
+) -> None:
+    with_webhook(job, repeat_key="groupKey", repeat_window="1h")
+    change = turn_on(client, owner, job)
+    secret = str(change["secret"])
+    finish(send(client, path_of(change), secret, FIRING).json()["run_id"], ago)
+
+    assert send(client, path_of(change), secret, FIRING).status_code == status
+
+
+def test_body_without_the_repeat_key_is_not_collapsed(
+    client: Client, owner: AbstractUser, job: Job, queued: list[int]
+) -> None:
+    with_webhook(job, repeat_key="groupKey")
+    change = turn_on(client, owner, job)
+    secret = str(change["secret"])
+    finish(send(client, path_of(change), secret, ALERT).json()["run_id"], timedelta())
+
+    assert send(client, path_of(change), secret, ALERT).status_code == 202
+
+
+def test_hourly_cap_refuses_and_records(
+    client: Client, owner: AbstractUser, job: Job, queued: list[int], settings
+) -> None:
+    settings.TRIGGER_MAX_RUNS_PER_HOUR = 2
+    change = turn_on(client, owner, job)
+    secret = str(change["secret"])
+    for key in ("a", "b"):
+        run_id = send(client, path_of(change), secret, {"groupKey": key}).json()[
+            "run_id"
+        ]
+        finish(run_id, timedelta())
+
+    response = send(client, path_of(change), secret, {"groupKey": "c"})
+
+    assert response.status_code == 429
+    assert response.json()["detail"] == (
+        "This trigger already started 2 runs in the last hour."
+    )
+    assert TriggerEvent.objects.filter(outcome="refused").count() == 1

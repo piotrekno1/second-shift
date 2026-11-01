@@ -65,10 +65,7 @@ def rotate(request: HttpRequest, job_id: int, kind: TriggerKind) -> TriggerChang
     "/triggers/{public_id}",
     auth=None,
     response={
-        202: TriggerReceivedSchema,
-        401: TriggerReceivedSchema,
-        409: TriggerReceivedSchema,
-        413: TriggerReceivedSchema,
+        frozenset({200, 202, 401, 409, 413, 429}): TriggerReceivedSchema,
     },
     include_in_schema=False,
 )
@@ -95,7 +92,7 @@ def receive_trigger(
         )
     received = receive(trigger, request.headers, body)
     if received.run is None:
-        logger.info("trigger %s refused a request: %s", trigger.pk, received.detail)
+        logger.info("trigger %s did not start a run: %s", trigger.pk, received.detail)
     return Status(
         received.status,
         TriggerReceivedSchema(

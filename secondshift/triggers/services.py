@@ -7,17 +7,30 @@ import secrets
 import time
 from collections.abc import Mapping
 from dataclasses import dataclass
+from datetime import timedelta
+from typing import Any
 
 from django.conf import settings
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 
 from secondshift.config.constants import RunStart, TriggerKind
 from secondshift.jobs.models import Job
 from secondshift.runs.models import Run
 from secondshift.runs.services import RunInProgress, RunNotReady, RunRefused, start_run
+from secondshift.triggers.filters import (
+    parse_body,
+    repeat_key,
+    repeat_window_seconds,
+    skip_reason,
+)
 from secondshift.triggers.models import JobTrigger, TriggerEvent
 from secondshift.triggers.verification import verify
+
+# A failed sign-in is recorded at most this often, so guessing cannot flood
+# the log.
+UNAUTHORIZED_RECORD_SECONDS = 60
 
 # Secret scanners can match trigger secrets by this prefix.
 SECRET_PREFIX = "sst_"
@@ -93,14 +106,19 @@ def rotate_secret(job: Job, kind: TriggerKind) -> TriggerChange:
 def record(
     trigger: JobTrigger, outcome: str, reason: str = "", run: Run | None = None
 ) -> None:
-    """Keep the event, and only the newest few for each trigger."""
+    """Keep the event, and only the newest few of each outcome for each trigger.
+
+    Kept per outcome, so a flood of refusals never pushes out started runs.
+    """
     with transaction.atomic():
         TriggerEvent.objects.create(
             trigger=trigger, outcome=outcome, reason=reason[:500], run=run
         )
-        stale = trigger.events.order_by("-received_at", "-pk").values_list(
-            "pk", flat=True
-        )[settings.TRIGGER_EVENTS_KEPT :]
+        stale = (
+            trigger.events.filter(outcome=outcome)
+            .order_by("-received_at", "-pk")
+            .values_list("pk", flat=True)[settings.TRIGGER_EVENTS_KEPT :]
+        )
         TriggerEvent.objects.filter(pk__in=list(stale)).delete()
 
 
@@ -109,21 +127,47 @@ def refuse(trigger: JobTrigger, status: int, reason: str) -> Received:
     return Received(status, reason)
 
 
+def ignore(trigger: JobTrigger, reason: str) -> Received:
+    """Answer 2xx, so the sender does not retry a request the job skips."""
+    record(trigger, TriggerEvent.Outcome.IGNORED, reason)
+    return Received(200, reason)
+
+
+def refuse_unauthorized(trigger: JobTrigger, reason: str) -> Received:
+    since = timezone.now() - timedelta(seconds=UNAUTHORIZED_RECORD_SECONDS)
+    recent = trigger.events.filter(
+        outcome=TriggerEvent.Outcome.REFUSED, reason=reason, received_at__gte=since
+    ).exists()
+    if not recent:
+        record(trigger, TriggerEvent.Outcome.REFUSED, reason)
+    return Received(401, reason)
+
+
+def runs_per_hour(trigger: JobTrigger) -> int:
+    return trigger.max_runs_per_hour or settings.TRIGGER_MAX_RUNS_PER_HOUR
+
+
+def earlier_run(job: Job, key: str, webhook: dict[str, Any]) -> Run | None:
+    """A run for the same event that is active or finished within the window."""
+    since = timezone.now() - timedelta(seconds=repeat_window_seconds(webhook))
+    return (
+        job.runs.filter(input_snapshot__repeat_key=key)
+        .filter(Q(status__in=Run.ACTIVE_STATUSES) | Q(finished_at__gte=since))
+        .order_by("-pk")
+        .first()
+    )
+
+
+def repeat_reason(run: Run) -> str:
+    return f"Repeat of the event that started run #{run.pk}."
+
+
 def not_ready_reason(error: RunNotReady) -> str:
     return "The job is not ready: " + " ".join(error.problems)
 
 
-def receive(trigger: JobTrigger, headers: Mapping[str, str], body: bytes) -> Received:
-    """Check one request and start a run if everything allows it."""
-    verdict = verify(
-        headers,
-        body,
-        trigger.secret,
-        now=time.time(),
-        max_age_seconds=settings.TRIGGER_SIGNATURE_MAX_AGE_SECONDS,
-    )
-    if not verdict.ok:
-        return refuse(trigger, 401, verdict.reason)
+def refusal(trigger: JobTrigger) -> Received | None:
+    """Why the trigger itself cannot start a run, before the body is read."""
     if not trigger.enabled:
         return refuse(trigger, 409, "This trigger is turned off.")
     job = trigger.job
@@ -135,9 +179,28 @@ def receive(trigger: JobTrigger, headers: Mapping[str, str], body: bytes) -> Rec
             409,
             f"The job's configuration no longer names a {trigger.kind} trigger.",
         )
+    return None
+
+
+def hourly_refusal(trigger: JobTrigger) -> Received | None:
+    limit = runs_per_hour(trigger)
+    started = trigger.job.runs.filter(
+        started_by=RUN_STARTS[TriggerKind(trigger.kind)],
+        created_at__gte=timezone.now() - timedelta(hours=1),
+    ).count()
+    if started < limit:
+        return None
+    return refuse(
+        trigger, 429, f"This trigger already started {limit} runs in the last hour."
+    )
+
+
+def start(trigger: JobTrigger, body: bytes, key: str | None) -> Received:
     try:
-        run = start_run(job, RUN_STARTS[TriggerKind(trigger.kind)], body)
+        run = start_run(trigger.job, RUN_STARTS[TriggerKind(trigger.kind)], body, key)
     except RunInProgress as error:
+        if key is not None and error.run.input_snapshot.get("repeat_key") == key:
+            return ignore(trigger, repeat_reason(error.run))
         return refuse(
             trigger, 409, f"Run #{error.run.pk} of this job has not finished."
         )
@@ -147,3 +210,32 @@ def receive(trigger: JobTrigger, headers: Mapping[str, str], body: bytes) -> Rec
         return refuse(trigger, 409, str(error))
     record(trigger, TriggerEvent.Outcome.STARTED, run=run)
     return Received(202, "Run started.", run)
+
+
+def receive(trigger: JobTrigger, headers: Mapping[str, str], body: bytes) -> Received:
+    """Check one request and start a run if everything allows it.
+
+    In order: the secret, the trigger, the job's webhook settings (skip and
+    repeats), the hourly cap, then the job itself.
+    """
+    verdict = verify(
+        headers,
+        body,
+        trigger.secret,
+        now=time.time(),
+        max_age_seconds=settings.TRIGGER_SIGNATURE_MAX_AGE_SECONDS,
+    )
+    if not verdict.ok:
+        return refuse_unauthorized(trigger, verdict.reason)
+    if refused := refusal(trigger):
+        return refused
+    webhook = trigger.job.webhook or {}
+    data = parse_body(body) if webhook else None
+    if reason := skip_reason(data, webhook.get("skip_when") or {}):
+        return ignore(trigger, reason)
+    key = repeat_key(data, webhook.get("repeat_key"))
+    if key is not None and (earlier := earlier_run(trigger.job, key, webhook)):
+        return ignore(trigger, repeat_reason(earlier))
+    if refused := hourly_refusal(trigger):
+        return refused
+    return start(trigger, body, key)
