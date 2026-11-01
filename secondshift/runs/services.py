@@ -9,6 +9,7 @@ from django.utils import timezone
 from secondshift.config.constants import RunStart
 from secondshift.jobs.models import Job
 from secondshift.jobs.planning import build_execution_plan
+from secondshift.jobs.readiness import plan_problems
 from secondshift.runs.artifacts import job_input_snapshot
 from secondshift.runs.history import previous_run_ids
 from secondshift.runs.models import Run
@@ -51,13 +52,23 @@ def create_run(
     return Run.objects.create(job=job, scheduled_for=scheduled_for, **defaults)
 
 
-def start_manual_run(job: Job) -> Run:
-    """Run now. Refuses while another run of the job has not finished.
+class RunNotReady(RunRefused):
+    """A required approval, connection or model is missing."""
+
+    def __init__(self, problems: list[str]) -> None:
+        super().__init__(
+            "Connect a default model and approve all required capabilities first."
+        )
+        self.problems = problems
+
+
+def start_run(job: Job, started_by: RunStart) -> Run:
+    """Start a job now. Refuses while another run of the job has not finished.
 
     One run at a time per job also stops a client stuck in a loop from
     queuing runs faster than they finish.
     """
-    # A manual run does not need the schedule. It still needs the repository.
+    # Starting now does not need the schedule. It still needs the repository.
     if not job.repository.enabled:
         raise RunRefused("Enable the repository before running its jobs.")
     with transaction.atomic():
@@ -68,14 +79,17 @@ def start_manual_run(job: Job) -> Run:
             raise RunInProgress(active)
         execution_plan = build_execution_plan(job)
         if not execution_plan["ready"]:
-            raise RunRefused(
-                "Connect a default model and approve all required capabilities first."
-            )
+            raise RunNotReady(plan_problems(job, execution_plan))
         run = create_run(
             job,
             timezone.now(),
-            started_by=RunStart.MANUAL,
+            started_by=started_by,
             execution_plan=execution_plan,
         )
     enqueue_run(run)
     return run
+
+
+def start_manual_run(job: Job) -> Run:
+    """Run now."""
+    return start_run(job, RunStart.MANUAL)

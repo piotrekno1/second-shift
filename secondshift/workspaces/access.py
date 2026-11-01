@@ -54,6 +54,7 @@ class Action(StrEnum):
     ENABLE_JOBS = "enable jobs"
     RUN_JOBS = "run jobs"
     CHANGE_RUN_LIMITS = "change run limits"
+    MANAGE_TRIGGERS = "turn job triggers on or off"
 
 
 ADMIN_ACTIONS = {
@@ -63,6 +64,7 @@ ADMIN_ACTIONS = {
     Action.ENABLE_JOBS,
     Action.RUN_JOBS,
     Action.CHANGE_RUN_LIMITS,
+    Action.MANAGE_TRIGGERS,
 }
 # The lowest role allowed to take each action. Members can only view.
 POLICY = {

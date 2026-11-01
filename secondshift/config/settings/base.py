@@ -108,6 +108,7 @@ INSTALLED_APPS = [
     "secondshift.repositories",
     "secondshift.jobs",
     "secondshift.runs",
+    "secondshift.triggers",
     "secondshift.gateway",
     "secondshift.mcp_server",
 ]
@@ -454,6 +455,11 @@ OUTBOUND_ALLOW_LOCAL = SINGLE_HOST and env.bool(
     "SECONDSHIFT_OUTBOUND_ALLOW_LOCAL", default=True
 )
 OUTBOUND_TIMEOUT_SECONDS = 10
+# Inbound job triggers: the largest request body accepted, how old a signed
+# timestamp may be, and how many received requests each trigger keeps.
+TRIGGER_MAX_BODY_BYTES = 1024 * 1024
+TRIGGER_SIGNATURE_MAX_AGE_SECONDS = 300
+TRIGGER_EVENTS_KEPT = 100
 # Per-run token budget (input + output + cache tokens), largest accepted
 # request body, and how long to wait between streamed chunks.
 MODEL_RUN_TOKEN_BUDGET = env.int(
