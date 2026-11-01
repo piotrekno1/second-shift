@@ -511,3 +511,21 @@ def test_lowering_the_ceiling_caps_an_owner_value(
     trigger = client.get(f"/api/jobs/{job.pk}/triggers").json()[0]
 
     assert (trigger["runs_per_hour"], trigger["custom_runs_per_hour"]) == (5, 30)
+
+
+def test_repeated_requests_share_one_row(
+    client: Client, owner: AbstractUser, job: Job, queued: list[int]
+) -> None:
+    with_webhook(job, repeat_key="groupKey")
+    change = turn_on(client, owner, job)
+    secret = str(change["secret"])
+    for _ in range(25):
+        send(client, path_of(change), secret, FIRING)
+    client.force_login(owner)
+
+    events = client.get(f"/api/jobs/{job.pk}/triggers").json()[0]["events"]
+
+    assert [(item["outcome"], item["count"]) for item in events] == [
+        ("ignored", 24),
+        ("started", 1),
+    ]

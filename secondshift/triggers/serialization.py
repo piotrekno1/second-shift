@@ -19,10 +19,41 @@ def trigger_url(trigger: JobTrigger) -> str:
     return f"{settings.FRONTEND_URL.rstrip('/')}/api/triggers/{trigger.public_id}"
 
 
+def grouped_events(trigger: JobTrigger) -> list[TriggerEventSchema]:
+    """The newest requests, with back-to-back repeats folded into one row.
+
+    A burst of ignored repeats would otherwise push the run they repeat out of
+    view.
+    """
+    groups: list[TriggerEventSchema] = []
+    for event in trigger.events.all()[: settings.TRIGGER_EVENTS_KEPT * 3]:
+        last = groups[-1] if groups else None
+        if (
+            last is not None
+            and last.run_id is None
+            and event.run_id is None
+            and (last.outcome, last.reason) == (event.outcome, event.reason)
+        ):
+            last.count += 1
+            continue
+        if len(groups) == EVENTS_SHOWN:
+            break
+        groups.append(
+            TriggerEventSchema(
+                id=event.pk,
+                outcome=event.outcome,
+                reason=event.reason,
+                run_id=event.run_id,
+                received_at=event.received_at,
+            )
+        )
+    return groups
+
+
 def serialize_trigger(
     job: Job, kind: TriggerKind, trigger: JobTrigger | None
 ) -> TriggerSchema:
-    events = trigger.events.all()[:EVENTS_SHOWN] if trigger else []
+    events = grouped_events(trigger) if trigger else []
     webhook = job.webhook if kind == TriggerKind.WEBHOOK else {}
     key = webhook.get("repeat_key")
     return TriggerSchema(
@@ -32,16 +63,7 @@ def serialize_trigger(
         enabled=bool(trigger and trigger.enabled),
         url=trigger_url(trigger) if trigger else None,
         secret_rotated_at=trigger.secret_rotated_at if trigger else None,
-        events=[
-            TriggerEventSchema(
-                id=event.pk,
-                outcome=event.outcome,
-                reason=event.reason,
-                run_id=event.run_id,
-                received_at=event.received_at,
-            )
-            for event in events
-        ],
+        events=events,
         runs_per_hour=runs_per_hour(trigger),
         custom_runs_per_hour=trigger.max_runs_per_hour if trigger else None,
         default_runs_per_hour=settings.TRIGGER_MAX_RUNS_PER_HOUR,
