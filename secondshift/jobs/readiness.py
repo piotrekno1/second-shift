@@ -9,6 +9,7 @@ REASON_TEXT = {
     "no_grant": "waits for an owner's approval",
     "grant_pending": "waits for an owner's approval",
     "grant_denied": "was denied by an owner",
+    "connection_missing": "has no approved connection",
     "connection_expired": "uses a connection whose sign-in expired",
     "connection_revoked": "uses a connection that was disconnected",
     "connection_workspace_mismatch": "is approved for a connection that does not match",

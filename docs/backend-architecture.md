@@ -43,6 +43,25 @@ capability requests. Connections make external services available. Job grants
 authorize their use. `jobs.planning` freezes effective policy for a future run.
 It does not import the agent execution framework.
 
+`build_execution_plan(job)` adapts persisted job definitions and their own grants
+into the shared plan compiler. `build_skill_execution_plan(repository, definition,
+key=..., commit_sha=...)` plans a standalone repository skill using the same
+validated `JobManifest` shape, without creating jobs, capability requests or
+grants. Planning does not register schedules or triggers from that definition.
+The caller must resolve the requested revision to a full commit SHA; the plan
+records that commit rather than the repository's last synced configuration SHA.
+Skill-file existence and commit availability are checked by the source workflow,
+not by the planner.
+
+Standalone definitions name only logical bindings and tools. The planner resolves
+connections within the repository's workspace and uses the same automatic
+approval checks as manifest sync. Connections requiring approval remain blocked;
+existing job grants are never borrowed. Optional unavailable capabilities do not
+block other tools. Workspace execution selection and limits apply, while runner
+policy stays server-owned. The version-5 plan format and saved-job entry point
+remain compatible. This is a planning service only; submission and persistence
+of ad hoc tasks are separate work.
+
 A job runs one run at a time. Run now and webhook triggers go through
 `runs.services.start_run`, which refuses while a run is active and checks
 readiness first. Cron goes through `runs.services.create_scheduled_run`, which
