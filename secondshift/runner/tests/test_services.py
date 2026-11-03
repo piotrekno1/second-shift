@@ -84,7 +84,10 @@ def test_container_flags_are_server_owned(settings, tmp_path: Path) -> None:
     mounts = [
         part for part in command if part.startswith(("--mount", "-v", "--volume"))
     ]
-    assert mounts == [f"--mount=type=bind,src={tmp_path / 'workspace'},dst=/workspace"]
+    assert mounts == [
+        f"--mount=type=bind,src={tmp_path / 'workspace'},dst=/workspace",
+        f"--mount=type=bind,src={tmp_path / 'outputs'},dst=/outputs",
+    ]
     assert not any(part.startswith("--env-file") for part in command)
     assert [part for part in command if part.startswith("--env")] == [
         "--env=HOME=/tmp",
@@ -252,3 +255,56 @@ def test_a_sandbox_that_stopped_ends_the_session(
         DockerRunnerService().execute("run-7", CommandRequest("call-1", ("true",)))
 
     assert RunnerSession.objects.get().status == RunnerSession.Status.STOPPED
+
+
+@pytest.mark.django_db
+def test_collecting_stops_the_sandbox_before_reading_files(
+    settings, monkeypatch, tmp_path: Path
+) -> None:
+    settings.RUNNER_WORK_ROOT = tmp_path
+    session = active_session(tmp_path)
+    steps: list[str] = []
+
+    def run(command: list[str], timeout: int = 30) -> Mock:
+        steps.append(" ".join(command[:2]))
+        return Mock(returncode=0, stdout="false\n", stderr="")
+
+    def collect(session_root: Path, workspace: Path) -> Path:
+        steps.append("collect")
+        assert workspace == Path(session.workspace_path)
+        return session_root / "collection.tar.gz"
+
+    monkeypatch.setattr(DockerRunnerService, "run_command", staticmethod(run))
+    monkeypatch.setattr("secondshift.runner.services.collect", collect)
+
+    DockerRunnerService().collect("run-7")
+
+    assert steps == ["docker rm", "docker kill", "docker inspect", "collect"]
+
+
+@pytest.mark.django_db
+def test_a_sandbox_that_keeps_running_is_not_collected(
+    settings, monkeypatch, tmp_path: Path
+) -> None:
+    settings.RUNNER_WORK_ROOT = tmp_path
+    active_session(tmp_path)
+    monkeypatch.setattr(DockerRunnerService, "run_command", fake_inspect(True, False))
+    monkeypatch.setattr(
+        "secondshift.runner.services.collect", Mock(side_effect=AssertionError)
+    )
+
+    with pytest.raises(RunnerProtocolError, match="could not stop the sandbox"):
+        DockerRunnerService().collect("run-7")
+
+
+@pytest.mark.django_db
+def test_an_ended_session_has_nothing_to_collect(settings, tmp_path: Path) -> None:
+    settings.RUNNER_WORK_ROOT = tmp_path
+    session = active_session(tmp_path)
+    session.status = RunnerSession.Status.STOPPED
+    session.save()
+
+    with pytest.raises(RunnerProtocolError, match="files are gone"):
+        DockerRunnerService().collect("run-7")
+    with pytest.raises(RunnerProtocolError, match="Unknown"):
+        DockerRunnerService().collect("run-8")

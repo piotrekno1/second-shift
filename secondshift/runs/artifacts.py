@@ -7,17 +7,31 @@ Postgres or DBOS checkpoints. The database keeps metadata and a short excerpt.
 import base64
 import hashlib
 import json
+import tarfile
 from dataclasses import asdict, dataclass
 from datetime import UTC
 from pathlib import Path
-from typing import Any
+from typing import IO, Any
 from urllib.parse import quote
 
 from django.conf import settings
-from django.core.files.base import ContentFile
+from django.core.files.base import ContentFile, File
 from django.core.files.storage import FileSystemStorage, Storage, storages
 
+from secondshift.config.constants import (
+    MAX_CHANGES_BYTES,
+    MAX_OUTPUT_BYTES,
+    MAX_OUTPUT_FILES,
+)
 from secondshift.jobs.models import Job
+from secondshift.runner.collection import (
+    CHANGES_NAME,
+    MANIFEST_NAME,
+    MAX_LISTED_CHANGES,
+    OUTPUTS_DIR,
+    HashingReader,
+    safe_output_name,
+)
 from secondshift.runs.models import Run
 
 REDACTED = "[REDACTED]"
@@ -108,6 +122,93 @@ def input_path(run: Run) -> str:
 
 def payload_path(run: Run) -> str:
     return f"{run_artifact_prefix(run)}/payload.txt"
+
+
+class CollectionError(ValueError):
+    pass
+
+
+def changes_path(run: Run) -> str:
+    return f"{run_artifact_prefix(run)}/{CHANGES_NAME}"
+
+
+def saved_file_path(run: Run, name: str) -> str:
+    return f"{run_artifact_prefix(run)}/{OUTPUTS_DIR}/{name}"
+
+
+def store_collection(run: Run, archive_path: Path) -> dict[str, Any]:
+    """Keep what the runner collected, and return what Run.outputs records.
+
+    The archive comes from the trusted runner, but the agent chose its file
+    names and contents. Only the expected names and regular files are kept,
+    within the same limits the runner applies.
+    """
+    stored_changes: dict[str, Any] = {}
+    files: list[dict[str, Any]] = []
+    manifest: dict[str, Any] = {}
+    total = 0
+    with tarfile.open(archive_path, mode="r:gz") as archive:
+        for count, member in enumerate(archive):
+            if count > MAX_OUTPUT_FILES + 2 or not member.isreg():
+                raise CollectionError("The collected files are not valid.")
+            stream = archive.extractfile(member)
+            assert stream is not None
+            if member.name == MANIFEST_NAME:
+                manifest = json.loads(stream.read(1024 * 1024))
+                continue
+            if member.name == CHANGES_NAME and member.size <= MAX_CHANGES_BYTES:
+                stored_changes = store_stream(changes_path(run), stream, member.size)
+                continue
+            name = member.name.removeprefix(f"{OUTPUTS_DIR}/")
+            total += member.size
+            if (
+                name == member.name
+                or not safe_output_name(name)
+                or total > MAX_OUTPUT_BYTES
+            ):
+                raise CollectionError("The collected files are not valid.")
+            files.append(
+                {
+                    "name": name,
+                    **store_stream(saved_file_path(run, name), stream, member.size),
+                }
+            )
+    changes = manifest.get("changes") or {}
+    return {
+        "changes": {
+            "file_count": int(changes.get("file_count", 0)),
+            "files": [str(item) for item in changes.get("files", [])][
+                :MAX_LISTED_CHANGES
+            ],
+            "too_large": bool(changes.get("too_large")),
+            **stored_changes,
+        },
+        "files": files,
+        "skipped": [
+            {
+                "name": str(item.get("name", ""))[:255],
+                "reason": str(item.get("reason", ""))[:200],
+            }
+            for item in manifest.get("skipped", [])[:MAX_OUTPUT_FILES]
+        ],
+    }
+
+
+def store_stream(path: str, stream: IO[bytes], size: int) -> dict[str, Any]:
+    """Save at a retry-stable path, and return the stored path, size and hash."""
+    reader = HashingReader(stream)
+    storage = artifact_storage()
+    storage.delete(path)
+    saved = storage.save(path, File(reader))
+    return {"path": saved, "size_bytes": size, "sha256": reader.digest.hexdigest()}
+
+
+def run_output_paths(run: Run) -> list[str]:
+    """Every stored file the sandbox left behind, for deletion with the run."""
+    outputs = run.outputs or {}
+    paths = [item.get("path", "") for item in outputs.get("files", [])]
+    paths.append((outputs.get("changes") or {}).get("path", ""))
+    return [path for path in paths if path]
 
 
 def store_run_payload(run: Run, body: bytes) -> dict[str, Any]:

@@ -87,3 +87,22 @@ def test_source_upload_sends_the_snapshot_with_its_length(tmp_path) -> None:
     assert str(upload.url) == f"http://runner:8002/v1/sources/{'e' * 64}"
     assert upload.headers["Content-Length"] == "8"
     assert upload.content == b"snapshot"
+
+
+def test_collect_saves_the_archive_the_runner_sends(tmp_path) -> None:
+    client, seen = runner(lambda request: httpx.Response(200, content=b"archive"))
+    destination = tmp_path / "collection.tar.gz"
+
+    client.collect("run-7", destination)
+
+    assert destination.read_bytes() == b"archive"
+    assert seen[0].url.path == "/v1/sessions/run-7/collection"
+
+
+def test_collect_reports_the_runner_error(tmp_path) -> None:
+    client, _ = runner(
+        lambda request: httpx.Response(409, json={"error": "files are gone"})
+    )
+
+    with pytest.raises(RunnerProtocolError, match="files are gone"):
+        client.collect("run-7", tmp_path / "collection.tar.gz")

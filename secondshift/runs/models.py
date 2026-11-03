@@ -131,6 +131,9 @@ class Run(models.Model):
     output_size_bytes = models.BigIntegerField(null=True, blank=True)
     output_sha256 = models.CharField(max_length=64, blank=True)
     output_truncated = models.BooleanField(default=False)
+    # What the sandbox left behind, stored in run_artifacts: the agent's file
+    # changes and the files it saved. See artifacts.store_collection.
+    outputs = models.JSONField(default=dict, blank=True, db_default={})
     dbos_workflow_id = models.CharField(max_length=200, blank=True, db_index=True)
     # Sent to the runner so its session can never match one from an older run
     # that had the same ID, for example after a database reset or restore.

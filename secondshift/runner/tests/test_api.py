@@ -91,3 +91,26 @@ def test_command_result_is_returned_without_exposing_runner_state(
         "output": "ok",
         "timed_out": False,
     }
+
+
+@pytest.mark.django_db
+def test_runner_api_streams_a_collection_only_with_service_auth(
+    settings, monkeypatch, tmp_path
+) -> None:
+    archive = tmp_path / "collection.tar.gz"
+    archive.write_bytes(b"archive bytes")
+    service = Mock()
+    service.collect.return_value = archive
+    monkeypatch.setattr("secondshift.runner.api.get_runner_service", lambda: service)
+
+    denied = Client().post("/v1/sessions/run-7/collection")
+    allowed = Client().post(
+        "/v1/sessions/run-7/collection",
+        HTTP_AUTHORIZATION=f"Bearer {settings.RUNNER_SERVICE_TOKEN}",
+    )
+
+    assert denied.status_code == 401
+    assert allowed.status_code == 200
+    assert allowed["Content-Type"] == "application/gzip"
+    assert b"".join(allowed.streaming_content) == b"archive bytes"
+    service.collect.assert_called_once_with("run-7")

@@ -16,6 +16,8 @@ Its API is deliberately narrow:
 - `PUT /v1/sources/{sha256}` uploads a snapshot of one commit's files
 - `POST /v1/sessions` creates a sandbox from one uploaded snapshot
 - `POST /v1/sessions/{id}/commands` executes one idempotent tool call
+- `POST /v1/sessions/{id}/collection` stops the sandbox and returns its file
+  changes and saved files as one archive
 - `DELETE /v1/sessions/{id}` destroys the container and workspace
 - `GET /-/health/` is the only unauthenticated endpoint.
 

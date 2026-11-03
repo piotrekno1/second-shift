@@ -86,6 +86,26 @@ class HttpRunnerClient(RunnerBackend):
         )
         return CommandResult(**self.response_payload(response))
 
+    def collect(self, session_id: str, destination: Path) -> None:
+        """Stop the sandbox and save its archive of changes and files."""
+        try:
+            with self.session.stream(
+                "POST", f"/v1/sessions/{session_id}/collection", timeout=360
+            ) as response:
+                if response.status_code != 200:
+                    response.read()
+                    self.response_payload(response)
+                    raise RunnerProtocolError("Runner returned an invalid response.")
+                with destination.open("wb") as output:
+                    for chunk in response.iter_bytes():
+                        output.write(chunk)
+        except httpx.TimeoutException as error:
+            raise RunnerProtocolError("The runner did not answer in time.") from error
+        except httpx.HTTPError as error:
+            raise RunnerProtocolError(
+                "The runner service could not be reached."
+            ) from error
+
     def stop(self, session_id: str) -> None:
         response = self.send("DELETE", f"/v1/sessions/{session_id}")
         if response.status_code != 204:
