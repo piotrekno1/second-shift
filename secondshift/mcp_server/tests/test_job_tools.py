@@ -8,6 +8,7 @@ from django.test import Client
 from django.utils import timezone
 
 from secondshift.connections.models import Connection
+from secondshift.jobs.execution import choose_execution
 from secondshift.jobs.models import CapabilityRequest, Job
 from secondshift.repositories.models import Repository
 from secondshift.repositories.sync import SyncError
@@ -58,7 +59,7 @@ def repository(workspace: Workspace) -> Repository:
 
 @pytest.fixture
 def job(workspace: Workspace, repository: Repository) -> Job:
-    Connection.objects.create(
+    model = Connection.objects.create(
         workspace=workspace,
         provider=Connection.Provider.ANTHROPIC,
         kind=Connection.Kind.MODEL,
@@ -66,8 +67,8 @@ def job(workspace: Workspace, repository: Repository) -> Job:
         status=Connection.Status.CONNECTED,
         allowed_models=["claude-opus-5-5"],
         default_model="claude-opus-5-5",
-        is_default=True,
     )
+    choose_execution(model.workspace, model=model)
     return make_job(workspace, "review", repository)
 
 

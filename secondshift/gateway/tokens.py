@@ -24,20 +24,8 @@ def token_digest(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
 
 
-def default_model_connection(run: Run) -> Connection | None:
-    return Connection.objects.filter(
-        workspace_id=run.job.workspace_id,
-        kind=Connection.Kind.MODEL,
-        is_default=True,
-        status=Connection.Status.CONNECTED,
-    ).first()
-
-
-def issue_run_token(run: Run, connection: Connection | None = None) -> str:
+def issue_run_token(run: Run, connection: Connection) -> str:
     """Create a gateway token for one run. The plaintext is returned once."""
-    connection = connection or default_model_connection(run)
-    if connection is None:
-        raise GatewayUnavailable("No connected default model provider.")
     if (
         connection.kind != Connection.Kind.MODEL
         or connection.workspace_id != run.job.workspace_id

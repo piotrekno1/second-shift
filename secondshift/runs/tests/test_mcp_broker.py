@@ -18,6 +18,7 @@ from secondshift.connections.models import Connection
 from secondshift.connections.tests.test_github_mcp import TOOL_SCHEMAS
 from secondshift.connections.tests.test_github_mcp import mcp_http as imported_mcp_http
 from secondshift.connections.webhooks import deliver_webhook
+from secondshift.jobs.execution import choose_execution
 from secondshift.jobs.manifest import load_manifest
 from secondshift.jobs.models import CapabilityRequest, Job, JobGrant
 from secondshift.jobs.planning import build_execution_plan
@@ -62,14 +63,14 @@ def planned_run() -> Run:
         cron="0 9 * * 1",
         config_hash="hash",
     )
-    Connection.objects.create(
+    model = Connection.objects.create(
         workspace=workspace,
         provider="openai",
         kind="model",
         display_name="Model",
         default_model="test",
-        is_default=True,
     )
+    choose_execution(model.workspace, model=model)
     connection = Connection.objects.create(
         workspace=workspace,
         provider="github",

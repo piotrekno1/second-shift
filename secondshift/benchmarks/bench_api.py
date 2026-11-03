@@ -133,7 +133,6 @@ def test_gateway_token_lookup(
         provider=Connection.Provider.ANTHROPIC,
         kind=Connection.Kind.MODEL,
         display_name="Anthropic",
-        is_default=True,
         access_token="sk-ant-bench",
     )
     run = Run.objects.filter(job__in=Job.objects.filter(workspace=workspace)).first()

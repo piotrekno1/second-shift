@@ -7,7 +7,16 @@ from secondshift.core.models import RunLimitOverrides
 class Workspace(RunLimitOverrides):
     """Who belongs and with which role is kept in WorkspaceMembership only."""
 
-    # Empty means jobs run on the default model provider.
+    # What runs the jobs: one model key or one subscription login, never both.
+    # Neither set means nothing is chosen and runs cannot start.
+    default_model_connection = models.ForeignKey(
+        "connections.Connection",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        limit_choices_to={"kind": "model"},
+        related_name="default_workspaces",
+    )
     default_agent_connection = models.ForeignKey(
         "connections.AgentConnection",
         on_delete=models.RESTRICT,
@@ -22,6 +31,13 @@ class Workspace(RunLimitOverrides):
 
     class Meta(RunLimitOverrides.Meta):
         ordering = ["name"]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(default_model_connection__isnull=True)
+                | models.Q(default_agent_connection__isnull=True),
+                name="workspace_one_execution_default",
+            )
+        ]
 
     def __str__(self) -> str:
         return self.name

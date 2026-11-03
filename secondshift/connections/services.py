@@ -76,7 +76,6 @@ def update_webhook_connection(
 def revoke_connection(connection: Connection) -> Connection:
     """Stop all use immediately and discard stored credentials; keep the record."""
     connection.status = Connection.Status.REVOKED
-    connection.is_default = False
     connection.delivery_url = ""
     connection.access_token = ""
     connection.refresh_token = ""
@@ -90,7 +89,6 @@ def revoke_connection(connection: Connection) -> Connection:
             "access_token",
             "refresh_token",
             "metadata",
-            "is_default",
             "updated_at",
         ]
     )

@@ -78,16 +78,6 @@ def validated_endpoint(provider: str, endpoint_url: str) -> str:
         raise ModelProviderError(str(error)) from error
 
 
-def apply_default(connection: Connection, is_default: bool | None) -> None:
-    if is_default is None:
-        return
-    if is_default:
-        Connection.objects.filter(
-            workspace=connection.workspace, is_default=True
-        ).exclude(pk=connection.pk).update(is_default=False)
-    connection.is_default = is_default
-
-
 @transaction.atomic
 def create_model_connection(
     workspace: Workspace,
@@ -97,7 +87,6 @@ def create_model_connection(
     endpoint_url: str = "",
     allowed_models: list[str] | None = None,
     default_model: str = "",
-    is_default: bool | None = None,
 ) -> Connection:
     if provider not in PROVIDERS:
         raise ModelProviderError(
@@ -119,15 +108,8 @@ def create_model_connection(
         allowed_models=clean_models(allowed_models or []),
         default_model=default_model.strip(),
     )
-    first_model_provider = not Connection.objects.filter(
-        workspace=workspace, kind=Connection.Kind.MODEL
-    ).exists()
     connection.metadata = {"target": host_label(base_url(connection))}
     check_default_model(connection)
-    # The first provider becomes the default so runs have one without extra steps.
-    if is_default is None:
-        is_default = first_model_provider
-    apply_default(connection, is_default)
     connection.full_clean(validate_constraints=False)
     connection.save()
     return connection
@@ -141,7 +123,6 @@ def update_model_connection(
     endpoint_url: str | None = None,
     allowed_models: list[str] | None = None,
     default_model: str | None = None,
-    is_default: bool | None = None,
 ) -> Connection:
     if connection.kind != Connection.Kind.MODEL:
         raise ModelProviderError("This is not a model provider connection.")
@@ -166,7 +147,6 @@ def update_model_connection(
     elif connection.status == Connection.Status.REVOKED:
         raise ModelProviderError("Enter a new API key to reconnect this provider.")
     check_default_model(connection)
-    apply_default(connection, is_default)
     # A saved check result described the old settings; drop it.
     connection.metadata = {
         key: value for key, value in connection.metadata.items() if key != "last_check"

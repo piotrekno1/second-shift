@@ -72,10 +72,6 @@ class Connection(models.Model):
     # Model providers only. Runs may call just these models; empty allows any.
     allowed_models = models.JSONField(default=list, blank=True)
     default_model = models.CharField(max_length=200, blank=True)
-    is_default = models.BooleanField(
-        default=False,
-        help_text="The workspace's default model provider for runs.",
-    )
     auth_strategy = models.CharField(
         max_length=24,
         choices=AuthStrategy.choices,
@@ -111,11 +107,6 @@ class Connection(models.Model):
                 condition=~models.Q(binding_key=""),
                 name="unique_workspace_connection_binding",
             ),
-            models.UniqueConstraint(
-                fields=["workspace"],
-                condition=models.Q(is_default=True),
-                name="unique_workspace_default_model",
-            ),
         ]
         ordering = ["provider", "display_name"]
 
@@ -124,10 +115,6 @@ class Connection(models.Model):
         return f"{self.get_provider_display()}: {self.display_name}{binding}"
 
     def clean(self) -> None:
-        if self.is_default and self.kind != self.Kind.MODEL:
-            raise ValidationError(
-                {"is_default": "Only model providers can be the workspace default."}
-            )
         # Repositories never name identities or model providers, so neither
         # needs a logical binding.
         unbound = {self.Kind.IDENTITY, self.Kind.MODEL}

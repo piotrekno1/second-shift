@@ -5,6 +5,7 @@ from pydantic_ai.models.openai import OpenAIChatModel, OpenAIResponsesModel
 
 from secondshift.connections.models import Connection
 from secondshift.gateway.tokens import authenticate
+from secondshift.jobs.execution import choose_execution
 from secondshift.jobs.models import Job
 from secondshift.jobs.planning import build_execution_plan
 from secondshift.repositories.models import Repository
@@ -37,7 +38,7 @@ def model_run(db, settings) -> Run:
         cron="0 9 * * 1",
         config_hash="abc",
     )
-    Connection.objects.create(
+    model = Connection.objects.create(
         workspace=workspace,
         provider=Connection.Provider.ANTHROPIC,
         kind=Connection.Kind.MODEL,
@@ -45,8 +46,8 @@ def model_run(db, settings) -> Run:
         auth_strategy=Connection.AuthStrategy.API_KEY,
         access_token=PROVIDER_KEY,
         default_model="claude-opus-5-5",
-        is_default=True,
     )
+    choose_execution(model.workspace, model=model)
     return Run.objects.create(
         job=job,
         status=Run.Status.RUNNING,

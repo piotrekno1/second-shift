@@ -9,6 +9,7 @@ from pydantic_ai.models.test import TestModel
 
 from secondshift.config.constants import RunStart
 from secondshift.connections.models import Connection
+from secondshift.jobs.execution import choose_execution
 from secondshift.jobs.models import Job
 from secondshift.repositories.models import Repository
 from secondshift.runs.artifacts import artifact_storage, run_payload
@@ -39,7 +40,7 @@ def job(db: object, monkeypatch: pytest.MonkeyPatch) -> Job:
     monkeypatch.setattr("secondshift.runs.services.enqueue_run", lambda run: None)
     user = get_user_model().objects.create_user(username="owner")
     workspace = create_workspace(name="Test", slug="test", owner=user)
-    Connection.objects.create(
+    model = Connection.objects.create(
         workspace=workspace,
         provider=Connection.Provider.ANTHROPIC,
         kind=Connection.Kind.MODEL,
@@ -47,8 +48,8 @@ def job(db: object, monkeypatch: pytest.MonkeyPatch) -> Job:
         status=Connection.Status.CONNECTED,
         allowed_models=["claude-opus-5-5"],
         default_model="claude-opus-5-5",
-        is_default=True,
     )
+    choose_execution(model.workspace, model=model)
     repository = Repository.objects.create(
         workspace=workspace, full_name="example/project", enabled=True
     )

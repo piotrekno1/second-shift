@@ -89,7 +89,7 @@ from secondshift.connections.webhooks import (
     deliver_webhook,
 )
 from secondshift.jobs.automatic_grants import approve_waiting_for, set_require_approval
-from secondshift.jobs.execution import use_login_when_no_model_works
+from secondshift.jobs.execution import apply_model_default, use_when_nothing_runs
 from secondshift.runs.reporting.connection_usage import (
     ConnectionUsage,
     connection_usage,
@@ -479,12 +479,12 @@ def create_model_provider(
             endpoint_url=payload.base_url,
             allowed_models=payload.allowed_models,
             default_model=payload.default_model,
-            is_default=payload.is_default,
         )
     except ModelProviderError as error:
         raise HttpError(422, str(error)) from error
     except ValidationError as error:
         raise HttpError(422, " ".join(error.messages)) from error
+    apply_model_default(connection, payload.is_default)
     return serialize_connection(connection)
 
 
@@ -507,12 +507,12 @@ def update_model_provider(
             endpoint_url=payload.base_url,
             allowed_models=payload.allowed_models,
             default_model=payload.default_model,
-            is_default=payload.is_default,
         )
     except ModelProviderError as error:
         raise HttpError(422, str(error)) from error
     except ValidationError as error:
         raise HttpError(422, " ".join(error.messages)) from error
+    apply_model_default(connection, payload.is_default)
     return serialize_connection(connection)
 
 
@@ -639,7 +639,7 @@ def connect_agent(
         )
     except AgentConnectionError as error:
         raise HttpError(422, str(error)) from None
-    use_login_when_no_model_works(connection)
+    use_when_nothing_runs(workspace, login=connection)
     return connection
 
 

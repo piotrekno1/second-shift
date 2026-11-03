@@ -13,8 +13,13 @@ const busy = ref(false)
 const error = ref('')
 const canEdit = computed(() => app.can(Action.ReviewCapabilities))
 const configuration = computed(() => agents.configuration)
-// Installs without subscriptions have nothing to choose.
-const shown = computed(() => configuration.value?.enabled || configuration.value?.backend !== 'pydantic')
+// Hidden only when there is one model provider, it is chosen, and it works.
+const shown = computed(() => {
+  const config = configuration.value
+  return Boolean(config && (config.enabled || config.backend !== 'pydantic' || !config.ready || config.choices.length > 1))
+})
+// A Select only when there is something other than the current choice to pick.
+const selectable = computed(() => canEdit.value && (configuration.value?.choices ?? []).some(choice => choice.key !== configuration.value?.selected))
 
 onMounted(async () => {
   try {
@@ -44,7 +49,7 @@ async function change(key: string): Promise<void> {
     </div>
 
     <template v-if="configuration">
-      <div v-if="canEdit && configuration.choices.length > 1" class="execution-choice">
+      <div v-if="selectable" class="execution-choice">
         <!-- A selected login that is disconnected is disabled, and Select shows no text for it. -->
         <Select :model-value="configuration.selected" :options="configuration.choices" option-label="label" option-value="key" option-disabled="disabled" :placeholder="configuration.label" :disabled="busy" aria-label="Run jobs with" @update:model-value="change" />
       </div>

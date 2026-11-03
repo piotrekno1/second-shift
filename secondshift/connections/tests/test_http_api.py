@@ -24,6 +24,7 @@ from secondshift.connections.http_api.spec import (
     read_spec,
 )
 from secondshift.connections.models import Connection
+from secondshift.jobs.execution import choose_execution
 from secondshift.jobs.models import CapabilityRequest, Job, JobGrant
 from secondshift.jobs.planning import build_execution_plan
 from secondshift.jobs.serialization import serialize_job
@@ -392,14 +393,14 @@ def api_run(fake: FakeAPI, workspace: Workspace) -> Run:
     repository = Repository.objects.create(
         workspace=workspace, full_name="example/project", config_sha="a" * 40
     )
-    Connection.objects.create(
+    model = Connection.objects.create(
         workspace=workspace,
         provider="openai",
         kind="model",
         display_name="Model",
         default_model="test",
-        is_default=True,
     )
+    choose_execution(model.workspace, model=model)
     job = Job.objects.create(
         workspace=workspace,
         repository=repository,

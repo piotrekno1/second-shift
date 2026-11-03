@@ -2,6 +2,7 @@ import pytest
 from django.contrib.auth import get_user_model
 
 from secondshift.connections.models import Connection
+from secondshift.jobs.execution import choose_execution
 from secondshift.jobs.models import CapabilityRequest, Job, JobGrant
 from secondshift.jobs.planning import build_execution_plan
 from secondshift.jobs.readiness import readiness_problems
@@ -16,7 +17,7 @@ def create_job(db) -> Job:
         workspace=workspace,
         full_name="example/project",
     )
-    Connection.objects.create(
+    model = Connection.objects.create(
         workspace=workspace,
         provider=Connection.Provider.ANTHROPIC,
         kind=Connection.Kind.MODEL,
@@ -24,8 +25,8 @@ def create_job(db) -> Job:
         status=Connection.Status.CONNECTED,
         allowed_models=["claude-opus-5-5"],
         default_model="claude-opus-5-5",
-        is_default=True,
     )
+    choose_execution(model.workspace, model=model)
     return Job.objects.create(
         workspace=workspace,
         repository=repository,
@@ -56,7 +57,7 @@ def test_plan_fails_closed_without_a_model_provider(db) -> None:
     job = create_job(db)
     Connection.objects.filter(kind=Connection.Kind.MODEL).delete()
 
-    plan = build_execution_plan(job)
+    plan = build_execution_plan(Job.objects.get(pk=job.pk))
 
     assert plan["ready"] is False
     assert plan["model"] is None
@@ -238,11 +239,11 @@ def test_plan_says_nothing_is_missing_for_authorized_bindings(db) -> None:
     [
         (
             {"default_model": ""},
-            "The default model provider Anthropic has no model selected.",
+            "The model provider Anthropic has no model selected.",
         ),
         (
             {"metadata": {"last_check": {"ok": False}}},
-            "The default model provider Anthropic failed its last check.",
+            "The model provider Anthropic failed its last check.",
         ),
     ],
 )
@@ -251,6 +252,7 @@ def test_plan_fails_closed_with_an_unusable_default_model(
 ) -> None:
     job = create_job(db)
     Connection.objects.filter(kind=Connection.Kind.MODEL).update(**change)
+    job = Job.objects.get(pk=job.pk)
 
     plan = build_execution_plan(job)
 

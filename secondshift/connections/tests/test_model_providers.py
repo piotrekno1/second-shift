@@ -34,7 +34,7 @@ def create(client: Client, **body: Any) -> Any:
 def test_first_provider_becomes_default_and_key_is_never_returned(
     client: Client, owner: tuple[AbstractUser, Workspace]
 ) -> None:
-    user, _ = owner
+    user, workspace = owner
     client.force_login(user)
 
     first = create(client, provider="anthropic", default_model="claude-opus-5-5")
@@ -54,7 +54,16 @@ def test_first_provider_becomes_default_and_key_is_never_returned(
         content_type="application/json",
     )
     assert switched.json()["is_default"] is True
-    assert Connection.objects.filter(is_default=True).count() == 1
+    workspace.refresh_from_db()
+    assert workspace.default_model_connection_id == second.json()["id"]
+    unset = client.post(
+        f"/api/connections/{second.json()['id']}/model",
+        data=json.dumps({"is_default": False}),
+        content_type="application/json",
+    )
+    assert unset.json()["is_default"] is False
+    workspace.refresh_from_db()
+    assert workspace.default_model_connection is None
 
 
 @pytest.mark.django_db
@@ -162,7 +171,7 @@ def test_openai_check_reports_rejected_key(
 
 
 @pytest.mark.django_db
-def test_revoke_discards_key_and_default(
+def test_revoke_discards_key_and_keeps_the_choice(
     client: Client, owner: tuple[AbstractUser, Workspace]
 ) -> None:
     user, _ = owner
@@ -177,7 +186,8 @@ def test_revoke_discards_key_and_default(
     )
 
     saved = Connection.objects.get(pk=created.json()["id"])
-    assert revoked.json()["is_default"] is False
+    # Runs stay pointed at it and report it as disconnected until it is fixed.
+    assert revoked.json()["is_default"] is True
     assert saved.access_token == ""
     assert rename_only.status_code == 422
 

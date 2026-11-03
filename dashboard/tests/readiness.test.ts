@@ -18,18 +18,24 @@ test('enableBlocker names required bindings that are not approved', () => {
 })
 
 function status(overrides: Partial<ExecutionStatus> = {}): ExecutionStatus {
-  return { label: 'Model provider', backend: 'pydantic', problem: '', needs_setup: false, fix_connection_id: null, ...overrides }
+  return { label: 'Model provider', backend: 'pydantic', problem: '', chosen: true, needs_setup: false, fix_connection_id: null, ...overrides }
 }
 
 test('executionFix asks a new workspace to choose what runs jobs', () => {
-  const fix = executionFix(status({ problem: 'No default model provider is connected.', needs_setup: true }))
+  const fix = executionFix(status({ problem: 'Choose a model API key or a subscription to run jobs.', chosen: false, needs_setup: true }))
   assert.equal(fix?.action, 'Choose what runs jobs')
   assert.deepEqual(fix?.to, { path: '/connections' })
 })
 
+test('executionFix sends saved but unchosen workspaces to settings', () => {
+  const fix = executionFix(status({ problem: 'Choose a model API key or a subscription to run jobs.', chosen: false }))
+  assert.equal(fix?.action, 'Choose what runs jobs')
+  assert.deepEqual(fix?.to, { path: '/settings' })
+})
+
 test('executionFix opens the broken model key', () => {
-  const fix = executionFix(status({ problem: 'The default model provider OpenRouter failed its last check.', fix_connection_id: 2 }))
-  assert.equal(fix?.text, 'Runs will fail. The default model provider OpenRouter failed its last check.')
+  const fix = executionFix(status({ problem: 'The model provider OpenRouter failed its last check.', fix_connection_id: 2 }))
+  assert.equal(fix?.text, 'Runs will fail. The model provider OpenRouter failed its last check.')
   assert.deepEqual(fix?.to, { path: '/connections', query: { connection: '2' } })
 })
 
@@ -41,8 +47,8 @@ test('executionFix covers subscription problems and stays quiet when runs work',
 })
 
 test('runWarning prefers the job, then the workspace', () => {
-  const broken = status({ problem: 'No default model provider is connected.' })
-  assert.equal(runWarning(broken), 'No default model provider is connected.')
+  const broken = status({ problem: 'The model provider OpenRouter has no model selected.' })
+  assert.equal(runWarning(broken), 'The model provider OpenRouter has no model selected.')
   assert.equal(runWarning(status(), { execution_problem: 'Reconnect your subscription.' }), 'Reconnect your subscription.')
   assert.equal(runWarning(status(), { execution_problem: '' }), '')
 })
