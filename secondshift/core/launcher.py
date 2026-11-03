@@ -102,6 +102,11 @@ def services(
     gateway_url = settings.MODEL_GATEWAY_URL
     runner_url = settings.RUNNER_SERVICE_URL
     gateway_port = local_service_port(gateway_url)
+    gateway_host = "127.0.0.1"
+    if settings.AGENT_IMAGE:
+        gateway_host = parent.get(AppEnv.AGENT_GATEWAY_HOST, gateway_host)
+        if gateway_host not in {"127.0.0.1", "0.0.0.0"}:
+            raise ValueError("Agent gateway host must be 127.0.0.1 or 0.0.0.0")
     runner_port = local_service_port(runner_url)
     control = {
         # Links in notifications, invites and OAuth callbacks use it.
@@ -139,7 +144,7 @@ def services(
 
     return [
         http_service(Service.RUNNER, "127.0.0.1", runner_port, runner_env(parent)),
-        http_service(Service.GATEWAY, "127.0.0.1", gateway_port, control),
+        http_service(Service.GATEWAY, gateway_host, gateway_port, control),
         Process(
             Service.WORKER,
             [python, "-m", "secondshift", "run_dbos_worker"],
