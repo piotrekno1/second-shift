@@ -6,6 +6,7 @@ from unittest.mock import Mock
 import pytest
 from django.contrib.auth.models import User
 
+from secondshift.connections.agents import AgentConnectionError, sign_in_refused
 from secondshift.connections.models import AgentConnection
 from secondshift.connections.tests.test_agent_connections import (
     TOKEN,
@@ -196,3 +197,60 @@ def test_cli_usage_in_run_responses(
     assert response.model_usage_source == "agent"
     assert response.model_cost_usd is None
     assert response.model_requests == 0
+
+
+@pytest.mark.parametrize(
+    ("check", "summary", "refused"),
+    [
+        ("reconnect_required", "Agent sign-in expired.", True),
+        ("completed", "The agent could not finish.", False),
+        ("quota_exhausted", "Subscription usage exhausted.", False),
+        (None, "Agent sign-in expired.", False),
+    ],
+)
+def test_a_run_that_looks_signed_out_is_confirmed_by_a_check(
+    agent_run: tuple[Run, User],
+    monkeypatch: pytest.MonkeyPatch,
+    check: str | None,
+    summary: str,
+    refused: bool,
+) -> None:
+    run, _ = agent_run
+    fake_runner(
+        monkeypatch, {"report": "", "succeeded": False, "reason": "reconnect_required"}
+    )
+    checks = Mock()
+    if check is None:
+        checks.side_effect = AgentConnectionError("busy")
+    else:
+
+        def record(connection: AgentConnection) -> AgentConnection:
+            connection.last_check = {
+                "ok": check != "reconnect_required",
+                "reason": check,
+            }
+            connection.save(update_fields=["last_check"])
+            return connection
+
+        checks.side_effect = record
+    monkeypatch.setattr(cli_agent, "check_agent_connection", checks)
+
+    result = execute_cli_step(run.pk, "run-1", "Read the skill")
+
+    checks.assert_called_once()
+    assert result["summary"].startswith(summary)
+    login = AgentConnection.objects.get(
+        pk=run.execution_plan["execution"]["connection_id"]
+    )
+    assert sign_in_refused(login) is refused
+
+
+def test_other_failures_spend_no_check(
+    agent_run: tuple[Run, User], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run, _ = agent_run
+    fake_runner(monkeypatch, {"report": "", "succeeded": False, "reason": "timed_out"})
+    checks = Mock()
+    monkeypatch.setattr(cli_agent, "check_agent_connection", checks)
+    execute_cli_step(run.pk, "run-1", "Read the skill")
+    checks.assert_not_called()

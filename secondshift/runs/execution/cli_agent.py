@@ -8,6 +8,8 @@ from dbos import DBOS
 from django.utils import timezone
 
 from secondshift.config.constants import SUMMARY_MAX_CHARS
+from secondshift.connections.agents import AgentConnectionError, check_agent_connection
+from secondshift.connections.models import AgentConnection
 from secondshift.runner.agent_credentials import encrypt_agent_auth
 from secondshift.runner.client import get_runner_client
 from secondshift.runs.artifacts import store_run_text
@@ -23,6 +25,33 @@ FAILURE_SUMMARIES = {
     "turn_budget_exhausted": "The agent reached this run's maximum turns.",
 }
 DEFAULT_FAILURE = "The agent could not finish. Check its login and subscription usage before starting a new run."
+
+
+def confirm_sign_in(run: Run, connection: AgentConnection) -> str:
+    """Check the login before saying its sign-in expired.
+
+    The run's reason comes from words in the CLI's last error, and a tool's
+    error can contain them too. Only a real check marks the login refused,
+    which stops its runs. If the check signs in, the run failed for another
+    reason. The run's lock on the login has ended, so the check can take it.
+    """
+    try:
+        check = check_agent_connection(connection).last_check or {}
+    except AgentConnectionError:
+        # The check could not run. Keep the run's own reason.
+        return "reconnect_required"
+    RunEvent.objects.create(
+        run=run,
+        message="Checked the agent login after the run.",
+        metadata={"reason": check.get("reason", "")},
+    )
+    found = check.get("reason")
+    if found == "completed":
+        return "agent_failed"
+    if found == "quota_exhausted":
+        return "quota_exhausted"
+    # Refused, or a check that did not finish and so proves nothing.
+    return "reconnect_required"
 
 
 @DBOS.step(name="secondshift.execute_cli_agent")
@@ -79,6 +108,8 @@ def execute_cli_step(run_id: int, session_id: str, prompt: str) -> dict[str, Any
     report = str(result.get("report", "")).strip()
     succeeded = bool(result.get("succeeded")) and bool(report)
     reason = str(result.get("reason", "agent_failed"))
+    if reason == "reconnect_required":
+        reason = confirm_sign_in(run, connection)
     RunEvent.objects.create(
         run=run,
         message="Agent execution finished.",
