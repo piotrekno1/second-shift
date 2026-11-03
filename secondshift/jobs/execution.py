@@ -11,6 +11,7 @@ from secondshift.config.constants import AgentBackend
 from secondshift.connections.agents import usable_agent_connection
 from secondshift.connections.models import AgentConnection, Connection
 from secondshift.jobs.models import Job
+from secondshift.runs.reporting.connection_usage import agent_login_runs
 from secondshift.workspaces.models import Workspace
 
 # The choice key for the default model provider. Logins use "agent:<id>".
@@ -86,6 +87,12 @@ def subscription_problem(connection: AgentConnection, workspace: Workspace) -> s
         return f"The agent login {connection.display_name} is disconnected. Reconnect it on Connections."
     if not usable_agent_connection(connection, workspace.pk):
         return f"The agent login {connection.display_name} belongs to someone who is no longer a workspace owner."
+    cap = connection.max_runs_per_day
+    if cap is not None and agent_login_runs(workspace.pk)[connection.pk] >= cap:
+        return (
+            f"The agent login {connection.display_name} reached its limit of "
+            f"{cap} runs in 24 hours. Raise the limit on Connections or wait."
+        )
     return ""
 
 

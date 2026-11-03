@@ -2,6 +2,7 @@ import uuid
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.core.validators import MinValueValidator
 from django.db import models
 from encrypted_model_fields.fields import EncryptedTextField
 
@@ -222,5 +223,9 @@ class AgentConnection(models.Model):
     auth_data = EncryptedTextField()
     credential_key = models.UUIDField(default=uuid.uuid4, editable=False)
     connected = models.BooleanField(default=True)
+    # Empty means no cap. Runs past it in a rolling 24 hours are refused.
+    max_runs_per_day = models.PositiveIntegerField(
+        null=True, blank=True, validators=[MinValueValidator(1)]
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
