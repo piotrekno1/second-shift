@@ -196,9 +196,10 @@ function chooseDirectory(path: string): void {
             <span v-if="repository.local_path" class="mono-line">{{ repository.local_path }}</span>
             <span v-else>{{ repository.source_type === 'local' ? 'Local' : 'GitHub' }} · {{ repository.default_branch }}</span>
           </div>
-          <span v-if="!repository.revision" class="repository-row-jobs">No configuration yet</span>
+          <span v-if="!repository.revision" class="repository-row-jobs" title="No valid .secondshift.yaml has synced yet">Needs config</span>
           <span v-else class="repository-row-jobs">{{ countLabel(repository.job_count, 'job') }}</span>
-          <span class="repository-row-sync" :title="`${formatDate(repository.last_synced_at)} · ${utcTitle(repository.last_synced_at)}`">Synced {{ formatRelative(repository.last_synced_at) }}</span>
+          <span v-if="repository.last_synced_at" class="repository-row-sync" :title="`${formatDate(repository.last_synced_at)} · ${utcTitle(repository.last_synced_at)}`">Synced {{ formatRelative(repository.last_synced_at) }}</span>
+          <span v-else class="repository-row-sync">Not synced</span>
           <StatusPill :status="repository.enabled ? 'enabled' : 'disabled'" />
           <AppIcon name="chevron-right" class="row-chevron" />
         </RouterLink>

@@ -214,7 +214,7 @@ onMounted(loadRepository)
         <div class="setup-copy">
           <h2>{{ setupComplete ? (justAdded ? 'Repository added and ready' : 'This repository is ready') : 'Finish setup' }}</h2>
           <p v-if="needsConfig">
-            Commit a <code>{{ repository.config_path }}</code> to {{ repository.default_branch }} to define its jobs.
+            Commit a valid <code>{{ repository.config_path }}</code> to {{ repository.default_branch }} to define its jobs.
             {{ repository.auto_sync && repository.server_syncs ? 'It is picked up within minutes.' : 'Then press Resync.' }}
           </p>
           <p v-else-if="requiredReviews.length">Approve access for {{ countLabel(requiredReviews.length, 'required binding') }} before its jobs can run.</p>
