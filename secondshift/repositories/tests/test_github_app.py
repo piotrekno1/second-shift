@@ -12,7 +12,7 @@ from django.test import Client
 from django.utils import timezone
 
 from secondshift.connections.models import Connection
-from secondshift.github import repos
+from secondshift.github import repos, rest
 from secondshift.github.errors import GitHubError
 from secondshift.repositories import autosync, github_sync
 from secondshift.repositories.github_access import github_access
@@ -93,7 +93,7 @@ def test_callback_links_only_verified_installations(
             },
         ]
     )
-    monkeypatch.setattr("secondshift.repositories.github_views.request_json", requests)
+    monkeypatch.setattr(rest, "request_payload", requests)
     result = owner_client.get(
         "/github/callback/",
         {"state": state, "code": "code", "installation_id": "666"},
@@ -374,7 +374,8 @@ def test_new_user_is_sent_to_install_after_authorization(
     assert response.url.startswith("https://github.com/login/oauth/authorize?")
     state = owner_client.session[STATE_KEY]["state"]
     monkeypatch.setattr(
-        "secondshift.repositories.github_views.request_json",
+        rest,
+        "request_payload",
         Mock(side_effect=[{"access_token": "user-secret"}, {"installations": []}]),
     )
     response = owner_client.get("/github/callback/", {"state": state, "code": "code"})
