@@ -118,7 +118,7 @@ follows the same rule.
 
 ### Standalone tasks
 
-Use **Submit task** on a repository page, or call `submit_task` from an agent.
+Use **New task** on a repository page, or call `submit_task` from an agent.
 The skill must already be committed to that repository; it does not need a job
 in `.secondshift.yaml`.
 

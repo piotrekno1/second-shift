@@ -119,10 +119,6 @@ onUnmounted(stopPolling)
     <div v-if="loading" class="panel empty-state"><AppIcon name="loading" spin /><strong>Loading run</strong></div>
     <div v-else-if="!run" class="panel empty-state"><AppIcon name="alert-outline" /><strong>Run unavailable</strong><span>{{ error }}</span></div>
     <template v-else>
-      <section v-if="run.submission_input" class="panel">
-        <h2>Task input</h2>
-        <p style="white-space: pre-wrap">{{ run.submission_input }}</p>
-      </section>
       <p v-if="error" class="page-error">{{ error }}</p>
 
       <section class="panel run-status-panel" :class="run.status" aria-live="polite">
@@ -146,6 +142,10 @@ onUnmounted(stopPolling)
 
       <div class="run-layout">
         <div class="run-main">
+          <details v-if="run.submission_input" class="panel task-input-panel" :open="active">
+            <summary><span>Task input</span><AppIcon name="chevron-right" /></summary>
+            <p>{{ run.submission_input }}</p>
+          </details>
           <section v-if="timelineOpen" class="panel job-runs-panel">
             <div class="panel-heading"><h2>Timeline</h2><span class="run-details-muted">Times in {{ timelineZone }}</span></div>
             <ol v-if="run.events.length" class="run-timeline">
@@ -213,3 +213,15 @@ onUnmounted(stopPolling)
     </template>
   </div>
 </template>
+
+<style scoped>
+.task-input-panel { padding: 20px 24px; }
+.task-input-panel > summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; list-style: none; color: var(--muted); font-size: 14px; font-weight: 500; cursor: pointer; }
+.task-input-panel > summary::-webkit-details-marker { display: none; }
+.task-input-panel > summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 6px; border-radius: 3px; }
+.task-input-panel .app-icon { flex: none; font-size: 14px; }
+.task-input-panel[open] > summary { color: var(--ink); }
+.task-input-panel[open] .app-icon { transform: rotate(90deg); }
+.task-input-panel > p { margin: 16px 0 0; color: var(--muted); font-size: 13px; line-height: 1.7; white-space: pre-wrap; overflow-wrap: anywhere; }
+@media (max-width: 540px) { .task-input-panel { padding: 16px 20px; } }
+</style>
