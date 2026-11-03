@@ -26,7 +26,7 @@ git clone https://github.com/piotrekno1/second-shift.git
 
 ## Run the check
 
-1. In **Connections**, add your model provider and choose a default model.
+1. In **Models**, add an API key and choose a default model, or add a Claude Code or Codex subscription.
 2. In **Repositories**, select **Add local repository** and choose the cloned directory.
 3. Open **Documentation drift** in **Jobs** and select **Run now**.
 4. Open the finished run to see its report, activity, and model cost.
