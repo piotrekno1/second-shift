@@ -18,12 +18,13 @@ from pathlib import Path
 
 from django.conf import settings
 
+from secondshift.config.constants import COMMIT_SHA_PATTERN
 from secondshift.repositories.github_sync import fetch_github_commit
 from secondshift.repositories.mirrors import has_commit, locked_mirror
 from secondshift.repositories.models import Repository
 from secondshift.repositories.snapshots import SnapshotError, write_snapshot
 
-COMMIT_SHA = re.compile(r"[0-9a-f]{40}|[0-9a-f]{64}")
+COMMIT_SHA = re.compile(COMMIT_SHA_PATTERN)
 
 
 @dataclass(frozen=True)

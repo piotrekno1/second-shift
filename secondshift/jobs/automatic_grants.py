@@ -12,13 +12,18 @@ from django.utils import timezone
 
 from secondshift.connections.external import external_access
 from secondshift.connections.models import Connection
+from secondshift.jobs.capabilities import RequestedCapability
 from secondshift.jobs.models import CapabilityRequest, JobGrant
 from secondshift.repositories.models import Repository
 
 
 def approves_automatically(
-    request: CapabilityRequest, connection: Connection, repository: Repository
+    request: CapabilityRequest | RequestedCapability,
+    connection: Connection,
+    repository: Repository,
 ) -> bool:
+    if connection.workspace_id != repository.workspace_id:
+        return False
     if connection.require_approval:
         return False
     if connection.status != Connection.Status.CONNECTED:

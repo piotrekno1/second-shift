@@ -7,6 +7,9 @@ read its keys. Values both need live here instead.
 from enum import StrEnum
 from urllib.parse import urlsplit
 
+# Git object formats supported by repository snapshots and execution plans.
+COMMIT_SHA_PATTERN = r"[0-9a-f]{40}|[0-9a-f]{64}"
+
 EXECUTE_RUN_WORKFLOW = "secondshift.execute_run"
 SCHEDULED_JOB_WORKFLOW = "secondshift.scheduled_job"
 

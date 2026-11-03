@@ -1,23 +1,32 @@
+import re
+from collections.abc import Sequence
+from copy import deepcopy
+from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any
 
 from django.conf import settings
 
-from secondshift.config.constants import AgentBackend
+from secondshift.config.constants import COMMIT_SHA_PATTERN, AgentBackend
 from secondshift.connections.external import EXTERNAL_KINDS
 from secondshift.connections.model_providers import provider_family
 from secondshift.connections.models import Connection
 from secondshift.jobs.agent_policy import AgentPolicy, agent_plan
-from secondshift.jobs.execution import job_execution, workspace_model
-from secondshift.jobs.limits import RunLimit, effective_limits
-from secondshift.jobs.models import CapabilityRequest, Job, JobGrant
+from secondshift.jobs.automatic_grants import approves_automatically
+from secondshift.jobs.capabilities import RequestedCapability, manifest_capabilities
+from secondshift.jobs.execution import workspace_execution, workspace_model
+from secondshift.jobs.limits import RunLimit, effective_limits, workspace_value
+from secondshift.jobs.manifest import JobManifest, manifest_hash
+from secondshift.jobs.models import Job, JobGrant
 from secondshift.jobs.tool_policy import authorized_tools
-from secondshift.jobs.tool_rules import broken_rules, kept_rules
+from secondshift.jobs.tool_rules import ToolRules, broken_rules, kept_rules
+from secondshift.repositories.models import Repository
+from secondshift.workspaces.models import Workspace
 
 
-def model_plan(job: Job) -> dict[str, Any] | None:
+def model_plan(workspace: Workspace) -> dict[str, Any] | None:
     """The workspace's default model provider, frozen into the run's plan."""
-    connection = workspace_model(job.workspace)
+    connection = workspace_model(workspace)
     if connection is None:
         return None
     return {
@@ -30,10 +39,33 @@ def model_plan(job: Job) -> dict[str, Any] | None:
     }
 
 
+@dataclass(frozen=True)
+class CapabilityApproval:
+    """Server-resolved policy. Never accepted from repository or client input."""
+
+    status: str
+    connection: Connection | None
+    allowed_tools: tuple[str, ...]
+    tool_rules: ToolRules = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class PlannedCapability:
+    request: RequestedCapability
+    approval: CapabilityApproval | None = None
+
+
+@dataclass(frozen=True)
+class ExecutionDefinition:
+    key: str
+    skill_path: str
+    config_hash: str
+
+
 def blocking_reasons(
-    job: Job,
-    request: CapabilityRequest,
-    grant: JobGrant | None,
+    workspace: Workspace,
+    request: RequestedCapability,
+    grant: CapabilityApproval | None,
     connection: Connection | None,
 ) -> list[str]:
     """Why a grant cannot be used for this request. Empty means it can."""
@@ -44,14 +76,9 @@ def blocking_reasons(
     elif grant.status != JobGrant.Status.APPROVED:
         reasons.append(f"grant_{grant.status}")
     if connection:
-        if connection.status != Connection.Status.CONNECTED:
-            reasons.append(f"connection_{connection.status}")
-        if connection.workspace_id != job.workspace_id:
-            reasons.append("connection_workspace_mismatch")
-        if connection.kind != request.kind:
-            reasons.append("connection_kind_mismatch")
-        if connection.binding_key != request.binding:
-            reasons.append("connection_binding_mismatch")
+        reasons.extend(connection_reasons(workspace, request, connection))
+    if grant and grant.status == JobGrant.Status.APPROVED and connection is None:
+        reasons.append("connection_missing")
     if grant and requested - set(grant.allowed_tools):
         reasons.append("tools_not_granted")
     if connection and requested - set(connection.available_tools):
@@ -59,7 +86,22 @@ def blocking_reasons(
     return reasons
 
 
-def rules_broken(grant: JobGrant, connection: Connection) -> bool:
+def connection_reasons(
+    workspace: Workspace, request: RequestedCapability, connection: Connection
+) -> list[str]:
+    reasons = []
+    if connection.status != Connection.Status.CONNECTED:
+        reasons.append(f"connection_{connection.status}")
+    if connection.workspace_id != workspace.pk:
+        reasons.append("connection_workspace_mismatch")
+    if connection.kind != request.kind:
+        reasons.append("connection_kind_mismatch")
+    if connection.binding_key != request.binding:
+        reasons.append("connection_binding_mismatch")
+    return reasons
+
+
+def rules_broken(grant: CapabilityApproval, connection: Connection) -> bool:
     """The connection's schemas changed under the owner's rules. Fail closed."""
     definitions = connection.metadata.get("tools", {})
     return bool(grant.tool_rules and broken_rules(grant.tool_rules, definitions))
@@ -75,12 +117,15 @@ class Missing(StrEnum):
 
 
 def missing_reason(
-    job: Job, request: CapabilityRequest, grant: JobGrant | None, reasons: list[str]
+    workspace: Workspace,
+    request: RequestedCapability,
+    grant: CapabilityApproval | None,
+    reasons: list[str],
 ) -> Missing:
     if grant and grant.status == JobGrant.Status.DENIED:
         return Missing.DENIED
     connection = (grant.connection if grant else None) or Connection.objects.filter(
-        workspace_id=job.workspace_id, binding_key=request.binding
+        workspace=workspace, binding_key=request.binding
     ).first()
     if connection is None or connection.status != Connection.Status.CONNECTED:
         return Missing.NOT_CONNECTED
@@ -89,21 +134,24 @@ def missing_reason(
     return Missing.UNAVAILABLE
 
 
-def capability_plan(job: Job, request: CapabilityRequest) -> dict[str, Any]:
+def capability_plan(
+    workspace: Workspace, repository: Repository, capability: PlannedCapability
+) -> dict[str, Any]:
     """One requested capability, with the tools the run may use."""
-    grant = getattr(request, "grant", None)
+    request = capability.request
+    grant = capability.approval
     connection = grant.connection if grant else None
     requested = set(request.requested_tools)
     allowed = set(grant.allowed_tools) if grant else set()
     available = set(connection.available_tools) if connection else set()
     effective = requested & allowed & available
-    reasons = blocking_reasons(job, request, grant, connection)
+    reasons = blocking_reasons(workspace, request, grant, connection)
     if grant and connection and rules_broken(grant, connection):
         reasons.append("tool_rules_broken")
 
     adapter = EXTERNAL_KINDS.get(request.kind)
     access = (
-        adapter.access(connection, job.repository)
+        adapter.access(connection, repository)
         if adapter and connection and connection.kind == request.kind
         else None
     )
@@ -123,7 +171,7 @@ def capability_plan(job: Job, request: CapabilityRequest) -> dict[str, Any]:
         "reasons": reasons,
     }
     if not authorized:
-        capability["missing"] = missing_reason(job, request, grant, reasons)
+        capability["missing"] = missing_reason(workspace, request, grant, reasons)
     if adapter and connection and access and access.scope and authorized:
         capability["external"] = adapter.freeze(connection, access.scope, effective)
         # Copied into the plan so a rule changed mid-run does not affect the run.
@@ -131,13 +179,25 @@ def capability_plan(job: Job, request: CapabilityRequest) -> dict[str, Any]:
     return capability
 
 
-def build_execution_plan(job: Job) -> dict[str, Any]:
-    """Compile the effective, redacted authorization plan for a future run."""
-    requests = job.capability_requests.select_related("grant__connection").all()
-    capabilities = [capability_plan(job, request) for request in requests]
+def compile_execution_plan(
+    workspace: Workspace,
+    repository: Repository,
+    definition: ExecutionDefinition,
+    resolved_capabilities: Sequence[PlannedCapability],
+    limits: dict[str, int],
+    commit_sha: str,
+) -> dict[str, Any]:
+    """Compile server-resolved policy into the existing versioned plan format."""
+    if repository.workspace_id != workspace.pk:
+        raise ValueError("Repository and execution policy must share a workspace.")
+    capabilities = [
+        capability_plan(workspace, repository, item) for item in resolved_capabilities
+    ]
     ready = all(item["authorized"] for item in capabilities if item["required"])
-    selection = job_execution(job)
-    model = model_plan(job) if selection.backend == AgentBackend.PYDANTIC else None
+    selection = workspace_execution(workspace)
+    model = (
+        model_plan(workspace) if selection.backend == AgentBackend.PYDANTIC else None
+    )
     execution = {
         "backend": selection.backend,
         "label": selection.label,
@@ -152,7 +212,6 @@ def build_execution_plan(job: Job) -> dict[str, Any]:
             "owner_id": connection.owner_id,
         }
     ready = ready and selection.ready
-    limits = effective_limits(job)
     agent = agent_plan(
         AgentPolicy(
             max_turns=limits[RunLimit.MAX_TURNS],
@@ -171,13 +230,13 @@ def build_execution_plan(job: Job) -> dict[str, Any]:
         "ready": ready,
         "agent": agent,
         "job": {
-            "key": job.key,
-            "skill_path": job.skill_path,
-            "config_hash": job.config_hash,
+            "key": definition.key,
+            "skill_path": definition.skill_path,
+            "config_hash": definition.config_hash,
         },
         "repository": {
-            "full_name": job.repository.full_name,
-            "config_sha": job.repository.config_sha,
+            "full_name": repository.full_name,
+            "config_sha": commit_sha,
         },
         "policy": {"mode": "workspace-grants-v1"},
         "runner": {
@@ -188,4 +247,86 @@ def build_execution_plan(job: Job) -> dict[str, Any]:
         "capabilities": capabilities,
     }
     plan["agent"]["tools"] = [tool.name for tool in authorized_tools(plan)]
-    return plan
+    return deepcopy(plan)
+
+
+def build_execution_plan(job: Job) -> dict[str, Any]:
+    """Adapt a saved job and its grants without changing existing plan payloads."""
+    capabilities = []
+    for request in job.capability_requests.select_related("grant__connection").all():
+        grant = getattr(request, "grant", None)
+        capabilities.append(
+            PlannedCapability(
+                RequestedCapability(
+                    request.binding,
+                    request.kind,
+                    tuple(request.requested_tools),
+                    request.required,
+                ),
+                CapabilityApproval(
+                    grant.status,
+                    grant.connection,
+                    tuple(grant.allowed_tools),
+                    grant.tool_rules,
+                )
+                if grant is not None
+                else None,
+            )
+        )
+    return compile_execution_plan(
+        job.workspace,
+        job.repository,
+        ExecutionDefinition(job.key, job.skill_path, job.config_hash),
+        capabilities,
+        effective_limits(job),
+        job.repository.config_sha,
+    )
+
+
+def build_skill_execution_plan(
+    repository: Repository,
+    definition: JobManifest,
+    *,
+    key: str,
+    commit_sha: str,
+) -> dict[str, Any]:
+    """Plan an ad hoc repository skill without saving jobs, requests or grants.
+
+    The caller resolves the repository revision to a commit before planning.
+    Logical capabilities use only connections that allow automatic approval;
+    grants for other jobs are never inherited. Limits and execution selection
+    come from the workspace, and sandbox policy comes from server settings.
+    This does not check out skill files or submit an execution.
+    """
+    if not re.fullmatch(COMMIT_SHA_PATTERN, commit_sha):
+        raise ValueError("A full commit SHA is required before planning a skill.")
+    requests = manifest_capabilities(definition)
+    connections = {
+        connection.binding_key: connection
+        for connection in Connection.objects.filter(
+            workspace_id=repository.workspace_id,
+            binding_key__in=[request.binding for request in requests],
+        )
+    }
+    capabilities = []
+    for request in requests:
+        connection = connections.get(request.binding)
+        approval = None
+        if connection is not None and approves_automatically(
+            request, connection, repository
+        ):
+            approval = CapabilityApproval(
+                JobGrant.Status.APPROVED, connection, request.requested_tools
+            )
+        capabilities.append(PlannedCapability(request, approval))
+    return compile_execution_plan(
+        repository.workspace,
+        repository,
+        ExecutionDefinition(key, definition.skill, manifest_hash(definition)),
+        capabilities,
+        {
+            str(limit): workspace_value(repository.workspace, limit)
+            for limit in RunLimit
+        },
+        commit_sha,
+    )
