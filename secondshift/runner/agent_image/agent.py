@@ -16,6 +16,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from secondshift.runner.agent_image.outcomes import AgentOutcome
+
 TMP = Path("/tmp")
 AUTH = Path("/auth")
 MAX_CONFIG_BYTES = 512 * 1024
@@ -28,16 +30,6 @@ TOKEN_KEYS = (
     "cache_read_input_tokens",
 )
 BROKER_TOKEN_VAR = "SECONDSHIFT_BROKER_TOKEN"
-
-# Outcome reasons. They match AgentOutcome in secondshift/config/constants.py,
-# which this file cannot import inside the agent image.
-COMPLETED = "completed"
-RECONNECT_REQUIRED = "reconnect_required"
-QUOTA_EXHAUSTED = "quota_exhausted"
-TOKEN_BUDGET_EXHAUSTED = "token_budget_exhausted"
-TURN_BUDGET_EXHAUSTED = "turn_budget_exhausted"
-AGENT_OUTPUT_LIMIT = "agent_output_limit"
-AGENT_FAILED = "agent_failed"
 
 
 @dataclass
@@ -153,7 +145,7 @@ def read_claude(event: dict[str, Any], outcome: Outcome) -> None:
         return
     outcome.usage = numbers(event.get("usage") or {})
     if event.get("subtype") == "error_max_turns":
-        outcome.reason = TURN_BUDGET_EXHAUSTED
+        outcome.reason = AgentOutcome.TURN_BUDGET_EXHAUSTED
     elif event.get("is_error", True):
         outcome.error = str(event.get("result") or event.get("errors") or "")
     else:
@@ -189,20 +181,20 @@ def failure_reason(error: str) -> str:
     """A reason the control plane can explain, from the CLI's last error."""
     text = error.lower()
     if any(word in text for word in ("rate limit", "usage limit", "quota")):
-        return QUOTA_EXHAUSTED
+        return AgentOutcome.QUOTA_EXHAUSTED
     if any(word in text for word in ("401", "unauthorized", "authenticat", "oauth")):
-        return RECONNECT_REQUIRED
-    return AGENT_FAILED
+        return AgentOutcome.RECONNECT_REQUIRED
+    return AgentOutcome.AGENT_FAILED
 
 
 def result(outcome: Outcome, exit_code: int) -> dict[str, Any]:
     if outcome.reason:
         reason = outcome.reason
     elif outcome.finished and exit_code == 0:
-        reason = COMPLETED
+        reason = AgentOutcome.COMPLETED
     else:
         reason = failure_reason(outcome.error)
-    succeeded = reason == COMPLETED
+    succeeded = reason == AgentOutcome.COMPLETED
     return {
         # A failed CLI's text is an error message, never the run's report.
         "report": outcome.report if succeeded else "",
@@ -241,7 +233,7 @@ def run(config: dict[str, Any]) -> dict[str, Any]:
             process.stdin.close()
         while line := process.stdout.readline(MAX_EVENT_BYTES + 1):
             if len(line) > MAX_EVENT_BYTES:
-                outcome.reason = AGENT_OUTPUT_LIMIT
+                outcome.reason = AgentOutcome.AGENT_OUTPUT_LIMIT
                 break
             try:
                 event = json.loads(line)
@@ -252,7 +244,7 @@ def run(config: dict[str, Any]) -> dict[str, Any]:
             if sum(outcome.usage.get(key, 0) for key in TOKEN_KEYS) >= int(
                 config["token_budget"]
             ):
-                outcome.reason = TOKEN_BUDGET_EXHAUSTED
+                outcome.reason = AgentOutcome.TOKEN_BUDGET_EXHAUSTED
                 break
         if not outcome.reason:
             # A CLI that hangs after its last event is killed below and fails.

@@ -92,7 +92,8 @@ def agent_command(session_id: str, auth_path: Path, image: str) -> list[str]:
         "--log-driver=none",
         "--entrypoint=python3",
         image,
-        "/opt/secondshift/agent.py",
+        "-m",
+        "secondshift.runner.agent_image.agent",
     ]
 
 

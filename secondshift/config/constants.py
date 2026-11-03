@@ -7,6 +7,9 @@ read its keys. Values both need live here instead.
 from enum import StrEnum
 from urllib.parse import urlsplit
 
+# Defined beside the agent so the agent image can load it too.
+from secondshift.runner.agent_image.outcomes import AgentOutcome as AgentOutcome
+
 # Git object formats supported by repository snapshots and execution plans.
 COMMIT_SHA_PATTERN = r"[0-9a-f]{40}|[0-9a-f]{64}"
 
@@ -206,21 +209,3 @@ class AgentBackend(StrEnum):
     PYDANTIC = "pydantic"
     CLAUDE_CODE = "claude_code"
     CODEX = "codex"
-
-
-class AgentOutcome(StrEnum):
-    """Why a subscription run or a login check ended.
-
-    The agent image cannot import this package, so agent.py repeats these
-    values. A test keeps the two in step.
-    """
-
-    COMPLETED = "completed"
-    RECONNECT_REQUIRED = "reconnect_required"
-    QUOTA_EXHAUSTED = "quota_exhausted"
-    TIMED_OUT = "timed_out"
-    TOKEN_BUDGET_EXHAUSTED = "token_budget_exhausted"
-    TURN_BUDGET_EXHAUSTED = "turn_budget_exhausted"
-    AGENT_OUTPUT_LIMIT = "agent_output_limit"
-    INVALID_AGENT_OUTPUT = "invalid_agent_output"
-    AGENT_FAILED = "agent_failed"
