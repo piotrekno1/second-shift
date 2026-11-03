@@ -1,12 +1,21 @@
 from django.conf import settings
 from django.db import models
 
+from secondshift.config.constants import ExecutionMode
 from secondshift.core.models import RunLimitOverrides
 
 
 class Workspace(RunLimitOverrides):
     """Who belongs and with which role is kept in WorkspaceMembership only."""
 
+    agent_mode = models.CharField(max_length=16, default=ExecutionMode.AUTO)
+    default_agent_connection = models.ForeignKey(
+        "connections.AgentConnection",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="default_workspaces",
+    )
     name = models.CharField(max_length=160)
     slug = models.SlugField(unique=True)
     created_at = models.DateTimeField(auto_now_add=True)

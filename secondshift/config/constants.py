@@ -181,3 +181,9 @@ class AgentBackend(StrEnum):
     PYDANTIC = "pydantic"
     CLAUDE_CODE = "claude_code"
     CODEX = "codex"
+
+
+class ExecutionMode(StrEnum):
+    AUTO = "auto"
+    MODEL = "model"
+    SUBSCRIPTION = "subscription"

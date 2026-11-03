@@ -3,42 +3,16 @@ from typing import Any
 
 from django.conf import settings
 
+from secondshift.config.constants import AgentBackend
 from secondshift.connections.external import EXTERNAL_KINDS
 from secondshift.connections.model_providers import provider_family
 from secondshift.connections.models import Connection
 from secondshift.jobs.agent_policy import AgentPolicy, agent_plan
+from secondshift.jobs.execution import job_execution, workspace_model
 from secondshift.jobs.limits import RunLimit, effective_limits
 from secondshift.jobs.models import CapabilityRequest, Job, JobGrant
 from secondshift.jobs.tool_policy import authorized_tools
 from secondshift.jobs.tool_rules import broken_rules, kept_rules
-from secondshift.workspaces.models import Workspace
-
-
-def default_model_connection(workspace: Workspace) -> Connection | None:
-    """The connected model provider marked as the workspace default."""
-    return Connection.objects.filter(
-        workspace=workspace,
-        kind=Connection.Kind.MODEL,
-        is_default=True,
-        status=Connection.Status.CONNECTED,
-    ).first()
-
-
-def model_problem(model: Connection | None) -> str:
-    """Why runs cannot use this default model provider, or empty when they can."""
-    if model is None:
-        return "No default model provider is connected."
-    if not model.default_model.strip():
-        return f"The default model provider {model.display_name} has no model selected."
-    if (model.metadata.get("last_check") or {}).get("ok") is False:
-        return f"The default model provider {model.display_name} failed its last check."
-    return ""
-
-
-def workspace_model(workspace: Workspace) -> Connection | None:
-    """The default model provider, if runs can use it."""
-    model = default_model_connection(workspace)
-    return None if model_problem(model) else model
 
 
 def model_plan(job: Job) -> dict[str, Any] | None:
@@ -162,9 +136,23 @@ def build_execution_plan(job: Job) -> dict[str, Any]:
     requests = job.capability_requests.select_related("grant__connection").all()
     capabilities = [capability_plan(job, request) for request in requests]
     ready = all(item["authorized"] for item in capabilities if item["required"])
-    model = model_plan(job)
-    if model is None:
-        ready = False
+    selection = job_execution(job)
+    model = model_plan(job) if selection.backend == AgentBackend.PYDANTIC else None
+    execution = {
+        "backend": selection.backend,
+        "source": selection.source,
+        "label": selection.label,
+        "ready": selection.ready,
+        "problem": selection.problem,
+    }
+    if selection.connection is not None:
+        connection = selection.connection
+        execution |= {
+            "connection_id": connection.pk,
+            "credential_key": str(connection.credential_key),
+            "owner_id": connection.owner_id,
+        }
+    ready = ready and selection.ready
     limits = effective_limits(job)
     agent = agent_plan(
         AgentPolicy(
@@ -180,6 +168,7 @@ def build_execution_plan(job: Job) -> dict[str, Any]:
     }
     plan = {
         "version": 5,
+        "execution": execution,
         "ready": ready,
         "agent": agent,
         "job": {

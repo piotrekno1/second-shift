@@ -4,6 +4,7 @@ from typing import Annotated, Any, Literal
 from ninja import Schema
 from pydantic import Field
 
+from secondshift.config.constants import AgentBackend
 from secondshift.connections.schemas import ConnectionSchema
 from secondshift.runs.schemas import RunSchema
 
@@ -96,6 +97,10 @@ class LastRunSchema(Schema):
 
 class JobSchema(Schema):
     id: int
+    execution_backend: str = AgentBackend.PYDANTIC
+    execution_label: str = ""
+    execution_source: str = ""
+    execution_problem: str = ""
     name: str
     repository_id: int
     repository: str
@@ -159,3 +164,20 @@ class JobDetailSchema(JobSchema):
     recent_runs: list[RunSchema]
     limits: list[LimitSchema]
     can_edit_limits: bool
+
+
+class ExecutionChoiceSchema(Schema):
+    key: str
+    label: str
+    disabled: bool = False
+
+
+class ExecutionConfigurationSchema(Schema):
+    enabled: bool
+    choices: list[ExecutionChoiceSchema]
+    selection_key: str
+    effective_key: str
+    effective_label: str
+    effective_backend: str
+    ready: bool
+    problem: str
