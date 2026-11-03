@@ -103,7 +103,8 @@ An ID from another workspace is reported as not found.
 | `list_runs` | `read` | `job_id?`, `repository_id?`, `status?`, `period?`, `page?`, `page_size?` | A page of runs, newest first, with status, times and token usage. Page size is at most 50. |
 | `get_run` | `read` | `run_id` | Status, events, model usage and the start of the output. |
 | `get_run_report` | `read` | `run_id` | The run's Markdown report. A report over 200 KB is cut and marked as cut. |
-| `submit_task` | `run` | `repository_id`, `definition`, `idempotency_key`, `revision?`, `input?` | The assignment ID, `run` details and whether a new run started. |
+| `submit_task` | `run` | `repository_id`, `definition`, `idempotency_key`, `revision?`, `input?`, `not_before?` | The assignment ID, `run` details and whether a new run was accepted. |
+| `cancel_task` | `run` | `run_id` | Cancel an ad hoc task that has not started. |
 | `run_job` | `run` | `job_id` | The new run's ID and status. Poll `get_run` to follow it. |
 | `sync_repository` | `run` | `repository_id` | The synced commit, whether the manifest is valid, and the repository's jobs. |
 
@@ -161,9 +162,27 @@ Changes to the branch after acceptance do not alter it.
 Reuse the same key with identical arguments when retrying after a lost response.
 The result returns the original run with `started: false`; changed arguments or
 a different submitter using that key are refused. Keys are scoped to a repository
-and retained for the task's retention window. One standalone task per repository
-may be queued or running. A different submission while one is active is refused
-and names that run.
+and retained for the task's retention window. `started: true` means a new run was
+accepted; execution can still be queued. Multiple tasks can wait for a repository,
+up to `SECONDSHIFT_TASK_QUEUE_LIMIT` (100 unfinished tasks by default). Only one
+ad hoc run per repository is dispatched at a time. Saved jobs retain their
+existing overlap rules.
+
+Set `not_before` to a timezone-aware ISO timestamp, for example
+`"2026-11-04T01:00:00+01:00"`, to defer execution. Omit it to run when capacity is
+available; past times are immediately eligible. The commit is pinned at
+submission, even for a delayed task. Eligible tasks run in requested-start order,
+then acceptance order; a future task does not block an immediate one. The worker
+checks waiting tasks every 15 seconds by default and recovers submissions after
+a restart or execution-queue outage. This is an earliest start, not a guaranteed
+execution time. Repository state and the submitter's role are checked again
+before execution. Use `cancel_task` or **Cancel task** on the run page before it
+starts. Cancellation is idempotent; running tasks cannot be canceled this way.
+
+HTTP clients use `POST /api/tasks` with the same submission fields and
+`POST /api/runs/{run_id}/cancel` to cancel a queued ad hoc task. Both require
+workspace run permission. Queue saturation is a 409 refusal; a retry with the
+original key still returns the accepted run.
 
 Standalone tasks can use only connections that do not require approval, within
 their permitted tools and repository scope. An existing job's grant cannot

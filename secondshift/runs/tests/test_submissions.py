@@ -46,7 +46,7 @@ from secondshift.runs.reporting.notifications import (
     run_report_payload,
 )
 from secondshift.runs.retention import prune_runs
-from secondshift.runs.services import RunInProgress, RunRefused
+from secondshift.runs.services import RunRefused
 from secondshift.runs.submissions import SkillSubmission, submit_skill
 from secondshift.workspaces.models import WorkspaceMembership
 from secondshift.workspaces.services import create_workspace
@@ -176,16 +176,16 @@ def test_symlink_skill_is_rejected(repository: Repository, owner: User) -> None:
     assert not Task.objects.exists()
 
 
-def test_refuses_busy_repository_and_conflicting_retry(
+def test_accepts_backlog_but_refuses_conflicting_retry(
     repository: Repository, owner: User
 ) -> None:
     run = start(repository, owner)
-    with pytest.raises(RunInProgress) as conflict:
-        start(repository, owner, idempotency_key="different")
-    assert conflict.value.run.pk == run.pk
+    following = start(repository, owner, idempotency_key="different")
+    assert following.pk != run.pk
+    assert following.status == run.status == Run.Status.QUEUED
     with pytest.raises(RunRefused, match="different submission"):
         start(repository, owner, input="Different scope")
-    assert Task.objects.count() == Run.objects.count() == 1
+    assert Task.objects.count() == Run.objects.count() == 2
 
 
 def test_new_submission_allowed_after_completion(

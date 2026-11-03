@@ -62,6 +62,8 @@ needed by web for GitHub repository imports, and the token is shared with runner
 | Variable | Meaning and default |
 | --- | --- |
 | `SECONDSHIFT_RUN_CONCURRENCY` | Number of job runs this background-worker process can execute concurrently. Default `2`. Independent of HTTP server process count. |
+| `SECONDSHIFT_RUN_GLOBAL_CONCURRENCY` | Maximum runs executing across all workers sharing the execution queue. Default `0` leaves this unlimited, preserving the per-worker behavior. A positive limit also caps each worker to that number. Applies to scheduled, manual, webhook and ad hoc runs. Restart workers after changing it. |
+| `SECONDSHIFT_TASK_QUEUE_LIMIT` | Maximum accepted unfinished ad hoc tasks per repository, including queued and running tasks. Default `100`; must be positive. Identical idempotent retries still return their original run when the queue is full. |
 | `SECONDSHIFT_JOB_HISTORY_MAX` | The most earlier reports a job can ask for with `history`. A manifest above it fails to sync. Lowering it also caps jobs already synced. `0` turns history off. Default `5`. |
 | `SECONDSHIFT_RUN_HISTORY_MAX_CHARS` | Total characters of a job's earlier reports a run starts with, when the job sets `history`. Newest first. What does not fit is cut or left out. Default `65536`. |
 | `SECONDSHIFT_WORKFLOW_DATABASE_URL` | Optional DBOS workflow database URL, also needed by web when set. Defaults to `SECONDSHIFT_DATABASE_URL`. Back it up consistently with the application database. |

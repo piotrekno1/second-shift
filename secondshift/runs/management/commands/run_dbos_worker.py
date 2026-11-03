@@ -16,6 +16,7 @@ from secondshift.runs.orchestration.dbos_runtime import (
     launch_dbos_worker,
     new_dbos_client,
 )
+from secondshift.runs.orchestration.dispatch import dispatch_waiting_tasks
 from secondshift.runs.orchestration.periodic import PeriodicTask
 from secondshift.runs.orchestration.reconciliation import reconcile_terminal_workflows
 from secondshift.runs.retention import prune_runs
@@ -52,6 +53,7 @@ def worker_tasks(client: DBOSClient) -> list[PeriodicTask]:
 
     return [
         PeriodicTask("reconcile runs", every=0, run=reconcile),
+        PeriodicTask("dispatch waiting tasks", every=0, run=dispatch_waiting_tasks),
         PeriodicTask("sync schedules", every=0, run=schedules),
         PeriodicTask("prune runs", every=PRUNE_INTERVAL_SECONDS, run=prune),
         PeriodicTask(

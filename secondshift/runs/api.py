@@ -8,6 +8,7 @@ from secondshift.jobs.access import job_for_request
 from secondshift.repositories.access import repository_for_request
 from secondshift.runs.access import run_for_request
 from secondshift.runs.artifacts import artifact_storage
+from secondshift.runs.queue import cancel_queued_task
 from secondshift.runs.reporting.queries import RunFilters, run_page
 from secondshift.runs.schemas import (
     RunDetailSchema,
@@ -32,6 +33,16 @@ from secondshift.workspaces.access import (
 )
 
 router = Router(auth=django_auth, tags=["runs"])
+
+
+@router.post("/runs/{run_id}/cancel", response=RunSchema)
+def cancel_task(request: HttpRequest, run_id: int) -> RunSchema:
+    require(request, Action.RUN_JOBS)
+    run = run_for_request(request, run_id)
+    try:
+        return serialize_run(cancel_queued_task(run))
+    except RunRefused as error:
+        raise HttpError(409, str(error)) from error
 
 
 @router.get("/runs", response=RunPageSchema)

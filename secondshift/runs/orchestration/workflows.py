@@ -3,6 +3,7 @@ from datetime import datetime
 from typing import Any
 
 from dbos import DBOS
+from django.db import transaction
 from django.utils import timezone
 
 from secondshift.config.constants import (
@@ -30,6 +31,7 @@ from secondshift.runs.execution.deadlines import (
 )
 from secondshift.runs.execution.run import execute_agent_run
 from secondshift.runs.models import Run, RunEvent
+from secondshift.runs.orchestration.admission import task_admission_problem
 from secondshift.runs.orchestration.reconciliation import mark_run_terminal
 from secondshift.runs.reporting.failures import failure_metadata, failure_summary
 from secondshift.runs.reporting.notifications import (
@@ -64,15 +66,31 @@ def create_scheduled_run_step(scheduled_time: datetime, context: Any) -> int | N
 
 
 @DBOS.step(name="secondshift.mark_run_started")
-def mark_run_started_step(run_id: int) -> None:
+@transaction.atomic
+def mark_run_started_step(run_id: int) -> bool:
+    run = Run.objects.select_related("task").get(pk=run_id)
+    if run.job_id is None:
+        repository = Repository.objects.select_for_update().get(
+            pk=run.task.repository_id
+        )
+        run.refresh_from_db()
+        if problem := task_admission_problem(run, repository):
+            mark_run_terminal(
+                run.pk, Run.Status.FAILED, problem, workflow_status="NOT_ADMITTED"
+            )
+            return False
+    if run.status == Run.Status.RUNNING and run.dbos_workflow_id == DBOS.workflow_id:
+        # The application commit may precede DBOS persisting this step's result.
+        return True
     started = Run.objects.filter(pk=run_id, status=Run.Status.QUEUED).update(
         status=Run.Status.RUNNING,
         started_at=timezone.now(),
         sandbox_runtime=RunSandbox.PENDING,
-        dbos_workflow_id=DBOS.workflow_id,
+        dbos_workflow_id=DBOS.workflow_id or run.dbos_workflow_id,
     )
     if started:
         RunEvent.objects.create(run_id=run_id, message="Run started.")
+    return bool(started)
 
 
 @DBOS.step(name="secondshift.record_run_event")
@@ -279,7 +297,9 @@ def execute_run(run_id: int) -> None:
     timeout_seconds = 0
     stage = "starting"
     try:
-        mark_run_started_step(run_id)
+        # Older completed steps returned None; preserve their replay behavior.
+        if mark_run_started_step(run_id) is False:
+            return
         stage = "checkout"
         prepare_source_step(run_id)
         stage = "sandbox"
