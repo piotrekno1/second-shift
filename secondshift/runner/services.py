@@ -217,6 +217,7 @@ class DockerRunnerService(RunnerBackend):
             session.save(update_fields=("status", "updated_at"))
             container_name = session.container_name
             workspace = Path(session.workspace_path)
+        self.remove_container(f"secondshift-agent-{session_id}")
         self.remove_container(container_name)
         self.remove_workspace(workspace.parent)
 

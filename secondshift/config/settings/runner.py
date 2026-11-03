@@ -104,3 +104,14 @@ if os.geteuid() != 0 and (
 LOGGING = logging_config(
     env.str(AppEnv.LOG_LEVEL, default="INFO").upper(), Service.RUNNER
 )
+
+
+# Opt-in CLI execution. No image is pulled or agent started by default.
+AGENT_IMAGE = env.str(AppEnv.AGENT_IMAGE, default="")
+AGENT_NETWORK = env.str(AppEnv.AGENT_NETWORK, default="bridge")
+AGENT_BROKER_URL = env.str(AppEnv.AGENT_BROKER_URL, default="")
+
+AGENT_AUTH_ROOT = RUNNER_WORK_ROOT / "agent-auth"
+
+if AGENT_IMAGE:
+    DATA_UPLOAD_MAX_MEMORY_SIZE = 512 * 1024
