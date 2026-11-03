@@ -8,7 +8,8 @@ from pathlib import Path
 from django.conf import settings
 from django.db import IntegrityError, transaction
 
-from secondshift.config.constants import SandboxRuntime
+from secondshift.config.constants import SANDBOX_OUTPUTS_DIR, SandboxRuntime
+from secondshift.runner.collection import OUTPUTS_DIR, collect, record_baseline
 from secondshift.runner.models import RunnerCommand, RunnerSession
 from secondshift.runner.protocol import (
     CommandRequest,
@@ -116,9 +117,13 @@ class DockerRunnerService(RunnerBackend):
         self.remove_container(container_name)
         self.remove_workspace(session_root)
         workspace.mkdir(parents=True, mode=0o700)
+        outputs = session_root / OUTPUTS_DIR
+        outputs.mkdir(mode=0o700)
         try:
             unpack_source(spec.source_sha256, workspace)
+            record_baseline(session_root, workspace)
             self.prepare_workspace_permissions(workspace)
+            self.prepare_workspace_permissions(outputs)
             completed = self.run_command(
                 self.create_command(spec, container_name, workspace)
             )
@@ -204,6 +209,27 @@ class DockerRunnerService(RunnerBackend):
             return result
         finally:
             output_path.unlink(missing_ok=True)
+
+    def collect(self, session_id: str) -> Path:
+        """Stop the sandbox and archive its changes and saved files.
+
+        The sandbox stops first, so nothing changes the files while the runner
+        reads them. Asking again returns the same archive.
+        """
+        try:
+            session = RunnerSession.objects.get(session_id=session_id)
+        except RunnerSession.DoesNotExist as error:
+            raise RunnerProtocolError("Unknown runner session.") from error
+        if session.status != RunnerSession.Status.ACTIVE:
+            raise RunnerProtocolError("The session has ended, so its files are gone.")
+        workspace = Path(session.workspace_path)
+        session_root = workspace.parent.resolve()
+        self.require_owned_path(session_root)
+        self.remove_container(f"secondshift-agent-{session_id}")
+        self.run_command(["docker", "kill", session.container_name])
+        if self.container_running(session.container_name):
+            raise RunnerProtocolError("The runner could not stop the sandbox.")
+        return collect(session_root, workspace)
 
     def stop(self, session_id: str) -> None:
         with transaction.atomic():
@@ -298,6 +324,9 @@ class DockerRunnerService(RunnerBackend):
             "--tmpfs=/tmp:rw,noexec,nosuid,size=256m",
             # Bind mounts are writable by default; Docker rejects a bare "rw" field.
             f"--mount=type=bind,src={workspace},dst=/workspace",
+            # Files the agent hands back. The runner collects them at the end.
+            f"--mount=type=bind,src={workspace.parent / OUTPUTS_DIR},"
+            f"dst={SANDBOX_OUTPUTS_DIR}",
             "--workdir=/workspace",
             f"--user={settings.RUNNER_SANDBOX_UID}:{settings.RUNNER_SANDBOX_GID}",
             "--env=HOME=/tmp",

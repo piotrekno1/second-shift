@@ -81,6 +81,13 @@ GITHUB_REPOSITORY_PATTERN = r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+"
 MAX_SOURCE_SNAPSHOT_BYTES = 64 * 1024 * 1024
 MAX_SOURCE_UNPACKED_BYTES = 1024 * 1024 * 1024
 MAX_SOURCE_FILES = 200_000
+# Limits for what a run leaves behind: the agent's file changes, and the files
+# it saves in /outputs. The runner applies them, and the control plane again.
+MAX_CHANGES_BYTES = 20 * 1024 * 1024
+MAX_OUTPUT_FILES = 100
+MAX_OUTPUT_BYTES = 100 * 1024 * 1024
+# Where a sandbox finds the folder for files it wants to hand back.
+SANDBOX_OUTPUTS_DIR = "/outputs"
 GITHUB_MCP_URL = "https://api.githubcopilot.com/mcp/readonly"
 # The model gateway refuses a run past its token budget with this message.
 TOKEN_BUDGET_MESSAGE = "This run has used its token budget."

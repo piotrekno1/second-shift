@@ -1,7 +1,7 @@
 import hmac
 
 from django.conf import settings
-from django.http import HttpRequest
+from django.http import FileResponse, HttpRequest
 from ninja import NinjaAPI, Status
 from ninja.security import HttpBearer
 
@@ -72,6 +72,13 @@ def start_session(request: HttpRequest, payload: SessionInput):
 def execute_command(request: HttpRequest, session_id: str, payload: CommandInput):
     command = CommandRequest(**{**payload.model_dump(), "argv": tuple(payload.argv)})
     return get_runner_service().execute(session_id, command)
+
+
+@api.post("/v1/sessions/{session_id}/collection")
+def collect_session(request: HttpRequest, session_id: str) -> FileResponse:
+    """Stop the sandbox and return its changes and saved files as one archive."""
+    archive = get_runner_service().collect(session_id)
+    return FileResponse(archive.open("rb"), content_type="application/gzip")
 
 
 @api.delete("/v1/sessions/{session_id}", response={204: None})
