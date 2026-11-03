@@ -1,3 +1,4 @@
+import json
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -14,7 +15,6 @@ from secondshift.runner.agent_credentials import (
     provisioning_public_key,
 )
 from secondshift.runner.agent_image import agent
-from secondshift.runner.agent_image.agent import event_result, failure_reason
 from secondshift.runner.agent_protocol import AgentInput
 from secondshift.runner.agents import agent_command, require_agent_configuration
 from secondshift.runner.models import RunnerSession
@@ -81,25 +81,38 @@ def test_local_content_address_is_a_pinned_agent_image(
     verify.assert_called_once()
 
 
-def test_packaged_agents_disable_native_shell_and_use_only_broker(
+BROKER = {
+    "broker_url": "http://gateway:8001/gateway/agent/mcp",
+    "broker_token": "broker-secret",
+    "max_turns": 4,
+}
+
+
+def test_packaged_agents_disable_native_tools_and_use_only_the_broker(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    (tmp_path / "tmp").mkdir()
-    (tmp_path / "auth").mkdir()
-    (tmp_path / "auth" / "claude-token").write_text(TOKEN)
-    monkeypatch.setenv("CLAUDE_CODE_OAUTH_TOKEN", "")
-    monkeypatch.setattr(agent, "Path", lambda path: tmp_path / path.lstrip("/"))
-    command = agent.command(
-        {"backend": "claude_code", "prompt": "read skill", "max_turns": 4}
-    )
-    assert command[command.index("--tools") + 1] == ""
-    assert "--strict-mcp-config" in command
-    assert TOKEN not in str(command)
-    command = agent.command(
-        {"backend": "codex", "prompt": "read skill", "max_turns": 4}
-    )
-    assert "--skip-git-repo-check" in command
-    config = (tmp_path / "auth" / "config.toml").read_text()
+    monkeypatch.setattr(agent, "TMP", tmp_path)
+    monkeypatch.setattr(agent, "AUTH", tmp_path)
+    (tmp_path / "claude-token").write_text(TOKEN)
+
+    argv, env = agent.claude(BROKER)
+    assert argv[argv.index("--tools") + 1] == ""
+    assert "--strict-mcp-config" in argv
+    assert env == {"CLAUDE_CODE_OAUTH_TOKEN": TOKEN}
+    assert TOKEN not in str(argv) and "broker-secret" not in str(argv)
+    server = json.loads((tmp_path / "mcp.json").read_text())["mcpServers"]
+    assert server == {
+        "secondshift": {
+            "type": "http",
+            "url": BROKER["broker_url"],
+            "headers": {"Authorization": "Bearer broker-secret"},
+        }
+    }
+
+    argv, env = agent.codex(BROKER)
+    assert "--skip-git-repo-check" in argv
+    assert env == {"SECONDSHIFT_BROKER_TOKEN": "broker-secret"}
+    config = (tmp_path / "config.toml").read_text()
     for feature in (
         "shell_tool",
         "unified_exec",
@@ -112,36 +125,82 @@ def test_packaged_agents_disable_native_shell_and_use_only_broker(
     ):
         assert f"{feature} = false" in config
     assert 'web_search = "disabled"' in config
-    assert "mcp_servers.secondshift" in config
+    assert f'url = "{BROKER["broker_url"]}"' in config
+    assert 'bearer_token_env_var = "SECONDSHIFT_BROKER_TOKEN"' in config
+    assert "broker-secret" not in config
+
+
+def outcome_of(read: Any, events: list[dict[str, Any]], exit_code: int = 0) -> Any:
+    outcome = agent.Outcome()
+    for event in events:
+        read(event, outcome)
+    return agent.result(outcome, exit_code)
 
 
 def test_agent_events_keep_only_final_report_and_numeric_usage() -> None:
-    report, usage, success = event_result(
-        {
-            "type": "result",
-            "result": "Done",
-            "is_error": False,
-            "usage": {"input_tokens": 20, "secret": TOKEN},
-            "stderr": TOKEN,
-        },
-        "claude_code",
-        "",
+    done = outcome_of(
+        agent.read_claude,
+        [
+            {
+                "type": "result",
+                "result": "Done",
+                "is_error": False,
+                "usage": {"input_tokens": 20, "secret": TOKEN},
+                "stderr": TOKEN,
+            }
+        ],
     )
-    assert (report, usage, success) == ("Done", {"input_tokens": 20}, True)
-    assert (
-        failure_reason({"type": "result", "errors": ["OAuth token expired"]})
-        == "reconnect_required"
+    assert done == {
+        "report": "Done",
+        "succeeded": True,
+        "reason": "completed",
+        "usage": {"input_tokens": 20},
+    }
+    codex_done = outcome_of(
+        agent.read_codex,
+        [
+            {"type": "item.completed", "item": {"type": "agent_message", "text": "Hi"}},
+            {"type": "turn.completed", "usage": {"output_tokens": 3}},
+        ],
     )
-    assert (
-        failure_reason({"type": "turn.failed", "error": {"message": "rate limit"}})
-        == "quota_exhausted"
-    )
-    assert (
-        event_result(
-            {"type": "result", "result": "", "is_error": True}, "claude_code", ""
-        )[2]
-        is False
-    )
+    assert codex_done["report"] == "Hi" and codex_done["succeeded"] is True
+    # A failing CLI exit code never counts as success.
+    assert outcome_of(agent.read_codex, [], exit_code=0)["reason"] == "agent_failed"
+
+
+@pytest.mark.parametrize(
+    ("read", "events", "reason"),
+    [
+        (
+            agent.read_claude,
+            [
+                {
+                    "type": "result",
+                    "is_error": True,
+                    "result": "API Error: 401 Invalid bearer token",
+                }
+            ],
+            "reconnect_required",
+        ),
+        (
+            agent.read_claude,
+            [{"type": "result", "subtype": "error_max_turns", "is_error": True}],
+            "turn_budget_exhausted",
+        ),
+        (
+            agent.read_codex,
+            [{"type": "turn.failed", "error": {"message": "You hit your usage limit"}}],
+            "quota_exhausted",
+        ),
+    ],
+)
+def test_failed_agents_return_a_reason_but_never_their_error_text(
+    read: Any, events: list[dict[str, Any]], reason: str
+) -> None:
+    failed = outcome_of(read, events)
+    assert failed["reason"] == reason
+    assert failed["succeeded"] is False
+    assert failed["report"] == ""
 
 
 def test_agent_provisioning_encrypts_credentials_for_only_its_runner(
