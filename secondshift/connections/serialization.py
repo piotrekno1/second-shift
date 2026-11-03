@@ -1,5 +1,5 @@
 from secondshift.connections.mcp.oauth import requested_scopes
-from secondshift.connections.models import Connection
+from secondshift.connections.models import AgentConnection, Connection
 from secondshift.connections.schemas import (
     ConnectionSchema,
     ConnectionUsageSchema,
@@ -8,7 +8,10 @@ from secondshift.connections.schemas import (
 from secondshift.connections.services import (
     connection_target,
 )
-from secondshift.runs.reporting.connection_usage import ConnectionUsage
+from secondshift.runs.reporting.connection_usage import (
+    ConnectionUsage,
+    agent_login_runs,
+)
 
 
 def connection_settings_view(connection: Connection) -> dict[str, str]:
@@ -76,3 +79,13 @@ def serialize_connection(
             **{**vars(usage), "spend_7d_usd": float(usage.spend_7d_usd)}
         ),
     )
+
+
+def with_recent_runs(
+    connections: list[AgentConnection], workspace_id: int
+) -> list[AgentConnection]:
+    """Attach each login's recent run count for AgentConnectionSchema."""
+    counts = agent_login_runs(workspace_id)
+    for connection in connections:
+        connection.recent_runs = counts[connection.pk]
+    return connections

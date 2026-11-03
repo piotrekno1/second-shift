@@ -50,6 +50,7 @@ from secondshift.connections.models import AgentConnection, Connection, Secret
 from secondshift.connections.schemas import (
     AgentConnectionInput,
     AgentConnectionSchema,
+    AgentRunLimitInput,
     APIConnectionCreateSchema,
     APIConnectionUpdateSchema,
     APISpecSchema,
@@ -71,7 +72,10 @@ from secondshift.connections.schemas import (
     WebhookConnectionUpdateSchema,
     WebhookSampleSchema,
 )
-from secondshift.connections.serialization import serialize_connection
+from secondshift.connections.serialization import (
+    serialize_connection,
+    with_recent_runs,
+)
 from secondshift.connections.services import (
     ConnectionConflict,
     create_webhook_connection,
@@ -613,8 +617,10 @@ def secrets(request: HttpRequest) -> list[SecretSchema]:
 @router.get("/agent-connections", response=list[AgentConnectionSchema])
 def agent_connections(request: HttpRequest) -> list[AgentConnection]:
     workspace = current_workspace(request)
-    return (
-        list(AgentConnection.objects.filter(workspace=workspace)) if workspace else []
+    if not workspace:
+        return []
+    return with_recent_runs(
+        list(AgentConnection.objects.filter(workspace=workspace)), workspace.pk
     )
 
 
@@ -657,6 +663,22 @@ def reconnect_agent(
         raise HttpError(422, str(error)) from None
     except RunnerCleanupPending as error:
         raise HttpError(503, str(error)) from None
+
+
+@router.post(
+    "/agent-connections/{connection_id}/run-limit", response=AgentConnectionSchema
+)
+def set_agent_run_limit(
+    request: HttpRequest, connection_id: int, payload: AgentRunLimitInput
+) -> AgentConnection:
+    """Only the login's owner sets its cap. It is their subscription."""
+    workspace = require(request, Action.EDIT_CONNECTIONS)
+    connection = get_object_or_404(
+        AgentConnection, pk=connection_id, workspace=workspace, owner=request.user
+    )
+    connection.max_runs_per_day = payload.max_runs_per_day
+    connection.save(update_fields=["max_runs_per_day", "updated_at"])
+    return with_recent_runs([connection], workspace.pk)[0]
 
 
 @router.delete("/agent-connections/{connection_id}", response={204: None})

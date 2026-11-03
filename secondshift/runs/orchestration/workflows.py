@@ -14,6 +14,7 @@ from secondshift.connections.models import Connection
 from secondshift.connections.webhooks import deliver_webhook
 from secondshift.gateway.tokens import revoke_run_tokens
 from secondshift.jobs.models import Job
+from secondshift.jobs.readiness import plan_problems
 from secondshift.jobs.scheduling import next_occurrence
 from secondshift.repositories.github_sync import github_repository_metadata
 from secondshift.repositories.models import Repository
@@ -112,7 +113,10 @@ def start_runner_session_step(run_id: int) -> str:
     run = Run.objects.select_related("job__repository").get(pk=run_id)
     plan = run.execution_plan
     if not plan.get("ready", False):
-        raise RuntimeError("The frozen execution plan is not ready.")
+        problems = plan_problems(run.job, plan)
+        raise RuntimeError(
+            " ".join(problems) or "The frozen execution plan is not ready."
+        )
     runner_plan = plan.get("runner", {})
     if runner_plan.get("network_policy") != "none":
         raise RuntimeError("The execution plan does not require an offline sandbox.")

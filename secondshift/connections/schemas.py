@@ -220,6 +220,9 @@ class AgentConnectionSchema(Schema):
     connected: bool
     owner_id: int
     updated_at: datetime
+    max_runs_per_day: int | None = None
+    # Runs in the last 24 hours, the window the cap counts over.
+    recent_runs: int = 0
     can_manage: bool = False
 
     @staticmethod
@@ -228,6 +231,11 @@ class AgentConnectionSchema(Schema):
         return obj.owner_id == request.user.pk and allows(
             request, Action.EDIT_CONNECTIONS
         )
+
+
+class AgentRunLimitInput(Schema):
+    # Empty removes the cap.
+    max_runs_per_day: int | None = Field(default=None, ge=1, le=1000)
 
 
 class AgentConnectionInput(Schema):

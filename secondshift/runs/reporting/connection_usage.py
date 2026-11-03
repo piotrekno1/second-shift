@@ -1,5 +1,6 @@
 """How each connection is used: by which jobs, and for model providers, at what cost."""
 
+from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from decimal import Decimal
@@ -9,9 +10,12 @@ from django.utils import timezone
 
 from secondshift.gateway.models import ModelUsage
 from secondshift.jobs.models import JobGrant
+from secondshift.runs.models import Run
 from secondshift.workspaces.models import Workspace
 
 WINDOW = timedelta(days=7)
+# The window an agent login's run cap counts over.
+RUN_CAP_WINDOW = timedelta(hours=24)
 
 
 @dataclass(frozen=True)
@@ -63,3 +67,20 @@ def connection_usage(
             last_used_at=row.get("last"),
         )
     return usage
+
+
+def agent_login_runs(workspace_id: int, now: datetime | None = None) -> Counter[int]:
+    """Runs per agent login in the last 24 hours.
+
+    Only runs whose plan was ready count. A run refused at its start never
+    used the login.
+    """
+    start = (now or timezone.now()) - RUN_CAP_WINDOW
+    return Counter(
+        Run.objects.filter(
+            job__workspace_id=workspace_id,
+            created_at__gte=start,
+            execution_plan__ready=True,
+            execution_plan__execution__connection_id__isnull=False,
+        ).values_list("execution_plan__execution__connection_id", flat=True)
+    )
