@@ -22,6 +22,7 @@ export const Action = {
   EnableJobs: 'enable jobs',
   RunJobs: 'run jobs',
   ManageTriggers: 'turn job triggers on or off',
+  AllowPullRequests: 'let tasks open pull requests',
 } as const
 
 export type Action = (typeof Action)[keyof typeof Action]

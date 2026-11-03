@@ -150,6 +150,19 @@ async function toggleAutoSync(): Promise<void> {
   }
 }
 
+async function setPullRequests(allow: boolean, runCi: boolean): Promise<void> {
+  if (!repository.value) return
+  action.value = 'pull-requests'
+  error.value = null
+  try {
+    repository.value = await apiPost<RepositoryDetail>(`/repositories/${repositoryId}/pull-requests`, { allow, run_ci: runCi })
+  } catch (changeError) {
+    error.value = changeError instanceof Error ? changeError.message : 'Unable to change pull request settings'
+  } finally {
+    action.value = null
+  }
+}
+
 const autoSyncLabel = computed(() => {
   if (!repository.value?.auto_sync) return 'Off'
   return repository.value.server_syncs ? 'On' : 'Off on this server'
@@ -217,7 +230,7 @@ onMounted(loadRepository)
     <div v-else-if="!repository" class="panel empty-state"><AppIcon name="alert-outline" /><strong>Repository unavailable</strong><span>{{ error }}</span></div>
     <template v-else>
       <p v-if="error" class="page-error">{{ error }}</p>
-      <TaskSubmissionForm v-if="showTaskForm && repository.enabled && app.can(Action.RunJobs)" :repository-id="repositoryId" :repository-name="repository.display_name" :default-branch="repository.default_branch" @cancel="showTaskForm = false" />
+      <TaskSubmissionForm v-if="showTaskForm && repository.enabled && app.can(Action.RunJobs)" :repository-id="repositoryId" :repository-name="repository.display_name" :default-branch="repository.default_branch" :allows-pull-requests="repository.allow_pull_requests" @cancel="showTaskForm = false" />
 
       <section v-if="!setupComplete || justAdded" class="panel repository-setup" :class="{ complete: setupComplete }">
         <div class="setup-status-icon"><AppIcon :name="setupComplete ? 'check-decagram-outline' : 'progress-check'" /></div>
@@ -282,6 +295,20 @@ onMounted(loadRepository)
             <dd class="auto-sync" :title="autoSyncHelp">
               <span>{{ autoSyncLabel }}</span>
               <button v-if="app.can(Action.ChangeRepositoryState)" type="button" class="link-button" :disabled="action === 'auto-sync'" @click="toggleAutoSync">{{ repository.auto_sync ? 'Turn off' : 'Turn on' }}</button>
+            </dd>
+          </div>
+          <div v-if="repository.can_open_pull_requests">
+            <dt>Draft pull requests</dt>
+            <dd class="auto-sync" title="Tasks can push a secondshift/run branch and open a draft. The GitHub App needs write access.">
+              <span>{{ repository.allow_pull_requests ? 'On' : 'Off' }}</span>
+              <button v-if="app.can(Action.AllowPullRequests)" type="button" class="link-button" :disabled="action === 'pull-requests'" @click="setPullRequests(!repository.allow_pull_requests, false)">{{ repository.allow_pull_requests ? 'Turn off' : 'Turn on' }}</button>
+            </dd>
+          </div>
+          <div v-if="repository.can_open_pull_requests && repository.allow_pull_requests">
+            <dt>CI on drafts</dt>
+            <dd class="auto-sync" :title="repository.pull_request_ci ? 'CI runs on the first push. Only for repositories you trust.' : 'The first push skips CI. Push a commit after review to run it.'">
+              <span>{{ repository.pull_request_ci ? 'Runs at once' : 'After review' }}</span>
+              <button v-if="app.can(Action.AllowPullRequests)" type="button" class="link-button" :disabled="action === 'pull-requests'" @click="setPullRequests(true, !repository.pull_request_ci)">{{ repository.pull_request_ci ? 'Wait for review' : 'Run at once' }}</button>
             </dd>
           </div>
           <div><dt>Synced commit</dt><dd><code>{{ repository.revision.slice(0, 12) || '—' }}</code></dd></div>

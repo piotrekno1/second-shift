@@ -18,6 +18,8 @@ export interface TaskSubmission {
   revision: string | null
   input: string
   not_before?: string | null
+  /** Open a draft pull request with the agent's changes. */
+  pull_request?: boolean
   idempotency_key: string
 }
 
