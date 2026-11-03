@@ -10,6 +10,7 @@ from secondshift.connections.models import Connection
 from secondshift.core.formatting import duration_label
 from secondshift.gateway.models import RunToken
 from secondshift.gateway.tokens import issue_run_token
+from secondshift.jobs.execution import choose_execution
 from secondshift.runs.execution import agent
 from secondshift.runs.execution.agent import RUN_MODEL_ID
 from secondshift.runs.execution.deadlines import RunTimedOut, run_deadline
@@ -89,8 +90,8 @@ def test_model_access_ends_at_the_deadline(db: object, settings: Any) -> None:
         binding_key="model",
         display_name="Model",
         status=Connection.Status.CONNECTED,
-        is_default=True,
     )
+    choose_execution(model.workspace, model=model)
 
     issue_run_token(run, model)
 

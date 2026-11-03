@@ -175,7 +175,9 @@ class ExecutionStatusSchema(Schema):
     label: str
     backend: str
     problem: str
-    # Nothing could run jobs yet: no model key and no subscription chosen.
+    # False until an owner picks a model provider or a login.
+    chosen: bool
+    # Nothing to choose yet: no model provider and no login saved.
     needs_setup: bool
     fix_connection_id: int | None
 

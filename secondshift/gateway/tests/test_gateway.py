@@ -27,6 +27,7 @@ from secondshift.gateway.pricing import request_cost
 from secondshift.gateway.proxy import upstream_client
 from secondshift.gateway.tokens import GatewayUnavailable, authenticate, issue_run_token
 from secondshift.gateway.views import model_gateway
+from secondshift.jobs.execution import choose_execution
 from secondshift.jobs.models import Job
 from secondshift.repositories.models import Repository
 from secondshift.runs.models import Run
@@ -90,7 +91,7 @@ def provider(
     kind: str = Connection.Provider.ANTHROPIC,
     allowed: list[str] | None = None,
 ) -> Connection:
-    return Connection.objects.create(
+    connection = Connection.objects.create(
         workspace=workspace,
         provider=kind,
         kind=Connection.Kind.MODEL,
@@ -98,8 +99,9 @@ def provider(
         auth_strategy=Connection.AuthStrategy.API_KEY,
         access_token=PROVIDER_KEY,
         allowed_models=allowed or [],
-        is_default=True,
     )
+    choose_execution(connection.workspace, model=connection)
+    return connection
 
 
 def capture_post(

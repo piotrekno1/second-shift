@@ -17,6 +17,7 @@ from secondshift.connections.mcp.client import (
 from secondshift.connections.mcp.sentry import SENTRY_MCP, scoped_sentry_arguments
 from secondshift.connections.models import Connection
 from secondshift.connections.services import revoke_connection
+from secondshift.jobs.execution import choose_execution
 from secondshift.jobs.models import CapabilityRequest, Job, JobGrant
 from secondshift.jobs.planning import build_execution_plan
 from secondshift.repositories.models import Repository
@@ -221,14 +222,14 @@ def test_access_text_and_frozen_plan_follow_the_connection(
     repository = Repository.objects.create(
         workspace=workspace, full_name="example/project", config_sha="a" * 40
     )
-    Connection.objects.create(
+    model = Connection.objects.create(
         workspace=workspace,
         provider=Connection.Provider.ANTHROPIC,
         kind=Connection.Kind.MODEL,
         display_name="Model",
         default_model="claude-opus-5-5",
-        is_default=True,
     )
+    choose_execution(model.workspace, model=model)
     job = Job.objects.create(
         workspace=workspace,
         repository=repository,

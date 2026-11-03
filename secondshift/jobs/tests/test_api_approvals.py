@@ -7,6 +7,7 @@ from django.test import Client
 from django.utils import timezone
 
 from secondshift.connections.models import Connection
+from secondshift.jobs.execution import NOTHING_CHOSEN, choose_execution
 from secondshift.jobs.models import CapabilityRequest, Job, JobGrant
 from secondshift.repositories.models import Repository
 from secondshift.runs.models import Run
@@ -37,7 +38,7 @@ def approval_setup(db: object) -> tuple[AbstractUser, Workspace, Job]:
         timezone="UTC",
         config_hash="config-hash",
     )
-    Connection.objects.create(
+    model = Connection.objects.create(
         workspace=workspace,
         provider=Connection.Provider.ANTHROPIC,
         kind=Connection.Kind.MODEL,
@@ -45,8 +46,8 @@ def approval_setup(db: object) -> tuple[AbstractUser, Workspace, Job]:
         status=Connection.Status.CONNECTED,
         allowed_models=["claude-opus-5-5"],
         default_model="claude-opus-5-5",
-        is_default=True,
     )
+    choose_execution(model.workspace, model=model)
     return user, workspace, job
 
 
@@ -407,5 +408,5 @@ def test_run_now_names_the_missing_model(
     response = client.post(f"/api/jobs/{job.pk}/run")
 
     assert response.status_code == 409
-    assert "No default model provider is connected." in response.json()["detail"]
+    assert NOTHING_CHOSEN in response.json()["detail"]
     assert not Run.objects.filter(job=job).exists()
