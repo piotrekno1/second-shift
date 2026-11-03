@@ -287,7 +287,8 @@ def execute_run(run_id: int) -> None:
         stage = "skill"
         run = Run.objects.select_related("job").get(pk=run_id)
         record_run_event_step(
-            run_id, f"Running {run.input_snapshot.get('skill_path') or 'the skill'}."
+            run_id,
+            f"Running {run.input_snapshot.get('skill_path') or 'the submitted task'}.",
         )
         deadline = run_deadline(run)
         timeout_seconds = run_timeout_seconds(run)

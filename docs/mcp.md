@@ -119,8 +119,23 @@ follows the same rule.
 ### Standalone tasks
 
 Use **New task** on a repository page, or call `submit_task` from an agent.
-The skill must already be committed to that repository; it does not need a job
-in `.secondshift.yaml`.
+Choose **Write a task** to provide instructions directly, or **Use a skill** to
+select a committed `SKILL.md` and optionally add context. Neither needs a job in
+`.secondshift.yaml`. Both run against a pinned repository commit with the same
+workspace limits, tool permissions and report history.
+
+For a written task, omit `definition.skill` and supply nonblank `input`:
+
+```json
+{
+  "repository_id": 12,
+  "definition": {"name": "Review setup instructions"},
+  "input": "Check the installation experience for a new contributor. Return a report with concrete fixes.",
+  "idempotency_key": "written-setup-review-2026-11-03"
+}
+```
+
+To reuse a repository skill, include its committed path:
 
 ```json
 {
@@ -135,8 +150,10 @@ in `.secondshift.yaml`.
 ```
 
 Request only tools listed by `list_bindings`. `definition` uses the same shape
-as a manifest job, but a standalone task cannot specify a schedule, triggers or
-job history. Requires and notify are optional. Omit `revision` to use the
+as a manifest job, with an optional `skill`. A task without a skill requires
+nonblank `input`; its original instructions are frozen and included in the agent
+prompt and stored input artifact. It never tries to read or generate a skill file.
+A standalone task cannot specify a schedule, triggers or job history. Requires and notify are optional. Omit `revision` to use the
 repository's followed branch; an explicit branch or full commit SHA also works.
 The accepted task pins the exact commit, definition, input and submitting user.
 Changes to the branch after acceptance do not alter it.

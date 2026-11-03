@@ -15,6 +15,7 @@ from django.db import connection as database
 from django.db.migrations.executor import MigrationExecutor
 from django.test import Client
 from django.utils import timezone
+from pydantic import ValidationError
 
 from secondshift.config.constants import TaskOrigin
 from secondshift.connections.errors import ExternalToolError
@@ -22,13 +23,14 @@ from secondshift.connections.models import AgentConnection, Connection
 from secondshift.gateway.models import ModelUsage
 from secondshift.gateway.tokens import aauthenticate, authenticate, issue_run_token
 from secondshift.jobs.execution import choose_execution
+from secondshift.jobs.manifest import JobManifest
 from secondshift.jobs.models import Job
 from secondshift.mcp_server.tests.test_job_tools import call, error_text, token
 from secondshift.repositories.local import committed_file, git
 from secondshift.repositories.models import Repository
-from secondshift.runs.artifacts import store_run_text
+from secondshift.runs.artifacts import artifact_storage, store_run_text
 from secondshift.runs.execution.agent_broker import run_connection
-from secondshift.runs.execution.run import run_prompt
+from secondshift.runs.execution.run import capture_run_input_step, run_prompt
 from secondshift.runs.execution.tool_broker import broker_connection
 from secondshift.runs.history import previous_reports
 from secondshift.runs.models import Run, Task
@@ -520,3 +522,91 @@ def test_pre_submission_models_can_still_create_job_tasks(
     )
     assert Task.objects.get(pk=legacy_task.pk).submission_key == ""
     assert Run.objects.get(pk=legacy_run.pk).repository == repository
+
+
+def test_written_task_needs_no_skill_file_and_keeps_original_instructions(
+    repository: Repository, owner: User, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = Path(repository.local_path)
+    git(root, "rm", SKILL)
+    git(root, "commit", "-m", "No repository skill needed")
+    instructions = (
+        "# Review setup\n\n- Check installation instructions.\n- Write a report."
+    )
+    run = start(
+        repository, owner, definition={"name": "Review setup"}, input=instructions
+    )
+    assert run.commit_sha == git(root, "rev-parse", "HEAD")
+    assert run.input_snapshot["skill_path"] is None
+    assert run.execution_plan["job"]["skill_path"] == ""
+    assert run.execution_plan["ready"] is True
+    assert instructions in run_prompt(run)
+    assert "Read  with" not in run_prompt(run)
+    runner = Mock(
+        side_effect=AssertionError("Written tasks must not read a skill file")
+    )
+    monkeypatch.setattr("secondshift.runs.execution.run.get_runner_client", runner)
+    capture_run_input_step.__wrapped__(run.pk, "no-sandbox-read")
+    runner.assert_not_called()
+    run.refresh_from_db()
+    with artifact_storage().open(run.input_path) as stored:
+        text = stored.read().decode()
+    assert instructions in text
+    assert "## Skill:" not in text
+    assert "could not read this file" not in text
+    assert not run.events.filter(level="warning").exists()
+
+
+@pytest.mark.parametrize("instructions", ["", "  ", "\n\t"])
+def test_written_task_requires_nonblank_instructions(
+    repository: Repository, instructions: str
+) -> None:
+    with pytest.raises(ValidationError, match="Write task instructions"):
+        submission(
+            repository, definition={"name": "Missing instructions"}, input=instructions
+        )
+
+
+def test_http_and_mcp_accept_written_tasks(repository: Repository, owner: User) -> None:
+    payload = submission(
+        repository, definition={"name": "Written review"}, input="Review the README."
+    )
+    client = Client()
+    client.force_login(owner)
+    response = client.post(
+        "/api/tasks", payload.model_dump(), content_type="application/json"
+    )
+    assert response.status_code == 200, response.content
+    first = Run.objects.get()
+    assert first.input_snapshot["skill_path"] is None
+    detail = client.get(f"/api/runs/{first.pk}").json()
+    assert (
+        detail["skill_path"] == ""
+        and detail["submission_input"] == "Review the README."
+    )
+    replay = call(token(owner, "run"), "submit_task", **payload.model_dump())
+    assert not replay.get("isError"), replay
+    assert Task.objects.count() == Run.objects.count() == 1
+
+
+def test_repository_jobs_still_require_a_skill_file() -> None:
+    with pytest.raises(ValidationError):
+        JobManifest.model_validate({"name": "A scheduled job"})
+
+
+def test_written_task_uses_same_capability_approval_boundary(
+    repository: Repository, owner: User
+) -> None:
+    with pytest.raises(RunRefused, match="approval"):
+        start(
+            repository,
+            owner,
+            definition={
+                "name": "Read billing",
+                "requires": {
+                    "apis": [{"binding": "billing", "tools": ["listCharges"]}]
+                },
+            },
+            input="Review recent charges.",
+        )
+    assert not Task.objects.exists()

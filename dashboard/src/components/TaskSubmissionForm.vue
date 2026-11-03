@@ -20,6 +20,7 @@ const tasks = useTasksStore()
 tasks.error = null
 const router = useRouter()
 const visible = ref(true)
+const instructionSource = ref<'text' | 'skill'>('text')
 const name = ref('')
 const skill = ref('')
 const revision = ref('')
@@ -28,16 +29,18 @@ const selected = ref<Record<string, string[]>>({})
 const notifications = ref<string[]>([])
 const skillSuggestions = ref<string[]>([])
 const knownSkills = computed(() => [...new Set(app.jobs.filter(job => job.repository_id === props.repositoryId).map(job => job.skill_path))])
-const taskName = computed(() => name.value.trim() || titleFromSlug(skill.value.trim().split('/').slice(-2, -1)[0] || 'Repository task').slice(0, 200))
+const taskName = computed(() => name.value.trim() || (instructionSource.value === 'skill'
+  ? titleFromSlug(skill.value.trim().split('/').slice(-2, -1)[0] || 'Repository task')
+  : input.value.trim().split('\n')[0]?.replace(/^#+\s*/, '').trim().slice(0, 80) || 'Repository task').slice(0, 200))
 const toolCount = computed(() => Object.values(selected.value).reduce((total, tools) => total + tools.length, 0))
-const ready = computed(() => Boolean(skill.value.trim()) && !tasks.submitting)
+const ready = computed(() => Boolean(instructionSource.value === 'skill' ? skill.value.trim() : input.value.trim()) && !tasks.submitting)
 
 function suggestSkills(event: { query: string }): void {
   skillSuggestions.value = knownSkills.value.filter(path => path.toLowerCase().includes(event.query.toLowerCase()))
 }
 // A retry with unchanged input must keep its key, even after a lost response.
 const submissionKey = ref(crypto.randomUUID())
-watch([name, skill, revision, input, selected, notifications], () => {
+watch([instructionSource, name, skill, revision, input, selected, notifications], () => {
   submissionKey.value = crypto.randomUUID()
   tasks.error = null
 }, { deep: true })
@@ -62,7 +65,7 @@ async function submit(): Promise<void> {
     const result = await tasks.submit({
       repository_id: props.repositoryId,
       definition: {
-        name: taskName.value, skill: skill.value.trim(),
+        name: taskName.value, ...(instructionSource.value === 'skill' ? { skill: skill.value.trim() } : {}),
         requires: { mcps: capabilities('mcp'), apis: capabilities('api') },
         notify: notifications.value.map(binding => ({ binding, required: true })),
       },
@@ -88,10 +91,14 @@ async function submit(): Promise<void> {
     @after-hide="emit('cancel')"
   >
     <div class="task-context"><AppIcon name="source-repository" /><span>{{ repositoryName }}</span><span class="task-context-separator">/</span><span>One-time run</span></div>
-    <p class="task-lead">Run a committed skill once. Review the result in Runs.</p>
+    <p class="task-lead">Give this repository a one-time task. Review the result in Runs.</p>
     <form id="submit-repository-task" @submit.prevent="submit">
       <fieldset :disabled="tasks.submitting" class="task-fields">
-        <div class="task-field">
+        <div class="task-source" role="group" aria-label="Instruction source">
+          <button type="button" :aria-pressed="instructionSource === 'text'" :disabled="tasks.submitting" @click="instructionSource = 'text'"><AppIcon name="pencil-outline" />Write a task</button>
+          <button type="button" :aria-pressed="instructionSource === 'skill'" :disabled="tasks.submitting" @click="instructionSource = 'skill'"><AppIcon name="book-open-variant-outline" />Use a skill</button>
+        </div>
+        <div v-if="instructionSource === 'skill'" class="task-field">
           <label for="task-skill">Repository skill</label>
           <InputText v-if="!knownSkills.length" id="task-skill" v-model="skill" required autofocus maxlength="500" spellcheck="false" autocomplete="off" aria-describedby="task-skill-help" placeholder=".agents/skills/review/SKILL.md" class="task-skill-path" />
           <AutoComplete
@@ -100,6 +107,8 @@ async function submit(): Promise<void> {
             input-id="task-skill"
             :suggestions="skillSuggestions"
             :dropdown="knownSkills.length > 0"
+            :pt="{ dropdown: { 'aria-label': 'Browse repository skills' } }"
+            overlay-class="task-skill-overlay"
             :show-empty-message="false"
             empty-search-message="Use this committed skill path."
             :disabled="tasks.submitting"
@@ -111,9 +120,9 @@ async function submit(): Promise<void> {
           <small id="task-skill-help">A SKILL.md file committed to this repository.</small>
         </div>
         <div class="task-field">
-          <label for="task-input">What should this run focus on? <span>Optional</span></label>
-          <Textarea id="task-input" v-model="input" rows="4" maxlength="16000" aria-describedby="task-input-help" placeholder="Review the installation steps. Flag anything a new user would get stuck on." />
-          <small id="task-input-help">Add context or instructions for this run. The skill provides the base instructions.</small>
+          <label for="task-input">{{ instructionSource === 'text' ? 'What should this task do?' : 'What should this run focus on?' }} <span v-if="instructionSource === 'skill'">Optional</span></label>
+          <Textarea id="task-input" v-model="input" :autofocus="instructionSource === 'text'" :rows="instructionSource === 'text' ? 6 : 4" :required="instructionSource === 'text'" maxlength="16000" aria-describedby="task-input-help" placeholder="Review the installation steps. Flag anything a new user would get stuck on." />
+          <small id="task-input-help">{{ instructionSource === 'text' ? 'Describe the outcome you want and any constraints. No skill file is needed.' : 'Add context for this run. The skill provides the base instructions.' }}</small>
         </div>
         <div class="task-options">
           <details class="task-option">
@@ -179,6 +188,11 @@ async function submit(): Promise<void> {
 .task-field .p-inputtext::placeholder, .task-field .p-textarea::placeholder { color: var(--subtle); }
 .task-field .p-inputtext:focus, .task-field .p-textarea:focus { border-color: var(--focus); outline: 2px solid var(--white-8); outline-offset: 1px; }
 .task-skill-picker { display: flex; width: 100%; }
+.task-skill-picker:has(.p-autocomplete-dropdown) .p-inputtext { border-radius: 8px 0 0 8px; }
+.task-skill-picker .p-autocomplete-dropdown { width: 40px; flex: none; border: 1px solid var(--field-border); border-left: 0; border-radius: 0 8px 8px 0; background: var(--raised); color: var(--muted); }
+.task-skill-overlay.p-autocomplete-overlay { max-width: calc(100vw - 40px); border: 1px solid var(--border); border-radius: 8px; background: var(--night-850); color: var(--ink); box-shadow: 0 12px 32px #0006; }
+.task-skill-overlay .p-autocomplete-option { padding: 10px 12px; color: var(--ink); font-family: var(--font-mono); font-size: 12px; white-space: normal; overflow-wrap: anywhere; }
+.task-skill-overlay .p-autocomplete-option.p-focus, .task-skill-overlay .p-autocomplete-option:hover { background: var(--white-6); }
 .task-skill-picker .p-inputtext, .task-field .task-skill-path { font-family: var(--font-mono); font-size: 12px; }
 .task-options { min-width: 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
 .task-option + .task-option { border-top: 1px solid var(--border); }
@@ -220,4 +234,12 @@ async function submit(): Promise<void> {
   .task-footer-note { display: none; }
   .task-context { flex-wrap: wrap; }
 }
+</style>
+
+<style scoped>
+.task-source { display: flex; gap: 4px; padding: 4px; border: 1px solid var(--border); border-radius: 9px; background: var(--night-950); }
+.task-source button { flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 36px; padding: 8px 10px; border: 1px solid transparent; border-radius: 6px; background: transparent; color: var(--muted); font-family: var(--font-sans); font-size: 12px; font-weight: 500; cursor: pointer; }
+.task-source button[aria-pressed="true"] { border-color: var(--raised-border); color: var(--ink); background: var(--raised); box-shadow: var(--raised-shadow); }
+.task-source button:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.task-source .app-icon { flex: none; font-size: 15px; }
 </style>

@@ -139,7 +139,7 @@ const passRate = computed(() => {
         <div v-if="app.runs.length" class="activity-list">
           <RouterLink v-for="run in app.runs.slice(0, 6)" :key="run.id" :to="`/runs/${run.id}`" class="activity-row clickable-row">
             <div class="activity-main">
-              <strong>{{ run.job }} <span class="activity-id">#{{ run.id }}</span></strong>
+              <strong><span class="activity-title" :title="run.job">{{ run.job }}</span><span class="activity-id">#{{ run.id }}</span></strong>
               <span v-if="run.failure" class="activity-failure">{{ run.failure.label }} · {{ run.failure.reason }}</span>
               <span v-else>{{ run.repository }}</span>
             </div>
@@ -180,3 +180,9 @@ const passRate = computed(() => {
     </section>
   </div>
 </template>
+
+<style scoped>
+.activity-main > strong { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.activity-main .activity-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); font-size: 13px; }
+.activity-main .activity-id { flex: none; }
+</style>

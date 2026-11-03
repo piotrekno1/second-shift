@@ -31,8 +31,8 @@ function openRun(event: Event): void {
   >
     <RouterLink :to="`/runs/${run.id}`" class="run-id detail-link">#{{ run.id }}</RouterLink>
     <div v-if="showJob" class="job-primary run-links">
-      <RouterLink :to="run.job_id === null ? `/runs/${run.id}` : `/jobs/${run.job_id}`"><strong>{{ run.job }}</strong></RouterLink>
-      <RouterLink :to="`/repositories/${run.repository_id}`"><AppIcon name="source-repository" /> {{ run.repository }}</RouterLink>
+      <RouterLink :to="run.job_id === null ? `/runs/${run.id}` : `/jobs/${run.job_id}`" :title="run.job"><strong>{{ run.job }}</strong></RouterLink>
+      <RouterLink :to="`/repositories/${run.repository_id}`"><AppIcon name="source-repository" /><span>{{ run.repository }}</span></RouterLink>
     </div>
     <span class="run-when" :title="`${formatDate(run.scheduled_for)} · ${utcTitle(run.scheduled_for)}`">{{ formatRelative(run.scheduled_for) }}</span>
     <div class="run-statuses"><StatusPill :status="run.status" /></div>
@@ -56,3 +56,23 @@ function openRun(event: Event): void {
     </div>
   </div>
 </template>
+
+<style scoped>
+.run-row { min-width: 0; }
+.run-links > a { display: flex; align-items: center; gap: 4px; max-width: 100%; min-width: 0; }
+.run-links strong, .run-links > a > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.run-links .app-icon { flex: none; }
+@container (max-width: 1024px) and (min-width: 641px) {
+  .run-row:not(.without-job) { grid-template-columns: 44px minmax(100px, 1fr) 88px minmax(130px, 1fr) auto; }
+  .run-row:not(.without-job) > .run-when { display: none; }
+  .run-row .run-stats, .run-row .run-row-actions { grid-column: auto; }
+  .run-row .run-row-actions { justify-content: flex-end; }
+}
+@container (max-width: 640px) {
+  .run-row:not(.without-job) { grid-template-columns: 36px minmax(0, 1fr) auto; gap: 8px 12px; }
+  .run-row:not(.without-job) > .run-when { display: none; }
+  .run-row .run-stats, .run-row .run-row-actions { grid-column: 2 / -1; }
+  .run-row .run-row-actions { justify-content: flex-start; }
+  .run-row .row-chevron { display: none; }
+}
+</style>

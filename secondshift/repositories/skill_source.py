@@ -17,7 +17,9 @@ class SkillSourceError(ValueError):
     pass
 
 
-def skill_commit(repository: Repository, skill_path: str, revision: str | None) -> str:
+def skill_commit(
+    repository: Repository, skill_path: str | None, revision: str | None
+) -> str:
     """Use the followed branch by default; explicit branches and full SHAs work."""
     if (
         repository.source_type == Repository.SourceType.LOCAL
@@ -37,7 +39,8 @@ def skill_commit(repository: Repository, skill_path: str, revision: str | None) 
         root = Path(repository.local_path)
         ref = requested if is_commit else f"refs/heads/{requested}"
         commit = git(root, "rev-parse", "--verify", f"{ref}^{{commit}}")
-        committed_file(root, commit, skill_path)
+        if skill_path is not None:
+            committed_file(root, commit, skill_path)
         return commit
     metadata = github_repository_metadata(repository)
     token = installation_token(
@@ -58,5 +61,6 @@ def skill_commit(repository: Repository, skill_path: str, revision: str | None) 
         )
         if not re.fullmatch(COMMIT_SHA_PATTERN, commit):
             raise SkillSourceError("The repository did not resolve to a full commit.")
-        committed_file(mirror, commit, skill_path)
+        if skill_path is not None:
+            committed_file(mirror, commit, skill_path)
         return commit

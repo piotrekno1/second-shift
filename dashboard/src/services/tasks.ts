@@ -11,7 +11,7 @@ export interface TaskSubmission {
   repository_id: number
   definition: {
     name: string
-    skill: string
+    skill?: string | null
     requires: { mcps: TaskCapability[], apis: TaskCapability[] }
     notify: { binding: string, required: boolean }[]
   }

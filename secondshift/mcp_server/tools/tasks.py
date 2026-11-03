@@ -15,9 +15,9 @@ from secondshift.workspaces.access import Action, require
 @register_tool(
     name="submit_task",
     description=(
-        "Submit a committed repository skill for one execution, without creating a job. "
-        "Provide a definition (name, skill, logical requires/notify), optional input "
-        "and branch or full commit revision. Defaults to the repository's followed "
+        "Submit written instructions or a committed repository skill for one execution, without creating a job. "
+        "Provide a definition (name, optional skill, logical requires/notify) and input "
+        "and an optional branch or full commit revision. Without a skill, input must describe the task. Defaults to the repository's followed "
         "branch and pins the accepted commit. Reuse the same idempotency_key when "
         "retrying the same request. Connections must allow automatic approval. "
         "One ad hoc task per repository may be active. Follow the returned run.id "

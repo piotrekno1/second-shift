@@ -35,6 +35,7 @@ const REPORT_COLLAPSED_PX = 640
 
 const stats = computed(() => (run.value ? runStats(run.value, now.value) : []))
 const timelineZone = computed(() => zoneName(run.value?.events[0]?.created_at ?? run.value?.created_at ?? new Date().toISOString()))
+const taskInstructionsHtml = computed(() => run.value?.submission_input ? renderMarkdown(run.value.submission_input) : '')
 const reportHtml = computed(() => (run.value?.output_excerpt ? renderMarkdown(run.value.output_excerpt) : ''))
 const inputFile = computed(() => run.value?.files.find((file) => file.name === 'input') ?? null)
 const outputFile = computed(() => run.value?.files.find((file) => file.name === 'output') ?? null)
@@ -143,8 +144,9 @@ onUnmounted(stopPolling)
       <div class="run-layout">
         <div class="run-main">
           <details v-if="run.submission_input" class="panel task-input-panel" :open="active">
-            <summary><span>Task input</span><AppIcon name="chevron-right" /></summary>
-            <p>{{ run.submission_input }}</p>
+            <summary><span>{{ run.skill_path ? 'Additional instructions' : 'Task instructions' }}</span><span class="task-instructions-meta">{{ run.skill_path ? 'For this run' : 'Written task' }}<AppIcon name="chevron-right" /></span></summary>
+            <!-- eslint-disable-next-line vue/no-v-html -- sanitized by renderMarkdown -->
+            <article class="markdown-body task-instructions" v-html="taskInstructionsHtml" />
           </details>
           <section v-if="timelineOpen" class="panel job-runs-panel">
             <div class="panel-heading"><h2>Timeline</h2><span class="run-details-muted">Times in {{ timelineZone }}</span></div>
@@ -192,7 +194,7 @@ onUnmounted(stopPolling)
           <dl>
             <div><dt>{{ run.job_id === null ? 'Task' : 'Job' }}</dt><dd><RouterLink v-if="run.job_id !== null" :to="`/jobs/${run.job_id}`" class="detail-link">{{ run.job }}</RouterLink><span v-else>{{ run.job }}</span></dd></div>
             <div><dt>Repository</dt><dd><RouterLink :to="`/repositories/${run.repository_id}`" class="detail-link">{{ run.repository }}</RouterLink></dd></div>
-            <div><dt>Skill</dt><dd><code>{{ run.skill_path }}</code></dd></div>
+            <div><dt>Instructions</dt><dd><code v-if="run.skill_path">{{ run.skill_path }}</code><span v-else>Written task</span></dd></div>
             <div><dt>Agent</dt><dd>{{ run.execution_agent ?? run.model_provider ?? 'None' }}</dd></div>
             <div><dt>Started by</dt><dd>{{ startedByLabel(run.started_by) }}</dd></div>
             <div><dt>Queued</dt><dd :title="utcTitle(run.created_at)">{{ formatDate(run.created_at) }}</dd></div>
@@ -205,7 +207,7 @@ onUnmounted(stopPolling)
                 <span class="run-details-muted"> · {{ formatBytes(inputFile.size_bytes) }} · </span>
                 <a :href="runFileUrl(run.id, 'input', true)" class="detail-link" download>Download</a>
               </dd>
-              <dd v-else class="run-details-muted">{{ active ? 'Stored when the skill starts' : 'Not stored' }}</dd>
+              <dd v-else class="run-details-muted">{{ active ? 'Stored when the run starts' : 'Not stored' }}</dd>
             </div>
           </dl>
         </aside>
@@ -224,6 +226,10 @@ onUnmounted(stopPolling)
 .task-input-panel .app-icon { flex: none; font-size: 14px; }
 .task-input-panel[open] > summary { color: var(--ink); }
 .task-input-panel[open] .app-icon { transform: rotate(90deg); }
-.task-input-panel > p { margin: 16px 0 0; color: var(--muted); font-size: 13px; line-height: 1.7; white-space: pre-wrap; overflow-wrap: anywhere; }
+.task-instructions-meta { display: flex; align-items: center; gap: 12px; color: var(--subtle); font-size: 11px; font-weight: 400; }
+.task-instructions { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border); color: var(--muted); font-size: 13px; line-height: 1.75; overflow-wrap: anywhere; }
+.task-instructions :deep(> :first-child) { margin-top: 0; }
+.task-instructions :deep(> :last-child) { margin-bottom: 0; }
+.task-instructions :deep(h1), .task-instructions :deep(h2), .task-instructions :deep(h3) { color: var(--ink); font-size: 15px; font-weight: 500; }
 @media (max-width: 540px) { .task-input-panel { padding: 16px 20px; } }
 </style>

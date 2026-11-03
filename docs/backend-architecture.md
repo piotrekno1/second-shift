@@ -46,7 +46,7 @@ It does not import the agent execution framework.
 `build_execution_plan(job)` adapts persisted job definitions and their own grants
 into the shared plan compiler. `build_skill_execution_plan(repository, definition,
 key=..., commit_sha=...)` plans a standalone repository skill using the same
-validated `JobManifest` shape, without creating jobs, capability requests or
+validated definition shape, without creating jobs, capability requests or
 grants. Planning does not register schedules or triggers from that definition.
 The caller must resolve the requested revision to a full commit SHA; the plan
 records that commit rather than the repository's last synced configuration SHA.
@@ -64,8 +64,14 @@ session-authenticated `POST /api/tasks` and MCP `submit_task` tool require the
 existing run permission, resolve repositories in the current workspace, and
 record the authenticated submitter and origin. Source resolution uses the
 followed branch by default or an explicit branch/full commit, verifies a regular
-committed skill file, and freezes the SHA, definition and per-run input. No Job
+committed skill file when selected, and freezes the SHA, definition and per-run input. No Job
 or JobGrant rows are created.
+
+`TaskManifest` extends the existing job definition with an optional skill path.
+Saved repository jobs still require a skill. Standalone tasks without a skill
+require nonblank instructions, execute those instructions directly, and capture
+input without reading a nonexistent file. Both instruction sources use the same
+planner, server-owned sandbox and connection consent checks.
 
 A repository-scoped idempotency key returns the original attempt for an identical
 request from the same user; conflicting reuse is refused. Admission is checked

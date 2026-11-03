@@ -12,7 +12,7 @@ from django.utils import timezone
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from secondshift.config.constants import RunStart, TaskOrigin
-from secondshift.jobs.manifest import JobManifest
+from secondshift.jobs.manifest import TaskManifest
 from secondshift.jobs.planning import build_skill_execution_plan
 from secondshift.jobs.readiness import execution_problems
 from secondshift.repositories.github_app import GitHubAppError
@@ -28,7 +28,7 @@ class SkillSubmission(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     repository_id: int = Field(gt=0)
-    definition: JobManifest
+    definition: TaskManifest
     revision: str | None = Field(default=None, min_length=1, max_length=255)
     input: str = Field(default="", max_length=16000)
     idempotency_key: str = Field(
@@ -37,6 +37,8 @@ class SkillSubmission(BaseModel):
 
     @model_validator(mode="after")
     def standalone_definition(self) -> Self:
+        if self.definition.skill is None and not self.input.strip():
+            raise ValueError("Write task instructions or select a repository skill.")
         if (
             self.definition.schedule
             or self.definition.triggers
@@ -113,9 +115,12 @@ def submit_skill(
         )
     except (LocalRepositoryError, GitHubAppError, SkillSourceError) as error:
         # GitHub helpers already redact credentials from errors.
-        raise RunRefused(
+        message = (
             "The skill or revision is unavailable in this repository."
-        ) from error
+            if submission.definition.skill is not None
+            else "The requested repository revision is unavailable."
+        )
+        raise RunRefused(message) from error
     with transaction.atomic():
         repository = (
             Repository.objects.select_for_update()

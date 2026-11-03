@@ -25,8 +25,8 @@ const confirmRemove = ref(false)
 const showTaskForm = ref(false)
 const repositoryMenu = ref<InstanceType<typeof Menu> | null>(null)
 const repositoryActions = computed(() => [
-  { label: 'Validate configuration', command: validateRepository },
-  ...(app.can(Action.ChangeRepositoryState) ? [{ label: repository.value?.enabled ? 'Disable repository' : 'Enable repository', command: toggleRepository }] : []),
+  { label: 'Validate configuration', appIcon: 'check-circle-outline', command: validateRepository },
+  ...(app.can(Action.ChangeRepositoryState) ? [{ label: repository.value?.enabled ? 'Disable repository' : 'Enable repository', appIcon: repository.value?.enabled ? 'pause' : 'play', command: toggleRepository }] : []),
 ])
 const repositoryId = Number(route.params.id)
 const justAdded = computed(() => route.query.added === '1')
@@ -207,7 +207,9 @@ onMounted(loadRepository)
           <template #icon><AppIcon name="refresh" /></template>
         </Button>
         <Button label="More" severity="secondary" text aria-label="More repository actions" aria-haspopup="true" aria-controls="repository-actions-menu" :loading="action === 'validate' || action === 'toggle'" @click="repositoryMenu?.toggle($event)" />
-        <Menu id="repository-actions-menu" ref="repositoryMenu" :model="repositoryActions" popup />
+        <Menu id="repository-actions-menu" ref="repositoryMenu" :model="repositoryActions" popup class="row-menu">
+          <template #item="{ item, props }"><a v-bind="props.action" class="row-menu-item"><AppIcon :name="item.appIcon" />{{ item.label }}</a></template>
+        </Menu>
       </template>
     </PageHeader>
 
