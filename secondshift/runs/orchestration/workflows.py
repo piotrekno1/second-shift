@@ -30,7 +30,7 @@ from secondshift.runs.execution.deadlines import (
     timeout_summary,
 )
 from secondshift.runs.execution.run import execute_agent_run
-from secondshift.runs.models import Run, RunEvent
+from secondshift.runs.models import Run, RunDelivery, RunEvent
 from secondshift.runs.orchestration.admission import task_admission_problem
 from secondshift.runs.orchestration.reconciliation import mark_run_terminal
 from secondshift.runs.reporting.failures import failure_metadata, failure_summary
@@ -236,17 +236,44 @@ def deliver_run_notification_step(run_id: int, connection_id: int) -> None:
     run = Run.objects.select_related("job__repository", "task__repository").get(
         pk=run_id
     )
-    if run.job_id is None and connection_id not in notification_targets(run):
-        return
     connection = Connection.objects.get(pk=connection_id)
-    delivery = deliver_webhook(connection, run_report_payload(run))
-    if delivery.retryable:
-        raise RetryableDeliveryError(delivery.message)
+    delivery, _ = RunDelivery.objects.get_or_create(
+        run=run,
+        kind=RunDelivery.Kind.NOTIFICATION,
+        connection=connection,
+        defaults={"target": connection.binding_key or connection.display_name},
+    )
+    if delivery.status == RunDelivery.Status.DELIVERED:
+        return
+    # A grant revoked or a connection disconnected since planning stops delivery,
+    # including when a failed delivery is retried later.
+    if connection_id not in notification_targets(run):
+        record_delivery(delivery, RunDelivery.Status.SKIPPED, "No longer approved.")
+        return
+    result = deliver_webhook(connection, run_report_payload(run))
+    delivery.attempts += 1
+    delivery.status_code = result.status_code
+    if result.retryable:
+        record_delivery(delivery, RunDelivery.Status.PENDING, result.message)
+        raise RetryableDeliveryError(result.message)
+    record_delivery(
+        delivery,
+        RunDelivery.Status.DELIVERED if result.ok else RunDelivery.Status.FAILED,
+        result.message,
+    )
     RunEvent.objects.create(
         run=run,
-        level="info" if delivery.ok else "warning",
-        message=f"Notification to {connection.binding_key}: {delivery.message}",
-        metadata={"connection_id": connection_id, "status_code": delivery.status_code},
+        level="info" if result.ok else "warning",
+        message=f"Notification to {connection.binding_key}: {result.message}",
+        metadata={"connection_id": connection_id, "status_code": result.status_code},
+    )
+
+
+def record_delivery(delivery: RunDelivery, status: str, message: str) -> None:
+    delivery.status = status
+    delivery.message = message
+    delivery.save(
+        update_fields=["status", "message", "attempts", "status_code", "updated_at"]
     )
 
 
@@ -257,6 +284,14 @@ def record_notification_failure_step(run_id: int, connection_id: int) -> None:
         .values_list("binding_key", flat=True)
         .first()
     )
+    # The last attempt's message stays, since it says why delivery failed.
+    RunDelivery.objects.filter(
+        run_id=run_id,
+        kind=RunDelivery.Kind.NOTIFICATION,
+        connection_id=connection_id,
+    ).exclude(status=RunDelivery.Status.DELIVERED).update(
+        status=RunDelivery.Status.FAILED, updated_at=timezone.now()
+    )
     RunEvent.objects.create(
         run_id=run_id,
         level="warning",
@@ -265,18 +300,22 @@ def record_notification_failure_step(run_id: int, connection_id: int) -> None:
     )
 
 
+def deliver_notification(run_id: int, connection_id: int) -> None:
+    try:
+        deliver_run_notification_step(run_id, connection_id)
+    except Exception:
+        logger.warning(
+            "notification for run %s to connection %s failed",
+            run_id,
+            connection_id,
+        )
+        record_notification_failure_step(run_id, connection_id)
+
+
 def notify(run_id: int) -> None:
     # Delivery problems are recorded on the run but never change its outcome.
     for connection_id in notification_targets_step(run_id):
-        try:
-            deliver_run_notification_step(run_id, connection_id)
-        except Exception:
-            logger.warning(
-                "notification for run %s to connection %s failed",
-                run_id,
-                connection_id,
-            )
-            record_notification_failure_step(run_id, connection_id)
+        deliver_notification(run_id, connection_id)
 
 
 @DBOS.step(name="secondshift.fail_run")

@@ -5,6 +5,7 @@ from django.db import models
 from django.utils import timezone
 
 from secondshift.config.constants import RunStart, TaskOrigin
+from secondshift.connections.models import Connection
 from secondshift.jobs.models import Job
 from secondshift.repositories.models import Repository
 
@@ -194,6 +195,54 @@ class RunEvent(models.Model):
 
     def __str__(self) -> str:
         return f"{self.run_id}: {self.message[:80]}"
+
+
+class RunDelivery(models.Model):
+    """One place a finished run's report is sent, kept so a failure can be retried.
+
+    A retry sends the stored report again. It never runs the agent again.
+    """
+
+    class Kind(models.TextChoices):
+        NOTIFICATION = "notification", "Notification"
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        DELIVERED = "delivered", "Delivered"
+        SKIPPED = "skipped", "Skipped"
+        FAILED = "failed", "Failed"
+
+    run = models.ForeignKey(Run, on_delete=models.CASCADE, related_name="deliveries")
+    kind = models.CharField(max_length=24, choices=Kind.choices)
+    connection = models.ForeignKey(
+        Connection,
+        on_delete=models.SET_NULL,
+        related_name="run_deliveries",
+        null=True,
+        blank=True,
+    )
+    # The connection's name when the delivery was made, kept if it is deleted.
+    target = models.CharField(max_length=200)
+    status = models.CharField(
+        max_length=16, choices=Status.choices, default=Status.PENDING
+    )
+    attempts = models.PositiveIntegerField(default=0)
+    status_code = models.IntegerField(null=True, blank=True)
+    message = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["created_at", "pk"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["run", "kind", "connection"],
+                name="unique_run_delivery_target",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.run_id}: {self.kind} to {self.target} {self.status}"
 
 
 class AgentLease(models.Model):
