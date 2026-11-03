@@ -14,6 +14,10 @@ Choose a workflow from the [skill catalog](../examples/README.md). Each example
 explains its data sources and suggests a schedule where appropriate. This guide
 covers the shared setup process.
 
+For a one-time request without repository configuration, use
+[one-off tasks](tasks.md). You can write instructions directly, queue work for
+later, and review its report in Runs.
+
 **Begin with a manual run, check its results and tool activity, then enable a
 schedule if useful.** Verify that the task can access its intended data and
 complete the intended work before it runs unattended. For a review, check the
