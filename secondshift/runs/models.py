@@ -208,6 +208,7 @@ class RunDelivery(models.Model):
 
     class Kind(models.TextChoices):
         NOTIFICATION = "notification", "Notification"
+        PULL_REQUEST = "pull_request", "Pull request"
 
     class Status(models.TextChoices):
         PENDING = "pending", "Pending"
@@ -232,6 +233,8 @@ class RunDelivery(models.Model):
     attempts = models.PositiveIntegerField(default=0)
     status_code = models.IntegerField(null=True, blank=True)
     message = models.TextField(blank=True)
+    # Where the delivered result lives, such as the draft pull request.
+    external_url = models.URLField(max_length=500, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -241,7 +244,12 @@ class RunDelivery(models.Model):
             models.UniqueConstraint(
                 fields=["run", "kind", "connection"],
                 name="unique_run_delivery_target",
-            )
+            ),
+            models.UniqueConstraint(
+                fields=["run"],
+                condition=models.Q(kind="pull_request"),
+                name="unique_run_pull_request",
+            ),
         ]
 
     def __str__(self) -> str:

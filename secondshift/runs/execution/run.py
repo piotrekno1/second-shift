@@ -99,6 +99,12 @@ def missing_bindings(plan: dict[str, Any]) -> str:
     )
 
 
+PULL_REQUEST_NOTE = """SecondShift opens a draft pull request with the changes you leave in the
+workspace. Make the changes there, and do not commit them. Your report becomes the
+pull request description, so say what changed and why, which checks you ran and
+their results, and anything left unresolved."""
+
+
 def run_prompt(run: Run) -> str:
     """The first user message: the task, the reporting time, the trigger
     payload, missing optional bindings and any history."""
@@ -112,6 +118,8 @@ def run_prompt(run: Run) -> str:
         prompt = f"{prompt}\n\n{payload_note(payload)}"
     if missing := missing_bindings(run.execution_plan):
         prompt = f"{prompt}\n\n{missing}"
+    if run.execution_plan.get("pull_request"):
+        prompt = f"{prompt}\n\n{PULL_REQUEST_NOTE}"
     history = previous_reports(run)
     return f"{prompt}\n\n{history}" if history else prompt
 
