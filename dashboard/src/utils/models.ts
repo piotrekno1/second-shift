@@ -4,6 +4,9 @@ import { runUsageLabel } from './agents'
 import { providerLabel } from './format'
 
 /** One thing that can run jobs: a model provider or a subscription login. */
+/** The check outcome that means the login must be connected again. */
+export const SIGN_IN_REFUSED = 'reconnect_required'
+
 export interface ModelRow {
   /** The choice key the server uses, like "model:3" or "agent:7". */
   key: string

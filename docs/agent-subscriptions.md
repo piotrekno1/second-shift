@@ -65,6 +65,9 @@ run. **Check** on the login's menu tries again.
 - A refused sign-in stops runs until you reconnect the login.
 - A used-up allowance, or a check that did not finish, does not stop runs.
 - The check waits while a job is using the same login.
+- A run that fails as if signed out checks the login too. Only that check marks
+  it refused. If the check signs in, the run reports a general failure instead,
+  because the words came from somewhere else, such as a tool's error.
 
 This version imports a login you already have. It has no browser or device-code
 sign-in of its own.

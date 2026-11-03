@@ -8,7 +8,7 @@ from django.conf import settings
 from django.contrib.auth.models import User
 from django.utils import timezone
 
-from secondshift.config.constants import AgentBackend
+from secondshift.config.constants import AgentBackend, AgentOutcome
 from secondshift.connections.models import AgentConnection
 from secondshift.runner.agent_credentials import encrypt_agent_auth
 from secondshift.runner.client import get_runner_client
@@ -127,19 +127,22 @@ def remove_runner_credentials(connection: AgentConnection) -> None:
         ) from None
 
 
-# What a check's outcome means for the login. Only "completed" and a used-up
-# allowance prove the sign-in works.
+# What a check's outcome means for the login. Only a finished check and a
+# used-up allowance prove the sign-in works.
 CHECK_RESULTS: dict[str, tuple[bool, str]] = {
-    "completed": (True, "Signed in. {product} answered a test message."),
-    "quota_exhausted": (
+    AgentOutcome.COMPLETED: (True, "Signed in. {product} answered a test message."),
+    AgentOutcome.QUOTA_EXHAUSTED: (
         True,
         "Signed in, but the plan's usage allowance is used up for now.",
     ),
-    "reconnect_required": (
+    AgentOutcome.RECONNECT_REQUIRED: (
         False,
         "{product} refused the sign-in. Get a new login and reconnect.",
     ),
-    "timed_out": (False, "{product} did not answer in time. Check again later."),
+    AgentOutcome.TIMED_OUT: (
+        False,
+        "{product} did not answer in time. Check again later.",
+    ),
 }
 CHECK_FAILED = (False, "{product} could not finish the check. Check again later.")
 
@@ -182,7 +185,7 @@ def check_agent_connection(connection: AgentConnection) -> AgentConnection:
     ok, message = CHECK_RESULTS.get(reason, CHECK_FAILED)
     connection.last_check = {
         "ok": ok,
-        "reason": reason if reason in CHECK_RESULTS else "agent_failed",
+        "reason": reason if reason in CHECK_RESULTS else AgentOutcome.AGENT_FAILED,
         "message": message.format(product=product_name(connection.backend)),
         "checked_at": timezone.now().isoformat(),
     }
@@ -192,7 +195,8 @@ def check_agent_connection(connection: AgentConnection) -> AgentConnection:
 
 def sign_in_refused(connection: AgentConnection) -> bool:
     """The last check proved the login no longer works."""
-    return (connection.last_check or {}).get("reason") == "reconnect_required"
+    reason = (connection.last_check or {}).get("reason")
+    return reason == AgentOutcome.RECONNECT_REQUIRED
 
 
 def usable_agent_connection(connection: AgentConnection, workspace_id: int) -> bool:

@@ -13,7 +13,7 @@ from pathlib import Path
 
 from django.conf import settings
 
-from secondshift.config.constants import HOST_ALIAS, SandboxRuntime
+from secondshift.config.constants import HOST_ALIAS, AgentOutcome, SandboxRuntime
 from secondshift.runner.agent_credentials import decrypt_agent_auth
 from secondshift.runner.agent_protocol import AgentCheckInput, AgentInput, AgentOutput
 from secondshift.runner.images import resolve_image_id
@@ -92,7 +92,8 @@ def agent_command(session_id: str, auth_path: Path, image: str) -> list[str]:
         "--log-driver=none",
         "--entrypoint=python3",
         image,
-        "/opt/secondshift/agent.py",
+        "-m",
+        "secondshift.runner.agent_image.agent",
     ]
 
 
@@ -210,13 +211,13 @@ def run_agent_container(
                 len(data) > settings.RUNNER_COMMAND_OUTPUT_MAX_BYTES
                 or completed.returncode
             ):
-                return AgentOutput(reason="agent_failed")
+                return AgentOutput(reason=AgentOutcome.AGENT_FAILED)
             try:
                 return AgentOutput.model_validate_json(data)
             except ValueError:
-                return AgentOutput(reason="invalid_agent_output")
+                return AgentOutput(reason=AgentOutcome.INVALID_AGENT_OUTPUT)
         except subprocess.TimeoutExpired:
-            return AgentOutput(reason="timed_out")
+            return AgentOutput(reason=AgentOutcome.TIMED_OUT)
         finally:
             DockerRunnerService().remove_container(name)
 

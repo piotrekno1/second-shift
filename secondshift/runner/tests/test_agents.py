@@ -32,7 +32,7 @@ def test_agent_container_configuration_is_server_owned(
     settings.AGENT_NETWORK = "ss-agent-egress"
     settings.RUNNER_RUNTIME = "runsc"
     command = agent_command("run-1", tmp_path / "auth", IMAGE)
-    assert command[-2:] == [IMAGE, "/opt/secondshift/agent.py"]
+    assert command[-3:] == [IMAGE, "-m", "secondshift.runner.agent_image.agent"]
     assert "--network=ss-agent-egress" in command
     assert "--add-host=host.docker.internal:host-gateway" in command
     assert "--runtime" in command and "runsc" in command

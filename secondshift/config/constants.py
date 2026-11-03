@@ -7,6 +7,9 @@ read its keys. Values both need live here instead.
 from enum import StrEnum
 from urllib.parse import urlsplit
 
+# Defined beside the agent so the agent image can load it too.
+from secondshift.runner.agent_image.outcomes import AgentOutcome as AgentOutcome
+
 # Git object formats supported by repository snapshots and execution plans.
 COMMIT_SHA_PATTERN = r"[0-9a-f]{40}|[0-9a-f]{64}"
 

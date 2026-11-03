@@ -7,7 +7,9 @@ from typing import Any
 from dbos import DBOS
 from django.utils import timezone
 
-from secondshift.config.constants import SUMMARY_MAX_CHARS
+from secondshift.config.constants import SUMMARY_MAX_CHARS, AgentOutcome
+from secondshift.connections.agents import AgentConnectionError, check_agent_connection
+from secondshift.connections.models import AgentConnection
 from secondshift.runner.agent_credentials import encrypt_agent_auth
 from secondshift.runner.client import get_runner_client
 from secondshift.runs.artifacts import store_run_text
@@ -16,13 +18,40 @@ from secondshift.runs.execution.deadlines import run_deadline
 from secondshift.runs.models import AgentLease, Run, RunEvent
 
 FAILURE_SUMMARIES = {
-    "quota_exhausted": "Subscription usage exhausted. Wait for your provider's allowance to reset, then start a new run.",
-    "reconnect_required": "Agent sign-in expired. Reconnect the subscription on Models, then start a new run.",
-    "timed_out": "The agent reached this run's time limit.",
-    "token_budget_exhausted": "The agent reported usage at or above this run's token budget.",
-    "turn_budget_exhausted": "The agent reached this run's maximum turns.",
+    AgentOutcome.QUOTA_EXHAUSTED: "Subscription usage exhausted. Wait for your provider's allowance to reset, then start a new run.",
+    AgentOutcome.RECONNECT_REQUIRED: "Agent sign-in expired. Reconnect the subscription on Models, then start a new run.",
+    AgentOutcome.TIMED_OUT: "The agent reached this run's time limit.",
+    AgentOutcome.TOKEN_BUDGET_EXHAUSTED: "The agent reported usage at or above this run's token budget.",
+    AgentOutcome.TURN_BUDGET_EXHAUSTED: "The agent reached this run's maximum turns.",
 }
 DEFAULT_FAILURE = "The agent could not finish. Check its login and subscription usage before starting a new run."
+
+
+def confirm_sign_in(run: Run, connection: AgentConnection) -> str:
+    """Check the login before saying its sign-in expired.
+
+    The run's reason comes from words in the CLI's last error, and a tool's
+    error can contain them too. Only a real check marks the login refused,
+    which stops its runs. If the check signs in, the run failed for another
+    reason. The run's lock on the login has ended, so the check can take it.
+    """
+    try:
+        check = check_agent_connection(connection).last_check or {}
+    except AgentConnectionError:
+        # The check could not run. Keep the run's own reason.
+        return AgentOutcome.RECONNECT_REQUIRED
+    RunEvent.objects.create(
+        run=run,
+        message="Checked the agent login after the run.",
+        metadata={"reason": check.get("reason", "")},
+    )
+    found = check.get("reason")
+    if found == AgentOutcome.COMPLETED:
+        return AgentOutcome.AGENT_FAILED
+    if found == AgentOutcome.QUOTA_EXHAUSTED:
+        return AgentOutcome.QUOTA_EXHAUSTED
+    # Refused, or a check that did not finish and so proves nothing.
+    return AgentOutcome.RECONNECT_REQUIRED
 
 
 @DBOS.step(name="secondshift.execute_cli_agent")
@@ -78,7 +107,9 @@ def execute_cli_step(run_id: int, session_id: str, prompt: str) -> dict[str, Any
         AgentLease.objects.filter(pk=lease.pk).update(active=False)
     report = str(result.get("report", "")).strip()
     succeeded = bool(result.get("succeeded")) and bool(report)
-    reason = str(result.get("reason", "agent_failed"))
+    reason = str(result.get("reason", AgentOutcome.AGENT_FAILED))
+    if reason == AgentOutcome.RECONNECT_REQUIRED:
+        reason = confirm_sign_in(run, connection)
     RunEvent.objects.create(
         run=run,
         message="Agent execution finished.",
