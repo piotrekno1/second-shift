@@ -1,3 +1,4 @@
+from secondshift.config.constants import AgentBackend
 from secondshift.jobs.limits import RunLimit
 from secondshift.runs.execution.budgets import BUDGET_HEADLINE
 from secondshift.runs.execution.deadlines import TIMEOUT_HEADLINE
@@ -52,6 +53,11 @@ def run_failure(run: Run) -> RunFailureSchema | None:
     )
 
 
+def uses_model_api(run: Run) -> bool:
+    execution = run.execution_plan.get("execution") or {}
+    return execution.get("backend", AgentBackend.PYDANTIC) == AgentBackend.PYDANTIC
+
+
 def serialize_run(run: Run) -> RunSchema:
     return RunSchema(
         id=run.id,
@@ -68,7 +74,8 @@ def serialize_run(run: Run) -> RunSchema:
         plan_ready=bool(run.execution_plan.get("ready", False)),
         commit_sha=run.commit_sha,
         model=(run.execution_plan.get("model") or {}).get("default_model") or None,
-        max_turns=run_limit(run, RunLimit.MAX_TURNS),
+        # Agent CLIs do not report model calls, so a turn count would read 0.
+        max_turns=run_limit(run, RunLimit.MAX_TURNS) if uses_model_api(run) else None,
         token_budget=run_limit(run, RunLimit.TOKEN_BUDGET),
         model_requests=getattr(run, "model_requests", None) or 0,
         model_input_tokens=getattr(run, "model_input_tokens", None) or 0,

@@ -198,6 +198,9 @@ export interface LocalRepositoryDirectoryList {
 }
 
 export interface Job {
+  execution_backend: string
+  execution_label: string
+  execution_problem: string
   id: number
   name: string
   repository_id: number
@@ -339,6 +342,7 @@ export interface RunDetail extends Run {
   created_at: string
   exit_code: number | null
   model_provider: string | null
+  execution_agent?: string | null
   output_excerpt: string
   output_truncated: boolean
   output_size_bytes: number | null
