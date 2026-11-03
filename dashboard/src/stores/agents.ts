@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { useAppStore } from './app'
 import { connectAgent, disconnectAgent, fetchAgentConfiguration, fetchAgentConnections, selectWorkspaceAgent, setAgentRunLimit, type AgentConfiguration, type AgentConnection, type AgentLoginInput } from '../services/agents'
 
 export const useAgentsStore = defineStore('agents', {
@@ -17,17 +18,19 @@ export const useAgentsStore = defineStore('agents', {
     async select(key: string): Promise<void> {
       this.configuration = await selectWorkspaceAgent(key)
     },
+    // A login change can change what runs jobs, so run warnings reload too.
     async connect(input: AgentLoginInput, id?: number): Promise<void> {
       await connectAgent(input, id)
-      await this.refresh()
+      await Promise.all([this.refresh(), useAppStore().refresh()])
     },
     async setRunLimit(id: number, maxRunsPerDay: number | null): Promise<void> {
       const updated = await setAgentRunLimit(id, maxRunsPerDay)
       this.connections = this.connections.map(item => item.id === id ? updated : item)
+      await useAppStore().refresh()
     },
     async disconnect(id: number): Promise<void> {
       try { await disconnectAgent(id) }
-      finally { await this.refresh() }
+      finally { await Promise.all([this.refresh(), useAppStore().refresh()]) }
     },
   },
 })

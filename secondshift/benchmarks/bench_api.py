@@ -29,7 +29,8 @@ pytestmark = pytest.mark.django_db
 
 # Budgets are fixed counts. Growing data must not add queries.
 RUNS_PAGE_QUERIES = 8
-OVERVIEW_QUERIES = 19
+# One of them loads the model keys for the execution status.
+OVERVIEW_QUERIES = 20
 MCP_LIST_RUNS_QUERIES = 13
 GATEWAY_AUTH_QUERIES = 1
 

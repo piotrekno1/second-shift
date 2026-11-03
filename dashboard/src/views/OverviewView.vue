@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import AppIcon from '../components/AppIcon.vue'
 import { computed } from 'vue'
-import ModelWarning from '../components/ModelWarning.vue'
+import ExecutionWarning from '../components/ExecutionWarning.vue'
 import PageHeader from '../components/PageHeader.vue'
 import RunsChart from '../components/RunsChart.vue'
 import StatCard from '../components/StatCard.vue'
@@ -10,7 +10,6 @@ import { useLiveRefresh } from '../composables/useLiveRefresh'
 import { isRunActive } from '../services/runs'
 import { useAppStore } from '../stores/app'
 import { Action } from '../utils/permissions'
-import { brokenModelConnection } from '../utils/readiness'
 import {
   accessLabel, countLabel, formatCost, formatDate, formatRelative, formatScheduled, healthHeadline, runsTrend, spendTrend, utcTitle, weekRange,
 } from '../utils/format'
@@ -25,8 +24,8 @@ const approvalJobs = computed(() => app.jobs.filter((job) =>
 ))
 // Approving cannot start before the binding has a connection, so that comes first.
 const missingConnection = computed(() => app.needs.find((need) => need.required && need.status === 'missing') ?? null)
-// While the model key is broken every run fails, so fixing it is the one next step.
-const brokenModel = computed(() => brokenModelConnection(app.connections))
+// While nothing can run jobs every run fails, so fixing that is the one next step.
+const executionBlocked = computed(() => Boolean(app.overview?.execution?.problem))
 const failing = computed(() => app.overview?.failing_jobs ?? [])
 // Soonest first; jobs without a next run (just enabled, not yet scheduled) go last.
 const upcoming = computed(() => app.jobs
@@ -77,13 +76,13 @@ const passRate = computed(() => {
   <div class="page">
     <PageHeader title="This week" :aside="weekRange(new Date())" :description="subtitle">
       <!-- The one next step: approve what blocks a job, or add the first repository.
-           With a broken model key, the warning below carries the step instead. -->
-      <RouterLink v-if="!brokenModel && missingConnection && app.can(Action.AddConnections)" :to="{ path: '/connections', query: { binding: missingConnection.binding } }" class="primary-action"><AppIcon name="link-plus" /> Connect {{ missingConnection.binding }}</RouterLink>
-      <RouterLink v-else-if="!brokenModel && approvalJobs[0] && app.can(Action.ReviewCapabilities)" :to="{ path: '/jobs', query: { review: String(approvalJobs[0].id) } }" class="primary-action"><AppIcon name="shield-key-outline" /> Review access</RouterLink>
-      <RouterLink v-else-if="!brokenModel && !app.repositories.length && app.canAddLocalRepositories" to="/repositories" class="primary-action"><AppIcon name="plus" /> Add repository</RouterLink>
+           While nothing can run jobs, the warning below carries the step instead. -->
+      <RouterLink v-if="!executionBlocked && missingConnection && app.can(Action.AddConnections)" :to="{ path: '/connections', query: { binding: missingConnection.binding } }" class="primary-action"><AppIcon name="link-plus" /> Connect {{ missingConnection.binding }}</RouterLink>
+      <RouterLink v-else-if="!executionBlocked && approvalJobs[0] && app.can(Action.ReviewCapabilities)" :to="{ path: '/jobs', query: { review: String(approvalJobs[0].id) } }" class="primary-action"><AppIcon name="shield-key-outline" /> Review access</RouterLink>
+      <RouterLink v-else-if="!executionBlocked && !app.repositories.length && app.canAddLocalRepositories" to="/repositories" class="primary-action"><AppIcon name="plus" /> Add repository</RouterLink>
     </PageHeader>
 
-    <ModelWarning />
+    <ExecutionWarning />
 
     <section class="stats-grid">
       <StatCard label="Needs attention" :value="failing.length" :detail="attentionDetail" :tone="failing.length ? 'danger' : undefined" :to="failing.length ? { hash: '#failing' } : undefined" />

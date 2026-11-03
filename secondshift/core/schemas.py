@@ -2,6 +2,8 @@ from datetime import date, datetime
 
 from ninja import Schema
 
+from secondshift.jobs.schemas import ExecutionStatusSchema
+
 
 class UserSchema(Schema):
     email: str
@@ -64,3 +66,4 @@ class OverviewSchema(Schema):
     spend_partial: bool = False
     spend_by_job: list[JobSpendSchema] = []
     run_days: list[RunDaySchema] = []
+    execution: ExecutionStatusSchema | None = None

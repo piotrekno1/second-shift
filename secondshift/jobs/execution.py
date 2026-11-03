@@ -66,7 +66,10 @@ def workspace_model(workspace: Workspace) -> Connection | None:
 
 
 def model_selection(workspace: Workspace) -> ExecutionSelection:
-    connection = default_model_connection(workspace)
+    return selection_for_model(default_model_connection(workspace))
+
+
+def selection_for_model(connection: Connection | None) -> ExecutionSelection:
     problem = model_problem(connection)
     return ExecutionSelection(
         key=MODEL_CHOICE,
@@ -150,6 +153,42 @@ def execution_configuration(workspace: Workspace, user: User) -> dict[str, Any]:
         "backend": selected.backend,
         "ready": selected.ready,
         "problem": selected.problem,
+    }
+
+
+def execution_status(workspace: Workspace) -> dict[str, Any]:
+    """What runs the jobs, why runs would fail, and where to fix it."""
+    # One query for the model keys answers all three questions below.
+    models = list(
+        Connection.objects.filter(
+            workspace=workspace, kind=Connection.Kind.MODEL
+        ).order_by("-is_default", "pk")
+    )
+    if workspace.default_agent_connection_id:
+        selected = workspace_execution(workspace)
+    else:
+        selected = selection_for_model(
+            next(
+                (
+                    model
+                    for model in models
+                    if model.is_default and model.status == Connection.Status.CONNECTED
+                ),
+                None,
+            )
+        )
+    # A model key the problem is about, so the page can open it ready to fix.
+    fix = (
+        models[0]
+        if models and selected.problem and selected.backend == AgentBackend.PYDANTIC
+        else None
+    )
+    return {
+        "label": selected.label,
+        "backend": selected.backend,
+        "problem": selected.problem,
+        "needs_setup": not workspace.default_agent_connection_id and not models,
+        "fix_connection_id": fix.pk if fix else None,
     }
 
 
