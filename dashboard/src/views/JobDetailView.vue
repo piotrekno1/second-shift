@@ -244,6 +244,11 @@ useLiveRefresh(loadJob, () => (job.value?.recent_runs ?? []).some((run) => isRun
             <div><dt>Defined in</dt><dd><code>.secondshift.yaml</code> → <code>{{ job.key }}</code></dd></div>
             <div><dt>Schedule</dt><dd v-if="job.cron" :title="job.cron">{{ describeCron(job.cron) }} <span class="run-details-muted">· {{ job.timezone }}</span></dd><dd v-else>{{ job.triggers.length ? 'None. A webhook or Run now starts it.' : 'Manual only. Start it with Run now.' }}</dd></div>
             <div v-if="job.triggers.length"><dt>Triggers</dt><dd><a href="#triggers" class="detail-link">Webhook</a></dd></div>
+            <div v-if="job.pull_request">
+              <dt>Changes</dt>
+              <dd v-if="job.pull_requests_allowed">Opens a draft pull request</dd>
+              <dd v-else>Asks for a draft pull request. An owner must allow them in the <RouterLink :to="`/repositories/${job.repository_id}`" class="detail-link">repository settings</RouterLink>.</dd>
+            </div>
             <div><dt>Synced commit</dt><dd><code>{{ job.repository_revision.slice(0, 12) }}</code></dd></div>
             <div><dt>History</dt><dd>{{ historyLabel(job.history) }}</dd></div>
             <div><dt>External access</dt><dd>{{ job.capabilities.length ? countLabel(job.capabilities.length, 'connection') : 'None requested' }}</dd></div>

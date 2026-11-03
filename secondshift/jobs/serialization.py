@@ -166,6 +166,9 @@ def serialize_job_detail(job: Job, can_edit_limits: bool) -> JobDetailSchema:
         config_hash=job.config_hash,
         history=job.history,
         triggers=job.triggers,
+        pull_request=job.pull_request,
+        pull_requests_allowed=job.repository.allow_pull_requests
+        and job.repository.source_type == Repository.SourceType.GITHUB,
         repository_revision=job.repository.config_sha,
         repository_enabled=job.repository.enabled,
         skill_text=job.skill_text,

@@ -25,6 +25,17 @@ logger = logging.getLogger(__name__)
 SKIP_CI = "[skip ci]"
 
 
+def record_pending_pull_request(run: Run) -> None:
+    """Shown as pending from the start, and kept if publishing fails."""
+    plan = run.execution_plan.get("pull_request")
+    if plan:
+        RunDelivery.objects.create(
+            run=run,
+            kind=RunDelivery.Kind.PULL_REQUEST,
+            target=f"{run.repository.full_name} into {plan['base']}",
+        )
+
+
 def pull_request_delivery(run: Run) -> RunDelivery | None:
     return run.deliveries.filter(kind=RunDelivery.Kind.PULL_REQUEST).first()
 
@@ -35,7 +46,7 @@ def skip_reason(run: Run, repository: Repository) -> str:
         repository.source_type != Repository.SourceType.GITHUB
         or not repository.allow_pull_requests
     ):
-        return "The repository no longer allows pull requests."
+        return "The repository does not allow pull requests."
     if run.status != Run.Status.SUCCEEDED:
         return "The run did not succeed."
     if not run.outputs:

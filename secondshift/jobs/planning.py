@@ -285,6 +285,13 @@ def build_execution_plan(job: Job) -> dict[str, Any]:
         capabilities,
         effective_limits(job),
         job.repository.config_sha,
+        # Jobs run on the followed branch, so their drafts target it.
+        {
+            "base": job.repository.default_branch,
+            "run_ci": job.repository.pull_request_ci,
+        }
+        if job.pull_request
+        else None,
     )
 
 

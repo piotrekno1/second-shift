@@ -114,6 +114,9 @@ class JobManifest(BaseModel):
     # Events that may start the job. An owner still turns each one on.
     triggers: list[TriggerKind] = Field(default_factory=list)
     webhook: WebhookManifest | None = None
+    # Open a draft pull request with the agent's changes. An owner still
+    # allows pull requests for the repository.
+    pull_request: bool = False
 
     @field_validator("skill")
     @classmethod
@@ -251,6 +254,8 @@ def field_path(item: ErrorDetails) -> str:
 def manifest_hash(job: JobManifest) -> str:
     # Jobs keep the hash they had before these optional fields existed.
     unset = {"triggers"} if not job.triggers else set()
+    if not job.pull_request:
+        unset.add("pull_request")
     if job.webhook is None:
         unset.add("webhook")
     data = job.model_dump(exclude=unset or None)
