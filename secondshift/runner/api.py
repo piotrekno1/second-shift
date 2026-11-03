@@ -6,8 +6,12 @@ from ninja import NinjaAPI, Status
 from ninja.security import HttpBearer
 
 from secondshift.runner.agent_credentials import provisioning_public_key
-from secondshift.runner.agent_protocol import AgentInput, AgentOutput
-from secondshift.runner.agents import execute_agent, remove_agent_credentials
+from secondshift.runner.agent_protocol import AgentCheckInput, AgentInput, AgentOutput
+from secondshift.runner.agents import (
+    check_agent,
+    execute_agent,
+    remove_agent_credentials,
+)
 from secondshift.runner.models import RunnerSession
 from secondshift.runner.protocol import (
     CommandRequest,
@@ -94,6 +98,11 @@ def run_agent(
     request: HttpRequest, session_id: str, payload: AgentInput
 ) -> AgentOutput:
     return execute_agent(session_id, payload)
+
+
+@api.post("/v1/agent-checks", response=AgentOutput)
+def run_agent_check(request: HttpRequest, payload: AgentCheckInput) -> AgentOutput:
+    return check_agent(payload)
 
 
 @api.delete("/v1/agent-credentials/{key}", response={204: None})

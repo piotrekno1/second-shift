@@ -11,9 +11,8 @@ turns on subscriptions for every service. The runner resolves that tag to the
 image's immutable `sha256:` ID, so no registry is needed. The first build
 downloads both CLIs. Later starts use Docker's build cache.
 
-Add your login on **Connections → Agent subscriptions**. If no model provider
-works yet, that login starts running the workspace's jobs. **Settings** shows
-what runs them.
+Add your login on **Models → Add subscription**. If nothing chosen can
+run jobs yet, that login starts running them. Models marks what runs them.
 
 ## Single machine
 
@@ -49,7 +48,7 @@ automatically.
 
 ## Logins
 
-Owners add logins on **Connections**.
+Owners add logins on **Models**.
 
 - **Claude Code:** run `claude setup-token` and paste the token.
 - **Codex:** run `codex login` with file credential storage and paste the
@@ -57,26 +56,35 @@ Owners add logins on **Connections**.
   switched to file storage first. Only the token fields are kept. Settings,
   endpoints, API keys and MCP servers in the file are dropped.
 
-SecondShift checks the token's format when you save it. It does not contact the
-provider, so the list says **Login saved** rather than claiming the login works.
-An expired login fails its first run with a message to reconnect.
+SecondShift checks the token's format when you save it, then checks the login
+itself. The runner starts the CLI in the agent container with no tools and asks
+for a one-word reply. This uses a little of your plan. Only the result is kept:
+**Signed in**, **Check failed** with a reason, or nothing if the check could not
+run. **Check** on the login's menu tries again.
+
+- A refused sign-in stops runs until you reconnect the login.
+- A used-up allowance, or a check that did not finish, does not stop runs.
+- The check waits while a job is using the same login.
 
 This version imports a login you already have. It has no browser or device-code
 sign-in of its own.
 
 ## What runs jobs
 
-**Settings → Run jobs with** decides what runs every job in the workspace. It is
-either the model provider, billed per use, or one subscription login. There is
-no per-job choice.
+**Models** decides what runs every job in the workspace. It is either one model
+provider, billed per use, or one subscription login. The one marked **Runs
+jobs** is in use, and **Use for jobs** switches to another. There is no per-job
+choice.
 
-- New workspaces start on the model provider.
-- The first login a workspace connects becomes the choice only when no model
-  provider works.
-- After that, only an owner changes the choice. Adding a model provider, or one
-  failing its check, never moves runs to another provider or billing path.
+- New workspaces start with nothing chosen. Runs are refused until something is.
+- A new model provider or login becomes the choice only when nothing chosen can
+  run jobs. A broken one only fills an empty choice.
+- Otherwise only an owner changes the choice. A choice that breaks never moves
+  runs to another saved provider or login.
 - If the chosen login is disconnected, runs are refused with the reason.
-- The list offers the model provider and your own logins. Only a login's owner
+- If the chosen model provider is disconnected or fails its check, runs are
+  refused with the reason.
+- The list offers every model provider and your own logins. Only a login's owner
   can choose it. Choosing it lets every job in the workspace use it.
 - Changes apply to new runs. Queued and past runs keep the choice they started
   with. Repository sync never changes it.
@@ -129,7 +137,7 @@ access keeps going without tools until the run's time limit.
 
 ## Limits
 
-Each login can have a run limit, set by its owner on **Connections**. It caps
+Each login can have a run limit, set by its owner on **Models**. It caps
 how many runs use the login in a rolling 24 hours. A run past the limit is
 refused with the reason, and a scheduled run fails with it. Runs that were
 refused before they started don't count. There is no limit by default.
@@ -166,5 +174,5 @@ doesn't pass to it yet.
 Before hosted use, SecondShift still needs:
 
 - support for more than one runner per login
-- login health checks
+- login checks on a schedule, not only when a login is saved
 - a way to show remaining provider subscription allowance

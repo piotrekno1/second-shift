@@ -12,6 +12,7 @@ from secondshift.config.constants import SUMMARY_MAX_CHARS
 from secondshift.connections.agents import (
     AgentConnectionError,
     RunnerCleanupPending,
+    check_agent_connection,
     disconnect_agent_connection,
     reconnect_agent_connection,
     save_agent_connection,
@@ -663,6 +664,20 @@ def reconnect_agent(
         raise HttpError(422, str(error)) from None
     except RunnerCleanupPending as error:
         raise HttpError(503, str(error)) from None
+
+
+@router.post("/agent-connections/{connection_id}/check", response=AgentConnectionSchema)
+def check_agent(request: HttpRequest, connection_id: int) -> AgentConnection:
+    """Only the login's owner checks it. The check uses their plan's allowance."""
+    workspace = require(request, Action.TEST_CONNECTIONS)
+    connection = get_object_or_404(
+        AgentConnection, pk=connection_id, workspace=workspace, owner=request.user
+    )
+    try:
+        check_agent_connection(connection)
+    except AgentConnectionError as error:
+        raise HttpError(409, str(error)) from None
+    return with_recent_runs([connection], workspace.pk)[0]
 
 
 @router.post(

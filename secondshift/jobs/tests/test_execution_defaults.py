@@ -358,7 +358,7 @@ def test_run_refusal_reports_the_actual_agent_blocker(
         name = AgentConnection.objects.get(
             pk=run.job.workspace.default_agent_connection_id
         ).display_name
-        expected = f"The agent login {name} is disconnected. Reconnect it on Models."
+        expected = f"The agent login {name} is disconnected. Reconnect it."
     else:
         model_workspace(run)
         expected = NOTHING_CHOSEN
@@ -383,7 +383,7 @@ def test_an_unusable_default_login_says_what_is_wrong(
     elif change == "disconnected":
         login.connected = False
         login.save(update_fields=["connected"])
-        expected = "The agent login Personal is disconnected. Reconnect it on Models."
+        expected = "The agent login Personal is disconnected. Reconnect it."
     else:
         WorkspaceMembership.objects.filter(workspace=workspace, user=owner).update(
             role=WorkspaceMembership.Role.MEMBER
@@ -496,7 +496,7 @@ def test_overview_points_at_the_broken_model_key(
     model.save(update_fields=["status"])
     execution = overview_execution(client, owner)
     assert execution["problem"] == (
-        "The model provider Workspace API is disconnected. Reconnect it on Models."
+        "The model provider Workspace API is disconnected. Reconnect it."
     )
     assert execution["needs_setup"] is False
     assert execution["fix_connection_id"] == model.pk
@@ -513,7 +513,7 @@ def test_overview_reports_a_disconnected_login(
     execution = overview_execution(client, owner)
     assert execution["backend"] == AgentBackend.CLAUDE_CODE
     assert execution["problem"] == (
-        "The agent login Personal is disconnected. Reconnect it on Models."
+        "The agent login Personal is disconnected. Reconnect it."
     )
     assert execution["needs_setup"] is False
     assert execution["fix_connection_id"] is None

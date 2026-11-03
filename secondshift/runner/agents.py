@@ -15,7 +15,7 @@ from django.conf import settings
 
 from secondshift.config.constants import HOST_ALIAS, SandboxRuntime
 from secondshift.runner.agent_credentials import decrypt_agent_auth
-from secondshift.runner.agent_protocol import AgentInput, AgentOutput
+from secondshift.runner.agent_protocol import AgentCheckInput, AgentInput, AgentOutput
 from secondshift.runner.images import resolve_image_id
 from secondshift.runner.models import RunnerSession
 from secondshift.runner.protocol import CommandRequest, RunnerProtocolError
@@ -28,6 +28,12 @@ def agent_identity() -> tuple[int, int]:
 
 def agent_name(session_id: str) -> str:
     return f"secondshift-agent-{session_id}"
+
+
+# A login check asks for one short answer, with no tools.
+CHECK_PROMPT = "Reply with the single word OK."
+CHECK_TOKEN_BUDGET = 50_000
+CHECK_TIMEOUT_SECONDS = 20
 
 
 def require_agent_configuration() -> str:
@@ -90,7 +96,7 @@ def agent_command(session_id: str, auth_path: Path, image: str) -> list[str]:
     ]
 
 
-def provision_auth(request: AgentInput) -> Path:
+def provision_auth(request: AgentInput | AgentCheckInput) -> Path:
     root = settings.AGENT_AUTH_ROOT.resolve()
     root.mkdir(parents=True, exist_ok=True, mode=0o700)
     path = root / request.credential_key
@@ -156,15 +162,46 @@ def execute_locked_agent(session_id: str, request: AgentInput) -> AgentOutput:
         "max_turns": request.max_turns,
         "token_budget": request.token_budget,
     }
+    return run_agent_container(
+        agent_name(session_id),
+        agent_command(session_id, auth_path, image),
+        configuration,
+        request.timeout_seconds,
+    )
+
+
+def check_agent(request: AgentCheckInput) -> AgentOutput:
+    """Run the login's CLI once with a fixed prompt, no tools and no repository."""
+    with credential_lock(request.credential_key):
+        image = require_agent_configuration()
+        auth_path = provision_auth(request)
+        name = f"check-{request.credential_key}"
+        configuration = {
+            "backend": request.backend,
+            "prompt": CHECK_PROMPT,
+            "max_turns": 1,
+            "token_budget": CHECK_TOKEN_BUDGET,
+        }
+        return run_agent_container(
+            agent_name(name),
+            agent_command(name, auth_path, image),
+            configuration,
+            CHECK_TIMEOUT_SECONDS,
+        )
+
+
+def run_agent_container(
+    name: str, command: list[str], configuration: dict[str, object], timeout: int
+) -> AgentOutput:
     # Auth and the broker token never appear in argv, Docker env, logs, or DBOS.
     with tempfile.TemporaryFile() as output:
         try:
             completed = subprocess.run(
-                agent_command(session_id, auth_path, image),
+                command,
                 input=json.dumps(configuration).encode(),
                 stdout=output,
                 stderr=subprocess.DEVNULL,
-                timeout=request.timeout_seconds,
+                timeout=timeout,
                 check=False,
             )
             output.seek(0)
@@ -181,7 +218,7 @@ def execute_locked_agent(session_id: str, request: AgentInput) -> AgentOutput:
         except subprocess.TimeoutExpired:
             return AgentOutput(reason="timed_out")
         finally:
-            service.remove_container(agent_name(session_id))
+            DockerRunnerService().remove_container(name)
 
 
 def remove_agent_credentials(key: str) -> None:

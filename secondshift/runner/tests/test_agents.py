@@ -16,7 +16,7 @@ from secondshift.runner.agent_credentials import (
     provisioning_public_key,
 )
 from secondshift.runner.agent_image import agent
-from secondshift.runner.agent_protocol import AgentInput
+from secondshift.runner.agent_protocol import AgentCheckInput, AgentInput
 from secondshift.runner.agents import agent_command, require_agent_configuration
 from secondshift.runner.models import RunnerSession
 from secondshift.runner.protocol import RunnerProtocolError
@@ -306,3 +306,73 @@ def test_launcher_passes_agent_settings_but_no_control_plane_keys(
     }
     assert processes["runner"].env["SECONDSHIFT_AGENT_IMAGE"] == IMAGE
     assert "SECONDSHIFT_ENCRYPTION_KEY" not in processes["runner"].env
+
+
+def test_a_login_check_has_no_tools_at_all(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(agent, "TMP", tmp_path)
+    monkeypatch.setattr(agent, "AUTH", tmp_path)
+    (tmp_path / "claude-token").write_text(TOKEN)
+    check = {"max_turns": 1}
+
+    argv, env = agent.claude(check)
+    assert "--strict-mcp-config" in argv and argv[argv.index("--tools") + 1] == ""
+    assert "--mcp-config" not in argv and "--allowedTools" not in argv
+    assert env == {"CLAUDE_CODE_OAUTH_TOKEN": TOKEN}
+    assert not (tmp_path / "mcp.json").exists()
+
+    argv, env = agent.codex(check)
+    assert env == {}
+    parsed = tomllib.loads((tmp_path / "config.toml").read_text())
+    assert "mcp_servers" not in parsed
+    assert parsed["features"]["shell_tool"] is False
+
+
+CHECK = {
+    "backend": "claude_code",
+    "credential_key": "c" * 32,
+}
+
+
+def test_a_login_check_takes_no_prompt_or_container_options(
+    settings: Any, tmp_path: Path
+) -> None:
+    settings.AGENT_AUTH_ROOT = tmp_path / "agent-auth"
+    auth = encrypt_agent_auth(provisioning_public_key(), TOKEN)
+    request = AgentCheckInput(**CHECK, auth=auth)
+    assert TOKEN not in repr(request) and "auth" not in request.model_dump()
+    for option in ("prompt", "max_turns", "image", "broker_url", "network", "argv"):
+        with pytest.raises(ValidationError):
+            AgentCheckInput(**CHECK, auth=auth, **{option: "evil"})
+
+
+def test_runner_checks_a_login_with_a_fixed_prompt(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, settings: Any
+) -> None:
+    settings.AGENT_AUTH_ROOT = tmp_path / "agent-auth"
+    monkeypatch.setattr(agents, "require_agent_configuration", lambda: IMAGE)
+    remove = Mock()
+    monkeypatch.setattr(agents.DockerRunnerService, "remove_container", remove)
+    seen: dict[str, Any] = {}
+
+    def run(command: list[str], **kwargs: Any) -> Any:
+        seen["command"] = command
+        seen["config"] = json.loads(kwargs["input"])
+        assert kwargs["timeout"] == agents.CHECK_TIMEOUT_SECONDS
+        kwargs["stdout"].write(b'{"succeeded": true, "reason": "completed"}')
+        return subprocess.CompletedProcess(command, 0)
+
+    monkeypatch.setattr(agents.subprocess, "run", run)
+    request = AgentCheckInput(
+        **CHECK, auth=encrypt_agent_auth(provisioning_public_key(), TOKEN)
+    )
+    assert agents.check_agent(request).reason == "completed"
+    assert seen["config"] == {
+        "backend": "claude_code",
+        "prompt": agents.CHECK_PROMPT,
+        "max_turns": 1,
+        "token_budget": agents.CHECK_TOKEN_BUDGET,
+    }
+    assert TOKEN not in str(seen["command"])
+    remove.assert_called_once_with(f"secondshift-agent-check-{'c' * 32}")

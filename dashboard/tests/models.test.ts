@@ -14,7 +14,7 @@ function model(id: number, overrides: Partial<Connection> = {}): Connection {
 }
 
 function login(id: number, overrides: Partial<AgentConnection> = {}): AgentConnection {
-  return { id, backend: 'codex', display_name: `Login ${id}`, connected: true, can_manage: true, max_runs_per_day: null, recent_runs: 2, ...overrides }
+  return { id, backend: 'codex', display_name: `Login ${id}`, connected: true, can_manage: true, max_runs_per_day: null, recent_runs: 2, last_check: null, ...overrides }
 }
 
 function configuration(selected: string, choices: AgentConfiguration['choices']): AgentConfiguration {
@@ -42,5 +42,26 @@ test('modelRows says why a login cannot be picked', () => {
   assert.deepEqual(rows.map((row) => [row.key, row.choosable, row.problem]), [
     ['agent:5', false, 'Only the person who saved this login can choose it.'],
     ['agent:6', false, 'Disconnected. Reconnect it to use it.'],
+  ])
+})
+
+test('modelRows carries the last check of providers and logins', () => {
+  const check = { ok: false, reason: 'reconnect_required', message: 'Codex refused the sign-in.', checked_at: '2026-11-03T10:00:00Z' }
+  const rows = modelRows([model(1)], [login(5, { last_check: check })], configuration('', []))
+  assert.deepEqual(rows.map((row) => row.lastCheck?.message ?? null), [null, 'Codex refused the sign-in.'])
+})
+
+test('modelRows shows a failed check in its own words, the same before and after a reload', () => {
+  const check = { ok: false, reason: 'reconnect_required', message: 'Claude Code refused the sign-in. Get a new login and reconnect.', checked_at: '2026-11-03T10:00:00Z' }
+  const refused = 'The agent login Login 5 was refused at its last check. Reconnect it.'
+  const rows = modelRows(
+    [model(1, { last_check: { ok: false, message: 'The API key was refused.', checked_at: '2026-11-03T10:00:00Z' } })],
+    [login(5, { last_check: check }), login(6, { connected: false, last_check: check })],
+    configuration('agent:5', [{ key: 'agent:5', label: '', disabled: true, problem: refused }]),
+  )
+  assert.deepEqual(rows.map((row) => row.problem), [
+    'Claude Code refused the sign-in. Get a new login and reconnect.',
+    'The API key was refused.',
+    'Disconnected. Reconnect it to use it.',
   ])
 })
