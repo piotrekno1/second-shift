@@ -14,26 +14,7 @@ uv tool install --force --python 3.13 \
 secondshift up
 ```
 
-SecondShift opens your dashboard when all services are ready. If the browser
-cannot open, use the one-time sign-in link printed in your terminal. Keep
-SecondShift running; press Ctrl+C to stop it.
-
-Useful local commands:
-
-```bash
-secondshift status                  # Dashboard address and service health
-secondshift login                   # A fresh one-time sign-in link
-secondshift logs                    # Recent service diagnostics
-secondshift logs --follow           # Stream diagnostics until Ctrl+C
-secondshift logs --service worker   # Inspect one service
-secondshift up --debug              # Also stream diagnostics while running
-```
-
-Service logs are saved under `logs` in the data folder printed at startup.
-Each service retains up to four files of approximately 2 MiB each. Sign-in links
-printed by the launcher are excluded from these logs. Use `--no-browser` to
-print a sign-in link without opening your browser, or `--port 8001` to use a
-different dashboard port.
+SecondShift opens your dashboard when it is ready. Keep it running. Press Ctrl+C to stop.
 
 ## Get the example repository
 
