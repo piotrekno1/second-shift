@@ -8,6 +8,8 @@ import StatusPill from './StatusPill.vue'
 import { useAgentsStore } from '../stores/agents'
 import { useAppStore } from '../stores/app'
 import { Action } from '../utils/permissions'
+import { parseRunCap, runUsageLabel } from '../utils/agents'
+import type { AgentConnection } from '../services/agents'
 
 const agents = useAgentsStore()
 const app = useAppStore()
@@ -18,6 +20,9 @@ const reconnectId = ref<number | undefined>()
 const busy = ref(false)
 const formOpen = ref(false)
 const confirmDisconnect = ref<number | null>(null)
+const limitId = ref<number | null>(null)
+const limitDraft = ref('')
+const limitProblem = ref('')
 const error = ref('')
 
 onMounted(async () => {
@@ -51,6 +56,23 @@ async function connect(): Promise<void> {
   } catch (err) { error.value = err instanceof Error ? err.message : 'Unable to connect agent.' }
   finally { busy.value = false }
 }
+function openLimit(connection: AgentConnection): void {
+  confirmDisconnect.value = null
+  limitId.value = connection.id
+  limitDraft.value = connection.max_runs_per_day === null ? '' : String(connection.max_runs_per_day)
+  limitProblem.value = ''
+}
+async function saveLimit(id: number): Promise<void> {
+  const parsed = parseRunCap(limitDraft.value)
+  limitProblem.value = parsed.problem ?? ''
+  if (parsed.problem) return
+  busy.value = true
+  try {
+    await agents.setRunLimit(id, parsed.value)
+    limitId.value = null
+  } catch (err) { limitProblem.value = err instanceof Error ? err.message : 'Unable to save the limit.' }
+  finally { busy.value = false }
+}
 async function disconnect(id: number): Promise<void> {
   busy.value = true
   error.value = ''
@@ -78,16 +100,28 @@ async function disconnect(id: number): Promise<void> {
           <div class="row-glyph"><ProviderIcon :provider="connection.backend === 'codex' ? 'openai' : 'anthropic'" fallback="creation-outline" /></div>
           <div class="need-primary">
             <strong class="connection-name">{{ connection.display_name }}</strong>
-            <span>{{ connection.backend === 'codex' ? 'Codex' : 'Claude Code' }} · Not checked with the provider until a job runs</span>
+            <span title="Not checked with the provider until a job runs">{{ connection.backend === 'codex' ? 'Codex' : 'Claude Code' }} · {{ runUsageLabel(connection.recent_runs, connection.max_runs_per_day) }}</span>
           </div>
           <StatusPill :status="connection.connected ? 'pending' : 'revoked'" :label="connection.connected ? 'Login saved' : 'Disconnected'" />
           <div v-if="connection.can_manage" class="need-actions">
+            <Button v-if="connection.connected" label="Run limit" severity="secondary" text size="small" :disabled="busy" @click="openLimit(connection)" />
             <Button v-if="agents.enabled" label="Reconnect" severity="secondary" text size="small" :disabled="busy" @click="openForm(connection.id)" />
-            <button type="button" class="icon-action" :aria-label="connection.connected ? `Disconnect ${connection.display_name}` : `Remove saved login for ${connection.display_name}`" :disabled="busy" @click="confirmDisconnect = connection.id">
+            <button type="button" class="icon-action" :aria-label="connection.connected ? `Disconnect ${connection.display_name}` : `Remove saved login for ${connection.display_name}`" :disabled="busy" @click="limitId = null; confirmDisconnect = connection.id">
               <AppIcon name="power-plug-off-outline" />
             </button>
           </div>
         </div>
+        <form v-if="limitId === connection.id" class="confirm-strip run-limit" @submit.prevent="saveLimit(connection.id)">
+          <label>
+            <span>At most</span>
+            <InputText v-model="limitDraft" name="agent-run-limit" inputmode="numeric" autocomplete="off" size="5" placeholder="No limit" :disabled="busy" :aria-invalid="Boolean(limitProblem)" @input="limitProblem = ''" />
+            <span>runs in 24 hours</span>
+          </label>
+          <Button label="Cancel" severity="secondary" text size="small" :disabled="busy" @click="limitId = null" />
+          <Button type="submit" label="Save" size="small" :loading="busy" />
+          <small v-if="limitProblem" role="alert">{{ limitProblem }}</small>
+          <small v-else>Runs past the limit are refused. Leave it empty for no limit.</small>
+        </form>
         <div v-if="confirmDisconnect === connection.id" class="confirm-strip" role="alert">
           <span>Disconnect this login? Jobs using it will be blocked until you reconnect.</span>
           <Button label="Cancel" severity="secondary" text size="small" :disabled="busy" @click="confirmDisconnect = null" />
@@ -138,4 +172,11 @@ async function disconnect(id: number): Promise<void> {
 .subscription-form { margin: 12px 0; }
 .panel-heading { align-items: flex-start; }
 .panel-heading > .p-button { flex-shrink: 0; }
+.need-actions .p-button { white-space: nowrap; }
+/* Same layout as the disconnect strip, without its warning edge. */
+.run-limit { border-left: 1px solid var(--border); }
+.run-limit label { display: inline-flex; align-items: center; gap: 8px; }
+.run-limit .p-inputtext { width: 6em; }
+.run-limit small { flex-basis: 100%; color: var(--subtle); }
+.run-limit small[role="alert"] { color: var(--danger); }
 </style>
