@@ -169,7 +169,6 @@ def test_sync_fetches_into_the_mirror_before_advancing_jobs(
         github_connection=source_connection,
         full_name="owner/project",
         external_id="7",
-        installation_id="42",
     )
     fake_github(monkeypatch)
     original = github_sync.authenticated_git
@@ -482,7 +481,6 @@ def test_a_failed_sync_leaves_a_readded_repository_removed(
         github_connection=source_connection,
         full_name="owner/project",
         external_id="7",
-        installation_id="old",
         default_branch="old-branch",
         removed_at=removed_at,
     )
@@ -497,7 +495,6 @@ def test_a_failed_sync_leaves_a_readded_repository_removed(
 
     repository.refresh_from_db()
     assert repository.removed_at == removed_at
-    assert repository.installation_id == "old"
     assert repository.default_branch == "old-branch"
 
 

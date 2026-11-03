@@ -134,7 +134,6 @@ def available_github_sources(
 RESTORED_FIELDS = (
     "removed_at",
     "github_connection",
-    "installation_id",
     "default_branch",
 )
 
@@ -177,7 +176,6 @@ def save_attached_repository(
             "source_type": Repository.SourceType.GITHUB,
             "github_connection": connection,
             "external_id": str(repository_id),
-            "installation_id": connection.external_account_id,
             "clone_url": clone_url(metadata["full_name"]),
             "default_branch": branch or metadata["default_branch"],
         },
@@ -193,7 +191,6 @@ def save_attached_repository(
     previous = {field: getattr(repository, field) for field in RESTORED_FIELDS}
     repository.removed_at = None
     repository.github_connection = connection
-    repository.installation_id = connection.external_account_id
     repository.default_branch = branch or metadata["default_branch"]
     repository.save()
     return repository, previous
