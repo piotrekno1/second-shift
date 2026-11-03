@@ -22,17 +22,37 @@ class LocalRepositoryError(ValueError):
     pass
 
 
+class RepositoryConfigError(LocalRepositoryError):
+    """The branch's manifest, or a skill it names, is missing or invalid.
+
+    The repository can still be added. Its page shows the problem.
+    """
+
+
 @dataclass(frozen=True)
-class LocalRepositoryMetadata:
+class LocalRepositoryLocation:
     root: Path
     # The branch SecondShift follows, and its newest commit.
     branch: str
     revision: str
-    manifest: RepositoryManifest
     repository_name: str
+    clone_url: str = ""
+
+
+@dataclass(frozen=True)
+class LocalRepositoryMetadata:
+    location: LocalRepositoryLocation
+    manifest: RepositoryManifest
     # Each job's skill text at the revision, keyed by skill path.
     skills: dict[str, str]
-    clone_url: str = ""
+
+    @property
+    def revision(self) -> str:
+        return self.location.revision
+
+    @property
+    def clone_url(self) -> str:
+        return self.location.clone_url
 
 
 # Git file modes for a regular and an executable file. Symbolic links and
@@ -88,13 +108,36 @@ def branch_revision(root: Path, branch: str) -> str:
         raise LocalRepositoryError(f"The branch {branch} does not exist.") from error
 
 
-def inspect_local_repository(
-    raw_path: str, branch: str | None = None
-) -> LocalRepositoryMetadata:
-    """Read the jobs from the newest commit on a branch.
+def read_committed_config(
+    root: Path, revision: str, branch: str
+) -> tuple[RepositoryManifest, dict[str, str]]:
+    """The manifest and its skills at a commit. Raises RepositoryConfigError."""
+    try:
+        text = committed_file(root, revision, MANIFEST_FILE)
+    except LocalRepositoryError as error:
+        raise RepositoryConfigError(
+            f"The branch {branch} has no committed {MANIFEST_FILE} at its root."
+        ) from error
+    try:
+        manifest = parse_manifest(text)
+    except (ValueError, yaml.YAMLError) as error:
+        raise RepositoryConfigError(f"Invalid {MANIFEST_FILE}: {error}") from error
+    try:
+        skills = {
+            job.skill: committed_file(root, revision, job.skill)
+            for job in manifest.jobs.values()
+        }
+    except LocalRepositoryError as error:
+        raise RepositoryConfigError(str(error)) from error
+    return manifest, skills
 
-    Without a branch it follows the one checked out now. Only committed files
-    count, so edits in the working folder never change what runs.
+
+def locate_local_repository(
+    raw_path: str, branch: str | None = None
+) -> LocalRepositoryLocation:
+    """Find the repository and the newest commit on a branch.
+
+    Without a branch it follows the one checked out now.
     """
     candidate = Path(raw_path).expanduser().resolve()
     if not candidate.is_dir():
@@ -109,35 +152,32 @@ def inspect_local_repository(
 
     branch = branch or current_branch(root)
     revision = branch_revision(root, branch)
-
-    try:
-        text = committed_file(root, revision, MANIFEST_FILE)
-    except LocalRepositoryError as error:
-        raise LocalRepositoryError(
-            f"The branch {branch} has no committed {MANIFEST_FILE} at its root."
-        ) from error
-    try:
-        manifest = parse_manifest(text)
-    except (ValueError, yaml.YAMLError) as error:
-        raise LocalRepositoryError(f"Invalid {MANIFEST_FILE}: {error}") from error
-    skills = {
-        job.skill: committed_file(root, revision, job.skill)
-        for job in manifest.jobs.values()
-    }
-
     try:
         github_name = github_remote_name(git(root, "remote", "get-url", "origin"))
     except LocalRepositoryError:
         github_name = None
-    return LocalRepositoryMetadata(
+    return LocalRepositoryLocation(
         root=root,
         branch=branch,
         revision=revision,
-        manifest=manifest,
         repository_name=local_repository_name(root),
-        skills=skills,
         clone_url=f"{GITHUB_BASE_URL}/{github_name}" if github_name else "",
     )
+
+
+def inspect_local_repository(
+    raw_path: str, branch: str | None = None
+) -> LocalRepositoryMetadata:
+    """Read the jobs from the newest commit on a branch.
+
+    Only committed files count, so edits in the working folder never change
+    what runs.
+    """
+    location = locate_local_repository(raw_path, branch)
+    manifest, skills = read_committed_config(
+        location.root, location.revision, location.branch
+    )
+    return LocalRepositoryMetadata(location=location, manifest=manifest, skills=skills)
 
 
 def local_repository_name(root: Path) -> str:
@@ -149,27 +189,43 @@ def local_repository_name(root: Path) -> str:
 def attach_local_repository(
     workspace: Workspace, raw_path: str, branch: str | None = None
 ) -> Repository:
-    """Add a local repository, or sync one again from its branch."""
-    metadata = inspect_local_repository(raw_path, branch)
+    """Add a local repository, or sync one again from its branch.
+
+    A missing or invalid configuration does not stop it. The repository is
+    saved with the problem in last_sync_error, and its jobs stay as the last
+    good sync left them.
+    """
+    location = locate_local_repository(raw_path, branch)
+    try:
+        manifest, skills = read_committed_config(
+            location.root, location.revision, location.branch
+        )
+        config_error = ""
+    except RepositoryConfigError as error:
+        manifest, skills, config_error = None, {}, str(error)[:500]
     previous = Repository.objects.filter(
-        workspace=workspace, local_path=str(metadata.root)
+        workspace=workspace, local_path=str(location.root)
     ).first()
-    scope_changed = previous is not None and previous.clone_url != metadata.clone_url
+    scope_changed = previous is not None and previous.clone_url != location.clone_url
+    synced = {"config_sha": location.revision} if manifest is not None else {}
     repository, _ = Repository.objects.update_or_create(
         workspace=workspace,
-        local_path=str(metadata.root),
+        local_path=str(location.root),
         defaults={
             "source_type": Repository.SourceType.LOCAL,
-            "full_name": metadata.repository_name,
-            "clone_url": metadata.clone_url,
-            "default_branch": metadata.branch,
+            "full_name": location.repository_name,
+            "clone_url": location.clone_url,
+            "default_branch": location.branch,
             "config_path": MANIFEST_FILE,
-            "config_sha": metadata.revision,
+            "checked_sha": location.revision,
+            "last_sync_error": config_error,
             "enabled": True,
             "removed_at": None,
+            **synced,
         },
     )
-    sync_jobs(repository, metadata.manifest, metadata.skills)
+    if manifest is not None:
+        sync_jobs(repository, manifest, skills)
     if scope_changed:
         JobGrant.objects.filter(
             capability_request__job__repository=repository,

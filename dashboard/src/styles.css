@@ -782,7 +782,7 @@ body .row-menu .p-menu-separator { margin: 4px 8px; border-top-color: var(--card
 .repository-row-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .repository-row-main strong { overflow: hidden; font-size: 14px; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
 .repository-row-main span { overflow: hidden; color: var(--subtle); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
-.repository-row-jobs, .repository-row-sync { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.repository-row-jobs, .repository-row-sync { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .repository-row .row-chevron { color: var(--subtle); }
 @media (max-width: 800px) {
   .repository-row { grid-template-columns: 32px minmax(0,1fr) auto; padding: 12px 16px; }

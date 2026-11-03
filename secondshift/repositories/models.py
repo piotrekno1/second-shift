@@ -39,7 +39,10 @@ class Repository(models.Model):
     # Sync new commits on the branch without pressing Resync.
     auto_sync = models.BooleanField(default=True)
     config_path = models.CharField(max_length=255, default=".secondshift.yaml")
+    # The commit runs use. It moves only when a sync succeeds.
     config_sha = models.CharField(max_length=64, blank=True)
+    # The newest commit a sync read, even if its configuration was invalid.
+    checked_sha = models.CharField(max_length=64, blank=True)
     last_synced_at = models.DateTimeField(null=True, blank=True)
     last_sync_error = models.CharField(max_length=500, blank=True)
     removed_at = models.DateTimeField(null=True, blank=True)
