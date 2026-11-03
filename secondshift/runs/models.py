@@ -1,9 +1,40 @@
 import uuid
 
+from django.conf import settings
 from django.db import models
+from django.utils import timezone
 
-from secondshift.config.constants import RunStart
+from secondshift.config.constants import RunStart, TaskOrigin
 from secondshift.jobs.models import Job
+
+
+class Task(models.Model):
+    """One assignment; runs retain the inputs and policy of each attempt.
+
+    This first version has only job-backed assignments. Snapshots are copied
+    at submission, never reconstructed from a job that may since have changed.
+    """
+
+    job = models.ForeignKey(Job, on_delete=models.CASCADE, related_name="tasks")
+    origin = models.CharField(
+        max_length=16,
+        choices=[(item.value, item.value.title()) for item in TaskOrigin],
+        blank=True,
+    )
+    submitted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="secondshift_tasks",
+        null=True,
+        blank=True,
+    )
+    commit_sha = models.CharField(max_length=64)
+    input_snapshot = models.JSONField(default=dict, blank=True)
+    scheduled_for = models.DateTimeField()
+    created_at = models.DateTimeField(default=timezone.now, editable=False)
+
+    class Meta:
+        ordering = ["-created_at"]
 
 
 class Run(models.Model):
@@ -18,6 +49,13 @@ class Run(models.Model):
     ACTIVE_STATUSES = (Status.QUEUED, Status.RUNNING)
 
     job = models.ForeignKey(Job, on_delete=models.PROTECT, related_name="runs")
+    task = models.ForeignKey(
+        Task,
+        on_delete=models.PROTECT,
+        related_name="runs",
+        null=True,
+        blank=True,
+    )
     status = models.CharField(
         max_length=16,
         choices=Status.choices,

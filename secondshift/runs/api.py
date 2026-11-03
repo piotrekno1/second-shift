@@ -95,7 +95,7 @@ def run_job(
     job = job_for_request(request, job_id)
     require(request, Action.RUN_JOBS)
     try:
-        run = start_manual_run(job)
+        run = start_manual_run(job, submitted_by=request.user)
     except RunInProgress as error:
         return Status(409, RunInProgressSchema(detail=str(error), run_id=error.run.pk))
     except RunRefused as error:

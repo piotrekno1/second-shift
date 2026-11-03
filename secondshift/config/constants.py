@@ -91,6 +91,15 @@ class RunStart(StrEnum):
     WEBHOOK = "webhook"
 
 
+class TaskOrigin(StrEnum):
+    """Where an assignment entered SecondShift, independent of run behavior."""
+
+    SCHEDULE = "schedule"
+    MANUAL = "manual"
+    WEBHOOK = "webhook"
+    MCP = "mcp"
+
+
 # How much of a report a run keeps as its summary. Webhooks send the summary.
 SUMMARY_MAX_CHARS = 4_000
 

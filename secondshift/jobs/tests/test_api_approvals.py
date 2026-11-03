@@ -10,7 +10,7 @@ from secondshift.connections.models import Connection
 from secondshift.jobs.execution import NOTHING_CHOSEN, choose_execution
 from secondshift.jobs.models import CapabilityRequest, Job, JobGrant
 from secondshift.repositories.models import Repository
-from secondshift.runs.models import Run
+from secondshift.runs.models import Run, Task
 from secondshift.workspaces.models import Workspace, WorkspaceMembership
 from secondshift.workspaces.services import create_workspace
 
@@ -268,6 +268,10 @@ def test_run_now_works_while_the_schedule_is_off(
     assert job.enabled is False
     assert queued == [response.json()["id"]]
     assert response.json()["started_by"] == "manual"
+    task = Task.objects.get()
+    assert task.origin == "manual"
+    assert task.submitted_by_id == user.pk
+    assert Run.objects.get(pk=response.json()["id"]).task_id == task.pk
 
 
 @pytest.mark.django_db

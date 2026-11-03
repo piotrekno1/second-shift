@@ -14,7 +14,7 @@ from secondshift.connections.models import Connection
 from secondshift.jobs.execution import choose_execution
 from secondshift.jobs.models import CapabilityRequest, Job
 from secondshift.repositories.models import Repository
-from secondshift.runs.models import Run
+from secondshift.runs.models import Run, Task
 from secondshift.triggers.models import JobTrigger, TriggerEvent
 from secondshift.triggers.verification import SIGNATURE_HEADER, TIMESTAMP_HEADER
 from secondshift.workspaces.models import WorkspaceMembership
@@ -386,6 +386,10 @@ def test_repeat_of_a_running_event_is_ignored(
     assert len(queued) == 1
     other = send(client, path_of(change), secret, {**FIRING, "groupKey": "b"})
     assert other.status_code == 409
+    task = Task.objects.get()
+    assert task.origin == "webhook"
+    assert task.submitted_by is None
+    assert Run.objects.get(pk=first["run_id"]).task_id == task.pk
 
 
 @pytest.mark.parametrize(
