@@ -3,7 +3,11 @@
 from typing import Any
 
 from secondshift.jobs.models import Job
-from secondshift.jobs.planning import build_execution_plan
+from secondshift.jobs.planning import (
+    build_execution_plan,
+    default_model_connection,
+    model_problem,
+)
 
 REASON_TEXT = {
     "no_grant": "waits for an owner's approval",
@@ -26,7 +30,7 @@ def plan_problems(job: Job, plan: dict[str, Any]) -> list[str]:
     if not job.repository.enabled:
         problems.append("The repository is disabled.")
     if plan["model"] is None:
-        problems.append("No default model provider is connected.")
+        problems.append(model_problem(default_model_connection(job.workspace)))
     for capability in plan["capabilities"]:
         if not capability["required"] or capability["authorized"]:
             continue
