@@ -170,7 +170,7 @@ async function submit(): Promise<void> {
     </div>
     <label class="need-setup-check">
       <input v-model="isDefault" type="checkbox">
-      <span>Use for runs by default in this workspace</span>
+      <span>Use as the workspace's model provider</span>
     </label>
 
     <!-- Discovery often refuses the same values first. Say it once, next to the field. -->

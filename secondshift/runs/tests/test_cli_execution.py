@@ -129,3 +129,10 @@ def test_run_detail_names_the_frozen_agent(agent_run: tuple[Run, User]) -> None:
         serialize_run_detail(run).execution_agent
         == run.execution_plan["execution"]["label"]
     )
+
+
+def test_subscription_runs_show_no_model_call_count(
+    agent_run: tuple[Run, User],
+) -> None:
+    run, _ = agent_run
+    assert serialize_run_detail(run).max_turns is None

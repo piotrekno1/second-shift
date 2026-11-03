@@ -36,3 +36,9 @@ test('approvalPending hides Approve once the chosen connection is approved', () 
   assert.equal(approvalPending(approved, 4), true)
   assert.equal(approvalPending({ grant_status: 'pending', connection_id: null }, 3), true)
 })
+
+test('subscription jobs do not inherit warnings about an unused API connection', () => {
+  const model = { kind: 'model', is_default: true, status: 'expired', display_name: 'Old API' } as Connection
+  assert.equal(runWarning([model], { execution_backend: 'codex', execution_problem: '' }), '')
+  assert.equal(runWarning([model], { execution_backend: 'codex', execution_problem: 'Reconnect your subscription.' }), 'Reconnect your subscription.')
+})

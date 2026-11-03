@@ -20,7 +20,9 @@ export function brokenModelConnection(connections: Connection[]): Connection | n
 }
 
 /** A warning for a run button while every run would fail on the model key, or ''. */
-export function runWarning(connections: Connection[]): string {
+export function runWarning(connections: Connection[], job?: Pick<Job, 'execution_backend' | 'execution_problem'>): string {
+  if (job?.execution_problem) return job.execution_problem
+  if (job?.execution_backend && job.execution_backend !== 'pydantic') return ''
   const model = brokenModelConnection(connections)
   return model ? `This run will fail until ${model.display_name} works again.` : ''
 }

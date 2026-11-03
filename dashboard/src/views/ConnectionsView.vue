@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AgentConnectionsPanel from '../components/AgentConnectionsPanel.vue'
 import AppIcon from '../components/AppIcon.vue'
 import OAuthScopeWarning from '../components/OAuthScopeWarning.vue'
 import { computed, nextTick, onMounted, reactive, ref } from 'vue'
@@ -409,6 +410,8 @@ onMounted(async () => {
       </div>
       <div v-else class="empty-state compact"><AppIcon name="power-plug-off-outline" /><strong>Nothing connected yet</strong><span v-if="canEdit">Use <strong>Add connection</strong>, or connect a binding above.</span><span v-else>Workspace owners add connections.</span></div>
     </section>
+
+    <AgentConnectionsPanel />
 
     <p v-if="!app.needs.length" class="quiet-line">
       <AppIcon name="check-decagram-outline" /> No job needs a connection yet. Bindings under <code>notify</code> or <code>requires</code> in a repository's <code>.secondshift.yaml</code> show up here.

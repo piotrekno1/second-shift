@@ -111,7 +111,7 @@ onUnmounted(stopPolling)
 <template>
   <div class="page">
     <PageHeader compact :title="`Run #${runId}`" :description="subtitle" :parent="{ label: 'Runs', to: '/runs' }">
-      <Button class="main-action" v-if="run && !active && app.can(Action.RunJobs)" label="Run again" :title="runWarning(app.connections) || undefined" :loading="rerunning" @click="runAgain">
+      <Button class="main-action" v-if="run && !active && app.can(Action.RunJobs)" label="Run again" :title="runWarning(app.connections, app.jobs.find(job => job.id === run?.job_id)) || undefined" :loading="rerunning" @click="runAgain">
         <template #icon><AppIcon name="replay" /></template>
       </Button>
     </PageHeader>
@@ -189,7 +189,7 @@ onUnmounted(stopPolling)
             <div><dt>Job</dt><dd><RouterLink :to="`/jobs/${run.job_id}`" class="detail-link">{{ run.job }}</RouterLink></dd></div>
             <div><dt>Repository</dt><dd><RouterLink :to="`/repositories/${run.repository_id}`" class="detail-link">{{ run.repository }}</RouterLink></dd></div>
             <div><dt>Skill</dt><dd><code>{{ run.skill_path }}</code></dd></div>
-            <div><dt>Provider</dt><dd>{{ run.model_provider ?? 'None' }}</dd></div>
+            <div><dt>Agent</dt><dd>{{ run.execution_agent ?? run.model_provider ?? 'None' }}</dd></div>
             <div><dt>Started by</dt><dd>{{ startedByLabel(run.started_by) }}</dd></div>
             <div><dt>Queued</dt><dd :title="utcTitle(run.created_at)">{{ formatDate(run.created_at) }}</dd></div>
             <div><dt>Started</dt><dd :title="utcTitle(run.started_at)">{{ formatDate(run.started_at) }}</dd></div>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ExecutionAgentPanel from '../components/ExecutionAgentPanel.vue'
 import AppIcon from '../components/AppIcon.vue'
 import { computed, onMounted, ref } from 'vue'
 import InvitesPanel from '../components/InvitesPanel.vue'
@@ -69,6 +70,8 @@ onMounted(async () => {
         <MembersPanel :can-manage="canManageMembers" />
         <InvitesPanel v-if="canInvite" />
       </section>
+
+      <ExecutionAgentPanel />
 
       <RunLimitsPanel
         v-if="data.limits.length"
