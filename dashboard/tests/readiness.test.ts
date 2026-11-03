@@ -24,24 +24,24 @@ function status(overrides: Partial<ExecutionStatus> = {}): ExecutionStatus {
 test('executionFix asks a new workspace to choose what runs jobs', () => {
   const fix = executionFix(status({ problem: 'Choose a model API key or a subscription to run jobs.', chosen: false, needs_setup: true }))
   assert.equal(fix?.action, 'Choose what runs jobs')
-  assert.deepEqual(fix?.to, { path: '/connections' })
+  assert.deepEqual(fix?.to, { path: '/models' })
 })
 
-test('executionFix sends saved but unchosen workspaces to settings', () => {
+test('executionFix sends saved but unchosen workspaces to models', () => {
   const fix = executionFix(status({ problem: 'Choose a model API key or a subscription to run jobs.', chosen: false }))
   assert.equal(fix?.action, 'Choose what runs jobs')
-  assert.deepEqual(fix?.to, { path: '/settings' })
+  assert.deepEqual(fix?.to, { path: '/models' })
 })
 
 test('executionFix opens the broken model key', () => {
   const fix = executionFix(status({ problem: 'The model provider OpenRouter failed its last check.', fix_connection_id: 2 }))
   assert.equal(fix?.text, 'Runs will fail. The model provider OpenRouter failed its last check.')
-  assert.deepEqual(fix?.to, { path: '/connections', query: { connection: '2' } })
+  assert.deepEqual(fix?.to, { path: '/models', query: { connection: '2' } })
 })
 
 test('executionFix covers subscription problems and stays quiet when runs work', () => {
-  const fix = executionFix(status({ backend: 'codex', problem: 'The agent login Work is disconnected. Reconnect it on Connections.' }))
-  assert.equal(fix?.action, 'Open connections')
+  const fix = executionFix(status({ backend: 'codex', problem: 'The agent login Work is disconnected. Reconnect it on Models.' }))
+  assert.equal(fix?.action, 'Open models')
   assert.equal(executionFix(status()), null)
   assert.equal(executionFix(null), null)
 })

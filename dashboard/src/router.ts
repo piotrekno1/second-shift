@@ -3,6 +3,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import AccountView from './views/AccountView.vue'
 import ConnectionsView from './views/ConnectionsView.vue'
 import JobsView from './views/JobsView.vue'
+import ModelsView from './views/ModelsView.vue'
 import JobDetailView from './views/JobDetailView.vue'
 import NotFoundView from './views/NotFoundView.vue'
 import OverviewView from './views/OverviewView.vue'
@@ -26,6 +27,7 @@ export default createRouter({
     { path: '/runs', component: RunsView },
     { path: '/runs/:id(\\d+)', component: RunDetailView },
     { path: '/runs/:id(\\d+)/files/:name(input|output)', component: RunFileView },
+    { path: '/models', component: ModelsView },
     { path: '/connections', component: ConnectionsView },
     { path: '/settings', component: SettingsView },
     { path: '/account', component: AccountView },
@@ -39,6 +41,7 @@ export default createRouter({
     if (to.path === from.path) return false
     // Connections scrolls to the row a link names. Going to the top would undo that.
     if (to.path === '/connections' && (to.query.connection || to.query.binding)) return false
+    if (to.path === '/models' && to.query.connection) return false
     return { top: 0 }
   },
 })

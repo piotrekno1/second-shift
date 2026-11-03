@@ -7,30 +7,29 @@ import InputText from 'primevue/inputtext'
 import APIConnectionForm from './APIConnectionForm.vue'
 import ApprovalSetting from './ApprovalSetting.vue'
 import MCPConnectionForm from './MCPConnectionForm.vue'
-import ModelProviderForm from './ModelProviderForm.vue'
 import { approveNeed, createWebhook, fetchWebhookSample, testConnection, updateWebhook } from '../services/connections'
 import { useAppStore } from '../stores/app'
 import type { Connection, Notice, WebhookSample } from '../types'
 import { DocsPage } from '../utils/docs'
 import { countLabel, finishedBinding, titleFromSlug, typingBinding } from '../utils/format'
 
-type ConnectionType = 'webhook' | 'model' | 'mcp' | 'api'
+type ConnectionType = 'webhook' | 'mcp' | 'api'
 
 const props = defineProps<{
   /** Fixed binding when opened from a need. */
   binding?: string
-  /** Edit or reconnect an existing webhook or model provider. */
+  /** Edit or reconnect an existing connection. Model providers are edited on Models. */
   connection?: Connection
 }>()
 const emit = defineEmits<{ done: [notice: Notice, binding: string], cancel: [] }>()
 
 const app = useAppStore()
-// Editing keeps the connection's type. A new one starts on the first option:
-// Model provider from the header, or what the binding's jobs request.
+// Editing keeps the connection's type. A new one starts on MCP from the
+// header, or on what the binding's jobs request.
 const type = ref<ConnectionType>(
   props.connection
-    ? (props.connection.kind === 'model' || props.connection.kind === 'mcp' || props.connection.kind === 'api' ? props.connection.kind : 'webhook')
-    : (props.binding ? 'webhook' : 'model'),
+    ? (props.connection.kind === 'mcp' || props.connection.kind === 'api' ? props.connection.kind : 'webhook')
+    : (props.binding ? 'webhook' : 'mcp'),
 )
 const bindingKey = ref(props.connection?.binding_key ?? props.binding ?? '')
 const displayName = ref(props.connection?.display_name ?? titleFromSlug(bindingKey.value))
@@ -57,8 +56,6 @@ async function loadSample(event: Event): Promise<void> {
 
 const editing = computed(() => Boolean(props.connection))
 const typeOptions = computed(() => ([
-  // Model providers are workspace-wide, so they are never offered for a binding.
-  ...(props.binding ? [] : [['model', 'Model provider', 'creation-outline']]),
   ['mcp', 'MCP server', 'server-network'],
   ['api', 'HTTP API', 'api'],
   ['webhook', 'Webhook', 'webhook'],
@@ -134,8 +131,7 @@ async function submit(): Promise<void> {
       </button>
     </div>
 
-    <ModelProviderForm v-if="type === 'model'" :connection="connection" @done="(notice, binding) => emit('done', notice, binding)" @cancel="emit('cancel')" />
-    <APIConnectionForm v-else-if="type === 'api'" :binding="binding" :connection="connection" @done="(notice, binding) => emit('done', notice, binding)" @cancel="emit('cancel')" />
+    <APIConnectionForm v-if="type === 'api'" :binding="binding" :connection="connection" @done="(notice, binding) => emit('done', notice, binding)" @cancel="emit('cancel')" />
     <MCPConnectionForm v-else-if="type === 'mcp'" :binding="binding" :connection="connection" @done="(notice, binding) => emit('done', notice, binding)" @cancel="emit('cancel')" />
     <form v-else class="need-setup-fields" @submit.prevent="submit">
     <div class="need-setup-copy">

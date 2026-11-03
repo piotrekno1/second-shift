@@ -20,6 +20,8 @@ export interface ExecutionChoice {
   key: string
   label: string
   disabled: boolean
+  /** Why this choice cannot run jobs, or ''. */
+  problem: string
 }
 
 export interface AgentConfiguration {

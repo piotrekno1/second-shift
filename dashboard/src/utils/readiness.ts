@@ -25,16 +25,16 @@ export function executionFix(execution: ExecutionStatus | null | undefined): Exe
     return {
       text: 'Nothing can run jobs yet. Add a model API key or connect a Claude Code or Codex subscription.',
       action: 'Choose what runs jobs',
-      to: { path: '/connections' },
+      to: { path: '/models' },
     }
   }
   if (!execution.chosen) {
-    return { text: `Runs will fail. ${execution.problem}`, action: 'Choose what runs jobs', to: { path: '/settings' } }
+    return { text: `Runs will fail. ${execution.problem}`, action: 'Choose what runs jobs', to: { path: '/models' } }
   }
   if (execution.fix_connection_id !== null) {
-    return { text: `Runs will fail. ${execution.problem}`, action: 'Fix the connection', to: { path: '/connections', query: { connection: String(execution.fix_connection_id) } } }
+    return { text: `Runs will fail. ${execution.problem}`, action: 'Fix the provider', to: { path: '/models', query: { connection: String(execution.fix_connection_id) } } }
   }
-  return { text: `Runs will fail. ${execution.problem}`, action: 'Open connections', to: { path: '/connections' } }
+  return { text: `Runs will fail. ${execution.problem}`, action: 'Open models', to: { path: '/models' } }
 }
 
 /** A warning for a run button while the run would fail, or ''. */

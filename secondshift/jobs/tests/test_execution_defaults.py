@@ -237,11 +237,13 @@ def test_choices_are_the_model_providers_and_your_own_logins(
             "key": f"model:{model.pk}",
             "label": "Model provider · Workspace API · test-model",
             "disabled": False,
+            "problem": "",
         },
         {
             "key": f"agent:{login.pk}",
             "label": "Claude Code subscription · Personal",
             "disabled": False,
+            "problem": "",
         },
     ]
     other = get_user_model().objects.create_user(username="other")
@@ -252,6 +254,7 @@ def test_choices_are_the_model_providers_and_your_own_logins(
             "key": f"agent:{login.pk}",
             "label": "Claude Code subscription · Personal",
             "disabled": True,
+            "problem": "",
         }
     ]
 
@@ -355,9 +358,7 @@ def test_run_refusal_reports_the_actual_agent_blocker(
         name = AgentConnection.objects.get(
             pk=run.job.workspace.default_agent_connection_id
         ).display_name
-        expected = (
-            f"The agent login {name} is disconnected. Reconnect it on Connections."
-        )
+        expected = f"The agent login {name} is disconnected. Reconnect it on Models."
     else:
         model_workspace(run)
         expected = NOTHING_CHOSEN
@@ -382,9 +383,7 @@ def test_an_unusable_default_login_says_what_is_wrong(
     elif change == "disconnected":
         login.connected = False
         login.save(update_fields=["connected"])
-        expected = (
-            "The agent login Personal is disconnected. Reconnect it on Connections."
-        )
+        expected = "The agent login Personal is disconnected. Reconnect it on Models."
     else:
         WorkspaceMembership.objects.filter(workspace=workspace, user=owner).update(
             role=WorkspaceMembership.Role.MEMBER
@@ -407,7 +406,11 @@ def test_a_broken_model_provider_cannot_be_chosen(
         save_execution_preference(workspace, f"model:{model.pk}", owner)
     workspace.refresh_from_db()
     assert workspace.default_agent_connection is not None
-    assert execution_configuration(workspace, owner)["choices"][0]["disabled"] is True
+    choice = execution_configuration(workspace, owner)["choices"][0]
+    assert choice["disabled"] is True
+    assert (
+        choice["problem"] == "The model provider Workspace API failed its last check."
+    )
 
 
 def test_choosing_one_clears_the_other(agent_run: tuple[Run, User]) -> None:
@@ -493,7 +496,7 @@ def test_overview_points_at_the_broken_model_key(
     model.save(update_fields=["status"])
     execution = overview_execution(client, owner)
     assert execution["problem"] == (
-        "The model provider Workspace API is disconnected. Reconnect it on Connections."
+        "The model provider Workspace API is disconnected. Reconnect it on Models."
     )
     assert execution["needs_setup"] is False
     assert execution["fix_connection_id"] == model.pk
@@ -510,7 +513,7 @@ def test_overview_reports_a_disconnected_login(
     execution = overview_execution(client, owner)
     assert execution["backend"] == AgentBackend.CLAUDE_CODE
     assert execution["problem"] == (
-        "The agent login Personal is disconnected. Reconnect it on Connections."
+        "The agent login Personal is disconnected. Reconnect it on Models."
     )
     assert execution["needs_setup"] is False
     assert execution["fix_connection_id"] is None
