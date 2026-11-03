@@ -1,5 +1,6 @@
 import json
 import subprocess
+import tomllib
 from pathlib import Path
 from typing import Any
 from unittest.mock import Mock
@@ -114,6 +115,12 @@ def test_packaged_agents_disable_native_tools_and_use_only_the_broker(
     assert "--skip-git-repo-check" in argv
     assert env == {"SECONDSHIFT_BROKER_TOKEN": "broker-secret"}
     config = (tmp_path / "config.toml").read_text()
+    parsed = tomllib.loads(config)
+    assert parsed["approval_policy"] == "never"
+    assert parsed["sandbox_mode"] == "read-only"
+    assert parsed["mcp_servers"]["secondshift"]["default_tools_approval_mode"] == (
+        "approve"
+    )
     for feature in (
         "shell_tool",
         "unified_exec",

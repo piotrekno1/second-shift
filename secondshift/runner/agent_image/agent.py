@@ -112,6 +112,9 @@ image_generation = false
 apply_patch_freeform = false
 
 [mcp_servers.secondshift]
+# The broker enforces the run's approved tools. Unattended runs cannot
+# answer a second approval prompt from the CLI.
+default_tools_approval_mode = "approve"
 url = {json.dumps(config["broker_url"])}
 bearer_token_env_var = "{BROKER_TOKEN_VAR}"
 """,
