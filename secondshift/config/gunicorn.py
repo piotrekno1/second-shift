@@ -4,7 +4,7 @@ import os
 
 from environ import Env
 
-from secondshift.config.constants import SERVICE_VAR, AppEnv, Service
+from secondshift.config.constants import SERVICE_VAR, Service
 
 service = Service(os.environ.get(SERVICE_VAR, Service.WEB))
 if service == Service.WORKER:
@@ -13,11 +13,8 @@ if service == Service.WORKER:
     )
 env = Env()
 
-# An opted-in runner must serve broker-backed commands while an agent request
-# remains open. ASGI keeps the existing one-process local launcher concurrent.
-async_http = service == Service.GATEWAY or (
-    service == Service.RUNNER and bool(os.environ.get(AppEnv.AGENT_IMAGE))
-)
+# Both hold long requests open (model streams, agent runs) while serving others.
+async_http = service in (Service.GATEWAY, Service.RUNNER)
 factory = "asgi" if async_http else "wsgi"
 wsgi_app = f"secondshift.config.app:{factory}('{service}')"
 worker_class = "uvicorn_worker.UvicornWorker" if async_http else "sync"
