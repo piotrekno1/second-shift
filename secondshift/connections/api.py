@@ -85,6 +85,7 @@ from secondshift.connections.webhooks import (
     deliver_webhook,
 )
 from secondshift.jobs.automatic_grants import approve_waiting_for, set_require_approval
+from secondshift.jobs.execution import use_login_when_no_model_works
 from secondshift.runs.reporting.connection_usage import (
     ConnectionUsage,
     connection_usage,
@@ -623,7 +624,7 @@ def connect_agent(
 ) -> AgentConnection:
     workspace = require(request, Action.ADD_CONNECTIONS)
     try:
-        return save_agent_connection(
+        connection = save_agent_connection(
             workspace,
             request.user,
             payload.backend,
@@ -632,6 +633,8 @@ def connect_agent(
         )
     except AgentConnectionError as error:
         raise HttpError(422, str(error)) from None
+    use_login_when_no_model_works(connection)
+    return connection
 
 
 @router.post("/agent-connections/{connection_id}", response=AgentConnectionSchema)

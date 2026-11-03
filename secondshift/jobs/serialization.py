@@ -6,6 +6,11 @@ from secondshift.connections.external import changing_tools, external_access
 from secondshift.connections.models import Connection
 from secondshift.gateway.usage import with_model_usage
 from secondshift.jobs.api_limits import serialize_limits
+from secondshift.jobs.execution import (
+    ExecutionSelection,
+    job_execution,
+    workspace_execution,
+)
 from secondshift.jobs.limits import limit_views
 from secondshift.jobs.models import Job
 from secondshift.jobs.schemas import (
@@ -66,9 +71,11 @@ def tool_inputs(connection: Connection, tools: list[str]) -> dict[str, ToolInput
 
 
 def serialize_job(
-    job: Job, connections: dict[str, Connection] | None = None
+    job: Job,
+    connections: dict[str, Connection] | None = None,
+    execution: ExecutionSelection | None = None,
 ) -> JobSchema:
-    """`connections` maps binding keys to connections, to share one query."""
+    """`connections` and `execution` are shared by every job in a list."""
     requests = list(job.capability_requests.all())
     if connections is None and requests:
         connections = binding_connections(job.workspace_id)
@@ -112,8 +119,12 @@ def serialize_job(
                 ),
             )
         )
+    execution = execution or job_execution(job)
     return JobSchema(
         id=job.id,
+        execution_backend=execution.backend,
+        execution_label=execution.label,
+        execution_problem=execution.problem,
         name=job.name,
         repository_id=job.repository_id,
         repository=job.repository.display_name,
@@ -175,7 +186,9 @@ def serialize_workspace_jobs(workspace: Workspace) -> list[JobSchema]:
         ).select_related("repository")
     )
     connections = binding_connections(workspace.pk)
+    # Every job runs on the workspace default, so resolve it once.
+    execution = workspace_execution(workspace)
     return [
-        serialize_job(item, connections)
+        serialize_job(item, connections, execution)
         for item in queryset.prefetch_related("capability_requests__grant__connection")
     ]
