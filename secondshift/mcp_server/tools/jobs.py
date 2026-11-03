@@ -2,6 +2,7 @@
 
 from thin_mcp import ToolContext, ToolExecutionError
 
+from secondshift.config.constants import TaskOrigin
 from secondshift.jobs.access import job_for_request
 from secondshift.jobs.models import Job
 from secondshift.jobs.readiness import readiness_problems
@@ -92,7 +93,7 @@ def run_job(context: ToolContext, arguments: JobArguments) -> RunStartResult:
     job = job_for_request(request, arguments.job_id)
     require(request, Action.RUN_JOBS)
     try:
-        run = start_manual_run(job)
+        run = start_manual_run(job, submitted_by=request.user, origin=TaskOrigin.MCP)
     except RunInProgress as error:
         return RunStartResult(
             run_id=error.run.pk,

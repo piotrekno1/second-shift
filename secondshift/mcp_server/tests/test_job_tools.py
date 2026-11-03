@@ -13,7 +13,7 @@ from secondshift.jobs.models import CapabilityRequest, Job
 from secondshift.repositories.models import Repository
 from secondshift.repositories.sync import SyncError
 from secondshift.runs.artifacts import store_run_text
-from secondshift.runs.models import Run
+from secondshift.runs.models import Run, Task
 from secondshift.workspaces.models import Workspace, WorkspaceMembership
 from secondshift.workspaces.services import create_workspace
 from secondshift.workspaces.tokens import create_api_token
@@ -170,6 +170,10 @@ def test_run_job_starts_once_and_then_returns_the_active_run(
 
     assert first["started"] is True
     assert queued == [first["run_id"]]
+    task = Task.objects.get()
+    assert task.origin == "mcp"
+    assert task.submitted_by_id == owner.pk
+    assert Run.objects.get(pk=first["run_id"]).task_id == task.pk
     assert second == {
         "run_id": first["run_id"],
         "status": "queued",

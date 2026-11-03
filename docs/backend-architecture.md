@@ -5,7 +5,7 @@
 | `repositories` | Repository sources, revisions, mirrors and run snapshots, sync triggers |
 | `jobs` | Manifest interpretation, job reconciliation, capability requests, grants, execution-plan compilation, schedule registration |
 | `triggers` | Job triggers, their secrets, the public endpoint that starts runs, received requests |
-| `runs` | Execution records, audit events, agent execution, durable workflows, recovery, artifacts, retention, report delivery |
+| `runs` | Task assignments, execution records, audit events, agent execution, durable workflows, recovery, artifacts, retention, report delivery |
 | `connections` | Connection lifecycle, encrypted credentials, OAuth sign-ins, provider adapters for MCP, HTTP APIs, models and webhooks |
 | `runner` | The isolated service's sandbox sessions, runtime enforcement, command execution, shared protocol and client |
 | `gateway` | Model proxy, run tokens, model usage |
@@ -19,6 +19,23 @@ contracts, and `serialization.py` for response builders when needed.
 schemas or route registration.
 
 ## Jobs and runs
+
+Jobs are reusable definitions. A task records one assignment, and a run records
+an execution attempt. Current tasks are all job-backed. Each accepted start
+creates a task and its initial run atomically; refused starts and skipped cron
+ticks create neither. Task snapshots preserve the assignment and commit at
+submission, while run snapshots and execution plans remain the execution
+source of truth. Webhook payload metadata is included before submission commits.
+MCP tasks record the token's user and MCP origin; their runs retain the existing
+manual start label. Scheduled and webhook tasks have no submitting user.
+
+The nullable `Run.task` link preserves compatibility with older writers.
+Generated migrations backfill one task per historical run from recorded inputs,
+never from current job definitions; unknown origins and users remain unknown.
+The versioned backfill operation lives in `runs.migration_helpers` so the data
+migration can be generated with Django's migration writer. Retention removes a
+task when pruning its last remaining attempt. Task and run relationships to jobs,
+public responses, and the worker's execution inputs remain compatible.
 
 Repository synchronization obtains configuration at a revision and calls
 `jobs.sync`. The jobs app validates the manifest and reconciles definitions and

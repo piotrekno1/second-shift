@@ -5,7 +5,7 @@ from django.contrib.auth import get_user_model
 
 from secondshift.jobs.models import Job
 from secondshift.repositories.models import Repository
-from secondshift.runs.models import Run, RunEvent
+from secondshift.runs.models import Run, RunEvent, Task
 from secondshift.runs.orchestration.workflows import create_scheduled_run_step
 from secondshift.workspaces.services import create_workspace
 
@@ -39,6 +39,9 @@ def test_tick_creates_a_run(job: Job) -> None:
     run = Run.objects.get(pk=tick(job))
 
     assert (run.started_by, run.scheduled_for) == ("schedule", TICK)
+    assert run.task.origin == "schedule"
+    assert run.task.scheduled_for == TICK
+    assert run.task.submitted_by is None
 
 
 def test_replayed_tick_returns_the_same_run(job: Job) -> None:
@@ -47,6 +50,7 @@ def test_replayed_tick_returns_the_same_run(job: Job) -> None:
 
     assert tick(job) == first
     assert Run.objects.count() == 1
+    assert Task.objects.count() == 1
 
 
 @pytest.mark.parametrize("status", [Run.Status.QUEUED, Run.Status.RUNNING])
@@ -56,6 +60,7 @@ def test_tick_is_skipped_while_another_run_is_active(job: Job, status: str) -> N
 
     assert tick(job) is None
     assert Run.objects.count() == 1
+    assert Task.objects.count() == 1
     note = RunEvent.objects.get(run=active).message
     assert note == (
         "Skipped the scheduled run at 2026-11-02 08:00 UTC "
