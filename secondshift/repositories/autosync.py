@@ -12,13 +12,11 @@ from pathlib import Path
 from django.conf import settings
 from django.db.models import Q
 
-from secondshift.connections.models import Connection
-from secondshift.github.app import branch_head, configured
+from secondshift.github import repos
+from secondshift.github.app import configured
 from secondshift.github.errors import GitHubError
-from secondshift.repositories.github_sync import (
-    github_repository_metadata,
-    sync_github_repository,
-)
+from secondshift.repositories.github_access import github_access, usable_source
+from secondshift.repositories.github_sync import sync_github_repository
 from secondshift.repositories.local import (
     LocalRepositoryError,
     attach_local_repository,
@@ -57,14 +55,11 @@ def sync_moved_repositories() -> int:
     for repository in repositories_to_check():
         try:
             if repository.source_type == Repository.SourceType.GITHUB:
-                connection = repository.github_connection
-                if not connection or connection.status != Connection.Status.CONNECTED:
+                if not usable_source(repository.github_connection):
                     continue
-                github_repository_metadata(repository)
-                head = branch_head(
-                    connection.external_account_id,
-                    int(repository.external_id),
-                    repository.default_branch,
+                access = github_access(repository)
+                head = repos.branch_head(
+                    access.token, access.repository_id, repository.default_branch
                 )
                 if head == repository.checked_sha:
                     continue

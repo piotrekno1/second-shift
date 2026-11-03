@@ -2,11 +2,10 @@ from typing import Literal
 
 from django.http import HttpRequest
 
-from secondshift.connections.models import Connection
-from secondshift.github.app import branch_head
+from secondshift.github import repos
 from secondshift.github.errors import GitHubError
 from secondshift.repositories.autosync import server_syncs
-from secondshift.repositories.github_sync import github_repository_metadata
+from secondshift.repositories.github_access import github_access
 from secondshift.repositories.local import (
     LocalRepositoryError,
     RepositoryConfigError,
@@ -59,14 +58,9 @@ def problem_status(repository: Repository) -> Literal["warning", "error"]:
 def validate_repository(repository: Repository) -> RepositoryValidationSchema:
     if repository.source_type != Repository.SourceType.LOCAL:
         try:
-            connection = repository.github_connection
-            if not connection or connection.status != Connection.Status.CONNECTED:
-                raise GitHubError("The GitHub installation is disconnected.")
-            github_repository_metadata(repository)
-            head = branch_head(
-                connection.external_account_id,
-                int(repository.external_id),
-                repository.default_branch,
+            access = github_access(repository)
+            head = repos.branch_head(
+                access.token, access.repository_id, repository.default_branch
             )
             valid = bool(repository.config_sha) and not repository.last_sync_error
             return RepositoryValidationSchema(

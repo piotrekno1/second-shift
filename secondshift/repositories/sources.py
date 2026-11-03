@@ -19,6 +19,7 @@ from pathlib import Path
 from django.conf import settings
 
 from secondshift.config.constants import COMMIT_SHA_PATTERN
+from secondshift.repositories.github_access import github_access
 from secondshift.repositories.github_sync import fetch_github_commit
 from secondshift.repositories.mirrors import has_commit, locked_mirror
 from secondshift.repositories.models import Repository
@@ -69,7 +70,7 @@ def build_snapshot(repository: Repository, commit_sha: str, path: Path) -> None:
         return
     with locked_mirror(repository.pk) as mirror:
         if not has_commit(mirror, commit_sha):
-            fetch_github_commit(repository, commit_sha, mirror)
+            fetch_github_commit(github_access(repository), commit_sha, mirror)
         write_atomically(mirror, commit_sha, path)
 
 

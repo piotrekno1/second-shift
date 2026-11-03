@@ -17,19 +17,14 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
-from secondshift.github import pulls
-from secondshift.github.app import installation_token
+from secondshift.github import credentials, pulls
 from secondshift.github.errors import GitHubError
 from secondshift.github.git import authenticated_git
-from secondshift.github.identity import clone_url
-from secondshift.repositories.github_sync import (
-    fetch_github_commit,
-    github_repository_metadata,
-)
+from secondshift.repositories.github_access import github_access
+from secondshift.repositories.github_sync import fetch_github_commit
 from secondshift.repositories.mirrors import has_commit, locked_mirror
 from secondshift.repositories.models import Repository
 
-WRITE_PERMISSIONS = {"contents": "write", "pull_requests": "write"}
 MAX_BODY_CHARS = pulls.MAX_BODY_CHARS
 AUTHOR_NAME = "SecondShift"
 AUTHOR_EMAIL = "secondshift@users.noreply.github.com"
@@ -61,12 +56,8 @@ def publish_pull_request(
     if repository.source_type != Repository.SourceType.GITHUB:
         raise PublishError("Only GitHub repositories can receive pull requests.")
     try:
-        full_name = github_repository_metadata(repository)["full_name"]
-        token = installation_token(
-            repository.github_connection.external_account_id,
-            int(repository.external_id),
-            permissions=WRITE_PERMISSIONS,
-        )
+        # One token for the fetch, the push and the pull request.
+        access = github_access(repository, credentials.WRITE)
     except GitHubError as error:
         raise PublishError(
             "GitHub refused write access. Give the GitHub App Contents and Pull "
@@ -75,7 +66,7 @@ def publish_pull_request(
     with locked_mirror(repository.pk) as mirror:
         if not has_commit(mirror, commit_sha):
             try:
-                fetch_github_commit(repository, commit_sha, mirror)
+                fetch_github_commit(access, commit_sha, mirror)
             except GitHubError as error:
                 # These messages never contain the token.
                 raise PublishError(str(error)) from error
@@ -83,11 +74,11 @@ def publish_pull_request(
         try:
             authenticated_git(
                 mirror,
-                token,
+                access.token,
                 "push",
                 "--quiet",
                 "--",
-                clone_url(full_name),
+                access.clone_url,
                 f"{commit}:refs/heads/{draft.branch}",
             )
         except GitHubError as error:
@@ -95,7 +86,7 @@ def publish_pull_request(
                 f"GitHub refused the push to {draft.branch}. Changes to workflow "
                 "files are refused, and so is a branch someone else changed."
             ) from error
-    return open_draft(full_name, token, draft)
+    return open_draft(access.full_name, access.token, draft)
 
 
 def commit_patch(

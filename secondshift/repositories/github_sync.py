@@ -1,21 +1,21 @@
 """Fetch GitHub source into the control plane's mirror. Tokens never leave it."""
 
-import re
 from pathlib import Path
 
 from django.db import transaction
 
-from secondshift.config.constants import GITHUB_REPOSITORY_PATTERN
 from secondshift.connections.models import Connection
-from secondshift.github.app import (
-    installation_repositories,
-    installation_token,
-    repository_metadata,
-)
+from secondshift.github import repos
+from secondshift.github.app import installation_repositories
 from secondshift.github.errors import GitHubError
 from secondshift.github.git import authenticated_git
 from secondshift.github.identity import clone_url
 from secondshift.jobs.sync import sync_jobs
+from secondshift.repositories.github_access import (
+    GitHubAccess,
+    connection_access,
+    github_access,
+)
 from secondshift.repositories.local import (
     RepositoryConfigError,
     read_committed_config,
@@ -23,30 +23,6 @@ from secondshift.repositories.local import (
 from secondshift.repositories.mirrors import SYNCED_REF, locked_mirror
 from secondshift.repositories.models import Repository
 from secondshift.workspaces.models import Workspace
-
-
-def github_repository_metadata(repository: Repository) -> dict:
-    if repository.removed_at is not None:
-        raise GitHubError("This repository has been removed.")
-    connection = repository.github_connection
-    if (
-        not connection
-        or connection.workspace_id != repository.workspace_id
-        or connection.kind != Connection.Kind.SOURCE
-        or connection.auth_strategy != Connection.AuthStrategy.MANAGED
-        or connection.provider != Connection.Provider.GITHUB
-        or connection.status != Connection.Status.CONNECTED
-    ):
-        raise GitHubError("The GitHub installation is disconnected.")
-    installation_id = connection.external_account_id
-    metadata = repository_metadata(installation_id, int(repository.external_id))
-    full_name = metadata["full_name"]
-    if not re.fullmatch(GITHUB_REPOSITORY_PATTERN, full_name):
-        raise GitHubError("Invalid GitHub repository name.")
-    # Do not silently move a repository's identity or its existing approvals.
-    if repository.full_name != full_name:
-        raise GitHubError("Repository was renamed. Remove and import it again.")
-    return metadata
 
 
 def sync_github_repository(repository: Repository) -> Repository:
@@ -59,10 +35,8 @@ def sync_github_repository(repository: Repository) -> Repository:
     repository = Repository.objects.select_related("github_connection").get(
         pk=repository.pk
     )
-    metadata = github_repository_metadata(repository)
-    token = installation_token(
-        repository.github_connection.external_account_id, int(repository.external_id)
-    )
+    access = github_access(repository)
+    token = access.token
     with locked_mirror(repository.pk) as mirror:
         authenticated_git(
             mirror,
@@ -70,7 +44,7 @@ def sync_github_repository(repository: Repository) -> Repository:
             "fetch",
             "--no-tags",
             "--",
-            clone_url(metadata["full_name"]),
+            access.clone_url,
             f"refs/heads/{repository.default_branch}",
         )
         revision = authenticated_git(mirror, token, "rev-parse", "FETCH_HEAD")
@@ -104,20 +78,16 @@ def sync_github_repository(repository: Repository) -> Repository:
     return repository
 
 
-def fetch_github_commit(repository: Repository, commit_sha: str, mirror: Path) -> None:
+def fetch_github_commit(access: GitHubAccess, commit_sha: str, mirror: Path) -> None:
     """Fetch one commit by its SHA into the repository's mirror."""
-    metadata = github_repository_metadata(repository)
-    token = installation_token(
-        repository.github_connection.external_account_id, int(repository.external_id)
-    )
     try:
         authenticated_git(
             mirror,
-            token,
+            access.token,
             "fetch",
             "--no-tags",
             "--",
-            clone_url(metadata["full_name"]),
+            access.clone_url,
             commit_sha,
         )
     except GitHubError as error:
@@ -177,7 +147,7 @@ def attach_github_repository(
     The row is saved first in a short transaction, so the GitHub fetch never
     holds a database lock. If the first sync fails, the row is put back.
     """
-    metadata = repository_metadata(connection.external_account_id, repository_id)
+    metadata = connection_access(connection, repository_id).metadata
     with transaction.atomic():
         repository, previous = save_attached_repository(
             workspace, connection, repository_id, branch, metadata
@@ -227,3 +197,8 @@ def save_attached_repository(
     repository.default_branch = branch or metadata["default_branch"]
     repository.save()
     return repository, previous
+
+
+def repository_branches(connection: Connection, repository_id: int) -> list[str]:
+    access = connection_access(connection, repository_id)
+    return repos.branches(access.token, access.full_name)

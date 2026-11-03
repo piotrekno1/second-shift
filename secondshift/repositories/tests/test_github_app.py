@@ -12,11 +12,14 @@ from django.test import Client
 from django.utils import timezone
 
 from secondshift.connections.models import Connection
+from secondshift.github import repos
 from secondshift.github.errors import GitHubError
 from secondshift.repositories import autosync, github_sync
+from secondshift.repositories.github_access import github_access
 from secondshift.repositories.github_views import STATE_KEY
 from secondshift.repositories.mirrors import SYNCED_REF, mirror_path
 from secondshift.repositories.models import Repository
+from secondshift.repositories.tests.github_fakes import fake_github
 from secondshift.repositories.tests.test_local import (
     commit_configuration,
     create_local_repository,
@@ -168,12 +171,7 @@ def test_sync_fetches_into_the_mirror_before_advancing_jobs(
         external_id="7",
         installation_id="42",
     )
-    monkeypatch.setattr(
-        github_sync, "repository_metadata", lambda *args: {"full_name": "owner/project"}
-    )
-    monkeypatch.setattr(
-        github_sync, "installation_token", lambda *args: "github-secret"
-    )
+    fake_github(monkeypatch)
     original = github_sync.authenticated_git
     reachable = True
 
@@ -216,12 +214,7 @@ def fetch_from_local_source(
     monkeypatch: Any, source: Path, settings: Any, tmp_path: Path
 ) -> None:
     """Point GitHub fetches for owner/project at a local repository."""
-    monkeypatch.setattr(
-        github_sync, "repository_metadata", lambda *args: {"full_name": "owner/project"}
-    )
-    monkeypatch.setattr(
-        github_sync, "installation_token", lambda *args: "github-secret"
-    )
+    fake_github(monkeypatch)
     original = github_sync.authenticated_git
 
     def local_fetch(root: Path, token: str, *arguments: str) -> str:
@@ -251,11 +244,6 @@ def test_import_without_a_manifest_keeps_the_repository(
     run_git(source, "config", "user.name", "SecondShift Test")
     run_git(source, "commit", "--allow-empty", "-m", "Start")
     fetch_from_local_source(monkeypatch, source, settings, tmp_path)
-    monkeypatch.setattr(
-        github_sync,
-        "repository_metadata",
-        lambda *args: {"full_name": "owner/project", "default_branch": "main"},
-    )
 
     repository = github_sync.attach_github_repository(
         workspace, source_connection, 7, ""
@@ -290,9 +278,8 @@ def test_autosync_picks_up_the_first_manifest_of_a_disabled_repository(
         external_id="7",
     )
     github_sync.sync_github_repository(repository)
-    monkeypatch.setattr(autosync, "github_repository_metadata", lambda item: {})
     monkeypatch.setattr(
-        autosync,
+        repos,
         "branch_head",
         lambda *args: subprocess.check_output(
             ["git", "-C", str(source), "rev-parse", "main"], text=True
@@ -338,8 +325,8 @@ def test_failed_poll_is_visible_and_retains_last_revision(
         config_sha="a" * 40,
         enabled=True,
     )
-    monkeypatch.setattr(autosync, "github_repository_metadata", lambda repository: {})
-    monkeypatch.setattr(autosync, "branch_head", lambda *args: "b" * 40)
+    fake_github(monkeypatch)
+    monkeypatch.setattr(repos, "branch_head", lambda *args: "b" * 40)
 
     def fail_sync(repository: Any) -> None:
         raise GitHubError("The committed manifest is invalid.")
@@ -375,13 +362,9 @@ def test_repository_rename_does_not_reuse_existing_scope(
         full_name="owner/project",
         external_id="7",
     )
-    monkeypatch.setattr(
-        github_sync,
-        "repository_metadata",
-        lambda *args: {"full_name": "another/project"},
-    )
+    fake_github(monkeypatch, full_name="another/project")
     with pytest.raises(GitHubError, match="renamed"):
-        github_sync.github_repository_metadata(repository)
+        github_access(repository)
 
 
 def test_new_user_is_sent_to_install_after_authorization(
@@ -424,7 +407,7 @@ def test_branch_endpoint_enforces_workspace_access(
     response = owner_client.get(url)
     assert response.status_code == 200
     assert response.json() == ["main", "release"]
-    branches.assert_called_once_with("42", 7)
+    branches.assert_called_once_with(source_connection, 7)
     user = get_user_model().objects.create_user(username="branch-outsider")
     other = create_workspace(name="Other", slug="branch-other", owner=user)
     source_connection.workspace = other
@@ -455,11 +438,7 @@ def test_session_reports_the_github_app_without_calling_github(
 
 @pytest.fixture
 def github_metadata(monkeypatch: Any) -> None:
-    monkeypatch.setattr(
-        github_sync,
-        "repository_metadata",
-        lambda *args: {"full_name": "owner/project", "default_branch": "main"},
-    )
+    fake_github(monkeypatch)
 
 
 def test_adding_a_repository_syncs_outside_a_transaction(
@@ -519,3 +498,23 @@ def test_a_failed_sync_leaves_a_readded_repository_removed(
     assert repository.removed_at == removed_at
     assert repository.installation_id == "old"
     assert repository.default_branch == "old-branch"
+
+
+def test_an_autosync_check_mints_one_token_per_repository(
+    workspace: Any, source_connection: Any, monkeypatch: Any
+) -> None:
+    Repository.objects.create(
+        workspace=workspace,
+        github_connection=source_connection,
+        full_name="owner/project",
+        external_id="7",
+        checked_sha="a" * 40,
+    )
+    tokens = fake_github(monkeypatch)
+    heads = Mock(return_value="a" * 40)
+    monkeypatch.setattr(repos, "branch_head", heads)
+
+    assert autosync.sync_moved_repositories() == 0
+
+    assert tokens.call_count == 1
+    assert heads.call_args.args[0] == "github-secret"

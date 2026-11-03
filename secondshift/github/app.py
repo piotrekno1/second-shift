@@ -3,7 +3,6 @@
 import base64
 import json
 import time
-from urllib.parse import quote
 
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding
@@ -49,29 +48,12 @@ def app_token() -> str:
     return f"{message}.{encoded(signature)}"
 
 
-def repository_branches(installation_id: str, repository_id: int) -> list[str]:
-    metadata = repository_metadata(installation_id, repository_id)
-    token = installation_token(installation_id, repository_id)
-    batch = paginated(
-        f"{GITHUB_API_URL}/repos/{metadata['full_name']}/branches",
-        token,
-        None,
-        "This repository has too many branches to list.",
-    )
-    if any(
-        not isinstance(item, dict) or not isinstance(item.get("name"), str)
-        for item in batch
-    ):
-        raise GitHubError("GitHub returned an invalid branch listing.")
-    return [item["name"] for item in batch]
-
-
 def installation_token(
     installation_id: str,
     repository_id: int | None = None,
     permissions: dict[str, str] | None = None,
 ) -> str:
-    """A short-lived token. Read-only unless the caller names other permissions."""
+    """A token that expires within an hour. Read-only unless permissions say more."""
     if not installation_id.isdecimal():
         raise GitHubError("Invalid installation identity.")
     payload: dict[str, object] = {"permissions": permissions or {"contents": "read"}}
@@ -93,21 +75,3 @@ def installation_repositories(installation_id: str) -> list[dict]:
         "repositories",
         "Installation has too many repositories to list.",
     )
-
-
-def repository_metadata(installation_id: str, repository_id: int) -> dict:
-    token = installation_token(installation_id, repository_id)
-    data = request_json("GET", f"{GITHUB_API_URL}/repositories/{repository_id}", token)
-    if data.get("id") != repository_id:
-        raise GitHubError("GitHub repository identity changed.")
-    return data
-
-
-def branch_head(installation_id: str, repository_id: int, branch: str) -> str:
-    token = installation_token(installation_id, repository_id)
-    data = request_json(
-        "GET",
-        f"{GITHUB_API_URL}/repositories/{repository_id}/commits/{quote(branch, safe='')}",
-        token,
-    )
-    return data["sha"]

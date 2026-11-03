@@ -187,7 +187,7 @@ def test_prepare_source_checks_github_access_first(db, monkeypatch) -> None:
     def removed(repository: Repository) -> dict:
         raise RuntimeError("This repository has been removed.")
 
-    monkeypatch.setattr(workflows, "github_repository_metadata", removed)
+    monkeypatch.setattr(workflows, "github_access", removed)
     monkeypatch.setattr(
         workflows, "source_snapshot", lambda *args: pytest.fail("built a snapshot")
     )

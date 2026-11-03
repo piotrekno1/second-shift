@@ -6,6 +6,7 @@ import pytest
 
 from secondshift.connections.models import Connection
 from secondshift.repositories import skill_source
+from secondshift.repositories.github_access import GitHubAccess
 from secondshift.repositories.local import LocalRepositoryError
 from secondshift.repositories.models import Repository
 
@@ -27,11 +28,8 @@ def test_github_submission_fetches_requested_source_and_verifies_the_pinned_skil
     read = Mock(return_value="# Skill")
     monkeypatch.setattr(
         skill_source,
-        "github_repository_metadata",
-        lambda repo: {"full_name": repo.full_name},
-    )
-    monkeypatch.setattr(
-        skill_source, "installation_token", lambda *args: "server-token"
+        "github_access",
+        lambda repo: GitHubAccess(42, repo.full_name, "server-token", {}),
     )
     monkeypatch.setattr(skill_source, "locked_mirror", lambda pk: nullcontext(tmp_path))
     monkeypatch.setattr(skill_source, "authenticated_git", fetch)
@@ -62,7 +60,7 @@ def test_git_expressions_are_rejected_before_remote_access(
     revision: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     remote = Mock()
-    monkeypatch.setattr(skill_source, "github_repository_metadata", remote)
+    monkeypatch.setattr(skill_source, "github_access", remote)
     repository = Repository(source_type=Repository.SourceType.GITHUB)
     with pytest.raises(LocalRepositoryError):
         skill_source.skill_commit(repository, "skills/review/SKILL.md", revision)

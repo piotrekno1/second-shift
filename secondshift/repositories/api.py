@@ -7,13 +7,14 @@ from ninja.errors import HttpError
 from ninja.security import django_auth
 
 from secondshift.connections.models import Connection
-from secondshift.github.app import configured, repository_branches
+from secondshift.github.app import configured
 from secondshift.github.errors import GitHubError
 from secondshift.repositories.access import repository_for_request
 from secondshift.repositories.github_sync import (
     GitHubRepositoryExistsError,
     attach_github_repository,
     available_github_sources,
+    repository_branches,
 )
 from secondshift.repositories.local import (
     LocalRepositoryError,
@@ -132,7 +133,7 @@ def github_branches(
         status=Connection.Status.CONNECTED,
     )
     try:
-        return repository_branches(connection.external_account_id, repository_id)
+        return repository_branches(connection, repository_id)
     except GitHubError as error:
         raise HttpError(422, str(error)) from error
 

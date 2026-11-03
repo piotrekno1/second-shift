@@ -9,7 +9,6 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
 
 from secondshift.github import app as github_app
-from secondshift.github import rest
 
 
 @pytest.fixture
@@ -54,23 +53,3 @@ def test_installation_token_is_repository_scoped(monkeypatch: Any) -> None:
         "permissions": {"contents": "read"},
         "repository_ids": [7],
     }
-
-
-def test_branch_listing_is_scoped_to_selected_repository(monkeypatch: Any) -> None:
-    monkeypatch.setattr(
-        github_app, "repository_metadata", lambda *args: {"full_name": "owner/project"}
-    )
-    token = Mock(return_value="installation-secret")
-    monkeypatch.setattr(github_app, "installation_token", token)
-    request = Mock(
-        side_effect=[
-            [{"name": f"branch-{index}"} for index in range(100)],
-            [{"name": "main"}],
-        ]
-    )
-    monkeypatch.setattr(rest, "request_payload", request)
-    branches = github_app.repository_branches("42", 7)
-    assert len(branches) == 101
-    assert branches[-1] == "main"
-    token.assert_called_once_with("42", 7)
-    assert "page=2" in request.call_args.args[1]
