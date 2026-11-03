@@ -169,6 +169,8 @@ class ExecutionChoiceSchema(Schema):
     key: str
     label: str
     disabled: bool = False
+    # Why this choice cannot run jobs, or empty when it can.
+    problem: str = ""
 
 
 class ExecutionStatusSchema(Schema):

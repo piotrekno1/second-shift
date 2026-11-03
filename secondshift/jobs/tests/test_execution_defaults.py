@@ -237,11 +237,13 @@ def test_choices_are_the_model_providers_and_your_own_logins(
             "key": f"model:{model.pk}",
             "label": "Model provider · Workspace API · test-model",
             "disabled": False,
+            "problem": "",
         },
         {
             "key": f"agent:{login.pk}",
             "label": "Claude Code subscription · Personal",
             "disabled": False,
+            "problem": "",
         },
     ]
     other = get_user_model().objects.create_user(username="other")
@@ -252,6 +254,7 @@ def test_choices_are_the_model_providers_and_your_own_logins(
             "key": f"agent:{login.pk}",
             "label": "Claude Code subscription · Personal",
             "disabled": True,
+            "problem": "",
         }
     ]
 
@@ -407,7 +410,11 @@ def test_a_broken_model_provider_cannot_be_chosen(
         save_execution_preference(workspace, f"model:{model.pk}", owner)
     workspace.refresh_from_db()
     assert workspace.default_agent_connection is not None
-    assert execution_configuration(workspace, owner)["choices"][0]["disabled"] is True
+    choice = execution_configuration(workspace, owner)["choices"][0]
+    assert choice["disabled"] is True
+    assert (
+        choice["problem"] == "The model provider Workspace API failed its last check."
+    )
 
 
 def test_choosing_one_clears_the_other(agent_run: tuple[Run, User]) -> None:

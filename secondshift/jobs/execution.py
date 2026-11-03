@@ -135,12 +135,24 @@ def execution_choices(workspace: Workspace, user: User) -> list[ExecutionSelecti
 def execution_configuration(workspace: Workspace, user: User) -> dict[str, Any]:
     selected = workspace_execution(workspace)
     choices = [
-        {"key": choice.key, "label": choice.label, "disabled": not choice.ready}
+        {
+            "key": choice.key,
+            "label": choice.label,
+            "disabled": not choice.ready,
+            "problem": choice.problem,
+        }
         for choice in execution_choices(workspace, user)
     ]
     if selected.key and selected.key not in {choice["key"] for choice in choices}:
         # Another owner's login or a disconnected provider. Shown, not selectable.
-        choices.append({"key": selected.key, "label": selected.label, "disabled": True})
+        choices.append(
+            {
+                "key": selected.key,
+                "label": selected.label,
+                "disabled": True,
+                "problem": selected.problem,
+            }
+        )
     return {
         "enabled": cli_enabled(),
         "choices": choices,
