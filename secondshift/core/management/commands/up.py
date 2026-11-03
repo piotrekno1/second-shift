@@ -12,7 +12,7 @@ from secondshift.config.constants import (
     Environment,
     Service,
 )
-from secondshift.core import launcher
+from secondshift.core import launcher, local_agents
 from secondshift.core.signin import SIGN_IN_LINK_SECONDS, sign_in_url
 from secondshift.workspaces.owners import (
     ensure_owner,
@@ -48,12 +48,19 @@ from secondshift.workspaces.owners import (
     show_default=True,
     help="Open the sign-in link in your browser once started.",
 )
+@click.option(
+    "--agents/--no-agents",
+    default=True,
+    show_default=True,
+    help="Let jobs run through Claude Code or Codex subscriptions.",
+)
 def command(
     host: str | None,
     port: int | None,
     email: str | None,
     password: str | None,
     browser: bool,
+    agents: bool,
 ) -> None:
     """Start SecondShift on this computer."""
     if settings.ENVIRONMENT != Environment.LOCAL:
@@ -74,7 +81,20 @@ def command(
 
     click.echo(f"Data folder: {settings.DATA_DIR}")
     call_command("migrate", interactive=False, verbosity=0)
-    services = launcher.services(host, port, parent)
+    agent_host = None
+    if agents:
+        gateway_port = launcher.local_service_port(settings.MODEL_GATEWAY_URL)
+        try:
+            parent.update(local_agents.agent_env(parent, gateway_port, click.echo))
+            agent_host = local_agents.container_gateway_host()
+        except local_agents.AgentSetupError as error:
+            raise click.ClickException(
+                f"{error} Run with --no-agents to start without agent subscriptions."
+            ) from error
+    else:
+        for name in local_agents.AGENT_ENV_NAMES:
+            parent.pop(name, None)
+    services = launcher.services(host, port, parent, agent_host=agent_host)
     runner = next(service for service in services if service.name == Service.RUNNER)
     subprocess.run(
         [sys.executable, "-m", "secondshift", "migrate", "--verbosity", "0"],

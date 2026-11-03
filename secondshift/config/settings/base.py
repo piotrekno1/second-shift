@@ -496,7 +496,10 @@ GITHUB_APP_PRIVATE_KEY = env.str(
 ).replace("\\n", "\n")
 
 
-# Opt-in CLI execution. No image is pulled or agent started by default.
+# CLI agent execution. Off unless an image is set. `secondshift up` sets one.
 AGENT_IMAGE = env.str(AppEnv.AGENT_IMAGE, default="")
 AGENT_NETWORK = env.str(AppEnv.AGENT_NETWORK, default="bridge")
 AGENT_BROKER_URL = env.str(AppEnv.AGENT_BROKER_URL, default="")
+# Agent containers call the gateway by the broker's host name.
+if AGENT_IMAGE and (agent_broker_host := urlsplit(AGENT_BROKER_URL).hostname):
+    ALLOWED_HOSTS = list(dict.fromkeys([*ALLOWED_HOSTS, agent_broker_host]))

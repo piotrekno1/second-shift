@@ -51,13 +51,18 @@ def server_config(
 @pytest.mark.parametrize(
     ("role", "bind", "workers", "factory", "graceful"),
     [
-        (Service.WEB, "0.0.0.0:8000", 2, "wsgi", 30),
-        (Service.GATEWAY, "0.0.0.0:8000", 2, "asgi", 30),
-        (Service.RUNNER, "0.0.0.0:8000", 2, "asgi", 30),
+        (Service.WEB, ["0.0.0.0:8000"], 2, "wsgi", 30),
+        (Service.GATEWAY, ["0.0.0.0:8000"], 2, "asgi", 30),
+        (Service.RUNNER, ["0.0.0.0:8000"], 2, "asgi", 30),
     ],
 )
 def test_uniform_defaults_for_http_roles(
-    tmp_path: Path, role: Service, bind: str, workers: int, factory: str, graceful: int
+    tmp_path: Path,
+    role: Service,
+    bind: list[str],
+    workers: int,
+    factory: str,
+    graceful: int,
 ) -> None:
     config = server_config(role, tmp_path)
     assert config["bind"] == bind
@@ -78,7 +83,7 @@ def test_environment_overrides_reach_each_service(
         role,
         tmp_path,
         {
-            "SECONDSHIFT_HTTP_BIND": "127.0.0.1:9100",
+            "SECONDSHIFT_HTTP_BIND": "127.0.0.1:9100,172.17.0.1:9100",
             "SECONDSHIFT_HTTP_PROCESSES": "3",
             "SECONDSHIFT_HTTP_TIMEOUT_SECONDS": "45",
             "SECONDSHIFT_HTTP_GRACEFUL_TIMEOUT_SECONDS": "90",
@@ -86,7 +91,7 @@ def test_environment_overrides_reach_each_service(
             "SECONDSHIFT_HTTP_ACCESS_LOG": "",
         },
     )
-    assert config["bind"] == "127.0.0.1:9100"
+    assert config["bind"] == ["127.0.0.1:9100", "172.17.0.1:9100"]
     assert config["workers"] == 3
     assert config["timeout"] == 45
     assert config["graceful_timeout"] == 90
@@ -120,7 +125,7 @@ def test_old_http_variable_names_are_not_aliases(tmp_path: Path) -> None:
         tmp_path,
         {"GUNICORN_BIND": "127.0.0.1:9999", "GUNICORN_WORKERS": "9"},
     )
-    assert config["bind"] == "0.0.0.0:8000"
+    assert config["bind"] == ["0.0.0.0:8000"]
     assert config["workers"] == 2
 
 
@@ -142,6 +147,6 @@ def test_generated_env_files_configure_production_roles(
         for line in (directory / f"{role}.env").read_text().splitlines()
     )
     config = server_config(role, tmp_path, values)
-    assert config["bind"] == bind
+    assert config["bind"] == [bind]
     assert config["workers"] == processes
     assert config["graceful_timeout"] == graceful
