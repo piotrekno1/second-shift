@@ -1,8 +1,10 @@
+import pytest
 from django.contrib.auth import get_user_model
 
 from secondshift.connections.models import Connection
 from secondshift.jobs.models import CapabilityRequest, Job, JobGrant
 from secondshift.jobs.planning import build_execution_plan
+from secondshift.jobs.readiness import readiness_problems
 from secondshift.repositories.models import Repository
 from secondshift.workspaces.services import create_workspace
 
@@ -229,3 +231,29 @@ def test_plan_says_nothing_is_missing_for_authorized_bindings(db) -> None:
 
     assert plan["capabilities"][0]["authorized"] is True
     assert "missing" not in plan["capabilities"][0]
+
+
+@pytest.mark.parametrize(
+    ("change", "problem"),
+    [
+        (
+            {"default_model": ""},
+            "The default model provider Anthropic has no model selected.",
+        ),
+        (
+            {"metadata": {"last_check": {"ok": False}}},
+            "The default model provider Anthropic failed its last check.",
+        ),
+    ],
+)
+def test_plan_fails_closed_with_an_unusable_default_model(
+    db, change: dict[str, object], problem: str
+) -> None:
+    job = create_job(db)
+    Connection.objects.filter(kind=Connection.Kind.MODEL).update(**change)
+
+    plan = build_execution_plan(job)
+
+    assert plan["ready"] is False
+    assert plan["model"] is None
+    assert problem in readiness_problems(job)
