@@ -181,7 +181,11 @@ DATABASES = {
         "CONN_HEALTH_CHECKS": True,
     }
 }
+DEFAULT_WORKFLOW_DATABASE_URL = DATABASE_URL
 if DATABASES["default"]["ENGINE"] == "django.db.backends.sqlite3":
+    # Dispatch holds an application write lock while DBOS writes through a
+    # separate connection. SQLite needs separate files to avoid self-deadlock.
+    DEFAULT_WORKFLOW_DATABASE_URL = f"sqlite:///{DATA_DIR / 'workflows.sqlite3'}"
     # Web, gateway and worker share one file. WAL lets reads run during a
     # write, IMMEDIATE transactions and a timeout make writers wait their turn
     # instead of failing with "database is locked".
@@ -197,7 +201,10 @@ CACHES = {
 }
 
 DBOS_SYSTEM_DATABASE_URL = sqlalchemy_url(
-    env.str(AppEnv.WORKFLOW_DATABASE_URL, default=DATABASE_URL)
+    env.str(
+        AppEnv.WORKFLOW_DATABASE_URL,
+        default=DEFAULT_WORKFLOW_DATABASE_URL,
+    )
 )
 DBOS_APPLICATION_NAME = "secondshift"
 # Fixed, so a deploy still recovers workflows started by the previous version.
