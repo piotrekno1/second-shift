@@ -64,6 +64,15 @@ export function runFileUrl(runId: number, name: RunFileName, download = false): 
   return `/api/runs/${runId}/files/${name}${download ? '?download=true' : ''}`
 }
 
+export function runChangesUrl(runId: number, download = false): string {
+  return `/api/runs/${runId}/changes${download ? '?download=true' : ''}`
+}
+
+/** Saved files always download, since the agent chose their content. */
+export function savedFileUrl(runId: number, name: string): string {
+  return `/api/runs/${runId}/saved-files/${name.split('/').map(encodeURIComponent).join('/')}`
+}
+
 export function fetchRunFile(runId: number, name: RunFileName): Promise<string> {
   return apiText(`/runs/${runId}/files/${name}`)
 }

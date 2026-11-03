@@ -7,11 +7,11 @@ import PageHeader from '../components/PageHeader.vue'
 import StatusPill from '../components/StatusPill.vue'
 import DocsLink from '../components/DocsLink.vue'
 import { DocsPage } from '../utils/docs'
-import { cancelTask, fetchRun, isDeliveryPending, isRunActive, retryDelivery, runFileUrl, startJobRun } from '../services/runs'
+import { cancelTask, fetchRun, isDeliveryPending, isRunActive, retryDelivery, runChangesUrl, runFileUrl, savedFileUrl, startJobRun } from '../services/runs'
 import { useAppStore } from '../stores/app'
 import type { RunDelivery, RunDetail } from '../types'
 import { Action } from '../utils/permissions'
-import { formatBytes, formatDate, formatTime, runStats, utcTitle, zoneName } from '../utils/format'
+import { countLabel, formatBytes, formatDate, formatTime, runStats, utcTitle, zoneName } from '../utils/format'
 import { renderMarkdown } from '../utils/markdown'
 import { runWarning } from '../utils/readiness'
 import { startedByLabel } from '../utils/triggers'
@@ -47,6 +47,7 @@ const reportHtml = computed(() => (run.value?.output_excerpt ? renderMarkdown(ru
 const inputFile = computed(() => run.value?.files.find((file) => file.name === 'input') ?? null)
 const outputFile = computed(() => run.value?.files.find((file) => file.name === 'output') ?? null)
 const excerptOnly = computed(() => Boolean(run.value?.output_size_bytes && run.value.output_size_bytes > run.value.output_excerpt.length))
+const hasFiles = computed(() => Boolean(run.value && (run.value.changes || run.value.saved_files.length || run.value.skipped_files.length)))
 // Steps matter while a run is in progress or after it fails; on success they are routine.
 const timelineOpen = computed(() => run.value?.status !== 'succeeded')
 const activeNote = computed(() => {
@@ -218,6 +219,34 @@ onUnmounted(stopPolling)
             <div v-else class="empty-state compact"><AppIcon name="text-box-outline" /><strong>{{ active ? 'The report appears when the run finishes' : 'No report' }}</strong></div>
           </section>
 
+          <section v-if="hasFiles" class="panel job-runs-panel run-files-panel">
+            <div class="panel-heading"><div><h2>Files</h2><p>Kept from the sandbox when the run finished.</p></div></div>
+            <div v-if="run.changes" class="run-files-changes">
+              <div class="run-file-line">
+                <span><strong>Changes</strong><span class="run-details-muted"> · {{ countLabel(run.changes.file_count, 'file') }}<template v-if="run.changes.available && run.changes.size_bytes !== null"> · {{ formatBytes(run.changes.size_bytes) }}</template></span></span>
+                <span v-if="run.changes.available" class="run-report-actions">
+                  <a :href="runChangesUrl(run.id)" target="_blank" rel="noopener" class="detail-link">Open <AppIcon name="arrow-top-right" /></a>
+                  <a :href="runChangesUrl(run.id, true)" class="detail-link" download>Download <AppIcon name="download" /></a>
+                </span>
+                <span v-else class="run-details-muted">Larger than the limit, so not kept</span>
+              </div>
+              <details v-if="run.changes.files.length" class="run-changed-files">
+                <summary>Changed files</summary>
+                <ul>
+                  <li v-for="path in run.changes.files" :key="path"><code>{{ path }}</code></li>
+                </ul>
+                <p v-if="run.changes.file_count > run.changes.files.length" class="run-details-muted">And {{ run.changes.file_count - run.changes.files.length }} more in the patch.</p>
+              </details>
+            </div>
+            <ul v-if="run.saved_files.length" class="run-saved-files">
+              <li v-for="file in run.saved_files" :key="file.name" class="run-file-line">
+                <span><code>{{ file.name }}</code><span class="run-details-muted"> · {{ formatBytes(file.size_bytes) }}</span></span>
+                <a :href="savedFileUrl(run.id, file.name)" class="detail-link" download>Download <AppIcon name="download" /></a>
+              </li>
+            </ul>
+            <p v-for="file in run.skipped_files" :key="file.name" class="run-details-muted run-skipped-file">Skipped <code>{{ file.name }}</code>: {{ file.reason }}</p>
+          </section>
+
           <details v-if="!timelineOpen" class="panel run-timeline-fold">
             <summary>Timeline · {{ run.events.length }} steps · times in {{ timelineZone }}</summary>
             <ol class="run-timeline">
@@ -283,6 +312,14 @@ onUnmounted(stopPolling)
 .task-instructions :deep(> :first-child) { margin-top: 0; }
 .task-instructions :deep(> :last-child) { margin-bottom: 0; }
 .task-instructions :deep(h1), .task-instructions :deep(h2), .task-instructions :deep(h3) { color: var(--ink); font-size: 15px; font-weight: 500; }
+.run-files-panel { display: grid; gap: 12px; }
+.run-file-line { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; font-size: 13px; overflow-wrap: anywhere; }
+.run-saved-files { display: grid; gap: 8px; margin: 0; padding: 12px 0 0; border-top: 1px solid var(--border); list-style: none; }
+.run-files-changes + .run-saved-files { margin-top: 4px; }
+.run-changed-files { margin-top: 8px; font-size: 12px; }
+.run-changed-files summary { color: var(--muted); cursor: pointer; }
+.run-changed-files ul { display: grid; gap: 4px; margin: 8px 0 0; padding-left: 16px; }
+.run-skipped-file { margin: 0; font-size: 12px; }
 .run-delivery + .run-delivery { margin-top: 6px; }
 .run-delivery-status.delivered { color: var(--mint); }
 .run-delivery-status.failed { color: var(--danger); }

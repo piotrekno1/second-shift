@@ -8,6 +8,7 @@ from secondshift.jobs.models import Job, JobGrant
 from secondshift.repositories.models import Repository
 from secondshift.runs.execution.tool_broker import standalone_connection
 from secondshift.runs.models import Run
+from secondshift.runs.reporting.collection import plural
 
 STATUS_LABELS = {
     Run.Status.SUCCEEDED: "succeeded",
@@ -73,7 +74,29 @@ def run_report_payload(run: Run) -> dict[str, Any]:
             "name": run.display_name,
         },
         "repository": {"full_name": run.repository.full_name},
+        # Names and sizes only. The files open from the run, after sign-in.
+        "outputs": {
+            "changed_files": changed_file_count(run),
+            "saved_files": [
+                {"name": item["name"], "size_bytes": item["size_bytes"]}
+                for item in (run.outputs or {}).get("files", [])
+            ],
+        },
     }
+
+
+def changed_file_count(run: Run) -> int:
+    changes = (run.outputs or {}).get("changes") or {}
+    return int(changes.get("file_count", 0)) if changes.get("path") else 0
+
+
+def outputs_line(run: Run) -> str:
+    parts = []
+    if count := changed_file_count(run):
+        parts.append(plural(count, "changed file"))
+    if files := (run.outputs or {}).get("files"):
+        parts.append(plural(len(files), "saved file"))
+    return " · ".join(parts)
 
 
 def run_report_text(run: Run, run_url: str) -> str:
@@ -81,14 +104,15 @@ def run_report_text(run: Run, run_url: str) -> str:
     status = STATUS_LABELS.get(run.status, run.status)
     mark = STATUS_MARKS.get(run.status, "•")
     summary = run.summary.strip() or "No summary."
-    return "\n\n".join(
-        (
-            f"{mark} {run.display_name} {status} · {run.repository.full_name}",
-            summary,
-            # Slack link syntax. Mattermost and Discord /slack webhooks accept it.
-            f"<{run_url}|Open run #{run.pk}>",
-        )
-    )
+    lines = [
+        f"{mark} {run.display_name} {status} · {run.repository.full_name}",
+        summary,
+    ]
+    if outputs := outputs_line(run):
+        lines.append(outputs)
+    # Slack link syntax. Mattermost and Discord /slack webhooks accept it.
+    lines.append(f"<{run_url}|Open run #{run.pk}>")
+    return "\n\n".join(lines)
 
 
 def sample_run_report_payload() -> dict[str, Any]:
@@ -107,5 +131,6 @@ def sample_run_report_payload() -> dict[str, Any]:
         commit_sha="8f3c9d2" * 5 + "8f3c9",
         scheduled_for=finished_at - timedelta(minutes=4),
         finished_at=finished_at,
+        outputs={"files": [{"name": "stale-steps.csv", "size_bytes": 182}]},
     )
     return run_report_payload(run)

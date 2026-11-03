@@ -12,13 +12,16 @@ from secondshift.runs.reporting.failures import (
     model_provider_next_step,
 )
 from secondshift.runs.schemas import (
+    RunChangesSchema,
     RunDeliverySchema,
     RunDetailSchema,
     RunEventSchema,
     RunFailureSchema,
     RunFileName,
     RunFileSchema,
+    RunSavedFileSchema,
     RunSchema,
+    RunSkippedFileSchema,
 )
 
 
@@ -153,6 +156,27 @@ def serialize_delivery(delivery: RunDelivery) -> RunDeliverySchema:
     )
 
 
+def run_changes(run: Run) -> RunChangesSchema | None:
+    changes = (run.outputs or {}).get("changes") or {}
+    if not changes.get("file_count"):
+        return None
+    return RunChangesSchema(
+        file_count=changes["file_count"],
+        files=changes.get("files", []),
+        too_large=bool(changes.get("too_large")),
+        available=bool(changes.get("path")),
+        size_bytes=changes.get("size_bytes"),
+    )
+
+
+def saved_file_path(run: Run, name: str) -> str:
+    """The stored path of one saved file, found by its exact name."""
+    for item in (run.outputs or {}).get("files", []):
+        if item.get("name") == name:
+            return str(item["path"])
+    return ""
+
+
 def serialize_run_detail(run: Run) -> RunDetailSchema:
     model = run.execution_plan.get("model") or {}
     return RunDetailSchema(
@@ -184,4 +208,13 @@ def serialize_run_detail(run: Run) -> RunDetailSchema:
         ],
         files=run_files(run),
         deliveries=[serialize_delivery(item) for item in run.deliveries.all()],
+        changes=run_changes(run),
+        saved_files=[
+            RunSavedFileSchema(name=item["name"], size_bytes=item["size_bytes"])
+            for item in (run.outputs or {}).get("files", [])
+        ],
+        skipped_files=[
+            RunSkippedFileSchema(**item)
+            for item in (run.outputs or {}).get("skipped", [])
+        ],
     )

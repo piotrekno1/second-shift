@@ -15,6 +15,7 @@ from secondshift.runs.models import Run, RunEvent
 from secondshift.runs.orchestration import workflows
 from secondshift.runs.reporting.collection import collection_summary
 from secondshift.runs.tests.test_workflows import execution_run
+from secondshift.workspaces.services import workspace_owner
 
 
 @pytest.fixture
@@ -203,3 +204,55 @@ def test_a_failed_collection_is_noted_and_keeps_the_run(
 )
 def test_collection_summary(outputs: dict[str, Any], summary: str) -> None:
     assert collection_summary(outputs) == summary
+
+
+@pytest.mark.django_db
+def test_collected_files_are_listed_and_downloaded_safely(
+    client: Any, db: object, artifact_root: Path, tmp_path: Path
+) -> None:
+    run = execution_run(db)
+    archive = agent_session(tmp_path)
+    run.outputs = store_collection(run, archive)
+    run.outputs["skipped"] = [{"name": "link", "reason": "Not a regular file."}]
+    run.save()
+    client.force_login(workspace_owner(run.job.workspace))
+
+    detail = client.get(f"/api/runs/{run.pk}").json()
+    patch = client.get(f"/api/runs/{run.pk}/changes")
+    saved = client.get(f"/api/runs/{run.pk}/saved-files/findings.csv")
+
+    assert detail["changes"] == {
+        "file_count": 1,
+        "files": ["README.md"],
+        "too_large": False,
+        "available": True,
+        "size_bytes": run.outputs["changes"]["size_bytes"],
+    }
+    assert detail["saved_files"] == [
+        {"name": "findings.csv", "size_bytes": len("file,issue\nREADME.md,stale\n")}
+    ]
+    assert detail["skipped_files"] == [
+        {"name": "link", "reason": "Not a regular file."}
+    ]
+    assert patch["Content-Type"] == "text/plain; charset=utf-8"
+    assert b"+new" in b"".join(patch.streaming_content)
+    assert saved["Content-Type"] == "application/octet-stream"
+    assert saved["Content-Disposition"] == 'attachment; filename="findings.csv"'
+    assert saved["X-Content-Type-Options"] == "nosniff"
+    assert b"".join(saved.streaming_content) == b"file,issue\nREADME.md,stale\n"
+    for name in ("missing.csv", "../changes.patch", "outputs/findings.csv"):
+        assert client.get(f"/api/runs/{run.pk}/saved-files/{name}").status_code == 404
+
+
+@pytest.mark.django_db
+def test_runs_without_collected_files_show_none(
+    client: Any, db: object, artifact_root: Path
+) -> None:
+    run = execution_run(db)
+    client.force_login(workspace_owner(run.job.workspace))
+
+    detail = client.get(f"/api/runs/{run.pk}").json()
+
+    assert detail["changes"] is None
+    assert detail["saved_files"] == []
+    assert client.get(f"/api/runs/{run.pk}/changes").status_code == 404

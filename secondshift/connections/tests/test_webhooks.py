@@ -405,7 +405,10 @@ def test_webhook_sample_shows_what_a_run_report_sends(
 
     payload = body["payload"]
     assert payload["event"] == "run.finished"
-    assert set(payload) == {"event", "text", "run", "job", "repository"}
+    assert set(payload) == {"event", "text", "run", "job", "repository", "outputs"}
+    assert payload["outputs"]["saved_files"] == [
+        {"name": "stale-steps.csv", "size_bytes": 182}
+    ]
     assert payload["run"]["url"].endswith("/runs/128")
     assert body["summary_max_chars"] == 4_000
     # Made-up records only. Nothing is saved.

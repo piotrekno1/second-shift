@@ -248,7 +248,7 @@ After each run, the server sends one `POST` with a JSON body like this:
 ```json
 {
   "event": "run.finished",
-  "text": "✅ Weekly review succeeded · acme/web\n\nFound 2 stale setup steps in README.md. Details are in the report.\n\n<https://secondshift.example.com/runs/128|Open run #128>",
+  "text": "✅ Weekly review succeeded · acme/web\n\nFound 2 stale setup steps in README.md. Details are in the report.\n\n1 saved file\n\n<https://secondshift.example.com/runs/128|Open run #128>",
   "run": {
     "id": 128,
     "status": "succeeded",
@@ -259,7 +259,11 @@ After each run, the server sends one `POST` with a JSON body like this:
     "url": "https://secondshift.example.com/runs/128"
   },
   "job": { "key": "weekly-review", "name": "Weekly review" },
-  "repository": { "full_name": "acme/web" }
+  "repository": { "full_name": "acme/web" },
+  "outputs": {
+    "changed_files": 0,
+    "saved_files": [{ "name": "stale-steps.csv", "size_bytes": 182 }]
+  }
 }
 ```
 
@@ -268,6 +272,8 @@ After each run, the server sends one `POST` with a JSON body like this:
   run it says why the run failed. The full report stays in SecondShift.
 - `text` is the same summary with the status and a link, ready for chat.
 - `url` opens the run in SecondShift. Opening it needs a sign-in.
+- `outputs` counts the files the agent changed and lists the files it saved,
+  by name and size. Open the run to read or download them.
 - No secrets, connection details, tool calls or file contents are sent.
 
 **Send test** posts a smaller message instead, with `event` set to
