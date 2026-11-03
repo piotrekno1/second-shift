@@ -5,9 +5,11 @@ from typing import Any
 
 from secondshift.config.constants import (
     GITHUB_BASE_URL,
+    GITHUB_FINE_GRAINED_TOKEN_PATTERN,
     GITHUB_MCP_TOOLS,
     GITHUB_MCP_URL,
     GITHUB_REPOSITORY_PATTERN,
+    GITHUB_TOKEN_HINT,
     GitHubMCPTool,
 )
 from secondshift.connections.mcp.base import MCPError, MCPProvider, MCPSettings
@@ -15,8 +17,6 @@ from secondshift.connections.models import Connection
 from secondshift.repositories.github import github_repository_scope
 from secondshift.repositories.models import Repository
 
-# Fine-grained tokens are limited to chosen repositories. Classic tokens are not.
-GITHUB_FINE_GRAINED_TOKEN_PATTERN = r"github_pat_[A-Za-z0-9_]+"
 # Search text is written by the model. A short limit keeps it a search.
 GITHUB_SEARCH_QUERY_MAX_CHARS = 256
 # Artifacts and log archives are left out. They return download links.
@@ -157,7 +157,7 @@ GITHUB_MCP = MCPProvider(
         "X-MCP-Readonly": "true",
     },
     token_pattern=GITHUB_FINE_GRAINED_TOKEN_PATTERN,
-    token_hint="Enter a fine-grained GitHub token. It starts with github_pat_.",
+    token_hint=GITHUB_TOKEN_HINT,
     scope=github_scope,
     describe_scope=describe_github_scope,
     scope_label="repository",

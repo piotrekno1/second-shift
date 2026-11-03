@@ -17,6 +17,7 @@ from secondshift.connections.agents import (
     reconnect_agent_connection,
     save_agent_connection,
 )
+from secondshift.connections.github import connect_token_source
 from secondshift.connections.http_api.connections import (
     create_api_connection,
     recheck_api_connection,
@@ -58,6 +59,7 @@ from secondshift.connections.schemas import (
     APISpecSummarySchema,
     ConnectionSchema,
     ConnectionTestSchema,
+    GitHubTokenConnectSchema,
     MCPConnectionCreateSchema,
     MCPConnectionUpdateSchema,
     MCPInspectResultSchema,
@@ -89,6 +91,7 @@ from secondshift.connections.webhooks import (
     connection_test_payload,
     deliver_webhook,
 )
+from secondshift.github.errors import GitHubError
 from secondshift.jobs.automatic_grants import approve_waiting_for, set_require_approval
 from secondshift.jobs.execution import apply_model_default, use_when_nothing_runs
 from secondshift.runs.reporting.connection_usage import (
@@ -149,6 +152,19 @@ def list_mcp_providers(request: HttpRequest) -> list[MCPProviderSchema]:
         )
         for provider in MCP_PROVIDERS.values()
     ]
+
+
+@router.post("/connections/github-token", response=ConnectionSchema, auth=django_auth)
+def connect_github_token(
+    request: HttpRequest, payload: GitHubTokenConnectSchema
+) -> ConnectionSchema:
+    """Reach repositories with a personal access token instead of the App."""
+    workspace = require(request, Action.ADD_GITHUB_REPOSITORIES)
+    try:
+        connection = connect_token_source(workspace, payload.token)
+    except GitHubError as error:
+        raise HttpError(422, str(error)) from error
+    return serialize_connection(connection)
 
 
 @router.post("/connections/mcp", response=ConnectionSchema, auth=django_auth)

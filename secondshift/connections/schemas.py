@@ -71,6 +71,10 @@ class WebhookConnectionUpdateSchema(Schema):
     require_approval: bool | None = None
 
 
+class GitHubTokenConnectSchema(Schema):
+    token: str = Field(min_length=1, max_length=2000)
+
+
 class MCPConnectionCreateSchema(Schema):
     provider: str = Field(min_length=1, max_length=40)
     binding_key: str = Field(

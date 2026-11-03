@@ -15,7 +15,14 @@ class AppInstallation:
     installation_id: str
 
 
-Source = AppInstallation
+@dataclass(frozen=True)
+class PersonalToken:
+    """A fine-grained personal access token. It cannot be narrowed per request."""
+
+    token: str
+
+
+Source = AppInstallation | PersonalToken
 
 
 def token_for(
@@ -24,5 +31,8 @@ def token_for(
     """A token for one repository, or for the whole source when repository_id is None.
 
     App tokens carry only the permissions asked for and expire within an hour.
+    A personal token is returned as it is. GitHub refuses what it cannot do.
     """
+    if isinstance(source, PersonalToken):
+        return source.token
     return app.installation_token(source.installation_id, repository_id, permissions)

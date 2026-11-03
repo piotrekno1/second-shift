@@ -27,6 +27,21 @@ def connection_settings_view(connection: Connection) -> dict[str, str]:
     return {}
 
 
+def connection_auth(connection: Connection) -> str:
+    """How the connection signs in: oauth, token, app, or empty."""
+    if connection.kind == Connection.Kind.SOURCE:
+        return (
+            "app"
+            if connection.auth_strategy == Connection.AuthStrategy.MANAGED
+            else "token"
+        )
+    if connection.kind not in {Connection.Kind.MCP, Connection.Kind.API}:
+        return ""
+    if connection.auth_strategy == Connection.AuthStrategy.OAUTH:
+        return "oauth"
+    return "token"
+
+
 def serialize_connection(
     connection: Connection, usage: ConnectionUsage | None = None
 ) -> ConnectionSchema:
@@ -47,15 +62,7 @@ def serialize_connection(
         available_models=list(connection.metadata.get("available_models", [])),
         last_check=connection.metadata.get("last_check"),
         settings=connection_settings_view(connection),
-        auth=(
-            (
-                "oauth"
-                if connection.auth_strategy == Connection.AuthStrategy.OAUTH
-                else "token"
-            )
-            if connection.kind in {Connection.Kind.MCP, Connection.Kind.API}
-            else ""
-        ),
+        auth=connection_auth(connection),
         scopes=list(connection.scopes)
         if connection.kind == Connection.Kind.MCP
         else [],

@@ -6,6 +6,8 @@ uses that token for every call and git command it makes.
 
 from dataclasses import dataclass
 
+from django.utils import timezone
+
 from secondshift.connections.models import Connection
 from secondshift.github import credentials, repos
 from secondshift.github.errors import GitHubError
@@ -28,19 +30,29 @@ class GitHubAccess:
 
 
 def usable_source(connection: Connection | None) -> bool:
-    return bool(
+    if not (
         connection
         and connection.provider == Connection.Provider.GITHUB
         and connection.kind == Connection.Kind.SOURCE
-        and connection.auth_strategy == Connection.AuthStrategy.MANAGED
         and connection.status == Connection.Status.CONNECTED
+    ):
+        return False
+    if connection.auth_strategy == Connection.AuthStrategy.MANAGED:
+        return True
+    return connection.auth_strategy == Connection.AuthStrategy.API_KEY and bool(
+        connection.access_token
     )
 
 
 def connection_source(connection: Connection | None) -> credentials.Source:
+    """The credential behind a source connection. Never returned to a client."""
     if not usable_source(connection):
-        raise GitHubError("The GitHub installation is disconnected.")
-    return credentials.AppInstallation(connection.external_account_id)
+        raise GitHubError("The GitHub connection is disconnected.")
+    if connection.auth_strategy == Connection.AuthStrategy.MANAGED:
+        return credentials.AppInstallation(connection.external_account_id)
+    if connection.expires_at and connection.expires_at <= timezone.now():
+        raise GitHubError("The GitHub token expired. Enter a new one.")
+    return credentials.PersonalToken(connection.access_token)
 
 
 def connection_access(
@@ -64,7 +76,7 @@ def github_access(
         raise GitHubError("This repository has been removed.")
     connection = repository.github_connection
     if connection is not None and connection.workspace_id != repository.workspace_id:
-        raise GitHubError("The GitHub installation is disconnected.")
+        raise GitHubError("The GitHub connection is disconnected.")
     access = connection_access(connection, int(repository.external_id), permissions)
     # Do not silently move a repository's identity or its existing approvals.
     if repository.full_name != access.full_name:
