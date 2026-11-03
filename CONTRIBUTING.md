@@ -29,6 +29,14 @@ process-compose up
 
 Process-compose loads `.env` and selects development mode for its processes. Initialization
 creates the control-plane keys and runner token before migrating the runner.
+Startup also builds the Claude Code and Codex agent image and turns on agent
+subscriptions. The runner resolves the image's development tag to its immutable
+local ID, so no registry is needed. The gateway listens on port 8001 on all
+interfaces, so agent containers can reach its broker through
+`host.docker.internal`. On Linux, use a gateway address your Docker network can
+reach. Add your login on Connections, and choose what runs jobs in Settings. See
+[agent subscriptions](docs/agent-subscriptions.md) for details.
+
 Gunicorn automatically loads the root `gunicorn.conf.py`, which delegates to
 the shared service configuration in `secondshift/config/gunicorn.py`.
 The supporting PostgreSQL and optional RustFS services are defined in

@@ -20,6 +20,10 @@ processes:
       command: docker compose -f docker-compose.localdev.yml down
       timeout_seconds: 30
 
+  agent_image:
+    description: Build the pinned Claude Code and Codex development agent image
+    command: docker build -f secondshift/runner/agent_image/Dockerfile -t secondshift-agent:dev .
+
   initialize:
     description: Initialize the control plane, development workspace, and runner
     command: >-
@@ -31,13 +35,18 @@ processes:
         condition: process_completed_successfully
 
   runner:
-    description: Isolated command-runner API
-    command: uv run gunicorn --reload
+    description: Isolated command-runner and agent-container API
+    command: uv run python -m secondshift.runner.dev
     environment:
       - SECONDSHIFT_SERVICE=runner
+      - SECONDSHIFT_AGENT_IMAGE=secondshift-agent:dev
+      - SECONDSHIFT_AGENT_BROKER_URL=http://host.docker.internal:8001/gateway/agent/mcp
+      - SECONDSHIFT_AGENT_NETWORK=bridge
       - SECONDSHIFT_HTTP_BIND=127.0.0.1:8002
       - SECONDSHIFT_HTTP_PROCESSES=1
     depends_on:
+      agent_image:
+        condition: process_completed_successfully
       initialize:
         condition: process_completed_successfully
     availability:
@@ -47,6 +56,9 @@ processes:
     command: uv run gunicorn --reload
     environment:
       - SECONDSHIFT_SERVICE=web
+      - SECONDSHIFT_AGENT_IMAGE=secondshift-agent:dev
+      - SECONDSHIFT_AGENT_BROKER_URL=http://host.docker.internal:8001/gateway/agent/mcp
+      - SECONDSHIFT_AGENT_NETWORK=bridge
       - SECONDSHIFT_HTTP_BIND=127.0.0.1:8000
     depends_on:
       initialize:
@@ -55,12 +67,15 @@ processes:
       restart: always
 
   gateway:
-    description: Model gateway for the trusted agent orchestrator
+    description: Model and agent-tool gateway, reachable from Docker
     command: uv run gunicorn --reload
     environment:
       - SECONDSHIFT_SERVICE=gateway
+      - SECONDSHIFT_AGENT_IMAGE=secondshift-agent:dev
+      - SECONDSHIFT_AGENT_BROKER_URL=http://host.docker.internal:8001/gateway/agent/mcp
+      - SECONDSHIFT_AGENT_NETWORK=bridge
       - SECONDSHIFT_HTTP_GRACEFUL_TIMEOUT_SECONDS=600
-      - SECONDSHIFT_HTTP_BIND=127.0.0.1:8001
+      - SECONDSHIFT_HTTP_BIND=0.0.0.0:8001
       - SECONDSHIFT_HTTP_PROCESSES=1
     depends_on:
       initialize:
@@ -72,6 +87,9 @@ processes:
     command: uv run python manage.py run_dbos_worker
     environment:
       - SECONDSHIFT_SERVICE=worker
+      - SECONDSHIFT_AGENT_IMAGE=secondshift-agent:dev
+      - SECONDSHIFT_AGENT_BROKER_URL=http://host.docker.internal:8001/gateway/agent/mcp
+      - SECONDSHIFT_AGENT_NETWORK=bridge
     depends_on:
       initialize:
         condition: process_completed_successfully

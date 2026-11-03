@@ -12,3 +12,8 @@ INSTALLED_APPS += ["django_extensions"]
 CORS_ALLOWED_ORIGINS = [FRONTEND_URL]
 CORS_ALLOW_CREDENTIALS = True
 CSRF_TRUSTED_ORIGINS = [*CSRF_TRUSTED_ORIGINS, FRONTEND_URL]
+
+# Agent containers reach the development gateway through Docker's host alias.
+# Keep any custom browser hostnames from .env as well.
+if AGENT_IMAGE and (agent_broker_host := urlsplit(AGENT_BROKER_URL).hostname):
+    ALLOWED_HOSTS = list(dict.fromkeys([*ALLOWED_HOSTS, agent_broker_host]))
