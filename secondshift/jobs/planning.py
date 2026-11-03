@@ -186,6 +186,7 @@ def compile_execution_plan(
     resolved_capabilities: Sequence[PlannedCapability],
     limits: dict[str, int],
     commit_sha: str,
+    collect_changes: bool = False,
 ) -> dict[str, Any]:
     """Compile server-resolved policy into the existing versioned plan format."""
     if repository.workspace_id != workspace.pk:
@@ -242,6 +243,8 @@ def compile_execution_plan(
         "runner": {
             "image": settings.RUNNER_IMAGE,
             "network_policy": "none",
+            # Only runs that publish the agent's changes need them recorded.
+            "collect_changes": collect_changes,
         },
         "model": model,
         "capabilities": capabilities,

@@ -35,10 +35,11 @@ A run can use three things. Nothing else is reachable from it.
    user, and limits on memory, CPU and processes. It holds a copy of the
    repository at the run's commit and no credentials. Production requires the
    gVisor runtime (`runsc`). When the agent finishes, the runner stops the
-   sandbox. It then keeps the agent's file changes as a patch and the files the
-   agent saved in `/outputs`. It compares against a record of the commit kept
-   outside the sandbox, so the agent cannot change it. Links and other special
-   files in `/outputs` are skipped.
+   sandbox. It then keeps the files the agent saved in `/outputs`. Links and
+   other special files there are skipped. Runs that publish changes also keep
+   the agent's file changes as a patch. The runner compares the workspace
+   against a record of the commit kept outside the sandbox, so the agent cannot
+   change it.
 2. **The model gateway.** The agent loop reaches the model provider only
    through the gateway. A run authenticates with its own token, which only
    works while that run is active. The gateway forwards only a fixed list of

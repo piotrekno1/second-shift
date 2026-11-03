@@ -95,6 +95,7 @@ class DockerRunnerService(RunnerBackend):
                         commit_sha=spec.commit_sha,
                         image=spec.image,
                         source_sha256=spec.source_sha256,
+                        collect_changes=spec.collect_changes,
                         container_name=container_name,
                         workspace_path=str(workspace),
                     )
@@ -120,18 +121,7 @@ class DockerRunnerService(RunnerBackend):
         outputs = session_root / OUTPUTS_DIR
         outputs.mkdir(mode=0o700)
         try:
-            unpack_source(spec.source_sha256, workspace)
-            record_baseline(session_root, workspace)
-            self.prepare_workspace_permissions(workspace)
-            self.prepare_workspace_permissions(outputs)
-            completed = self.run_command(
-                self.create_command(spec, container_name, workspace)
-            )
-            if completed.returncode:
-                raise RunnerProtocolError("The runner could not create the sandbox.")
-            completed = self.run_command(["docker", "start", container_name])
-            if completed.returncode:
-                raise RunnerProtocolError("The runner could not start the sandbox.")
+            self.prepare_sandbox(spec, container_name, workspace, outputs)
         except Exception:
             self.remove_container(container_name)
             self.remove_workspace(session_root)
@@ -143,6 +133,28 @@ class DockerRunnerService(RunnerBackend):
             status=RunnerSession.Status.ACTIVE
         )
         return session_id
+
+    def prepare_sandbox(
+        self,
+        spec: RunnerSessionSpec,
+        container_name: str,
+        workspace: Path,
+        outputs: Path,
+    ) -> None:
+        """Unpack the commit, record it if asked, and start the container."""
+        unpack_source(spec.source_sha256, workspace)
+        if spec.collect_changes:
+            record_baseline(workspace.parent, workspace)
+        self.prepare_workspace_permissions(workspace)
+        self.prepare_workspace_permissions(outputs)
+        completed = self.run_command(
+            self.create_command(spec, container_name, workspace)
+        )
+        if completed.returncode:
+            raise RunnerProtocolError("The runner could not create the sandbox.")
+        completed = self.run_command(["docker", "start", container_name])
+        if completed.returncode:
+            raise RunnerProtocolError("The runner could not start the sandbox.")
 
     def execute(self, session_id: str, request: CommandRequest) -> CommandResult:
         cached = self.reserve_command(session_id, request)
@@ -293,6 +305,7 @@ class DockerRunnerService(RunnerBackend):
             session.commit_sha,
             session.image,
             session.source_sha256,
+            session.collect_changes,
         )
         requested = (
             spec.run_id,
@@ -300,6 +313,7 @@ class DockerRunnerService(RunnerBackend):
             spec.commit_sha,
             spec.image,
             spec.source_sha256,
+            spec.collect_changes,
         )
         if recorded != requested:
             raise RunnerProtocolError("The run already has a different session spec.")

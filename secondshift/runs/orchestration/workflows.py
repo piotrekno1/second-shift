@@ -160,6 +160,7 @@ def start_runner_session_step(run_id: int) -> str:
             commit_sha=run.commit_sha,
             image=str(runner_plan["image"]),
             source_sha256=snapshot.sha256,
+            collect_changes=bool(runner_plan.get("collect_changes", False)),
         )
     )
     Run.objects.filter(pk=run.pk).update(sandbox_runtime=RunSandbox.ISOLATED_RUNNER)

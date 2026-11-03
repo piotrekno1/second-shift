@@ -308,3 +308,47 @@ def test_an_ended_session_has_nothing_to_collect(settings, tmp_path: Path) -> No
         DockerRunnerService().collect("run-7")
     with pytest.raises(RunnerProtocolError, match="Unknown"):
         DockerRunnerService().collect("run-8")
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("collect_changes", [False, True])
+def test_the_baseline_is_recorded_only_when_the_spec_asks(
+    settings, monkeypatch, tmp_path: Path, collect_changes: bool
+) -> None:
+    settings.RUNNER_WORK_ROOT = tmp_path
+    settings.RUNNER_IMAGE = "secondshift-runner:test"
+    recorded: list[Path] = []
+    monkeypatch.setattr(
+        DockerRunnerService, "run_command", staticmethod(lambda *a, **k: completed(0))
+    )
+    monkeypatch.setattr(
+        DockerRunnerService, "prepare_workspace_permissions", lambda *a, **k: None
+    )
+    monkeypatch.setattr(
+        "secondshift.runner.services.unpack_source", lambda *a, **k: None
+    )
+    monkeypatch.setattr(
+        "secondshift.runner.services.record_baseline",
+        lambda root, workspace: recorded.append(root),
+    )
+    spec = RunnerSessionSpec(
+        run_id=7,
+        session_key="c" * 32,
+        repository="example/project",
+        commit_sha="a" * 40,
+        image="secondshift-runner:test",
+        source_sha256="d" * 64,
+        collect_changes=collect_changes,
+    )
+
+    DockerRunnerService().start(spec)
+
+    assert bool(recorded) is collect_changes
+    session = RunnerSession.objects.get(session_id=spec.session_id)
+    assert session.collect_changes is collect_changes
+    # A retry that asks differently is a different session, and is refused.
+    other = RunnerSessionSpec(
+        **{**spec.__dict__, "collect_changes": not collect_changes}
+    )
+    with pytest.raises(RunnerProtocolError, match="different session spec"):
+        DockerRunnerService().start(other)
