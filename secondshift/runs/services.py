@@ -51,9 +51,7 @@ class RunNotReady(RunRefused):
     """A required approval, connection or model is missing."""
 
     def __init__(self, problems: list[str]) -> None:
-        super().__init__(
-            "Connect a default model and approve all required capabilities first."
-        )
+        super().__init__(" ".join(problems) or "This job is not ready to run.")
         self.problems = problems
 
 

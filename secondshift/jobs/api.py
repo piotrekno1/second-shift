@@ -13,6 +13,7 @@ from secondshift.jobs.limits import LimitError, save_overrides
 from secondshift.jobs.models import CapabilityRequest
 from secondshift.jobs.needs import capability_needs
 from secondshift.jobs.planning import build_execution_plan
+from secondshift.jobs.readiness import plan_problems
 from secondshift.jobs.schemas import (
     CapabilityNeedSchema,
     GrantDecisionSchema,
@@ -104,11 +105,9 @@ def set_job_enabled(
             raise HttpError(409, "This job has no schedule. Use Run now to run it.")
         if not job.repository.enabled:
             raise HttpError(409, "Enable the repository before enabling this job.")
-        if not build_execution_plan(job)["ready"]:
-            raise HttpError(
-                409,
-                "Connect a default model and approve all required capabilities first.",
-            )
+        plan = build_execution_plan(job)
+        if not plan["ready"]:
+            raise HttpError(409, " ".join(plan_problems(job, plan)))
     job.enabled = payload.enabled
     job.save(update_fields=["enabled", "updated_at"])
     return serialize_job(job_for_request(request, job_id))
