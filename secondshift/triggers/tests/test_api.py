@@ -209,7 +209,7 @@ def test_job_that_is_not_ready_refuses_with_the_reason(
     response = send(client, path_of(change), str(change["secret"]))
 
     assert response.status_code == 409
-    assert "`grafana` waits for an owner's approval" in response.json()["detail"]
+    assert "grafana waits for an owner's approval" in response.json()["detail"]
     assert "grafana" in TriggerEvent.objects.get().reason
     assert queued == []
 

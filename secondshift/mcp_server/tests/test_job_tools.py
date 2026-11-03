@@ -126,7 +126,7 @@ def test_list_jobs_says_which_jobs_are_ready_and_why_not(
     by_key = {item["key"]: item for item in jobs}
     assert (by_key["review"]["ready"], by_key["review"]["blocked_by"]) == (True, [])
     assert by_key["triage"]["ready"] is False
-    assert by_key["triage"]["blocked_by"] == ["`github` waits for an owner's approval."]
+    assert by_key["triage"]["blocked_by"] == ["github waits for an owner's approval."]
     enabled = call(secret, "list_jobs", enabled=True)["structuredContent"]["jobs"]
     assert [item["key"] for item in enabled] == ["triage"]
 

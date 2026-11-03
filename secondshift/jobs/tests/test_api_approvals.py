@@ -127,9 +127,7 @@ def test_owner_can_approve_required_capability_and_enable_job(
     )
 
     assert blocked.status_code == 409
-    assert blocked.json()["detail"] == (
-        "Connect a default model and approve all required capabilities first."
-    )
+    assert blocked.json()["detail"] == "observability waits for an owner's approval."
     assert reviewed.status_code == 200
     assert reviewed.json()["grant_status"] == "approved"
     grant = JobGrant.objects.get(capability_request=capability)
@@ -393,3 +391,21 @@ def test_job_detail_links_the_skill_on_github_at_the_synced_commit(
     assert body["skill_url"] == (
         f"https://github.com/acme/api/blob/abc123/{job.skill_path}"
     )
+
+
+@pytest.mark.django_db
+def test_run_now_names_the_missing_model(
+    client: Client,
+    approval_setup: tuple[AbstractUser, Workspace, Job],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    user, workspace, job = approval_setup
+    Connection.objects.filter(workspace=workspace, kind=Connection.Kind.MODEL).delete()
+    monkeypatch.setattr("secondshift.runs.services.enqueue_run", lambda run: None)
+    client.force_login(user)
+
+    response = client.post(f"/api/jobs/{job.pk}/run")
+
+    assert response.status_code == 409
+    assert "No default model provider is connected." in response.json()["detail"]
+    assert not Run.objects.filter(job=job).exists()
