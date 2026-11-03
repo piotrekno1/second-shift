@@ -10,6 +10,9 @@ environment, never from .env.
 
 Defaults are safe for production. Values that differ on a single machine use
 `default=SINGLE_HOST` or `default=DEV`.
+
+Local mode must work with no settings beyond the keys made on first start. The
+data folder's .env outlives upgrades, so local values belong in code.
 """
 
 import os
@@ -24,11 +27,14 @@ from environ import Env
 from secondshift.config.constants import (
     DEFAULT_SANDBOX_IMAGE,
     ENVIRONMENT_VAR,
+    LOCAL_AGENT_TAG,
+    LOCAL_GATEWAY_URL,
     SERVICE_VAR,
     AppEnv,
     Environment,
     SandboxRuntime,
     Service,
+    local_agent_broker_url,
 )
 from secondshift.config.first_run import write_generated_env
 from secondshift.config.logging import logging_config
@@ -405,7 +411,7 @@ RUNNER_SERVICE_TOKEN = env.str(AppEnv.RUNNER_SERVICE_TOKEN, default="")
 # always use --network=none and never receive its run-scoped token.
 MODEL_GATEWAY_URL = env.str(
     "SECONDSHIFT_MODEL_GATEWAY_URL",
-    default="http://127.0.0.1:8001" if SINGLE_HOST else "",
+    default=LOCAL_GATEWAY_URL if SINGLE_HOST else "",
 )
 RUN_TIMEOUT_SECONDS = env.int("SECONDSHIFT_RUN_TIMEOUT_SECONDS", default=900)
 RUN_TIMEOUT_SECONDS_CEILING = env.int(
@@ -496,7 +502,17 @@ GITHUB_APP_PRIVATE_KEY = env.str(
 ).replace("\\n", "\n")
 
 
-# Opt-in CLI execution. No image is pulled or agent started by default.
-AGENT_IMAGE = env.str(AppEnv.AGENT_IMAGE, default="")
+# CLI agent execution. Servers turn it on by setting an image pinned by digest.
+# `secondshift up` builds the local tag, which its runner resolves per run.
+AGENT_IMAGE = env.str(
+    AppEnv.AGENT_IMAGE,
+    default=LOCAL_AGENT_TAG if ENVIRONMENT == Environment.LOCAL else "",
+)
 AGENT_NETWORK = env.str(AppEnv.AGENT_NETWORK, default="bridge")
-AGENT_BROKER_URL = env.str(AppEnv.AGENT_BROKER_URL, default="")
+AGENT_BROKER_URL = env.str(
+    AppEnv.AGENT_BROKER_URL,
+    default=local_agent_broker_url(MODEL_GATEWAY_URL) if SINGLE_HOST else "",
+)
+# Agent containers call the gateway by the broker's host name.
+if AGENT_IMAGE and (agent_broker_host := urlsplit(AGENT_BROKER_URL).hostname):
+    ALLOWED_HOSTS = list(dict.fromkeys([*ALLOWED_HOSTS, agent_broker_host]))

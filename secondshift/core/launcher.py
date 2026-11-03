@@ -5,6 +5,7 @@ they do on a server. The runner keeps its own settings and gets none of the
 control plane's keys.
 """
 
+import ipaddress
 import signal
 import subprocess
 import sys
@@ -96,17 +97,24 @@ def local_service_port(url: str) -> int:
 
 
 def services(
-    host: str, port: int, parent: dict[str, str], python: str = sys.executable
+    host: str,
+    port: int,
+    parent: dict[str, str],
+    python: str = sys.executable,
+    agent_host: str | None = None,
 ) -> list[Process]:
+    """The local processes. agent_host also opens the gateway to containers."""
     host, port = web_address(host, port, parent)
     gateway_url = settings.MODEL_GATEWAY_URL
     runner_url = settings.RUNNER_SERVICE_URL
     gateway_port = local_service_port(gateway_url)
-    gateway_host = "127.0.0.1"
-    if settings.AGENT_IMAGE:
-        gateway_host = parent.get(AppEnv.AGENT_GATEWAY_HOST, gateway_host)
-        if gateway_host not in {"127.0.0.1", "0.0.0.0"}:
-            raise ValueError("Agent gateway host must be 127.0.0.1 or 0.0.0.0")
+    gateway_bind = ["127.0.0.1"]
+    if agent_host:
+        address = ipaddress.ip_address(agent_host)
+        # 0.0.0.0 counts as private but listens on every network.
+        if address.is_unspecified or not address.is_private:
+            raise ValueError("The agent gateway address must be private.")
+        gateway_bind.append(agent_host)
     runner_port = local_service_port(runner_url)
     control = {
         # Links in notifications, invites and OAuth callbacks use it.
@@ -122,12 +130,15 @@ def services(
         control["OBJC_DISABLE_INITIALIZE_FORK_SAFETY"] = "YES"
 
     def http_service(
-        service: Service, address: str, http_port: int, environment: dict[str, str]
+        service: Service,
+        addresses: list[str],
+        http_port: int,
+        environment: dict[str, str],
     ) -> Process:
         environment = {
             **environment,
             SERVICE_VAR: service,
-            "SECONDSHIFT_HTTP_BIND": f"{address}:{http_port}",
+            "SECONDSHIFT_HTTP_BIND": ",".join(f"{a}:{http_port}" for a in addresses),
             "SECONDSHIFT_HTTP_LOG_LEVEL": "warning",
             "SECONDSHIFT_HTTP_ACCESS_LOG": "",
         }
@@ -143,14 +154,24 @@ def services(
         )
 
     return [
-        http_service(Service.RUNNER, "127.0.0.1", runner_port, runner_env(parent)),
-        http_service(Service.GATEWAY, gateway_host, gateway_port, control),
+        http_service(
+            Service.RUNNER,
+            ["127.0.0.1"],
+            runner_port,
+            # Local mode lets the runner default its agent image and broker.
+            {
+                **runner_env(parent),
+                ENVIRONMENT_VAR: Environment.LOCAL,
+                AppEnv.MODEL_GATEWAY_URL: gateway_url,
+            },
+        ),
+        http_service(Service.GATEWAY, gateway_bind, gateway_port, control),
         Process(
             Service.WORKER,
             [python, "-m", "secondshift", "run_dbos_worker"],
             {**control, SERVICE_VAR: Service.WORKER},
         ),
-        http_service(Service.WEB, host, port, control),
+        http_service(Service.WEB, [host], port, control),
     ]
 
 

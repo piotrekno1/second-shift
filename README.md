@@ -95,7 +95,7 @@ SecondShift serves an MCP server at `/mcp`. Your agent can check a
 It cannot approve access or see credentials. See the
 [MCP guide](https://second-shift.app/docs/mcp/).
 
-For opt-in Claude Code or Codex subscription execution, see the
+To run jobs through Claude Code or Codex subscriptions, see the
 [agent subscriptions guide](docs/agent-subscriptions.md).
 
 ## Learn more

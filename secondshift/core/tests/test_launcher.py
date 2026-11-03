@@ -1,6 +1,5 @@
 import sys
 import time
-from typing import Any
 
 import click
 import pytest
@@ -40,6 +39,8 @@ def test_runner_gets_docker_access_and_its_token_but_no_control_plane_keys() -> 
         "SECONDSHIFT_RUNNER_SERVICE_TOKEN": "t" * 40,
         "DJANGO_SETTINGS_MODULE": "secondshift.config.settings.runner",
         "SECONDSHIFT_RUNNER_RUNTIME": "docker",
+        "SECONDSHIFT_ENV": "local",
+        "SECONDSHIFT_MODEL_GATEWAY_URL": "http://127.0.0.1:8001",
         "SECONDSHIFT_SERVICE": "runner",
         "SECONDSHIFT_HTTP_BIND": "127.0.0.1:8002",
         "SECONDSHIFT_HTTP_PROCESSES": "1",
@@ -163,26 +164,20 @@ def test_local_services_reject_external_runner_address() -> None:
         )
 
 
-def test_agent_mode_opens_only_the_gateway_when_asked(settings: Any) -> None:
-    image = "example/ss-agent@sha256:" + "a" * 64
-    parent = {
-        "SECONDSHIFT_AGENT_IMAGE": image,
-        "SECONDSHIFT_AGENT_GATEWAY_HOST": "0.0.0.0",
-    }
-
-    def binds() -> dict[str, str]:
+def test_agent_host_opens_only_the_gateway_and_only_privately() -> None:
+    def binds(agent_host: str | None) -> dict[str, str]:
         return {
             process.name: process.env.get("SECONDSHIFT_HTTP_BIND", "")
-            for process in launcher.services("127.0.0.1", 8000, parent)
+            for process in launcher.services(
+                "127.0.0.1", 8000, PARENT, agent_host=agent_host
+            )
         }
 
-    settings.AGENT_IMAGE = image
-    opened = binds()
-    assert opened["gateway"] == "0.0.0.0:8001"
-    assert not opened["runner"].startswith("0.0.0.0")
-    settings.AGENT_IMAGE = ""
-    assert binds()["gateway"] == "127.0.0.1:8001"
-    settings.AGENT_IMAGE = image
-    parent["SECONDSHIFT_AGENT_GATEWAY_HOST"] = "192.168.1.5"
-    with pytest.raises(ValueError, match="gateway host"):
-        binds()
+    assert binds(None)["gateway"] == "127.0.0.1:8001"
+    opened = binds("172.17.0.1")
+    assert opened["gateway"] == "127.0.0.1:8001,172.17.0.1:8001"
+    assert opened["runner"] == "127.0.0.1:8002"
+    assert opened["web"] == "127.0.0.1:8000"
+    for public in ("0.0.0.0", "8.8.8.8"):
+        with pytest.raises(ValueError, match="private"):
+            binds(public)

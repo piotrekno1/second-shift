@@ -18,7 +18,8 @@ async_http = service in (Service.GATEWAY, Service.RUNNER)
 factory = "asgi" if async_http else "wsgi"
 wsgi_app = f"secondshift.config.app:{factory}('{service}')"
 worker_class = "uvicorn_worker.UvicornWorker" if async_http else "sync"
-bind = env.str("SECONDSHIFT_HTTP_BIND", default="0.0.0.0:8000")
+# One address, or several separated by commas.
+bind = env.list("SECONDSHIFT_HTTP_BIND", default=["0.0.0.0:8000"])
 workers = env.int("SECONDSHIFT_HTTP_PROCESSES", default=2)
 timeout = env.int("SECONDSHIFT_HTTP_TIMEOUT_SECONDS", default=30)
 graceful_timeout = env.int("SECONDSHIFT_HTTP_GRACEFUL_TIMEOUT_SECONDS", default=30)

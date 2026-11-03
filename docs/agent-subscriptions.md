@@ -1,8 +1,8 @@
 # Agent subscriptions
 
 SecondShift can run a workspace's jobs through Claude Code or Codex, using a
-person's own subscription instead of a model API key. This is off unless an
-operator turns it on. Without it, no agent image is built and nothing changes.
+person's own subscription instead of a model API key. It needs an agent image.
+Without one, nothing changes.
 
 ## Development
 
@@ -17,35 +17,35 @@ what runs them.
 
 ## Single machine
 
-Build the image from the repository root. The Dockerfile pins the CLI and base
-image versions.
+`secondshift up` turns subscriptions on by default. Local mode defaults the
+agent image to `secondshift-agent:local`. On each start, `up` builds that tag
+from the files shipped in the package. The first start downloads both CLIs and
+takes a few minutes. Later starts use Docker's build cache. If a build fails,
+`up` uses the last image it built.
+
+Servers must pin the agent image by digest. Only a local runner accepts a tag.
+It looks up the tag's `sha256:` ID for each run and starts that exact image.
+
+To start without subscriptions:
 
 ```sh
-docker build -f secondshift/runner/agent_image/Dockerfile -t secondshift-agent:local .
-docker image inspect --format '{{.Id}}' secondshift-agent:local
+secondshift up --no-agents
 ```
 
-The runner refuses mutable tags. Use the `sha256:` ID printed above, or a
-registry reference with a digest. Set these for `secondshift up`:
+Agent containers reach the gateway through `host.docker.internal`.
 
-```sh
-SECONDSHIFT_AGENT_IMAGE=sha256:YOUR_IMAGE_ID
-SECONDSHIFT_AGENT_BROKER_URL=http://host.docker.internal:8001/gateway/agent/mcp
-SECONDSHIFT_AGENT_NETWORK=bridge
-SECONDSHIFT_AGENT_GATEWAY_HOST=0.0.0.0
-SECONDSHIFT_ALLOWED_HOSTS=localhost,127.0.0.1,host.docker.internal
-```
+- With Docker Desktop, that name reaches the host's loopback. The gateway stays
+  on `127.0.0.1`.
+- With native Linux Docker, the runner adds that name to each agent container.
+  The gateway also listens on the Docker bridge address, usually `172.17.0.1`.
+  Other machines can't route to it.
 
-The broker URL is the gateway address as seen from inside the agent container.
-On Docker Desktop, `host.docker.internal` reaches the host.
+The gateway never listens on every network for agents.
 
-`secondshift up` normally binds every internal service to loopback.
-`SECONDSHIFT_AGENT_GATEWAY_HOST=0.0.0.0` opens only the gateway, so containers
-can reach it. Limit port 8001 to Docker traffic with your firewall. Never expose
-the broker publicly. On Linux, use a Docker network that can reach a gateway
-address on the host.
-
-Then start as usual with `secondshift up`.
+You don't need to set anything. To use your own image, set
+`SECONDSHIFT_AGENT_IMAGE`, and `up` won't build one. To use another gateway
+address, set `SECONDSHIFT_AGENT_BROKER_URL`. Its host name is allowed
+automatically.
 
 ## Logins
 
