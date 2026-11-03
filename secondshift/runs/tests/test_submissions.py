@@ -698,3 +698,13 @@ def test_asking_for_a_pull_request_is_part_of_the_submission(
 
     with pytest.raises(RunRefused, match="different submission"):
         start(github_repository, owner, pull_request=True)
+
+
+def test_a_task_definition_cannot_ask_for_a_pull_request(
+    repository: Repository,
+) -> None:
+    with pytest.raises(ValidationError, match="not in its definition"):
+        submission(
+            repository,
+            definition={"name": "Review", "skill": SKILL, "pull_request": True},
+        )

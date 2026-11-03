@@ -153,6 +153,10 @@ class JobDetailSchema(JobSchema):
     history: int
     # Trigger kinds the configuration names, such as "webhook".
     triggers: list[str]
+    # The configuration asks for a draft pull request with each run's changes.
+    pull_request: bool
+    # An owner allows pull requests for the repository, so drafts open.
+    pull_requests_allowed: bool
     repository_revision: str
     repository_enabled: bool
     # The skill file at the synced commit. Empty until the next sync.

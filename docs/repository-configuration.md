@@ -83,6 +83,7 @@ standard-library tests work without installing packages.
 | `jobs.<key>.notify` | No | Webhook notification bindings requested by this job. |
 | `jobs.<key>.triggers` | No | Events that can start the job. Only `webhook` is supported. An owner or admin turns it on. See [webhook triggers](#webhook-triggers). |
 | `jobs.<key>.webhook` | No | Which webhook requests start a run: `skip_when`, `repeat_key` and `repeat_window`. Needs `triggers: [webhook]`. See [ignore requests and repeats](#ignore-requests-and-repeats). |
+| `jobs.<key>.pull_request` | No | Set to `true` to open a draft pull request with each run's changes. An owner must allow pull requests for the repository. See [draft pull requests](#draft-pull-requests). |
 | `jobs.<key>.requires` | No | MCP tools and HTTP API operations the job needs. See below. |
 
 Skill paths must stay inside the repository. Unknown fields are rejected.
@@ -116,6 +117,29 @@ Reports are kept as long as their runs, `SECONDSHIFT_RUN_RETENTION_DAYS` (90 by
 default). A job that runs less often than that, such as a quarterly review,
 finds its previous report already removed: raise the retention or leave
 `history` off for that job.
+
+## Draft pull requests
+
+A job can open a draft pull request with the agent's changes:
+
+```yaml
+jobs:
+  docs-drift:
+    name: Docs drift
+    skill: .agents/skills/docs-drift/SKILL.md
+    schedule: "0 9 * * 1"
+    pull_request: true
+```
+
+Each run then works on the followed branch, and the draft targets it. The
+branch is named `secondshift/run-<id>`, and the report becomes the description.
+A run that fails or changes nothing opens no pull request.
+
+The configuration only asks. A workspace owner allows pull requests in the
+repository's settings, and the GitHub App needs write access. Until then, runs
+still produce their report, and each skipped draft says why. CI waits for a
+review unless the owner lets it run at once. [Tasks](tasks.md#draft-pull-requests)
+explains the rest.
 
 ## Webhook triggers
 

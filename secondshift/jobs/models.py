@@ -34,6 +34,8 @@ class Job(RunLimitOverrides):
     triggers = models.JSONField(default=list, blank=True)
     # The repository's webhook settings: skip_when, repeat_key, repeat_window.
     webhook = models.JSONField(default=dict, blank=True)
+    # The repository asks for a draft pull request with each run's changes.
+    pull_request = models.BooleanField(default=False)
     enabled = models.BooleanField(default=False)
     next_run_at = models.DateTimeField(null=True, blank=True)
     config_hash = models.CharField(max_length=64)

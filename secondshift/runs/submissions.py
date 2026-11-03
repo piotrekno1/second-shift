@@ -22,8 +22,9 @@ from secondshift.repositories.github_app import GitHubAppError
 from secondshift.repositories.local import LocalRepositoryError
 from secondshift.repositories.models import Repository
 from secondshift.repositories.skill_source import SkillSourceError, skill_commit
-from secondshift.runs.models import Run, RunDelivery, Task
+from secondshift.runs.models import Run, Task
 from secondshift.runs.orchestration.dispatch import enqueue_run
+from secondshift.runs.publishing import record_pending_pull_request
 from secondshift.runs.services import RunNotReady, RunRefused
 
 
@@ -58,6 +59,8 @@ class SkillSubmission(BaseModel):
             raise ValueError(
                 "A standalone task cannot set a schedule, triggers or job history."
             )
+        if self.definition.pull_request:
+            raise ValueError("Set pull_request on the task, not in its definition.")
         return self
 
 
@@ -196,12 +199,6 @@ def submit_skill(
             execution_plan=plan,
             scheduled_for=scheduled_for,
         )
-        if plan["pull_request"] is not None:
-            # Shown as pending from the start, and kept if publishing fails.
-            RunDelivery.objects.create(
-                run=run,
-                kind=RunDelivery.Kind.PULL_REQUEST,
-                target=f"{repository.full_name} into {plan['pull_request']['base']}",
-            )
+        record_pending_pull_request(run)
         transaction.on_commit(lambda: enqueue_run(run))
     return SubmissionResult(run, True)

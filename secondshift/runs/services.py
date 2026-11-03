@@ -16,6 +16,7 @@ from secondshift.runs.artifacts import job_input_snapshot, store_run_payload
 from secondshift.runs.history import previous_run_ids
 from secondshift.runs.models import Run, RunEvent, Task
 from secondshift.runs.orchestration.dispatch import enqueue_run
+from secondshift.runs.publishing import record_pending_pull_request
 
 
 class RunRefused(Exception):
@@ -60,9 +61,11 @@ def create_run(
         input_snapshot=deepcopy(defaults["input_snapshot"]),
         scheduled_for=scheduled_for,
     )
-    return Run.objects.create(
+    run = Run.objects.create(
         job=job, task=task, scheduled_for=scheduled_for, **defaults
     )
+    record_pending_pull_request(run)
+    return run
 
 
 class RunNotReady(RunRefused):

@@ -7,8 +7,10 @@ from typing import Any
 from unittest.mock import Mock
 
 import pytest
+from django.utils import timezone
 
-from secondshift.config.constants import RETRY_PULL_REQUEST_WORKFLOW
+from secondshift.config.constants import RETRY_PULL_REQUEST_WORKFLOW, RunStart
+from secondshift.jobs.models import Job
 from secondshift.repositories.models import Repository
 from secondshift.repositories.pull_requests import (
     DraftPullRequest,
@@ -20,8 +22,10 @@ from secondshift.runs.artifacts import artifact_storage, store_run_text
 from secondshift.runs.models import Run, RunDelivery, RunEvent
 from secondshift.runs.orchestration import workflows
 from secondshift.runs.reporting.notifications import run_report_payload
+from secondshift.runs.services import create_run
 from secondshift.runs.tests.test_collection import artifact_root  # noqa: F401
 from secondshift.runs.tests.test_workflows import execution_run
+from secondshift.workspaces.services import workspace_owner
 
 REPORT = "## What changed\n\nREADME.md now says npm install."
 
@@ -153,7 +157,7 @@ def test_an_owner_turning_pull_requests_off_stops_publishing(
     workflows.publish_pull_request_step(run.pk)
 
     assert fake.calls == []
-    assert delivery(run).message == "The repository no longer allows pull requests."
+    assert delivery(run).message == "The repository does not allow pull requests."
 
 
 @pytest.fixture
@@ -223,3 +227,40 @@ def test_runs_publish_before_they_notify(
     workflows.deliver(run.pk)
 
     assert order == ["publish", "notify", "notify"]
+
+
+@pytest.mark.django_db
+def test_each_run_of_a_drafting_job_waits_to_publish(db: object) -> None:
+    job = execution_run(db).job
+    Job.objects.filter(pk=job.pk).update(pull_request=True)
+    job.refresh_from_db()
+
+    run = create_run(job, timezone.now(), started_by=RunStart.MANUAL)
+
+    assert run.execution_plan["pull_request"]["base"] == "main"
+    assert delivery(run).status == RunDelivery.Status.PENDING
+    assert delivery(run).target == "current/project into main"
+
+
+@pytest.mark.django_db
+def test_other_job_runs_have_no_pull_request(db: object) -> None:
+    job = execution_run(db).job
+
+    run = create_run(job, timezone.now(), started_by=RunStart.MANUAL)
+
+    assert run.execution_plan["pull_request"] is None
+    assert not run.deliveries.exists()
+
+
+@pytest.mark.django_db
+def test_the_job_page_says_whether_its_drafts_can_open(client: Any, db: object) -> None:
+    job = execution_run(db).job
+    Job.objects.filter(pk=job.pk).update(pull_request=True)
+    client.force_login(workspace_owner(job.workspace))
+
+    blocked = client.get(f"/api/jobs/{job.pk}").json()
+    Repository.objects.filter(pk=job.repository_id).update(allow_pull_requests=True)
+    allowed = client.get(f"/api/jobs/{job.pk}").json()
+
+    assert (blocked["pull_request"], blocked["pull_requests_allowed"]) == (True, False)
+    assert allowed["pull_requests_allowed"] is True

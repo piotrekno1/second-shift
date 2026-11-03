@@ -7,6 +7,7 @@ from secondshift.config.constants import MAX_SKILL_PREVIEW_CHARS
 from secondshift.connections.models import Connection
 from secondshift.jobs.manifest import parse_manifest
 from secondshift.jobs.models import CapabilityRequest, Job, JobGrant
+from secondshift.jobs.planning import build_execution_plan
 from secondshift.jobs.scheduling import desired_schedules
 from secondshift.jobs.sync import sync_jobs, sync_manifest
 from secondshift.repositories.models import Repository
@@ -276,3 +277,34 @@ jobs:
 
     stored = Job.objects.get(pk=job.pk)
     assert (stored.triggers, stored.webhook) == ([], {})
+
+
+def test_a_job_can_ask_for_draft_pull_requests(db, tmp_path: Path) -> None:
+    user = get_user_model().objects.create_user(username="owner")
+    workspace = create_workspace(name="Test", slug="test", owner=user)
+    repository = Repository.objects.create(
+        workspace=workspace, full_name="example/project", config_sha="a" * 40
+    )
+    path = tmp_path / ".secondshift.yaml"
+    path.write_text(
+        """
+version: 1
+jobs:
+  docs:
+    name: Docs drift
+    skill: .agents/skills/docs/SKILL.md
+    pull_request: true
+""".strip()
+    )
+
+    job = Job.objects.get(pk=sync_manifest(repository, path)[0].pk)
+    plan = build_execution_plan(job)
+
+    assert job.pull_request is True
+    assert plan["pull_request"] == {"base": "main", "run_ci": False}
+    assert plan["runner"]["collect_changes"] is True
+
+    path.write_text(path.read_text().replace("\n    pull_request: true", ""))
+    job = Job.objects.get(pk=sync_manifest(repository, path)[0].pk)
+    assert job.pull_request is False
+    assert build_execution_plan(job)["pull_request"] is None
