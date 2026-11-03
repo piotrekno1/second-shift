@@ -129,6 +129,11 @@ access keeps going without tools until the run's time limit.
 
 ## Limits
 
+Each login can have a run limit, set by its owner on **Connections**. It caps
+how many runs use the login in a rolling 24 hours. A run past the limit is
+refused with the reason, and a scheduled run fails with it. Runs that were
+refused before they started don't count. There is no limit by default.
+
 - The broker enforces the tool call budget and the run deadline.
 - Claude Code also gets the run's maximum turns. Codex has no equivalent
   setting, so the deadline and tool budget bound it.
