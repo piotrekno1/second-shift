@@ -66,10 +66,19 @@ needed by web for GitHub repository imports, and the token is shared with runner
 | `SECONDSHIFT_TASK_QUEUE_LIMIT` | Maximum accepted unfinished ad hoc tasks per repository, including queued and running tasks. Default `100`; must be positive. Identical idempotent retries still return their original run when the queue is full. |
 | `SECONDSHIFT_JOB_HISTORY_MAX` | The most earlier reports a job can ask for with `history`. A manifest above it fails to sync. Lowering it also caps jobs already synced. `0` turns history off. Default `5`. |
 | `SECONDSHIFT_RUN_HISTORY_MAX_CHARS` | Total characters of a job's earlier reports a run starts with, when the job sets `history`. Newest first. What does not fit is cut or left out. Default `65536`. |
-| `SECONDSHIFT_WORKFLOW_DATABASE_URL` | Optional DBOS workflow database URL, also needed by web when set. Defaults to `SECONDSHIFT_DATABASE_URL`. Back it up consistently with the application database. |
+| `SECONDSHIFT_WORKFLOW_DATABASE_URL` | Optional DBOS workflow database URL, also needed by web when set. Defaults to `workflows.sqlite3` in `SECONDSHIFT_DATA_DIR` for SQLite; otherwise defaults to `SECONDSHIFT_DATABASE_URL`. Back it up consistently with the application database. |
 | `SECONDSHIFT_RUNNER_SERVICE_URL` | Required private runner address. Generated value: `http://secondshift-runner:8002`. |
 | `SECONDSHIFT_RUNNER_SERVICE_TOKEN` | Required auth token of at least 32 characters. Identical in web, worker and runner. Generated automatically. |
 | `SECONDSHIFT_MODEL_GATEWAY_URL` | Required private model endpoint. Generated value: `http://secondshift-gateway:8001`. |
+
+When upgrading an existing SQLite installation that stored DBOS tables in the
+application database, stop all SecondShift services and use SQLite's backup
+operation to copy that database to `SECONDSHIFT_DATA_DIR/workflows.sqlite3`
+before restarting. This preserves queued workflows and their history; the copy
+also contains unused application tables. Do not overwrite an existing workflow
+database. Changing the URL alone does not migrate workflows. Explicit workflow
+URLs remain unchanged, but must point to a different SQLite file from the
+application database to avoid dispatch write-lock conflicts.
 
 Do not publish the gateway or runner ports. The web process needs the runner
 URL/token for GitHub imports. It does not need the model gateway endpoint.

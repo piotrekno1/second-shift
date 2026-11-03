@@ -176,6 +176,54 @@ def test_dbos_url_names_the_psycopg_driver(url: str, expected: str) -> None:
     assert sqlalchemy_url(url) == expected
 
 
+@pytest.mark.parametrize("environment", ["local", "dev"])
+@pytest.mark.parametrize(
+    "database_url",
+    [None, "sqlite:////tmp/custom-secondshift.sqlite3", "postgres://u:p@db/app"],
+)
+def test_workflow_database_default(
+    tmp_path: Path, environment: str, database_url: str | None
+) -> None:
+    variables = {"SECONDSHIFT_DATABASE_URL": database_url} if database_url else {}
+    result = load_settings(
+        f"secondshift.config.settings.{environment}",
+        tmp_path,
+        script="print(s.DBOS_SYSTEM_DATABASE_URL)",
+        SECONDSHIFT_ENV=environment,
+        **variables,
+    )
+
+    assert result.returncode == 0, result.stderr
+    expected = (
+        "postgresql+psycopg://u:p@db/app"
+        if database_url and database_url.startswith("postgres:")
+        else f"sqlite:///{tmp_path / 'workflows.sqlite3'}"
+    )
+    assert result.stdout.strip() == expected
+
+
+@pytest.mark.parametrize(
+    ("url", "expected"),
+    [
+        ("sqlite:////tmp/explicit.sqlite3", "sqlite:////tmp/explicit.sqlite3"),
+        ("postgres://u:p@db/workflows", "postgresql+psycopg://u:p@db/workflows"),
+    ],
+)
+def test_explicit_workflow_database_wins(
+    tmp_path: Path, url: str, expected: str
+) -> None:
+    result = load_settings(
+        "secondshift.config.settings.local",
+        tmp_path,
+        script="print(s.DBOS_SYSTEM_DATABASE_URL)",
+        SECONDSHIFT_ENV="local",
+        SECONDSHIFT_WORKFLOW_DATABASE_URL=url,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == expected
+
+
 KEYS_SCRIPT = (
     "print(s.SECRET_KEY); print(s.FIELD_ENCRYPTION_KEY); "
     "print(s.RUNNER_SERVICE_TOKEN); print(s.DATABASES['default']['NAME'])"
