@@ -1,6 +1,7 @@
 import logging
 import signal
 import threading
+from pathlib import Path
 from types import FrameType
 
 import djclick as click
@@ -64,7 +65,8 @@ def worker_tasks(client: DBOSClient) -> list[PeriodicTask]:
 
 @click.command()
 @click.option("--sync-interval", type=int, default=15, show_default=True)
-def command(sync_interval: int) -> None:
+@click.option("--ready-file", type=click.Path(path_type=Path), hidden=True)
+def command(sync_interval: int, ready_file: Path | None) -> None:
     """Run DBOS workers and reconcile database-backed schedules."""
     stopped = threading.Event()
 
@@ -78,6 +80,8 @@ def command(sync_interval: int) -> None:
         click.echo("DBOS worker started")
         client = new_dbos_client()
         tasks = worker_tasks(client)
+        if ready_file is not None:
+            ready_file.touch(mode=0o600)
         while not stopped.is_set():
             for task in tasks:
                 if stopped.is_set():

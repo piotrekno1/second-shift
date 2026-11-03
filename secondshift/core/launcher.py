@@ -6,6 +6,7 @@ control plane's keys.
 """
 
 import ipaddress
+import json
 import signal
 import subprocess
 import sys
@@ -13,6 +14,8 @@ import time
 import urllib.request
 from collections.abc import Callable
 from dataclasses import dataclass
+from pathlib import Path
+from threading import Thread
 from types import FrameType
 from urllib.parse import urlsplit
 
@@ -30,6 +33,7 @@ from secondshift.config.constants import (
     Service,
     settings_module,
 )
+from secondshift.core import local_output
 
 CONTROL_SETTINGS = settings_module(Environment.LOCAL)
 # The runner gets only these variables from the parent environment.
@@ -188,6 +192,8 @@ def run(
     on_ready: Callable[[], None],
     echo: Callable[[str], None],
     start_timeout: float = 180,
+    debug: bool = False,
+    url: str | None = None,
 ) -> int:
     """Run every service until Ctrl+C or until one of them stops."""
 
@@ -196,17 +202,32 @@ def run(
 
     previous_handler = signal.signal(signal.SIGTERM, stop_on_signal)
     processes: dict[str, subprocess.Popen[bytes]] = {}
+    readers = []
+    state_path = settings.DATA_DIR / local_output.STATE_FILE
+    ready_path = settings.DATA_DIR / local_output.WORKER_READY_FILE
+    ready_path.unlink(missing_ok=True)
     try:
         for service in services:
-            processes[service.name] = subprocess.Popen(service.argv, env=service.env)
+            process, reader = start_process(service, ready_path, debug)
+            processes[service.name] = process
+            readers.append(reader)
+        save_state(state_path, url, services, processes)
         waiting = [service for service in services if service.health_url]
         deadline = time.monotonic() + start_timeout
-        while waiting:
+        worker_waiting = any(s.name == Service.WORKER for s in services)
+        while waiting or (worker_waiting and not ready_path.exists()):
             if stopped := stopped_service(processes):
                 echo(f"The {stopped} process stopped while starting.")
                 return 1
             if time.monotonic() > deadline:
-                names = ", ".join(service.name for service in waiting)
+                names = ", ".join(
+                    [service.name for service in waiting]
+                    + (
+                        [Service.WORKER]
+                        if worker_waiting and not ready_path.exists()
+                        else []
+                    )
+                )
                 echo(f"Timed out waiting for: {names}.")
                 return 1
             waiting = [s for s in waiting if not is_healthy(s.health_url or "")]
@@ -221,6 +242,12 @@ def run(
         return 0
     finally:
         stop_all(processes)
+        for reader in readers:
+            reader.join(timeout=2)
+        if url:
+            state_path.unlink(missing_ok=True)
+        ready_path.unlink(missing_ok=True)
+        echo("SecondShift stopped.")
         signal.signal(signal.SIGTERM, previous_handler)
 
 
@@ -241,3 +268,42 @@ def stop_all(processes: dict[str, subprocess.Popen[bytes]]) -> None:
             process.wait(timeout=max(deadline - time.monotonic(), 0.1))
         except subprocess.TimeoutExpired:
             process.kill()
+            process.wait()
+
+
+def start_process(
+    service: Process, ready_path: Path, debug: bool
+) -> tuple[subprocess.Popen[bytes], Thread]:
+    argv = service.argv
+    if service.name == Service.WORKER:
+        argv = [*argv, "--ready-file", str(ready_path)]
+    process = subprocess.Popen(
+        argv,
+        env={**service.env, "PYTHONUNBUFFERED": "1"},
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+    )
+    assert process.stdout is not None
+    return process, local_output.capture(process.stdout, service.name, debug)
+
+
+def save_state(
+    path: Path,
+    url: str | None,
+    services: list[Process],
+    processes: dict[str, subprocess.Popen[bytes]],
+) -> None:
+    if url is None:
+        return
+    path.touch(mode=0o600, exist_ok=True)
+    path.write_text(
+        json.dumps(
+            {
+                "url": url,
+                "services": {
+                    s.name: {"pid": processes[s.name].pid, "health_url": s.health_url}
+                    for s in services
+                },
+            }
+        )
+    )
