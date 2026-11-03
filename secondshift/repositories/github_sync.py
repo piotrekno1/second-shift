@@ -5,8 +5,8 @@ from pathlib import Path
 from django.db import transaction
 
 from secondshift.connections.models import Connection
-from secondshift.github import repos
-from secondshift.github.app import installation_repositories
+from secondshift.github import credentials, repos
+from secondshift.github.app import configured, installation_repositories
 from secondshift.github.errors import GitHubError
 from secondshift.github.git import authenticated_git
 from secondshift.github.identity import clone_url
@@ -14,7 +14,9 @@ from secondshift.jobs.sync import sync_jobs
 from secondshift.repositories.github_access import (
     GitHubAccess,
     connection_access,
+    connection_source,
     github_access,
+    usable_source,
 )
 from secondshift.repositories.local import (
     RepositoryConfigError,
@@ -100,6 +102,14 @@ class GitHubRepositoryExistsError(GitHubError):
     pass
 
 
+def source_repositories(connection: Connection) -> list[dict]:
+    """What a source connection can import, as GitHub lists it."""
+    source = connection_source(connection)
+    if isinstance(source, credentials.AppInstallation):
+        return installation_repositories(source.installation_id)
+    return repos.token_repositories(source.token)
+
+
 def available_github_sources(
     workspace: Workspace,
 ) -> tuple[list[dict[str, object]], list[str]]:
@@ -109,12 +119,16 @@ def available_github_sources(
         workspace=workspace,
         provider=Connection.Provider.GITHUB,
         kind=Connection.Kind.SOURCE,
-        auth_strategy=Connection.AuthStrategy.MANAGED,
         status=Connection.Status.CONNECTED,
     )
     for connection in connections:
+        if not usable_source(connection) or (
+            connection.auth_strategy == Connection.AuthStrategy.MANAGED
+            and not configured()
+        ):
+            continue
         try:
-            repositories = installation_repositories(connection.external_account_id)
+            repositories = source_repositories(connection)
         except GitHubError as error:
             errors.append(f"{connection.display_name}: {error}")
             continue

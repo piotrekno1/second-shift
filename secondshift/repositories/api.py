@@ -106,9 +106,7 @@ def local_repository_directories(
 @router.get("/repositories/github/available", response=GitHubAppStatusSchema)
 def available_github_repositories(request: HttpRequest) -> GitHubAppStatusSchema:
     workspace = require(request, Action.ADD_GITHUB_REPOSITORIES)
-    available, errors = (
-        available_github_sources(workspace) if configured() else ([], [])
-    )
+    available, errors = available_github_sources(workspace)
     return GitHubAppStatusSchema(
         configured=configured(),
         error=" ".join(errors),
@@ -129,7 +127,6 @@ def github_branches(
         workspace=workspace,
         provider=Connection.Provider.GITHUB,
         kind=Connection.Kind.SOURCE,
-        auth_strategy=Connection.AuthStrategy.MANAGED,
         status=Connection.Status.CONNECTED,
     )
     try:
@@ -149,7 +146,6 @@ def create_github_repository(
         workspace=workspace,
         provider=Connection.Provider.GITHUB,
         kind=Connection.Kind.SOURCE,
-        auth_strategy=Connection.AuthStrategy.MANAGED,
         status=Connection.Status.CONNECTED,
     )
     try:

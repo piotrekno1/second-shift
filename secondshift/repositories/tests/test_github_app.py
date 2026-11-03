@@ -516,3 +516,98 @@ def test_an_autosync_check_mints_one_token_per_repository(
 
     assert tokens.call_count == 1
     assert heads.call_args.args[0] == "github-secret"
+
+
+@pytest.fixture
+def token_connection(workspace: Any) -> Connection:
+    return Connection.objects.create(
+        workspace=workspace,
+        provider=Connection.Provider.GITHUB,
+        kind=Connection.Kind.SOURCE,
+        auth_strategy=Connection.AuthStrategy.API_KEY,
+        external_account_id="token:someone",
+        display_name="GitHub · someone (token)",
+        access_token="github_pat_" + "a" * 40,
+    )
+
+
+def test_a_token_lists_its_repositories_without_the_app(
+    owner_client: Any, token_connection: Connection, settings: Any, monkeypatch: Any
+) -> None:
+    settings.GITHUB_APP_ID = ""
+    listing = Mock(
+        return_value=[{"id": 7, "full_name": "owner/project", "default_branch": "main"}]
+    )
+    monkeypatch.setattr(repos, "token_repositories", listing)
+
+    result = owner_client.get("/api/repositories/github/available").json()
+
+    assert result["configured"] is False
+    assert result["repositories"] == [
+        {
+            "connection_id": token_connection.pk,
+            "repository_id": 7,
+            "full_name": "owner/project",
+            "default_branch": "main",
+        }
+    ]
+    listing.assert_called_once_with(token_connection.access_token)
+
+
+def test_a_token_lists_branches_with_its_own_token(
+    owner_client: Any, token_connection: Connection, monkeypatch: Any
+) -> None:
+    monkeypatch.setattr(
+        repos,
+        "repository",
+        lambda token, repository_id: {"id": repository_id, "full_name": "owner/x"},
+    )
+    branches = Mock(return_value=["main"])
+    monkeypatch.setattr(repos, "branches", branches)
+
+    url = f"/api/repositories/github/{token_connection.pk}/7/branches"
+    assert owner_client.get(url).json() == ["main"]
+    branches.assert_called_once_with(token_connection.access_token, "owner/x")
+
+
+def test_a_repository_imported_with_a_token_syncs_with_it(
+    workspace: Any,
+    token_connection: Connection,
+    tmp_path: Any,
+    monkeypatch: Any,
+    settings: Any,
+) -> None:
+    source = tmp_path / "source"
+    create_local_repository(source)
+    monkeypatch.setattr(
+        repos,
+        "repository",
+        lambda token, repository_id: {
+            "id": repository_id,
+            "full_name": "owner/project",
+            "default_branch": "main",
+        },
+    )
+    seen = []
+    original = github_sync.authenticated_git
+
+    def local_fetch(root: Path, token: str, *arguments: str) -> str:
+        seen.append(token)
+        arguments = tuple(
+            str(source)
+            if argument == "https://github.com/owner/project.git"
+            else argument
+            for argument in arguments
+        )
+        return original(root, token, *arguments)
+
+    monkeypatch.setattr(github_sync, "authenticated_git", local_fetch)
+    settings.SOURCE_CACHE_ROOT = tmp_path / "sources"
+
+    repository = github_sync.attach_github_repository(
+        workspace, token_connection, 7, ""
+    )
+
+    assert repository.github_connection == token_connection
+    assert repository.config_sha
+    assert set(seen) == {token_connection.access_token}

@@ -40,3 +40,13 @@ def branches(token: str, full_name: str) -> list[str]:
     ):
         raise GitHubError("GitHub returned an invalid branch listing.")
     return [item["name"] for item in batch]
+
+
+def token_repositories(token: str) -> list[dict]:
+    """The repositories a personal access token was given."""
+    return paginated(
+        f"{GITHUB_API_URL}/user/repos",
+        token,
+        None,
+        "This token reaches too many repositories to list.",
+    )
