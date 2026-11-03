@@ -16,6 +16,9 @@ SERVICE_VAR = "SECONDSHIFT_SERVICE"
 
 GUNICORN_CONFIG = "python:secondshift.config.gunicorn"
 
+# How agent containers reach services on the Docker host.
+HOST_ALIAS = "host.docker.internal"
+
 
 class AppEnv(StrEnum):
     AGENT_GATEWAY_HOST = "SECONDSHIFT_AGENT_GATEWAY_HOST"

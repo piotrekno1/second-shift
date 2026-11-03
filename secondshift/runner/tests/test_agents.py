@@ -33,6 +33,7 @@ def test_agent_container_configuration_is_server_owned(
     command = agent_command("run-1", tmp_path / "auth")
     assert command[-2:] == [IMAGE, "/opt/secondshift/agent.py"]
     assert "--network=ss-agent-egress" in command
+    assert "--add-host=host.docker.internal:host-gateway" in command
     assert "--runtime" in command and "runsc" in command
     assert "--read-only" in command and "--cap-drop=ALL" in command
     assert not any("/workspace" in arg or "docker.sock" in arg for arg in command)

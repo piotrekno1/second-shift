@@ -13,7 +13,7 @@ from pathlib import Path
 
 from django.conf import settings
 
-from secondshift.config.constants import SandboxRuntime
+from secondshift.config.constants import HOST_ALIAS, SandboxRuntime
 from secondshift.runner.agent_credentials import decrypt_agent_auth
 from secondshift.runner.agent_protocol import AgentInput, AgentOutput
 from secondshift.runner.models import RunnerSession
@@ -61,6 +61,8 @@ def agent_command(session_id: str, auth_path: Path) -> list[str]:
         f"--memory-swap={settings.RUNNER_MEMORY}",
         f"--cpus={settings.RUNNER_CPUS}",
         f"--network={settings.AGENT_NETWORK}",
+        # Docker Desktop defines this alias. Native Linux Docker needs it added.
+        f"--add-host={HOST_ALIAS}:host-gateway",
         f"--user={uid}:{gid}",
         f"--tmpfs=/tmp:rw,nosuid,size=256m,uid={uid},gid={gid}",
         f"--mount=type=bind,src={auth_path},dst=/auth",
