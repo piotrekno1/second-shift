@@ -9,7 +9,7 @@ from pydantic_ai.exceptions import UsageLimitExceeded
 from pydantic_ai.messages import ModelMessage
 from pydantic_ai.toolsets import FunctionToolset
 
-from secondshift.config.constants import SUMMARY_MAX_CHARS
+from secondshift.config.constants import SUMMARY_MAX_CHARS, AgentBackend
 from secondshift.jobs.limits import RunLimit, plan_limit
 from secondshift.jobs.models import CapabilityRequest
 from secondshift.runner.client import get_runner_client
@@ -29,6 +29,7 @@ from secondshift.runs.execution.budgets import (
     partial_report,
     reached_budget,
 )
+from secondshift.runs.execution.cli_agent import execute_cli_step
 from secondshift.runs.execution.deadlines import (
     run_deadline,
     run_timeout_seconds,
@@ -206,6 +207,15 @@ def capture_run_input_step(run_id: int, session_id: str) -> None:
 def execute_agent_run(run: Run, session_id: str) -> dict[str, Any]:
     """Run the durable model loop against one already-created sandbox session."""
     plan = run.execution_plan
+    # Plans from released versions have no execution block. They use the model.
+    if (
+        plan.get("execution", {}).get("backend", AgentBackend.PYDANTIC)
+        != AgentBackend.PYDANTIC
+    ):
+        capture_run_input_step(run.pk, session_id)
+        return execute_cli_step(
+            run.pk, session_id, SYSTEM_INSTRUCTIONS + "\n\n" + run_prompt(run)
+        )
     limit_values = plan["agent"]["limits"]
     limits = AgentLimits(
         max_turns=int(limit_values["max_turns"]),

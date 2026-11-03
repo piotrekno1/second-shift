@@ -122,6 +122,7 @@ def serialize_run_detail(run: Run) -> RunDetailSchema:
         created_at=run.created_at,
         exit_code=run.exit_code,
         model_provider=model.get("connection_name"),
+        execution_agent=(run.execution_plan.get("execution") or {}).get("label"),
         output_excerpt=run.output_excerpt,
         output_truncated=run.output_truncated,
         output_size_bytes=run.output_size_bytes,
