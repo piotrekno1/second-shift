@@ -50,3 +50,18 @@ test('modelRows carries the last check of providers and logins', () => {
   const rows = modelRows([model(1)], [login(5, { last_check: check })], configuration('', []))
   assert.deepEqual(rows.map((row) => row.lastCheck?.message ?? null), [null, 'Codex refused the sign-in.'])
 })
+
+test('modelRows shows a failed check in its own words, the same before and after a reload', () => {
+  const check = { ok: false, reason: 'reconnect_required', message: 'Claude Code refused the sign-in. Get a new login and reconnect.', checked_at: '2026-11-03T10:00:00Z' }
+  const refused = 'The agent login Login 5 was refused at its last check. Reconnect it.'
+  const rows = modelRows(
+    [model(1, { last_check: { ok: false, message: 'The API key was refused.', checked_at: '2026-11-03T10:00:00Z' } })],
+    [login(5, { last_check: check }), login(6, { connected: false, last_check: check })],
+    configuration('agent:5', [{ key: 'agent:5', label: '', disabled: true, problem: refused }]),
+  )
+  assert.deepEqual(rows.map((row) => row.problem), [
+    'Claude Code refused the sign-in. Get a new login and reconnect.',
+    'The API key was refused.',
+    'Disconnected. Reconnect it to use it.',
+  ])
+})
