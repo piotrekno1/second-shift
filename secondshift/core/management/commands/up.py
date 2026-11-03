@@ -4,13 +4,14 @@ import socket
 import subprocess
 import sys
 import webbrowser
+from importlib.metadata import version
 
 import djclick as click
 from django.conf import settings
 from django.core.management import call_command
 
 from secondshift.config.constants import AppEnv, Environment, Service
-from secondshift.core import launcher, local_agents, local_output
+from secondshift.core import launcher, local_agents, local_output, terminal
 from secondshift.core.signin import SIGN_IN_LINK_SECONDS, sign_in_url
 from secondshift.workspaces.owners import (
     ensure_owner,
@@ -92,25 +93,24 @@ def start(
     configured_host, configured_port = launcher.web_address("127.0.0.1", 8000, parent)
     host, port = host or configured_host, port if port is not None else configured_port
     parent.pop("SECONDSHIFT_HTTP_BIND", None)
-    click.secho("SecondShift", bold=True)
+    terminal.heading(f"SecondShift {version('secondshift')}")
     check_port(host, port)
     check_docker()
-    click.echo("✓ Docker is ready")
+    terminal.done("Docker is ready")
     if not (settings.WEB_DIR / "index.html").exists():
         raise click.ClickException(
             "The dashboard isn't built. In a checkout, run "
             "npm --prefix dashboard run build first."
         )
 
-    click.echo(f"Data folder: {settings.DATA_DIR}")
     call_command("migrate", interactive=False, verbosity=0)
-    click.echo("✓ Local data is ready")
+    terminal.done("Local data is ready", str(settings.DATA_DIR))
     agent_host = None
     if agents:
         try:
-            local_agents.prepare_agent_image(settings.AGENT_IMAGE, click.echo)
+            local_agents.prepare_agent_image(settings.AGENT_IMAGE, terminal.note)
             agent_host = local_agents.container_gateway_host()
-            click.echo("✓ Agent image is ready")
+            terminal.done("Agent image is ready")
         except local_agents.AgentSetupError as error:
             raise click.ClickException(
                 f"{error} Run with --no-agents to start without agent subscriptions."
@@ -127,17 +127,21 @@ def start(
 
     def ready() -> None:
         link = sign_in_url(url, get_owner())
-        click.secho(f"SecondShift is running at {url}", fg="green", bold=True)
         minutes = SIGN_IN_LINK_SECONDS // 60
+        terminal.done("All services are ready")
+        click.echo()
+        click.secho("SecondShift is running at ", fg="green", bold=True, nl=False)
+        click.echo(terminal.link(url))
         if browser and webbrowser.open(link):
             click.echo("Opening your dashboard...")
         else:
             click.echo(f"Sign in with this link (valid for {minutes} minutes):")
-            click.echo(f"  {link}")
-        click.echo("Keep this terminal open. Press Ctrl+C to stop.")
-        click.echo("Diagnostics: secondshift logs --follow")
+            click.echo(f"  {terminal.link(link)}")
+        click.echo()
+        terminal.note("Keep this terminal open. Press Ctrl+C to stop.")
+        terminal.note("Logs: secondshift logs --follow")
 
-    click.echo("Starting the web app, model gateway, runner and worker...")
+    terminal.note("Starting the web app, model gateway, runner and worker...")
     code = launcher.run(services, ready, click.echo, debug=debug, url=url)
     if code:
         click.echo(local_output.LOGS_HINT, err=True)
