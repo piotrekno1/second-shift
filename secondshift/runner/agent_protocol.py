@@ -5,6 +5,8 @@ from typing import Any, Literal
 from ninja import Schema
 from pydantic import ConfigDict, Field, SecretStr
 
+from secondshift.config.constants import AgentOutcome
+
 
 class AgentInput(Schema):
     model_config = ConfigDict(extra="forbid")
@@ -30,7 +32,7 @@ class AgentCheckInput(Schema):
 class AgentOutput(Schema):
     report: str = ""
     succeeded: bool = False
-    reason: str = "agent_failed"
+    reason: str = AgentOutcome.AGENT_FAILED
     usage: dict[str, int] = Field(default_factory=dict)
     versions: dict[str, str] = Field(default_factory=dict)
 

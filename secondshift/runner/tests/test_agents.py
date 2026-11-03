@@ -8,6 +8,7 @@ from unittest.mock import Mock
 import pytest
 from pydantic import ValidationError
 
+from secondshift.config.constants import AgentOutcome
 from secondshift.core.launcher import services
 from secondshift.runner import agents
 from secondshift.runner.agent_credentials import (
@@ -23,6 +24,14 @@ from secondshift.runner.protocol import RunnerProtocolError
 
 TOKEN = "sk-ant-oat01-test-subscription-token"
 IMAGE = "example/ss-agent@sha256:" + "a" * 64
+
+
+def test_agent_image_names_its_outcomes_as_the_control_plane_does() -> None:
+    # The image cannot import AgentOutcome, so it keeps its own copy.
+    names = [name for name in AgentOutcome.__members__ if hasattr(agent, name)]
+    assert len(names) == 7
+    for name in names:
+        assert getattr(agent, name) == AgentOutcome[name]
 
 
 def test_agent_container_configuration_is_server_owned(

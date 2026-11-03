@@ -17,7 +17,7 @@ import { useAppStore } from '../stores/app'
 import type { Notice } from '../types'
 import { parseRunCap } from '../utils/agents'
 import { formatRelative } from '../utils/format'
-import { modelRows, type ModelRow } from '../utils/models'
+import { modelRows, SIGN_IN_REFUSED, type ModelRow } from '../utils/models'
 import { Action } from '../utils/permissions'
 
 /** Which form is open: adding an API key or a login, or editing one row. */
@@ -162,7 +162,7 @@ function fixLabel(row: ModelRow): string | null {
     if (row.connection.status !== 'connected') return 'Reconnect'
     if (row.connection.last_check?.ok === false) return 'Fix'
   }
-  if (row.login && (!row.login.connected || row.login.last_check?.reason === 'reconnect_required') && row.login.can_manage && agents.enabled) return 'Reconnect'
+  if (row.login && (!row.login.connected || row.login.last_check?.reason === SIGN_IN_REFUSED) && row.login.can_manage && agents.enabled) return 'Reconnect'
   return null
 }
 
