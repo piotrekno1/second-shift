@@ -79,7 +79,11 @@ def publish_pull_request(
         ) from error
     with locked_mirror(repository.pk) as mirror:
         if not has_commit(mirror, commit_sha):
-            fetch_github_commit(repository, commit_sha, mirror)
+            try:
+                fetch_github_commit(repository, commit_sha, mirror)
+            except GitHubAppError as error:
+                # These messages never contain the token.
+                raise PublishError(str(error)) from error
         commit = commit_patch(mirror, commit_sha, patch, draft)
         try:
             git_fetch(

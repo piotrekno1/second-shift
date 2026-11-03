@@ -254,3 +254,26 @@ def test_missing_write_permission_names_the_fix(
 
     with pytest.raises(PublishError, match="Contents and Pull requests write"):
         publish_pull_request(repository, base, patch, DRAFT)
+
+
+def test_a_commit_github_no_longer_has_is_named(
+    repository: Repository,
+    source: tuple[Path, str, Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root, _, patch = source
+    bare_mirror(root, mirror_path(repository.pk))
+    monkeypatch.setattr(
+        pull_requests,
+        "github_repository_metadata",
+        lambda repository: {"full_name": "acme/web"},
+    )
+    monkeypatch.setattr(pull_requests, "installation_token", lambda *a, **k: "t")
+
+    def gone(*args: Any) -> None:
+        raise GitHubAppError("The commit 0000 is no longer available from GitHub.")
+
+    monkeypatch.setattr(pull_requests, "fetch_github_commit", gone)
+
+    with pytest.raises(PublishError, match="no longer available"):
+        publish_pull_request(repository, "0" * 40, patch, DRAFT)
