@@ -99,7 +99,6 @@ class JobSchema(Schema):
     id: int
     execution_backend: str = AgentBackend.PYDANTIC
     execution_label: str = ""
-    execution_source: str = ""
     execution_problem: str = ""
     name: str
     repository_id: int
@@ -175,9 +174,8 @@ class ExecutionChoiceSchema(Schema):
 class ExecutionConfigurationSchema(Schema):
     enabled: bool
     choices: list[ExecutionChoiceSchema]
-    selection_key: str
-    effective_key: str
-    effective_label: str
-    effective_backend: str
+    selected: str
+    label: str
+    backend: str
     ready: bool
     problem: str

@@ -407,7 +407,5 @@ def test_run_now_names_the_missing_model(
     response = client.post(f"/api/jobs/{job.pk}/run")
 
     assert response.status_code == 409
-    assert response.json()["detail"] == (
-        "Connect a model provider or agent subscription on Connections."
-    )
+    assert "No default model provider is connected." in response.json()["detail"]
     assert not Run.objects.filter(job=job).exists()

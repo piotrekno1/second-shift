@@ -140,7 +140,6 @@ def build_execution_plan(job: Job) -> dict[str, Any]:
     model = model_plan(job) if selection.backend == AgentBackend.PYDANTIC else None
     execution = {
         "backend": selection.backend,
-        "source": selection.source,
         "label": selection.label,
         "ready": selection.ready,
         "problem": selection.problem,

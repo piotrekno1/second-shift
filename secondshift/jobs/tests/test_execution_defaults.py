@@ -10,7 +10,7 @@ from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 
 from secondshift.config.api import api
-from secondshift.config.constants import AgentBackend, ExecutionMode
+from secondshift.config.constants import AgentBackend
 from secondshift.connections.models import AgentConnection, Connection
 from secondshift.connections.tests.test_agent_connections import (
     TOKEN,
@@ -19,6 +19,7 @@ from secondshift.connections.tests.test_agent_connections import (
     agent_login as agent_login_fixture,
 )
 from secondshift.jobs.execution import (
+    MODEL_CHOICE,
     execution_configuration,
     job_execution,
     save_execution_preference,
@@ -31,6 +32,12 @@ from secondshift.runs.models import Run
 from secondshift.workspaces.models import Workspace, WorkspaceMembership
 
 agent_login = agent_login_fixture
+CODEX_AUTH = {
+    "tokens": {
+        key: f"test-{key}"
+        for key in ("access_token", "refresh_token", "id_token", "account_id")
+    }
+}
 pytestmark = pytest.mark.django_db
 
 
@@ -41,8 +48,7 @@ def agent_run(
     """A running job whose workspace default is a Claude Code login."""
     workspace, login, owner = agent_login
     workspace.default_agent_connection = login
-    workspace.agent_mode = ExecutionMode.SUBSCRIPTION
-    workspace.save(update_fields=["default_agent_connection", "agent_mode"])
+    workspace.save(update_fields=["default_agent_connection"])
     repository = Repository.objects.create(
         workspace=workspace, full_name="example/agents", config_sha="a" * 40
     )
@@ -65,11 +71,10 @@ def agent_run(
     return run, owner
 
 
-def automatic_workspace(run: Run) -> Job:
+def model_workspace(run: Run) -> Job:
     job = run.job
     job.workspace.default_agent_connection = None
-    job.workspace.agent_mode = ExecutionMode.AUTO
-    job.workspace.save(update_fields=["default_agent_connection", "agent_mode"])
+    job.workspace.save(update_fields=["default_agent_connection"])
     return job
 
 
@@ -84,42 +89,69 @@ def add_model(run: Run) -> Connection:
     )
 
 
-def test_single_subscription_is_automatic_for_jobs_without_overrides(
-    agent_run: tuple[Run, User],
+def connect_login(client: Client, owner: User) -> AgentConnection:
+    client.force_login(owner)
+    response = client.post(
+        "/api/agent-connections",
+        data={"backend": "codex", "auth": json.dumps(CODEX_AUTH)},
+        content_type="application/json",
+    )
+    assert response.status_code == 200
+    return AgentConnection.objects.get(pk=response.json()["id"])
+
+
+def test_a_first_login_runs_jobs_when_no_model_provider_works(
+    agent_run: tuple[Run, User], client: Client
 ) -> None:
-    run, _ = agent_run
-    job = automatic_workspace(run)
-    selection = job_execution(job)
-    assert selection.backend == AgentBackend.CLAUDE_CODE
-    assert selection.source == "automatic"
-    assert build_execution_plan(job)["ready"] is True
+    run, owner = agent_run
+    job = model_workspace(run)
+    login = connect_login(client, owner)
+    job.workspace.refresh_from_db()
+    assert job.workspace.default_agent_connection == login
+    assert execution_configuration(job.workspace, owner)["selected"] == (
+        f"agent:{login.pk}"
+    )
+
+
+def test_a_new_login_keeps_a_working_model_provider(
+    agent_run: tuple[Run, User], client: Client
+) -> None:
+    run, owner = agent_run
+    job = model_workspace(run)
+    add_model(run)
+    connect_login(client, owner)
+    job.workspace.refresh_from_db()
+    assert job.workspace.default_agent_connection is None
+    assert job_execution(job).backend == AgentBackend.PYDANTIC
 
 
 def test_working_api_default_keeps_existing_behavior(
     agent_run: tuple[Run, User],
 ) -> None:
     run, _ = agent_run
-    job = automatic_workspace(run)
+    job = model_workspace(run)
     model = add_model(run)
     assert job_execution(job).model == model
     assert build_execution_plan(job)["model"]["connection_id"] == model.pk
 
 
-def test_multiple_subscriptions_require_workspace_choice(
+def test_connections_changing_never_switch_what_runs_jobs(
     agent_run: tuple[Run, User],
 ) -> None:
-    run, owner = agent_run
-    job = automatic_workspace(run)
-    AgentConnection.objects.create(
-        workspace=job.workspace,
-        owner=owner,
-        backend="codex",
-        display_name="Codex",
-        auth_data="unused",
-    )
+    run, _ = agent_run
+    job = run.job
+    model = add_model(run)
+    # A working model provider does not take over from the chosen login.
+    assert job_execution(job).backend == AgentBackend.CLAUDE_CODE
+    job = model_workspace(run)
+    model.metadata = {"last_check": {"ok": False}}
+    model.save(update_fields=["metadata"])
+    # A broken model provider does not hand runs to a working login.
     selection = job_execution(job)
-    assert selection.ready is False
-    assert "Multiple subscriptions" in selection.problem
+    assert selection.backend == AgentBackend.PYDANTIC
+    assert selection.problem == (
+        "The default model provider Workspace API failed its last check."
+    )
 
 
 def test_workspace_default_is_inherited_and_frozen_in_run_plan(
@@ -127,11 +159,10 @@ def test_workspace_default_is_inherited_and_frozen_in_run_plan(
 ) -> None:
     run, owner = agent_run
     connection = run.job.workspace.default_agent_connection
-    job = automatic_workspace(run)
+    job = model_workspace(run)
     add_model(run)
     save_execution_preference(job.workspace, f"agent:{connection.pk}", owner)
     plan = build_execution_plan(job)
-    assert plan["execution"]["source"] == "workspace"
     assert plan["execution"]["connection_id"] == connection.pk
     assert plan["model"] is None
     save_execution_preference(job.workspace, "model", owner)
@@ -144,7 +175,7 @@ def test_disconnected_explicit_default_never_falls_back_to_api(
 ) -> None:
     run, owner = agent_run
     connection = run.job.workspace.default_agent_connection
-    job = automatic_workspace(run)
+    job = model_workspace(run)
     add_model(run)
     save_execution_preference(job.workspace, f"agent:{connection.pk}", owner)
     AgentConnection.objects.filter(pk=connection.pk).update(connected=False)
@@ -183,22 +214,30 @@ def test_all_jobs_use_workspace_default_and_job_override_api_is_absent(
     )
 
 
-def test_choices_exclude_unconfigured_api_and_disconnected_subscriptions(
+def test_choices_are_the_model_provider_and_your_own_logins(
     agent_run: tuple[Run, User],
 ) -> None:
     run, owner = agent_run
-    job = automatic_workspace(run)
-    config = execution_configuration(job.workspace, owner)
-    assert [choice["key"] for choice in config["choices"]] == [
-        "auto",
-        f"agent:{run.execution_plan['execution']['connection_id']}",
+    workspace = run.job.workspace
+    login = workspace.default_agent_connection
+    config = execution_configuration(workspace, owner)
+    assert config["choices"] == [
+        {"key": MODEL_CHOICE, "label": "Model provider", "disabled": False},
+        {
+            "key": f"agent:{login.pk}",
+            "label": "Claude Code subscription · Personal",
+            "disabled": False,
+        },
     ]
-    model = add_model(run)
-    model.metadata = {"last_check": {"ok": False}}
-    model.save(update_fields=["metadata"])
-    assert "model" not in [
-        choice["key"]
-        for choice in execution_configuration(job.workspace, owner)["choices"]
+    other = get_user_model().objects.create_user(username="other")
+    WorkspaceMembership.objects.create(workspace=workspace, user=other, role="owner")
+    # Another owner sees the chosen login but cannot pick it.
+    assert execution_configuration(workspace, other)["choices"][1:] == [
+        {
+            "key": f"agent:{login.pk}",
+            "label": "Claude Code subscription · Personal",
+            "disabled": True,
+        }
     ]
 
 
@@ -214,10 +253,10 @@ def test_workspace_default_api_validates_ownership_and_permissions(
         content_type="application/json",
     )
     assert response.status_code == 200
-    assert response.json()["selection_key"] == f"agent:{connection.pk}"
+    assert response.json()["selected"] == f"agent:{connection.pk}"
     shown = client.get("/api/settings/agent")
     assert shown.status_code == 200
-    assert shown.json()["selection_key"] == f"agent:{connection.pk}"
+    assert shown.json()["selected"] == f"agent:{connection.pk}"
     other = get_user_model().objects.create_user(username="other")
     membership = WorkspaceMembership.objects.create(
         workspace=run.job.workspace, user=other, role="owner"
@@ -233,23 +272,10 @@ def test_workspace_default_api_validates_ownership_and_permissions(
     membership.save(update_fields=["role"])
     response = client.post(
         "/api/settings/agent",
-        data={"key": "auto"},
+        data={"key": MODEL_CHOICE},
         content_type="application/json",
     )
     assert response.status_code == 403
-
-
-def test_api_without_a_selected_model_is_not_offered_as_working_access(
-    agent_run: tuple[Run, User],
-) -> None:
-    run, owner = agent_run
-    job = automatic_workspace(run)
-    model = add_model(run)
-    model.default_model = ""
-    model.save(update_fields=["default_model"])
-    configuration = execution_configuration(job.workspace, owner)
-    assert "model" not in {choice["key"] for choice in configuration["choices"]}
-    assert configuration["effective_backend"] == "claude_code"
 
 
 def test_job_list_resolves_the_workspace_default_once(
@@ -281,7 +307,7 @@ def test_existing_jobs_keep_model_backend_and_no_subscription_requirement(
     agent_run: tuple[Run, User],
 ) -> None:
     run, _ = agent_run
-    job = automatic_workspace(run)
+    job = model_workspace(run)
     add_model(run)
     plan = build_execution_plan(job)
     assert plan["execution"]["backend"] == "pydantic"
@@ -318,9 +344,7 @@ def test_run_refusal_reports_the_actual_agent_blocker(
             f"The agent login {name} is disconnected. Reconnect it on Connections."
         )
     else:
-        run.job.workspace.default_agent_connection = None
-        run.job.workspace.agent_mode = "model"
-        run.job.workspace.save(update_fields=["default_agent_connection", "agent_mode"])
+        model_workspace(run)
         expected = "No default model provider is connected."
     client.force_login(owner)
     response = client.post(f"/api/jobs/{run.job_id}/run")

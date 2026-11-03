@@ -124,7 +124,6 @@ def serialize_job(
         id=job.id,
         execution_backend=execution.backend,
         execution_label=execution.label,
-        execution_source=execution.source,
         execution_problem=execution.problem,
         name=job.name,
         repository_id=job.repository_id,

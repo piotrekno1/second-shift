@@ -7,11 +7,14 @@ from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 
-from secondshift.config.constants import AgentBackend, ExecutionMode
+from secondshift.config.constants import AgentBackend
 from secondshift.connections.agents import usable_agent_connection
 from secondshift.connections.models import AgentConnection, Connection
 from secondshift.jobs.models import Job
 from secondshift.workspaces.models import Workspace
+
+# The choice key for the default model provider. Logins use "agent:<id>".
+MODEL_CHOICE = "model"
 
 
 @dataclass(frozen=True)
@@ -19,7 +22,6 @@ class ExecutionSelection:
     key: str
     label: str
     backend: str
-    source: str
     connection: AgentConnection | None = None
     model: Connection | None = None
     problem: str = ""
@@ -62,18 +64,16 @@ def workspace_model(workspace: Workspace) -> Connection | None:
     return None if model_problem(model) else model
 
 
-def model_selection(workspace: Workspace, source: str) -> ExecutionSelection:
+def model_selection(workspace: Workspace) -> ExecutionSelection:
     connection = default_model_connection(workspace)
     problem = model_problem(connection)
-    model = None if problem else connection
     return ExecutionSelection(
-        key=ExecutionMode.MODEL,
-        label=f"Model API · {model.display_name} · {model.default_model}"
-        if model
-        else "API model unavailable",
+        key=MODEL_CHOICE,
+        label=f"Model provider · {connection.display_name} · {connection.default_model}"
+        if connection and not problem
+        else "Model provider",
         backend=AgentBackend.PYDANTIC,
-        source=source,
-        model=model,
+        model=None if problem else connection,
         problem=problem,
     )
 
@@ -90,145 +90,86 @@ def subscription_problem(connection: AgentConnection, workspace: Workspace) -> s
 
 
 def subscription_selection(
-    connection: AgentConnection, workspace: Workspace, source: str
+    connection: AgentConnection, workspace: Workspace
 ) -> ExecutionSelection:
+    product = AgentBackend(connection.backend).name.replace("_", " ").title()
     return ExecutionSelection(
         key=f"agent:{connection.pk}",
-        label=f"{'Codex' if connection.backend == AgentBackend.CODEX else 'Claude Code'} subscription · {connection.display_name}",
+        label=f"{product} subscription · {connection.display_name}",
         backend=connection.backend,
-        source=source,
         connection=connection,
         problem=subscription_problem(connection, workspace),
     )
 
 
 def workspace_execution(workspace: Workspace) -> ExecutionSelection:
-    # An explicit choice never falls through to a different provider or billing path.
+    """What runs the workspace's jobs. It changes only when an owner changes it."""
     if workspace.default_agent_connection_id:
-        return subscription_selection(
-            workspace.default_agent_connection, workspace, "workspace"
-        )
-    if workspace.agent_mode == ExecutionMode.MODEL:
-        return model_selection(workspace, "workspace")
-    model = model_selection(workspace, "automatic")
-    if model.ready:
-        return model
-    connections = (
-        [
-            connection
-            for connection in AgentConnection.objects.filter(
-                workspace=workspace, connected=True
-            )
-            if usable_agent_connection(connection, workspace.pk)
-        ]
-        if cli_enabled()
-        else []
-    )
-    if len(connections) == 1:
-        return subscription_selection(connections[0], workspace, "automatic")
-    if not connections and model.problem != model_problem(None):
-        # A default model exists but cannot run. Say what is wrong with it.
-        return model
-    problem = (
-        "Multiple subscriptions are connected. Choose a default execution agent in Settings."
-        if connections
-        else "Connect a model provider or agent subscription on Connections."
-    )
-    return ExecutionSelection(
-        key=ExecutionMode.AUTO,
-        label="No execution agent selected",
-        backend=AgentBackend.PYDANTIC,
-        source="automatic",
-        problem=problem,
-    )
+        return subscription_selection(workspace.default_agent_connection, workspace)
+    return model_selection(workspace)
 
 
 def job_execution(job: Job) -> ExecutionSelection:
     return workspace_execution(job.workspace)
 
 
-def selection_key(workspace: Workspace) -> str:
-    if workspace.default_agent_connection_id:
-        return f"agent:{workspace.default_agent_connection_id}"
-    return (
-        ExecutionMode.MODEL
-        if workspace.agent_mode == ExecutionMode.MODEL
-        else ExecutionMode.AUTO
-    )
-
-
-def available_choices(workspace: Workspace, user: User) -> list[dict[str, Any]]:
-    choices = []
-    model = model_selection(workspace, "workspace")
-    if model.ready:
-        choices.append({"key": model.key, "label": model.label, "disabled": False})
-    for connection in AgentConnection.objects.filter(
+def execution_choices(workspace: Workspace, user: User) -> list[ExecutionSelection]:
+    """The model provider, then the user's own logins."""
+    logins = AgentConnection.objects.filter(
         workspace=workspace, owner=user, connected=True
-    ):
-        selection = subscription_selection(connection, workspace, "workspace")
-        if selection.ready:
-            choices.append(
-                {"key": selection.key, "label": selection.label, "disabled": False}
-            )
-    return choices
+    )
+    return [
+        model_selection(workspace),
+        *(subscription_selection(login, workspace) for login in logins),
+    ]
 
 
 def execution_configuration(workspace: Workspace, user: User) -> dict[str, Any]:
-    effective = workspace_execution(workspace)
-    key = selection_key(workspace)
-    choices = available_choices(workspace, user)
-    choices.insert(
-        0,
-        {
-            "key": ExecutionMode.AUTO,
-            "label": f"Automatic · {effective.label}"
-            if key == ExecutionMode.AUTO
-            else "Automatic · use configured access",
-            "disabled": False,
-        },
-    )
-    if key not in {item["key"] for item in choices}:
-        choices.append(
-            {
-                "key": key,
-                "label": f"{effective.label} · unavailable for selection",
-                "disabled": True,
-            }
-        )
+    selected = workspace_execution(workspace)
+    choices = [
+        {"key": choice.key, "label": choice.label, "disabled": not choice.ready}
+        for choice in execution_choices(workspace, user)
+    ]
+    # The model provider stays selectable while broken, so owners can move back.
+    choices[0]["disabled"] = False
+    if selected.key not in {choice["key"] for choice in choices}:
+        # Another owner's login. Shown, but only its owner can select it again.
+        choices.append({"key": selected.key, "label": selected.label, "disabled": True})
     return {
         "enabled": cli_enabled(),
         "choices": choices,
-        "selection_key": key,
-        "effective_key": effective.key,
-        "effective_label": effective.label,
-        "effective_backend": effective.backend,
-        "ready": effective.ready,
-        "problem": effective.problem,
+        "selected": selected.key,
+        "label": selected.label,
+        "backend": selected.backend,
+        "ready": selected.ready,
+        "problem": selected.problem,
     }
 
 
 def save_execution_preference(workspace: Workspace, key: str, user: User) -> None:
-    choices = available_choices(workspace, user)
-    automatic = ExecutionMode.AUTO
-    if key != automatic and key not in {item["key"] for item in choices}:
-        raise ValidationError(
-            "Choose a working model connection or your own connected subscription."
+    connection = None
+    if key != MODEL_CHOICE:
+        choice = next(
+            (
+                choice
+                for choice in execution_choices(workspace, user)
+                if choice.key == key and choice.ready
+            ),
+            None,
         )
-    connection = (
-        AgentConnection.objects.get(
-            pk=int(key.split(":", 1)[1]), workspace=workspace, owner=user
-        )
-        if key.startswith("agent:")
-        else None
-    )
-    workspace.agent_mode = (
-        ExecutionMode.SUBSCRIPTION
-        if connection
-        else ExecutionMode.MODEL
-        if key == ExecutionMode.MODEL
-        else automatic
-    )
+        if choice is None or choice.connection is None:
+            raise ValidationError(
+                "Choose the model provider or one of your own working logins."
+            )
+        connection = choice.connection
     workspace.default_agent_connection = connection
-    workspace.save(
-        update_fields=["agent_mode", "default_agent_connection", "updated_at"]
-    )
+    workspace.save(update_fields=["default_agent_connection", "updated_at"])
+
+
+def use_login_when_no_model_works(connection: AgentConnection) -> None:
+    """A first login runs the jobs when nothing else can. Settings shows it."""
+    workspace = connection.workspace
+    if workspace.default_agent_connection_id or workspace_model(workspace):
+        return
+    workspace.default_agent_connection = connection
+    workspace.save(update_fields=["default_agent_connection", "updated_at"])
