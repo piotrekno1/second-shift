@@ -5,6 +5,7 @@ import pytest
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import User
 from django.db import connection
+from django.db.models import RestrictedError
 from django.test import Client
 from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
@@ -378,3 +379,30 @@ def test_an_unusable_default_login_says_what_is_wrong(
     selection = job_execution(run.job)
     assert selection.problem == expected
     assert selection.ready is False
+
+
+def test_owners_can_move_back_to_a_broken_model_provider(
+    agent_run: tuple[Run, User],
+) -> None:
+    run, owner = agent_run
+    workspace = run.job.workspace
+    model = add_model(run)
+    model.metadata = {"last_check": {"ok": False}}
+    model.save(update_fields=["metadata"])
+    save_execution_preference(workspace, MODEL_CHOICE, owner)
+    workspace.refresh_from_db()
+    assert workspace.default_agent_connection is None
+    assert execution_configuration(workspace, owner)["choices"][0]["disabled"] is False
+
+
+def test_deleting_a_workspace_removes_its_chosen_login(
+    agent_run: tuple[Run, User],
+) -> None:
+    run, _ = agent_run
+    workspace = run.job.workspace
+    # The chosen login alone cannot be deleted. Runs would lose their choice.
+    with pytest.raises(RestrictedError):
+        workspace.default_agent_connection.delete()
+    run.delete()
+    workspace.delete()
+    assert not AgentConnection.objects.exists()

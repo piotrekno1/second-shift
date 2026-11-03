@@ -10,7 +10,7 @@ class Workspace(RunLimitOverrides):
     # Empty means jobs run on the default model provider.
     default_agent_connection = models.ForeignKey(
         "connections.AgentConnection",
-        on_delete=models.PROTECT,
+        on_delete=models.RESTRICT,
         null=True,
         blank=True,
         related_name="default_workspaces",
