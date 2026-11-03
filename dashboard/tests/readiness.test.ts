@@ -40,7 +40,7 @@ test('executionFix opens the broken model key', () => {
 })
 
 test('executionFix covers subscription problems and stays quiet when runs work', () => {
-  const fix = executionFix(status({ backend: 'codex', problem: 'The agent login Work is disconnected. Reconnect it on Models.' }))
+  const fix = executionFix(status({ backend: 'codex', problem: 'The agent login Work is disconnected. Reconnect it.' }))
   assert.equal(fix?.action, 'Open models')
   assert.equal(executionFix(status()), null)
   assert.equal(executionFix(null), null)

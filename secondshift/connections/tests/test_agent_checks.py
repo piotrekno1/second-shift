@@ -106,8 +106,7 @@ def test_only_a_refused_sign_in_stops_runs(
     assert bool(problem) is blocks
     if blocks:
         assert problem == (
-            "The agent login Personal was refused at its last check. "
-            "Reconnect it on Models."
+            "The agent login Personal was refused at its last check. Reconnect it."
         )
         # Saving a new login clears the old result.
         save_agent_connection(workspace, owner, "claude_code", "Personal", TOKEN, login)
