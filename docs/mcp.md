@@ -119,6 +119,9 @@ follows the same rule.
 
 ### Standalone tasks
 
+For a dashboard walkthrough, queue behavior, and copyable agent examples, see
+[Run one-off tasks](tasks.md).
+
 Use **New task** on a repository page, or call `submit_task` from an agent.
 Choose **Write a task** to provide instructions directly, or **Use a skill** to
 select a committed `SKILL.md` and optionally add context. Neither needs a job in

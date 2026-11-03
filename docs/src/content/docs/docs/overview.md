@@ -13,3 +13,7 @@ SecondShift runs repository skills manually, on a schedule, or from a webhook. S
 </div>
 
 Looking for a setting or API? Use the sidebar or search above.
+
+For work you want to dispatch once and review later, follow the
+[one-off tasks guide](/docs/tasks/). Write instructions directly or use a
+repository skill, queue a delayed start, and review the resulting report.

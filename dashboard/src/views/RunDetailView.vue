@@ -5,6 +5,8 @@ import { useRoute, useRouter } from 'vue-router'
 import Button from 'primevue/button'
 import PageHeader from '../components/PageHeader.vue'
 import StatusPill from '../components/StatusPill.vue'
+import DocsLink from '../components/DocsLink.vue'
+import { DocsPage } from '../utils/docs'
 import { cancelTask, fetchRun, isRunActive, runFileUrl, startJobRun } from '../services/runs'
 import { useAppStore } from '../stores/app'
 import type { RunDetail } from '../types'
@@ -159,6 +161,7 @@ onUnmounted(stopPolling)
           <RouterLink v-if="run.failure.connection_id" :to="{ path: '/models', query: { connection: String(run.failure.connection_id) } }" class="primary-action">Fix the provider <AppIcon name="arrow-right" /></RouterLink>
         </p>
         <p v-else-if="active" class="run-headline run-active-note"><AppIcon :name="run.status === 'queued' ? 'clock-outline' : 'loading'" :spin="run.status === 'running'" /> {{ activeNote }}</p>
+        <p v-if="run.job_id === null && run.status === 'queued'" class="run-queue-help"><DocsLink :page="DocsPage.Tasks" section="queue-and-delayed-starts">How the task queue works</DocsLink></p>
       </section>
 
       <div class="run-layout">
@@ -238,6 +241,8 @@ onUnmounted(stopPolling)
 </template>
 
 <style scoped>
+.run-queue-help { margin: 12px 0 0; color: var(--muted); font-size: 12px; }
+.run-queue-help a { display: inline-flex; align-items: center; gap: 4px; text-decoration: underline; text-underline-offset: 3px; }
 .run-detail-page :deep(.page-header > div:first-child) { min-width: 0; max-width: 100%; }
 .run-detail-page :deep(.page-header p) { overflow-wrap: anywhere; }
 .task-input-panel { padding: 20px 24px; }

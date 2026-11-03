@@ -5,6 +5,7 @@ export const DOCS_BASE_URL = 'https://second-shift.app/docs'
 export const DOCS_HOME_URL = `${DOCS_BASE_URL}/overview/`
 
 export const DocsPage = {
+  Tasks: 'tasks',
   RepositoryConfiguration: 'repository-configuration',
   SecurityModel: 'security-model',
 } as const

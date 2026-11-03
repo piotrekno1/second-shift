@@ -5,6 +5,8 @@ import Button from 'primevue/button'
 import Dialog from 'primevue/dialog'
 import AutoComplete from 'primevue/autocomplete'
 import AppIcon from './AppIcon.vue'
+import DocsLink from './DocsLink.vue'
+import { DocsPage } from '../utils/docs'
 import ProviderIcon from './ProviderIcon.vue'
 import { countLabel, titleFromSlug } from '../utils/format'
 import InputText from 'primevue/inputtext'
@@ -93,7 +95,7 @@ async function submit(): Promise<void> {
     @after-hide="emit('cancel')"
   >
     <div class="task-context"><AppIcon name="source-repository" /><span>{{ repositoryName }}</span><span class="task-context-separator">/</span><span>One-time run</span></div>
-    <p class="task-lead">Give this repository a one-time task. Review the result in Runs.</p>
+    <p class="task-lead">Give this repository a one-time task. Review the result in Runs. <DocsLink :page="DocsPage.Tasks" class="task-guide-link">Tasks guide</DocsLink></p>
     <form id="submit-repository-task" @submit.prevent="submit">
       <fieldset :disabled="tasks.submitting" class="task-fields">
         <div class="task-source" role="group" aria-label="Instruction source">
@@ -181,6 +183,7 @@ async function submit(): Promise<void> {
 .task-context .app-icon { flex: none; font-size: 14px; }
 .task-context-separator { color: var(--subtle); }
 .task-lead { margin: 16px 0 24px; color: var(--muted); font-size: 13px; line-height: 1.6; }
+.task-guide-link { display: inline-flex; align-items: center; gap: 3px; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
 .task-fields { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; padding: 0; margin: 0; min-width: 0; border: 0; }
 .task-field { display: grid; align-content: start; min-width: 0; gap: 8px; }
 .task-field > label { display: flex; align-items: center; gap: 8px; color: var(--ink); font-size: 13px; font-weight: 500; }
