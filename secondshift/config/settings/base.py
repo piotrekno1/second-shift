@@ -317,6 +317,7 @@ AXES_FAILURE_LIMIT = env.int("AXES_FAILURE_LIMIT", default=5)
 AXES_COOLOFF_TIME = timedelta(minutes=env.int("AXES_COOLOFF_MINUTES", default=30))
 AXES_LOCKOUT_PARAMETERS = ["ip_address"]
 AXES_RESET_ON_SUCCESS = True
+AXES_VERBOSE = False
 # Number of trusted reverse proxies that append to X-Forwarded-For (1 behind
 # kamal-proxy). With 0 the header is ignored so clients cannot spoof their IP.
 AXES_IPWARE_PROXY_COUNT = env.int("SECONDSHIFT_TRUSTED_PROXY_COUNT", default=0) or None
