@@ -8,6 +8,7 @@ from django.utils import timezone
 
 from secondshift.config.constants import (
     EXECUTE_RUN_WORKFLOW,
+    RETRY_NOTIFICATION_WORKFLOW,
     SCHEDULED_JOB_WORKFLOW,
     RunSandbox,
 )
@@ -316,6 +317,11 @@ def notify(run_id: int) -> None:
     # Delivery problems are recorded on the run but never change its outcome.
     for connection_id in notification_targets_step(run_id):
         deliver_notification(run_id, connection_id)
+
+
+@DBOS.workflow(name=RETRY_NOTIFICATION_WORKFLOW)
+def retry_notification_workflow(run_id: int, connection_id: int) -> None:
+    deliver_notification(run_id, connection_id)
 
 
 @DBOS.step(name="secondshift.fail_run")

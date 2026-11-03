@@ -8,9 +8,12 @@ from secondshift.jobs.access import job_for_request
 from secondshift.repositories.access import repository_for_request
 from secondshift.runs.access import run_for_request
 from secondshift.runs.artifacts import artifact_storage
+from secondshift.runs.deliveries import DeliveryQueueUnavailable, retry_delivery
+from secondshift.runs.models import RunDelivery
 from secondshift.runs.queue import cancel_queued_task
 from secondshift.runs.reporting.queries import RunFilters, run_page
 from secondshift.runs.schemas import (
+    RunDeliverySchema,
     RunDetailSchema,
     RunFileName,
     RunInProgressSchema,
@@ -21,6 +24,7 @@ from secondshift.runs.schemas import (
 )
 from secondshift.runs.serialization import (
     run_file_path,
+    serialize_delivery,
     serialize_run,
     serialize_run_detail,
 )
@@ -43,6 +47,26 @@ def cancel_task(request: HttpRequest, run_id: int) -> RunSchema:
         return serialize_run(cancel_queued_task(run))
     except RunRefused as error:
         raise HttpError(409, str(error)) from error
+
+
+@router.post(
+    "/runs/{run_id}/deliveries/{delivery_id}/retry", response=RunDeliverySchema
+)
+def retry_run_delivery(
+    request: HttpRequest, run_id: int, delivery_id: int
+) -> RunDeliverySchema:
+    require(request, Action.RUN_JOBS)
+    run = run_for_request(request, run_id)
+    try:
+        return serialize_delivery(retry_delivery(run, delivery_id))
+    except RunDelivery.DoesNotExist as error:
+        raise Http404 from error
+    except RunRefused as error:
+        raise HttpError(409, str(error)) from error
+    except DeliveryQueueUnavailable as error:
+        raise HttpError(
+            503, "The execution queue is unavailable. Try again shortly."
+        ) from error
 
 
 @router.get("/runs", response=RunPageSchema)
