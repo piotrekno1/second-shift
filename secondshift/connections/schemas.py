@@ -224,6 +224,7 @@ class AgentConnectionSchema(Schema):
     # Runs in the last 24 hours, the window the cap counts over.
     recent_runs: int = 0
     can_manage: bool = False
+    last_check: dict[str, Any] | None = None
 
     @staticmethod
     def resolve_can_manage(obj: AgentConnection, context: dict[str, Any]) -> bool:

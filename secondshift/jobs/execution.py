@@ -9,7 +9,7 @@ from django.core.exceptions import ValidationError
 from django.db.models import Exists, OuterRef
 
 from secondshift.config.constants import AgentBackend
-from secondshift.connections.agents import usable_agent_connection
+from secondshift.connections.agents import sign_in_refused, usable_agent_connection
 from secondshift.connections.models import AgentConnection, Connection
 from secondshift.jobs.models import Job
 from secondshift.runs.reporting.connection_usage import agent_login_runs
@@ -76,6 +76,8 @@ def subscription_problem(connection: AgentConnection, workspace: Workspace) -> s
         return "Agent subscriptions are not set up on this server."
     if not connection.connected:
         return f"The agent login {connection.display_name} is disconnected. Reconnect it on Models."
+    if sign_in_refused(connection):
+        return f"The agent login {connection.display_name} was refused at its last check. Reconnect it on Models."
     if not usable_agent_connection(connection, workspace.pk):
         return f"The agent login {connection.display_name} belongs to someone who is no longer a workspace owner."
     cap = connection.max_runs_per_day

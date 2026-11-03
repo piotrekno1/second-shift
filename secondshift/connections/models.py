@@ -214,5 +214,7 @@ class AgentConnection(models.Model):
     max_runs_per_day = models.PositiveIntegerField(
         null=True, blank=True, validators=[MinValueValidator(1)]
     )
+    # The last login check: ok, reason, message and checked_at. Never CLI output.
+    last_check = models.JSONField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
