@@ -1,4 +1,3 @@
-import fcntl
 import ipaddress
 import os
 import socket
@@ -10,11 +9,7 @@ import djclick as click
 from django.conf import settings
 from django.core.management import call_command
 
-from secondshift.config.constants import (
-    AppEnv,
-    Environment,
-    Service,
-)
+from secondshift.config.constants import AppEnv, Environment, Service
 from secondshift.core import launcher, local_agents, local_output
 from secondshift.core.signin import SIGN_IN_LINK_SECONDS, sign_in_url
 from secondshift.workspaces.owners import (
@@ -73,16 +68,13 @@ def command(
             "secondshift up runs with SECONDSHIFT_ENV=local. "
             "In a checkout, use process-compose instead."
         )
-    settings.DATA_DIR.mkdir(parents=True, exist_ok=True)
-    with (settings.DATA_DIR / local_output.LOCK_FILE).open("a") as lock:
-        try:
-            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except BlockingIOError as error:
-            raise click.ClickException(
-                "SecondShift is already running or starting. Run secondshift status."
-            ) from error
-        (settings.DATA_DIR / local_output.STATE_FILE).unlink(missing_ok=True)
-        start(host, port, email, password, browser, agents, debug)
+    try:
+        with local_output.instance_lock():
+            start(host, port, email, password, browser, agents, debug)
+    except local_output.AlreadyRunning as error:
+        raise click.ClickException(
+            "SecondShift is already running or starting. Run secondshift status."
+        ) from error
 
 
 def start(
@@ -137,18 +129,18 @@ def start(
         link = sign_in_url(url, get_owner())
         click.secho(f"SecondShift is running at {url}", fg="green", bold=True)
         minutes = SIGN_IN_LINK_SECONDS // 60
-        if not browser or not webbrowser.open(link):
+        if browser and webbrowser.open(link):
+            click.echo("Opening your dashboard...")
+        else:
             click.echo(f"Sign in with this link (valid for {minutes} minutes):")
             click.echo(f"  {link}")
-        else:
-            click.echo("Opening your dashboard…")
         click.echo("Keep this terminal open. Press Ctrl+C to stop.")
         click.echo("Diagnostics: secondshift logs --follow")
 
     click.echo("Starting the web app, model gateway, runner and worker...")
     code = launcher.run(services, ready, click.echo, debug=debug, url=url)
     if code:
-        click.echo("Inspect diagnostics: secondshift logs --lines 50", err=True)
+        click.echo(local_output.LOGS_HINT, err=True)
     sys.exit(code)
 
 

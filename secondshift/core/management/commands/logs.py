@@ -6,25 +6,18 @@ from pathlib import Path
 
 import djclick as click
 
-from secondshift.config.constants import Service
-from secondshift.core.local_output import SETUP_LOG, log_directory
+from secondshift.core.local_output import LOG_NAMES, log_directory
 
 
 @click.command()
-@click.option("--service", type=click.Choice([s.value for s in Service] + [SETUP_LOG]))
+@click.option("--service", type=click.Choice(LOG_NAMES))
 @click.option("--lines", default=50, type=click.IntRange(1, 10000), show_default=True)
 @click.option("--follow", is_flag=True, help="Stream new log entries until Ctrl+C.")
 def command(service: str | None, lines: int, follow: bool) -> None:
     """Show saved local service logs."""
-    names = [service] if service else [s.value for s in Service] + [SETUP_LOG]
+    names = [service] if service else LOG_NAMES
     paths = [log_directory() / f"{name}.log" for name in names]
-    positions = {}
-    for path in paths:
-        if path.exists():
-            with path.open(errors="replace") as stream:
-                for line in deque(stream, maxlen=lines):
-                    click.echo(line, nl=False)
-                positions[path] = (path.stat().st_ino, stream.tell())
+    positions = {path: print_tail(path, lines) for path in paths if path.exists()}
     if not positions and not follow:
         click.echo("No local logs yet. Run secondshift up first.")
     try:
@@ -38,7 +31,19 @@ def command(service: str | None, lines: int, follow: bool) -> None:
         pass
 
 
+def print_tail(path: Path, lines: int) -> tuple[int, int]:
+    """Print the last lines of a log and return where reading stopped."""
+    with path.open(errors="replace") as stream:
+        for line in deque(stream, maxlen=lines):
+            click.echo(line, nl=False)
+        return path.stat().st_ino, stream.tell()
+
+
 def read_new(path: Path, position: tuple[int, int] | None) -> tuple[int, int] | None:
+    """Print lines added since position, starting over if the file rotated.
+
+    A position is the file's inode and the offset already printed.
+    """
     try:
         with path.open(errors="replace") as stream:
             stat = path.stat()
