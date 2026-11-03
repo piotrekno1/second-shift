@@ -28,6 +28,9 @@ export function executionFix(execution: ExecutionStatus | null | undefined): Exe
       to: { path: '/connections' },
     }
   }
+  if (!execution.chosen) {
+    return { text: `Runs will fail. ${execution.problem}`, action: 'Choose what runs jobs', to: { path: '/settings' } }
+  }
   if (execution.fix_connection_id !== null) {
     return { text: `Runs will fail. ${execution.problem}`, action: 'Fix the connection', to: { path: '/connections', query: { connection: String(execution.fix_connection_id) } } }
   }

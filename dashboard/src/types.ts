@@ -124,7 +124,9 @@ export interface ExecutionStatus {
   backend: string
   /** Why every run would fail, or ''. */
   problem: string
-  /** No model key and no subscription yet. */
+  /** False until an owner picks a model provider or a login. */
+  chosen: boolean
+  /** No model provider and no login saved yet. */
   needs_setup: boolean
   /** The model key to fix, when the problem is about one. */
   fix_connection_id: number | null
