@@ -53,7 +53,7 @@ def server_config(
     [
         (Service.WEB, "0.0.0.0:8000", 2, "wsgi", 30),
         (Service.GATEWAY, "0.0.0.0:8000", 2, "asgi", 30),
-        (Service.RUNNER, "0.0.0.0:8000", 2, "wsgi", 30),
+        (Service.RUNNER, "0.0.0.0:8000", 2, "asgi", 30),
     ],
 )
 def test_uniform_defaults_for_http_roles(
@@ -66,7 +66,7 @@ def test_uniform_defaults_for_http_roles(
     assert config["graceful_timeout"] == graceful
     assert config["control_socket_disable"] is True
     assert config["worker_class"] == (
-        "uvicorn_worker.UvicornWorker" if role == Service.GATEWAY else "sync"
+        "uvicorn_worker.UvicornWorker" if factory == "asgi" else "sync"
     )
 
 

@@ -13,9 +13,11 @@ if service == Service.WORKER:
     )
 env = Env()
 
-factory = "asgi" if service == Service.GATEWAY else "wsgi"
+# Both hold long requests open (model streams, agent runs) while serving others.
+async_http = service in (Service.GATEWAY, Service.RUNNER)
+factory = "asgi" if async_http else "wsgi"
 wsgi_app = f"secondshift.config.app:{factory}('{service}')"
-worker_class = "uvicorn_worker.UvicornWorker" if service == Service.GATEWAY else "sync"
+worker_class = "uvicorn_worker.UvicornWorker" if async_http else "sync"
 bind = env.str("SECONDSHIFT_HTTP_BIND", default="0.0.0.0:8000")
 workers = env.int("SECONDSHIFT_HTTP_PROCESSES", default=2)
 timeout = env.int("SECONDSHIFT_HTTP_TIMEOUT_SECONDS", default=30)

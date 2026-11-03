@@ -494,3 +494,9 @@ GITHUB_APP_CLIENT_SECRET = env.str("SECONDSHIFT_GITHUB_APP_CLIENT_SECRET", defau
 GITHUB_APP_PRIVATE_KEY = env.str(
     "SECONDSHIFT_GITHUB_APP_PRIVATE_KEY", default=""
 ).replace("\\n", "\n")
+
+
+# Opt-in CLI execution. No image is pulled or agent started by default.
+AGENT_IMAGE = env.str(AppEnv.AGENT_IMAGE, default="")
+AGENT_NETWORK = env.str(AppEnv.AGENT_NETWORK, default="bridge")
+AGENT_BROKER_URL = env.str(AppEnv.AGENT_BROKER_URL, default="")
