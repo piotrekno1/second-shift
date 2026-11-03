@@ -305,7 +305,7 @@ export interface RunFailure {
 
 export interface Run {
   id: number
-  job_id: number
+  job_id: number | null
   job: string
   repository_id: number
   repository: string
@@ -352,6 +352,7 @@ export interface RunFile {
 }
 
 export interface RunDetail extends Run {
+  submission_input?: string
   job_key: string
   skill_path: string
   commit_sha: string

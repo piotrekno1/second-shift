@@ -10,7 +10,7 @@ from django.utils import timezone
 
 from secondshift.gateway.models import ModelUsage
 from secondshift.jobs.models import JobGrant
-from secondshift.runs.models import Run
+from secondshift.runs.models import Run, run_workspace_filter
 from secondshift.workspaces.models import Workspace
 
 WINDOW = timedelta(days=7)
@@ -78,7 +78,7 @@ def agent_login_runs(workspace_id: int, now: datetime | None = None) -> Counter[
     start = (now or timezone.now()) - RUN_CAP_WINDOW
     return Counter(
         Run.objects.filter(
-            job__workspace_id=workspace_id,
+            run_workspace_filter(workspace_id),
             created_at__gte=start,
             execution_plan__ready=True,
             execution_plan__execution__connection_id__isnull=False,

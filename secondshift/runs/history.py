@@ -27,7 +27,7 @@ def previous_run_ids(job: Job) -> list[int]:
 def previous_reports(run: Run) -> str:
     """The frozen earlier reports as one prompt block, or "" when there are none."""
     run_ids = run.input_snapshot.get("history_run_ids", [])
-    if not run_ids:
+    if not run_ids or run.job_id is None:
         return ""
     # Filtering on the job again means a snapshot can never reach another job.
     earlier = Run.objects.filter(job_id=run.job_id).in_bulk(run_ids)

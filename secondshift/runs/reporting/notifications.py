@@ -6,6 +6,7 @@ from django.conf import settings
 from secondshift.connections.models import Connection
 from secondshift.jobs.models import Job, JobGrant
 from secondshift.repositories.models import Repository
+from secondshift.runs.execution.tool_broker import standalone_connection
 from secondshift.runs.models import Run
 
 STATUS_LABELS = {
@@ -32,6 +33,13 @@ def notification_targets(run: Run) -> list[int]:
     }
     if not planned:
         return []
+    if run.job_id is None:
+        return sorted(
+            connection.pk
+            for capability in run.execution_plan.get("capabilities", [])
+            if capability.get("kind") == Connection.Kind.NOTIFICATION
+            and (connection := standalone_connection(run, capability)) is not None
+        )
     # A grant revoked or a connection disconnected after planning stops delivery.
     return sorted(
         JobGrant.objects.filter(
@@ -40,13 +48,12 @@ def notification_targets(run: Run) -> list[int]:
             status=JobGrant.Status.APPROVED,
             connection_id__in=planned,
             connection__status=Connection.Status.CONNECTED,
-            connection__workspace_id=run.job.workspace_id,
+            connection__workspace_id=run.workspace_id,
         ).values_list("connection_id", flat=True)
     )
 
 
 def run_report_payload(run: Run) -> dict[str, Any]:
-    job = run.job
     run_url = f"{settings.FRONTEND_URL.rstrip('/')}/runs/{run.pk}"
     return {
         "event": "run.finished",
@@ -61,20 +68,22 @@ def run_report_payload(run: Run) -> dict[str, Any]:
             "finished_at": run.finished_at.isoformat() if run.finished_at else None,
             "url": run_url,
         },
-        "job": {"key": job.key, "name": job.name},
-        "repository": {"full_name": job.repository.full_name},
+        "job": {
+            "key": run.job.key if run.job is not None else "",
+            "name": run.display_name,
+        },
+        "repository": {"full_name": run.repository.full_name},
     }
 
 
 def run_report_text(run: Run, run_url: str) -> str:
     """Status first, then the summary, then the link, with blank lines between."""
-    job = run.job
     status = STATUS_LABELS.get(run.status, run.status)
     mark = STATUS_MARKS.get(run.status, "•")
     summary = run.summary.strip() or "No summary."
     return "\n\n".join(
         (
-            f"{mark} {job.name} {status} · {job.repository.full_name}",
+            f"{mark} {run.display_name} {status} · {run.repository.full_name}",
             summary,
             # Slack link syntax. Mattermost and Discord /slack webhooks accept it.
             f"<{run_url}|Open run #{run.pk}>",

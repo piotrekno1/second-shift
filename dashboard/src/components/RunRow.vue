@@ -31,7 +31,7 @@ function openRun(event: Event): void {
   >
     <RouterLink :to="`/runs/${run.id}`" class="run-id detail-link">#{{ run.id }}</RouterLink>
     <div v-if="showJob" class="job-primary run-links">
-      <RouterLink :to="`/jobs/${run.job_id}`"><strong>{{ run.job }}</strong></RouterLink>
+      <RouterLink :to="run.job_id === null ? `/runs/${run.id}` : `/jobs/${run.job_id}`"><strong>{{ run.job }}</strong></RouterLink>
       <RouterLink :to="`/repositories/${run.repository_id}`"><AppIcon name="source-repository" /> {{ run.repository }}</RouterLink>
     </div>
     <span class="run-when" :title="`${formatDate(run.scheduled_for)} · ${utcTitle(run.scheduled_for)}`">{{ formatRelative(run.scheduled_for) }}</span>

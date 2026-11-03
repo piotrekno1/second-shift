@@ -41,7 +41,7 @@ def issue_model_gateway_access(run: Run) -> ModelGatewayAccess:
     try:
         connection = Connection.objects.get(
             pk=model_plan["connection_id"],
-            workspace_id=run.job.workspace_id,
+            workspace_id=run.workspace_id,
             kind=Connection.Kind.MODEL,
             status=Connection.Status.CONNECTED,
         )

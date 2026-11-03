@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import AppIcon from '../components/AppIcon.vue'
+import TaskSubmissionForm from '../components/TaskSubmissionForm.vue'
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Button from 'primevue/button'
@@ -20,6 +21,7 @@ const action = ref<string | null>(null)
 const error = ref<string | null>(null)
 const copied = ref(false)
 const confirmRemove = ref(false)
+const showTaskForm = ref(false)
 const repositoryId = Number(route.params.id)
 const justAdded = computed(() => route.query.added === '1')
 const detailedJobs = computed(() => {
@@ -192,6 +194,9 @@ onMounted(loadRepository)
       :parent="{ label: 'Repositories', to: '/repositories' }"
     >
       <template v-if="repository">
+        <Button v-if="repository.enabled && app.can(Action.RunJobs)" label="Submit task" @click="showTaskForm = !showTaskForm">
+          <template #icon><AppIcon name="play" /></template>
+        </Button>
         <Button label="Validate" severity="secondary" outlined :loading="action === 'validate'" title="Read-only check of the manifest and skills" @click="validateRepository">
           <template #icon><AppIcon name="check-circle-outline" /></template>
         </Button>
@@ -208,6 +213,7 @@ onMounted(loadRepository)
     <div v-else-if="!repository" class="panel empty-state"><AppIcon name="alert-outline" /><strong>Repository unavailable</strong><span>{{ error }}</span></div>
     <template v-else>
       <p v-if="error" class="page-error">{{ error }}</p>
+      <TaskSubmissionForm v-if="showTaskForm && repository.enabled && app.can(Action.RunJobs)" :repository-id="repositoryId" :default-branch="repository.default_branch" @cancel="showTaskForm = false" />
 
       <section v-if="!setupComplete || justAdded" class="panel repository-setup" :class="{ complete: setupComplete }">
         <div class="setup-status-icon"><AppIcon :name="setupComplete ? 'check-decagram-outline' : 'progress-check'" /></div>

@@ -21,8 +21,8 @@ schemas or route registration.
 ## Jobs and runs
 
 Jobs are reusable definitions. A task records one assignment, and a run records
-an execution attempt. Current tasks are all job-backed. Each accepted start
-creates a task and its initial run atomically; refused starts and skipped cron
+an execution attempt. Job-backed tasks retain their original job relationship;
+standalone tasks own a repository directly. Each accepted start creates a task and its initial run atomically; refused starts and skipped cron
 ticks create neither. Task snapshots preserve the assignment and commit at
 submission, while run snapshots and execution plans remain the execution
 source of truth. Webhook payload metadata is included before submission commits.
@@ -59,8 +59,28 @@ approval checks as manifest sync. Connections requiring approval remain blocked;
 existing job grants are never borrowed. Optional unavailable capabilities do not
 block other tools. Workspace execution selection and limits apply, while runner
 policy stays server-owned. The version-5 plan format and saved-job entry point
-remain compatible. This is a planning service only; submission and persistence
-of ad hoc tasks are separate work.
+remain compatible. Standalone submission uses this planner through `runs.submissions`. Both the
+session-authenticated `POST /api/tasks` and MCP `submit_task` tool require the
+existing run permission, resolve repositories in the current workspace, and
+record the authenticated submitter and origin. Source resolution uses the
+followed branch by default or an explicit branch/full commit, verifies a regular
+committed skill file, and freezes the SHA, definition and per-run input. No Job
+or JobGrant rows are created.
+
+A repository-scoped idempotency key returns the original attempt for an identical
+request from the same user; conflicting reuse is refused. Admission is checked
+under the repository row lock before and after source access. Only one standalone
+task per repository may be active in this version. Task and run creation are
+atomic and enqueue occurs after commit. New runs use the existing durable worker,
+artifact delivery and retention flow. Ad hoc tool calls and notifications recheck
+that the connection still permits automatic access. Run history, authorization,
+model usage and subscription caps include standalone runs. Existing job runs
+retain their source lookup and job-specific grant checks; their response values
+remain unchanged. Standalone responses have a null `job_id` and expose the task's
+name in the existing display field. The generated migration preserves existing
+rows and gives the new submission-key column a database default so earlier
+job-task writers can still insert. Upgrade the control plane and workers before
+submitting standalone tasks: older binaries assume every run has a job.
 
 A job runs one run at a time. Run now and webhook triggers go through
 `runs.services.start_run`, which refuses while a run is active and checks

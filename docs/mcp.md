@@ -103,6 +103,7 @@ An ID from another workspace is reported as not found.
 | `list_runs` | `read` | `job_id?`, `repository_id?`, `status?`, `period?`, `page?`, `page_size?` | A page of runs, newest first, with status, times and token usage. Page size is at most 50. |
 | `get_run` | `read` | `run_id` | Status, events, model usage and the start of the output. |
 | `get_run_report` | `read` | `run_id` | The run's Markdown report. A report over 200 KB is cut and marked as cut. |
+| `submit_task` | `run` | `repository_id`, `definition`, `idempotency_key`, `revision?`, `input?` | The assignment ID, `run` details and whether a new run started. |
 | `run_job` | `run` | `job_id` | The new run's ID and status. Poll `get_run` to follow it. |
 | `sync_repository` | `run` | `repository_id` | The synced commit, whether the manifest is valid, and the repository's jobs. |
 
@@ -114,6 +115,52 @@ connected, or a required capability is not approved.
 returns that run's ID instead, so the agent can follow it with `get_run`. An
 agent stuck in a loop cannot queue runs faster than they finish. **Run now**
 follows the same rule.
+
+### Standalone tasks
+
+Use **Submit task** on a repository page, or call `submit_task` from an agent.
+The skill must already be committed to that repository; it does not need a job
+in `.secondshift.yaml`.
+
+```json
+{
+  "repository_id": 12,
+  "definition": {
+    "name": "Review setup instructions",
+    "skill": ".agents/skills/docs-drift/SKILL.md"
+  },
+  "input": "Focus on the installation and first-run experience.",
+  "idempotency_key": "setup-review-2026-11-03"
+}
+```
+
+Request only tools listed by `list_bindings`. `definition` uses the same shape
+as a manifest job, but a standalone task cannot specify a schedule, triggers or
+job history. Requires and notify are optional. Omit `revision` to use the
+repository's followed branch; an explicit branch or full commit SHA also works.
+The accepted task pins the exact commit, definition, input and submitting user.
+Changes to the branch after acceptance do not alter it.
+
+Reuse the same key with identical arguments when retrying after a lost response.
+The result returns the original run with `started: false`; changed arguments or
+a different submitter using that key are refused. Keys are scoped to a repository
+and retained for the task's retention window. One standalone task per repository
+may be queued or running. A different submission while one is active is refused
+and names that run.
+
+Standalone tasks can use only connections that do not require approval, within
+their permitted tools and repository scope. An existing job's grant cannot
+authorize a standalone task. Workspace execution selection and run limits apply.
+Changing connection consent or disconnecting it stops subsequent tool calls and
+report deliveries. No endpoint can set credentials, provider scopes or sandbox
+options.
+
+Follow `result.run.id` with `get_run` and `get_run_report`, or find the task in
+Runs on the dashboard. Standalone runs have `job_id: null`; `job` carries their
+display name. Existing job-run fields keep their values. `get_run` also exposes
+`submission_input`, so the original request remains reviewable if execution fails
+before input capture. The session-authenticated HTTP equivalent is `POST
+/api/tasks` with the same body.
 
 ### Writing manifests
 

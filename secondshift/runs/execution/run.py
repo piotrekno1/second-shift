@@ -101,6 +101,8 @@ def run_prompt(run: Run) -> str:
         task_prompt(str(run.input_snapshot["skill_path"]))
         + f"\nReporting time (UTC): {run.scheduled_for.isoformat()}"
     )
+    if submission_input := run.input_snapshot.get("submission_input"):
+        prompt = f"{prompt}\n\nInput from the person submitting this task:\n{submission_input}"
     if payload := run_payload(run):
         prompt = f"{prompt}\n\n{payload_note(payload)}"
     if missing := missing_bindings(run.execution_plan):

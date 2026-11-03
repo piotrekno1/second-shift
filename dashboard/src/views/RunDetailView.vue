@@ -82,7 +82,7 @@ function startPolling(): void {
 }
 
 async function runAgain(): Promise<void> {
-  if (!run.value) return
+  if (!run.value || run.value.job_id === null) return
   rerunning.value = true
   error.value = null
   try {
@@ -111,7 +111,7 @@ onUnmounted(stopPolling)
 <template>
   <div class="page">
     <PageHeader compact :title="`Run #${runId}`" :description="subtitle" :parent="{ label: 'Runs', to: '/runs' }">
-      <Button class="main-action" v-if="run && !active && app.can(Action.RunJobs)" label="Run again" :title="runWarning(app.overview?.execution, app.jobs.find(job => job.id === run?.job_id)) || undefined" :loading="rerunning" @click="runAgain">
+      <Button class="main-action" v-if="run && run.job_id !== null && !active && app.can(Action.RunJobs)" label="Run again" :title="runWarning(app.overview?.execution, app.jobs.find(job => job.id === run?.job_id)) || undefined" :loading="rerunning" @click="runAgain">
         <template #icon><AppIcon name="replay" /></template>
       </Button>
     </PageHeader>
@@ -119,6 +119,10 @@ onUnmounted(stopPolling)
     <div v-if="loading" class="panel empty-state"><AppIcon name="loading" spin /><strong>Loading run</strong></div>
     <div v-else-if="!run" class="panel empty-state"><AppIcon name="alert-outline" /><strong>Run unavailable</strong><span>{{ error }}</span></div>
     <template v-else>
+      <section v-if="run.submission_input" class="panel">
+        <h2>Task input</h2>
+        <p style="white-space: pre-wrap">{{ run.submission_input }}</p>
+      </section>
       <p v-if="error" class="page-error">{{ error }}</p>
 
       <section class="panel run-status-panel" :class="run.status" aria-live="polite">
@@ -131,7 +135,7 @@ onUnmounted(stopPolling)
         <p v-if="run.failure" class="run-headline run-failure-headline">
           <span class="failure-label"><AppIcon :name="run.status === 'canceled' ? 'cancel' : 'alert-circle-outline'" />{{ run.failure.label }}</span>
           <span>{{ run.failure.reason }}</span>
-          <RouterLink v-if="run.failure.limit" :to="{ path: `/jobs/${run.job_id}`, hash: '#limits' }" class="detail-link">Change this job's limits <AppIcon name="arrow-right" /></RouterLink>
+          <RouterLink v-if="run.failure.limit && run.job_id !== null" :to="{ path: `/jobs/${run.job_id}`, hash: '#limits' }" class="detail-link">Change this job's limits <AppIcon name="arrow-right" /></RouterLink>
         </p>
         <p v-if="run.failure?.next_step" class="run-next-step">
           {{ run.failure.next_step }}
@@ -186,7 +190,7 @@ onUnmounted(stopPolling)
         <aside class="panel run-details">
           <h2>Details</h2>
           <dl>
-            <div><dt>Job</dt><dd><RouterLink :to="`/jobs/${run.job_id}`" class="detail-link">{{ run.job }}</RouterLink></dd></div>
+            <div><dt>{{ run.job_id === null ? 'Task' : 'Job' }}</dt><dd><RouterLink v-if="run.job_id !== null" :to="`/jobs/${run.job_id}`" class="detail-link">{{ run.job }}</RouterLink><span v-else>{{ run.job }}</span></dd></div>
             <div><dt>Repository</dt><dd><RouterLink :to="`/repositories/${run.repository_id}`" class="detail-link">{{ run.repository }}</RouterLink></dd></div>
             <div><dt>Skill</dt><dd><code>{{ run.skill_path }}</code></dd></div>
             <div><dt>Agent</dt><dd>{{ run.execution_agent ?? run.model_provider ?? 'None' }}</dd></div>

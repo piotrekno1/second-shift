@@ -9,6 +9,7 @@ from jsonschema import ValidationError, validate
 
 from secondshift.connections.errors import ExternalToolError
 from secondshift.connections.external import Authorization, external_kind
+from secondshift.connections.models import Connection
 from secondshift.jobs.models import JobGrant
 from secondshift.jobs.tool_policy import AuthorizedTool, resolve_tool
 from secondshift.jobs.tool_rules import ToolRuleViolation, apply_rules
@@ -36,6 +37,16 @@ def broker_connection(run: Run, name: str) -> Authorization:
         for item in run.execution_plan["capabilities"]
         if item["kind"] == tool.kind and item["binding"] == tool.binding
     )
+    if run.job_id is None:
+        connection = standalone_connection(run, capability)
+        if connection is None:
+            raise ExternalToolError("Access to this tool is no longer approved.")
+        return adapter.authorize(
+            connection,
+            capability.get("external", {}),
+            run.repository,
+            str(tool.provider_tool),
+        )
     grant = (
         JobGrant.objects.select_related("connection", "capability_request")
         .filter(
@@ -52,7 +63,7 @@ def broker_connection(run: Run, name: str) -> Authorization:
         or not grant
         or not grant.connection
         or grant.connection.kind != tool.kind
-        or grant.connection.workspace_id != run.job.workspace_id
+        or grant.connection.workspace_id != run.workspace_id
         or grant.connection.binding_key != tool.binding
         or tool.provider_tool not in grant.allowed_tools
         or tool.provider_tool not in grant.capability_request.requested_tools
@@ -62,7 +73,7 @@ def broker_connection(run: Run, name: str) -> Authorization:
     return adapter.authorize(
         grant.connection,
         capability.get("external", {}),
-        run.job.repository,
+        run.repository,
         str(tool.provider_tool),
     )
 
@@ -71,7 +82,9 @@ def broker_connection(run: Run, name: str) -> Authorization:
 def call_external_tool_step(
     run_id: int, name: str, arguments: dict[str, Any], call_id: str
 ) -> dict[str, Any]:
-    run = Run.objects.select_related("job__repository").get(pk=run_id)
+    run = Run.objects.select_related("job__repository", "task__repository").get(
+        pk=run_id
+    )
     authorization = broker_connection(run, name)
     tool = resolve_tool(run.execution_plan, name)
     # Owner rules first. The provider's own scope rules run last, inside call,
@@ -123,3 +136,27 @@ def call_external_tool_step(
     if len(text) > limit:
         return {"output": text[:limit], "output_truncated": True}
     return result
+
+
+def standalone_connection(run: Run, capability: dict[str, Any]) -> Connection | None:
+    """Recheck automatic consent; a frozen plan never bypasses disconnection."""
+    if (
+        run.status in FINISHED
+        and capability.get("kind") != Connection.Kind.NOTIFICATION
+    ):
+        return None
+    if not capability.get("authorized"):
+        return None
+    connection = Connection.objects.filter(
+        pk=capability.get("connection_id"),
+        workspace_id=run.workspace_id,
+        kind=capability.get("kind"),
+        binding_key=capability.get("binding"),
+        status=Connection.Status.CONNECTED,
+        require_approval=False,
+    ).first()
+    if connection is None or set(capability.get("effective_tools", [])) - set(
+        connection.available_tools
+    ):
+        return None
+    return connection

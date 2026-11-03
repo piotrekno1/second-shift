@@ -14,7 +14,7 @@ from secondshift.connections.models import Connection
 from secondshift.connections.webhooks import deliver_webhook
 from secondshift.gateway.tokens import revoke_run_tokens
 from secondshift.jobs.models import Job
-from secondshift.jobs.readiness import plan_problems
+from secondshift.jobs.readiness import execution_problems
 from secondshift.jobs.scheduling import next_occurrence
 from secondshift.repositories.github_sync import github_repository_metadata
 from secondshift.repositories.models import Repository
@@ -89,8 +89,10 @@ def record_run_event_step(run_id: int, message: str) -> None:
 )
 def prepare_source_step(run_id: int) -> None:
     """Build the snapshot of the run's commit, fetching it if needed."""
-    run = Run.objects.select_related("job__repository").get(pk=run_id)
-    repository = run.job.repository
+    run = Run.objects.select_related("job__repository", "task__repository").get(
+        pk=run_id
+    )
+    repository = run.repository
     if repository.source_type != Repository.SourceType.LOCAL:
         # Lost access stops the run here, even if the snapshot is cached.
         github_repository_metadata(repository)
@@ -110,10 +112,12 @@ def prepare_source_step(run_id: int) -> None:
     max_attempts=3,
 )
 def start_runner_session_step(run_id: int) -> str:
-    run = Run.objects.select_related("job__repository").get(pk=run_id)
+    run = Run.objects.select_related("job__repository", "task__repository").get(
+        pk=run_id
+    )
     plan = run.execution_plan
     if not plan.get("ready", False):
-        problems = plan_problems(run.job, plan)
+        problems = execution_problems(run.repository, plan)
         raise RuntimeError(
             " ".join(problems) or "The frozen execution plan is not ready."
         )
@@ -123,7 +127,7 @@ def start_runner_session_step(run_id: int) -> str:
     repository_plan = plan.get("repository", {})
     if repository_plan.get("config_sha") != run.commit_sha:
         raise RuntimeError("The run commit does not match its execution plan.")
-    snapshot = source_snapshot(run.job.repository, run.commit_sha)
+    snapshot = source_snapshot(run.repository, run.commit_sha)
     client = get_runner_client()
     client.upload_source(snapshot.sha256, snapshot.path)
     session_id = client.start(
@@ -211,7 +215,11 @@ def notification_targets_step(run_id: int) -> list[int]:
 )
 def deliver_run_notification_step(run_id: int, connection_id: int) -> None:
     # One step per target, so a retry never re-sends to targets that succeeded.
-    run = Run.objects.select_related("job__repository").get(pk=run_id)
+    run = Run.objects.select_related("job__repository", "task__repository").get(
+        pk=run_id
+    )
+    if run.job_id is None and connection_id not in notification_targets(run):
+        return
     connection = Connection.objects.get(pk=connection_id)
     delivery = deliver_webhook(connection, run_report_payload(run))
     if delivery.retryable:
