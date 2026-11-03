@@ -611,3 +611,49 @@ def test_a_repository_imported_with_a_token_syncs_with_it(
     assert repository.github_connection == token_connection
     assert repository.config_sha
     assert set(seen) == {token_connection.access_token}
+
+
+def test_a_token_source_turns_on_autosync_without_the_app(
+    token_connection: Connection, settings: Any
+) -> None:
+    settings.GITHUB_APP_ID = ""
+    settings.LOCAL_REPOSITORIES_ENABLED = False
+    settings.REPOSITORY_SYNC_INTERVAL_SECONDS = 60
+    assert autosync.server_syncs() is True
+    token_connection.status = Connection.Status.REVOKED
+    token_connection.save()
+    assert autosync.server_syncs() is False
+
+
+def test_autosync_checks_token_repositories_and_skips_app_ones_without_the_app(
+    workspace: Any,
+    source_connection: Any,
+    token_connection: Connection,
+    settings: Any,
+    monkeypatch: Any,
+) -> None:
+    settings.GITHUB_APP_ID = ""
+    for source, name in ((source_connection, "app"), (token_connection, "pat")):
+        Repository.objects.create(
+            workspace=workspace,
+            github_connection=source,
+            full_name=f"owner/{name}",
+            external_id=str(len(name)),
+            checked_sha="a" * 40,
+        )
+    monkeypatch.setattr(
+        repos,
+        "repository",
+        lambda token, repository_id: {
+            "id": repository_id,
+            "full_name": "owner/pat",
+        },
+    )
+    heads = Mock(return_value="a" * 40)
+    monkeypatch.setattr(repos, "branch_head", heads)
+
+    autosync.sync_moved_repositories()
+
+    [call] = heads.call_args_list
+    assert call.args[0] == token_connection.access_token
+    assert not Repository.objects.exclude(last_sync_error="").exists()

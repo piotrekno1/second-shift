@@ -10,8 +10,9 @@ import logging
 from pathlib import Path
 
 from django.conf import settings
-from django.db.models import Q
+from django.db.models import Q, QuerySet
 
+from secondshift.connections.models import Connection
 from secondshift.github import repos
 from secondshift.github.app import configured
 from secondshift.github.errors import GitHubError
@@ -30,8 +31,28 @@ logger = logging.getLogger(__name__)
 def server_syncs() -> bool:
     """Whether the worker syncs at all on this server."""
     return bool(
-        (settings.LOCAL_REPOSITORIES_ENABLED or configured())
+        (
+            settings.LOCAL_REPOSITORIES_ENABLED
+            or configured()
+            or token_sources().exists()
+        )
         and settings.REPOSITORY_SYNC_INTERVAL_SECONDS > 0
+    )
+
+
+def token_sources() -> QuerySet[Connection]:
+    return Connection.objects.filter(
+        provider=Connection.Provider.GITHUB,
+        kind=Connection.Kind.SOURCE,
+        auth_strategy=Connection.AuthStrategy.API_KEY,
+        status=Connection.Status.CONNECTED,
+    )
+
+
+def can_check(connection: Connection | None) -> bool:
+    """App sources need the App on this server. Token sources need only themselves."""
+    return usable_source(connection) and (
+        connection.auth_strategy != Connection.AuthStrategy.MANAGED or configured()
     )
 
 
@@ -55,7 +76,7 @@ def sync_moved_repositories() -> int:
     for repository in repositories_to_check():
         try:
             if repository.source_type == Repository.SourceType.GITHUB:
-                if not usable_source(repository.github_connection):
+                if not can_check(repository.github_connection):
                     continue
                 access = github_access(repository)
                 head = repos.branch_head(

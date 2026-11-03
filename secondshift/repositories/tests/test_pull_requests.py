@@ -9,7 +9,7 @@ import pytest
 from django.contrib.auth import get_user_model
 
 from secondshift.connections.models import Connection
-from secondshift.github import rest
+from secondshift.github import repos, rest
 from secondshift.github.errors import GitHubError
 from secondshift.repositories import pull_requests
 from secondshift.repositories.mirrors import mirror_path
@@ -256,3 +256,63 @@ def test_a_commit_github_no_longer_has_is_named(
 
     with pytest.raises(PublishError, match="no longer available"):
         publish_pull_request(repository, "0" * 40, patch, DRAFT)
+
+
+@pytest.fixture
+def token_repository(repository: Repository) -> Repository:
+    connection = repository.github_connection
+    connection.auth_strategy = Connection.AuthStrategy.API_KEY
+    connection.external_account_id = "token:acme"
+    connection.access_token = "github_pat_" + "a" * 40
+    connection.save()
+    return repository
+
+
+def test_a_token_repository_publishes_with_the_token(
+    token_repository: Repository,
+    source: tuple[Path, str, Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root, base, patch = source
+    bare_mirror(root, mirror_path(token_repository.pk))
+    monkeypatch.setattr(
+        repos,
+        "repository",
+        lambda token, repository_id: {"id": repository_id, "full_name": "acme/web"},
+    )
+    pushes: list[str] = []
+    monkeypatch.setattr(
+        pull_requests,
+        "authenticated_git",
+        lambda root, token, *args: pushes.append(token) or "",
+    )
+    seen = github(monkeypatch, httpx.Response(201, json=PULL))
+
+    publish_pull_request(token_repository, base, patch, DRAFT)
+
+    token = token_repository.github_connection.access_token
+    assert pushes == [token]
+    assert seen[0].headers["Authorization"] == f"Bearer {token}"
+
+
+def test_a_refused_token_push_names_the_token_permission(
+    token_repository: Repository,
+    source: tuple[Path, str, Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root, base, patch = source
+    bare_mirror(root, mirror_path(token_repository.pk))
+    monkeypatch.setattr(
+        repos,
+        "repository",
+        lambda token, repository_id: {"id": repository_id, "full_name": "acme/web"},
+    )
+
+    def refuse(root: Path, token: str, *args: str) -> str:
+        raise GitHubError("Could not fetch the GitHub repository and branch.")
+
+    monkeypatch.setattr(pull_requests, "authenticated_git", refuse)
+
+    with pytest.raises(PublishError, match="Give the token Contents") as raised:
+        publish_pull_request(token_repository, base, patch, DRAFT)
+    assert token_repository.github_connection.access_token not in str(raised.value)

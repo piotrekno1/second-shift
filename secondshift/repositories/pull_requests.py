@@ -17,6 +17,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
+from secondshift.connections.models import Connection
 from secondshift.github import credentials, pulls
 from secondshift.github.errors import GitHubError
 from secondshift.github.git import authenticated_git
@@ -26,6 +27,14 @@ from secondshift.repositories.mirrors import has_commit, locked_mirror
 from secondshift.repositories.models import Repository
 
 MAX_BODY_CHARS = pulls.MAX_BODY_CHARS
+APP_PUSH_HINT = (
+    "Changes to workflow files are refused, and so is a branch someone else changed."
+)
+TOKEN_PUSH_HINT = (
+    "Give the token Contents and Pull requests write access. A branch someone "
+    "else changed is refused too, and so are workflow files unless the token "
+    "has Workflows write access."
+)
 AUTHOR_NAME = "SecondShift"
 AUTHOR_EMAIL = "secondshift@users.noreply.github.com"
 
@@ -55,10 +64,18 @@ def publish_pull_request(
 ) -> PublishedPullRequest:
     if repository.source_type != Repository.SourceType.GITHUB:
         raise PublishError("Only GitHub repositories can receive pull requests.")
+    with_token = (
+        repository.github_connection is not None
+        and repository.github_connection.auth_strategy
+        == Connection.AuthStrategy.API_KEY
+    )
     try:
         # One token for the fetch, the push and the pull request.
         access = github_access(repository, credentials.WRITE)
     except GitHubError as error:
+        if with_token:
+            # Token errors already say what to fix, such as an expired token.
+            raise PublishError(str(error)) from error
         raise PublishError(
             "GitHub refused write access. Give the GitHub App Contents and Pull "
             "requests write permission, then retry."
@@ -83,8 +100,8 @@ def publish_pull_request(
             )
         except GitHubError as error:
             raise PublishError(
-                f"GitHub refused the push to {draft.branch}. Changes to workflow "
-                "files are refused, and so is a branch someone else changed."
+                f"GitHub refused the push to {draft.branch}. "
+                + (TOKEN_PUSH_HINT if with_token else APP_PUSH_HINT)
             ) from error
     return open_draft(access.full_name, access.token, draft)
 
