@@ -1,3 +1,5 @@
+from pathlib import PurePosixPath
+
 from django.http import FileResponse, Http404, HttpRequest
 from ninja import Query, Router, Status
 from ninja.errors import HttpError
@@ -24,6 +26,7 @@ from secondshift.runs.schemas import (
 )
 from secondshift.runs.serialization import (
     run_file_path,
+    saved_file_path,
     serialize_delivery,
     serialize_run,
     serialize_run_detail,
@@ -103,6 +106,20 @@ def run_detail(request: HttpRequest, run_id: int) -> RunDetailSchema:
     return serialize_run_detail(run_for_request(request, run_id))
 
 
+def stored_file_response(
+    path: str, filename: str, download: bool, content_type: str
+) -> FileResponse:
+    response = FileResponse(
+        artifact_storage().open(path, "rb"),
+        as_attachment=download,
+        filename=filename,
+        content_type=content_type,
+    )
+    response["X-Content-Type-Options"] = "nosniff"
+    response["Cache-Control"] = "private, no-store"
+    return response
+
+
 @router.get("/runs/{run_id}/files/{name}")
 def run_file(
     request: HttpRequest, run_id: int, name: RunFileName, download: bool = False
@@ -116,15 +133,39 @@ def run_file(
     path = run_file_path(run, name)
     if not path:
         raise Http404
-    response = FileResponse(
-        artifact_storage().open(path, "rb"),
-        as_attachment=download,
-        filename=f"run-{run.pk}-{name}.md",
-        content_type="text/plain; charset=utf-8",
+    return stored_file_response(
+        path, f"run-{run.pk}-{name}.md", download, "text/plain; charset=utf-8"
     )
-    response["X-Content-Type-Options"] = "nosniff"
-    response["Cache-Control"] = "private, no-store"
-    return response
+
+
+@router.get("/runs/{run_id}/changes")
+def run_changes_patch(
+    request: HttpRequest, run_id: int, download: bool = False
+) -> FileResponse:
+    """The agent's file changes as a patch, always served as plain text."""
+    run = run_for_request(request, run_id)
+    path = ((run.outputs or {}).get("changes") or {}).get("path")
+    if not path:
+        raise Http404
+    return stored_file_response(
+        path, f"run-{run.pk}-changes.patch", download, "text/plain; charset=utf-8"
+    )
+
+
+@router.get("/runs/{run_id}/saved-files/{path:name}")
+def run_saved_file(request: HttpRequest, run_id: int, name: str) -> FileResponse:
+    """One file the agent saved. Always a download, never rendered.
+
+    The agent chose its name and content, so the browser must not open it as
+    a page on this site.
+    """
+    run = run_for_request(request, run_id)
+    path = saved_file_path(run, name)
+    if not path:
+        raise Http404
+    return stored_file_response(
+        path, PurePosixPath(name).name, True, "application/octet-stream"
+    )
 
 
 @router.post("/jobs/{job_id}/run", response={200: RunSchema, 409: RunInProgressSchema})
