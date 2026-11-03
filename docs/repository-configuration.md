@@ -235,6 +235,12 @@ The server posts the run status, report summary, and a link to the run in
 SecondShift after the run finishes. Failed runs are sent too, with the reason
 they failed. Delivery happens outside the offline sandbox.
 
+The run page shows each delivery under **Details** as delivered, skipped or
+failed. If a delivery failed, choose **Retry** to send the stored report again.
+The agent does not run again. A retry checks that the job's notification access
+is still approved. It can repeat a message the receiver already got, for example
+after a timeout.
+
 ### Webhook payload
 
 After each run, the server sends one `POST` with a JSON body like this:

@@ -351,6 +351,18 @@ export interface RunFile {
   truncated: boolean
 }
 
+export interface RunDelivery {
+  id: number
+  kind: 'notification' | string
+  target: string
+  status: 'pending' | 'delivered' | 'skipped' | 'failed'
+  attempts: number
+  message: string
+  updated_at: string
+  /** Failed, and its connection still exists. */
+  retryable: boolean
+}
+
 export interface RunDetail extends Run {
   submission_input?: string
   job_key: string
@@ -365,6 +377,7 @@ export interface RunDetail extends Run {
   output_size_bytes: number | null
   events: RunEvent[]
   files: RunFile[]
+  deliveries: RunDelivery[]
 }
 
 export interface RunPage {
