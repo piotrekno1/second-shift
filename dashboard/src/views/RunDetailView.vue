@@ -36,6 +36,12 @@ const active = computed(() => (run.value ? isRunActive(run.value.status) : false
 // A delivery being retried can still change after the run has finished.
 const changing = computed(() => active.value || Boolean(run.value?.deliveries.some(isDeliveryPending)))
 const DELIVERY_LABELS: Record<RunDelivery['status'], string> = { pending: 'Sending', delivered: 'Delivered', skipped: 'Skipped', failed: 'Failed' }
+function deliveryLabel(delivery: RunDelivery): string {
+  if (delivery.kind !== 'pull_request') return DELIVERY_LABELS[delivery.status]
+  // A draft waits for the run to finish, so pending is not sending yet.
+  if (delivery.status === 'pending') return active.value ? 'After the run' : 'Opening'
+  return delivery.status === 'delivered' ? 'Opened' : DELIVERY_LABELS[delivery.status]
+}
 const subtitle = computed(() => (run.value ? `${run.value.job} · ${run.value.repository}` : loading.value ? 'Loading run…' : 'This run could not be loaded'))
 // Reports taller than this start collapsed, so the page never nests a scrollbar.
 const REPORT_COLLAPSED_PX = 640
@@ -282,9 +288,10 @@ onUnmounted(stopPolling)
             <div v-if="run.deliveries.length">
               <dt>Delivery</dt>
               <dd v-for="delivery in run.deliveries" :key="delivery.id" class="run-delivery">
-                <span>{{ delivery.target }}</span>
-                <span class="run-delivery-status" :class="delivery.status" :title="delivery.message || undefined"> · {{ DELIVERY_LABELS[delivery.status] }}</span>
-                <span v-if="delivery.status === 'failed' && delivery.message" class="run-details-muted run-delivery-reason">{{ delivery.message }}</span>
+                <span :title="delivery.target">{{ delivery.kind === 'pull_request' ? `Draft pull request into ${delivery.target.split(' into ').pop()}` : delivery.target }}</span>
+                <span class="run-delivery-status" :class="delivery.status" :title="delivery.message || undefined"> · {{ deliveryLabel(delivery) }}</span>
+                <a v-if="delivery.url" class="run-delivery-link" :href="delivery.url" target="_blank" rel="noopener noreferrer">{{ delivery.message || 'Open on GitHub' }}<AppIcon name="open-in-new" /></a>
+                <span v-else-if="delivery.message && (delivery.status === 'failed' || delivery.kind === 'pull_request')" class="run-details-muted run-delivery-reason">{{ delivery.message }}</span>
                 <Button v-if="delivery.retryable && app.can(Action.RunJobs)" class="run-delivery-retry" label="Retry" size="small" severity="secondary" :loading="retrying === delivery.id" @click="retry(delivery)" />
               </dd>
             </div>
@@ -325,6 +332,8 @@ onUnmounted(stopPolling)
 .run-delivery-status.failed { color: var(--danger); }
 .run-delivery-status.pending, .run-delivery-status.skipped { color: var(--subtle); }
 .run-delivery-reason { display: block; font-size: 12px; }
+.run-delivery-link { display: inline-flex; align-items: center; gap: 4px; margin-top: 2px; font-size: 12px; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+.run-delivery-link .app-icon { font-size: 12px; }
 .run-delivery-retry { margin-top: 6px; }
 @media (max-width: 540px) { .task-input-panel { padding: 16px 20px; } }
 </style>
