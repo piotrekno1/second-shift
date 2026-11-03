@@ -13,6 +13,8 @@ from secondshift.repositories.local import (
     local_directories,
 )
 from secondshift.repositories.models import Repository
+from secondshift.repositories.serialization import validate_repository
+from secondshift.repositories.sync import SyncError, resync
 from secondshift.workspaces.models import Workspace, WorkspaceMembership
 from secondshift.workspaces.services import create_workspace
 
@@ -31,6 +33,11 @@ def create_local_repository(path: Path) -> Path:
     run_git(path, "init", "-b", "main")
     run_git(path, "config", "user.email", "test@secondshift.local")
     run_git(path, "config", "user.name", "SecondShift Test")
+    return commit_configuration(path)
+
+
+def commit_configuration(path: Path) -> Path:
+    """Commit a manifest with one job and its skill. Returns the skill file."""
     skill = path / ".agents/skills/review/SKILL.md"
     skill.parent.mkdir(parents=True)
     skill.write_text("# Review\n")
@@ -111,8 +118,53 @@ def test_a_skill_cannot_be_a_link(workspace: Workspace, tmp_path: Path) -> None:
     run_git(root, "add", "-A")
     run_git(root, "commit", "-m", "Point the skill elsewhere")
 
-    with pytest.raises(LocalRepositoryError, match="not a link"):
-        attach_local_repository(workspace, str(root))
+    repository = attach_local_repository(workspace, str(root))
+
+    assert "not a link" in repository.last_sync_error
+    assert not repository.jobs.exists()
+
+
+def test_a_repository_without_a_manifest_is_added_with_a_warning(
+    workspace: Workspace,
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "project"
+    root.mkdir()
+    run_git(root, "init", "-b", "main")
+    run_git(root, "config", "user.email", "test@secondshift.local")
+    run_git(root, "config", "user.name", "SecondShift Test")
+    run_git(root, "commit", "--allow-empty", "-m", "Start")
+
+    repository = attach_local_repository(workspace, str(root))
+
+    assert repository.pk
+    assert repository.config_sha == ""
+    assert repository.checked_sha
+    assert "no committed .secondshift.yaml" in repository.last_sync_error
+    assert not repository.jobs.exists()
+    assert validate_repository(repository).status == "warning"
+
+
+def test_a_broken_manifest_keeps_the_jobs_from_the_last_good_sync(
+    workspace: Workspace,
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "project"
+    create_local_repository(root)
+    repository = attach_local_repository(workspace, str(root))
+    good = repository.config_sha
+    (root / ".secondshift.yaml").write_text("not: [valid")
+    run_git(root, "commit", "-am", "Break the manifest")
+
+    resynced = attach_local_repository(workspace, str(root))
+
+    assert resynced.config_sha == good
+    assert resynced.checked_sha != good
+    assert resynced.jobs.get().name == "Review"
+    assert "Invalid .secondshift.yaml" in resynced.last_sync_error
+    assert validate_repository(resynced).status == "error"
+    with pytest.raises(SyncError, match=r"Invalid \.secondshift\.yaml"):
+        resync(resynced)
 
 
 def test_attach_local_repository_rejects_non_repository(
@@ -174,7 +226,7 @@ def test_workspace_owner_can_attach_local_repository_through_api(
 
 @pytest.mark.django_db
 @override_settings(LOCAL_REPOSITORIES_ENABLED=True)
-def test_invalid_manifest_returns_validation_error_instead_of_server_error(
+def test_an_invalid_manifest_still_adds_the_repository(
     client,
     tmp_path: Path,
 ) -> None:
@@ -203,8 +255,10 @@ jobs:
         content_type="application/json",
     )
 
-    assert response.status_code == 422
-    assert "Invalid .secondshift.yaml" in response.json()["detail"]
+    assert response.status_code == 200
+    repository = Repository.objects.get(pk=response.json()["id"])
+    assert "Invalid .secondshift.yaml" in repository.last_sync_error
+    assert response.json()["revision"] == ""
 
 
 def test_local_directories_lists_subdirectories_only(tmp_path: Path) -> None:

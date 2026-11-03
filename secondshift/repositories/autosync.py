@@ -1,7 +1,9 @@
 """Sync repositories whose branch moved, so merged changes apply.
 
 Syncing only applies what is committed on the branch. New access a job
-requests still waits for an owner's approval.
+requests still waits for an owner's approval. A repository added before it
+had a valid configuration is checked even while disabled, so the first
+committed .secondshift.yaml shows up without a manual Resync.
 """
 
 import logging
@@ -41,7 +43,7 @@ def repositories_to_check() -> list[Repository]:
             | Q(source_type=Repository.SourceType.LOCAL, local_path__isnull=False)
             if settings.LOCAL_REPOSITORIES_ENABLED
             else Q(source_type=Repository.SourceType.GITHUB),
-            enabled=True,
+            Q(enabled=True) | Q(config_sha=""),
             auto_sync=True,
             removed_at__isnull=True,
         ).select_related("workspace", "github_connection")
@@ -63,26 +65,32 @@ def sync_moved_repositories() -> int:
                     int(repository.external_id),
                     repository.default_branch,
                 )
-                if head != repository.config_sha:
-                    sync_github_repository(repository)
-                    synced += 1
-                continue
-            head = branch_revision(
-                Path(repository.local_path), repository.default_branch
-            )
-            if head == repository.config_sha:
-                continue
-            attach_local_repository(
-                repository.workspace, repository.local_path, repository.default_branch
-            )
+                if head == repository.checked_sha:
+                    continue
+                result = sync_github_repository(repository)
+            else:
+                head = branch_revision(
+                    Path(repository.local_path), repository.default_branch
+                )
+                if head == repository.checked_sha:
+                    continue
+                result = attach_local_repository(
+                    repository.workspace,
+                    repository.local_path,
+                    repository.default_branch,
+                )
         except (LocalRepositoryError, GitHubAppError) as error:
             # The repository page shows the same problem when opened. Runs
             # keep using the last good sync until it is fixed.
-            if repository.source_type == Repository.SourceType.GITHUB:
-                Repository.objects.filter(pk=repository.pk).update(
-                    last_sync_error=str(error)[:500]
-                )
+            Repository.objects.filter(pk=repository.pk).update(
+                last_sync_error=str(error)[:500]
+            )
             logger.warning("could not sync %s: %s", repository.display_name, error)
+            continue
+        if result.last_sync_error:
+            logger.warning(
+                "could not sync %s: %s", repository.display_name, result.last_sync_error
+            )
             continue
         synced += 1
     return synced

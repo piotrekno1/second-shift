@@ -1,3 +1,5 @@
+from typing import Literal
+
 from django.http import HttpRequest
 
 from secondshift.connections.models import Connection
@@ -6,6 +8,7 @@ from secondshift.repositories.github_app import GitHubAppError, branch_head
 from secondshift.repositories.github_sync import github_repository_metadata
 from secondshift.repositories.local import (
     LocalRepositoryError,
+    RepositoryConfigError,
     inspect_local_repository,
 )
 from secondshift.repositories.models import Repository
@@ -47,6 +50,11 @@ def serialize_repository(
     )
 
 
+def problem_status(repository: Repository) -> Literal["warning", "error"]:
+    """How a configuration problem reads. Before any good sync it is setup."""
+    return "error" if repository.config_sha else "warning"
+
+
 def validate_repository(repository: Repository) -> RepositoryValidationSchema:
     if repository.source_type != Repository.SourceType.LOCAL:
         try:
@@ -61,14 +69,18 @@ def validate_repository(repository: Repository) -> RepositoryValidationSchema:
             )
             valid = bool(repository.config_sha) and not repository.last_sync_error
             return RepositoryValidationSchema(
-                status="valid" if valid else "error",
+                status="valid"
+                if valid
+                else problem_status(repository)
+                if repository.last_sync_error
+                else "error",
                 message="Repository synchronized."
                 if valid
                 else repository.last_sync_error
                 or "Sync the repository before enabling schedules.",
                 current_revision=head,
                 synced_revision=repository.config_sha,
-                needs_sync=head != repository.config_sha,
+                needs_sync=head != repository.checked_sha,
             )
         except GitHubAppError as error:
             return RepositoryValidationSchema(
@@ -81,6 +93,14 @@ def validate_repository(repository: Repository) -> RepositoryValidationSchema:
     try:
         metadata = inspect_local_repository(
             repository.local_path, repository.default_branch
+        )
+    except RepositoryConfigError as error:
+        return RepositoryValidationSchema(
+            status=problem_status(repository),
+            message=str(error),
+            current_revision=None,
+            synced_revision=repository.config_sha,
+            needs_sync=False,
         )
     except LocalRepositoryError as error:
         return RepositoryValidationSchema(

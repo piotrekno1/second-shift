@@ -1,3 +1,4 @@
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -59,6 +60,23 @@ def test_a_broken_commit_keeps_the_last_good_sync(
 
     repository.refresh_from_db()
     assert repository.config_sha == good
+    assert repository.jobs.get().name == "Review"
+
+
+@override_settings(LOCAL_REPOSITORIES_ENABLED=True)
+def test_a_missing_local_folder_is_shown_on_the_repository(
+    workspace: Workspace,
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "project"
+    create_local_repository(root)
+    repository = attach_local_repository(workspace, str(root))
+    shutil.rmtree(root)
+
+    assert sync_moved_repositories() == 0
+
+    repository.refresh_from_db()
+    assert repository.last_sync_error
     assert repository.jobs.get().name == "Review"
 
 

@@ -6,15 +6,10 @@ import re
 import subprocess
 from pathlib import Path
 
-import yaml
 from django.db import transaction
 
-from secondshift.config.constants import (
-    GITHUB_REPOSITORY_PATTERN,
-    MANIFEST_FILE,
-)
+from secondshift.config.constants import GITHUB_REPOSITORY_PATTERN
 from secondshift.connections.models import Connection
-from secondshift.jobs.manifest import parse_manifest
 from secondshift.jobs.sync import sync_jobs
 from secondshift.repositories.github_app import (
     GitHubAppError,
@@ -22,7 +17,10 @@ from secondshift.repositories.github_app import (
     installation_token,
     repository_metadata,
 )
-from secondshift.repositories.local import LocalRepositoryError, committed_file
+from secondshift.repositories.local import (
+    RepositoryConfigError,
+    read_committed_config,
+)
 from secondshift.repositories.mirrors import SYNCED_REF, locked_mirror
 from secondshift.repositories.models import Repository
 from secondshift.workspaces.models import Workspace
@@ -55,7 +53,8 @@ def github_repository_metadata(repository: Repository) -> dict:
 def sync_github_repository(repository: Repository) -> Repository:
     """Fetch the branch into the mirror and sync jobs from its newest commit.
 
-    The fetch runs outside any database transaction. The mirror's lock keeps
+    A missing or invalid configuration is saved in last_sync_error, and the
+    jobs stay as the last good sync left them. The fetch runs outside any database transaction. The mirror's lock keeps
     two syncs of one repository in order, so an older one never saves last.
     """
     repository = Repository.objects.select_related("github_connection").get(
@@ -77,21 +76,30 @@ def sync_github_repository(repository: Repository) -> Repository:
         )
         revision = git_fetch(mirror, token, "rev-parse", "FETCH_HEAD")
         try:
-            manifest = parse_manifest(committed_file(mirror, revision, MANIFEST_FILE))
-            skills = {
-                job.skill: committed_file(mirror, revision, job.skill)
-                for job in manifest.jobs.values()
-            }
-        except (LocalRepositoryError, ValueError, yaml.YAMLError) as error:
-            raise GitHubAppError(
-                f"Invalid committed repository configuration: {error}"
-            ) from error
+            manifest, skills = read_committed_config(
+                mirror, revision, repository.default_branch
+            )
+        except RepositoryConfigError as error:
+            # Keep the last good sync. Runs go on using it.
+            Repository.objects.filter(pk=repository.pk).update(
+                checked_sha=revision, last_sync_error=str(error)[:500]
+            )
+            repository.refresh_from_db()
+            return repository
         git_fetch(mirror, token, "update-ref", SYNCED_REF, revision)
         with transaction.atomic():
             locked = Repository.objects.select_for_update().get(pk=repository.pk)
             locked.config_sha = revision
+            locked.checked_sha = revision
             locked.last_sync_error = ""
-            locked.save(update_fields=["config_sha", "last_sync_error", "updated_at"])
+            locked.save(
+                update_fields=[
+                    "config_sha",
+                    "checked_sha",
+                    "last_sync_error",
+                    "updated_at",
+                ]
+            )
             sync_jobs(locked, manifest, skills)
     repository.refresh_from_db()
     return repository

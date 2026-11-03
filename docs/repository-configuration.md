@@ -10,8 +10,11 @@ or take actions through approved MCP tools and HTTP API operations. The review
 below is a simple first example. See [action tasks](engineering-tasks.md#tasks-that-change-service-data)
 for a workflow that changes connected service data.
 
-Commit the manifest and its referenced skill files before adding or syncing
-the repository in SecondShift. Runs use the synchronized Git revision.
+SecondShift reads only committed files. Runs use the synchronized Git
+revision. You can add a repository before it has a manifest. Its page shows
+what is missing, and the first committed `.secondshift.yaml` syncs on its own.
+A manifest that has never synced shows as a warning. One that breaks after a
+good sync shows as an error, and runs keep the last good sync.
 
 A local repository follows the branch that was checked out when it was added.
 SecondShift reads the manifest and skills from that branch's newest commit, so

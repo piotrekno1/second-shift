@@ -21,7 +21,11 @@ from secondshift.repositories import autosync, github_app, github_sync
 from secondshift.repositories.github_app import STATE_KEY, GitHubAppError
 from secondshift.repositories.mirrors import SYNCED_REF, mirror_path
 from secondshift.repositories.models import Repository
-from secondshift.repositories.tests.test_local import create_local_repository, run_git
+from secondshift.repositories.tests.test_local import (
+    commit_configuration,
+    create_local_repository,
+    run_git,
+)
 from secondshift.workspaces.models import WorkspaceMembership
 from secondshift.workspaces.services import create_workspace
 
@@ -244,6 +248,108 @@ def test_sync_fetches_into_the_mirror_before_advancing_jobs(
         github_sync.sync_github_repository(synced)
     synced.refresh_from_db()
     assert synced.config_sha == old_revision
+
+
+def fetch_from_local_source(
+    monkeypatch: Any, source: Path, settings: Any, tmp_path: Path
+) -> None:
+    """Point GitHub fetches for owner/project at a local repository."""
+    monkeypatch.setattr(
+        github_sync, "repository_metadata", lambda *args: {"full_name": "owner/project"}
+    )
+    monkeypatch.setattr(
+        github_sync, "installation_token", lambda *args: "github-secret"
+    )
+    original = github_sync.git_fetch
+
+    def local_fetch(root: Path, token: str, *arguments: str) -> str:
+        arguments = tuple(
+            str(source)
+            if argument == "https://github.com/owner/project.git"
+            else argument
+            for argument in arguments
+        )
+        return original(root, token, *arguments)
+
+    monkeypatch.setattr(github_sync, "git_fetch", local_fetch)
+    settings.SOURCE_CACHE_ROOT = tmp_path / "sources"
+
+
+def test_import_without_a_manifest_keeps_the_repository(
+    workspace: Any,
+    source_connection: Any,
+    tmp_path: Any,
+    monkeypatch: Any,
+    settings: Any,
+) -> None:
+    source = tmp_path / "source"
+    source.mkdir()
+    run_git(source, "init", "-b", "main")
+    run_git(source, "config", "user.email", "test@secondshift.local")
+    run_git(source, "config", "user.name", "SecondShift Test")
+    run_git(source, "commit", "--allow-empty", "-m", "Start")
+    fetch_from_local_source(monkeypatch, source, settings, tmp_path)
+    monkeypatch.setattr(
+        github_sync,
+        "repository_metadata",
+        lambda *args: {"full_name": "owner/project", "default_branch": "main"},
+    )
+
+    repository = github_sync.attach_github_repository(
+        workspace, source_connection, 7, ""
+    )
+
+    assert repository.pk
+    assert repository.config_sha == ""
+    assert repository.checked_sha
+    assert "no committed .secondshift.yaml" in repository.last_sync_error
+    assert not repository.jobs.exists()
+    assert repository.enabled is False
+
+
+def test_autosync_picks_up_the_first_manifest_of_a_disabled_repository(
+    workspace: Any,
+    source_connection: Any,
+    tmp_path: Any,
+    monkeypatch: Any,
+    settings: Any,
+) -> None:
+    source = tmp_path / "source"
+    source.mkdir()
+    run_git(source, "init", "-b", "main")
+    run_git(source, "config", "user.email", "test@secondshift.local")
+    run_git(source, "config", "user.name", "SecondShift Test")
+    run_git(source, "commit", "--allow-empty", "-m", "Start")
+    fetch_from_local_source(monkeypatch, source, settings, tmp_path)
+    repository = Repository.objects.create(
+        workspace=workspace,
+        github_connection=source_connection,
+        full_name="owner/project",
+        external_id="7",
+    )
+    github_sync.sync_github_repository(repository)
+    monkeypatch.setattr(autosync, "github_repository_metadata", lambda item: {})
+    monkeypatch.setattr(
+        autosync,
+        "branch_head",
+        lambda *args: subprocess.check_output(
+            ["git", "-C", str(source), "rev-parse", "main"], text=True
+        ).strip(),
+    )
+    fetches = Mock(wraps=autosync.sync_github_repository)
+    monkeypatch.setattr(autosync, "sync_github_repository", fetches)
+
+    # The commit without a manifest was already read, so it is not fetched again.
+    assert autosync.sync_moved_repositories() == 0
+    assert fetches.call_count == 0
+
+    commit_configuration(source)
+    assert autosync.sync_moved_repositories() == 1
+    repository.refresh_from_db()
+    assert repository.config_sha
+    assert repository.last_sync_error == ""
+    assert repository.jobs.get().key == "review"
+    assert repository.enabled is False
 
 
 def test_revoked_connection_blocks_sync(workspace: Any, source_connection: Any) -> None:
