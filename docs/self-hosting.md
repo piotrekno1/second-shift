@@ -97,7 +97,7 @@ must remain within the operator's environment.
 
 ## Model providers
 
-A workspace owner connects model providers in **Connections**. Anthropic,
+A workspace owner adds model providers on **Models**. Anthropic,
 OpenAI and OpenRouter need only an API key. Any other provider with an
 OpenAI-compatible chat completions API works as an **OpenAI-compatible**
 connection with its base URL.
