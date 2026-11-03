@@ -204,6 +204,8 @@ DBOS_APPLICATION_NAME = "secondshift"
 DBOS_APPLICATION_VERSION = "0.1.0"
 DBOS_QUEUE_NAME = "agent-runs"
 DBOS_WORKER_CONCURRENCY = env.int(AppEnv.RUN_CONCURRENCY, default=2)
+DBOS_GLOBAL_CONCURRENCY = env.int(AppEnv.RUN_GLOBAL_CONCURRENCY, default=0)
+TASK_QUEUE_LIMIT = env.int(AppEnv.TASK_QUEUE_LIMIT, default=100)
 
 # --- Static files and run artifacts ------------------------------------------
 

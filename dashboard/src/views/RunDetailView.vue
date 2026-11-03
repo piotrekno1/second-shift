@@ -5,7 +5,7 @@ import { useRoute, useRouter } from 'vue-router'
 import Button from 'primevue/button'
 import PageHeader from '../components/PageHeader.vue'
 import StatusPill from '../components/StatusPill.vue'
-import { fetchRun, isRunActive, runFileUrl, startJobRun } from '../services/runs'
+import { cancelTask, fetchRun, isRunActive, runFileUrl, startJobRun } from '../services/runs'
 import { useAppStore } from '../stores/app'
 import type { RunDetail } from '../types'
 import { Action } from '../utils/permissions'
@@ -23,6 +23,7 @@ const run = ref<RunDetail | null>(null)
 const loading = ref(true)
 const error = ref<string | null>(null)
 const rerunning = ref(false)
+const canceling = ref(false)
 const now = ref(Date.now())
 let pollTimer: number | null = null
 let requestSerial = 0
@@ -42,7 +43,25 @@ const outputFile = computed(() => run.value?.files.find((file) => file.name === 
 const excerptOnly = computed(() => Boolean(run.value?.output_size_bytes && run.value.output_size_bytes > run.value.output_excerpt.length))
 // Steps matter while a run is in progress or after it fails; on success they are routine.
 const timelineOpen = computed(() => run.value?.status !== 'succeeded')
-const activeNote = computed(() => (run.value?.status === 'queued' ? 'Waiting to start…' : 'Running now · this page updates live'))
+const activeNote = computed(() => {
+  if (run.value?.status !== 'queued') return 'Running now · this page updates live'
+  if (new Date(run.value.scheduled_for).getTime() > now.value) return `Starts no earlier than ${formatDate(run.value.scheduled_for)}`
+  return run.value.job_id === null ? 'Waiting for a repository slot or worker capacity. Tasks run one at a time per repository.' : 'Waiting to start…'
+})
+
+async function cancel(): Promise<void> {
+  if (!run.value) return
+  canceling.value = true
+  try {
+    await cancelTask(run.value.id)
+    await load()
+    await app.refreshRuns()
+  } catch (cause) {
+    error.value = cause instanceof Error ? cause.message : 'Unable to cancel this task'
+  } finally {
+    canceling.value = false
+  }
+}
 
 const reportElement = ref<HTMLElement | null>(null)
 const reportExpanded = ref(false)
@@ -112,6 +131,7 @@ onUnmounted(stopPolling)
 <template>
   <div class="page run-detail-page">
     <PageHeader compact :title="`Run #${runId}`" :description="subtitle" :parent="{ label: 'Runs', to: '/runs' }">
+      <Button v-if="run?.job_id === null && run.status === 'queued' && app.can(Action.RunJobs)" label="Cancel task" severity="secondary" :loading="canceling" @click="cancel" />
       <Button class="main-action" v-if="run && run.job_id !== null && !active && app.can(Action.RunJobs)" label="Run again" :title="runWarning(app.overview?.execution, app.jobs.find(job => job.id === run?.job_id)) || undefined" :loading="rerunning" @click="runAgain">
         <template #icon><AppIcon name="replay" /></template>
       </Button>
@@ -138,7 +158,7 @@ onUnmounted(stopPolling)
           {{ run.failure.next_step }}
           <RouterLink v-if="run.failure.connection_id" :to="{ path: '/models', query: { connection: String(run.failure.connection_id) } }" class="primary-action">Fix the provider <AppIcon name="arrow-right" /></RouterLink>
         </p>
-        <p v-else-if="active" class="run-headline run-active-note"><AppIcon name="loading" spin /> {{ activeNote }}</p>
+        <p v-else-if="active" class="run-headline run-active-note"><AppIcon :name="run.status === 'queued' ? 'clock-outline' : 'loading'" :spin="run.status === 'running'" /> {{ activeNote }}</p>
       </section>
 
       <div class="run-layout">
@@ -196,7 +216,8 @@ onUnmounted(stopPolling)
             <div><dt>Repository</dt><dd><RouterLink :to="`/repositories/${run.repository_id}`" class="detail-link">{{ run.repository }}</RouterLink></dd></div>
             <div><dt>Instructions</dt><dd><code v-if="run.skill_path">{{ run.skill_path }}</code><span v-else>Written task</span></dd></div>
             <div><dt>Agent</dt><dd>{{ run.execution_agent ?? run.model_provider ?? 'None' }}</dd></div>
-            <div><dt>Started by</dt><dd>{{ startedByLabel(run.started_by) }}</dd></div>
+            <div><dt>Started by</dt><dd>{{ run.job_id === null ? 'Manual task' : startedByLabel(run.started_by) }}</dd></div>
+            <div v-if="run.job_id === null"><dt>Not before</dt><dd :title="utcTitle(run.scheduled_for)">{{ formatDate(run.scheduled_for) }}</dd></div>
             <div><dt>Queued</dt><dd :title="utcTitle(run.created_at)">{{ formatDate(run.created_at) }}</dd></div>
             <div><dt>Started</dt><dd :title="utcTitle(run.started_at)">{{ formatDate(run.started_at) }}</dd></div>
             <div><dt>Finished</dt><dd :title="utcTitle(run.finished_at)">{{ formatDate(run.finished_at) }}</dd></div>

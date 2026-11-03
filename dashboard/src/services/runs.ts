@@ -23,6 +23,10 @@ export function fetchRun(runId: number): Promise<RunDetail> {
   return apiGet<RunDetail>(`/runs/${runId}`)
 }
 
+export function cancelTask(runId: number): Promise<Run> {
+  return apiPost<Run>(`/runs/${runId}/cancel`)
+}
+
 export interface RunStart {
   id: number
   /** False when the job already had a run in progress, so no new one was made. */

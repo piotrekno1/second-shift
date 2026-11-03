@@ -3,10 +3,13 @@
 from thin_mcp import ToolContext, ToolExecutionError
 
 from secondshift.config.constants import TaskOrigin
+from secondshift.mcp_server.schemas import RunArguments, RunResult
 from secondshift.mcp_server.tools_registry import call_request, register_tool
 from secondshift.repositories.access import repository_for_request
+from secondshift.runs.access import run_for_request
+from secondshift.runs.queue import cancel_queued_task
 from secondshift.runs.schemas import TaskSubmissionSchema
-from secondshift.runs.serialization import serialize_run
+from secondshift.runs.serialization import serialize_run, serialize_run_detail
 from secondshift.runs.services import RunRefused
 from secondshift.runs.submissions import SkillSubmission, submit_skill
 from secondshift.workspaces.access import Action, require
@@ -20,7 +23,9 @@ from secondshift.workspaces.access import Action, require
         "and an optional branch or full commit revision. Without a skill, input must describe the task. Defaults to the repository's followed "
         "branch and pins the accepted commit. Reuse the same idempotency_key when "
         "retrying the same request. Connections must allow automatic approval. "
-        "One ad hoc task per repository may be active. Follow the returned run.id "
+        "Tasks queue persistently and execute one at a time per repository. "
+        "Set optional not_before to a timezone-aware timestamp to delay execution. "
+        "The started field means a new run was accepted, not that execution began. Follow the returned run.id "
         "with get_run and get_run_report. Needs the run token scope."
     ),
     arguments_model=SkillSubmission,
@@ -42,3 +47,21 @@ def submit_task(
         run=serialize_run(result.run),
         started=result.started,
     )
+
+
+@register_tool(
+    name="cancel_task",
+    description="Cancel an ad hoc task before execution starts. Needs the run token scope.",
+    arguments_model=RunArguments,
+    result_model=RunResult,
+    read_only=False,
+)
+def cancel_task(context: ToolContext, arguments: RunArguments) -> RunResult:
+    request = call_request(context)
+    require(request, Action.RUN_JOBS)
+    run = run_for_request(request, arguments.run_id)
+    try:
+        canceled = cancel_queued_task(run)
+    except RunRefused as error:
+        raise ToolExecutionError(str(error)) from error
+    return RunResult(run=serialize_run_detail(canceled))

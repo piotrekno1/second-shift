@@ -17,6 +17,7 @@ export interface TaskSubmission {
   }
   revision: string | null
   input: string
+  not_before?: string | null
   idempotency_key: string
 }
 

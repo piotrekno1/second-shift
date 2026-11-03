@@ -55,9 +55,13 @@ if SERVICE in {Service.WEB, Service.WORKER}:
         errors.append("SECONDSHIFT_ARTIFACT_BUCKET must be set for s3 storage")
     if RUNNER_RUNTIME != SandboxRuntime.GVISOR:
         errors.append("SECONDSHIFT_RUNNER_RUNTIME must be runsc (gVisor)")
+if TASK_QUEUE_LIMIT < 1:
+    errors.append(f"{AppEnv.TASK_QUEUE_LIMIT} must be positive")
 if SERVICE == Service.WORKER:
     if DBOS_WORKER_CONCURRENCY < 1:
         errors.append(f"{AppEnv.RUN_CONCURRENCY} must be positive")
+    if DBOS_GLOBAL_CONCURRENCY < 0:
+        errors.append(f"{AppEnv.RUN_GLOBAL_CONCURRENCY} must be zero or positive")
     required(AppEnv.RUNNER_SERVICE_URL)
     required(AppEnv.MODEL_GATEWAY_URL)
     if len(required(AppEnv.RUNNER_SERVICE_TOKEN)) < 32:

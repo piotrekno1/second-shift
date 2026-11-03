@@ -4,12 +4,14 @@ import hashlib
 import json
 from copy import deepcopy
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Self
 
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.db import transaction
 from django.utils import timezone
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
 
 from secondshift.config.constants import RunStart, TaskOrigin
 from secondshift.jobs.manifest import TaskManifest
@@ -21,7 +23,7 @@ from secondshift.repositories.models import Repository
 from secondshift.repositories.skill_source import SkillSourceError, skill_commit
 from secondshift.runs.models import Run, Task
 from secondshift.runs.orchestration.dispatch import enqueue_run
-from secondshift.runs.services import RunInProgress, RunNotReady, RunRefused
+from secondshift.runs.services import RunNotReady, RunRefused
 
 
 class SkillSubmission(BaseModel):
@@ -31,6 +33,7 @@ class SkillSubmission(BaseModel):
     definition: TaskManifest
     revision: str | None = Field(default=None, min_length=1, max_length=255)
     input: str = Field(default="", max_length=16000)
+    not_before: AwareDatetime | None = None
     idempotency_key: str = Field(
         min_length=1, max_length=120, pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]*$"
     )
@@ -58,6 +61,9 @@ class SubmissionResult:
 
 def submission_fingerprint(submission: SkillSubmission, user: User) -> str:
     data = submission.model_dump(mode="json", exclude={"idempotency_key"})
+    # Keep retries of pre-queue submissions compatible with their saved hash.
+    if submission.not_before is None:
+        data.pop("not_before")
     data["submitted_by"] = user.pk
     return hashlib.sha256(json.dumps(data, sort_keys=True).encode()).hexdigest()
 
@@ -80,18 +86,14 @@ def admission(
         if run is None:
             raise RunRefused("This submission no longer has an execution attempt.")
         return SubmissionResult(run, False)
-    active = (
-        Run.objects.filter(
-            job__isnull=True,
-            task__repository=repository,
-            status__in=Run.ACTIVE_STATUSES,
-        )
-        .order_by("created_at", "pk")
-        .first()
-    )
-    if active is not None:
-        raise RunInProgress(
-            active, f"Run #{active.pk} is still active for this repository."
+    active_count = Run.objects.filter(
+        job__isnull=True,
+        task__repository=repository,
+        status__in=Run.ACTIVE_STATUSES,
+    ).count()
+    if active_count >= settings.TASK_QUEUE_LIMIT:
+        raise RunRefused(
+            "This repository's task queue is full. Wait for a task to finish or cancel a queued task."
         )
     return None
 
@@ -146,7 +148,7 @@ def submit_skill(
             "requested_revision": submission.revision,
             "submission_fingerprint": fingerprint,
         }
-        now = timezone.now()
+        scheduled_for: datetime = submission.not_before or timezone.now()
         task = Task.objects.create(
             repository=repository,
             submission_key=submission.idempotency_key,
@@ -154,7 +156,7 @@ def submit_skill(
             submitted_by=user,
             commit_sha=commit,
             input_snapshot=deepcopy(snapshot),
-            scheduled_for=now,
+            scheduled_for=scheduled_for,
         )
         run = Run.objects.create(
             task=task,
@@ -162,7 +164,7 @@ def submit_skill(
             commit_sha=commit,
             input_snapshot=snapshot,
             execution_plan=plan,
-            scheduled_for=now,
+            scheduled_for=scheduled_for,
         )
         transaction.on_commit(lambda: enqueue_run(run))
     return SubmissionResult(run, True)

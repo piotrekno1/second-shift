@@ -75,9 +75,27 @@ planner, server-owned sandbox and connection consent checks.
 
 A repository-scoped idempotency key returns the original attempt for an identical
 request from the same user; conflicting reuse is refused. Admission is checked
-under the repository row lock before and after source access. Only one standalone
-task per repository may be active in this version. Task and run creation are
-atomic and enqueue occurs after commit. New runs use the existing durable worker,
+under the repository row lock before and after source access. Standalone tasks
+queue up to the server-owned per-repository limit (100 unfinished tasks by default).
+Only one standalone run per repository is handed to DBOS at a time; saved jobs
+retain their existing per-job overlap behavior. Optional timezone-aware
+`not_before` freezes the earliest start in the existing `scheduled_for` fields.
+The oldest eligible task runs first; future tasks do not block eligible work.
+Task and run creation are atomic and enqueue is attempted after commit. A queued
+run without a workflow ID acts as a persistent outbox: the worker retries it on
+each pass (15 seconds by default), using its deterministic workflow ID to recover
+an interrupted handoff. DBOS outages keep standalone submissions queued rather
+than failing acceptance. Repository availability and the submitter's current
+role are checked at dispatch and immediately before execution.
+Queued standalone tasks can be canceled through HTTP or MCP; cancellation and
+execution take the same repository lock. A canceled workflow exits before source
+checkout or sandbox creation. Existing workflow and step names remain unchanged,
+including replay of older start steps that returned no value.
+Deploy the control plane and workers together before using queued cancellation:
+older workers do not have the pre-execution cancellation guard.
+The optional global DBOS concurrency limit supplements the existing per-worker
+limit across all run origins; its default leaves existing deployments unchanged.
+New runs use the existing durable worker,
 artifact delivery and retention flow. Ad hoc tool calls and notifications recheck
 that the connection still permits automatic access. Run history, authorization,
 model usage and subscription caps include standalone runs. Existing job runs

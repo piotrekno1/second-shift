@@ -25,6 +25,7 @@ const name = ref('')
 const skill = ref('')
 const revision = ref('')
 const input = ref('')
+const notBefore = ref('')
 const selected = ref<Record<string, string[]>>({})
 const notifications = ref<string[]>([])
 const skillSuggestions = ref<string[]>([])
@@ -40,7 +41,7 @@ function suggestSkills(event: { query: string }): void {
 }
 // A retry with unchanged input must keep its key, even after a lost response.
 const submissionKey = ref(crypto.randomUUID())
-watch([instructionSource, name, skill, revision, input, selected, notifications], () => {
+watch([instructionSource, name, skill, revision, input, notBefore, selected, notifications], () => {
   submissionKey.value = crypto.randomUUID()
   tasks.error = null
 }, { deep: true })
@@ -71,6 +72,7 @@ async function submit(): Promise<void> {
       },
       revision: revision.value.trim() || null,
       input: input.value,
+      not_before: notBefore.value ? new Date(notBefore.value).toISOString() : null,
       idempotency_key: submissionKey.value,
     })
     await router.push(`/runs/${result.run.id}`)
@@ -130,6 +132,7 @@ async function submit(): Promise<void> {
             <div class="task-settings-grid">
               <div class="task-field"><label for="task-revision">Branch or commit</label><InputText id="task-revision" v-model="revision" maxlength="255" :placeholder="defaultBranch" spellcheck="false" /><small>The exact commit is pinned when you submit.</small></div>
               <div class="task-field"><label for="task-name">Task name <span>Optional</span></label><InputText id="task-name" v-model="name" maxlength="200" :placeholder="taskName" /><small>A name to find this run later.</small></div>
+              <div class="task-field task-start-field"><label for="task-not-before">Not before <span>Optional</span></label><InputText id="task-not-before" v-model="notBefore" type="datetime-local" /><small>Your local time. Leave empty to start when capacity is available. Tasks run one at a time per repository.</small></div>
             </div>
           </details>
           <details class="task-option">
@@ -160,7 +163,7 @@ async function submit(): Promise<void> {
     <template #footer>
       <span class="task-footer-note"><AppIcon name="file-export-outline" /> Review later in Runs</span>
       <Button label="Cancel" severity="secondary" text :disabled="tasks.submitting" @click="visible = false" />
-      <Button type="submit" form="submit-repository-task" label="Run task" :loading="tasks.submitting" :disabled="!ready" class="main-action"><template #icon><AppIcon name="play" /></template></Button>
+      <Button type="submit" form="submit-repository-task" label="Queue task" :loading="tasks.submitting" :disabled="!ready" class="main-action"><template #icon><AppIcon name="play" /></template></Button>
     </template>
   </Dialog>
 </template>
@@ -204,6 +207,8 @@ async function submit(): Promise<void> {
 .task-option[open] > summary .app-icon { transform: rotate(90deg); }
 .task-option-value { min-width: 0; max-width: 48%; margin-left: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--subtle); font-size: 11px; }
 .task-settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding: 8px 0 20px; }
+.task-start-field { grid-column: 1 / -1; }
+.task-start-field input { color-scheme: dark; }
 .task-access { padding: 4px 0 16px; }
 .task-access > p { margin: 0 0 12px; color: var(--muted); font-size: 12px; line-height: 1.6; }
 .task-connection { margin-top: 12px; padding: 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--night-950); }
