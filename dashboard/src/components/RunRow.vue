@@ -63,13 +63,13 @@ function openRun(event: Event): void {
 .run-links strong, .run-links > a > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .run-links .app-icon { flex: none; }
 @container (max-width: 1024px) and (min-width: 641px) {
-  .run-row:not(.without-job) { grid-template-columns: 44px minmax(100px, 1fr) 88px minmax(130px, 1fr) auto; }
+  .run-row:not(.without-job) { grid-template-columns: 44px minmax(100px, 1fr) 88px minmax(130px, 1fr) 168px; }
   .run-row:not(.without-job) > .run-when { display: none; }
   .run-row .run-stats, .run-row .run-row-actions { grid-column: auto; }
   .run-row .run-row-actions { justify-content: flex-end; }
 }
 @container (max-width: 640px) {
-  .run-row:not(.without-job) { grid-template-columns: 36px minmax(0, 1fr) auto; gap: 8px 12px; }
+  .run-row:not(.without-job) { grid-template-columns: 36px minmax(0, 1fr) 88px; gap: 8px 12px; }
   .run-row:not(.without-job) > .run-when { display: none; }
   .run-row .run-stats, .run-row .run-row-actions { grid-column: 2 / -1; }
   .run-row .run-row-actions { justify-content: flex-start; }
