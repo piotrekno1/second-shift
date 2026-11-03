@@ -18,6 +18,15 @@ class AgentInput(Schema):
     timeout_seconds: int = Field(ge=1, le=86400)
 
 
+class AgentCheckInput(Schema):
+    """A login check. The runner owns the prompt and every limit."""
+
+    model_config = ConfigDict(extra="forbid")
+    backend: Literal["claude_code", "codex"]
+    credential_key: str = Field(pattern=r"^[0-9a-f]{32}$")
+    auth: SecretStr = Field(max_length=64000, exclude=True)
+
+
 class AgentOutput(Schema):
     report: str = ""
     succeeded: bool = False

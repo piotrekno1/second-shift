@@ -56,15 +56,10 @@ def private_file(path: Path, text: str) -> None:
 
 
 def claude(config: dict[str, Any]) -> tuple[list[str], dict[str, str]]:
-    """Claude Code with no built-in tools and only the run's broker."""
-    servers = {
-        "secondshift": {
-            "type": "http",
-            "url": config["broker_url"],
-            "headers": {"Authorization": f"Bearer {config['broker_token']}"},
-        }
-    }
-    private_file(TMP / "mcp.json", json.dumps({"mcpServers": servers}))
+    """Claude Code with no built-in tools and only the run's broker.
+
+    A login check has no broker, so it has no tools at all.
+    """
     argv = [
         "claude",
         "--print",
@@ -74,10 +69,23 @@ def claude(config: dict[str, Any]) -> tuple[list[str], dict[str, str]]:
         "--tools",
         "",
         "--strict-mcp-config",
-        "--mcp-config",
-        str(TMP / "mcp.json"),
-        "--allowedTools",
-        "mcp__secondshift__*",
+    ]
+    if config.get("broker_url"):
+        servers = {
+            "secondshift": {
+                "type": "http",
+                "url": config["broker_url"],
+                "headers": {"Authorization": f"Bearer {config['broker_token']}"},
+            }
+        }
+        private_file(TMP / "mcp.json", json.dumps({"mcpServers": servers}))
+        argv += [
+            "--mcp-config",
+            str(TMP / "mcp.json"),
+            "--allowedTools",
+            "mcp__secondshift__*",
+        ]
+    argv += [
         "--max-turns",
         str(config["max_turns"]),
         "--setting-sources",
@@ -89,7 +97,20 @@ def claude(config: dict[str, Any]) -> tuple[list[str], dict[str, str]]:
 
 
 def codex(config: dict[str, Any]) -> tuple[list[str], dict[str, str]]:
-    """Codex with no built-in tools and only the run's broker."""
+    """Codex with no built-in tools and only the run's broker.
+
+    A login check has no broker, so it has no tools at all.
+    """
+    broker = ""
+    if config.get("broker_url"):
+        broker = f"""
+[mcp_servers.secondshift]
+# The broker enforces the run's approved tools. Unattended runs cannot
+# answer a second approval prompt from the CLI.
+default_tools_approval_mode = "approve"
+url = {json.dumps(config["broker_url"])}
+bearer_token_env_var = "{BROKER_TOKEN_VAR}"
+"""
     # Codex keeps its refreshed login in CODEX_HOME, which is /auth, so its
     # config must live there too. It is rewritten on every run, so nothing a
     # previous run wrote survives.
@@ -110,18 +131,11 @@ apps = false
 computer_use = false
 image_generation = false
 apply_patch_freeform = false
-
-[mcp_servers.secondshift]
-# The broker enforces the run's approved tools. Unattended runs cannot
-# answer a second approval prompt from the CLI.
-default_tools_approval_mode = "approve"
-url = {json.dumps(config["broker_url"])}
-bearer_token_env_var = "{BROKER_TOKEN_VAR}"
-""",
+{broker}""",
     )
     argv = ["codex", "exec", "--skip-git-repo-check", "--ephemeral"]
     argv += ["--strict-config", "--json", "-"]
-    return argv, {BROKER_TOKEN_VAR: config["broker_token"]}
+    return argv, ({BROKER_TOKEN_VAR: config["broker_token"]} if broker else {})
 
 
 def read_claude(event: dict[str, Any], outcome: Outcome) -> None:
