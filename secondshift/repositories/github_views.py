@@ -12,14 +12,15 @@ from django.shortcuts import redirect
 from django.urls import reverse
 from django.views.decorators.http import require_GET
 
-from secondshift.connections.models import Connection
-from secondshift.github.app import (
-    API_URL,
-    OAUTH_URL,
-    configured,
-    request_json,
+from secondshift.config.constants import (
+    GITHUB_API_URL,
+    GITHUB_BASE_URL,
+    GITHUB_OAUTH_URL,
 )
+from secondshift.connections.models import Connection
+from secondshift.github.app import configured
 from secondshift.github.errors import GitHubError
+from secondshift.github.rest import request_json
 from secondshift.workspaces.access import AccessDenied, Action, require
 from secondshift.workspaces.models import Workspace
 
@@ -80,7 +81,7 @@ def github_callback(request: HttpRequest) -> HttpResponse:
     try:
         data = request_json(
             "POST",
-            f"{OAUTH_URL}/access_token",
+            f"{GITHUB_OAUTH_URL}/access_token",
             json={
                 "client_id": settings.GITHUB_APP_CLIENT_ID,
                 "client_secret": settings.GITHUB_APP_CLIENT_SECRET,
@@ -108,7 +109,9 @@ def link_installations(workspace: Workspace, token: str) -> int:
     installations = []
     for page in range(1, 101):
         batch = request_json(
-            "GET", f"{API_URL}/user/installations?per_page=100&page={page}", token
+            "GET",
+            f"{GITHUB_API_URL}/user/installations?per_page=100&page={page}",
+            token,
         ).get("installations", [])
         installations.extend(batch)
         if len(batch) < 100:
@@ -138,7 +141,7 @@ def callback_url() -> str:
 
 
 def authorization_url(state: str) -> str:
-    return f"{OAUTH_URL}/authorize?" + urlencode(
+    return f"{GITHUB_OAUTH_URL}/authorize?" + urlencode(
         {
             "client_id": settings.GITHUB_APP_CLIENT_ID,
             "state": state,
@@ -149,6 +152,6 @@ def authorization_url(state: str) -> str:
 
 def installation_url(state: str) -> str:
     return (
-        f"https://github.com/apps/{settings.GITHUB_APP_SLUG}/installations/new?"
+        f"{GITHUB_BASE_URL}/apps/{settings.GITHUB_APP_SLUG}/installations/new?"
         + urlencode({"state": state})
     )

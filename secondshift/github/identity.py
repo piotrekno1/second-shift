@@ -4,6 +4,7 @@ import re
 from urllib.parse import urlsplit
 
 from secondshift.config.constants import (
+    GITHUB_BASE_URL,
     GITHUB_HOST,
     GITHUB_REPOSITORY_PATTERN,
     GITHUB_SSH_PREFIX,
@@ -28,3 +29,7 @@ def github_remote_name(remote: str) -> str | None:
 
 def valid_name(full_name: str) -> bool:
     return bool(re.fullmatch(GITHUB_REPOSITORY_PATTERN, full_name))
+
+
+def clone_url(full_name: str) -> str:
+    return f"{GITHUB_BASE_URL}/{full_name}.git"

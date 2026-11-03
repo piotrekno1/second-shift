@@ -8,6 +8,7 @@ from django.conf import settings
 from secondshift.config.constants import COMMIT_SHA_PATTERN
 from secondshift.github.app import installation_token
 from secondshift.github.git import authenticated_git
+from secondshift.github.identity import clone_url
 from secondshift.repositories.github_sync import github_repository_metadata
 from secondshift.repositories.local import committed_file, git
 from secondshift.repositories.mirrors import locked_mirror
@@ -54,7 +55,7 @@ def skill_commit(
             "fetch",
             "--no-tags",
             "--",
-            f"https://github.com/{metadata['full_name']}.git",
+            clone_url(metadata["full_name"]),
             requested if is_commit else f"refs/heads/{requested}",
         )
         commit = authenticated_git(

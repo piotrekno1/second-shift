@@ -14,6 +14,7 @@ from secondshift.github.app import (
 )
 from secondshift.github.errors import GitHubError
 from secondshift.github.git import authenticated_git
+from secondshift.github.identity import clone_url
 from secondshift.jobs.sync import sync_jobs
 from secondshift.repositories.local import (
     RepositoryConfigError,
@@ -69,7 +70,7 @@ def sync_github_repository(repository: Repository) -> Repository:
             "fetch",
             "--no-tags",
             "--",
-            f"https://github.com/{metadata['full_name']}.git",
+            clone_url(metadata["full_name"]),
             f"refs/heads/{repository.default_branch}",
         )
         revision = authenticated_git(mirror, token, "rev-parse", "FETCH_HEAD")
@@ -116,7 +117,7 @@ def fetch_github_commit(repository: Repository, commit_sha: str, mirror: Path) -
             "fetch",
             "--no-tags",
             "--",
-            f"https://github.com/{metadata['full_name']}.git",
+            clone_url(metadata["full_name"]),
             commit_sha,
         )
     except GitHubError as error:
@@ -207,7 +208,7 @@ def save_attached_repository(
             "github_connection": connection,
             "external_id": str(repository_id),
             "installation_id": connection.external_account_id,
-            "clone_url": f"https://github.com/{metadata['full_name']}.git",
+            "clone_url": clone_url(metadata["full_name"]),
             "default_branch": branch or metadata["default_branch"],
         },
     )

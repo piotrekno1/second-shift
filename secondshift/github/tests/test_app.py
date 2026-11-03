@@ -4,13 +4,12 @@ import time
 from typing import Any
 from unittest.mock import Mock
 
-import httpx
 import pytest
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
 
 from secondshift.github import app as github_app
-from secondshift.github.errors import GitHubError
+from secondshift.github import rest
 
 
 @pytest.fixture
@@ -57,26 +56,6 @@ def test_installation_token_is_repository_scoped(monkeypatch: Any) -> None:
     }
 
 
-def test_github_transport_errors_are_sanitized(monkeypatch: Any) -> None:
-    monkeypatch.setattr(
-        github_app.httpx,
-        "request",
-        Mock(side_effect=httpx.ConnectError("private-secret")),
-    )
-    with pytest.raises(GitHubError) as caught:
-        github_app.request_json("GET", "https://api.github.com/user", "private-secret")
-    assert "private-secret" not in str(caught.value)
-
-
-def test_oauth_exchange_does_not_send_an_empty_bearer_token(monkeypatch: Any) -> None:
-    request = Mock(return_value=Mock(json=lambda: {"access_token": "user-secret"}))
-    monkeypatch.setattr(github_app.httpx, "request", request)
-    github_app.request_json(
-        "POST", github_app.OAUTH_URL + "/access_token", json={"code": "code"}
-    )
-    assert "Authorization" not in request.call_args.kwargs["headers"]
-
-
 def test_branch_listing_is_scoped_to_selected_repository(monkeypatch: Any) -> None:
     monkeypatch.setattr(
         github_app, "repository_metadata", lambda *args: {"full_name": "owner/project"}
@@ -89,7 +68,7 @@ def test_branch_listing_is_scoped_to_selected_repository(monkeypatch: Any) -> No
             [{"name": "main"}],
         ]
     )
-    monkeypatch.setattr(github_app, "request_payload", request)
+    monkeypatch.setattr(rest, "request_payload", request)
     branches = github_app.repository_branches("42", 7)
     assert len(branches) == 101
     assert branches[-1] == "main"

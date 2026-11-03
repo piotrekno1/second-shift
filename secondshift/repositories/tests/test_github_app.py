@@ -446,7 +446,7 @@ def test_session_reports_the_github_app_without_calling_github(
     owner_client: Any, app_settings: Any
 ) -> None:
     with patch(
-        "secondshift.github.app.httpx.request",
+        "secondshift.github.rest.client",
         side_effect=AssertionError("The session must not call GitHub."),
     ):
         body = owner_client.get("/api/me").json()

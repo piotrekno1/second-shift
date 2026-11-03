@@ -16,13 +16,12 @@ import tempfile
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any
 
-import httpx
-
-from secondshift.github.app import API_URL, installation_token
+from secondshift.github import pulls
+from secondshift.github.app import installation_token
 from secondshift.github.errors import GitHubError
 from secondshift.github.git import authenticated_git
+from secondshift.github.identity import clone_url
 from secondshift.repositories.github_sync import (
     fetch_github_commit,
     github_repository_metadata,
@@ -31,8 +30,7 @@ from secondshift.repositories.mirrors import has_commit, locked_mirror
 from secondshift.repositories.models import Repository
 
 WRITE_PERMISSIONS = {"contents": "write", "pull_requests": "write"}
-# GitHub refuses a longer description.
-MAX_BODY_CHARS = 60_000
+MAX_BODY_CHARS = pulls.MAX_BODY_CHARS
 AUTHOR_NAME = "SecondShift"
 AUTHOR_EMAIL = "secondshift@users.noreply.github.com"
 
@@ -89,7 +87,7 @@ def publish_pull_request(
                 "push",
                 "--quiet",
                 "--",
-                f"https://github.com/{full_name}.git",
+                clone_url(full_name),
                 f"{commit}:refs/heads/{draft.branch}",
             )
         except GitHubError as error:
@@ -159,67 +157,14 @@ def git(mirror: Path, index: str, draft: DraftPullRequest, *args: str) -> str:
     return result.stdout.strip()
 
 
-def github_client() -> httpx.Client:
-    return httpx.Client(timeout=30)
-
-
 def open_draft(
     full_name: str, token: str, draft: DraftPullRequest
 ) -> PublishedPullRequest:
-    """Open the draft, or find the one an earlier attempt opened."""
-    headers = {
-        "Accept": "application/vnd.github+json",
-        "Authorization": f"Bearer {token}",
-        "X-GitHub-Api-Version": "2022-11-28",
-    }
-    owner = full_name.split("/", 1)[0]
-    with github_client() as client:
-        try:
-            created = client.post(
-                f"{API_URL}/repos/{full_name}/pulls",
-                headers=headers,
-                json={
-                    "title": draft.title,
-                    "head": draft.branch,
-                    "base": draft.base,
-                    "body": draft.body[:MAX_BODY_CHARS],
-                    "draft": True,
-                },
-            )
-            if created.status_code == 201:
-                return published(created.json())
-            existing = client.get(
-                f"{API_URL}/repos/{full_name}/pulls",
-                headers=headers,
-                params={"head": f"{owner}:{draft.branch}", "state": "all"},
-            )
-            found = existing.json() if existing.status_code == 200 else []
-        except (httpx.HTTPError, ValueError) as error:
-            raise PublishError("GitHub could not be reached.") from error
-    if isinstance(found, list) and found:
-        return published(found[0])
-    raise PublishError(
-        f"GitHub did not open the pull request: {github_message(created)}"
-    )
-
-
-def published(payload: Any) -> PublishedPullRequest:
-    if not isinstance(payload, dict) or not isinstance(payload.get("html_url"), str):
-        raise PublishError("GitHub returned an invalid pull request.")
-    return PublishedPullRequest(number=int(payload["number"]), url=payload["html_url"])
-
-
-def github_message(response: httpx.Response) -> str:
-    """GitHub's own short reason, which never contains the token."""
     try:
-        payload = response.json()
-    except ValueError:
-        payload = {}
-    errors = payload.get("errors") if isinstance(payload, dict) else None
-    details = [
-        str(item.get("message"))
-        for item in errors or []
-        if isinstance(item, dict) and item.get("message")
-    ]
-    message = details[0] if details else str(payload.get("message", ""))
-    return (message or f"HTTP {response.status_code}")[:200]
+        opened = pulls.open_draft(
+            token, full_name, draft.title, draft.branch, draft.base, draft.body
+        )
+    except GitHubError as error:
+        # These messages never contain the token.
+        raise PublishError(str(error)) from error
+    return PublishedPullRequest(number=opened["number"], url=opened["html_url"])

@@ -9,6 +9,7 @@ import pytest
 from django.contrib.auth import get_user_model
 
 from secondshift.connections.models import Connection
+from secondshift.github import rest
 from secondshift.github.errors import GitHubError
 from secondshift.repositories import pull_requests
 from secondshift.repositories.mirrors import mirror_path
@@ -109,9 +110,7 @@ def github(
         return queue.pop(0)
 
     monkeypatch.setattr(
-        pull_requests,
-        "github_client",
-        lambda: httpx.Client(transport=httpx.MockTransport(handle)),
+        rest, "client", lambda: httpx.Client(transport=httpx.MockTransport(handle))
     )
     return seen
 

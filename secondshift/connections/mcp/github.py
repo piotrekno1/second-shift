@@ -4,6 +4,7 @@ import re
 from typing import Any
 
 from secondshift.config.constants import (
+    GITHUB_BASE_URL,
     GITHUB_MCP_TOOLS,
     GITHUB_MCP_URL,
     GITHUB_REPOSITORY_PATTERN,
@@ -171,7 +172,7 @@ GITHUB_MCP = MCPProvider(
     ),
     default_binding="github",
     token_label="Fine-grained personal access token",
-    setup_url="https://github.com/settings/personal-access-tokens/new",
+    setup_url=f"{GITHUB_BASE_URL}/settings/personal-access-tokens/new",
     setup_help=(
         "Pick your jobs' repositories and grant read-only Pull requests, "
         "Commit statuses, and Contents. Add read-only Actions for jobs that "

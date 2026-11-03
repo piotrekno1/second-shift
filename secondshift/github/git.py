@@ -5,6 +5,7 @@ import os
 import subprocess
 from pathlib import Path
 
+from secondshift.config.constants import GITHUB_BASE_URL
 from secondshift.github.errors import GitHubError
 
 
@@ -18,7 +19,7 @@ def authenticated_git(root: Path, token: str, *arguments: str) -> str:
         "GIT_CONFIG_NOSYSTEM": "1",
         "GIT_CONFIG_GLOBAL": os.devnull,
         "GIT_CONFIG_COUNT": "1",
-        "GIT_CONFIG_KEY_0": "http.https://github.com/.extraheader",
+        "GIT_CONFIG_KEY_0": f"http.{GITHUB_BASE_URL}/.extraheader",
         "GIT_CONFIG_VALUE_0": f"AUTHORIZATION: basic {authorization}",
     }
     try:
