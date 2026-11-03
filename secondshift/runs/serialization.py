@@ -1,8 +1,9 @@
 from secondshift.config.constants import AgentBackend
 from secondshift.jobs.limits import RunLimit
+from secondshift.runs.deliveries import retryable
 from secondshift.runs.execution.budgets import BUDGET_HEADLINE
 from secondshift.runs.execution.deadlines import TIMEOUT_HEADLINE
-from secondshift.runs.models import Run
+from secondshift.runs.models import Run, RunDelivery
 from secondshift.runs.reporting.failures import (
     MODEL_PROVIDER_LABEL,
     TOOL_RULE_LABEL,
@@ -11,6 +12,7 @@ from secondshift.runs.reporting.failures import (
     model_provider_next_step,
 )
 from secondshift.runs.schemas import (
+    RunDeliverySchema,
     RunDetailSchema,
     RunEventSchema,
     RunFailureSchema,
@@ -138,6 +140,19 @@ def run_files(run: Run) -> list[RunFileSchema]:
     return files
 
 
+def serialize_delivery(delivery: RunDelivery) -> RunDeliverySchema:
+    return RunDeliverySchema(
+        id=delivery.pk,
+        kind=delivery.kind,
+        target=delivery.target,
+        status=delivery.status,
+        attempts=delivery.attempts,
+        message=delivery.message,
+        updated_at=delivery.updated_at,
+        retryable=retryable(delivery),
+    )
+
+
 def serialize_run_detail(run: Run) -> RunDetailSchema:
     model = run.execution_plan.get("model") or {}
     return RunDetailSchema(
@@ -168,4 +183,5 @@ def serialize_run_detail(run: Run) -> RunDetailSchema:
             for event in run.events.order_by("created_at", "pk")
         ],
         files=run_files(run),
+        deliveries=[serialize_delivery(item) for item in run.deliveries.all()],
     )

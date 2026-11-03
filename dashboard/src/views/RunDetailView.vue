@@ -7,9 +7,9 @@ import PageHeader from '../components/PageHeader.vue'
 import StatusPill from '../components/StatusPill.vue'
 import DocsLink from '../components/DocsLink.vue'
 import { DocsPage } from '../utils/docs'
-import { cancelTask, fetchRun, isRunActive, runFileUrl, startJobRun } from '../services/runs'
+import { cancelTask, fetchRun, isDeliveryPending, isRunActive, retryDelivery, runFileUrl, startJobRun } from '../services/runs'
 import { useAppStore } from '../stores/app'
-import type { RunDetail } from '../types'
+import type { RunDelivery, RunDetail } from '../types'
 import { Action } from '../utils/permissions'
 import { formatBytes, formatDate, formatTime, runStats, utcTitle, zoneName } from '../utils/format'
 import { renderMarkdown } from '../utils/markdown'
@@ -26,12 +26,16 @@ const loading = ref(true)
 const error = ref<string | null>(null)
 const rerunning = ref(false)
 const canceling = ref(false)
+const retrying = ref<number | null>(null)
 const now = ref(Date.now())
 let pollTimer: number | null = null
 let requestSerial = 0
 
 const runId = computed(() => Number(route.params.id))
 const active = computed(() => (run.value ? isRunActive(run.value.status) : false))
+// A delivery being retried can still change after the run has finished.
+const changing = computed(() => active.value || Boolean(run.value?.deliveries.some(isDeliveryPending)))
+const DELIVERY_LABELS: Record<RunDelivery['status'], string> = { pending: 'Sending', delivered: 'Delivered', skipped: 'Skipped', failed: 'Failed' }
 const subtitle = computed(() => (run.value ? `${run.value.job} · ${run.value.repository}` : loading.value ? 'Loading run…' : 'This run could not be loaded'))
 // Reports taller than this start collapsed, so the page never nests a scrollbar.
 const REPORT_COLLAPSED_PX = 640
@@ -62,6 +66,19 @@ async function cancel(): Promise<void> {
     error.value = cause instanceof Error ? cause.message : 'Unable to cancel this task'
   } finally {
     canceling.value = false
+  }
+}
+
+async function retry(delivery: RunDelivery): Promise<void> {
+  if (!run.value) return
+  retrying.value = delivery.id
+  try {
+    await retryDelivery(run.value.id, delivery.id)
+    await load()
+  } catch (cause) {
+    error.value = cause instanceof Error ? cause.message : 'Unable to retry this delivery'
+  } finally {
+    retrying.value = null
   }
 }
 
@@ -124,8 +141,8 @@ watch(runId, () => {
   void load()
 }, { immediate: true })
 
-// Poll only while the run can still change.
-watch(active, (isActive) => (isActive ? startPolling() : stopPolling()))
+// Poll only while the run or one of its deliveries can still change.
+watch(changing, (isChanging) => (isChanging ? startPolling() : stopPolling()))
 
 onUnmounted(stopPolling)
 </script>
@@ -233,6 +250,15 @@ onUnmounted(stopPolling)
               </dd>
               <dd v-else class="run-details-muted">{{ active ? 'Stored when the run starts' : 'Not stored' }}</dd>
             </div>
+            <div v-if="run.deliveries.length">
+              <dt>Delivery</dt>
+              <dd v-for="delivery in run.deliveries" :key="delivery.id" class="run-delivery">
+                <span>{{ delivery.target }}</span>
+                <span class="run-delivery-status" :class="delivery.status" :title="delivery.message || undefined"> · {{ DELIVERY_LABELS[delivery.status] }}</span>
+                <span v-if="delivery.status === 'failed' && delivery.message" class="run-details-muted run-delivery-reason">{{ delivery.message }}</span>
+                <Button v-if="delivery.retryable && app.can(Action.RunJobs)" class="run-delivery-retry" label="Retry" size="small" severity="secondary" :loading="retrying === delivery.id" @click="retry(delivery)" />
+              </dd>
+            </div>
           </dl>
         </aside>
       </div>
@@ -257,5 +283,11 @@ onUnmounted(stopPolling)
 .task-instructions :deep(> :first-child) { margin-top: 0; }
 .task-instructions :deep(> :last-child) { margin-bottom: 0; }
 .task-instructions :deep(h1), .task-instructions :deep(h2), .task-instructions :deep(h3) { color: var(--ink); font-size: 15px; font-weight: 500; }
+.run-delivery + .run-delivery { margin-top: 6px; }
+.run-delivery-status.delivered { color: var(--mint); }
+.run-delivery-status.failed { color: var(--danger); }
+.run-delivery-status.pending, .run-delivery-status.skipped { color: var(--subtle); }
+.run-delivery-reason { display: block; font-size: 12px; }
+.run-delivery-retry { margin-top: 6px; }
 @media (max-width: 540px) { .task-input-panel { padding: 16px 20px; } }
 </style>

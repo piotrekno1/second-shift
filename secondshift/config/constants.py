@@ -15,6 +15,7 @@ COMMIT_SHA_PATTERN = r"[0-9a-f]{40}|[0-9a-f]{64}"
 
 EXECUTE_RUN_WORKFLOW = "secondshift.execute_run"
 SCHEDULED_JOB_WORKFLOW = "secondshift.scheduled_job"
+RETRY_NOTIFICATION_WORKFLOW = "secondshift.retry_notification"
 
 ENVIRONMENT_VAR = "SECONDSHIFT_ENV"
 SETTINGS_MODULE_VAR = "DJANGO_SETTINGS_MODULE"

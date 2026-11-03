@@ -66,6 +66,18 @@ class RunFileSchema(Schema):
     truncated: bool
 
 
+class RunDeliverySchema(Schema):
+    id: int
+    kind: str
+    target: str
+    status: str
+    attempts: int
+    message: str
+    updated_at: datetime
+    # Failed, and its connection still exists.
+    retryable: bool
+
+
 class RunDetailSchema(RunSchema):
     submission_input: str = ""
     job_key: str
@@ -79,6 +91,7 @@ class RunDetailSchema(RunSchema):
     output_size_bytes: int | None
     events: list[RunEventSchema]
     files: list[RunFileSchema]
+    deliveries: list[RunDeliverySchema] = []
 
 
 class RunListQuery(Schema):

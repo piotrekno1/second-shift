@@ -1,5 +1,5 @@
 import { ApiError, apiGet, apiPost, apiText } from './api'
-import type { Run, RunDetail, RunFileName, RunPage, RunQuery } from '../types'
+import type { Run, RunDelivery, RunDetail, RunFileName, RunPage, RunQuery } from '../types'
 
 export function runQueryString(query: RunQuery): string {
   const params = new URLSearchParams()
@@ -25,6 +25,15 @@ export function fetchRun(runId: number): Promise<RunDetail> {
 
 export function cancelTask(runId: number): Promise<Run> {
   return apiPost<Run>(`/runs/${runId}/cancel`)
+}
+
+/** Send a failed delivery's stored report again. The agent does not run again. */
+export function retryDelivery(runId: number, deliveryId: number): Promise<RunDelivery> {
+  return apiPost<RunDelivery>(`/runs/${runId}/deliveries/${deliveryId}/retry`)
+}
+
+export function isDeliveryPending(delivery: RunDelivery): boolean {
+  return delivery.status === 'pending'
 }
 
 export interface RunStart {

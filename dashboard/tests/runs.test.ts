@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { isRunActive, runFileUrl, runQueryString, startJobRun } from '../src/services/runs'
+import { isDeliveryPending, isRunActive, retryDelivery, runFileUrl, runQueryString, startJobRun } from '../src/services/runs'
+import type { RunDelivery } from '../src/types'
 
 test('runQueryString omits empty filters and the first page', () => {
   assert.equal(runQueryString({}), '')
@@ -59,5 +60,18 @@ test('startJobRun returns the run still in progress instead of failing', async (
 test('startJobRun still fails when the job cannot run', async () => {
   await withResponse(409, { detail: 'Enable the repository before running its jobs.' }, async () => {
     await assert.rejects(startJobRun(3), { message: 'Enable the repository before running its jobs.' })
+  })
+})
+
+test('isDeliveryPending is true only while a delivery is being sent', () => {
+  assert.deepEqual(
+    (['pending', 'delivered', 'skipped', 'failed'] as const).map((status) => isDeliveryPending({ status } as RunDelivery)),
+    [true, false, false, false],
+  )
+})
+
+test('retryDelivery reports why a delivery cannot be retried', async () => {
+  await withResponse(409, { detail: 'Only a failed delivery can be retried.' }, async () => {
+    await assert.rejects(retryDelivery(4, 9), { message: 'Only a failed delivery can be retried.' })
   })
 })

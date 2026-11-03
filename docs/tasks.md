@@ -102,7 +102,9 @@ queued-task cancellation action is no longer available.
 After it finishes, read the report and check the timeline for errors, unavailable
 evidence, or tool activity. Open or download the stored output when available.
 If the task failed, inspect the failure reason before submitting another task.
-If notification delivery failed, the report can still be available in Runs.
+If notification delivery failed, the report is still available in Runs. Choose
+**Retry** next to the delivery under **Details** to send it again without
+running the task again.
 
 To repeat a one-off task, create a new task from the repository page. If you want
 to reuse its instructions regularly, commit a skill and configure a
