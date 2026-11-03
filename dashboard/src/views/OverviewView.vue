@@ -134,7 +134,7 @@ const passRate = computed(() => {
     </section>
 
     <section class="content-grid">
-      <article class="panel span-two">
+      <article class="panel span-two recent-runs-panel">
         <div class="panel-heading"><h2>Recent runs</h2><RouterLink to="/runs">All runs</RouterLink></div>
         <div v-if="app.runs.length" class="activity-list">
           <RouterLink v-for="run in app.runs.slice(0, 6)" :key="run.id" :to="`/runs/${run.id}`" class="activity-row clickable-row">
@@ -182,6 +182,10 @@ const passRate = computed(() => {
 </template>
 
 <style scoped>
+.recent-runs-panel { padding: 0; overflow: hidden; }
+.recent-runs-panel > .panel-heading { margin: 0; padding: 20px 24px 16px; }
+.recent-runs-panel .activity-row { padding: 14px 24px; border-radius: 0; }
+
 .activity-main > strong { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .activity-main .activity-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); font-size: 13px; }
 .activity-main .activity-id { flex: none; }
