@@ -406,3 +406,62 @@ def test_deleting_a_workspace_removes_its_chosen_login(
     run.delete()
     workspace.delete()
     assert not AgentConnection.objects.exists()
+
+
+def overview_execution(client: Client, owner: User) -> dict[str, Any]:
+    client.force_login(owner)
+    return client.get("/api/overview").json()["execution"]
+
+
+def test_overview_asks_for_setup_when_nothing_can_run_jobs(
+    agent_run: tuple[Run, User], client: Client
+) -> None:
+    run, owner = agent_run
+    model_workspace(run)
+    assert overview_execution(client, owner) == {
+        "label": "Model provider",
+        "backend": AgentBackend.PYDANTIC,
+        "problem": "No default model provider is connected.",
+        "needs_setup": True,
+        "fix_connection_id": None,
+    }
+
+
+def test_overview_points_at_the_broken_model_key(
+    agent_run: tuple[Run, User], client: Client
+) -> None:
+    run, owner = agent_run
+    model_workspace(run)
+    model = add_model(run)
+    model.status = Connection.Status.REVOKED
+    model.save(update_fields=["status"])
+    execution = overview_execution(client, owner)
+    assert execution["problem"] == "No default model provider is connected."
+    assert execution["needs_setup"] is False
+    assert execution["fix_connection_id"] == model.pk
+
+
+def test_overview_reports_a_disconnected_login(
+    agent_run: tuple[Run, User], client: Client
+) -> None:
+    run, owner = agent_run
+    add_model(run)
+    login = run.job.workspace.default_agent_connection
+    login.connected = False
+    login.save(update_fields=["connected"])
+    execution = overview_execution(client, owner)
+    assert execution["backend"] == AgentBackend.CLAUDE_CODE
+    assert execution["problem"] == (
+        "The agent login Personal is disconnected. Reconnect it on Connections."
+    )
+    assert execution["needs_setup"] is False
+    assert execution["fix_connection_id"] is None
+
+
+def test_overview_has_no_problem_when_jobs_can_run(
+    agent_run: tuple[Run, User], client: Client
+) -> None:
+    owner = agent_run[1]
+    execution = overview_execution(client, owner)
+    assert execution["problem"] == ""
+    assert execution["label"] == "Claude Code subscription · Personal"

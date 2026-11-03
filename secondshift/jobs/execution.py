@@ -153,6 +153,26 @@ def execution_configuration(workspace: Workspace, user: User) -> dict[str, Any]:
     }
 
 
+def execution_status(workspace: Workspace) -> dict[str, Any]:
+    """What runs the jobs, why runs would fail, and where to fix it."""
+    selected = workspace_execution(workspace)
+    models = Connection.objects.filter(workspace=workspace, kind=Connection.Kind.MODEL)
+    # A model key the problem is about, so the page can open it ready to fix.
+    fix = (
+        models.order_by("-is_default", "pk").first()
+        if selected.problem and selected.backend == AgentBackend.PYDANTIC
+        else None
+    )
+    return {
+        "label": selected.label,
+        "backend": selected.backend,
+        "problem": selected.problem,
+        "needs_setup": not workspace.default_agent_connection_id
+        and not models.exists(),
+        "fix_connection_id": fix.pk if fix else None,
+    }
+
+
 def save_execution_preference(workspace: Workspace, key: str, user: User) -> None:
     connection = None
     if key != MODEL_CHOICE:

@@ -171,6 +171,15 @@ class ExecutionChoiceSchema(Schema):
     disabled: bool = False
 
 
+class ExecutionStatusSchema(Schema):
+    label: str
+    backend: str
+    problem: str
+    # Nothing could run jobs yet: no model key and no subscription chosen.
+    needs_setup: bool
+    fix_connection_id: int | None
+
+
 class ExecutionConfigurationSchema(Schema):
     enabled: bool
     choices: list[ExecutionChoiceSchema]
