@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { isDeliveryPending, isRunActive, retryDelivery, runFileUrl, runQueryString, startJobRun } from '../src/services/runs'
+import { isDeliveryPending, isRunActive, retryDelivery, runChangesUrl, runFileUrl, runQueryString, savedFileUrl, startJobRun } from '../src/services/runs'
 import type { RunDelivery } from '../src/types'
 
 test('runQueryString omits empty filters and the first page', () => {
@@ -74,4 +74,9 @@ test('retryDelivery reports why a delivery cannot be retried', async () => {
   await withResponse(409, { detail: 'Only a failed delivery can be retried.' }, async () => {
     await assert.rejects(retryDelivery(4, 9), { message: 'Only a failed delivery can be retried.' })
   })
+})
+
+test('savedFileUrl keeps folders and encodes each part of the name', () => {
+  assert.equal(savedFileUrl(3, 'charts/q3 trend.png'), '/api/runs/3/saved-files/charts/q3%20trend.png')
+  assert.equal(runChangesUrl(3, true), '/api/runs/3/changes?download=true')
 })

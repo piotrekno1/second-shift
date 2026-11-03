@@ -102,6 +102,17 @@ queued-task cancellation action is no longer available.
 After it finishes, read the report and check the timeline for errors, unavailable
 evidence, or tool activity. Open or download the stored output when available.
 If the task failed, inspect the failure reason before submitting another task.
+### Files and changes
+
+Ask for files in the task, such as "save the findings as a CSV". The agent saves
+them in `/outputs`, and the run page lists them under **Files**. Saved files
+always download, so a browser never opens them as a page. SecondShift keeps up
+to 100 files and 100 MiB per run. Links and other special files are skipped.
+
+If the agent edits repository files, **Files** shows how many changed. Open or
+download the changes as a patch. Nothing is pushed to the repository. SecondShift
+keeps up to 20 MiB of changes, and skips new files that match `.gitignore`.
+
 If notification delivery failed, the report is still available in Runs. Choose
 **Retry** next to the delivery under **Details** to send it again without
 running the task again.
