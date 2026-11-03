@@ -14,7 +14,7 @@ function model(id: number, overrides: Partial<Connection> = {}): Connection {
 }
 
 function login(id: number, overrides: Partial<AgentConnection> = {}): AgentConnection {
-  return { id, backend: 'codex', display_name: `Login ${id}`, connected: true, can_manage: true, max_runs_per_day: null, recent_runs: 2, ...overrides }
+  return { id, backend: 'codex', display_name: `Login ${id}`, connected: true, can_manage: true, max_runs_per_day: null, recent_runs: 2, last_check: null, ...overrides }
 }
 
 function configuration(selected: string, choices: AgentConfiguration['choices']): AgentConfiguration {
@@ -43,4 +43,10 @@ test('modelRows says why a login cannot be picked', () => {
     ['agent:5', false, 'Only the person who saved this login can choose it.'],
     ['agent:6', false, 'Disconnected. Reconnect it to use it.'],
   ])
+})
+
+test('modelRows carries the last check of providers and logins', () => {
+  const check = { ok: false, reason: 'reconnect_required', message: 'Codex refused the sign-in.', checked_at: '2026-11-03T10:00:00Z' }
+  const rows = modelRows([model(1)], [login(5, { last_check: check })], configuration('', []))
+  assert.deepEqual(rows.map((row) => row.lastCheck?.message ?? null), [null, 'Codex refused the sign-in.'])
 })

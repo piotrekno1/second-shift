@@ -17,6 +17,8 @@ export interface ModelRow {
   choosable: boolean
   /** Why it cannot run jobs, or who may choose it. '' when nothing is wrong. */
   problem: string
+  /** The last check, for a provider or a login. */
+  lastCheck: { ok: boolean, message: string, checked_at: string } | null
   connection?: Connection
   login?: AgentConnection
 }
@@ -43,7 +45,7 @@ export function modelRows(connections: Connection[], logins: AgentConnection[], 
     const key = `model:${connection.id}`
     const choice = choices.get(key)
     const problem = choice?.problem || (connection.status === 'connected' ? '' : 'Disconnected. Reconnect it to use it.')
-    rows.push({ key, name: connection.display_name, provider: connection.provider, summary: modelSummary(connection), chosen: key === selected, choosable: Boolean(choice && !choice.disabled), problem, connection })
+    rows.push({ key, name: connection.display_name, provider: connection.provider, summary: modelSummary(connection), chosen: key === selected, choosable: Boolean(choice && !choice.disabled), problem, lastCheck: connection.last_check, connection })
   }
   for (const login of logins) {
     const key = `agent:${login.id}`
@@ -59,6 +61,7 @@ export function modelRows(connections: Connection[], logins: AgentConnection[], 
       chosen: key === selected,
       choosable: Boolean(choice && !choice.disabled),
       problem,
+      lastCheck: login.last_check,
       login,
     })
   }

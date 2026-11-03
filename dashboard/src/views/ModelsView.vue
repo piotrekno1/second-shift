@@ -106,6 +106,16 @@ function check(row: ModelRow): Promise<void> {
   }, 'Unable to check the provider')
 }
 
+// Uses a little of the owner's plan. The runner allows one use of a login at a time.
+function checkLogin(row: ModelRow): Promise<void> {
+  const login = row.login!
+  return act(row.key, async () => {
+    const check = (await agents.check(login.id)).last_check
+    if (!check?.ok) throw new Error(check?.message ?? 'The check did not finish.')
+    return check.message
+  }, 'Unable to check the login')
+}
+
 async function confirm(row: ModelRow): Promise<void> {
   const step = confirming.value
   confirming.value = null
@@ -151,7 +161,7 @@ function fixLabel(row: ModelRow): string | null {
     if (row.connection.status !== 'connected') return 'Reconnect'
     if (row.connection.last_check?.ok === false) return 'Fix'
   }
-  if (row.login && !row.login.connected && row.login.can_manage && agents.enabled) return 'Reconnect'
+  if (row.login && (!row.login.connected || row.login.last_check?.reason === 'reconnect_required') && row.login.can_manage && agents.enabled) return 'Reconnect'
   return null
 }
 
@@ -169,6 +179,7 @@ function menuItems(row: ModelRow): MenuItem[] {
     if (connection.status !== 'revoked' && app.can(Action.DisconnectConnections)) danger.push({ label: 'Disconnect…', appIcon: 'power-plug-off-outline', danger: true, command: ask('disconnect') })
     if (connection.status === 'revoked' && app.can(Action.DeleteConnections)) danger.push({ label: 'Delete…', appIcon: 'trash-can-outline', danger: true, command: ask('delete') })
   } else if (row.login?.can_manage) {
+    if (row.login.connected && app.can(Action.TestConnections)) items.push({ label: 'Check', appIcon: 'send-outline', command: () => checkLogin(row) })
     if (row.login.connected) items.push({ label: 'Run limit', appIcon: 'timer-sand', command: () => openLimit(row) })
     if (agents.enabled) items.push({ label: 'Reconnect', appIcon: 'pencil-outline', command: () => toggle({ mode: 'edit', key: row.key }) })
     danger.push({ label: row.login.connected ? 'Disconnect…' : 'Remove…', appIcon: 'power-plug-off-outline', danger: true, command: ask('disconnect') })
@@ -257,13 +268,16 @@ onMounted(async () => {
               <strong class="connection-name">{{ row.name }}<span v-if="row.chosen" class="default-badge">Runs jobs</span></strong>
               <span>{{ row.summary }}</span>
               <small v-if="row.problem" class="need-detail">{{ row.problem }}</small>
-              <small v-else-if="row.connection?.last_check" :title="row.connection.last_check.message">
-                {{ row.connection.last_check.message }} · checked {{ formatRelative(row.connection.last_check.checked_at) }}
+              <small v-else-if="row.lastCheck" :title="row.lastCheck.message">
+                {{ row.lastCheck.message }} · checked {{ formatRelative(row.lastCheck.checked_at) }}
               </small>
             </div>
             <StatusPill v-if="row.connection?.status === 'connected' && row.connection.last_check?.ok === false" status="error" label="Check failed" :title="row.connection.last_check.message" />
             <StatusPill v-else-if="row.connection" :status="row.connection.status" />
-            <StatusPill v-else :status="row.login?.connected ? 'pending' : 'revoked'" :label="row.login?.connected ? 'Login saved' : 'Disconnected'" title="Not checked with the provider until a job runs" />
+            <StatusPill v-else-if="!row.login?.connected" status="revoked" label="Disconnected" />
+            <StatusPill v-else-if="row.lastCheck?.ok === false" status="error" label="Check failed" :title="row.lastCheck.message" />
+            <StatusPill v-else-if="row.lastCheck" status="connected" label="Signed in" />
+            <StatusPill v-else status="pending" label="Not checked" title="Use Check to try the login" />
             <div class="need-actions">
               <Button v-if="fixLabel(row)" :label="isOpen({ mode: 'edit', key: row.key }) ? 'Cancel' : fixLabel(row)!" size="small" @click="toggle({ mode: 'edit', key: row.key })" />
               <Button v-else-if="!row.chosen && row.choosable && canChoose" label="Use for jobs" severity="secondary" size="small" :loading="busy === row.key" @click="choose(row)" />

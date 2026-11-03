@@ -25,8 +25,16 @@ async function connect(): Promise<void> {
   const credential = auth.value
   auth.value = ''
   try {
-    await agents.connect({ backend: backend.value, display_name: name.value, auth: credential }, props.login?.id)
-    emit('done', { ok: true, text: props.login ? 'Reconnected.' : 'Login saved. It is checked when a job runs.' })
+    const saved = await agents.connect({ backend: backend.value, display_name: name.value, auth: credential }, props.login?.id)
+    const verb = props.login ? 'Reconnected' : 'Connected'
+    let notice: Notice
+    try {
+      const check = (await agents.check(saved.id)).last_check
+      notice = check?.ok ? { ok: true, text: `${verb}. ${check.message}` } : { ok: false, text: `${verb}, but the check failed: ${check?.message ?? 'no answer.'}` }
+    } catch (err) {
+      notice = { ok: true, text: `${verb}. ${err instanceof Error ? err.message : 'The check could not run.'}` }
+    }
+    emit('done', notice)
   } catch (err) { error.value = err instanceof Error ? err.message : 'Unable to save the login.' }
   finally { busy.value = false }
 }
@@ -54,10 +62,10 @@ async function connect(): Promise<void> {
     </label>
     <p v-if="error" role="alert" class="need-notice need-setup-wide"><AppIcon name="alert-circle-outline" /> {{ error }}</p>
     <div class="need-setup-footer">
-      <small><AppIcon name="lock-outline" /> Credentials are encrypted and never shown again.</small>
+      <small><AppIcon name="lock-outline" /> Credentials are encrypted and never shown again. Saving sends one short test message, which uses a little of your plan.</small>
       <div class="need-actions">
         <Button label="Cancel" severity="secondary" text size="small" :disabled="busy" @click="emit('cancel')" />
-        <Button class="main-action" type="submit" :label="login ? 'Reconnect' : 'Connect subscription'" :loading="busy" :disabled="!auth.trim()">
+        <Button class="main-action" type="submit" :label="login ? 'Reconnect and check' : 'Connect and check'" :loading="busy" :disabled="!auth.trim()">
           <template #icon><AppIcon name="check" /></template>
         </Button>
       </div>
