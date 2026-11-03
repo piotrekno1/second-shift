@@ -44,6 +44,7 @@ const rows = computed(() => modelRows(app.connections, agents.connections, confi
 const chosen = computed(() => rows.value.find((row) => row.chosen) ?? null)
 const subtitle = computed(() => {
   if (!loaded.value) return 'Loading…'
+  if (chosen.value && configuration.value?.problem) return `Jobs are set to run on ${chosen.value.name}, but runs will fail until it is fixed.`
   if (chosen.value) return `Every job runs on ${chosen.value.name}. Changes apply to new runs.`
   return rows.value.length ? 'Nothing runs jobs yet. Choose one below.' : 'Add an API key or a subscription so jobs can run.'
 })
