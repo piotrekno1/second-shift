@@ -78,6 +78,26 @@ class RunDeliverySchema(Schema):
     retryable: bool
 
 
+class RunChangesSchema(Schema):
+    file_count: int
+    # The first changed paths. The patch holds all of them.
+    files: list[str]
+    too_large: bool
+    # False when the changes were not kept, for example past the size limit.
+    available: bool
+    size_bytes: int | None = None
+
+
+class RunSavedFileSchema(Schema):
+    name: str
+    size_bytes: int
+
+
+class RunSkippedFileSchema(Schema):
+    name: str
+    reason: str
+
+
 class RunDetailSchema(RunSchema):
     submission_input: str = ""
     job_key: str
@@ -92,6 +112,10 @@ class RunDetailSchema(RunSchema):
     events: list[RunEventSchema]
     files: list[RunFileSchema]
     deliveries: list[RunDeliverySchema] = []
+    # What the sandbox left behind. None when nothing was collected.
+    changes: RunChangesSchema | None = None
+    saved_files: list[RunSavedFileSchema] = []
+    skipped_files: list[RunSkippedFileSchema] = []
 
 
 class RunListQuery(Schema):

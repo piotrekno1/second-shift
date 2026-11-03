@@ -363,6 +363,26 @@ export interface RunDelivery {
   retryable: boolean
 }
 
+export interface RunChanges {
+  file_count: number
+  /** The first changed paths. The patch holds all of them. */
+  files: string[]
+  too_large: boolean
+  /** False when the changes were not kept, for example past the size limit. */
+  available: boolean
+  size_bytes: number | null
+}
+
+export interface RunSavedFile {
+  name: string
+  size_bytes: number
+}
+
+export interface RunSkippedFile {
+  name: string
+  reason: string
+}
+
 export interface RunDetail extends Run {
   submission_input?: string
   job_key: string
@@ -378,6 +398,9 @@ export interface RunDetail extends Run {
   events: RunEvent[]
   files: RunFile[]
   deliveries: RunDelivery[]
+  changes: RunChanges | null
+  saved_files: RunSavedFile[]
+  skipped_files: RunSkippedFile[]
 }
 
 export interface RunPage {

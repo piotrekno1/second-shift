@@ -67,3 +67,35 @@ def test_notification_text_without_a_summary(settings: Any) -> None:
     text = run_report_payload(finished_run(Run.Status.FAILED, ""))["text"]
 
     assert text.splitlines()[2] == "No summary."
+
+
+def test_notifications_name_collected_files_without_their_content(
+    settings: Any,
+) -> None:
+    settings.FRONTEND_URL = "https://secondshift.example/"
+    run = finished_run(Run.Status.SUCCEEDED, "Updated the setup guide.")
+    run.outputs = {
+        "changes": {"file_count": 2, "path": "runs/1/changes.patch"},
+        "files": [{"name": "steps.csv", "size_bytes": 40, "path": "runs/1/x"}],
+    }
+
+    payload = run_report_payload(run)
+
+    assert payload["outputs"] == {
+        "changed_files": 2,
+        "saved_files": [{"name": "steps.csv", "size_bytes": 40}],
+    }
+    assert "2 changed files · 1 saved file" in payload["text"]
+    assert "runs/1" not in str(payload)
+
+
+def test_notifications_without_collected_files_add_no_line(settings: Any) -> None:
+    settings.FRONTEND_URL = "https://secondshift.example/"
+    run = finished_run(Run.Status.SUCCEEDED, "All good.")
+    # Changes that were too large to keep are not counted as delivered files.
+    run.outputs = {"changes": {"file_count": 900, "too_large": True}, "files": []}
+
+    payload = run_report_payload(run)
+
+    assert payload["outputs"] == {"changed_files": 0, "saved_files": []}
+    assert payload["text"].count("\n\n") == 2
