@@ -2,7 +2,10 @@ from datetime import datetime
 from typing import Any, Literal
 
 from ninja import Schema
-from pydantic import Field
+from pydantic import Field, SecretStr
+
+from secondshift.connections.models import AgentConnection
+from secondshift.workspaces.access import Action, allows
 
 
 class ConnectionCheckSchema(Schema):
@@ -208,3 +211,26 @@ class SecretSchema(Schema):
     name: str
     description: str
     last_used_at: datetime | None
+
+
+class AgentConnectionSchema(Schema):
+    id: int
+    backend: str
+    display_name: str
+    connected: bool
+    owner_id: int
+    updated_at: datetime
+    can_manage: bool = False
+
+    @staticmethod
+    def resolve_can_manage(obj: AgentConnection, context: dict[str, Any]) -> bool:
+        request = context["request"]
+        return obj.owner_id == request.user.pk and allows(
+            request, Action.EDIT_CONNECTIONS
+        )
+
+
+class AgentConnectionInput(Schema):
+    backend: str
+    display_name: str = Field(default="", max_length=200)
+    auth: SecretStr = Field(max_length=32000)
