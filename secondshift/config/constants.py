@@ -175,3 +175,9 @@ MANIFEST_FILE = ".secondshift.yaml"
 
 # How much of a skill file a job keeps for people to read in the dashboard.
 MAX_SKILL_PREVIEW_CHARS = 200_000
+
+
+class AgentBackend(StrEnum):
+    PYDANTIC = "pydantic"
+    CLAUDE_CODE = "claude_code"
+    CODEX = "codex"

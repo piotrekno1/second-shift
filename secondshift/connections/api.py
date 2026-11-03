@@ -9,6 +9,13 @@ from ninja.errors import HttpError
 from ninja.security import django_auth
 
 from secondshift.config.constants import SUMMARY_MAX_CHARS
+from secondshift.connections.agents import (
+    AgentConnectionError,
+    RunnerCleanupPending,
+    disconnect_agent_connection,
+    reconnect_agent_connection,
+    save_agent_connection,
+)
 from secondshift.connections.http_api.connections import (
     create_api_connection,
     recheck_api_connection,
@@ -39,8 +46,10 @@ from secondshift.connections.model_providers import (
     update_model_connection,
     validated_endpoint,
 )
-from secondshift.connections.models import Connection, Secret
+from secondshift.connections.models import AgentConnection, Connection, Secret
 from secondshift.connections.schemas import (
+    AgentConnectionInput,
+    AgentConnectionSchema,
     APIConnectionCreateSchema,
     APIConnectionUpdateSchema,
     APISpecSchema,
@@ -598,3 +607,63 @@ def secrets(request: HttpRequest) -> list[SecretSchema]:
         )
         for item in Secret.objects.filter(workspace=workspace).defer("value")
     ]
+
+
+@router.get("/agent-connections", response=list[AgentConnectionSchema])
+def agent_connections(request: HttpRequest) -> list[AgentConnection]:
+    workspace = current_workspace(request)
+    return (
+        list(AgentConnection.objects.filter(workspace=workspace)) if workspace else []
+    )
+
+
+@router.post("/agent-connections", response=AgentConnectionSchema)
+def connect_agent(
+    request: HttpRequest, payload: AgentConnectionInput
+) -> AgentConnection:
+    workspace = require(request, Action.ADD_CONNECTIONS)
+    try:
+        return save_agent_connection(
+            workspace,
+            request.user,
+            payload.backend,
+            payload.display_name,
+            payload.auth.get_secret_value(),
+        )
+    except AgentConnectionError as error:
+        raise HttpError(422, str(error)) from None
+
+
+@router.post("/agent-connections/{connection_id}", response=AgentConnectionSchema)
+def reconnect_agent(
+    request: HttpRequest, connection_id: int, payload: AgentConnectionInput
+) -> AgentConnection:
+    workspace = require(request, Action.EDIT_CONNECTIONS)
+    connection = get_object_or_404(
+        AgentConnection, pk=connection_id, workspace=workspace, owner=request.user
+    )
+    try:
+        return reconnect_agent_connection(
+            connection,
+            request.user,
+            payload.backend,
+            payload.display_name,
+            payload.auth.get_secret_value(),
+        )
+    except AgentConnectionError as error:
+        raise HttpError(422, str(error)) from None
+    except RunnerCleanupPending as error:
+        raise HttpError(503, str(error)) from None
+
+
+@router.delete("/agent-connections/{connection_id}", response={204: None})
+def disconnect_agent(request: HttpRequest, connection_id: int) -> Status[None]:
+    workspace = require(request, Action.DISCONNECT_CONNECTIONS)
+    connection = get_object_or_404(
+        AgentConnection, pk=connection_id, workspace=workspace, owner=request.user
+    )
+    try:
+        disconnect_agent_connection(connection)
+    except RunnerCleanupPending as error:
+        raise HttpError(503, str(error)) from None
+    return Status(204, None)

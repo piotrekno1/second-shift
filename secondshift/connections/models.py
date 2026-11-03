@@ -1,3 +1,5 @@
+import uuid
+
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
@@ -208,3 +210,17 @@ class OAuthAuthorization(models.Model):
 
     def __str__(self) -> str:
         return f"OAuth sign-in for {self.binding_key or self.provider}"
+
+
+class AgentConnection(models.Model):
+    """A person's agent login. Authentication is never part of a run plan."""
+
+    workspace = models.ForeignKey(Workspace, on_delete=models.CASCADE)
+    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    backend = models.CharField(max_length=24)
+    display_name = models.CharField(max_length=200)
+    auth_data = EncryptedTextField()
+    credential_key = models.UUIDField(default=uuid.uuid4, editable=False)
+    connected = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
