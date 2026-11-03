@@ -197,6 +197,12 @@ export interface RepositoryDetail extends Repository {
   auto_sync: boolean
   /** Whether this server syncs in the background at all. */
   server_syncs: boolean
+  /** A GitHub repository, so tasks could open draft pull requests. */
+  can_open_pull_requests: boolean
+  /** An owner lets tasks open draft pull requests here. */
+  allow_pull_requests: boolean
+  /** CI runs on the draft at once instead of waiting for a review. */
+  pull_request_ci: boolean
   validation: RepositoryValidation
   jobs: RepositoryJob[]
 }
@@ -353,13 +359,15 @@ export interface RunFile {
 
 export interface RunDelivery {
   id: number
-  kind: 'notification' | string
+  kind: 'notification' | 'pull_request' | string
   target: string
   status: 'pending' | 'delivered' | 'skipped' | 'failed'
   attempts: number
   message: string
+  /** Where the result lives, such as the draft pull request. Empty if none. */
+  url: string
   updated_at: string
-  /** Failed, and its connection still exists. */
+  /** Failed, and it can still be sent. */
   retryable: boolean
 }
 

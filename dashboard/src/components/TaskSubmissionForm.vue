@@ -15,7 +15,7 @@ import { useAppStore } from '../stores/app'
 import { useTasksStore } from '../stores/tasks'
 import type { TaskCapability } from '../services/tasks'
 
-const props = defineProps<{ repositoryId: number, repositoryName: string, defaultBranch: string }>()
+const props = defineProps<{ repositoryId: number, repositoryName: string, defaultBranch: string, allowsPullRequests?: boolean }>()
 const emit = defineEmits<{ cancel: [] }>()
 const app = useAppStore()
 const tasks = useTasksStore()
@@ -30,6 +30,7 @@ const input = ref('')
 const notBefore = ref('')
 const selected = ref<Record<string, string[]>>({})
 const notifications = ref<string[]>([])
+const pullRequest = ref(false)
 const skillSuggestions = ref<string[]>([])
 const knownSkills = computed(() => [...new Set(app.jobs.filter(job => job.repository_id === props.repositoryId).map(job => job.skill_path))])
 const taskName = computed(() => name.value.trim() || (instructionSource.value === 'skill'
@@ -43,7 +44,7 @@ function suggestSkills(event: { query: string }): void {
 }
 // A retry with unchanged input must keep its key, even after a lost response.
 const submissionKey = ref(crypto.randomUUID())
-watch([instructionSource, name, skill, revision, input, notBefore, selected, notifications], () => {
+watch([instructionSource, name, skill, revision, input, notBefore, selected, notifications, pullRequest], () => {
   submissionKey.value = crypto.randomUUID()
   tasks.error = null
 }, { deep: true })
@@ -75,6 +76,7 @@ async function submit(): Promise<void> {
       revision: revision.value.trim() || null,
       input: input.value,
       not_before: notBefore.value ? new Date(notBefore.value).toISOString() : null,
+      ...(pullRequest.value ? { pull_request: true } : {}),
       idempotency_key: submissionKey.value,
     })
     await router.push(`/runs/${result.run.id}`)
@@ -138,7 +140,7 @@ async function submit(): Promise<void> {
             </div>
           </details>
           <details class="task-option">
-            <summary><AppIcon name="chevron-right" /><span>Tools and delivery</span><span class="task-option-value">{{ toolCount ? countLabel(toolCount, 'tool') : 'Repository only' }}<template v-if="notifications.length"> · {{ countLabel(notifications.length, 'delivery', 'deliveries') }}</template></span></summary>
+            <summary><AppIcon name="chevron-right" /><span>Tools and delivery</span><span class="task-option-value">{{ toolCount ? countLabel(toolCount, 'tool') : 'Repository only' }}<template v-if="notifications.length"> · {{ countLabel(notifications.length, 'delivery', 'deliveries') }}</template><template v-if="pullRequest"> · Draft pull request</template></span></summary>
             <div class="task-access">
               <p>Repository tools are included. Add access only where this task needs it.</p>
               <div v-for="connection in toolConnections" :key="connection.binding_key" class="task-connection">
@@ -148,6 +150,13 @@ async function submit(): Promise<void> {
                     <input v-model="selected[connection.binding_key]" type="checkbox" :value="tool" /><span>{{ tool }}</span>
                   </label>
                 </div>
+              </div>
+              <div v-if="allowsPullRequests" class="task-delivery">
+                <h3>Changes</h3>
+                <label class="task-choice task-pull-request">
+                  <input v-model="pullRequest" type="checkbox" aria-describedby="task-pull-request-help" /><span>Open a draft pull request with the changes</span>
+                </label>
+                <small id="task-pull-request-help" class="task-access-note">It targets {{ revision.trim() && !/^[0-9a-f]{40}$/.test(revision.trim()) ? revision.trim() : defaultBranch }}. The report becomes its description.</small>
               </div>
               <div v-if="deliveryConnections.length" class="task-delivery">
                 <h3>Send the finished report</h3>
