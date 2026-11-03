@@ -59,6 +59,23 @@ def uses_model_api(run: Run) -> bool:
 
 
 def serialize_run(run: Run) -> RunSchema:
+    api = uses_model_api(run)
+    input_tokens = getattr(run, "model_input_tokens", None) or 0
+    output_tokens = getattr(run, "model_output_tokens", None) or 0
+    tokens = getattr(run, "model_tokens", None) or 0
+    if not api:
+        usage = getattr(run, "agent_usage", None) or {}
+        # Codex input includes cached tokens; Claude reports cache input separately.
+        input_tokens = sum(
+            usage.get(key, 0)
+            for key in (
+                "input_tokens",
+                "cache_creation_input_tokens",
+                "cache_read_input_tokens",
+            )
+        )
+        output_tokens = usage.get("output_tokens", 0)
+        tokens = input_tokens + output_tokens if usage else None
     return RunSchema(
         id=run.id,
         job_id=run.job_id,
@@ -75,15 +92,16 @@ def serialize_run(run: Run) -> RunSchema:
         commit_sha=run.commit_sha,
         model=(run.execution_plan.get("model") or {}).get("default_model") or None,
         # Agent CLIs do not report model calls, so a turn count would read 0.
-        max_turns=run_limit(run, RunLimit.MAX_TURNS) if uses_model_api(run) else None,
+        max_turns=run_limit(run, RunLimit.MAX_TURNS) if api else None,
         token_budget=run_limit(run, RunLimit.TOKEN_BUDGET),
         model_requests=getattr(run, "model_requests", None) or 0,
-        model_input_tokens=getattr(run, "model_input_tokens", None) or 0,
-        model_output_tokens=getattr(run, "model_output_tokens", None) or 0,
+        model_input_tokens=input_tokens,
+        model_output_tokens=output_tokens,
         failure=run_failure(run),
         has_input=bool(run.input_path),
         has_output=bool(run.output_path),
-        model_tokens=getattr(run, "model_tokens", None) or 0,
+        model_tokens=tokens,
+        model_usage_source="api" if api else "agent",
         model_cost_usd=(
             float(cost) if (cost := getattr(run, "model_cost_usd", None)) else None
         ),

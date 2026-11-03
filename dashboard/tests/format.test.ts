@@ -251,3 +251,17 @@ test('kindLabel and statusLabel use the same words on every page', () => {
   assert.equal(kindLabel('source'), 'Source')
   assert.equal(statusLabel('unconfigured'), 'Not connected')
 })
+
+test('runStats distinguishes CLI-reported usage, zero and unavailable usage', () => {
+  const base = {
+    started_at: null, finished_at: null,
+    model_tokens: 123, model_input_tokens: 120, model_output_tokens: 3,
+    model_cost_usd: null, model_cost_partial: false,
+    model_requests: 0, max_turns: null,
+    model_usage_source: 'agent' as const,
+  }
+  assert.deepEqual(runStats(base).map(stat => stat.text), ['123 tok reported'])
+  assert.equal(runStats(base)[0].title, 'CLI-reported: 120 input · 3 output tokens')
+  assert.equal(runStats({ ...base, model_tokens: 0 })[0].text, '0 tok reported')
+  assert.equal(runStats({ ...base, model_tokens: null })[0].text, 'Usage unavailable')
+})

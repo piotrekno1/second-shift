@@ -1,5 +1,4 @@
-import { readFile, readdir, mkdir, writeFile, copyFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { readFile, readdir, mkdir, writeFile, copyFile, cp } from 'node:fs/promises';
 
 const root = new URL('../', import.meta.url);
 const output = new URL('../src/content/docs/docs/', import.meta.url);
@@ -26,6 +25,4 @@ for (const name of files) {
   body = body.replace(/\]\(screenshots\//g, '](/screenshots/');
   await writeFile(new URL(name, output), `---\ntitle: ${JSON.stringify(title)}\n---\n\n${body}`);
 }
-for (const name of await readdir(new URL('../screenshots/', import.meta.url))) {
-  await copyFile(new URL(`../screenshots/${name}`, import.meta.url), new URL(name, publicScreenshots));
-}
+await cp(new URL('../screenshots/', import.meta.url), publicScreenshots, { recursive: true });

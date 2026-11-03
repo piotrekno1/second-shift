@@ -266,7 +266,7 @@ type RunStatSource = Pick<
   Run,
   'started_at' | 'finished_at' | 'model_tokens' | 'model_input_tokens' | 'model_output_tokens'
   | 'model_cost_usd' | 'model_cost_partial' | 'model_requests' | 'max_turns'
-> & Partial<Pick<Run, 'token_budget'>>
+> & Partial<Pick<Run, 'token_budget' | 'model_usage_source'>>
 
 /** Comparable numbers for one run, in a fixed order, for list rows. */
 export function runStats(run: RunStatSource, now = Date.now()): RunStat[] {
@@ -278,15 +278,20 @@ export function runStats(run: RunStatSource, now = Date.now()): RunStat[] {
       title: run.finished_at ? 'Time from start to finish' : 'Running for',
     })
   }
-  if (run.model_tokens) {
+  const agentUsage = run.model_usage_source === 'agent'
+  if (run.model_tokens || (agentUsage && run.model_tokens === 0)) {
     const budget = run.token_budget ?? null
-    const split = `${formatTokens(run.model_input_tokens)} input · ${formatTokens(run.model_output_tokens)} output tokens`
+    const source = agentUsage ? 'CLI-reported: ' : ''
+    const split = `${source}${formatTokens(run.model_input_tokens)} input · ${formatTokens(run.model_output_tokens)} output tokens`
     stats.push({
       key: 'tokens',
-      text: budget ? `${formatTokens(run.model_tokens)} / ${formatTokens(budget)} tok` : `${formatTokens(run.model_tokens)} tok`,
+      text: (budget ? `${formatTokens(run.model_tokens)} / ${formatTokens(budget)} tok` : `${formatTokens(run.model_tokens)} tok`) + (agentUsage ? ' reported' : ''),
       title: budget ? `${split}, of ${budget.toLocaleString('en')} allowed` : split,
       warn: Boolean(budget && run.model_tokens >= budget * 0.8),
     })
+  }
+  if (agentUsage && run.model_tokens == null) {
+    stats.push({ key: 'tokens', text: 'Usage unavailable', title: 'The CLI did not report token usage' })
   }
   if (run.model_cost_usd !== null) {
     stats.push({

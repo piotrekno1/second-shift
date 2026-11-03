@@ -139,8 +139,10 @@ refused before they started don't count. There is no limit by default.
   setting, so the deadline and tool budget bound it.
 - Token budgets are checked when the CLI reports usage, which can be after the
   budget is passed. Use the model API when you need a strict token cap.
-- Run events record usage and the CLI version. Model API spend totals don't
-  include subscription use.
+- Runs show CLI-reported token usage when available, including cached input.
+  Missing usage is shown as unavailable. These counts do not measure remaining
+  subscription allowance or dollar cost. Model API spend totals exclude them.
+- Run events record usage and the CLI version.
 - Raw CLI output and errors are discarded. A failed run keeps only a reason,
   such as an expired login or exhausted usage.
 
@@ -165,4 +167,4 @@ Before hosted use, SecondShift still needs:
 
 - support for more than one runner per login
 - login health checks
-- a way to show subscription usage
+- a way to show remaining provider subscription allowance

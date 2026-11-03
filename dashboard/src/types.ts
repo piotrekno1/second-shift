@@ -328,7 +328,8 @@ export interface Run {
   failure: RunFailure | null
   has_input: boolean
   has_output: boolean
-  model_tokens: number
+  model_tokens: number | null
+  model_usage_source?: 'api' | 'agent'
   model_cost_usd: number | null
   model_cost_partial: boolean
 }

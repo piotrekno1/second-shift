@@ -13,6 +13,7 @@ from secondshift.connections.tests.test_agent_connections import (
 from secondshift.connections.tests.test_agent_connections import (
     agent_login as agent_login_fixture,
 )
+from secondshift.gateway.usage import with_model_usage
 from secondshift.jobs.tests.test_execution_defaults import (
     agent_run as agent_run_fixture,
 )
@@ -23,7 +24,7 @@ from secondshift.runner.agent_credentials import (
 from secondshift.runs.execution import cli_agent
 from secondshift.runs.execution.cli_agent import execute_cli_step
 from secondshift.runs.models import AgentLease, Run, RunEvent
-from secondshift.runs.serialization import serialize_run_detail
+from secondshift.runs.serialization import serialize_run, serialize_run_detail
 
 agent_login = agent_login_fixture
 agent_run = agent_run_fixture
@@ -136,3 +137,62 @@ def test_subscription_runs_show_no_model_call_count(
 ) -> None:
     run, _ = agent_run
     assert serialize_run_detail(run).max_turns is None
+
+
+@pytest.mark.parametrize(
+    ("backend", "usage", "expected"),
+    [
+        (
+            "claude_code",
+            {
+                "input_tokens": 20,
+                "output_tokens": 3,
+                "cache_read_input_tokens": 100,
+                "cache_creation_input_tokens": 10,
+            },
+            (130, 3, 133),
+        ),
+        (
+            "codex",
+            {"input_tokens": 120, "cached_input_tokens": 100, "output_tokens": 3},
+            (120, 3, 123),
+        ),
+        ("codex", {}, (0, 0, None)),
+        ("claude_code", {"input_tokens": 0, "output_tokens": 0}, (0, 0, 0)),
+    ],
+)
+def test_cli_usage_in_run_responses(
+    agent_run: tuple[Run, User],
+    monkeypatch: pytest.MonkeyPatch,
+    backend: str,
+    usage: dict[str, int],
+    expected: tuple[int, int, int | None],
+    django_assert_num_queries: Any,
+) -> None:
+    run, _ = agent_run
+    run.execution_plan["execution"]["backend"] = backend
+    run.save(update_fields=["execution_plan"])
+    AgentConnection.objects.filter(
+        pk=run.job.workspace.default_agent_connection_id
+    ).update(backend=backend)
+    # Existing unrelated events must not hide the execution result.
+    RunEvent.objects.create(
+        run=run, message="Earlier event", metadata={"usage": {"input_tokens": 999}}
+    )
+    fake_runner(monkeypatch, {"report": "Done", "succeeded": True, "usage": usage})
+    execute_cli_step(run.pk, "run-1", "Read the skill")
+    RunEvent.objects.create(run=run, message="Later event")
+    with django_assert_num_queries(1):
+        response = serialize_run(
+            with_model_usage(Run.objects.select_related("job__repository")).get(
+                pk=run.pk
+            )
+        )
+    assert (
+        response.model_input_tokens,
+        response.model_output_tokens,
+        response.model_tokens,
+    ) == expected
+    assert response.model_usage_source == "agent"
+    assert response.model_cost_usd is None
+    assert response.model_requests == 0
