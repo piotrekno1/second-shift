@@ -11,6 +11,7 @@ from django.utils import timezone
 from secondshift.config.constants import (
     EXECUTE_RUN_WORKFLOW,
     RETRY_NOTIFICATION_WORKFLOW,
+    RETRY_PULL_REQUEST_WORKFLOW,
     SCHEDULED_JOB_WORKFLOW,
     RunSandbox,
 )
@@ -36,6 +37,7 @@ from secondshift.runs.execution.run import execute_agent_run
 from secondshift.runs.models import Run, RunDelivery, RunEvent
 from secondshift.runs.orchestration.admission import task_admission_problem
 from secondshift.runs.orchestration.reconciliation import mark_run_terminal
+from secondshift.runs.publishing import publish_run
 from secondshift.runs.reporting.collection import collection_summary
 from secondshift.runs.reporting.failures import failure_metadata, failure_summary
 from secondshift.runs.reporting.notifications import (
@@ -352,6 +354,29 @@ def deliver_notification(run_id: int, connection_id: int) -> None:
         record_notification_failure_step(run_id, connection_id)
 
 
+@DBOS.step(name="secondshift.publish_pull_request")
+def publish_pull_request_step(run_id: int) -> None:
+    publish_run(run_id)
+
+
+@DBOS.workflow(name=RETRY_PULL_REQUEST_WORKFLOW)
+def retry_pull_request_workflow(run_id: int) -> None:
+    publish_pull_request_step(run_id)
+
+
+def deliver(run_id: int) -> None:
+    """Publish first, so the notification can link to the pull request."""
+    run = Run.objects.only("execution_plan").get(pk=run_id)
+    # Only plans that ask for a pull request add the step, so workflows
+    # started before this step existed replay the same steps.
+    if run.execution_plan.get("pull_request"):
+        try:
+            publish_pull_request_step(run_id)
+        except Exception:
+            logger.exception("could not publish run %s", run_id)
+    notify(run_id)
+
+
 def notify(run_id: int) -> None:
     # Delivery problems are recorded on the run but never change its outcome.
     for connection_id in notification_targets_step(run_id):
@@ -419,11 +444,11 @@ def execute_run(run_id: int) -> None:
         fail_run_step(run_id, summary, details)
         # A failed run notifies too, so a scheduled job never fails silently.
         try:
-            notify(run_id)
+            deliver(run_id)
         except Exception:
             logger.exception("could not notify about failed run %s", run_id)
         raise
-    notify(run_id)
+    deliver(run_id)
 
 
 @DBOS.workflow(name=EXECUTE_RUN_WORKFLOW)

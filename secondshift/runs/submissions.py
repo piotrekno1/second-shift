@@ -2,10 +2,11 @@
 
 import hashlib
 import json
+import re
 from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Self
+from typing import Any, Self
 
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -13,7 +14,7 @@ from django.db import transaction
 from django.utils import timezone
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
 
-from secondshift.config.constants import RunStart, TaskOrigin
+from secondshift.config.constants import COMMIT_SHA_PATTERN, RunStart, TaskOrigin
 from secondshift.jobs.manifest import TaskManifest
 from secondshift.jobs.planning import build_skill_execution_plan
 from secondshift.jobs.readiness import execution_problems
@@ -21,7 +22,7 @@ from secondshift.repositories.github_app import GitHubAppError
 from secondshift.repositories.local import LocalRepositoryError
 from secondshift.repositories.models import Repository
 from secondshift.repositories.skill_source import SkillSourceError, skill_commit
-from secondshift.runs.models import Run, Task
+from secondshift.runs.models import Run, RunDelivery, Task
 from secondshift.runs.orchestration.dispatch import enqueue_run
 from secondshift.runs.services import RunNotReady, RunRefused
 
@@ -34,6 +35,13 @@ class SkillSubmission(BaseModel):
     revision: str | None = Field(default=None, min_length=1, max_length=255)
     input: str = Field(default="", max_length=16000)
     not_before: AwareDatetime | None = None
+    pull_request: bool = Field(
+        default=False,
+        description=(
+            "Open a draft pull request with the agent's changes. The repository "
+            "owner must allow pull requests first."
+        ),
+    )
     idempotency_key: str = Field(
         min_length=1, max_length=120, pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]*$"
     )
@@ -64,6 +72,8 @@ def submission_fingerprint(submission: SkillSubmission, user: User) -> str:
     # Keep retries of pre-queue submissions compatible with their saved hash.
     if submission.not_before is None:
         data.pop("not_before")
+    if not submission.pull_request:
+        data.pop("pull_request")
     data["submitted_by"] = user.pk
     return hashlib.sha256(json.dumps(data, sort_keys=True).encode()).hexdigest()
 
@@ -96,6 +106,25 @@ def admission(
             "This repository's task queue is full. Wait for a task to finish or cancel a queued task."
         )
     return None
+
+
+def pull_request_plan(
+    repository: Repository, submission: SkillSubmission
+) -> dict[str, Any] | None:
+    """The draft's base is the requested branch, else the followed one."""
+    if not submission.pull_request:
+        return None
+    if (
+        repository.source_type != Repository.SourceType.GITHUB
+        or not repository.allow_pull_requests
+    ):
+        raise RunRefused("This repository does not allow tasks to open pull requests.")
+    revision = submission.revision
+    is_branch = revision and not re.fullmatch(COMMIT_SHA_PATTERN, revision)
+    return {
+        "base": revision if is_branch else repository.default_branch,
+        "run_ci": repository.pull_request_ci,
+    }
 
 
 def submit_skill(
@@ -136,6 +165,7 @@ def submit_skill(
             submission.definition,
             key=submission.idempotency_key,
             commit_sha=commit,
+            pull_request=pull_request_plan(repository, submission),
         )
         if not plan["ready"]:
             raise RunNotReady(execution_problems(repository, plan))
@@ -166,5 +196,12 @@ def submit_skill(
             execution_plan=plan,
             scheduled_for=scheduled_for,
         )
+        if plan["pull_request"] is not None:
+            # Shown as pending from the start, and kept if publishing fails.
+            RunDelivery.objects.create(
+                run=run,
+                kind=RunDelivery.Kind.PULL_REQUEST,
+                target=f"{repository.full_name} into {plan['pull_request']['base']}",
+            )
         transaction.on_commit(lambda: enqueue_run(run))
     return SubmissionResult(run, True)

@@ -405,7 +405,16 @@ def test_webhook_sample_shows_what_a_run_report_sends(
 
     payload = body["payload"]
     assert payload["event"] == "run.finished"
-    assert set(payload) == {"event", "text", "run", "job", "repository", "outputs"}
+    assert set(payload) == {
+        "event",
+        "text",
+        "run",
+        "job",
+        "repository",
+        "pull_request",
+        "outputs",
+    }
+    assert payload["pull_request"] is None
     assert payload["outputs"]["saved_files"] == [
         {"name": "stale-steps.csv", "size_bytes": 182}
     ]

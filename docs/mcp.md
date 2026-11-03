@@ -103,7 +103,7 @@ An ID from another workspace is reported as not found.
 | `list_runs` | `read` | `job_id?`, `repository_id?`, `status?`, `period?`, `page?`, `page_size?` | A page of runs, newest first, with status, times and token usage. Page size is at most 50. |
 | `get_run` | `read` | `run_id` | Status, events, model usage and the start of the output. |
 | `get_run_report` | `read` | `run_id` | The run's Markdown report. A report over 200 KB is cut and marked as cut. |
-| `submit_task` | `run` | `repository_id`, `definition`, `idempotency_key`, `revision?`, `input?`, `not_before?` | The assignment ID, `run` details and whether a new run was accepted. |
+| `submit_task` | `run` | `repository_id`, `definition`, `idempotency_key`, `revision?`, `input?`, `not_before?`, `pull_request?` | The assignment ID, `run` details and whether a new run was accepted. |
 | `cancel_task` | `run` | `run_id` | Cancel an ad hoc task that has not started. |
 | `run_job` | `run` | `job_id` | The new run's ID and status. Poll `get_run` to follow it. |
 | `sync_repository` | `run` | `repository_id` | The synced commit, whether the manifest is valid, and the repository's jobs. |

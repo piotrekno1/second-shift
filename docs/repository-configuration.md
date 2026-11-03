@@ -260,6 +260,7 @@ After each run, the server sends one `POST` with a JSON body like this:
   },
   "job": { "key": "weekly-review", "name": "Weekly review" },
   "repository": { "full_name": "acme/web" },
+  "pull_request": null,
   "outputs": {
     "changed_files": 0,
     "saved_files": [{ "name": "stale-steps.csv", "size_bytes": 182 }]
@@ -274,6 +275,8 @@ After each run, the server sends one `POST` with a JSON body like this:
 - `url` opens the run in SecondShift. Opening it needs a sign-in.
 - `outputs` counts the files the agent changed and lists the files it saved,
   by name and size. Open the run to read or download them.
+- `pull_request` holds the `url` of the draft a task opened, or `null`.
+  `text` links to it too.
 - No secrets, connection details, tool calls or file contents are sent.
 
 **Send test** posts a smaller message instead, with `event` set to

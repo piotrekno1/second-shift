@@ -38,6 +38,11 @@ class Repository(models.Model):
     enabled = models.BooleanField(default=False)
     # Sync new commits on the branch without pressing Resync.
     auto_sync = models.BooleanField(default=True)
+    # Tasks may push a branch and open a draft pull request. Owners decide.
+    allow_pull_requests = models.BooleanField(default=False)
+    # Run CI on that branch at once. Off by default, because the patch is
+    # untrusted until a person reviews it.
+    pull_request_ci = models.BooleanField(default=False)
     config_path = models.CharField(max_length=255, default=".secondshift.yaml")
     # The commit runs use. It moves only when a sync succeeds.
     config_sha = models.CharField(max_length=64, blank=True)

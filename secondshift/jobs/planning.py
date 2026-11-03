@@ -186,7 +186,7 @@ def compile_execution_plan(
     resolved_capabilities: Sequence[PlannedCapability],
     limits: dict[str, int],
     commit_sha: str,
-    collect_changes: bool = False,
+    pull_request: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Compile server-resolved policy into the existing versioned plan format."""
     if repository.workspace_id != workspace.pk:
@@ -244,8 +244,10 @@ def compile_execution_plan(
             "image": settings.RUNNER_IMAGE,
             "network_policy": "none",
             # Only runs that publish the agent's changes need them recorded.
-            "collect_changes": collect_changes,
+            "collect_changes": pull_request is not None,
         },
+        # The draft pull request's base branch and CI choice, when asked for.
+        "pull_request": pull_request,
         "model": model,
         "capabilities": capabilities,
     }
@@ -292,6 +294,7 @@ def build_skill_execution_plan(
     *,
     key: str,
     commit_sha: str,
+    pull_request: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Plan an ad hoc repository skill without saving jobs, requests or grants.
 
@@ -332,4 +335,5 @@ def build_skill_execution_plan(
             for limit in RunLimit
         },
         commit_sha,
+        pull_request,
     )

@@ -53,6 +53,11 @@ A run can use three things. Nothing else is reachable from it.
 Webhook reports are sent after the run by the worker. The model does not choose
 the destination or call the webhook.
 
+Draft pull requests are published the same way. After the sandbox stops, the
+worker applies the stored patch to the run's commit and pushes it with a
+short-lived write token. The token never reaches the sandbox or the model. The
+patch cannot hold a credential either, since none ever enter the sandbox.
+
 ## Where secrets live
 
 All credentials are encrypted in the database with `SECONDSHIFT_ENCRYPTION_KEY`.
@@ -189,6 +194,14 @@ the `#alerts` and `#ops` channels.
 - **A trigger payload is stored with its run.** Anyone who can view the run
   can read it on the **Input** tab, and the model provider sees it. Keep
   secrets out of what the sender sends, such as alert labels and annotations.
+
+- **A draft pull request is untrusted code.** A prompt injection can make the
+  agent write a patch that steals secrets when CI runs it. So the first push
+  skips CI, and a person must review the patch before checks run. An owner who
+  lets CI run at once for a repository accepts that risk. GitHub refuses
+  changes to workflow files, because SecondShift never asks for that
+  permission. Other files CI runs, such as build scripts and tests, can still
+  change.
 
 Approve only the tools a job needs, restrict the arguments that pick a target,
 and prefer read-only credentials.

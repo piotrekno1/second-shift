@@ -104,10 +104,15 @@ def repository_branches(installation_id: str, repository_id: int) -> list[str]:
     raise GitHubAppError("This repository has too many branches to list.")
 
 
-def installation_token(installation_id: str, repository_id: int | None = None) -> str:
+def installation_token(
+    installation_id: str,
+    repository_id: int | None = None,
+    permissions: dict[str, str] | None = None,
+) -> str:
+    """A short-lived token. Read-only unless the caller names other permissions."""
     if not installation_id.isdecimal():
         raise GitHubAppError("Invalid installation identity.")
-    payload = {"permissions": {"contents": "read"}}
+    payload: dict[str, object] = {"permissions": permissions or {"contents": "read"}}
     if repository_id is not None:
         payload["repository_ids"] = [repository_id]
     data = request_json(

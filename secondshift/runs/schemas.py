@@ -73,8 +73,10 @@ class RunDeliverySchema(Schema):
     status: str
     attempts: int
     message: str
+    # Where the result lives, such as the draft pull request. Empty if none.
+    url: str
     updated_at: datetime
-    # Failed, and its connection still exists.
+    # Failed, and it can still be sent: a pull request, or a connection that exists.
     retryable: bool
 
 

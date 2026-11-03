@@ -7,7 +7,7 @@ from secondshift.connections.models import Connection
 from secondshift.jobs.models import Job, JobGrant
 from secondshift.repositories.models import Repository
 from secondshift.runs.execution.tool_broker import standalone_connection
-from secondshift.runs.models import Run
+from secondshift.runs.models import Run, RunDelivery
 from secondshift.runs.reporting.collection import plural
 
 STATUS_LABELS = {
@@ -74,6 +74,7 @@ def run_report_payload(run: Run) -> dict[str, Any]:
             "name": run.display_name,
         },
         "repository": {"full_name": run.repository.full_name},
+        "pull_request": pull_request_link(run),
         # Names and sizes only. The files open from the run, after sign-in.
         "outputs": {
             "changed_files": changed_file_count(run),
@@ -83,6 +84,15 @@ def run_report_payload(run: Run) -> dict[str, Any]:
             ],
         },
     }
+
+
+def pull_request_link(run: Run) -> dict[str, str] | None:
+    if not (run.execution_plan or {}).get("pull_request"):
+        return None
+    delivery = run.deliveries.filter(
+        kind=RunDelivery.Kind.PULL_REQUEST, status=RunDelivery.Status.DELIVERED
+    ).first()
+    return {"url": delivery.external_url} if delivery else None
 
 
 def changed_file_count(run: Run) -> int:
@@ -110,6 +120,8 @@ def run_report_text(run: Run, run_url: str) -> str:
     ]
     if outputs := outputs_line(run):
         lines.append(outputs)
+    if pull_request := pull_request_link(run):
+        lines.append(f"<{pull_request['url']}|Review the draft pull request>")
     # Slack link syntax. Mattermost and Discord /slack webhooks accept it.
     lines.append(f"<{run_url}|Open run #{run.pk}>")
     return "\n\n".join(lines)

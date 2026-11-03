@@ -30,10 +30,14 @@ from secondshift.repositories.local import committed_file, git
 from secondshift.repositories.models import Repository
 from secondshift.runs.artifacts import artifact_storage, store_run_text
 from secondshift.runs.execution.agent_broker import run_connection
-from secondshift.runs.execution.run import capture_run_input_step, run_prompt
+from secondshift.runs.execution.run import (
+    PULL_REQUEST_NOTE,
+    capture_run_input_step,
+    run_prompt,
+)
 from secondshift.runs.execution.tool_broker import broker_connection
 from secondshift.runs.history import previous_reports
-from secondshift.runs.models import Run, Task
+from secondshift.runs.models import Run, RunDelivery, Task
 from secondshift.runs.orchestration.workflows import (
     deliver_run_notification_step,
     finish_run_step,
@@ -610,3 +614,87 @@ def test_written_task_uses_same_capability_approval_boundary(
             input="Review recent charges.",
         )
     assert not Task.objects.exists()
+
+
+@pytest.fixture
+def github_repository(
+    repository: Repository, monkeypatch: pytest.MonkeyPatch
+) -> Repository:
+    """The local test project, treated as a GitHub repository that allows drafts."""
+    pinned = git(Path(repository.local_path), "rev-parse", "HEAD")
+    monkeypatch.setattr(
+        "secondshift.runs.submissions.skill_commit", lambda *args: pinned
+    )
+    Repository.objects.filter(pk=repository.pk).update(
+        source_type=Repository.SourceType.GITHUB, allow_pull_requests=True
+    )
+    repository.refresh_from_db()
+    return repository
+
+
+def test_a_pull_request_task_collects_changes_and_waits_to_publish(
+    github_repository: Repository, owner: User
+) -> None:
+    run = start(github_repository, owner, pull_request=True)
+
+    assert run.execution_plan["pull_request"] == {"base": "main", "run_ci": False}
+    assert run.execution_plan["runner"]["collect_changes"] is True
+    [delivery] = run.deliveries.all()
+    assert delivery.kind == RunDelivery.Kind.PULL_REQUEST
+    assert delivery.status == RunDelivery.Status.PENDING
+    assert delivery.target == "local/project into main"
+    assert PULL_REQUEST_NOTE in run_prompt(run)
+
+
+def test_the_draft_targets_the_requested_branch(
+    github_repository: Repository, owner: User
+) -> None:
+    run = start(github_repository, owner, pull_request=True, revision="release")
+
+    assert run.execution_plan["pull_request"]["base"] == "release"
+
+
+def test_a_task_at_a_commit_targets_the_followed_branch(
+    github_repository: Repository, owner: User
+) -> None:
+    pinned = git(Path(github_repository.local_path), "rev-parse", "HEAD")
+
+    run = start(github_repository, owner, pull_request=True, revision=pinned)
+
+    assert run.execution_plan["pull_request"]["base"] == "main"
+
+
+def test_other_tasks_neither_record_changes_nor_mention_pull_requests(
+    github_repository: Repository, owner: User
+) -> None:
+    run = start(github_repository, owner)
+
+    assert run.execution_plan["pull_request"] is None
+    assert run.execution_plan["runner"]["collect_changes"] is False
+    assert not run.deliveries.exists()
+    assert PULL_REQUEST_NOTE not in run_prompt(run)
+
+
+@pytest.mark.parametrize(
+    "change",
+    [{"allow_pull_requests": False}, {"source_type": Repository.SourceType.LOCAL}],
+)
+def test_pull_requests_need_a_github_repository_that_allows_them(
+    github_repository: Repository, owner: User, change: dict[str, object]
+) -> None:
+    Repository.objects.filter(pk=github_repository.pk).update(**change)
+    github_repository.refresh_from_db()
+
+    with pytest.raises(RunRefused, match="does not allow"):
+        start(github_repository, owner, pull_request=True)
+
+    assert not Task.objects.exists() and not Run.objects.exists()
+
+
+def test_asking_for_a_pull_request_is_part_of_the_submission(
+    github_repository: Repository, owner: User
+) -> None:
+    start(github_repository, owner)
+
+    with pytest.raises(RunRefused, match="different submission"):
+        start(github_repository, owner, pull_request=True)
