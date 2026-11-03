@@ -6,8 +6,8 @@ Give a repository a task now and come back to its report later. Write instructio
 directly or reuse a committed skill. You do not need a job in `.secondshift.yaml`.
 
 For example, queue a documentation review before signing off, then open **Runs**
-the next morning to read the findings. A completed run has a report; check it
-before acting on its recommendations or relying on changes to connected services.
+the next morning to read the findings. When a report is ready, check it before
+acting on its recommendations or relying on changes to connected services.
 
 ## Before you start
 
