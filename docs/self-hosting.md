@@ -33,7 +33,9 @@ when no browser is available, it prints a one-time sign-in link instead:
 SecondShift is running at http://127.0.0.1:8000
 Sign in with this link (valid for 15 minutes):
   http://127.0.0.1:8000/sign-in/<one-time-token>/
+
 Keep this terminal open. Press Ctrl+C to stop.
+Logs: secondshift logs --follow
 ```
 
 Other local commands:
