@@ -14,7 +14,7 @@ uv tool install --force --python 3.13 \
 secondshift up
 ```
 
-Open the one-time sign-in link printed in your terminal. Keep SecondShift running.
+SecondShift opens your dashboard when it is ready. Keep it running. Press Ctrl+C to stop.
 
 ## Get the example repository
 

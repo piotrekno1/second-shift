@@ -1,5 +1,6 @@
 import sys
 import time
+from pathlib import Path
 
 import click
 import pytest
@@ -81,7 +82,7 @@ def test_frontend_url_follows_the_address_unless_set() -> None:
     } == {"http://box.lan:8000"}
 
 
-def test_one_process_stopping_stops_the_others() -> None:
+def test_one_process_stopping_stops_the_others(tmp_path: Path) -> None:
     sleeper = launcher.Process(
         "sleeper", [sys.executable, "-c", "import time; time.sleep(60)"], {}
     )
@@ -89,11 +90,15 @@ def test_one_process_stopping_stops_the_others() -> None:
     messages: list[str] = []
     started = time.monotonic()
 
-    code = launcher.run([sleeper, quitter], lambda: None, messages.append)
+    with override_settings(DATA_DIR=tmp_path):
+        code = launcher.run([sleeper, quitter], lambda: None, messages.append)
 
     assert code == 1
     assert time.monotonic() - started < 20
-    assert messages == ["The quitter process stopped, so SecondShift is stopping too."]
+    assert messages == [
+        "The quitter process stopped, so SecondShift is stopping too.",
+        "SecondShift stopped.",
+    ]
 
 
 def test_up_runs_only_in_the_local_environment() -> None:

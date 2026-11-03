@@ -11,14 +11,14 @@ restore and update procedures. To repeat the gVisor, upgrade and restore tests,
 run the [production end-to-end test](../scripts/production_e2e/README.md).
 
 For a local trial, use `secondshift up` as described in the
-[quick start](../README.md#try-it-locally).
+[quick start](../README.md#quick-start).
 
 See [GitHub App repository access](github-app.md) to configure repository import
 and automatic syncing.
 
 ## Local trial
 
-Install and start SecondShift using the [quickstart](../README.md#try-it-locally).
+Install and start SecondShift using the [quickstart](../README.md#quick-start).
 The beta is distributed through
 [GitHub Releases](https://github.com/piotrekno1/second-shift/releases) until it is
 available on PyPI.
@@ -26,14 +26,31 @@ available on PyPI.
 Upgrading from an alpha? This beta resets database migrations and requires a
 fresh database. Read the [beta 1 release notes](releases/0.1.0b1.md) first.
 
-Once started, the console shows:
+Once started, `secondshift up` opens your dashboard. With `--no-browser`, or
+when no browser is available, it prints a one-time sign-in link instead:
 
 ```text
 SecondShift is running at http://127.0.0.1:8000
-Sign in with this link. It works once, within 15 minutes:
+Sign in with this link (valid for 15 minutes):
   http://127.0.0.1:8000/sign-in/<one-time-token>/
-Run `secondshift login` for a new link. Press Ctrl+C to stop.
+Keep this terminal open. Press Ctrl+C to stop.
 ```
+
+Other local commands:
+
+```bash
+secondshift status                  # Dashboard address and service health
+secondshift login                   # New one-time sign-in link
+secondshift logs                    # Recent service logs
+secondshift logs --follow           # Stream logs until Ctrl+C
+secondshift logs --service worker   # Logs for one service
+secondshift up --debug              # Also print logs in the terminal
+secondshift up --port 8001          # Use another dashboard port
+```
+
+Service logs live in `logs` inside the data folder printed at startup. Each
+service keeps up to four files of about 2 MiB. Sign-in links are not written
+to these logs.
 
 ## Runner backends
 
