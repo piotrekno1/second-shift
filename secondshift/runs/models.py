@@ -87,3 +87,13 @@ class RunEvent(models.Model):
 
     def __str__(self) -> str:
         return f"{self.run_id}: {self.message[:80]}"
+
+
+class AgentLease(models.Model):
+    """One active agent process, with a revocable run-scoped broker token."""
+
+    run = models.OneToOneField(Run, on_delete=models.CASCADE)
+    token_hash = models.CharField(max_length=64, unique=True)
+    session_id = models.CharField(max_length=100)
+    active = models.BooleanField(default=True)
+    tool_calls = models.PositiveIntegerField(default=0)

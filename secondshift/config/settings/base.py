@@ -129,8 +129,8 @@ MIDDLEWARE = [
     "axes.middleware.AxesMiddleware",
 ]
 
-# Set by secondshift.config.app. The gateway serves only model routes to the
-# trusted agent orchestrator, never the command sandbox.
+# Set by secondshift.config.app. The gateway serves model routes and run-scoped
+# agent tools to trusted orchestrators, never the offline command sandbox.
 SERVICE = Service(env.str(SERVICE_VAR, default=Service.WEB))
 ROOT_URLCONF = (
     "secondshift.gateway.urls"
