@@ -127,9 +127,7 @@ def test_owner_can_approve_required_capability_and_enable_job(
     )
 
     assert blocked.status_code == 409
-    assert blocked.json()["detail"] == (
-        "`observability` waits for an owner's approval."
-    )
+    assert blocked.json()["detail"] == "observability waits for an owner's approval."
     assert reviewed.status_code == 200
     assert reviewed.json()["grant_status"] == "approved"
     grant = JobGrant.objects.get(capability_request=capability)

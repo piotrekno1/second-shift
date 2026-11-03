@@ -33,7 +33,7 @@ def plan_problems(job: Job, plan: dict[str, Any]) -> list[str]:
         texts = dict.fromkeys(
             REASON_TEXT.get(reason, OTHER_REASON) for reason in capability["reasons"]
         )
-        problems.append(f"`{capability['binding']}` {' and '.join(texts)}.")
+        problems.append(f"{capability['binding']} {' and '.join(texts)}.")
     return problems
 
 
