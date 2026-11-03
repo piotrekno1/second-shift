@@ -44,7 +44,7 @@ def cli_enabled() -> bool:
 def model_problem(model: Connection) -> str:
     """Why runs cannot use this model key, or empty when they can."""
     if model.status != Connection.Status.CONNECTED:
-        return f"The model provider {model.display_name} is disconnected. Reconnect it on Connections."
+        return f"The model provider {model.display_name} is disconnected. Reconnect it on Models."
     if not model.default_model.strip():
         return f"The model provider {model.display_name} has no model selected."
     if (model.metadata.get("last_check") or {}).get("ok") is False:
@@ -75,14 +75,14 @@ def subscription_problem(connection: AgentConnection, workspace: Workspace) -> s
     if not cli_enabled():
         return "Agent subscriptions are not set up on this server."
     if not connection.connected:
-        return f"The agent login {connection.display_name} is disconnected. Reconnect it on Connections."
+        return f"The agent login {connection.display_name} is disconnected. Reconnect it on Models."
     if not usable_agent_connection(connection, workspace.pk):
         return f"The agent login {connection.display_name} belongs to someone who is no longer a workspace owner."
     cap = connection.max_runs_per_day
     if cap is not None and agent_login_runs(workspace.pk)[connection.pk] >= cap:
         return (
             f"The agent login {connection.display_name} reached its limit of "
-            f"{cap} runs in 24 hours. Raise the limit on Connections or wait."
+            f"{cap} runs in 24 hours. Raise the limit on Models or wait."
         )
     return ""
 

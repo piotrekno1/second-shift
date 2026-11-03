@@ -17,7 +17,7 @@ from secondshift.runs.models import AgentLease, Run, RunEvent
 
 FAILURE_SUMMARIES = {
     "quota_exhausted": "Subscription usage exhausted. Wait for your provider's allowance to reset, then start a new run.",
-    "reconnect_required": "Agent sign-in expired. Reconnect the subscription on Connections, then start a new run.",
+    "reconnect_required": "Agent sign-in expired. Reconnect the subscription on Models, then start a new run.",
     "timed_out": "The agent reached this run's time limit.",
     "token_budget_exhausted": "The agent reported usage at or above this run's token budget.",
     "turn_budget_exhausted": "The agent reached this run's maximum turns.",

@@ -29,8 +29,6 @@ const apiKey = ref('')
 const baseUrl = ref('')
 const allowedModels = ref<string[]>([...(props.connection?.allowed_models ?? [])])
 const defaultModel = ref(props.connection?.default_model ?? '')
-const firstProvider = !app.connections.some((item) => item.kind === 'model')
-const isDefault = ref(props.connection?.is_default ?? firstProvider)
 const saving = ref(false)
 const error = ref<string | null>(null)
 
@@ -94,7 +92,6 @@ async function submit(): Promise<void> {
       display_name: displayName.value.trim(),
       allowed_models: modelList.value,
       default_model: (defaultModel.value ?? '').trim(),
-      is_default: isDefault.value,
     }
     const saved = props.connection
       ? await updateModelProvider(props.connection.id, {
@@ -168,10 +165,6 @@ async function submit(): Promise<void> {
       <small v-if="defaultOutsideAllowed" class="field-error">Must be one of the allowed models.</small>
       <small v-else-if="!defaultModel">Used when a job doesn’t choose a model.</small>
     </div>
-    <label class="need-setup-check">
-      <input v-model="isDefault" type="checkbox">
-      <span>Use as the workspace's model provider</span>
-    </label>
 
     <!-- Discovery often refuses the same values first. Say it once, next to the field. -->
     <p v-if="error && error !== modelError" class="need-notice need-setup-wide">{{ error }}</p>

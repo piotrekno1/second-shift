@@ -24,6 +24,13 @@ interface NavItem { label: string; to: string; icon: string; note: string; tone?
 // Connections says what these add up to, so the two counts always match.
 const toFix = computed(() => app.brokenConnections + app.bindingsToSetUp)
 
+// Runs fail until something works. Nothing chosen waits on you; a broken choice is broken.
+const modelNote = computed(() => {
+  const execution = app.overview?.execution
+  if (!execution?.problem) return ''
+  return execution.chosen ? 'to fix' : 'to choose'
+})
+
 // Day-to-day pages first, then the ones you set up once.
 const groups = computed<{ label: string; items: NavItem[] }[]>(() => [
   {
@@ -38,6 +45,7 @@ const groups = computed<{ label: string; items: NavItem[] }[]>(() => [
   {
     label: 'Setup',
     items: [
+      { label: 'Models', to: '/models', icon: 'creation-outline', note: modelNote.value, tone: app.overview?.execution?.chosen ? 'danger' : 'warning' },
       { label: 'Connections', to: '/connections', icon: 'connection', note: toFix.value ? `${toFix.value} to fix` : '', tone: app.brokenConnections ? 'danger' : 'warning' },
       { label: 'Settings', to: '/settings', icon: 'cog-outline', note: '' },
     ],
