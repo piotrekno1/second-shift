@@ -25,31 +25,31 @@ def test_up_builds_the_agent_image_and_points_agents_at_the_gateway(
     assert "first start" in messages[0]
 
 
-def test_up_keeps_agent_settings_the_person_chose(
+def test_up_ignores_saved_agent_settings_so_upgrades_take_effect(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    build = Mock()
-    monkeypatch.setattr(local_agents, "build_agent_image", build)
-    monkeypatch.setattr(local_agents, "resolve_image_id", Mock(return_value=IMAGE_ID))
-    pinned = "registry.example/agent@sha256:" + "d" * 64
-    broker = "http://gateway.lan:8001/gateway/agent/mcp"
+    monkeypatch.setattr(local_agents, "build_agent_image", Mock(return_value=IMAGE_ID))
+    messages: list[str] = []
 
-    chosen = local_agents.agent_env(
+    env = local_agents.agent_env(
         {
-            "SECONDSHIFT_AGENT_IMAGE": pinned,
-            "SECONDSHIFT_AGENT_BROKER_URL": broker,
+            "SECONDSHIFT_AGENT_IMAGE": "sha256:" + "d" * 64,
+            "SECONDSHIFT_AGENT_BROKER_URL": "http://old:9001/gateway/agent/mcp",
         },
         8001,
-        print,
-    )
-    tagged = local_agents.agent_env(
-        {"SECONDSHIFT_AGENT_IMAGE": "my-agent:latest"}, 8001, print
+        messages.append,
     )
 
-    assert chosen["SECONDSHIFT_AGENT_IMAGE"] == pinned
-    assert chosen["SECONDSHIFT_AGENT_BROKER_URL"] == broker
-    assert tagged["SECONDSHIFT_AGENT_IMAGE"] == IMAGE_ID
-    build.assert_not_called()
+    assert env == {
+        "SECONDSHIFT_AGENT_IMAGE": IMAGE_ID,
+        "SECONDSHIFT_AGENT_BROKER_URL": (
+            "http://host.docker.internal:8001/gateway/agent/mcp"
+        ),
+    }
+    assert messages[0] == (
+        "Ignoring SECONDSHIFT_AGENT_IMAGE, SECONDSHIFT_AGENT_BROKER_URL. "
+        "secondshift up sets these itself."
+    )
 
 
 def test_failed_build_uses_the_last_image_or_explains(
@@ -62,12 +62,12 @@ def test_failed_build_uses_the_last_image_or_explains(
     monkeypatch.setattr(local_agents, "resolve_image_id", Mock(return_value=IMAGE_ID))
     messages: list[str] = []
 
-    assert local_agents.agent_image("", messages.append) == IMAGE_ID
+    assert local_agents.agent_image(messages.append) == IMAGE_ID
     assert "last one built" in messages[-1]
 
     monkeypatch.setattr(local_agents, "resolve_image_id", Mock(side_effect=failure))
     with pytest.raises(local_agents.AgentSetupError, match="network unreachable"):
-        local_agents.agent_image("", messages.append)
+        local_agents.agent_image(messages.append)
 
 
 @pytest.mark.parametrize(

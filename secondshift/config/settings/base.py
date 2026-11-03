@@ -10,6 +10,10 @@ environment, never from .env.
 
 Defaults are safe for production. Values that differ on a single machine use
 `default=SINGLE_HOST` or `default=DEV`.
+
+Local mode must work from code defaults and the values `secondshift up` passes
+at startup. The data folder's .env holds only the keys made on first start. It
+outlives upgrades, so never ask people to add settings to it.
 """
 
 import os
