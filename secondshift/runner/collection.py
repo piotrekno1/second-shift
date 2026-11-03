@@ -1,8 +1,9 @@
 """What a session leaves behind: its file changes and the files it saved.
 
-When a session starts, the runner records the unpacked commit in a git folder
-beside the workspace, outside the sandbox's mounts, so the agent cannot change
-it. After the agent finishes, the runner stops the sandbox and compares the
+When a session that collects changes starts, the runner records the unpacked
+commit in a git folder beside the workspace, outside the sandbox's mounts, so
+the agent cannot change it. Recording costs one write per file, so only runs
+that publish changes ask for it. After the agent finishes, the runner stops the sandbox and compares the
 workspace with that record. The result is one archive:
 
 - ``manifest.json`` describes the changes and the saved files
@@ -38,6 +39,13 @@ CHANGES_NAME = "changes.patch"
 # A long list of names helps nobody. The patch itself holds every path.
 MAX_LISTED_CHANGES = 1000
 GIT_TIMEOUT_SECONDS = 300
+NO_CHANGES = {
+    "file_count": 0,
+    "files": [],
+    "size_bytes": 0,
+    "captured": False,
+    "too_large": False,
+}
 
 
 def git(
@@ -129,7 +137,12 @@ def collect(session_root: Path, workspace: Path) -> Path:
         return archive_path
     partial = session_root / f"{COLLECTION_FILE}.partial"
     patch_path = session_root / CHANGES_NAME
-    manifest: dict[str, Any] = {"changes": compare(session_root, workspace, patch_path)}
+    # Sessions that did not ask for changes have no baseline to compare.
+    manifest: dict[str, Any] = {
+        "changes": compare(session_root, workspace, patch_path)
+        if (session_root / BASELINE_DIR).is_dir()
+        else NO_CHANGES
+    }
     with tarfile.open(partial, mode="w:gz") as archive:
         if manifest["changes"]["captured"]:
             add_file(archive, patch_path, CHANGES_NAME)

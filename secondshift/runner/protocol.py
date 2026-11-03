@@ -26,6 +26,9 @@ class RunnerSessionSpec:
     image: str
     # The uploaded snapshot of the commit's files the session unpacks.
     source_sha256: str
+    # Record the unpacked files, so the agent's changes can be collected.
+    # The control plane sets it from the run's plan, never from repository input.
+    collect_changes: bool = False
 
     def __post_init__(self) -> None:
         if self.run_id < 1:

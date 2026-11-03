@@ -193,3 +193,20 @@ def test_the_baseline_lives_outside_the_workspace(
 
     assert (root / collection.BASELINE_DIR / "HEAD").is_file()
     assert not (workspace / ".git").exists()
+
+
+def test_a_session_without_a_baseline_still_returns_saved_files(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "session"
+    workspace = root / "workspace"
+    workspace.mkdir(parents=True)
+    (root / collection.OUTPUTS_DIR).mkdir()
+    (workspace / "README.md").write_text("edited, but nobody asked for changes\n")
+    (root / collection.OUTPUTS_DIR / "report.csv").write_text("a\n")
+
+    manifest, contents = read_archive(collect(root, workspace))
+
+    assert manifest["changes"] == collection.NO_CHANGES
+    assert collection.CHANGES_NAME not in contents
+    assert contents["outputs/report.csv"] == b"a\n"

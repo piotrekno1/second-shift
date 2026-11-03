@@ -244,7 +244,11 @@ def test_workspace_limits_and_server_sandbox_policy_are_frozen(
     assert result["agent"]["limits"]["max_turns"] == 7
     assert result["agent"]["limits"]["timeout_seconds"] == 120
     assert result["execution"]["backend"] == AgentBackend.PYDANTIC
-    assert result["runner"] == {"image": "server-owned-image", "network_policy": "none"}
+    assert result["runner"] == {
+        "image": "server-owned-image",
+        "network_policy": "none",
+        "collect_changes": False,
+    }
     repository.workspace.default_model_connection.allowed_models.append("new-model")
     assert result["model"]["allowed_models"] == ["claude-opus-5-5"]
 

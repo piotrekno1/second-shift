@@ -14,6 +14,7 @@ class RunnerSession(models.Model):
     commit_sha = models.CharField(max_length=64)
     image = models.CharField(max_length=300)
     source_sha256 = models.CharField(max_length=64, blank=True)
+    collect_changes = models.BooleanField(default=False)
     container_name = models.CharField(max_length=120, unique=True)
     workspace_path = models.TextField()
     status = models.CharField(

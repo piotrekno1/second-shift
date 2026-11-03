@@ -72,6 +72,20 @@ def execution_run(db) -> Run:
     )
 
 
+@pytest.mark.django_db
+def test_only_a_plan_that_publishes_changes_records_them(db, monkeypatch) -> None:
+    run = execution_run(db)
+    run.execution_plan["runner"]["collect_changes"] = True
+    run.save()
+    client = FakeRunnerClient()
+    monkeypatch.setattr(workflows, "get_runner_client", lambda: client)
+    monkeypatch.setattr(workflows, "source_snapshot", lambda *args: SNAPSHOT)
+
+    start_runner_session_step(run.pk)
+
+    assert client.started[0].collect_changes is True
+
+
 SNAPSHOT = SourceSnapshot(path=Path("/cache/a.tar.gz"), sha256="e" * 64, size_bytes=1)
 
 
