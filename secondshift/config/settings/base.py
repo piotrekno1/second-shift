@@ -11,9 +11,8 @@ environment, never from .env.
 Defaults are safe for production. Values that differ on a single machine use
 `default=SINGLE_HOST` or `default=DEV`.
 
-Local mode must work from code defaults and the values `secondshift up` passes
-at startup. The data folder's .env holds only the keys made on first start. It
-outlives upgrades, so never ask people to add settings to it.
+Local mode must work with no settings beyond the keys made on first start. The
+data folder's .env outlives upgrades, so local values belong in code.
 """
 
 import os
@@ -28,6 +27,7 @@ from environ import Env
 from secondshift.config.constants import (
     DEFAULT_SANDBOX_IMAGE,
     ENVIRONMENT_VAR,
+    HOST_ALIAS,
     SERVICE_VAR,
     AppEnv,
     Environment,
@@ -500,10 +500,19 @@ GITHUB_APP_PRIVATE_KEY = env.str(
 ).replace("\\n", "\n")
 
 
-# CLI agent execution. Off unless an image is set. `secondshift up` sets one.
+# CLI agent execution. Off unless an image is set. `secondshift up` builds one.
 AGENT_IMAGE = env.str(AppEnv.AGENT_IMAGE, default="")
 AGENT_NETWORK = env.str(AppEnv.AGENT_NETWORK, default="bridge")
-AGENT_BROKER_URL = env.str(AppEnv.AGENT_BROKER_URL, default="")
+# Agent containers reach the gateway on the host through Docker's host alias.
+AGENT_BROKER_URL = env.str(
+    AppEnv.AGENT_BROKER_URL,
+    default=(
+        f"http://{HOST_ALIAS}:{urlsplit(MODEL_GATEWAY_URL).port or 80}"
+        "/gateway/agent/mcp"
+    )
+    if SINGLE_HOST
+    else "",
+)
 # Agent containers call the gateway by the broker's host name.
 if AGENT_IMAGE and (agent_broker_host := urlsplit(AGENT_BROKER_URL).hostname):
     ALLOWED_HOSTS = list(dict.fromkeys([*ALLOWED_HOSTS, agent_broker_host]))

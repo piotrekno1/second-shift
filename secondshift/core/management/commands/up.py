@@ -83,9 +83,10 @@ def command(
     call_command("migrate", interactive=False, verbosity=0)
     agent_host = None
     if agents:
-        gateway_port = launcher.local_service_port(settings.MODEL_GATEWAY_URL)
         try:
-            parent.update(local_agents.agent_env(parent, gateway_port, click.echo))
+            parent.update(
+                local_agents.agent_env(parent, settings.AGENT_BROKER_URL, click.echo)
+            )
             agent_host = local_agents.container_gateway_host()
         except local_agents.AgentSetupError as error:
             raise click.ClickException(

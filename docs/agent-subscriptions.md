@@ -39,9 +39,10 @@ Agent containers reach the gateway through `host.docker.internal`.
 
 The gateway never listens on every network for agents.
 
-`up` always sets the agent image and broker URL itself, so an upgrade takes
-effect on the next start. It ignores `SECONDSHIFT_AGENT_IMAGE` and
-`SECONDSHIFT_AGENT_BROKER_URL`. Servers set both explicitly.
+To use your own image, set `SECONDSHIFT_AGENT_IMAGE`. A local tag is resolved
+to its `sha256:` ID. A registry reference must include a digest. To use another
+gateway address, set `SECONDSHIFT_AGENT_BROKER_URL`. Its host name is allowed
+automatically.
 
 ## Logins
 
