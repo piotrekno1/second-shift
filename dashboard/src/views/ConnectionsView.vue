@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import AgentConnectionsPanel from '../components/AgentConnectionsPanel.vue'
 import AppIcon from '../components/AppIcon.vue'
 import OAuthScopeWarning from '../components/OAuthScopeWarning.vue'
 import { computed, nextTick, onMounted, reactive, ref } from 'vue'
@@ -97,6 +96,8 @@ const providerIcon: Record<Connection['provider'], string> = {
   openai_compatible: 'server-outline',
 }
 
+// Model providers live on Models. Here are the connections jobs ask for by name.
+const connections = computed(() => app.connections.filter((connection) => connection.kind !== 'model'))
 const openNeeds = computed(() => app.needs.filter((need) => need.status !== 'ready'))
 // What blocks a job comes first: broken, then missing, then waiting on approval. Optional last.
 const SETUP_ORDER: Record<CapabilityNeed['status'], number> = { unavailable: 0, missing: 1, needs_approval: 2, ready: 3 }
@@ -124,7 +125,7 @@ function isWebhook(connection: Connection): boolean {
 }
 
 function editable(connection: Connection): boolean {
-  return canEdit.value && (connection.kind === 'mcp' || connection.kind === 'api' || connection.kind === 'model' || connection.provider === 'webhook')
+  return canEdit.value && (connection.kind === 'mcp' || connection.kind === 'api' || connection.provider === 'webhook')
 }
 
 /** The one thing to do on a connection row, when something is wrong with it. */
@@ -139,7 +140,6 @@ function testLabel(connection: Connection): string | null {
   if (!canTest.value || connection.status !== 'connected') return null
   if (connection.kind === 'mcp') return 'Check tools'
   if (connection.kind === 'api') return 'Check operations'
-  if (connection.kind === 'model') return 'Check'
   if (connection.provider === 'webhook') return 'Send test'
   return null
 }
@@ -151,7 +151,7 @@ const rowMenuItems = ref<MenuItem[]>([])
 function openRowMenu(event: Event, connection: Connection): void {
   const items: MenuItem[] = []
   const test = testLabel(connection)
-  if (test) items.push({ label: test, appIcon: connection.kind === 'model' || connection.provider === 'webhook' ? 'send-outline' : 'refresh', command: () => sendTest(connection, `connection-${connection.id}`) })
+  if (test) items.push({ label: test, appIcon: connection.provider === 'webhook' ? 'send-outline' : 'refresh', command: () => sendTest(connection, `connection-${connection.id}`) })
   if (editable(connection)) items.push({ label: connection.status === 'connected' ? 'Edit' : 'Reconnect', appIcon: 'pencil-outline', command: () => toggle({ mode: 'edit', id: connection.id }) })
   const danger: MenuItem[] = []
   if (connection.status !== 'revoked' && app.can(Action.DisconnectConnections)) danger.push({ label: 'Disconnect…', appIcon: 'power-plug-off-outline', danger: true, command: () => { confirmRevoke.value = connection.id; confirmDelete.value = null } })
@@ -170,7 +170,7 @@ const connectionsSubtitle = computed(() => {
   // The same counts as the sidebar's "to fix", spelled out.
   const broken = app.brokenConnections
   const setUp = app.bindingsToSetUp
-  const parts = [`${countLabel(app.connections.length - broken, 'connection')} working`]
+  const parts = [`${countLabel(connections.value.length - broken, 'connection')} working`]
   const fixes = [
     broken ? `${countLabel(broken, 'connection')} failing` : '',
     setUp ? `${countLabel(setUp, 'binding')} to set up` : '',
@@ -242,7 +242,7 @@ function sendTest(connection: Connection, noticeKey: string): Promise<void> {
     // Checks and deliveries are saved on the connection; refresh so its pill reflects the result.
     await app.refresh()
     if (!result.ok) throw new Error(result.message)
-    if (connection.kind === 'model' || connection.kind === 'mcp' || connection.kind === 'api') return result.message
+    if (connection.kind === 'mcp' || connection.kind === 'api') return result.message
     return 'Test message delivered.'
   }, 'Unable to send a test message')
 }
@@ -276,7 +276,7 @@ async function checkAgain(): Promise<void> {
 }
 
 onMounted(async () => {
-  if (requestedConnection && app.connections.some((connection) => connection.id === requestedConnection)) {
+  if (requestedConnection && connections.value.some((connection) => connection.id === requestedConnection)) {
     if (canEdit.value) openForm.value = { mode: 'edit', id: requestedConnection }
     await nextTick()
     // The form can be taller than a phone screen, so its top goes to the top.
@@ -354,18 +354,15 @@ onMounted(async () => {
 
     <section class="panel services-panel">
       <div class="panel-heading">
-        <div><h2>Connections <span class="heading-count">{{ app.connections.length }}</span></h2><p>Shared by the whole workspace. A job uses one when its <code>.secondshift.yaml</code> names it.</p></div>
+        <div><h2>Connections <span class="heading-count">{{ connections.length }}</span></h2><p>Shared by the whole workspace. A job uses one when its <code>.secondshift.yaml</code> names it.</p></div>
       </div>
-      <div v-if="app.connections.length" class="need-list">
-        <article v-for="connection in app.connections" :id="`connection-${connection.id}`" :key="connection.id" class="need" :class="{ unavailable: connection.status !== 'connected' }">
+      <div v-if="connections.length" class="need-list">
+        <article v-for="connection in connections" :id="`connection-${connection.id}`" :key="connection.id" class="need" :class="{ unavailable: connection.status !== 'connected' }">
           <div class="need-row">
             <div class="row-glyph"><ProviderIcon :provider="connection.provider" :fallback="providerIcon[connection.provider] ?? kindIcon[connection.kind]" /></div>
             <div class="need-primary">
-              <strong class="connection-name">{{ connection.display_name }}<span v-if="connection.is_default" class="default-badge">Default</span></strong>
+              <strong class="connection-name">{{ connection.display_name }}</strong>
               <span>{{ kindLabel(connection.kind) }} · {{ providerLabel(connection.provider) }}<template v-if="connection.target"> → {{ connection.target }}</template></span>
-              <small v-if="connection.kind === 'model'">
-                {{ connection.default_model ? `Default model ${connection.default_model}` : 'No default model' }} · {{ connection.allowed_models.length ? `${connection.allowed_models.length} allowed` : 'any model allowed' }}
-              </small>
               <small v-if="servedBindings(connection).length" class="served">
                 Serves <template v-for="(need, index) in servedBindings(connection)" :key="need.binding"><template v-if="index">, </template><code>{{ need.binding }}</code> for <template v-for="(job, jobIndex) in need.jobs" :key="job.job_id"><template v-if="jobIndex">, </template><RouterLink :to="`/jobs/${job.job_id}`" class="need-job">{{ job.job_name }}</RouterLink><template v-if="need.required && !job.required"> (optional)</template></template></template>
               </small>
@@ -410,8 +407,6 @@ onMounted(async () => {
       </div>
       <div v-else class="empty-state compact"><AppIcon name="power-plug-off-outline" /><strong>Nothing connected yet</strong><span v-if="canEdit">Use <strong>Add connection</strong>, or connect a binding above.</span><span v-else>Workspace owners add connections.</span></div>
     </section>
-
-    <AgentConnectionsPanel />
 
     <p v-if="!app.needs.length" class="quiet-line">
       <AppIcon name="check-decagram-outline" /> No job needs a connection yet. Bindings under <code>notify</code> or <code>requires</code> in a repository's <code>.secondshift.yaml</code> show up here.

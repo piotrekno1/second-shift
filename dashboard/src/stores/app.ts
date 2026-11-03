@@ -52,9 +52,9 @@ export const useAppStore = defineStore('app', {
     /** Jobs whose access is pending or denied, so they cannot run until reviewed. */
     jobsNeedingReview: (state): number =>
       state.jobs.filter((job) => job.grant_status === 'pending' || job.grant_status === 'denied').length,
-    /** Connections that are not working: disconnected, or their last check failed. */
+    /** Connections that are not working: disconnected, or their last check failed. Model providers count on Models. */
     brokenConnections: (state): number =>
-      state.connections.filter((connection) => connection.status !== 'connected' || connection.last_check?.ok === false).length,
+      state.connections.filter((connection) => connection.kind !== 'model' && (connection.status !== 'connected' || connection.last_check?.ok === false)).length,
     /** Required bindings with no working connection yet. Approval waits are counted on Jobs. */
     bindingsToSetUp: (state): number =>
       state.needs.filter((need) => need.required && (need.status === 'missing' || need.status === 'unavailable')).length,
