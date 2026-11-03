@@ -267,10 +267,13 @@ onMounted(async () => {
             <div class="need-primary">
               <strong class="connection-name">{{ row.name }}<span v-if="row.chosen" class="default-badge">Runs jobs</span></strong>
               <span>{{ row.summary }}</span>
-              <small v-if="row.problem" class="need-detail">{{ row.problem }}</small>
-              <small v-else-if="row.lastCheck" :title="row.lastCheck.message">
-                {{ row.lastCheck.message }} · checked {{ formatRelative(row.lastCheck.checked_at) }}
-              </small>
+              <!-- A fresh notice says the same thing. -->
+              <template v-if="!notices[row.key]">
+                <small v-if="row.problem" class="need-detail">{{ row.problem }}</small>
+                <small v-else-if="row.lastCheck" :title="row.lastCheck.message">
+                  {{ row.lastCheck.message }} · checked {{ formatRelative(row.lastCheck.checked_at) }}
+                </small>
+              </template>
             </div>
             <StatusPill v-if="row.connection?.status === 'connected' && row.connection.last_check?.ok === false" status="error" label="Check failed" :title="row.connection.last_check.message" />
             <StatusPill v-else-if="row.connection" :status="row.connection.status" />
