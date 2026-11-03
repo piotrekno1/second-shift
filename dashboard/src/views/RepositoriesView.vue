@@ -170,13 +170,13 @@ function chooseDirectory(path: string): void {
       </div>
     </form>
     <form v-if="addingLocal" class="panel local-repository-form" @submit.prevent="addLocalRepository">
-      <div><h2>Add a local Git repository</h2><p>Its committed `.secondshift.yaml` and referenced skills will be validated and synchronized.</p></div>
+      <div><h2>Add a local Git repository</h2><p>Jobs are read from its committed <code>.secondshift.yaml</code>. You can add it before the file exists.</p></div>
       <InputText v-model="localPath" aria-label="Local repository path" placeholder="/Users/you/Projects/my-repository" autofocus />
       <div class="local-repository-actions">
         <Button type="button" severity="secondary" outlined aria-label="Browse directories" :aria-expanded="browsing" aria-controls="local-directory-picker" aria-haspopup="dialog" title="Browse directories" @click="browsing = true">
           <template #icon><AppIcon name="folder-open-outline" /></template>
         </Button>
-        <Button class="main-action" type="submit" label="Validate and add" :loading="saving" :disabled="!localPath.trim()">
+        <Button class="main-action" type="submit" label="Add repository" :loading="saving" :disabled="!localPath.trim()">
           <template #icon><AppIcon name="check" /></template>
         </Button>
       </div>
@@ -196,7 +196,8 @@ function chooseDirectory(path: string): void {
             <span v-if="repository.local_path" class="mono-line">{{ repository.local_path }}</span>
             <span v-else>{{ repository.source_type === 'local' ? 'Local' : 'GitHub' }} · {{ repository.default_branch }}</span>
           </div>
-          <span class="repository-row-jobs">{{ countLabel(repository.job_count, 'job') }}</span>
+          <span v-if="!repository.revision" class="repository-row-jobs">No configuration yet</span>
+          <span v-else class="repository-row-jobs">{{ countLabel(repository.job_count, 'job') }}</span>
           <span class="repository-row-sync" :title="`${formatDate(repository.last_synced_at)} · ${utcTitle(repository.last_synced_at)}`">Synced {{ formatRelative(repository.last_synced_at) }}</span>
           <StatusPill :status="repository.enabled ? 'enabled' : 'disabled'" />
           <AppIcon name="chevron-right" class="row-chevron" />
@@ -211,7 +212,7 @@ function chooseDirectory(path: string): void {
       <article v-if="!app.repositories.length && !addingGitHub && !addingLocal" class="panel empty-state wide">
         <AppIcon name="source-branch-plus" /><strong>{{ app.can(Action.AddLocalRepositories) ? 'Connect your first repository' : 'No repositories yet' }}</strong>
         <span v-if="!app.can(Action.AddLocalRepositories)">Workspace owners add repositories.</span>
-        <span v-else>{{ app.user?.local_repositories_enabled ? 'Add a local Git repository or connect GitHub.' : 'Connect GitHub and import a repository containing `.secondshift.yaml`.' }}</span>
+        <span v-else>{{ app.user?.local_repositories_enabled ? 'Add a local Git repository or connect GitHub.' : 'Connect GitHub and import a repository.' }}</span>
       </article>
     </section>
   </div>

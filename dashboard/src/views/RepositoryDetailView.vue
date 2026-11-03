@@ -39,7 +39,9 @@ const optionalSetups = computed(() => detailedJobs.value.flatMap((job) =>
 const readyDisabledJobs = computed(() => detailedJobs.value.filter((job) =>
   Boolean(job.cron) && !job.enabled && (job.grant_status === 'approved' || job.grant_status === 'not_required'),
 ))
-const setupComplete = computed(() => requiredReviews.value.length === 0 && readyDisabledJobs.value.length === 0)
+// No commit has synced yet, so there is no valid .secondshift.yaml to read jobs from.
+const needsConfig = computed(() => !repository.value?.revision)
+const setupComplete = computed(() => !needsConfig.value && requiredReviews.value.length === 0 && readyDisabledJobs.value.length === 0)
 const repositorySubtitle = computed(() => {
   const item = repository.value
   if (!item) return loading.value ? 'Loading repository…' : 'This repository could not be loaded'
@@ -211,7 +213,11 @@ onMounted(loadRepository)
         <div class="setup-status-icon"><AppIcon :name="setupComplete ? 'check-decagram-outline' : 'progress-check'" /></div>
         <div class="setup-copy">
           <h2>{{ setupComplete ? (justAdded ? 'Repository added and ready' : 'This repository is ready') : 'Finish setup' }}</h2>
-          <p v-if="requiredReviews.length">Approve access for {{ countLabel(requiredReviews.length, 'required binding') }} before its jobs can run.</p>
+          <p v-if="needsConfig">
+            Commit a <code>{{ repository.config_path }}</code> to {{ repository.default_branch }} to define its jobs.
+            {{ repository.auto_sync && repository.server_syncs ? 'It is picked up within minutes.' : 'Then press Resync.' }}
+          </p>
+          <p v-else-if="requiredReviews.length">Approve access for {{ countLabel(requiredReviews.length, 'required binding') }} before its jobs can run.</p>
           <p v-else-if="readyDisabledJobs.length">Access is ready. Enable {{ countLabel(readyDisabledJobs.length, 'job') }} to start its schedule.</p>
           <p v-else>All required access is resolved and every ready job is enabled.</p>
           <small v-if="optionalSetups.length && app.can(Action.AddConnections)">
