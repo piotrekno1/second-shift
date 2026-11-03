@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import AppIcon from '../components/AppIcon.vue'
+import TaskSubmissionForm from '../components/TaskSubmissionForm.vue'
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Button from 'primevue/button'
+import Menu from 'primevue/menu'
 import PageHeader from '../components/PageHeader.vue'
 import StatusPill from '../components/StatusPill.vue'
 import { apiDelete, apiGet, apiPost } from '../services/api'
@@ -20,6 +22,12 @@ const action = ref<string | null>(null)
 const error = ref<string | null>(null)
 const copied = ref(false)
 const confirmRemove = ref(false)
+const showTaskForm = ref(false)
+const repositoryMenu = ref<InstanceType<typeof Menu> | null>(null)
+const repositoryActions = computed(() => [
+  { label: 'Validate configuration', appIcon: 'check-circle-outline', command: validateRepository },
+  ...(app.can(Action.ChangeRepositoryState) ? [{ label: repository.value?.enabled ? 'Disable repository' : 'Enable repository', appIcon: repository.value?.enabled ? 'pause' : 'play', command: toggleRepository }] : []),
+])
 const repositoryId = Number(route.params.id)
 const justAdded = computed(() => route.query.added === '1')
 const detailedJobs = computed(() => {
@@ -184,7 +192,7 @@ onMounted(loadRepository)
 </script>
 
 <template>
-  <div class="page">
+  <div class="page repository-page">
     <PageHeader
       compact
       :title="repository?.display_name ?? 'Repository'"
@@ -192,15 +200,16 @@ onMounted(loadRepository)
       :parent="{ label: 'Repositories', to: '/repositories' }"
     >
       <template v-if="repository">
-        <Button label="Validate" severity="secondary" outlined :loading="action === 'validate'" title="Read-only check of the manifest and skills" @click="validateRepository">
-          <template #icon><AppIcon name="check-circle-outline" /></template>
+        <Button v-if="repository.enabled && app.can(Action.RunJobs)" label="New task" @click="showTaskForm = !showTaskForm">
+          <template #icon><AppIcon name="play" /></template>
         </Button>
-        <Button v-if="app.can(Action.ChangeRepositoryState)" :label="repository.enabled ? 'Disable' : 'Enable'" severity="secondary" outlined :loading="action === 'toggle'" @click="toggleRepository">
-          <template #icon><AppIcon :name="repository.enabled ? 'pause' : 'play'" /></template>
-        </Button>
-        <Button v-if="app.can(Action.ResyncRepositories)" label="Resync" :loading="action === 'resync'" title="Import the committed manifest and skill definitions" @click="resyncRepository">
+        <Button v-if="app.can(Action.ResyncRepositories)" label="Resync" severity="secondary" outlined :loading="action === 'resync'" title="Import the committed manifest and skill definitions" @click="resyncRepository">
           <template #icon><AppIcon name="refresh" /></template>
         </Button>
+        <Button label="More" severity="secondary" text aria-label="More repository actions" aria-haspopup="true" aria-controls="repository-actions-menu" :loading="action === 'validate' || action === 'toggle'" @click="repositoryMenu?.toggle($event)" />
+        <Menu id="repository-actions-menu" ref="repositoryMenu" :model="repositoryActions" popup class="row-menu">
+          <template #item="{ item, props }"><a v-bind="props.action" class="row-menu-item"><AppIcon :name="item.appIcon" />{{ item.label }}</a></template>
+        </Menu>
       </template>
     </PageHeader>
 
@@ -208,6 +217,7 @@ onMounted(loadRepository)
     <div v-else-if="!repository" class="panel empty-state"><AppIcon name="alert-outline" /><strong>Repository unavailable</strong><span>{{ error }}</span></div>
     <template v-else>
       <p v-if="error" class="page-error">{{ error }}</p>
+      <TaskSubmissionForm v-if="showTaskForm && repository.enabled && app.can(Action.RunJobs)" :repository-id="repositoryId" :repository-name="repository.display_name" :default-branch="repository.default_branch" @cancel="showTaskForm = false" />
 
       <section v-if="!setupComplete || justAdded" class="panel repository-setup" :class="{ complete: setupComplete }">
         <div class="setup-status-icon"><AppIcon :name="setupComplete ? 'check-decagram-outline' : 'progress-check'" /></div>
@@ -245,7 +255,7 @@ onMounted(loadRepository)
         <AppIcon name="source-commit" />
         <div>
           <strong>New commits since the last sync</strong>
-          <span>Runs still use <code>{{ repository.validation.synced_revision.slice(0, 7) }}</code>; the repository is at <code>{{ repository.validation.current_revision?.slice(0, 7) }}</code>.</span>
+          <span>Job runs still use <code>{{ repository.validation.synced_revision.slice(0, 7) }}</code>; the repository is at <code>{{ repository.validation.current_revision?.slice(0, 7) }}</code>.</span>
         </div>
         <Button v-if="app.can(Action.ResyncRepositories)" label="Resync" size="small" :loading="action === 'resync'" @click="resyncRepository">
           <template #icon><AppIcon name="refresh" /></template>
@@ -253,7 +263,7 @@ onMounted(loadRepository)
       </section>
       <section v-else-if="repository.validation.status !== 'valid'" class="panel repository-alert" :class="repository.validation.status">
         <AppIcon :name="repository.validation.status === 'warning' ? 'alert-outline' : 'close-octagon-outline'" />
-        <div><strong>{{ repository.validation.status === 'warning' ? 'Check this repository' : 'This repository cannot run' }}</strong><span>{{ repository.validation.message }}</span></div>
+        <div><strong>{{ repository.validation.status === 'warning' ? 'Check this repository' : 'Repository needs attention' }}</strong><span>{{ repository.validation.message }}</span></div>
       </section>
 
       <section class="panel repository-info-card">
@@ -306,3 +316,8 @@ onMounted(loadRepository)
     </template>
   </div>
 </template>
+
+<style scoped>
+.repository-page :deep(.page-actions) { flex: none; flex-wrap: wrap; align-items: center; }
+.repository-page :deep(.page-actions .p-button) { white-space: nowrap; }
+</style>

@@ -62,6 +62,9 @@ export const useAppStore = defineStore('app', {
       state.mcpProviders.find((provider) => provider.key === key),
   },
   actions: {
+    includeRecentRun(run: Run): void {
+      this.runs = [run, ...this.runs.filter(item => item.id !== run.id)].slice(0, RECENT_RUNS)
+    },
     async initialize(): Promise<void> {
       try {
         this.user = await apiGet<User>('/me')

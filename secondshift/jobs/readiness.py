@@ -4,6 +4,7 @@ from typing import Any
 
 from secondshift.jobs.models import Job
 from secondshift.jobs.planning import build_execution_plan
+from secondshift.repositories.models import Repository
 
 REASON_TEXT = {
     "no_grant": "waits for an owner's approval",
@@ -22,9 +23,9 @@ REASON_TEXT = {
 OTHER_REASON = "cannot reach what the job needs through its connection"
 
 
-def plan_problems(job: Job, plan: dict[str, Any]) -> list[str]:
+def execution_problems(repository: Repository, plan: dict[str, Any]) -> list[str]:
     problems = []
-    if not job.repository.enabled:
+    if not repository.enabled:
         problems.append("The repository is disabled.")
     if not plan["execution"]["ready"]:
         problems.append(plan["execution"]["problem"])
@@ -36,6 +37,10 @@ def plan_problems(job: Job, plan: dict[str, Any]) -> list[str]:
         )
         problems.append(f"{capability['binding']} {' and '.join(texts)}.")
     return problems
+
+
+def plan_problems(job: Job, plan: dict[str, Any]) -> list[str]:
+    return execution_problems(job.repository, plan)
 
 
 def readiness_problems(job: Job) -> list[str]:

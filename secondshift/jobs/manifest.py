@@ -174,6 +174,17 @@ class JobManifest(BaseModel):
         return self
 
 
+class TaskManifest(JobManifest):
+    """One-off work may supply instructions instead of a committed skill."""
+
+    skill: str | None = Field(default=None, min_length=1, max_length=500)
+
+    @field_validator("skill")
+    @classmethod
+    def validate_skill_path(cls, value: str | None) -> str | None:
+        return JobManifest.validate_skill_path(value) if value is not None else None
+
+
 class RepositoryManifest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

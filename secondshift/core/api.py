@@ -20,7 +20,7 @@ from secondshift.jobs.execution import execution_status
 from secondshift.jobs.models import Job
 from secondshift.repositories.github_app import configured as github_app_configured
 from secondshift.repositories.models import Repository
-from secondshift.runs.models import Run
+from secondshift.runs.models import Run, run_workspace_filter
 from secondshift.runs.reporting.health import (
     failing_jobs,
     runs_by_day,
@@ -74,7 +74,7 @@ def overview(request: HttpRequest) -> OverviewSchema:
         workspace=workspace,
         removed_at__isnull=True,
     )
-    runs = Run.objects.filter(job__workspace=workspace)
+    runs = Run.objects.filter(run_workspace_filter(workspace.pk))
     week = week_summary(workspace)
     return OverviewSchema(
         repositories=active_repositories.count(),

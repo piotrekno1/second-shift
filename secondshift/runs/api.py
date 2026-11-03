@@ -3,7 +3,9 @@ from ninja import Query, Router, Status
 from ninja.errors import HttpError
 from ninja.security import django_auth
 
+from secondshift.config.constants import TaskOrigin
 from secondshift.jobs.access import job_for_request
+from secondshift.repositories.access import repository_for_request
 from secondshift.runs.access import run_for_request
 from secondshift.runs.artifacts import artifact_storage
 from secondshift.runs.reporting.queries import RunFilters, run_page
@@ -14,6 +16,7 @@ from secondshift.runs.schemas import (
     RunListQuery,
     RunPageSchema,
     RunSchema,
+    TaskSubmissionSchema,
 )
 from secondshift.runs.serialization import (
     run_file_path,
@@ -21,6 +24,7 @@ from secondshift.runs.serialization import (
     serialize_run_detail,
 )
 from secondshift.runs.services import RunInProgress, RunRefused, start_manual_run
+from secondshift.runs.submissions import SkillSubmission, submit_skill
 from secondshift.workspaces.access import (
     Action,
     current_workspace,
@@ -101,3 +105,22 @@ def run_job(
     except RunRefused as error:
         raise HttpError(409, str(error)) from error
     return serialize_run(run)
+
+
+@router.post("/tasks", response={200: TaskSubmissionSchema, 409: RunInProgressSchema})
+def submit_task(
+    request: HttpRequest, payload: SkillSubmission
+) -> TaskSubmissionSchema | Status[RunInProgressSchema]:
+    require(request, Action.RUN_JOBS)
+    repository = repository_for_request(request, payload.repository_id)
+    try:
+        result = submit_skill(repository, payload, request.user, TaskOrigin.MANUAL)
+    except RunInProgress as error:
+        return Status(409, RunInProgressSchema(detail=str(error), run_id=error.run.pk))
+    except RunRefused as error:
+        raise HttpError(409, str(error)) from error
+    return TaskSubmissionSchema(
+        task_id=result.run.task_id,
+        run=serialize_run(result.run),
+        started=result.started,
+    )

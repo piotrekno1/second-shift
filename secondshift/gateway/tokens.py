@@ -28,7 +28,7 @@ def issue_run_token(run: Run, connection: Connection) -> str:
     """Create a gateway token for one run. The plaintext is returned once."""
     if (
         connection.kind != Connection.Kind.MODEL
-        or connection.workspace_id != run.job.workspace_id
+        or connection.workspace_id != run.workspace_id
     ):
         raise GatewayUnavailable("The model provider belongs to another workspace.")
     token = TOKEN_PREFIX + secrets.token_urlsafe(32)
@@ -50,7 +50,9 @@ def revoke_run_tokens(run_id: int) -> int:
 
 
 def active_tokens(token: str) -> QuerySet[RunToken]:
-    return RunToken.objects.select_related("connection", "run__job").filter(
+    return RunToken.objects.select_related(
+        "connection", "run__job", "run__task__repository"
+    ).filter(
         token_hash=token_digest(token),
         revoked_at__isnull=True,
         expires_at__gt=timezone.now(),
@@ -63,7 +65,7 @@ def active_tokens(token: str) -> QuerySet[RunToken]:
 def same_workspace(run_token: RunToken | None) -> RunToken | None:
     if run_token is None:
         return None
-    if run_token.connection.workspace_id != run_token.run.job.workspace_id:
+    if run_token.connection.workspace_id != run_token.run.workspace_id:
         return None
     return run_token
 

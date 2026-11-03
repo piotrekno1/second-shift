@@ -6,16 +6,29 @@ from django.utils import timezone
 
 from secondshift.config.constants import RunStart, TaskOrigin
 from secondshift.jobs.models import Job
+from secondshift.repositories.models import Repository
 
 
 class Task(models.Model):
     """One assignment; runs retain the inputs and policy of each attempt.
 
-    This first version has only job-backed assignments. Snapshots are copied
-    at submission, never reconstructed from a job that may since have changed.
+    Job-backed assignments retain their existing source relationship. Ad hoc
+    assignments own a repository directly. Inputs are frozen at submission.
     """
 
-    job = models.ForeignKey(Job, on_delete=models.CASCADE, related_name="tasks")
+    job = models.ForeignKey(
+        Job, on_delete=models.CASCADE, related_name="tasks", null=True, blank=True
+    )
+    repository = models.ForeignKey(
+        Repository,
+        on_delete=models.PROTECT,
+        related_name="tasks",
+        null=True,
+        blank=True,
+    )
+    submission_key = models.CharField(
+        max_length=120, blank=True, default="", db_default=""
+    )
     origin = models.CharField(
         max_length=16,
         choices=[(item.value, item.value.title()) for item in TaskOrigin],
@@ -35,6 +48,32 @@ class Task(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    models.Q(job__isnull=False, repository__isnull=True)
+                    | models.Q(job__isnull=True, repository__isnull=False)
+                ),
+                name="task_has_one_source",
+            ),
+            models.UniqueConstraint(
+                fields=["repository", "submission_key"],
+                condition=~models.Q(submission_key=""),
+                name="unique_repository_submission",
+            ),
+        ]
+
+
+def run_workspace_filter(workspace_id: int | None, prefix: str = "") -> models.Q:
+    """Include ad hoc runs without changing the ownership of legacy job runs."""
+    if workspace_id is None:
+        return models.Q(**{f"{prefix}pk__in": []})
+    return models.Q(**{f"{prefix}job__workspace_id": workspace_id}) | models.Q(
+        **{
+            f"{prefix}job__isnull": True,
+            f"{prefix}task__repository__workspace_id": workspace_id,
+        }
+    )
 
 
 class Run(models.Model):
@@ -48,7 +87,9 @@ class Run(models.Model):
     # A run in one of these has not finished yet.
     ACTIVE_STATUSES = (Status.QUEUED, Status.RUNNING)
 
-    job = models.ForeignKey(Job, on_delete=models.PROTECT, related_name="runs")
+    job = models.ForeignKey(
+        Job, on_delete=models.PROTECT, related_name="runs", null=True, blank=True
+    )
     task = models.ForeignKey(
         Task,
         on_delete=models.PROTECT,
@@ -103,14 +144,42 @@ class Run(models.Model):
             )
         ]
         constraints = [
+            models.CheckConstraint(
+                condition=models.Q(job__isnull=False) | models.Q(task__isnull=False),
+                name="run_has_source",
+            ),
             models.UniqueConstraint(
                 fields=["job", "scheduled_for"],
                 name="unique_job_scheduled_run",
-            )
+            ),
         ]
 
+    @property
+    def repository(self) -> Repository:
+        if self.job is not None:
+            return self.job.repository
+        if self.task_id is not None and self.task.repository_id is not None:
+            return self.task.repository
+        raise ValueError("The run has no repository source.")
+
+    @property
+    def workspace_id(self) -> int:
+        return (
+            self.job.workspace_id
+            if self.job is not None
+            else self.repository.workspace_id
+        )
+
+    @property
+    def display_name(self) -> str:
+        return (
+            self.job.name
+            if self.job is not None
+            else str(self.input_snapshot.get("name", "Ad hoc skill"))
+        )
+
     def __str__(self) -> str:
-        return f"{self.job} at {self.scheduled_for:%Y-%m-%d %H:%M}"
+        return f"{self.display_name} at {self.scheduled_for:%Y-%m-%d %H:%M}"
 
 
 class RunEvent(models.Model):

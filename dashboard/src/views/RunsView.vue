@@ -83,7 +83,7 @@ useLiveRefresh(load, () => Boolean(counts.value.queued || counts.value.running))
 </script>
 
 <template>
-  <div class="page">
+  <div class="page runs-page">
     <PageHeader compact title="Runs" :description="runsSubtitle" />
     <!-- Filters narrow the set. Status and sort shape the list, so they sit on the list itself. -->
     <div v-if="filtered || total > 0" class="list-toolbar runs-toolbar">
@@ -119,3 +119,7 @@ useLiveRefresh(load, () => Boolean(counts.value.queued || counts.value.running))
     </section>
   </div>
 </template>
+
+<style scoped>
+.runs-page .data-list { container-type: inline-size; }
+</style>

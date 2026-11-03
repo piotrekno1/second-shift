@@ -10,7 +10,7 @@ from django.utils import timezone
 
 from secondshift.gateway.models import ModelUsage
 from secondshift.jobs.models import Job
-from secondshift.runs.models import Run
+from secondshift.runs.models import Run, run_workspace_filter
 from secondshift.runs.reporting.failures import describe_failure
 from secondshift.workspaces.models import Workspace
 
@@ -113,8 +113,8 @@ def week_summary(workspace: Workspace, now: datetime | None = None) -> WeekSumma
     """Runs and model spend in the last seven days, with the week before for trend."""
     now = now or timezone.now()
     start, previous_start = now - WINDOW, now - 2 * WINDOW
-    runs = Run.objects.filter(job__workspace=workspace, created_at__gte=start)
-    usage = ModelUsage.objects.filter(run__job__workspace=workspace)
+    runs = Run.objects.filter(run_workspace_filter(workspace.pk), created_at__gte=start)
+    usage = ModelUsage.objects.filter(run_workspace_filter(workspace.pk, "run__"))
     totals = usage.aggregate(
         spend=Sum("cost_usd", filter=Q(created_at__gte=start)),
         previous=Sum(
@@ -124,7 +124,7 @@ def week_summary(workspace: Workspace, now: datetime | None = None) -> WeekSumma
     return WeekSummary(
         runs=runs.count(),
         previous_runs=Run.objects.filter(
-            job__workspace=workspace,
+            run_workspace_filter(workspace.pk),
             created_at__gte=previous_start,
             created_at__lt=start,
         ).count(),
@@ -146,7 +146,7 @@ def runs_by_day(
     first = today - timedelta(days=days - 1)
     rows = (
         Run.objects.filter(
-            job__workspace=workspace,
+            run_workspace_filter(workspace.pk),
             status__in=FINISHED,
             created_at__date__gte=first,
             created_at__date__lte=today,

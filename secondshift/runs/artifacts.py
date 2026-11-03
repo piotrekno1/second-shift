@@ -95,7 +95,7 @@ def run_artifact_prefix(run: Run) -> str:
     object instead of creating a new one.
     """
     created = run.created_at.astimezone(UTC)
-    return f"runs/{run.job.workspace_id}/{created:%Y/%m/%d}/{run.pk}"
+    return f"runs/{run.workspace_id}/{created:%Y/%m/%d}/{run.pk}"
 
 
 def output_path(run: Run) -> str:

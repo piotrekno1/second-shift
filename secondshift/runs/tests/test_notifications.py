@@ -1,21 +1,22 @@
 from datetime import UTC, datetime
-from types import SimpleNamespace
 from typing import Any
 
 import pytest
 
+from secondshift.jobs.models import Job
+from secondshift.repositories.models import Repository
 from secondshift.runs.models import Run
 from secondshift.runs.reporting.notifications import run_report_payload
 
 
-def finished_run(status: str, summary: str) -> Any:
-    repository = SimpleNamespace(full_name="wild-edge/wild-edge")
-    job = SimpleNamespace(
+def finished_run(status: str, summary: str) -> Run:
+    repository = Repository(full_name="wild-edge/wild-edge")
+    job = Job(
         key="weekly-infra-review",
         name="Weekly Infrastructure Review",
         repository=repository,
     )
-    return SimpleNamespace(
+    return Run(
         pk=2,
         job=job,
         status=status,

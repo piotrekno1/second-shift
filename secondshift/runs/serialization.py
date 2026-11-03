@@ -79,9 +79,9 @@ def serialize_run(run: Run) -> RunSchema:
     return RunSchema(
         id=run.id,
         job_id=run.job_id,
-        job=run.job.name,
-        repository_id=run.job.repository_id,
-        repository=run.job.repository.display_name,
+        job=run.display_name,
+        repository_id=run.repository.pk,
+        repository=run.repository.display_name,
         status=run.status,
         scheduled_for=run.scheduled_for,
         started_by=run.started_by,
@@ -142,8 +142,15 @@ def serialize_run_detail(run: Run) -> RunDetailSchema:
     model = run.execution_plan.get("model") or {}
     return RunDetailSchema(
         **serialize_run(run).model_dump(),
-        job_key=str(run.input_snapshot.get("job_key") or run.job.key),
-        skill_path=str(run.input_snapshot.get("skill_path") or run.job.skill_path),
+        submission_input=str(run.input_snapshot.get("submission_input", "")),
+        job_key=str(
+            run.input_snapshot.get("job_key")
+            or (run.job.key if run.job is not None else "")
+        ),
+        skill_path=str(
+            run.input_snapshot.get("skill_path")
+            or (run.job.skill_path if run.job is not None else "")
+        ),
         created_at=run.created_at,
         exit_code=run.exit_code,
         model_provider=model.get("connection_name"),

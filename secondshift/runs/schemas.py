@@ -20,7 +20,7 @@ class RunFailureSchema(Schema):
 
 class RunSchema(Schema):
     id: int
-    job_id: int
+    job_id: int | None
     job: str
     repository_id: int
     repository: str
@@ -67,6 +67,7 @@ class RunFileSchema(Schema):
 
 
 class RunDetailSchema(RunSchema):
+    submission_input: str = ""
     job_key: str
     skill_path: str
     created_at: datetime
@@ -103,3 +104,9 @@ class RunInProgressSchema(Schema):
     detail: str
     # The run that has not finished yet, so the client can follow it.
     run_id: int
+
+
+class TaskSubmissionSchema(Schema):
+    task_id: int
+    run: RunSchema
+    started: bool

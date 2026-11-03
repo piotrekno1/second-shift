@@ -18,7 +18,7 @@ class RunEventInline(admin.TabularInline):
 @admin.register(Run)
 class RunAdmin(admin.ModelAdmin):
     list_display = (
-        "job",
+        "display_name",
         "status",
         "scheduled_for",
         "sandbox_runtime",
@@ -28,6 +28,7 @@ class RunAdmin(admin.ModelAdmin):
     search_fields = ("job__name", "job__repository__full_name", "commit_sha")
     readonly_fields = (
         "job",
+        "task",
         "status",
         "commit_sha",
         "scheduled_for",

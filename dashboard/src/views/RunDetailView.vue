@@ -35,6 +35,7 @@ const REPORT_COLLAPSED_PX = 640
 
 const stats = computed(() => (run.value ? runStats(run.value, now.value) : []))
 const timelineZone = computed(() => zoneName(run.value?.events[0]?.created_at ?? run.value?.created_at ?? new Date().toISOString()))
+const taskInstructionsHtml = computed(() => run.value?.submission_input ? renderMarkdown(run.value.submission_input) : '')
 const reportHtml = computed(() => (run.value?.output_excerpt ? renderMarkdown(run.value.output_excerpt) : ''))
 const inputFile = computed(() => run.value?.files.find((file) => file.name === 'input') ?? null)
 const outputFile = computed(() => run.value?.files.find((file) => file.name === 'output') ?? null)
@@ -82,7 +83,7 @@ function startPolling(): void {
 }
 
 async function runAgain(): Promise<void> {
-  if (!run.value) return
+  if (!run.value || run.value.job_id === null) return
   rerunning.value = true
   error.value = null
   try {
@@ -109,9 +110,9 @@ onUnmounted(stopPolling)
 </script>
 
 <template>
-  <div class="page">
+  <div class="page run-detail-page">
     <PageHeader compact :title="`Run #${runId}`" :description="subtitle" :parent="{ label: 'Runs', to: '/runs' }">
-      <Button class="main-action" v-if="run && !active && app.can(Action.RunJobs)" label="Run again" :title="runWarning(app.overview?.execution, app.jobs.find(job => job.id === run?.job_id)) || undefined" :loading="rerunning" @click="runAgain">
+      <Button class="main-action" v-if="run && run.job_id !== null && !active && app.can(Action.RunJobs)" label="Run again" :title="runWarning(app.overview?.execution, app.jobs.find(job => job.id === run?.job_id)) || undefined" :loading="rerunning" @click="runAgain">
         <template #icon><AppIcon name="replay" /></template>
       </Button>
     </PageHeader>
@@ -131,7 +132,7 @@ onUnmounted(stopPolling)
         <p v-if="run.failure" class="run-headline run-failure-headline">
           <span class="failure-label"><AppIcon :name="run.status === 'canceled' ? 'cancel' : 'alert-circle-outline'" />{{ run.failure.label }}</span>
           <span>{{ run.failure.reason }}</span>
-          <RouterLink v-if="run.failure.limit" :to="{ path: `/jobs/${run.job_id}`, hash: '#limits' }" class="detail-link">Change this job's limits <AppIcon name="arrow-right" /></RouterLink>
+          <RouterLink v-if="run.failure.limit && run.job_id !== null" :to="{ path: `/jobs/${run.job_id}`, hash: '#limits' }" class="detail-link">Change this job's limits <AppIcon name="arrow-right" /></RouterLink>
         </p>
         <p v-if="run.failure?.next_step" class="run-next-step">
           {{ run.failure.next_step }}
@@ -142,6 +143,11 @@ onUnmounted(stopPolling)
 
       <div class="run-layout">
         <div class="run-main">
+          <details v-if="run.submission_input" class="panel task-input-panel" :open="active">
+            <summary><span>{{ run.skill_path ? 'Additional instructions' : 'Task instructions' }}</span><span class="task-instructions-meta">{{ run.skill_path ? 'For this run' : 'Written task' }}<AppIcon name="chevron-right" /></span></summary>
+            <!-- eslint-disable-next-line vue/no-v-html -- sanitized by renderMarkdown -->
+            <article class="markdown-body task-instructions" v-html="taskInstructionsHtml" />
+          </details>
           <section v-if="timelineOpen" class="panel job-runs-panel">
             <div class="panel-heading"><h2>Timeline</h2><span class="run-details-muted">Times in {{ timelineZone }}</span></div>
             <ol v-if="run.events.length" class="run-timeline">
@@ -186,9 +192,9 @@ onUnmounted(stopPolling)
         <aside class="panel run-details">
           <h2>Details</h2>
           <dl>
-            <div><dt>Job</dt><dd><RouterLink :to="`/jobs/${run.job_id}`" class="detail-link">{{ run.job }}</RouterLink></dd></div>
+            <div><dt>{{ run.job_id === null ? 'Task' : 'Job' }}</dt><dd><RouterLink v-if="run.job_id !== null" :to="`/jobs/${run.job_id}`" class="detail-link">{{ run.job }}</RouterLink><span v-else>{{ run.job }}</span></dd></div>
             <div><dt>Repository</dt><dd><RouterLink :to="`/repositories/${run.repository_id}`" class="detail-link">{{ run.repository }}</RouterLink></dd></div>
-            <div><dt>Skill</dt><dd><code>{{ run.skill_path }}</code></dd></div>
+            <div><dt>Instructions</dt><dd><code v-if="run.skill_path">{{ run.skill_path }}</code><span v-else>Written task</span></dd></div>
             <div><dt>Agent</dt><dd>{{ run.execution_agent ?? run.model_provider ?? 'None' }}</dd></div>
             <div><dt>Started by</dt><dd>{{ startedByLabel(run.started_by) }}</dd></div>
             <div><dt>Queued</dt><dd :title="utcTitle(run.created_at)">{{ formatDate(run.created_at) }}</dd></div>
@@ -201,7 +207,7 @@ onUnmounted(stopPolling)
                 <span class="run-details-muted"> · {{ formatBytes(inputFile.size_bytes) }} · </span>
                 <a :href="runFileUrl(run.id, 'input', true)" class="detail-link" download>Download</a>
               </dd>
-              <dd v-else class="run-details-muted">{{ active ? 'Stored when the skill starts' : 'Not stored' }}</dd>
+              <dd v-else class="run-details-muted">{{ active ? 'Stored when the run starts' : 'Not stored' }}</dd>
             </div>
           </dl>
         </aside>
@@ -209,3 +215,21 @@ onUnmounted(stopPolling)
     </template>
   </div>
 </template>
+
+<style scoped>
+.run-detail-page :deep(.page-header > div:first-child) { min-width: 0; max-width: 100%; }
+.run-detail-page :deep(.page-header p) { overflow-wrap: anywhere; }
+.task-input-panel { padding: 20px 24px; }
+.task-input-panel > summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; list-style: none; color: var(--muted); font-size: 14px; font-weight: 500; cursor: pointer; }
+.task-input-panel > summary::-webkit-details-marker { display: none; }
+.task-input-panel > summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 6px; border-radius: 3px; }
+.task-input-panel .app-icon { flex: none; font-size: 14px; }
+.task-input-panel[open] > summary { color: var(--ink); }
+.task-input-panel[open] .app-icon { transform: rotate(90deg); }
+.task-instructions-meta { display: flex; align-items: center; gap: 12px; color: var(--subtle); font-size: 11px; font-weight: 400; }
+.task-instructions { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border); color: var(--muted); font-size: 13px; line-height: 1.75; overflow-wrap: anywhere; }
+.task-instructions :deep(> :first-child) { margin-top: 0; }
+.task-instructions :deep(> :last-child) { margin-bottom: 0; }
+.task-instructions :deep(h1), .task-instructions :deep(h2), .task-instructions :deep(h3) { color: var(--ink); font-size: 15px; font-weight: 500; }
+@media (max-width: 540px) { .task-input-panel { padding: 16px 20px; } }
+</style>

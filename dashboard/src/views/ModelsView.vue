@@ -312,7 +312,6 @@ onMounted(async () => {
 </template>
 
 <style scoped>
-.need.chosen { box-shadow: inset 2px 0 0 var(--ink); }
 .model-start { padding: 20px; margin-bottom: 16px; }
 .model-start-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin-top: 16px; }
 .model-start-options button { display: grid; gap: 8px; justify-items: start; align-content: start; padding: 16px; border: 1px solid var(--border); border-radius: 10px; background: transparent; color: var(--ink); text-align: left; cursor: pointer; }

@@ -25,8 +25,10 @@ class RunRefused(Exception):
 class RunInProgress(RunRefused):
     """The job already has a run that has not finished."""
 
-    def __init__(self, run: Run) -> None:
-        super().__init__("This job already has a queued or running run.")
+    def __init__(
+        self, run: Run, message: str = "This job already has a queued or running run."
+    ) -> None:
+        super().__init__(message)
         self.run = run
 
 

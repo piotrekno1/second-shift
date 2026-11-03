@@ -38,14 +38,12 @@ def run_connection(run: Run) -> AgentConnection:
     plan = run.execution_plan["execution"]
     connection = AgentConnection.objects.filter(
         pk=plan["connection_id"],
-        workspace_id=run.job.workspace_id,
+        workspace_id=run.workspace_id,
         owner_id=plan["owner_id"],
         credential_key=plan["credential_key"],
         backend=plan["backend"],
     ).first()
-    if connection is None or not usable_agent_connection(
-        connection, run.job.workspace_id
-    ):
+    if connection is None or not usable_agent_connection(connection, run.workspace_id):
         raise AgentAccessError(
             "The agent login is no longer available. Reconnect and start a new run."
         )

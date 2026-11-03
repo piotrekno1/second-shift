@@ -200,4 +200,5 @@ def test_migration_backfills_recorded_inputs_without_reading_current_jobs(
         MigrationExecutor(connection).migrate(after)
         assert task_model.objects.count() == len(historical)
     finally:
-        MigrationExecutor(connection).migrate(after)
+        executor = MigrationExecutor(connection)
+        executor.migrate(executor.loader.graph.leaf_nodes())
