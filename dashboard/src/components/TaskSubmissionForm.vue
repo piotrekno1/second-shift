@@ -169,7 +169,7 @@ async function submit(): Promise<void> {
 .task-context .app-icon { flex: none; font-size: 14px; }
 .task-context-separator { color: var(--subtle); }
 .task-lead { margin: 16px 0 24px; color: var(--muted); font-size: 13px; line-height: 1.6; }
-.task-fields { display: grid; gap: 24px; padding: 0; margin: 0; min-width: 0; border: 0; }
+.task-fields { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; padding: 0; margin: 0; min-width: 0; border: 0; }
 .task-field { display: grid; align-content: start; min-width: 0; gap: 8px; }
 .task-field > label { display: flex; align-items: center; gap: 8px; color: var(--ink); font-size: 13px; font-weight: 500; }
 .task-field > label > span { color: var(--subtle); font-size: 11px; font-weight: 400; }
@@ -180,7 +180,7 @@ async function submit(): Promise<void> {
 .task-field .p-inputtext:focus, .task-field .p-textarea:focus { border-color: var(--focus); outline: 2px solid var(--white-8); outline-offset: 1px; }
 .task-skill-picker { display: flex; width: 100%; }
 .task-skill-picker .p-inputtext, .task-field .task-skill-path { font-family: var(--font-mono); font-size: 12px; }
-.task-options { border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+.task-options { min-width: 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
 .task-option + .task-option { border-top: 1px solid var(--border); }
 .task-option > summary { display: flex; align-items: center; gap: 8px; min-height: 46px; padding: 10px 0; list-style: none; color: var(--muted); font-size: 12px; cursor: pointer; }
 .task-option > summary::-webkit-details-marker { display: none; }
@@ -216,7 +216,7 @@ async function submit(): Promise<void> {
   .task-composer .p-dialog-header { padding: 20px 20px 8px; }
   .task-composer .p-dialog-content { padding: 0 20px 20px; }
   .task-composer .p-dialog-footer { padding: 14px 20px; }
-  .task-settings-grid, .task-tool-grid { grid-template-columns: 1fr; }
+  .task-settings-grid, .task-tool-grid { grid-template-columns: minmax(0, 1fr); }
   .task-footer-note { display: none; }
   .task-context { flex-wrap: wrap; }
 }

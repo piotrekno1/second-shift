@@ -109,7 +109,7 @@ onUnmounted(stopPolling)
 </script>
 
 <template>
-  <div class="page">
+  <div class="page run-detail-page">
     <PageHeader compact :title="`Run #${runId}`" :description="subtitle" :parent="{ label: 'Runs', to: '/runs' }">
       <Button class="main-action" v-if="run && run.job_id !== null && !active && app.can(Action.RunJobs)" label="Run again" :title="runWarning(app.overview?.execution, app.jobs.find(job => job.id === run?.job_id)) || undefined" :loading="rerunning" @click="runAgain">
         <template #icon><AppIcon name="replay" /></template>
@@ -215,6 +215,8 @@ onUnmounted(stopPolling)
 </template>
 
 <style scoped>
+.run-detail-page :deep(.page-header > div:first-child) { min-width: 0; max-width: 100%; }
+.run-detail-page :deep(.page-header p) { overflow-wrap: anywhere; }
 .task-input-panel { padding: 20px 24px; }
 .task-input-panel > summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; list-style: none; color: var(--muted); font-size: 14px; font-weight: 500; cursor: pointer; }
 .task-input-panel > summary::-webkit-details-marker { display: none; }
