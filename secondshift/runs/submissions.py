@@ -6,7 +6,7 @@ import re
 from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Self
+from typing import Any, Self
 
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -108,10 +108,10 @@ def admission(
     return None
 
 
-def pull_request_base(
+def pull_request_plan(
     repository: Repository, submission: SkillSubmission
-) -> str | None:
-    """The branch a draft targets: the requested branch, else the followed one."""
+) -> dict[str, Any] | None:
+    """The draft's base is the requested branch, else the followed one."""
     if not submission.pull_request:
         return None
     if (
@@ -120,9 +120,11 @@ def pull_request_base(
     ):
         raise RunRefused("This repository does not allow tasks to open pull requests.")
     revision = submission.revision
-    if revision and not re.fullmatch(COMMIT_SHA_PATTERN, revision):
-        return revision
-    return repository.default_branch
+    is_branch = revision and not re.fullmatch(COMMIT_SHA_PATTERN, revision)
+    return {
+        "base": revision if is_branch else repository.default_branch,
+        "run_ci": repository.pull_request_ci,
+    }
 
 
 def submit_skill(
@@ -163,7 +165,7 @@ def submit_skill(
             submission.definition,
             key=submission.idempotency_key,
             commit_sha=commit,
-            pull_request_base=pull_request_base(repository, submission),
+            pull_request=pull_request_plan(repository, submission),
         )
         if not plan["ready"]:
             raise RunNotReady(execution_problems(repository, plan))

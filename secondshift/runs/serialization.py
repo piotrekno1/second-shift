@@ -151,6 +151,7 @@ def serialize_delivery(delivery: RunDelivery) -> RunDeliverySchema:
         status=delivery.status,
         attempts=delivery.attempts,
         message=delivery.message,
+        url=delivery.external_url,
         updated_at=delivery.updated_at,
         retryable=retryable(delivery),
     )

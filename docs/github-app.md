@@ -16,6 +16,7 @@ Developer settings → GitHub Apps → New GitHub App**.
 - Disable webhooks for now. The worker polls for changes instead.
 - Repository permissions: **Contents: Read-only**. GitHub includes metadata read
   access automatically. No organization or account permissions are needed.
+  For draft pull requests, see [below](#draft-pull-requests).
 - Choose whether installation is limited to your account or available to others.
 
 Generate a client secret and a private key. Record the App ID, URL slug, and
@@ -86,6 +87,21 @@ files at the run's recorded commit. The snapshot holds no Git history and no
 credentials. See [repository data flow](architecture.md#repository-data-flow). GitHub's
 [installation authentication guide](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/authenticating-as-a-github-app-installation)
 describes token permissions and expiry.
+
+## Draft pull requests
+
+Tasks can open draft pull requests when an owner allows it for a repository.
+For this, the App needs two more repository permissions:
+
+- **Contents: Read and write**, to push the `secondshift/run-<id>` branch.
+- **Pull requests: Read and write**, to open the draft.
+
+Do not grant **Workflows**. Without it, GitHub refuses any push that changes
+`.github/workflows`, so an agent cannot change what CI runs. After you change
+the App's permissions, each installation owner must accept them on GitHub.
+
+Only publishing asks for a write token. It is scoped to one repository and
+used for one push and one request. Syncs and checkouts stay read-only.
 
 Disconnecting the source connection blocks future syncs and new run checkouts.
 Removing repository access or uninstalling the App is detected by the next sync,

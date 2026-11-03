@@ -637,7 +637,7 @@ def test_a_pull_request_task_collects_changes_and_waits_to_publish(
 ) -> None:
     run = start(github_repository, owner, pull_request=True)
 
-    assert run.execution_plan["pull_request"] == {"base": "main"}
+    assert run.execution_plan["pull_request"] == {"base": "main", "run_ci": False}
     assert run.execution_plan["runner"]["collect_changes"] is True
     [delivery] = run.deliveries.all()
     assert delivery.kind == RunDelivery.Kind.PULL_REQUEST
@@ -651,7 +651,7 @@ def test_the_draft_targets_the_requested_branch(
 ) -> None:
     run = start(github_repository, owner, pull_request=True, revision="release")
 
-    assert run.execution_plan["pull_request"] == {"base": "release"}
+    assert run.execution_plan["pull_request"]["base"] == "release"
 
 
 def test_a_task_at_a_commit_targets_the_followed_branch(
@@ -661,7 +661,7 @@ def test_a_task_at_a_commit_targets_the_followed_branch(
 
     run = start(github_repository, owner, pull_request=True, revision=pinned)
 
-    assert run.execution_plan["pull_request"] == {"base": "main"}
+    assert run.execution_plan["pull_request"]["base"] == "main"
 
 
 def test_other_tasks_neither_record_changes_nor_mention_pull_requests(

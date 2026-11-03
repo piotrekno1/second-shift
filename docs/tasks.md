@@ -110,8 +110,33 @@ always download, so a browser never opens them as a page. SecondShift keeps up
 to 100 files and 100 MiB per run. Links and other special files are skipped.
 
 If the agent edits repository files, **Files** shows how many changed. Open or
-download the changes as a patch. Nothing is pushed to the repository. SecondShift
-keeps up to 20 MiB of changes, and skips new files that match `.gitignore`.
+download the changes as a patch. Nothing is pushed to the repository unless the
+task asks for a draft pull request. SecondShift keeps up to 20 MiB of changes,
+and skips new files that match `.gitignore`.
+
+### Draft pull requests
+
+A task can open a draft pull request with the agent's changes. A workspace owner
+first allows it in the repository's settings. The GitHub App also needs write
+access, as [GitHub App access](github-app.md#draft-pull-requests) describes.
+Then set `pull_request` to `true` when you submit the task.
+
+- The draft targets the branch the task ran on. A task pinned to a commit
+  targets the followed branch.
+- The branch is named `secondshift/run-<id>`. The report becomes the pull
+  request description.
+- The agent never gets the write token. SecondShift builds the commit from the
+  stored patch after the sandbox stops, then pushes it.
+- A run that fails or changes nothing opens no pull request. Its delivery shows
+  why.
+- CI is skipped on the first push, because nobody has reviewed the patch yet.
+  After you review it, push a commit to the branch to run CI. An owner can let
+  CI run at once for trusted repositories.
+- Changes to `.github/workflows` are refused by GitHub, since SecondShift never
+  asks for workflow access.
+
+If publishing fails, choose **Retry** next to the delivery. A retry uses the
+stored patch, so the agent does not run again.
 
 If notification delivery failed, the report is still available in Runs. Choose
 **Retry** next to the delivery under **Details** to send it again without
