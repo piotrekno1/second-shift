@@ -36,3 +36,23 @@ def token_for(
     if isinstance(source, PersonalToken):
         return source.token
     return app.installation_token(source.installation_id, repository_id, permissions)
+
+
+def read_token_for(
+    source: Source, repository_id: int | None, wanted: tuple[str, ...]
+) -> str:
+    """A read-only token with the wanted permissions the source has.
+
+    An App token never asks for more than the installation granted, so a
+    missing permission fails only the calls that need it. A personal token
+    has whatever its owner gave it.
+    """
+    if isinstance(source, PersonalToken):
+        return source.token
+    granted = app.installation_permissions(source.installation_id)
+    permissions = {
+        name: "read" for name in wanted if granted.get(name) in {"read", "write"}
+    }
+    return app.installation_token(
+        source.installation_id, repository_id, permissions or {"metadata": "read"}
+    )

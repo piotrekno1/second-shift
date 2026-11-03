@@ -75,3 +75,14 @@ def installation_repositories(installation_id: str) -> list[dict]:
         "repositories",
         "Installation has too many repositories to list.",
     )
+
+
+def installation_permissions(installation_id: str) -> dict[str, str]:
+    """What the installation's owner granted the App, such as {"actions": "read"}."""
+    if not installation_id.isdecimal():
+        raise GitHubError("Invalid installation identity.")
+    data = request_json(
+        "GET", f"{GITHUB_API_URL}/app/installations/{installation_id}", app_token()
+    )
+    permissions = data.get("permissions")
+    return permissions if isinstance(permissions, dict) else {}

@@ -5,8 +5,11 @@ from typing import Any
 
 from secondshift.connections.errors import ExternalRequestError, ExternalToolError
 from secondshift.repositories.models import Repository
+from secondshift.workspaces.models import Workspace
 
 MCPSettings = dict[str, str]
+# The connection borrows each repository's own GitHub source instead of a token.
+SOURCE_AUTH = "source"
 
 
 class MCPError(ExternalToolError):
@@ -75,8 +78,16 @@ class MCPProvider:
     # Custom servers: keep every tool and let the owner choose. Read-only
     # tools start selected.
     owner_selects_tools: bool = False
-    # "token" for a pasted bearer token, "oauth" for a browser sign-in.
+    # "token" for a pasted bearer token, "oauth" for a browser sign-in,
+    # SOURCE_AUTH for the token of the repository's source connection.
     auth_methods: tuple[str, ...] = ("token",)
+    # SOURCE_AUTH only. A token for one repository, minted when a tool is called.
+    source_token: Callable[[Repository], str] | None = None
+    # SOURCE_AUTH only. A token for listing tools when the connection is saved.
+    discovery_token: Callable[[Workspace], str] | None = None
+    # SOURCE_AUTH only. Whether a repository has a source this can borrow.
+    source_reachable: Callable[[Repository], bool] = lambda repository: False
+    missing_source_message: str = "This repository has no source connection."
     token_pattern: str = r"\S+"
     token_hint: str = "Enter a token without whitespace."
     # Shown when an owner sets up a connection.

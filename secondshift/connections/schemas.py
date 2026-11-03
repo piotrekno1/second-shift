@@ -81,7 +81,9 @@ class MCPConnectionCreateSchema(Schema):
         min_length=1, max_length=120, pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$"
     )
     display_name: str = Field(default="", max_length=200)
-    token: str = Field(min_length=1, max_length=2000)
+    # Empty when auth is "source": the connection borrows repository sources.
+    token: str = Field(default="", max_length=2000)
+    auth: str = Field(default="token", pattern=r"^(token|source)$")
     settings: dict[str, str] = Field(default_factory=dict, max_length=10)
     require_approval: bool = False
 

@@ -16,6 +16,7 @@ from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
 
 from secondshift.connections.mcp.base import (
+    SOURCE_AUTH,
     MCPError,
     MCPProvider,
     MCPRequestError,
@@ -39,6 +40,7 @@ MCP_MAX_OFFERED_TOOLS = 200
 AUTH_STRATEGIES = {
     "token": Connection.AuthStrategy.API_KEY,
     "oauth": Connection.AuthStrategy.OAUTH,
+    SOURCE_AUTH: Connection.AuthStrategy.MANAGED,
 }
 
 
@@ -52,20 +54,32 @@ def validate_mcp_connection(connection: Connection) -> MCPProvider:
         or connection.auth_strategy
         not in {AUTH_STRATEGIES[method] for method in provider.auth_methods}
         or connection.status != Connection.Status.CONNECTED
-        or not connection.access_token
+        or (not borrows_source(connection) and not connection.access_token)
         or (connection.expires_at and connection.expires_at <= timezone.now())
     ):
         raise MCPError(f"This {provider.label} MCP connection is unavailable.")
     return provider
 
 
+def borrows_source(connection: Connection) -> bool:
+    """The connection uses each repository's source token, and stores none."""
+    return connection.auth_strategy == Connection.AuthStrategy.MANAGED
+
+
 async def mcp_request(
     connection: Connection,
     tool: str | None = None,
     arguments: dict[str, Any] | None = None,
+    token: str = "",
 ) -> dict[str, Any]:
-    """No token, HTTP exception text, or remote error text leaves this boundary."""
+    """No token, HTTP exception text, or remote error text leaves this boundary.
+
+    A connection that borrows a source passes the token it minted for the call.
+    """
     provider = validate_mcp_connection(connection)
+    secret = token if borrows_source(connection) else connection.access_token
+    if not secret:
+        raise MCPError(f"This {provider.label} MCP connection is unavailable.")
     try:
         with anyio.fail_after(settings.OUTBOUND_TIMEOUT_SECONDS):
             async with (
@@ -73,9 +87,7 @@ async def mcp_request(
                     transport=MCPTransport(),
                     headers={
                         **provider.headers,
-                        "Authorization": (
-                            f"{provider.auth_scheme} {connection.access_token}"
-                        ),
+                        "Authorization": (f"{provider.auth_scheme} {secret}"),
                         "Accept-Encoding": "identity",
                     },
                     timeout=settings.OUTBOUND_TIMEOUT_SECONDS,
@@ -116,7 +128,7 @@ async def mcp_request(
     encoded = json.dumps(payload)
     if len(encoded.encode()) > MCP_RESPONSE_MAX_BYTES:
         raise MCPError("The MCP result exceeded the size limit.")
-    return json.loads(encoded.replace(connection.access_token, "[redacted]"))
+    return json.loads(encoded.replace(secret, "[redacted]"))
 
 
 async def call_tool(
@@ -173,9 +185,20 @@ async def offered_tools(
     return tools
 
 
+def discovery_secret(connection: Connection, provider: MCPProvider) -> str:
+    if not borrows_source(connection):
+        return ""
+    if provider.discovery_token is None:
+        raise MCPError(f"{provider.label} needs its own token.")
+    return provider.discovery_token(connection.workspace)
+
+
 def discover_tools(connection: Connection) -> dict[str, Any]:
     fresh_connection(connection)
-    tools = async_to_sync(mcp_request)(connection)
+    provider = mcp_provider(connection.provider)
+    tools = async_to_sync(mcp_request)(
+        connection, token=discovery_secret(connection, provider)
+    )
     for tool in tools.values():
         schema = tool["inputSchema"]
         validate_tool_schema(schema)
@@ -232,12 +255,16 @@ def create_mcp_connection(
     display_name: str,
     token: str,
     settings: dict[str, str] | None = None,
+    auth: str = "token",
 ) -> Connection:
+    """Save a connection with a pasted token, or one that borrows sources."""
     provider = mcp_provider(provider_key)
-    if "token" not in provider.auth_methods:
-        raise MCPError(f"{provider.label} does not accept a pasted token.")
-    if not re.fullmatch(provider.token_pattern, token):
+    if auth not in provider.auth_methods or auth not in {"token", SOURCE_AUTH}:
+        raise MCPError(f"{provider.label} does not accept this kind of connection.")
+    if auth == "token" and not re.fullmatch(provider.token_pattern, token):
         raise MCPError(provider.token_hint)
+    if auth == SOURCE_AUTH and token:
+        raise MCPError("This connection uses your GitHub connections, not a token.")
     cleaned = provider.clean_settings(settings or {})
     if Connection.objects.filter(workspace=workspace, binding_key=binding_key).exists():
         raise ConnectionConflict("This binding already has a connection.")
@@ -248,8 +275,8 @@ def create_mcp_connection(
         binding_key=binding_key,
         display_name=display_name.strip() or provider.label,
         endpoint_url=provider.endpoint(cleaned),
-        auth_strategy=Connection.AuthStrategy.API_KEY,
-        access_token=token,
+        auth_strategy=AUTH_STRATEGIES[auth],
+        access_token=token if auth == "token" else "",
         metadata={"target": connection_target(provider, cleaned), "settings": cleaned},
     )
     select_tools(connection, provider, discover_tools(connection))
@@ -275,6 +302,9 @@ def apply_credentials(
             raise MCPError("Sign in again to change the server or credentials.")
         if connection.status != Connection.Status.CONNECTED:
             raise MCPError("Sign in again to reconnect.")
+    elif borrows_source(connection):
+        if token:
+            raise MCPError("This connection uses your GitHub connections, not a token.")
     elif token:
         if not re.fullmatch(provider.token_pattern, token):
             raise MCPError(provider.token_hint)

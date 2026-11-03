@@ -1,3 +1,4 @@
+from secondshift.connections.mcp.base import SOURCE_AUTH
 from secondshift.connections.mcp.oauth import requested_scopes
 from secondshift.connections.models import AgentConnection, Connection
 from secondshift.connections.schemas import (
@@ -39,6 +40,8 @@ def connection_auth(connection: Connection) -> str:
         return ""
     if connection.auth_strategy == Connection.AuthStrategy.OAUTH:
         return "oauth"
+    if connection.auth_strategy == Connection.AuthStrategy.MANAGED:
+        return SOURCE_AUTH
     return "token"
 
 

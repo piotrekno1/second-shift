@@ -180,6 +180,7 @@ def create_mcp(
             payload.display_name,
             payload.token,
             payload.settings,
+            payload.auth,
         )
     except ConnectionConflict as error:
         raise HttpError(409, str(error)) from error
