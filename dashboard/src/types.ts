@@ -115,6 +115,19 @@ export interface Overview {
   spend_by_job: JobSpend[]
   /** Finished runs per day, oldest first, ending today. */
   run_days: RunDay[]
+  /** What runs the workspace's jobs and why runs would fail. */
+  execution: ExecutionStatus | null
+}
+
+export interface ExecutionStatus {
+  label: string
+  backend: string
+  /** Why every run would fail, or ''. */
+  problem: string
+  /** No model key and no subscription yet. */
+  needs_setup: boolean
+  /** The model key to fix, when the problem is about one. */
+  fix_connection_id: number | null
 }
 
 export interface RunDay {

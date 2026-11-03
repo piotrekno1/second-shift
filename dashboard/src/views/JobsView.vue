@@ -6,7 +6,7 @@ import Button from 'primevue/button'
 import Select from 'primevue/select'
 import FilterChips from '../components/FilterChips.vue'
 import DocsLink from '../components/DocsLink.vue'
-import ModelWarning from '../components/ModelWarning.vue'
+import ExecutionWarning from '../components/ExecutionWarning.vue'
 import PageHeader from '../components/PageHeader.vue'
 import SearchInput from '../components/SearchInput.vue'
 import StatusPill from '../components/StatusPill.vue'
@@ -208,7 +208,7 @@ async function toggleJob(job: Job): Promise<void> {
 <template>
   <div class="page">
     <PageHeader compact title="Jobs" :description="jobsSubtitle" />
-    <ModelWarning v-if="app.can(Action.RunJobs)" />
+    <ExecutionWarning v-if="app.can(Action.RunJobs)" />
     <div v-if="app.jobs.length" class="list-toolbar runs-toolbar">
       <SearchInput :model-value="search" placeholder="Search jobs, repositories or skills" @update:model-value="list.update({ q: $event })" />
       <Select v-if="app.repositories.length > 1" :model-value="repositoryFilter" :options="repositoryOptions" option-label="label" option-value="value" placeholder="All repositories" show-clear class="list-select" aria-label="Repository" @update:model-value="list.update({ repository: $event })" />
@@ -254,7 +254,7 @@ async function toggleJob(job: Job): Promise<void> {
               <button v-else-if="job.capabilities.length" type="button" class="job-action labeled" :class="{ active: expandedJobId === job.id }" title="See access and connections" :aria-expanded="expandedJobId === job.id" :aria-controls="`job-access-${job.id}`" @click="expandedJobId = expandedJobId === job.id ? null : job.id">
                 <AppIcon aria-hidden="true" name="shield-check-outline" /><span>Access</span>
               </button>
-              <button v-if="app.can(Action.RunJobs)" type="button" class="job-action" :class="{ 'is-loading': action === `run-${job.id}`, warn: Boolean(runWarning(app.connections, job)) }" aria-label="Run now" :aria-description="runWarning(app.connections, job) || undefined" :title="runWarning(app.connections, job) || (job.enabled || !job.cron ? 'Run now' : 'Run once. The schedule stays off')" :aria-busy="action === `run-${job.id}`" :disabled="action === `run-${job.id}`" @click="runNow(job.id)">
+              <button v-if="app.can(Action.RunJobs)" type="button" class="job-action" :class="{ 'is-loading': action === `run-${job.id}`, warn: Boolean(runWarning(app.overview?.execution, job)) }" aria-label="Run now" :aria-description="runWarning(app.overview?.execution, job) || undefined" :title="runWarning(app.overview?.execution, job) || (job.enabled || !job.cron ? 'Run now' : 'Run once. The schedule stays off')" :aria-busy="action === `run-${job.id}`" :disabled="action === `run-${job.id}`" @click="runNow(job.id)">
                 <AppIcon :name="action === `run-${job.id}` ? 'loading' : 'play-outline'" aria-hidden="true" />
               </button>
             </div>

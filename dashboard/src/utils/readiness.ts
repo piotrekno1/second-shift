@@ -1,4 +1,5 @@
-import type { Capability, Connection, Job } from '../types'
+import type { RouteLocationRaw } from 'vue-router'
+import type { Capability, ExecutionStatus, Job } from '../types'
 
 /** Why a job cannot be switched on yet, or '' when nothing blocks it. */
 export function enableBlocker(job: Pick<Job, 'enabled' | 'capabilities'>): string {
@@ -11,20 +12,31 @@ export function enableBlocker(job: Pick<Job, 'enabled' | 'capabilities'>): strin
   return `${verb} ${names} first. Scheduled runs would fail without ${waiting.length === 1 ? 'it' : 'them'}.`
 }
 
-/** The workspace model connection, when its last check failed or it is not connected. */
-export function brokenModelConnection(connections: Connection[]): Connection | null {
-  const model = connections.find((connection) => connection.kind === 'model' && connection.is_default)
-    ?? connections.find((connection) => connection.kind === 'model')
-  if (!model) return null
-  return model.status !== 'connected' || model.last_check?.ok === false ? model : null
+/** What to show while every run would fail, and where to fix it. */
+export interface ExecutionFix {
+  text: string
+  action: string
+  to: RouteLocationRaw
 }
 
-/** A warning for a run button while every run would fail on the model key, or ''. */
-export function runWarning(connections: Connection[], job?: Pick<Job, 'execution_backend' | 'execution_problem'>): string {
-  if (job?.execution_problem) return job.execution_problem
-  if (job?.execution_backend && job.execution_backend !== 'pydantic') return ''
-  const model = brokenModelConnection(connections)
-  return model ? `This run will fail until ${model.display_name} works again.` : ''
+export function executionFix(execution: ExecutionStatus | null | undefined): ExecutionFix | null {
+  if (!execution?.problem) return null
+  if (execution.needs_setup) {
+    return {
+      text: 'Nothing can run jobs yet. Add a model API key or connect a Claude Code or Codex subscription.',
+      action: 'Choose what runs jobs',
+      to: { path: '/connections' },
+    }
+  }
+  if (execution.fix_connection_id !== null) {
+    return { text: `Runs will fail. ${execution.problem}`, action: 'Fix the connection', to: { path: '/connections', query: { connection: String(execution.fix_connection_id) } } }
+  }
+  return { text: `Runs will fail. ${execution.problem}`, action: 'Open connections', to: { path: '/connections' } }
+}
+
+/** A warning for a run button while the run would fail, or ''. */
+export function runWarning(execution: ExecutionStatus | null | undefined, job?: Pick<Job, 'execution_problem'>): string {
+  return job?.execution_problem || execution?.problem || ''
 }
 
 /** Approving again only makes sense when the chosen connection changed. */

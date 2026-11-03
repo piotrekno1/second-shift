@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import type { Capability, Connection } from '../src/types'
-import { approvalPending, brokenModelConnection, enableBlocker, runWarning } from '../src/utils/readiness'
+import type { Capability, ExecutionStatus } from '../src/types'
+import { approvalPending, enableBlocker, executionFix, runWarning } from '../src/utils/readiness'
 
 function capability(binding: string, required: boolean, grant: Capability['grant_status']): Capability {
   return { id: 1, binding, kind: 'notification', requested_tools: [], required, grant_status: grant, connection_id: null, connection_name: null }
@@ -17,17 +17,34 @@ test('enableBlocker names required bindings that are not approved', () => {
   assert.equal(enableBlocker({ enabled: false, capabilities: [capability('alerts', false, 'pending')] }), '')
 })
 
-test('brokenModelConnection flags a failed check on the default model', () => {
-  const model = { id: 2, kind: 'model', is_default: true, status: 'connected', last_check: { ok: false, message: 'HTTP 401', checked_at: '' } } as Connection
-  assert.equal(brokenModelConnection([model])?.id, 2)
-  assert.equal(brokenModelConnection([{ ...model, last_check: { ...model.last_check!, ok: true } }]), null)
-  assert.equal(brokenModelConnection([]), null)
+function status(overrides: Partial<ExecutionStatus> = {}): ExecutionStatus {
+  return { label: 'Model provider', backend: 'pydantic', problem: '', needs_setup: false, fix_connection_id: null, ...overrides }
+}
+
+test('executionFix asks a new workspace to choose what runs jobs', () => {
+  const fix = executionFix(status({ problem: 'No default model provider is connected.', needs_setup: true }))
+  assert.equal(fix?.action, 'Choose what runs jobs')
+  assert.deepEqual(fix?.to, { path: '/connections' })
 })
 
-test('runWarning names the model connection that would fail the run', () => {
-  const model = { id: 2, kind: 'model', is_default: true, status: 'connected', display_name: 'OpenRouter', last_check: { ok: false, message: 'HTTP 401', checked_at: '' } } as Connection
-  assert.equal(runWarning([model]), 'This run will fail until OpenRouter works again.')
-  assert.equal(runWarning([{ ...model, status: 'connected', last_check: null }]), '')
+test('executionFix opens the broken model key', () => {
+  const fix = executionFix(status({ problem: 'The default model provider OpenRouter failed its last check.', fix_connection_id: 2 }))
+  assert.equal(fix?.text, 'Runs will fail. The default model provider OpenRouter failed its last check.')
+  assert.deepEqual(fix?.to, { path: '/connections', query: { connection: '2' } })
+})
+
+test('executionFix covers subscription problems and stays quiet when runs work', () => {
+  const fix = executionFix(status({ backend: 'codex', problem: 'The agent login Work is disconnected. Reconnect it on Connections.' }))
+  assert.equal(fix?.action, 'Open connections')
+  assert.equal(executionFix(status()), null)
+  assert.equal(executionFix(null), null)
+})
+
+test('runWarning prefers the job, then the workspace', () => {
+  const broken = status({ problem: 'No default model provider is connected.' })
+  assert.equal(runWarning(broken), 'No default model provider is connected.')
+  assert.equal(runWarning(status(), { execution_problem: 'Reconnect your subscription.' }), 'Reconnect your subscription.')
+  assert.equal(runWarning(status(), { execution_problem: '' }), '')
 })
 
 test('approvalPending hides Approve once the chosen connection is approved', () => {
@@ -35,10 +52,4 @@ test('approvalPending hides Approve once the chosen connection is approved', () 
   assert.equal(approvalPending(approved, 3), false)
   assert.equal(approvalPending(approved, 4), true)
   assert.equal(approvalPending({ grant_status: 'pending', connection_id: null }, 3), true)
-})
-
-test('subscription jobs do not inherit warnings about an unused API connection', () => {
-  const model = { kind: 'model', is_default: true, status: 'expired', display_name: 'Old API' } as Connection
-  assert.equal(runWarning([model], { execution_backend: 'codex', execution_problem: '' }), '')
-  assert.equal(runWarning([model], { execution_backend: 'codex', execution_problem: 'Reconnect your subscription.' }), 'Reconnect your subscription.')
 })

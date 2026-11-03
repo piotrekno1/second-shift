@@ -111,7 +111,7 @@ onUnmounted(stopPolling)
 <template>
   <div class="page">
     <PageHeader compact :title="`Run #${runId}`" :description="subtitle" :parent="{ label: 'Runs', to: '/runs' }">
-      <Button class="main-action" v-if="run && !active && app.can(Action.RunJobs)" label="Run again" :title="runWarning(app.connections, app.jobs.find(job => job.id === run?.job_id)) || undefined" :loading="rerunning" @click="runAgain">
+      <Button class="main-action" v-if="run && !active && app.can(Action.RunJobs)" label="Run again" :title="runWarning(app.overview?.execution, app.jobs.find(job => job.id === run?.job_id)) || undefined" :loading="rerunning" @click="runAgain">
         <template #icon><AppIcon name="replay" /></template>
       </Button>
     </PageHeader>
