@@ -8,43 +8,19 @@ from secondshift.core import local_agents
 IMAGE_ID = "sha256:" + "c" * 64
 
 
-def test_up_builds_the_agent_image_and_points_agents_at_the_gateway(
+def test_up_builds_the_local_tag_but_leaves_a_chosen_image_alone(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(local_agents, "build_agent_image", Mock(return_value=IMAGE_ID))
+    build = Mock(return_value=IMAGE_ID)
+    monkeypatch.setattr(local_agents, "build_agent_image", build)
     messages: list[str] = []
 
-    env = local_agents.agent_env(
-        {}, "http://host.docker.internal:8001/gateway/agent/mcp", messages.append
-    )
+    local_agents.prepare_agent_image("secondshift-agent:local", messages.append)
+    local_agents.prepare_agent_image("registry.example/agent@sha256:" + "d" * 64, print)
+    local_agents.prepare_agent_image("", print)
 
-    assert env == {
-        "SECONDSHIFT_AGENT_IMAGE": IMAGE_ID,
-        "SECONDSHIFT_AGENT_BROKER_URL": (
-            "http://host.docker.internal:8001/gateway/agent/mcp"
-        ),
-    }
+    build.assert_called_once_with()
     assert "first start" in messages[0]
-
-
-def test_up_uses_an_image_the_person_chose(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    build = Mock()
-    monkeypatch.setattr(local_agents, "build_agent_image", build)
-    monkeypatch.setattr(local_agents, "resolve_image_id", Mock(return_value=IMAGE_ID))
-    pinned = "registry.example/agent@sha256:" + "d" * 64
-
-    chosen = local_agents.agent_env(
-        {"SECONDSHIFT_AGENT_IMAGE": pinned}, "http://broker", print
-    )
-    tagged = local_agents.agent_env(
-        {"SECONDSHIFT_AGENT_IMAGE": "my-agent:latest"}, "http://broker", print
-    )
-
-    assert chosen["SECONDSHIFT_AGENT_IMAGE"] == pinned
-    assert tagged["SECONDSHIFT_AGENT_IMAGE"] == IMAGE_ID
-    build.assert_not_called()
 
 
 def test_failed_build_uses_the_last_image_or_explains(
@@ -57,12 +33,12 @@ def test_failed_build_uses_the_last_image_or_explains(
     monkeypatch.setattr(local_agents, "resolve_image_id", Mock(return_value=IMAGE_ID))
     messages: list[str] = []
 
-    assert local_agents.agent_image("", messages.append) == IMAGE_ID
+    local_agents.prepare_agent_image("secondshift-agent:local", messages.append)
     assert "last one built" in messages[-1]
 
     monkeypatch.setattr(local_agents, "resolve_image_id", Mock(side_effect=failure))
     with pytest.raises(local_agents.AgentSetupError, match="network unreachable"):
-        local_agents.agent_image("", messages.append)
+        local_agents.prepare_agent_image("secondshift-agent:local", messages.append)
 
 
 @pytest.mark.parametrize(

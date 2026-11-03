@@ -7,49 +7,29 @@ bridge's gateway address instead, which other machines cannot route to.
 """
 
 import ipaddress
-import re
 import subprocess
 import sys
 from collections.abc import Callable
 
-from secondshift.config.constants import AppEnv
-from secondshift.runner.images import (
-    LOCAL_AGENT_TAG,
-    build_agent_image,
-    resolve_image_id,
-)
-
-AGENT_ENV_NAMES = (AppEnv.AGENT_IMAGE, AppEnv.AGENT_BROKER_URL)
-PINNED_IMAGE = re.compile(r"(?:[^@\s]+@)?sha256:[0-9a-f]{64}")
+from secondshift.config.constants import LOCAL_AGENT_TAG
+from secondshift.runner.images import build_agent_image, resolve_image_id
 
 
 class AgentSetupError(Exception):
     pass
 
 
-def agent_env(
-    parent: dict[str, str], broker_url: str, echo: Callable[[str], None]
-) -> dict[str, str]:
-    """The agent image, built unless one is set, and the configured broker."""
-    return {
-        AppEnv.AGENT_IMAGE: agent_image(parent.get(AppEnv.AGENT_IMAGE, ""), echo),
-        # The runner doesn't load the control plane's settings, so pass it on.
-        AppEnv.AGENT_BROKER_URL: broker_url,
-    }
-
-
-def agent_image(image: str, echo: Callable[[str], None]) -> str:
-    if PINNED_IMAGE.fullmatch(image):
-        return image
+def prepare_agent_image(image: str, echo: Callable[[str], None]) -> None:
+    """Build the local tag the runner resolves. A chosen image is left alone."""
+    if image != LOCAL_AGENT_TAG:
+        return
+    echo("Preparing the agent image. The first start takes a few minutes.")
     try:
-        if image:
-            return resolve_image_id(image)
-        echo("Preparing the agent image. The first start takes a few minutes.")
-        return build_agent_image()
+        build_agent_image()
     except (subprocess.SubprocessError, OSError, ValueError) as error:
-        if not image and (existing := existing_image()):
+        if existing_image():
             echo("Couldn't update the agent image, so using the last one built.")
-            return existing
+            return
         raise AgentSetupError(
             f"Couldn't prepare the agent image: {failure_reason(error)}"
         ) from error

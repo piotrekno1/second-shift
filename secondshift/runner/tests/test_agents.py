@@ -31,7 +31,7 @@ def test_agent_container_configuration_is_server_owned(
     settings.AGENT_IMAGE = IMAGE
     settings.AGENT_NETWORK = "ss-agent-egress"
     settings.RUNNER_RUNTIME = "runsc"
-    command = agent_command("run-1", tmp_path / "auth")
+    command = agent_command("run-1", tmp_path / "auth", IMAGE)
     assert command[-2:] == [IMAGE, "/opt/secondshift/agent.py"]
     assert "--network=ss-agent-egress" in command
     assert "--add-host=host.docker.internal:host-gateway" in command
@@ -62,12 +62,37 @@ def test_agent_runtime_and_image_fail_closed(
     settings.AGENT_IMAGE = "example/agent:latest"
     settings.AGENT_BROKER_URL = "http://gateway/mcp"
     verify = Mock()
+    resolve = Mock(return_value="sha256:" + "b" * 64)
     monkeypatch.setattr(
         "secondshift.runner.agents.DockerRunnerService.verify_runtime", verify
     )
+    monkeypatch.setattr(agents, "resolve_image_id", resolve)
     with pytest.raises(RunnerProtocolError, match="digest"):
         require_agent_configuration()
     verify.assert_not_called()
+    resolve.assert_not_called()
+
+
+def test_local_runner_runs_the_exact_image_behind_its_tag(
+    settings: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    settings.AGENT_IMAGE = "secondshift-agent:local"
+    settings.AGENT_BROKER_URL = "http://gateway/mcp"
+    settings.AGENT_IMAGE_TAGS_ALLOWED = True
+    image_id = "sha256:" + "b" * 64
+    monkeypatch.setattr(
+        "secondshift.runner.agents.DockerRunnerService.verify_runtime", Mock()
+    )
+    monkeypatch.setattr(agents, "resolve_image_id", Mock(return_value=image_id))
+    assert require_agent_configuration() == image_id
+
+    monkeypatch.setattr(
+        agents,
+        "resolve_image_id",
+        Mock(side_effect=subprocess.CalledProcessError(1, [])),
+    )
+    with pytest.raises(RunnerProtocolError, match="isn't built"):
+        require_agent_configuration()
 
 
 def test_local_content_address_is_a_pinned_agent_image(
@@ -79,7 +104,7 @@ def test_local_content_address_is_a_pinned_agent_image(
     monkeypatch.setattr(
         "secondshift.runner.agents.DockerRunnerService.verify_runtime", verify
     )
-    require_agent_configuration()
+    assert require_agent_configuration() == settings.AGENT_IMAGE
     verify.assert_called_once()
 
 
@@ -240,7 +265,7 @@ def test_runner_cleans_agent_container_on_timeout(
         workspace_path=str(tmp_path / "workspace"),
         status="active",
     )
-    monkeypatch.setattr(agents, "require_agent_configuration", lambda: None)
+    monkeypatch.setattr(agents, "require_agent_configuration", lambda: IMAGE)
     remove = Mock()
     monkeypatch.setattr(agents.DockerRunnerService, "remove_container", remove)
 

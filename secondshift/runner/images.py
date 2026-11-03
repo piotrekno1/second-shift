@@ -6,8 +6,9 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+from secondshift.config.constants import LOCAL_AGENT_TAG
+
 AGENT_IMAGE_DIR = Path(__file__).parent / "agent_image"
-LOCAL_AGENT_TAG = "secondshift-agent:local"
 BUILD_SECONDS = 1800
 
 

@@ -17,11 +17,14 @@ what runs them.
 
 ## Single machine
 
-`secondshift up` turns subscriptions on by default. On each start it builds the
-agent image from the files shipped in the package and tags it
-`secondshift-agent:local`. The first start downloads both CLIs and takes a few
-minutes. Later starts use Docker's build cache. If a build fails, `up` uses the
-last image it built.
+`secondshift up` turns subscriptions on by default. Local mode defaults the
+agent image to `secondshift-agent:local`. On each start, `up` builds that tag
+from the files shipped in the package. The first start downloads both CLIs and
+takes a few minutes. Later starts use Docker's build cache. If a build fails,
+`up` uses the last image it built.
+
+Servers must pin the agent image by digest. Only a local runner accepts a tag.
+It looks up the tag's `sha256:` ID for each run and starts that exact image.
 
 To start without subscriptions:
 
@@ -39,9 +42,9 @@ Agent containers reach the gateway through `host.docker.internal`.
 
 The gateway never listens on every network for agents.
 
-To use your own image, set `SECONDSHIFT_AGENT_IMAGE`. A local tag is resolved
-to its `sha256:` ID. A registry reference must include a digest. To use another
-gateway address, set `SECONDSHIFT_AGENT_BROKER_URL`. Its host name is allowed
+You don't need to set anything. To use your own image, set
+`SECONDSHIFT_AGENT_IMAGE`, and `up` won't build one. To use another gateway
+address, set `SECONDSHIFT_AGENT_BROKER_URL`. Its host name is allowed
 automatically.
 
 ## Logins

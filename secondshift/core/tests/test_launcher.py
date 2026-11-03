@@ -39,6 +39,8 @@ def test_runner_gets_docker_access_and_its_token_but_no_control_plane_keys() -> 
         "SECONDSHIFT_RUNNER_SERVICE_TOKEN": "t" * 40,
         "DJANGO_SETTINGS_MODULE": "secondshift.config.settings.runner",
         "SECONDSHIFT_RUNNER_RUNTIME": "docker",
+        "SECONDSHIFT_ENV": "local",
+        "SECONDSHIFT_MODEL_GATEWAY_URL": "http://127.0.0.1:8001",
         "SECONDSHIFT_SERVICE": "runner",
         "SECONDSHIFT_HTTP_BIND": "127.0.0.1:8002",
         "SECONDSHIFT_HTTP_PROCESSES": "1",

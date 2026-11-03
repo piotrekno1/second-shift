@@ -16,6 +16,7 @@ from django.conf import settings
 from secondshift.config.constants import HOST_ALIAS, SandboxRuntime
 from secondshift.runner.agent_credentials import decrypt_agent_auth
 from secondshift.runner.agent_protocol import AgentInput, AgentOutput
+from secondshift.runner.images import resolve_image_id
 from secondshift.runner.models import RunnerSession
 from secondshift.runner.protocol import CommandRequest, RunnerProtocolError
 from secondshift.runner.services import DockerRunnerService
@@ -29,17 +30,27 @@ def agent_name(session_id: str) -> str:
     return f"secondshift-agent-{session_id}"
 
 
-def require_agent_configuration() -> None:
+def require_agent_configuration() -> str:
+    """The exact image to run. Only a local runner may resolve a tag."""
     if not settings.AGENT_IMAGE or not settings.AGENT_BROKER_URL:
         raise RunnerProtocolError(
             "CLI agent execution is not configured on the runner."
         )
-    if not re.fullmatch(r"(?:[^@\s]+@)?sha256:[0-9a-f]{64}", settings.AGENT_IMAGE):
-        raise RunnerProtocolError("The agent image must be pinned by digest.")
+    image = settings.AGENT_IMAGE
+    if not re.fullmatch(r"(?:[^@\s]+@)?sha256:[0-9a-f]{64}", image):
+        if not settings.AGENT_IMAGE_TAGS_ALLOWED:
+            raise RunnerProtocolError("The agent image must be pinned by digest.")
+        try:
+            image = resolve_image_id(image)
+        except (subprocess.SubprocessError, OSError, ValueError) as error:
+            raise RunnerProtocolError(
+                "The agent image isn't built. Restart SecondShift to build it."
+            ) from error
     DockerRunnerService().verify_runtime()
+    return image
 
 
-def agent_command(session_id: str, auth_path: Path) -> list[str]:
+def agent_command(session_id: str, auth_path: Path, image: str) -> list[str]:
     command = [
         "docker",
         "run",
@@ -74,7 +85,7 @@ def agent_command(session_id: str, auth_path: Path) -> list[str]:
         f"--label=secondshift.agent-credential={auth_path.name}",
         "--log-driver=none",
         "--entrypoint=python3",
-        settings.AGENT_IMAGE,
+        image,
         "/opt/secondshift/agent.py",
     ]
 
@@ -124,7 +135,7 @@ def execute_agent(session_id: str, request: AgentInput) -> AgentOutput:
 
 
 def execute_locked_agent(session_id: str, request: AgentInput) -> AgentOutput:
-    require_agent_configuration()
+    image = require_agent_configuration()
     if not RunnerSession.objects.filter(
         session_id=session_id, status=RunnerSession.Status.ACTIVE
     ).exists():
@@ -149,7 +160,7 @@ def execute_locked_agent(session_id: str, request: AgentInput) -> AgentOutput:
     with tempfile.TemporaryFile() as output:
         try:
             completed = subprocess.run(
-                agent_command(session_id, auth_path),
+                agent_command(session_id, auth_path, image),
                 input=json.dumps(configuration).encode(),
                 stdout=output,
                 stderr=subprocess.DEVNULL,

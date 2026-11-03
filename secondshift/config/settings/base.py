@@ -27,12 +27,14 @@ from environ import Env
 from secondshift.config.constants import (
     DEFAULT_SANDBOX_IMAGE,
     ENVIRONMENT_VAR,
-    HOST_ALIAS,
+    LOCAL_AGENT_TAG,
+    LOCAL_GATEWAY_URL,
     SERVICE_VAR,
     AppEnv,
     Environment,
     SandboxRuntime,
     Service,
+    local_agent_broker_url,
 )
 from secondshift.config.first_run import write_generated_env
 from secondshift.config.logging import logging_config
@@ -409,7 +411,7 @@ RUNNER_SERVICE_TOKEN = env.str(AppEnv.RUNNER_SERVICE_TOKEN, default="")
 # always use --network=none and never receive its run-scoped token.
 MODEL_GATEWAY_URL = env.str(
     "SECONDSHIFT_MODEL_GATEWAY_URL",
-    default="http://127.0.0.1:8001" if SINGLE_HOST else "",
+    default=LOCAL_GATEWAY_URL if SINGLE_HOST else "",
 )
 RUN_TIMEOUT_SECONDS = env.int("SECONDSHIFT_RUN_TIMEOUT_SECONDS", default=900)
 RUN_TIMEOUT_SECONDS_CEILING = env.int(
@@ -500,18 +502,16 @@ GITHUB_APP_PRIVATE_KEY = env.str(
 ).replace("\\n", "\n")
 
 
-# CLI agent execution. Off unless an image is set. `secondshift up` builds one.
-AGENT_IMAGE = env.str(AppEnv.AGENT_IMAGE, default="")
+# CLI agent execution. Servers turn it on by setting an image pinned by digest.
+# `secondshift up` builds the local tag, which its runner resolves per run.
+AGENT_IMAGE = env.str(
+    AppEnv.AGENT_IMAGE,
+    default=LOCAL_AGENT_TAG if ENVIRONMENT == Environment.LOCAL else "",
+)
 AGENT_NETWORK = env.str(AppEnv.AGENT_NETWORK, default="bridge")
-# Agent containers reach the gateway on the host through Docker's host alias.
 AGENT_BROKER_URL = env.str(
     AppEnv.AGENT_BROKER_URL,
-    default=(
-        f"http://{HOST_ALIAS}:{urlsplit(MODEL_GATEWAY_URL).port or 80}"
-        "/gateway/agent/mcp"
-    )
-    if SINGLE_HOST
-    else "",
+    default=local_agent_broker_url(MODEL_GATEWAY_URL) if SINGLE_HOST else "",
 )
 # Agent containers call the gateway by the broker's host name.
 if AGENT_IMAGE and (agent_broker_host := urlsplit(AGENT_BROKER_URL).hostname):

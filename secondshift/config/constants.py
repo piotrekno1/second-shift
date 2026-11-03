@@ -5,6 +5,7 @@ read its keys. Values both need live here instead.
 """
 
 from enum import StrEnum
+from urllib.parse import urlsplit
 
 EXECUTE_RUN_WORKFLOW = "secondshift.execute_run"
 SCHEDULED_JOB_WORKFLOW = "secondshift.scheduled_job"
@@ -18,6 +19,15 @@ GUNICORN_CONFIG = "python:secondshift.config.gunicorn"
 
 # How agent containers reach services on the Docker host.
 HOST_ALIAS = "host.docker.internal"
+# `secondshift up` builds this tag from the installed package.
+LOCAL_AGENT_TAG = "secondshift-agent:local"
+LOCAL_GATEWAY_URL = "http://127.0.0.1:8001"
+
+
+def local_agent_broker_url(gateway_url: str) -> str:
+    """The gateway's agent broker, as agent containers on this host reach it."""
+    port = urlsplit(gateway_url).port or 80
+    return f"http://{HOST_ALIAS}:{port}/gateway/agent/mcp"
 
 
 class AppEnv(StrEnum):

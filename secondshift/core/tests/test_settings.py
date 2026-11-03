@@ -401,30 +401,54 @@ def test_email_is_sent_and_confirmed_only_with_an_email_url(
     assert result.stdout.split() == expected
 
 
-def test_agent_broker_defaults_to_the_local_gateway_only_on_one_machine(
-    tmp_path: Path,
-) -> None:
-    script = "print(s.AGENT_BROKER_URL, s.ALLOWED_HOSTS)"
-    local = load_settings(
-        "secondshift.config.settings.local",
-        tmp_path / "local",
-        script=script,
-        SECONDSHIFT_ENV="local",
-        SECONDSHIFT_MODEL_GATEWAY_URL="http://127.0.0.1:8201",
-        SECONDSHIFT_AGENT_IMAGE="sha256:" + "a" * 64,
+def test_agent_defaults_exist_only_on_one_machine(tmp_path: Path) -> None:
+    control = "print(s.AGENT_IMAGE, s.AGENT_BROKER_URL, s.ALLOWED_HOSTS, sep='|')"
+    runner = (
+        "print(s.AGENT_IMAGE, s.AGENT_BROKER_URL, s.AGENT_IMAGE_TAGS_ALLOWED, sep='|')"
     )
-    production = load_settings(
-        "secondshift.config.settings.production",
-        tmp_path / "production",
-        script=script,
-        SECONDSHIFT_ENV="production",
-        **PRODUCTION_ENV,
-    )
+    token = {"SECONDSHIFT_RUNNER_SERVICE_TOKEN": "t" * 40}
+    results = {
+        "local": load_settings(
+            "secondshift.config.settings.local",
+            tmp_path / "local",
+            script=control,
+            SECONDSHIFT_ENV="local",
+            SECONDSHIFT_MODEL_GATEWAY_URL="http://127.0.0.1:8201",
+        ),
+        "production": load_settings(
+            "secondshift.config.settings.production",
+            tmp_path / "production",
+            script=control,
+            SECONDSHIFT_ENV="production",
+            **PRODUCTION_ENV,
+        ),
+        "local runner": load_settings(
+            "secondshift.config.settings.runner",
+            tmp_path / "local-runner",
+            script=runner,
+            SECONDSHIFT_ENV="local",
+            SECONDSHIFT_MODEL_GATEWAY_URL="http://127.0.0.1:8201",
+            **token,
+        ),
+        "server runner": load_settings(
+            "secondshift.config.settings.runner",
+            tmp_path / "server-runner",
+            script=runner,
+            **token,
+        ),
+    }
+    for result in results.values():
+        assert result.returncode == 0, result.stderr
+    output = {
+        name: result.stdout.strip().split("|") for name, result in results.items()
+    }
 
-    assert local.returncode == 0, local.stderr
-    assert local.stdout.split(" ", 1) == [
-        "http://host.docker.internal:8201/gateway/agent/mcp",
-        "['localhost', '127.0.0.1', 'host.docker.internal']\n",
+    broker = "http://host.docker.internal:8201/gateway/agent/mcp"
+    assert output["local"] == [
+        "secondshift-agent:local",
+        broker,
+        "['localhost', '127.0.0.1', 'host.docker.internal']",
     ]
-    assert production.returncode == 0, production.stderr
-    assert production.stdout.startswith(" ")
+    assert output["production"][:2] == ["", ""]
+    assert output["local runner"] == ["secondshift-agent:local", broker, "True"]
+    assert output["server runner"] == ["", "", "False"]

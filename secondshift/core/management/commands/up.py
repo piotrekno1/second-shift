@@ -9,6 +9,7 @@ from django.conf import settings
 from django.core.management import call_command
 
 from secondshift.config.constants import (
+    AppEnv,
     Environment,
     Service,
 )
@@ -84,17 +85,15 @@ def command(
     agent_host = None
     if agents:
         try:
-            parent.update(
-                local_agents.agent_env(parent, settings.AGENT_BROKER_URL, click.echo)
-            )
+            local_agents.prepare_agent_image(settings.AGENT_IMAGE, click.echo)
             agent_host = local_agents.container_gateway_host()
         except local_agents.AgentSetupError as error:
             raise click.ClickException(
                 f"{error} Run with --no-agents to start without agent subscriptions."
             ) from error
     else:
-        for name in local_agents.AGENT_ENV_NAMES:
-            parent.pop(name, None)
+        # An empty value overrides the local default, in every process.
+        parent[AppEnv.AGENT_IMAGE] = ""
     services = launcher.services(host, port, parent, agent_host=agent_host)
     runner = next(service for service in services if service.name == Service.RUNNER)
     subprocess.run(

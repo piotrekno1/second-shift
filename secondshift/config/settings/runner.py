@@ -13,9 +13,14 @@ from environ import Env
 
 from secondshift.config.constants import (
     DEFAULT_SANDBOX_IMAGE,
+    ENVIRONMENT_VAR,
+    LOCAL_AGENT_TAG,
+    LOCAL_GATEWAY_URL,
     AppEnv,
+    Environment,
     SandboxRuntime,
     Service,
+    local_agent_broker_url,
 )
 from secondshift.config.logging import logging_config
 
@@ -106,10 +111,21 @@ LOGGING = logging_config(
 )
 
 
-# Opt-in CLI execution. No image is pulled or agent started by default.
-AGENT_IMAGE = env.str(AppEnv.AGENT_IMAGE, default="")
+# CLI agent execution. Servers turn it on by setting an image pinned by digest.
+# `secondshift up` builds the local tag on one person's machine. Only there may
+# the runner resolve a tag, once per run. Servers must pin a digest.
+LOCAL = os.environ.get(ENVIRONMENT_VAR) == Environment.LOCAL
+AGENT_IMAGE = env.str(AppEnv.AGENT_IMAGE, default=LOCAL_AGENT_TAG if LOCAL else "")
+AGENT_IMAGE_TAGS_ALLOWED = LOCAL
 AGENT_NETWORK = env.str(AppEnv.AGENT_NETWORK, default="bridge")
-AGENT_BROKER_URL = env.str(AppEnv.AGENT_BROKER_URL, default="")
+AGENT_BROKER_URL = env.str(
+    AppEnv.AGENT_BROKER_URL,
+    default=local_agent_broker_url(
+        env.str(AppEnv.MODEL_GATEWAY_URL, default=LOCAL_GATEWAY_URL)
+    )
+    if LOCAL
+    else "",
+)
 
 AGENT_AUTH_ROOT = RUNNER_WORK_ROOT / "agent-auth"
 

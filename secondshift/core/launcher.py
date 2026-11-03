@@ -154,7 +154,17 @@ def services(
         )
 
     return [
-        http_service(Service.RUNNER, ["127.0.0.1"], runner_port, runner_env(parent)),
+        http_service(
+            Service.RUNNER,
+            ["127.0.0.1"],
+            runner_port,
+            # Local mode lets the runner default its agent image and broker.
+            {
+                **runner_env(parent),
+                ENVIRONMENT_VAR: Environment.LOCAL,
+                AppEnv.MODEL_GATEWAY_URL: gateway_url,
+            },
+        ),
         http_service(Service.GATEWAY, gateway_bind, gateway_port, control),
         Process(
             Service.WORKER,
