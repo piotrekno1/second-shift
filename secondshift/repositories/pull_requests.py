@@ -20,14 +20,11 @@ from typing import Any
 
 import httpx
 
-from secondshift.repositories.github_app import (
-    API_URL,
-    GitHubAppError,
-    installation_token,
-)
+from secondshift.github.app import API_URL, installation_token
+from secondshift.github.errors import GitHubError
+from secondshift.github.git import authenticated_git
 from secondshift.repositories.github_sync import (
     fetch_github_commit,
-    git_fetch,
     github_repository_metadata,
 )
 from secondshift.repositories.mirrors import has_commit, locked_mirror
@@ -72,7 +69,7 @@ def publish_pull_request(
             int(repository.external_id),
             permissions=WRITE_PERMISSIONS,
         )
-    except GitHubAppError as error:
+    except GitHubError as error:
         raise PublishError(
             "GitHub refused write access. Give the GitHub App Contents and Pull "
             "requests write permission, then retry."
@@ -81,12 +78,12 @@ def publish_pull_request(
         if not has_commit(mirror, commit_sha):
             try:
                 fetch_github_commit(repository, commit_sha, mirror)
-            except GitHubAppError as error:
+            except GitHubError as error:
                 # These messages never contain the token.
                 raise PublishError(str(error)) from error
         commit = commit_patch(mirror, commit_sha, patch, draft)
         try:
-            git_fetch(
+            authenticated_git(
                 mirror,
                 token,
                 "push",
@@ -95,7 +92,7 @@ def publish_pull_request(
                 f"https://github.com/{full_name}.git",
                 f"{commit}:refs/heads/{draft.branch}",
             )
-        except GitHubAppError as error:
+        except GitHubError as error:
             raise PublishError(
                 f"GitHub refused the push to {draft.branch}. Changes to workflow "
                 "files are refused, and so is a branch someone else changed."

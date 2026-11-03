@@ -13,7 +13,8 @@ from django.conf import settings
 from django.db.models import Q
 
 from secondshift.connections.models import Connection
-from secondshift.repositories.github_app import GitHubAppError, branch_head, configured
+from secondshift.github.app import branch_head, configured
+from secondshift.github.errors import GitHubError
 from secondshift.repositories.github_sync import (
     github_repository_metadata,
     sync_github_repository,
@@ -79,7 +80,7 @@ def sync_moved_repositories() -> int:
                     repository.local_path,
                     repository.default_branch,
                 )
-        except (LocalRepositoryError, GitHubAppError) as error:
+        except (LocalRepositoryError, GitHubError) as error:
             # The repository page shows the same problem when opened. Runs
             # keep using the last good sync until it is fixed.
             Repository.objects.filter(pk=repository.pk).update(

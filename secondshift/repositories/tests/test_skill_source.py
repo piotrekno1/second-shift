@@ -34,7 +34,7 @@ def test_github_submission_fetches_requested_source_and_verifies_the_pinned_skil
         skill_source, "installation_token", lambda *args: "server-token"
     )
     monkeypatch.setattr(skill_source, "locked_mirror", lambda pk: nullcontext(tmp_path))
-    monkeypatch.setattr(skill_source, "git_fetch", fetch)
+    monkeypatch.setattr(skill_source, "authenticated_git", fetch)
     monkeypatch.setattr(skill_source, "committed_file", read)
 
     assert (

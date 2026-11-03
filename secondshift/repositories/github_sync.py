@@ -1,22 +1,20 @@
 """Fetch GitHub source into the control plane's mirror. Tokens never leave it."""
 
-import base64
-import os
 import re
-import subprocess
 from pathlib import Path
 
 from django.db import transaction
 
 from secondshift.config.constants import GITHUB_REPOSITORY_PATTERN
 from secondshift.connections.models import Connection
-from secondshift.jobs.sync import sync_jobs
-from secondshift.repositories.github_app import (
-    GitHubAppError,
+from secondshift.github.app import (
     installation_repositories,
     installation_token,
     repository_metadata,
 )
+from secondshift.github.errors import GitHubError
+from secondshift.github.git import authenticated_git
+from secondshift.jobs.sync import sync_jobs
 from secondshift.repositories.local import (
     RepositoryConfigError,
     read_committed_config,
@@ -28,7 +26,7 @@ from secondshift.workspaces.models import Workspace
 
 def github_repository_metadata(repository: Repository) -> dict:
     if repository.removed_at is not None:
-        raise GitHubAppError("This repository has been removed.")
+        raise GitHubError("This repository has been removed.")
     connection = repository.github_connection
     if (
         not connection
@@ -38,15 +36,15 @@ def github_repository_metadata(repository: Repository) -> dict:
         or connection.provider != Connection.Provider.GITHUB
         or connection.status != Connection.Status.CONNECTED
     ):
-        raise GitHubAppError("The GitHub installation is disconnected.")
+        raise GitHubError("The GitHub installation is disconnected.")
     installation_id = connection.external_account_id
     metadata = repository_metadata(installation_id, int(repository.external_id))
     full_name = metadata["full_name"]
     if not re.fullmatch(GITHUB_REPOSITORY_PATTERN, full_name):
-        raise GitHubAppError("Invalid GitHub repository name.")
+        raise GitHubError("Invalid GitHub repository name.")
     # Do not silently move a repository's identity or its existing approvals.
     if repository.full_name != full_name:
-        raise GitHubAppError("Repository was renamed. Remove and import it again.")
+        raise GitHubError("Repository was renamed. Remove and import it again.")
     return metadata
 
 
@@ -65,7 +63,7 @@ def sync_github_repository(repository: Repository) -> Repository:
         repository.github_connection.external_account_id, int(repository.external_id)
     )
     with locked_mirror(repository.pk) as mirror:
-        git_fetch(
+        authenticated_git(
             mirror,
             token,
             "fetch",
@@ -74,7 +72,7 @@ def sync_github_repository(repository: Repository) -> Repository:
             f"https://github.com/{metadata['full_name']}.git",
             f"refs/heads/{repository.default_branch}",
         )
-        revision = git_fetch(mirror, token, "rev-parse", "FETCH_HEAD")
+        revision = authenticated_git(mirror, token, "rev-parse", "FETCH_HEAD")
         try:
             manifest, skills = read_committed_config(
                 mirror, revision, repository.default_branch
@@ -86,7 +84,7 @@ def sync_github_repository(repository: Repository) -> Repository:
             )
             repository.refresh_from_db()
             return repository
-        git_fetch(mirror, token, "update-ref", SYNCED_REF, revision)
+        authenticated_git(mirror, token, "update-ref", SYNCED_REF, revision)
         with transaction.atomic():
             locked = Repository.objects.select_for_update().get(pk=repository.pk)
             locked.config_sha = revision
@@ -112,7 +110,7 @@ def fetch_github_commit(repository: Repository, commit_sha: str, mirror: Path) -
         repository.github_connection.external_account_id, int(repository.external_id)
     )
     try:
-        git_fetch(
+        authenticated_git(
             mirror,
             token,
             "fetch",
@@ -121,41 +119,13 @@ def fetch_github_commit(repository: Repository, commit_sha: str, mirror: Path) -
             f"https://github.com/{metadata['full_name']}.git",
             commit_sha,
         )
-    except GitHubAppError as error:
-        raise GitHubAppError(
+    except GitHubError as error:
+        raise GitHubError(
             f"The commit {commit_sha[:12]} is no longer available from GitHub."
         ) from error
 
 
-def git_fetch(root: Path, token: str, *arguments: str) -> str:
-    # Never put credentials in URLs, arguments, persisted config, or errors.
-    authorization = base64.b64encode(f"x-access-token:{token}".encode()).decode()
-    environment = {
-        **os.environ,
-        "GIT_TERMINAL_PROMPT": "0",
-        "GIT_CONFIG_NOSYSTEM": "1",
-        "GIT_CONFIG_GLOBAL": os.devnull,
-        "GIT_CONFIG_COUNT": "1",
-        "GIT_CONFIG_KEY_0": "http.https://github.com/.extraheader",
-        "GIT_CONFIG_VALUE_0": f"AUTHORIZATION: basic {authorization}",
-    }
-    try:
-        result = subprocess.run(
-            ["git", "-C", str(root), *arguments],
-            env=environment,
-            capture_output=True,
-            text=True,
-            timeout=120,
-            check=False,
-        )
-    except subprocess.TimeoutExpired as error:
-        raise GitHubAppError("GitHub repository fetch timed out.") from error
-    if result.returncode:
-        raise GitHubAppError("Could not fetch the GitHub repository and branch.")
-    return result.stdout.strip()
-
-
-class GitHubRepositoryExistsError(GitHubAppError):
+class GitHubRepositoryExistsError(GitHubError):
     pass
 
 
@@ -174,7 +144,7 @@ def available_github_sources(
     for connection in connections:
         try:
             repositories = installation_repositories(connection.external_account_id)
-        except GitHubAppError as error:
+        except GitHubError as error:
             errors.append(f"{connection.display_name}: {error}")
             continue
         for item in repositories:

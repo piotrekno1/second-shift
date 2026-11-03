@@ -13,16 +13,17 @@ from django.urls import reverse
 from django.views.decorators.http import require_GET
 
 from secondshift.connections.models import Connection
-from secondshift.repositories.github_app import (
+from secondshift.github.app import (
     API_URL,
     OAUTH_URL,
-    STATE_KEY,
-    GitHubAppError,
     configured,
     request_json,
 )
+from secondshift.github.errors import GitHubError
 from secondshift.workspaces.access import AccessDenied, Action, require
 from secondshift.workspaces.models import Workspace
+
+STATE_KEY = "secondshift.github_installation"
 
 
 @login_required
@@ -89,7 +90,7 @@ def github_callback(request: HttpRequest) -> HttpResponse:
         )
         token = data.get("access_token")
         if not token:
-            raise GitHubAppError("GitHub did not authorize this user.")
+            raise GitHubError("GitHub did not authorize this user.")
         if not link_installations(workspace, token):
             state = secrets.token_urlsafe(32)
             request.session[STATE_KEY] = {
@@ -98,7 +99,7 @@ def github_callback(request: HttpRequest) -> HttpResponse:
                 "time": time.time(),
             }
             return redirect(installation_url(state))
-    except GitHubAppError as error:
+    except GitHubError as error:
         return HttpResponseBadRequest(str(error))
     return redirect("/repositories?github=connected")
 

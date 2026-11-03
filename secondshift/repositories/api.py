@@ -7,12 +7,9 @@ from ninja.errors import HttpError
 from ninja.security import django_auth
 
 from secondshift.connections.models import Connection
+from secondshift.github.app import configured, repository_branches
+from secondshift.github.errors import GitHubError
 from secondshift.repositories.access import repository_for_request
-from secondshift.repositories.github_app import (
-    GitHubAppError,
-    configured,
-    repository_branches,
-)
 from secondshift.repositories.github_sync import (
     GitHubRepositoryExistsError,
     attach_github_repository,
@@ -136,7 +133,7 @@ def github_branches(
     )
     try:
         return repository_branches(connection.external_account_id, repository_id)
-    except GitHubAppError as error:
+    except GitHubError as error:
         raise HttpError(422, str(error)) from error
 
 
@@ -160,7 +157,7 @@ def create_github_repository(
         )
     except GitHubRepositoryExistsError as error:
         raise HttpError(409, str(error)) from error
-    except GitHubAppError as error:
+    except GitHubError as error:
         raise HttpError(422, str(error)) from error
     return serialize_repository(request, repository)
 

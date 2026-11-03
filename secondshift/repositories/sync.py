@@ -1,6 +1,6 @@
 """Resync a repository on request, from its GitHub App or its local folder."""
 
-from secondshift.repositories.github_app import GitHubAppError
+from secondshift.github.errors import GitHubError
 from secondshift.repositories.github_sync import sync_github_repository
 from secondshift.repositories.local import (
     LocalRepositoryError,
@@ -26,7 +26,7 @@ def resync(repository: Repository) -> Repository:
             synced = attach_local_repository(
                 repository.workspace, repository.local_path, repository.default_branch
             )
-    except (GitHubAppError, LocalRepositoryError) as error:
+    except (GitHubError, LocalRepositoryError) as error:
         raise SyncError(str(error)) from error
     if synced.last_sync_error:
         raise SyncError(synced.last_sync_error)

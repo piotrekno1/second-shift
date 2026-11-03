@@ -9,8 +9,8 @@ import pytest
 from django.contrib.auth import get_user_model
 
 from secondshift.connections.models import Connection
+from secondshift.github.errors import GitHubError
 from secondshift.repositories import pull_requests
-from secondshift.repositories.github_app import GitHubAppError
 from secondshift.repositories.mirrors import mirror_path
 from secondshift.repositories.models import Repository
 from secondshift.repositories.pull_requests import (
@@ -214,7 +214,7 @@ def test_publishing_pushes_with_a_write_token_and_opens_the_draft(
     monkeypatch.setattr(pull_requests, "installation_token", token)
     monkeypatch.setattr(
         pull_requests,
-        "git_fetch",
+        "authenticated_git",
         lambda root, token, *args: pushes.append((token, *args)) or "",
     )
     github(monkeypatch, httpx.Response(201, json=PULL))
@@ -248,7 +248,7 @@ def test_missing_write_permission_names_the_fix(
     )
 
     def refuse(*args: Any, **kwargs: Any) -> str:
-        raise GitHubAppError("GitHub access failed.")
+        raise GitHubError("GitHub access failed.")
 
     monkeypatch.setattr(pull_requests, "installation_token", refuse)
 
@@ -271,7 +271,7 @@ def test_a_commit_github_no_longer_has_is_named(
     monkeypatch.setattr(pull_requests, "installation_token", lambda *a, **k: "t")
 
     def gone(*args: Any) -> None:
-        raise GitHubAppError("The commit 0000 is no longer available from GitHub.")
+        raise GitHubError("The commit 0000 is no longer available from GitHub.")
 
     monkeypatch.setattr(pull_requests, "fetch_github_commit", gone)
 
