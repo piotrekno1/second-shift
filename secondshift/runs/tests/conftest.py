@@ -22,6 +22,7 @@ def fake_stages(monkeypatch: pytest.MonkeyPatch) -> list[str]:
     monkeypatch.setattr(
         workflows, "start_runner_session_step", lambda run_id: f"run-{run_id}"
     )
+    monkeypatch.setattr(workflows, "collect_outputs_step", lambda *args: None)
     monkeypatch.setattr(workflows, "stop_runner_session_step", stopped.append)
     monkeypatch.setattr(workflows, "record_run_event_step", lambda *args: None)
     return stopped

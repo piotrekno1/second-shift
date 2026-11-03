@@ -1,5 +1,7 @@
 import logging
+import tempfile
 from datetime import datetime
+from pathlib import Path
 from typing import Any
 
 from dbos import DBOS
@@ -23,7 +25,7 @@ from secondshift.repositories.models import Repository
 from secondshift.repositories.sources import source_snapshot
 from secondshift.runner.client import get_runner_client
 from secondshift.runner.protocol import RunnerSessionSpec
-from secondshift.runs.artifacts import read_output_excerpt
+from secondshift.runs.artifacts import read_output_excerpt, store_collection
 from secondshift.runs.execution.budgets import Budget, budget_reached_message
 from secondshift.runs.execution.deadlines import (
     run_deadline,
@@ -34,6 +36,7 @@ from secondshift.runs.execution.run import execute_agent_run
 from secondshift.runs.models import Run, RunDelivery, RunEvent
 from secondshift.runs.orchestration.admission import task_admission_problem
 from secondshift.runs.orchestration.reconciliation import mark_run_terminal
+from secondshift.runs.reporting.collection import collection_summary
 from secondshift.runs.reporting.failures import failure_metadata, failure_summary
 from secondshift.runs.reporting.notifications import (
     notification_targets,
@@ -162,6 +165,41 @@ def start_runner_session_step(run_id: int) -> str:
     Run.objects.filter(pk=run.pk).update(sandbox_runtime=RunSandbox.ISOLATED_RUNNER)
     RunEvent.objects.create(run=run, message="Sandbox started without network access.")
     return session_id
+
+
+@DBOS.step(
+    name="secondshift.collect_run_outputs",
+    retries_allowed=True,
+    max_attempts=3,
+)
+def collect_outputs_step(run_id: int, session_id: str) -> None:
+    """Keep the agent's file changes and saved files before the sandbox goes."""
+    run = Run.objects.select_related("job", "task__repository").get(pk=run_id)
+    with tempfile.TemporaryDirectory(prefix="secondshift-collection-") as folder:
+        archive = Path(folder) / "collection.tar.gz"
+        get_runner_client().collect(session_id, archive)
+        outputs = store_collection(run, archive)
+    Run.objects.filter(pk=run_id).update(outputs=outputs)
+    if message := collection_summary(outputs):
+        RunEvent.objects.create(run_id=run_id, message=message)
+
+
+@DBOS.step(name="secondshift.record_collection_failure")
+def record_collection_failure_step(run_id: int) -> None:
+    RunEvent.objects.create(
+        run_id=run_id,
+        level="warning",
+        message="The run's file changes and saved files could not be collected.",
+    )
+
+
+def collect_outputs(run_id: int, session_id: str) -> None:
+    # The report is already stored, so a failure here never changes the outcome.
+    try:
+        collect_outputs_step(run_id, session_id)
+    except Exception:
+        logger.warning("could not collect outputs for run %s", run_id)
+        record_collection_failure_step(run_id)
 
 
 @DBOS.step(
@@ -359,6 +397,7 @@ def execute_run(run_id: int) -> None:
         timeout_seconds = run_timeout_seconds(run)
         result = execute_agent_run(run, session_id)
         stage = "finishing"
+        collect_outputs(run_id, session_id)
         stop_runner_session_step(session_id)
         session_id = None
         finish_run_step(run_id, result)
