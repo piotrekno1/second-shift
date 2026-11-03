@@ -71,6 +71,7 @@ class RunDetailSchema(RunSchema):
     created_at: datetime
     exit_code: int | None
     model_provider: str | None
+    execution_agent: str | None = None
     output_excerpt: str
     output_truncated: bool
     output_size_bytes: int | None
