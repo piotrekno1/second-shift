@@ -33,6 +33,7 @@ from secondshift.repositories.schemas import (
     LocalRepositoryDirectorySchema,
     RepositoryDetailSchema,
     RepositoryEnabledSchema,
+    RepositoryPullRequestsSchema,
     RepositorySchema,
     RepositoryValidationSchema,
 )
@@ -242,6 +243,29 @@ def set_repository_auto_sync(
     require(request, Action.CHANGE_REPOSITORY_STATE)
     repository.auto_sync = payload.enabled
     repository.save(update_fields=["auto_sync", "updated_at"])
+    return serialize_repository_detail(request, repository)
+
+
+@router.post(
+    "/repositories/{repository_id}/pull-requests",
+    response=RepositoryDetailSchema,
+    auth=django_auth,
+)
+def set_repository_pull_requests(
+    request: HttpRequest,
+    repository_id: int,
+    payload: RepositoryPullRequestsSchema,
+) -> RepositoryDetailSchema:
+    """Let tasks open draft pull requests here, and choose whether CI runs."""
+    repository = repository_for_request(request, repository_id)
+    require(request, Action.ALLOW_PULL_REQUESTS)
+    if payload.allow and repository.source_type != Repository.SourceType.GITHUB:
+        raise HttpError(409, "Only GitHub repositories can receive pull requests.")
+    repository.allow_pull_requests = payload.allow
+    repository.pull_request_ci = payload.allow and payload.run_ci
+    repository.save(
+        update_fields=["allow_pull_requests", "pull_request_ci", "updated_at"]
+    )
     return serialize_repository_detail(request, repository)
 
 

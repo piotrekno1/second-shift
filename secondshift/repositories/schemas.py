@@ -37,6 +37,11 @@ class RepositoryEnabledSchema(Schema):
     enabled: bool
 
 
+class RepositoryPullRequestsSchema(Schema):
+    allow: bool
+    run_ci: bool = False
+
+
 class RepositoryValidationSchema(Schema):
     status: Literal["valid", "warning", "error"]
     message: str
@@ -60,6 +65,10 @@ class RepositoryDetailSchema(RepositorySchema):
     # The repository's choice, and whether this server syncs in the background.
     auto_sync: bool
     server_syncs: bool
+    # GitHub repositories only. See RepositoryPullRequestsSchema.
+    can_open_pull_requests: bool
+    allow_pull_requests: bool
+    pull_request_ci: bool
     validation: RepositoryValidationSchema
     jobs: list[RepositoryJobSchema]
 

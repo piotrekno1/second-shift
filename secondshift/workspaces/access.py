@@ -45,6 +45,7 @@ class Action(StrEnum):
     DELETE_CONNECTIONS = "delete connections"
     TEST_CONNECTIONS = "test connections"
     REVIEW_CAPABILITIES = "review capabilities"
+    ALLOW_PULL_REQUESTS = "let tasks open pull requests"
     INVITE_PEOPLE = "invite people"
     MANAGE_MEMBERS = "change roles or remove people"
     # Admins: running the work that owners approved.
