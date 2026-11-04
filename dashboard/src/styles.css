@@ -405,7 +405,8 @@ body .p-select-overlay { color: var(--ink); background: var(--night-800); border
 .run-status-panel .run-headline { margin-top: 12px; }
 .run-active-note { display: flex; align-items: center; gap: 8px; color: var(--muted) !important; font-size: 13px !important; }
 .run-layout { display: grid; grid-template-columns: minmax(0,1fr) 300px; gap: 16px; align-items: start; }
-.run-main { display: grid; gap: 16px; min-width: 0; }
+.run-main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; min-width: 0; }
+.run-main > * { min-width: 0; }
 .run-main > .job-runs-panel { margin-bottom: 0; }
 .run-report-actions { display: flex; gap: 16px; font-size: 13px; }
 .run-report { position: relative; }
@@ -422,7 +423,7 @@ body .p-select-overlay { color: var(--ink); background: var(--night-800); border
 .run-details dd { margin: 0; min-width: 0; overflow-wrap: anywhere; font-size: 13px; }
 .run-details code { font-size: 12px; }
 .run-details-muted { color: var(--subtle); }
-@media (max-width: 1100px) { .run-layout { grid-template-columns: 1fr; } .run-details { position: static; } }
+@media (max-width: 1100px) { .run-layout { grid-template-columns: minmax(0, 1fr); } .run-details { position: static; } }
 
 /* Relative times under absolute ones */
 .cell-sub { display: block; margin-top: 2px; color: var(--subtle); font-family: var(--font-mono); font-size: 11px; }
