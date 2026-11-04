@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 import type { Capability, ExecutionStatus } from '../src/types'
-import { approvalPending, enableBlocker, executionFix, runWarning } from '../src/utils/readiness'
+import { approvalPending, enableBlocker, executionFix, runWarning, setupSteps, type SetupState } from '../src/utils/readiness'
 
 function capability(binding: string, required: boolean, grant: Capability['grant_status']): Capability {
   return { id: 1, binding, kind: 'notification', requested_tools: [], required, grant_status: grant, connection_id: null, connection_name: null }
@@ -58,4 +58,50 @@ test('approvalPending hides Approve once the chosen connection is approved', () 
   assert.equal(approvalPending(approved, 3), false)
   assert.equal(approvalPending(approved, 4), true)
   assert.equal(approvalPending({ grant_status: 'pending', connection_id: null }, 3), true)
+})
+
+function setup(overrides: Partial<SetupState> = {}): SetupState {
+  return {
+    repositories: 0,
+    accessProblem: '',
+    execution: status({ needs_setup: true, problem: 'Nothing runs jobs.' }),
+    enabledJobs: 0,
+    hasRuns: false,
+    reviewJobId: null,
+    canAddGitHub: true,
+    canAddLocal: false,
+    canReview: true,
+    ...overrides,
+  }
+}
+
+test('a hosted server offers only GitHub for the first repository', () => {
+  const steps = setupSteps(setup())!
+  assert.deepEqual(steps.map((step) => step.done), [false, false, false])
+  assert.deepEqual(steps[0]!.actions.map((action) => action.label), ['Connect GitHub'])
+  assert.deepEqual(steps[0]!.actions[0]!.to, { path: '/repositories', query: { add: 'github' } })
+  assert.deepEqual(steps[2]!.actions, [])
+})
+
+test('a local install offers both ways to add code', () => {
+  const steps = setupSteps(setup({ canAddLocal: true }))!
+  assert.deepEqual(steps[0]!.actions.map((action) => action.label), ['Connect GitHub', 'Add local repository'])
+})
+
+test('code is not done while its GitHub access fails', () => {
+  const steps = setupSteps(setup({ repositories: 1, accessProblem: 'Cannot reach owner/project.' }))!
+  assert.equal(steps[0]!.done, false)
+  assert.equal(steps[0]!.detail, 'Cannot reach owner/project.')
+  assert.equal(steps[0]!.actions[0]!.label, 'Check access')
+})
+
+test('the job step reviews access first', () => {
+  const steps = setupSteps(setup({ repositories: 1, execution: status(), reviewJobId: 4 }))!
+  assert.deepEqual(steps.map((step) => step.done), [true, true, false])
+  assert.deepEqual(steps[2]!.actions[0]!.to, { path: '/jobs', query: { review: '4' } })
+})
+
+test('setup is done once a job is enabled or has run', () => {
+  assert.equal(setupSteps(setup({ repositories: 1, execution: status(), enabledJobs: 1 })), null)
+  assert.equal(setupSteps(setup({ repositories: 1, execution: status(), hasRuns: true })), null)
 })
