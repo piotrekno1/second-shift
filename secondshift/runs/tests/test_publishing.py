@@ -157,7 +157,26 @@ def test_an_owner_turning_pull_requests_off_stops_publishing(
     workflows.publish_pull_request_step(run.pk)
 
     assert fake.calls == []
-    assert delivery(run).message == "The repository does not allow pull requests."
+    assert delivery(run).message == (
+        "An owner has not allowed pull requests for this repository."
+    )
+
+
+@pytest.mark.django_db
+def test_local_repositories_never_publish(
+    run: Run, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    Repository.objects.filter(pk=run.repository.pk).update(
+        source_type=Repository.SourceType.LOCAL
+    )
+    fake = publisher(monkeypatch)
+
+    workflows.publish_pull_request_step(run.pk)
+
+    assert fake.calls == []
+    assert delivery(run).message == "Local repositories cannot open pull requests."
+    text = run_report_payload(Run.objects.get(pk=run.pk))["text"]
+    assert "No draft pull request. Local repositories cannot open" in text
 
 
 @pytest.fixture
@@ -263,4 +282,13 @@ def test_the_job_page_says_whether_its_drafts_can_open(client: Any, db: object) 
     allowed = client.get(f"/api/jobs/{job.pk}").json()
 
     assert (blocked["pull_request"], blocked["pull_requests_allowed"]) == (True, False)
+    assert blocked["can_open_pull_requests"] is True
     assert allowed["pull_requests_allowed"] is True
+    Repository.objects.filter(pk=job.repository_id).update(
+        source_type=Repository.SourceType.LOCAL
+    )
+    local = client.get(f"/api/jobs/{job.pk}").json()
+    assert (local["can_open_pull_requests"], local["pull_requests_allowed"]) == (
+        False,
+        False,
+    )

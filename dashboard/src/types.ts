@@ -247,6 +247,8 @@ export interface JobDetail extends Job {
   triggers: TriggerKind[]
   /** The configuration asks for a draft pull request with each run's changes. */
   pull_request: boolean
+  /** A GitHub repository, so drafts could open. Local repositories cannot. */
+  can_open_pull_requests: boolean
   /** An owner allows pull requests for the repository, so drafts open. */
   pull_requests_allowed: boolean
   repository_revision: string
