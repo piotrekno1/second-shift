@@ -20,6 +20,17 @@ TOKEN = "github_pat_" + "a" * 40
 SETTINGS_URL = "https://github.com/settings/installations/42"
 
 
+@pytest.fixture(autouse=True)
+def app_settings(settings: Any) -> Any:
+    """CI has no App credentials. Tests that need none blank them again."""
+    settings.GITHUB_APP_ID = "123"
+    settings.GITHUB_APP_SLUG = "secondshift-test"
+    settings.GITHUB_APP_CLIENT_ID = "client"
+    settings.GITHUB_APP_CLIENT_SECRET = "secret"
+    settings.GITHUB_APP_PRIVATE_KEY = "configured-key"
+    return settings
+
+
 def app_source(workspace: Workspace) -> Connection:
     return Connection.objects.create(
         workspace=workspace,
@@ -291,3 +302,12 @@ def test_a_sync_failure_checks_its_connection_unless_already_failing(
     checked(connection, False, timezone.now())
     github_check.check_after_failure(connection)
     assert check.call_count == 1
+
+
+def test_an_app_source_without_the_app_on_this_server_says_so(
+    workspace: Workspace, settings: Any
+) -> None:
+    settings.GITHUB_APP_ID = ""
+    result = github_check.check_source(app_source(workspace))
+    assert not result.ok
+    assert "no GitHub App configured" in result.message

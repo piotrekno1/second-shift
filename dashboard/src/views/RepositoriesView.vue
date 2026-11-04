@@ -183,7 +183,8 @@ function chooseDirectory(path: string): void {
         </div>
         <div class="github-connect-option">
           <h3>Personal access token</h3>
-          <p>For a single machine, or an organization where you cannot install apps. Stored encrypted.</p>
+          <p v-if="githubConfigured">For a single machine, or an organization where you cannot install apps. Stored encrypted.</p>
+          <p v-else>Choose its repositories on GitHub. SecondShift reaches only those. Stored encrypted.</p>
           <GitHubTokenForm @connected="tokenConnected" />
         </div>
       </div>

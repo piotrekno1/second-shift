@@ -209,6 +209,13 @@ def check_source(connection: Connection) -> SourceCheck:
     )
     try:
         source = connection_source(connection)
+        if isinstance(source, credentials.AppInstallation) and not app.configured():
+            # Without the App's key, no installation token can be made.
+            raise GitHubError(
+                "This server has no GitHub App configured, so this connection "
+                "cannot sync. Ask the server's operator to configure the App, "
+                "or connect a personal access token instead."
+            )
         if isinstance(source, credentials.PersonalToken):
             result = check_token(connection, source, repositories)
         else:
