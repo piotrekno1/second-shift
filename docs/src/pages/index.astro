@@ -2,8 +2,8 @@
 const github = 'https://github.com/piotrekno1/second-shift';
 const site = 'https://second-shift.app/';
 const shareImage = new URL(shareImageAsset.src, site).href;
-const title = 'SecondShift gives the boring checks a shift';
-const description = 'Write skills with your coding agent. Run them with approved service access, execution limits, and shared results. Open source and self-hosted.';
+const title = 'SecondShift: stop prompting agents for the same work';
+const description = 'Define recurring agent work once in Git. SecondShift runs it for the whole team in a sandbox without your keys. Open source and self-hosted.';
 import demoPoster from '../assets/demo-poster.jpg';
 import shareImageAsset from '../assets/og.png';
 import githubIcon from '../assets/brands/github.svg';
@@ -42,6 +42,10 @@ const stackRows = [
     { name: 'Slack', icon: slackIcon.src, fullColor: true },
     { name: 'Discord', icon: discordIcon.src, color: '#5865f2' },
     { name: 'Teams', icon: teamsIcon.src, color: '#7b83eb' },
+  ] },
+  { label: 'Agents', href: '/docs/agent-subscriptions/', brands: [
+    { name: 'Claude Code subscription', icon: anthropicIcon.src, color: '#ededed' },
+    { name: 'Codex subscription', icon: openAiIcon.src, color: '#ededed' },
   ] },
 ];
 ---
@@ -132,7 +136,7 @@ const stackRows = [
       .stack-strip { display: flex; align-items: center; gap: 22px; min-width: 0; padding: 0 0 14px; }
       .stack-intro { flex: none; color: #ffb454; font: 11px 'Geist Mono', ui-monospace, monospace; white-space: nowrap; }
       .stack-window { height: 42px; flex: 1; min-width: 0; overflow: hidden; }
-      .stack-track { animation: stack-scroll 15s linear infinite; }
+      .stack-track { animation: stack-scroll 20s linear infinite; }
       .stack-strip:hover .stack-track { animation-play-state: paused; }
       .stack-strip:focus-within .stack-window { height: auto; overflow: visible; }
       .stack-strip:focus-within .stack-track { animation: none; }
@@ -149,10 +153,11 @@ const stackRows = [
       .stack-arrow { margin-left: auto; color: #999; font-size: 17px; }
       .stack-row:hover .stack-arrow { color: #ffb454; }
       @keyframes stack-scroll {
-        0%, 20% { transform: translateY(0); }
-        30%, 50% { transform: translateY(-42px); }
-        60%, 80% { transform: translateY(-84px); }
-        90%, 100% { transform: translateY(-126px); }
+        0%, 16% { transform: translateY(0); }
+        24%, 40% { transform: translateY(-42px); }
+        48%, 64% { transform: translateY(-84px); }
+        72%, 88% { transform: translateY(-126px); }
+        96%, 100% { transform: translateY(-168px); }
       }
       @media (prefers-reduced-motion: reduce) {
         .stack-window { height: auto; }
@@ -204,8 +209,8 @@ const stackRows = [
         <div class="first-screen">
         <div class="hero">
           <div class="hero-copy">
-            <h1><span class="hero-wordmark"><img src="/secondshift-mark.svg" alt="" />SecondShift</span><span class="hero-statement">gives the boring checks <em>a shift.</em></span></h1>
-            <p class="lead">Write skills with your coding agent. Commit them to Git. Run them with approved access, execution limits, and shared results.</p>
+            <h1><span class="hero-wordmark"><img src="/secondshift-mark.svg" alt="" />SecondShift</span><span class="hero-statement">runs the agent work you keep <em>asking for.</em></span></h1>
+            <p class="lead">Define it once in Git. SecondShift runs it for the whole team, in a sandbox without your keys. The result is waiting in Slack or in your coding agent.</p>
             <div class="actions"><a class="button" href="/docs/quickstart/">Try it locally →</a><a class="secondary-action" href="/docs/production-deployment/">Deploy for your team →</a></div>
           </div>
           <div class="showcase">
@@ -252,13 +257,13 @@ const stackRows = [
             <li>
               <div class="step-top"><span class="step-number">02</span><span class="step-label">Owners &amp; admins</span></div>
               <h3>Approve its access.</h3>
-              <p>Owners connect models and services and approve job access. Admins set limits and enable schedules. Skills cannot expand their own permissions.</p>
+              <p>Owners choose what runs jobs: a model API key, or the Claude Code or Codex subscription you already pay for, with a daily run cap. They approve each job’s tools. Admins enable schedules. Skills cannot expand their own permissions.</p>
               <div class="step-links"><a href="/docs/self-hosting/#who-controls-what">Roles and permissions →</a><a href="/docs/security-model/">Security model →</a></div>
             </li>
             <li>
               <div class="step-top"><span class="step-number">03</span><span class="step-label">SecondShift</span></div>
               <h3>Run skills when you need them.</h3>
-              <p>Start a run yourself, set a schedule, or trigger it from another service. Your team can review the results, tool activity, and cost of every run.</p>
+              <p>Start a run yourself, set a schedule, or trigger it from an alert or webhook. Your team can review the results, tool activity, and cost of every run.</p>
               <a href="/docs/architecture/">How execution works →</a>
             </li>
           </ol>
