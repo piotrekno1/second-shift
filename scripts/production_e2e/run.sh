@@ -85,6 +85,7 @@ step first-owner drive first "\$(sh scripts/production_e2e/host.sh invite-link)"
 step backup-before-upgrade backup
 step upgrade upgrade "$UNDER_TEST"
 step after-upgrade drive after-restart
+step agent-storage agent-probe
 step restart restart
 step after-restart drive after-restart
 step backup backup

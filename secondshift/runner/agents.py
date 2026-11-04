@@ -67,6 +67,17 @@ def agent_command(session_id: str, auth_path: Path, image: str) -> list[str]:
     ]
     if settings.RUNNER_RUNTIME != SandboxRuntime.DOCKER:
         command += ["--runtime", settings.RUNNER_RUNTIME]
+    if settings.AGENT_RESOLV_CONF:
+        resolver = Path(settings.AGENT_RESOLV_CONF)
+        if (
+            not resolver.is_absolute()
+            or not resolver.is_file()
+            or resolver.is_symlink()
+        ):
+            raise RunnerProtocolError(
+                "The agent resolver must be an existing absolute file."
+            )
+        command += [f"--mount=type=bind,src={resolver},dst=/etc/resolv.conf,readonly"]
     uid, gid = agent_identity()
     return [
         *command,

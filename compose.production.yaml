@@ -6,13 +6,18 @@ x-application: &application
   restart: unless-stopped
 
 x-artifacts: &artifacts
-  SECONDSHIFT_ARTIFACT_STORAGE: s3
-  SECONDSHIFT_ARTIFACT_BUCKET: ${ARTIFACT_BUCKET:?Set ARTIFACT_BUCKET}
-  SECONDSHIFT_ARTIFACT_REGION: ${ARTIFACT_REGION:?Set ARTIFACT_REGION}
-  SECONDSHIFT_ARTIFACT_ACCESS_KEY_ID: ${ARTIFACT_ACCESS_KEY_ID:?Set ARTIFACT_ACCESS_KEY_ID}
-  SECONDSHIFT_ARTIFACT_SECRET_ACCESS_KEY: ${ARTIFACT_SECRET_ACCESS_KEY:?Set ARTIFACT_SECRET_ACCESS_KEY}
-  SECONDSHIFT_ARTIFACT_ENDPOINT_URL: ${ARTIFACT_ENDPOINT_URL:?Set ARTIFACT_ENDPOINT_URL}
+  SECONDSHIFT_ARTIFACT_STORAGE: ${ARTIFACT_STORAGE:-s3}
+  SECONDSHIFT_ARTIFACT_BUCKET: ${ARTIFACT_BUCKET:-}
+  SECONDSHIFT_ARTIFACT_REGION: ${ARTIFACT_REGION:-}
+  SECONDSHIFT_ARTIFACT_ACCESS_KEY_ID: ${ARTIFACT_ACCESS_KEY_ID:-}
+  SECONDSHIFT_ARTIFACT_SECRET_ACCESS_KEY: ${ARTIFACT_SECRET_ACCESS_KEY:-}
+  SECONDSHIFT_ARTIFACT_ENDPOINT_URL: ${ARTIFACT_ENDPOINT_URL:-}
+  SECONDSHIFT_ARTIFACT_ROOT: /var/lib/secondshift/artifacts
   SECONDSHIFT_ARTIFACT_ADDRESSING_STYLE: ${ARTIFACT_ADDRESSING_STYLE:-auto}
+
+x-agents: &agents
+  SECONDSHIFT_AGENT_IMAGE: ${AGENT_IMAGE:-}
+  SECONDSHIFT_AGENT_BROKER_URL: http://${AGENT_GATEWAY_ADDRESS:-172.30.0.2}:8001/gateway/agent/mcp
 
 services:
   postgres:
@@ -35,12 +40,14 @@ services:
     <<: *application
     env_file: ./deploy/production/web.env
     environment:
-      <<: *artifacts
+      <<: [*artifacts, *agents]
       SECONDSHIFT_DATABASE_URL: postgres://secondshift:${APP_DATABASE_PASSWORD:?}@postgres:5432/secondshift
       SECONDSHIFT_TRUSTED_PROXY_COUNT: "1"
     depends_on:
       postgres:
         condition: service_healthy
+    volumes:
+      - artifacts:/var/lib/secondshift/artifacts
     stop_grace_period: 40s
     healthcheck:
       test: [CMD, python, -c, "from urllib.request import urlopen; urlopen('http://localhost:8000/-/health/up/', timeout=5).close()"]
@@ -52,10 +59,18 @@ services:
     <<: *application
     env_file: ./deploy/production/gateway.env
     environment:
+      <<: [*artifacts, *agents]
+      # Supply a separate s3:GetObject-only key; fall back for existing installs.
+      SECONDSHIFT_ARTIFACT_ACCESS_KEY_ID: ${ARTIFACT_READ_ACCESS_KEY_ID:-${ARTIFACT_ACCESS_KEY_ID:-}}
+      SECONDSHIFT_ARTIFACT_SECRET_ACCESS_KEY: ${ARTIFACT_READ_SECRET_ACCESS_KEY:-${ARTIFACT_SECRET_ACCESS_KEY:-}}
       SECONDSHIFT_DATABASE_URL: postgres://secondshift:${APP_DATABASE_PASSWORD:?}@postgres:5432/secondshift
     networks:
       default:
         aliases: [secondshift-gateway]
+      agents:
+        ipv4_address: ${AGENT_GATEWAY_ADDRESS:-172.30.0.2}
+    volumes:
+      - artifacts:/var/lib/secondshift/artifacts:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -66,7 +81,7 @@ services:
     command: [python, manage.py, run_dbos_worker]
     env_file: ./deploy/production/worker.env
     environment:
-      <<: *artifacts
+      <<: [*artifacts, *agents]
       SECONDSHIFT_DATABASE_URL: postgres://secondshift:${APP_DATABASE_PASSWORD:?}@postgres:5432/secondshift
     depends_on:
       postgres:
@@ -75,6 +90,8 @@ services:
         condition: service_started
       runner:
         condition: service_started
+    volumes:
+      - artifacts:/var/lib/secondshift/artifacts
     stop_grace_period: 60s
 
   runner:
@@ -82,6 +99,9 @@ services:
     user: "0:0"
     env_file: ./deploy/production/runner.env
     environment:
+      <<: *agents
+      SECONDSHIFT_AGENT_NETWORK: ${AGENT_NETWORK:-secondshift_agents}
+      SECONDSHIFT_AGENT_RESOLV_CONF: ${RUNNER_ROOT:?}/agent-resolv.conf
       SECONDSHIFT_RUNNER_DATABASE_URL: postgres://secondshift_runner:${RUNNER_DATABASE_PASSWORD:?}@postgres:5432/secondshift_runner
       SECONDSHIFT_DATA_DIR: ${RUNNER_ROOT:?Set RUNNER_ROOT to an absolute host path}
       SECONDSHIFT_RUNNER_WORK_ROOT: ${RUNNER_ROOT:?}
@@ -118,7 +138,15 @@ services:
       web:
         condition: service_healthy
 
+networks:
+  agents:
+    name: ${AGENT_NETWORK:-secondshift_agents}
+    ipam:
+      config:
+        - subnet: ${AGENT_SUBNET:-172.30.0.0/24}
+
 volumes:
+  artifacts:
   postgres_data:
   caddy_data:
   caddy_config:

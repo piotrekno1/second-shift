@@ -19,6 +19,7 @@ from secondshift.jobs.tests.test_execution_defaults import (
     agent_run as agent_run_fixture,
 )
 from secondshift.runner.protocol import CommandResult, RunnerProtocolError
+from secondshift.runs.artifacts import store_run_payload
 from secondshift.runs.execution.agent_broker import (
     AgentAccessError,
     agent_mcp,
@@ -212,3 +213,22 @@ def test_unknown_methods_are_not_found_so_clients_fall_back(
         )
     )
     assert json.loads(response.content)["error"]["code"] == -32601
+
+
+def test_payload_tool_reads_only_the_leased_runs_payload(
+    leased_run: tuple[Run, AgentLease, User], tmp_path: Any, settings: Any
+) -> None:
+    settings.STORAGES = {
+        **settings.STORAGES,
+        "run_artifacts": {
+            "BACKEND": "django.core.files.storage.FileSystemStorage",
+            "OPTIONS": {"location": tmp_path / "artifacts"},
+        },
+    }
+    run, lease, _ = leased_run
+    run.input_snapshot["payload"] = store_run_payload(run, b"only this run")
+    run.save(update_fields=["input_snapshot"])
+    result = tool_result(lease, "trigger_payload", {})
+    assert json.loads(result["content"][0]["text"])["body"] == "only this run"
+    with pytest.raises(ValueError):
+        tool_result(lease, "trigger_payload", {"path": "other-workspace/payload.txt"})

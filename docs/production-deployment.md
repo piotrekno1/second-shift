@@ -1,7 +1,7 @@
 # Deploy with Docker Compose
 
 This single-server example runs SecondShift behind Caddy with HTTPS,
-PostgreSQL and an existing private S3 bucket. It uses
+PostgreSQL and private artifact storage (S3 or a local persistent volume). It uses
 [`compose.production.yaml`](../compose.production.yaml) on a Linux Docker host.
 
 GitHub repositories are imported through a GitHub App, or a personal access
@@ -32,8 +32,18 @@ quotes in this env file to prevent Compose interpolation.
 Create the private bucket separately. Its credential needs `s3:ListBucket` on
 the bucket and `s3:GetObject`, `s3:PutObject`, `s3:DeleteObject` on its objects.
 Keep public access disabled. For an S3-compatible provider, use its HTTPS
-endpoint and set `ARTIFACT_ADDRESSING_STYLE=path` if required. Only web and
-worker receive these credentials.
+endpoint and set `ARTIFACT_ADDRESSING_STYLE=path` if required. Web and worker
+receive the read/write credential. The gateway reads webhook
+payloads for subscription agents. Set both `ARTIFACT_READ_ACCESS_KEY_ID` and
+`ARTIFACT_READ_SECRET_ACCESS_KEY` to a separate credential with only
+`s3:GetObject` on the same objects. If omitted, the gateway reuses the
+read/write credential for compatibility with existing installations.
+
+For local storage, set `ARTIFACT_STORAGE=filesystem`; the S3 settings can be
+left empty. Compose mounts the persistent `artifacts` volume on web and worker
+and mounts it read-only on the gateway. Neither the runner nor agent containers
+receive this volume or S3 credentials. Use one storage backend consistently;
+changing it does not move existing artifacts.
 
 Define a shortcut for the remaining commands, then pull the image and generate the
 application keys. Replace the example hostname with the same one in the env file:
@@ -54,7 +64,8 @@ be installed on the Docker host.
 
 The generator creates private `web.env`, `gateway.env`, `worker.env` and
 `runner.env` files. Keep their keys and service settings. Compose overrides their
-SQLite defaults with PostgreSQL URLs and sets S3 on web and worker. Create the
+SQLite defaults with PostgreSQL URLs and configures shared artifact storage.
+Create the
 `RUNNER_ROOT` directory you chose (`mkdir -p /srv/secondshift/runner` for the
 example). The same absolute directory is mounted inside the runner because the
 host Docker daemon mounts its sandbox workspaces.
@@ -63,6 +74,59 @@ Optionally configure email and GitHub sign-in in `web.env` using the
 [environment reference](environment-variables.md). Without email, password
 reset messages cannot be sent. Generate these files only once, and retain them
 for upgrades.
+
+## Optional subscription agents
+
+Model API jobs need no agent image. To enable Claude Code and Codex subscriptions,
+build the separate agent image from the same checkout as the application. On a
+single server, an immutable local image ID is sufficient:
+
+```bash
+docker build -f secondshift/runner/agent_image/Dockerfile \
+  -t secondshift-agent:production .
+docker image inspect --format '{{.Id}}' secondshift-agent:production
+```
+
+Set `AGENT_IMAGE` in `compose.env` to the printed `sha256:...` ID. Alternatively,
+push the image to your private registry and set `AGENT_IMAGE` to its immutable
+`registry/name@sha256:...` reference. Pull that exact image on the Docker host
+before enabling it. Create the server-owned resolver file inside `RUNNER_ROOT`
+(the runner mounts this file read-only in agent containers):
+
+```bash
+# Replace these with DNS servers reachable from this server's Docker networks.
+printf 'nameserver 1.1.1.1\nnameserver 1.0.0.1\n' > /srv/secondshift/runner/agent-resolv.conf
+chmod 644 /srv/secondshift/runner/agent-resolv.conf
+```
+
+Use your configured runner path. Do not copy a host resolver that uses a
+loopback-only stub such as `127.0.0.53`. gVisor's network stack cannot use Docker's
+embedded DNS redirection, so agents use this resolver and reach the gateway at
+its reserved address. Set `AGENT_SUBNET` and `AGENT_GATEWAY_ADDRESS` together if
+the default `172.30.0.0/24` and `172.30.0.2` overlap an existing host route.
+The gateway address must be inside the subnet. Image architecture must match
+the runner host. The main
+application release workflow does not publish this separate image.
+
+Compose supplies the image and broker settings to the application roles and
+runner, including existing installations whose private env files are retained.
+It creates a dedicated bridge named by `AGENT_NETWORK` (default
+`secondshift_agents`). Only the gateway and transient agent containers join it;
+PostgreSQL, web, runner and worker stay on the application network. Give each
+installation on one Docker host a distinct agent network name.
+
+Agent containers can reach the internet for their provider and the gateway's
+run-scoped MCP endpoint. This is not an outbound destination allowlist. Their
+built-in CLI tools are disabled; repository commands still execute in the
+separate offline gVisor sandbox. Agents receive only their own subscription
+login and a run token, never artifact credentials or an artifact directory.
+
+After changing `compose.env`, run `dc up -d`, then add a subscription on
+**Models**. Verify its login check and a run, including a webhook-triggered run
+that calls `trigger_payload`. Real provider logins under gVisor require operator
+validation; the automated deployment probe uses a deterministic test agent.
+See [Agent subscriptions](agent-subscriptions.md) for credential ownership and
+execution limits. Keep the old agent image available until active runs finish.
 
 ## Configure repository access
 
@@ -148,7 +212,8 @@ every five minutes.
 The worker keeps a Git mirror of each repository and a size-limited cache of
 run snapshots. Both are caches, rebuilt from GitHub when missing. The runner
 keeps no repositories. It holds each run's files only while the run lasts.
-S3 stores run artifacts. PostgreSQL stores metadata, job definitions and history.
+The configured artifact store holds run inputs and outputs. PostgreSQL stores
+metadata, job definitions and history.
 A rerun of a commit that a force push removed from GitHub can fail once the
 cache no longer has it.
 
@@ -161,9 +226,11 @@ than copying its live data volume.
 
 The database dumps hold saved credentials encrypted with
 `SECONDSHIFT_ENCRYPTION_KEY`, and sign-in passwords only as hashes.
-`config.tgz` holds that key and the other server secrets unencrypted. Anyone
-with both can read every saved credential, so the commands below write
-`config.tgz` to its own folder. Store it separately from the data backups, for
+`config.tgz` holds that key and the other server secrets unencrypted.
+The runner archive can contain subscription logins and is also a secret backup.
+Anyone with the database dumps and encryption key can read saved credentials,
+so the commands below write both secret archives to their own folder. Store
+them separately from the data backups, for
 example in your password manager or secret store. Without it, saved credentials
 can't be restored. Keep the data backups private and off the server too: they
 hold repository contents, run history and Caddy's TLS keys.
@@ -181,14 +248,15 @@ dc stop caddy web gateway worker runner
 dc exec -T postgres pg_dump -U postgres -Fc secondshift > "$backup/secondshift.dump"
 dc exec -T postgres pg_dump -U postgres -Fc secondshift_runner > "$backup/secondshift_runner.dump"
 tar -czf "$secrets/config.tgz" deploy/production
-tar -czf "$backup/runner.tgz" -C "$RUNNER_ROOT" --exclude=./sessions .
-for volume in caddy_data caddy_config; do
+tar -czf "$secrets/runner.tgz" -C "$RUNNER_ROOT" --exclude=./sessions .
+for volume in artifacts caddy_data caddy_config; do
   docker run --rm -v "secondshift_$volume:/volume:ro" -v "$backup:/backup" \
     alpine:3.22 tar -czf "/backup/$volume.tgz" -C /volume .
 done
 ```
 
-Copy the bucket while the services are stopped, with your provider's tools (for
+For S3 storage, copy the bucket while the services are stopped, with your
+provider's tools (for
 example `aws s3 sync s3://your-bucket "$backup/s3"`), or rely on its versioning
 or replication. Then start the services again:
 
@@ -206,14 +274,17 @@ backup=/srv/secondshift-backups/20261027-082400   # the backup to restore
 secrets=/srv/secondshift-secrets/20261027-082400  # its config.tgz
 tar -xzf "$secrets/config.tgz"
 RUNNER_ROOT=$(sed -n 's/^RUNNER_ROOT=//p' deploy/production/compose.env)
-mkdir -p "$RUNNER_ROOT" && tar -xzf "$backup/runner.tgz" -C "$RUNNER_ROOT"
+runner_archive="$secrets/runner.tgz"
+# Backups made before subscription support kept this archive with the data.
+if [ ! -f "$runner_archive" ]; then runner_archive="$backup/runner.tgz"; fi
+mkdir -p "$RUNNER_ROOT" && tar -xzf "$runner_archive" -C "$RUNNER_ROOT"
 dc up -d --wait postgres
 dc exec -T postgres pg_restore -U postgres -d secondshift --no-owner \
   --role=secondshift --exit-on-error < "$backup/secondshift.dump"
 dc exec -T postgres pg_restore -U postgres -d secondshift_runner --no-owner \
   --role=secondshift_runner --exit-on-error < "$backup/secondshift_runner.dump"
-dc create caddy
-for volume in caddy_data caddy_config; do
+dc create web caddy
+for volume in artifacts caddy_data caddy_config; do
   docker run --rm -v "secondshift_$volume:/volume" -v "$backup:/backup:ro" \
     alpine:3.22 tar -xzf "/backup/$volume.tgz" -C /volume
 done
@@ -237,6 +308,12 @@ dc run --rm --no-deps runner python manage.py migrate --noinput \
   --settings=secondshift.config.settings.runner
 dc up -d
 ```
+
+Retain private env files and encryption keys; do not rerun the environment
+generator. Rebuild or pull the intended agent image and update `AGENT_IMAGE`
+when upgrading subscription execution. The existing PostgreSQL workflow
+database remains shared; the separate SQLite workflow file applies only to
+SQLite installations.
 
 This update has downtime. Changing an env file also requires `dc up -d` to
 recreate its container. PostgreSQL initialization runs only on an empty volume:
