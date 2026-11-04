@@ -19,7 +19,11 @@ from django.conf import settings
 from jsonschema import Draft202012Validator
 from jsonschema.exceptions import SchemaError
 
-from secondshift.connections.errors import ExternalRequestError, ExternalToolError
+from secondshift.connections.errors import (
+    ExternalRequestError,
+    ExternalToolError,
+    ToolArgumentError,
+)
 from secondshift.connections.mcp.transport import MCPTransport
 from secondshift.connections.outbound import OutboundUrlError, validate_outbound_url
 
@@ -41,6 +45,10 @@ class APIError(ExternalToolError):
 
 class APIRequestError(APIError, ExternalRequestError):
     """A remote failure the agent may report as unavailable evidence."""
+
+
+class APIArgumentError(APIError, ToolArgumentError):
+    """Arguments the operation cannot take. The model may fix them."""
 
 
 @dataclass(frozen=True)

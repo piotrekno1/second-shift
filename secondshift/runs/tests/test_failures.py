@@ -3,6 +3,8 @@ from types import SimpleNamespace
 import pytest
 from pydantic_ai.exceptions import ModelHTTPError
 
+from secondshift.connections.errors import ExternalToolError
+from secondshift.connections.mcp.base import MCPRequestError
 from secondshift.github.errors import GitHubError
 from secondshift.jobs.tool_rules import ToolRuleViolation
 from secondshift.runner.protocol import RunnerProtocolError
@@ -48,6 +50,22 @@ def test_summary_hides_messages_it_did_not_write() -> None:
     summary = failure_summary("skill", KeyError("secret-looking-value"))
 
     assert summary == "The skill run failed: Unexpected KeyError."
+
+
+def test_summary_shows_tool_errors_secondshift_wrote() -> None:
+    error = ExternalToolError("Access to this tool is no longer approved.")
+
+    assert failure_summary("skill", error) == (
+        "The skill run failed: Access to this tool is no longer approved."
+    )
+
+
+def test_summary_hides_tool_errors_that_may_quote_the_service() -> None:
+    error = MCPRequestError("remote text: secret-looking-value")
+
+    assert failure_summary("skill", error) == (
+        "The skill run failed: Unexpected MCPRequestError."
+    )
 
 
 def test_a_broken_tool_restriction_is_not_blamed_on_the_skill() -> None:

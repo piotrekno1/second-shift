@@ -14,6 +14,7 @@ from secondshift.config.constants import (
 )
 from secondshift.connections.mcp.base import (
     SOURCE_AUTH,
+    MCPArgumentError,
     MCPError,
     MCPProvider,
     MCPSettings,
@@ -51,16 +52,16 @@ GITHUB_JOB_LOG_MAX_LINES = 300
 def scoped_search_query(repository: str, query: str) -> str:
     """Pin a pull request search to the job's repository."""
     if len(query) > GITHUB_SEARCH_QUERY_MAX_CHARS:
-        raise MCPError(
+        raise MCPArgumentError(
             f"Keep the search under {GITHUB_SEARCH_QUERY_MAX_CHARS} characters."
         )
     # OR can widen a repo-qualified search. Disallow it rather than attempt
     # to rewrite the provider's query language. GitHub only reads it in capitals.
     if re.search(r"\bOR\b", query):
-        raise MCPError("Use separate searches instead of OR.")
+        raise MCPArgumentError("Use separate searches instead of OR.")
     query = re.sub(rf"(?i)(?<!\S)repo:{re.escape(repository)}(?=\s|$)", "", query)
     if re.search(r"repo\s*:", query, re.IGNORECASE):
-        raise MCPError("The search must target the approved repository.")
+        raise MCPArgumentError("The search must target the approved repository.")
     return f"repo:{repository} {query.strip()}".strip()
 
 
@@ -83,15 +84,17 @@ def scoped_github_arguments(
     scoped = dict(arguments)
     for key, value in (("owner", owner), ("repo", repo)):
         if key in scoped and scoped[key] != value:
-            raise MCPError("The tool must target the approved repository.")
+            raise MCPArgumentError("The tool must target the approved repository.")
         scoped[key] = value
     if tool == GitHubMCPTool.LIST_COMMITS and scoped.get("sha"):
-        raise MCPError("List commits from the default branch by omitting sha.")
+        raise MCPArgumentError("List commits from the default branch by omitting sha.")
     if tool == GitHubMCPTool.SEARCH_PULL_REQUESTS:
         scoped["query"] = scoped_search_query(repository, str(scoped.get("query", "")))
     methods = GITHUB_ACTIONS_METHODS.get(tool)
     if methods is not None and scoped.get("method") not in methods:
-        raise MCPError(f"Use one of these methods: {', '.join(sorted(methods))}.")
+        raise MCPArgumentError(
+            f"Use one of these methods: {', '.join(sorted(methods))}."
+        )
     if tool == GitHubMCPTool.GET_JOB_LOGS:
         # A download link would skip the broker's size limit and redaction.
         scoped["return_content"] = True

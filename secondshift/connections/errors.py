@@ -7,3 +7,7 @@ class ExternalToolError(ValueError):
 
 class ExternalRequestError(ExternalToolError):
     """A remote failure the agent may report as unavailable evidence."""
+
+
+class ToolArgumentError(ExternalToolError):
+    """The model sent arguments the tool refuses. It may fix them and try again."""

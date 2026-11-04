@@ -3,7 +3,11 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
-from secondshift.connections.errors import ExternalRequestError, ExternalToolError
+from secondshift.connections.errors import (
+    ExternalRequestError,
+    ExternalToolError,
+    ToolArgumentError,
+)
 from secondshift.repositories.models import Repository
 from secondshift.workspaces.models import Workspace
 
@@ -18,6 +22,10 @@ class MCPError(ExternalToolError):
 
 class MCPRequestError(MCPError, ExternalRequestError):
     """A remote failure the agent may report as unavailable evidence."""
+
+
+class MCPArgumentError(MCPError, ToolArgumentError):
+    """Arguments outside the approved scope. The model may fix them."""
 
 
 @dataclass(frozen=True)

@@ -3,9 +3,9 @@ import re
 from collections.abc import Callable
 from typing import Any
 
-from pydantic_ai import RunContext, Tool, ToolFailed
+from pydantic_ai import ModelRetry, RunContext, Tool, ToolFailed
 
-from secondshift.connections.errors import ExternalRequestError
+from secondshift.connections.errors import ExternalRequestError, ToolArgumentError
 from secondshift.jobs.tool_policy import authorized_tools
 from secondshift.jobs.tool_rules import narrow_schema
 from secondshift.runs.execution.deadlines import (
@@ -49,6 +49,9 @@ def external_tools(run: Run) -> tuple[Tool[WorkspaceToolDeps], ...]:
                     )
                 except ExternalRequestError as error:
                     raise ToolFailed(str(error)) from None
+                except ToolArgumentError as error:
+                    # The model can fix its arguments, so let it try again.
+                    raise ModelRetry(str(error)) from None
 
             return call
 

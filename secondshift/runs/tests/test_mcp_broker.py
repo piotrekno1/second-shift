@@ -8,7 +8,7 @@ import pytest
 from django.contrib.auth import get_user_model
 from django.core.files.storage import storages
 from django.utils import timezone
-from pydantic_ai import ToolFailed
+from pydantic_ai import ModelRetry, ToolFailed
 from pydantic_ai.models.test import TestModel
 
 from secondshift.config.constants import GITHUB_MCP_URL
@@ -385,6 +385,34 @@ def test_remote_failures_are_reportable_but_policy_denials_still_stop_the_run(
     )
     with pytest.raises(ExternalToolError, match="no longer approved"):
         tool.function(context)
+
+
+@pytest.mark.django_db
+def test_argument_mistakes_go_back_to_the_model(planned_run, mcp_http) -> None:
+    tool = next(
+        tool
+        for tool in external_tools(planned_run)
+        if "search_pull_requests" in tool.name
+    )
+    context = tool_context(
+        WorkspaceToolDeps(
+            run_id=planned_run.pk,
+            session_id="offline",
+            max_output_chars=1000,
+            deadline=LATER,
+        )
+    )
+
+    with pytest.raises(ModelRetry, match=r"\$\.query fails the type rule") as wrong:
+        tool.function(context, query=4242)
+    # The model is told where, never the value it sent.
+    assert "4242" not in wrong.value.message
+    with pytest.raises(ModelRetry, match="approved repository"):
+        tool.function(context, query="repo:other/private")
+    with pytest.raises(ModelRetry, match="separate searches"):
+        tool.function(context, query="is:merged OR is:open")
+    assert not mcp_http
+    assert planned_run.events.filter(message=f"Tool arguments refused: {NAME}").exists()
 
 
 def set_rules(run: Run, rules: dict) -> None:

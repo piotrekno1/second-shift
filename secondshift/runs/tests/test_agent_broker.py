@@ -8,6 +8,7 @@ import pytest
 from django.contrib.auth.models import User
 from django.test import Client, RequestFactory
 from django.utils import timezone
+from pydantic_ai import ModelRetry, RunContext, Tool
 
 from secondshift.connections import agents as agent_logins
 from secondshift.connections.models import AgentConnection
@@ -81,6 +82,25 @@ def test_mcp_exposes_and_calls_only_frozen_tools(
         ]
         is True
     )
+
+
+def test_the_agent_is_told_how_to_fix_its_arguments(
+    leased_run: tuple[Run, AgentLease, User], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _, lease, _ = leased_run
+
+    def search(ctx: RunContext[Any], query: str) -> dict[str, Any]:
+        raise ModelRetry("Use separate searches instead of OR.")
+
+    monkeypatch.setattr(
+        "secondshift.runs.execution.agent_broker.broker_tools",
+        lambda run: {"search": Tool(search, takes_ctx=True)},
+    )
+
+    assert tool_result(lease, "search", {"query": "a OR b"}) == {
+        "content": [{"type": "text", "text": "Use separate searches instead of OR."}],
+        "isError": True,
+    }
 
 
 @pytest.mark.parametrize(
