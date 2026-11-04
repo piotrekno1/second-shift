@@ -31,6 +31,7 @@ from secondshift.repositories.schemas import (
     LocalRepositoryDirectorySchema,
     RepositoryDetailSchema,
     RepositoryEnabledSchema,
+    RepositoryIssuesSchema,
     RepositoryPullRequestsSchema,
     RepositorySchema,
     RepositoryValidationSchema,
@@ -260,6 +261,26 @@ def set_repository_pull_requests(
     repository.save(
         update_fields=["allow_pull_requests", "pull_request_ci", "updated_at"]
     )
+    return serialize_repository_detail(request, repository)
+
+
+@router.post(
+    "/repositories/{repository_id}/issues",
+    response=RepositoryDetailSchema,
+    auth=django_auth,
+)
+def set_repository_issues(
+    request: HttpRequest,
+    repository_id: int,
+    payload: RepositoryIssuesSchema,
+) -> RepositoryDetailSchema:
+    """Let jobs open the issues their agent proposes."""
+    repository = repository_for_request(request, repository_id)
+    require(request, Action.ALLOW_ISSUES)
+    if payload.allow and repository.source_type != Repository.SourceType.GITHUB:
+        raise HttpError(409, "Only GitHub repositories can receive issues.")
+    repository.allow_issues = payload.allow
+    repository.save(update_fields=["allow_issues", "updated_at"])
     return serialize_repository_detail(request, repository)
 
 

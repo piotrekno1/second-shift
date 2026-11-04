@@ -76,3 +76,44 @@ def test_local_repositories_cannot_receive_pull_requests(
     detail = client.get(f"/api/repositories/{repository.pk}").json()
     assert detail["can_open_pull_requests"] is False
     assert detail["allow_pull_requests"] is False
+
+
+def post_issues(client: Client, repository: Repository, allow: bool) -> object:
+    return client.post(
+        f"/api/repositories/{repository.pk}/issues",
+        {"allow": allow},
+        content_type="application/json",
+    )
+
+
+def test_only_owners_let_jobs_open_issues(client: Client, workspace: Workspace) -> None:
+    repository = github_repository(workspace)
+    admin = get_user_model().objects.create_user(username="admin")
+    workspace.memberships.create(user=admin, role="admin")
+
+    client.force_login(admin)
+    refused = post_issues(client, repository, True)
+    client.force_login(workspace_owner(workspace))
+    allowed = post_issues(client, repository, True)
+
+    assert refused.status_code == 403
+    assert allowed.status_code == 200
+    assert allowed.json()["allow_issues"] is True
+    repository.refresh_from_db()
+    assert repository.allow_issues is True
+    assert post_issues(client, repository, False).json()["allow_issues"] is False
+
+
+@override_settings(LOCAL_REPOSITORIES_ENABLED=True)
+def test_local_repositories_cannot_receive_issues(
+    client: Client, workspace: Workspace, tmp_path: Path
+) -> None:
+    root = tmp_path / "project"
+    create_local_repository(root)
+    repository = attach_local_repository(workspace, str(root))
+    client.force_login(workspace_owner(workspace))
+
+    assert post_issues(client, repository, True).status_code == 409
+    assert (
+        client.get(f"/api/repositories/{repository.pk}").json()["allow_issues"] is False
+    )
