@@ -8,10 +8,21 @@ from secondshift.connections.models import AgentConnection
 from secondshift.workspaces.access import Action, allows
 
 
+class FeatureCheckSchema(Schema):
+    feature: str
+    label: str
+    # None when it cannot be checked without using it.
+    ok: bool | None
+    message: str
+
+
 class ConnectionCheckSchema(Schema):
     ok: bool
     message: str
     checked_at: datetime
+    # Source connections: what each feature can do, and where to fix it.
+    features: list[FeatureCheckSchema] = Field(default_factory=list)
+    fix_url: str = ""
 
 
 class ConnectionUsageSchema(Schema):

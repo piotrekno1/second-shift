@@ -53,3 +53,18 @@ def test_installation_token_is_repository_scoped(monkeypatch: Any) -> None:
         "permissions": {"contents": "read"},
         "repository_ids": [7],
     }
+
+
+def test_installation_settings_must_be_on_github(monkeypatch: Any) -> None:
+    monkeypatch.setattr(github_app, "app_token", lambda: "jwt")
+    monkeypatch.setattr(
+        github_app,
+        "request_json",
+        lambda *args: {
+            "permissions": {"contents": "read"},
+            "html_url": "https://evil.example/settings",
+        },
+    )
+    details = github_app.installation("42")
+    assert details.permissions == {"contents": "read"}
+    assert details.settings_url == ""
