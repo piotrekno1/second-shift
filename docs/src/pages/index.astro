@@ -172,6 +172,8 @@ const stackRows = [
       .example h2 { margin: 0; font-size: 25px; font-weight: 500; letter-spacing: -.045em; }
       .example-heading a { color: #a3a3a3; font-size: 13px; white-space: nowrap; }
       .example-heading a:hover { color: #ededed; }
+      .example-links { display: flex; flex-wrap: wrap; gap: 6px 20px; }
+      .example-caption { margin: 14px 0 0; color: #b5b5b5; font-size: 14px; line-height: 1.6; }
       .files { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
       .file { min-width: 0; border: 1px solid #303030; border-radius: 8px; background: #191919; }
       .file-name { display: flex; align-items: center; gap: 10px; padding: 13px 17px; border-bottom: 1px solid #303030; color: #c4c4c4; font: 12px 'Geist Mono', ui-monospace, monospace; overflow-wrap: anywhere; }
@@ -275,7 +277,7 @@ const stackRows = [
         <section class="example" aria-labelledby="example-title">
           <div class="example-heading">
             <h2 id="example-title">Simplest example</h2>
-            <a href="/docs/repository-configuration/">How jobs work →</a>
+            <span class="example-links"><a href="/docs/repository-configuration/">How jobs work →</a><a href="/docs/skill-catalog/">Browse the skill catalog →</a></span>
           </div>
           <div class="files">
             <div class="file">
@@ -289,6 +291,7 @@ const stackRows = [
 
 Check docs against the repository.
 Report broken links, paths, and commands.
+Say what changed since the last report.
 Do not modify files.</code></pre>
             </div>
             <div class="file">
@@ -300,9 +303,13 @@ Do not modify files.</code></pre>
     <span class="key">name:</span> Documentation drift
     <span class="key">skill:</span> .agents/skills/docs-drift/SKILL.md
     <span class="key">schedule:</span> "0 8 * * 1"
-    <span class="key">timezone:</span> UTC</code></pre>
+    <span class="key">timezone:</span> UTC
+    <span class="key">history:</span> 1
+    <span class="key">notify:</span>
+      - <span class="key">binding:</span> engineering-reports</code></pre>
             </div>
           </div>
+          <p class="example-caption">Runs every Monday at 08:00 UTC, reads last week’s report, and posts the result to Slack.</p>
         </section>
       </main>
     </div>
