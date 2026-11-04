@@ -16,7 +16,8 @@ from secondshift.connections.models import Connection
 from secondshift.github import repos
 from secondshift.github.app import configured
 from secondshift.github.errors import GitHubError
-from secondshift.repositories.github_access import github_access, usable_source
+from secondshift.repositories.github_access import can_check, github_access
+from secondshift.repositories.github_check import check_after_failure
 from secondshift.repositories.github_sync import sync_github_repository
 from secondshift.repositories.local import (
     LocalRepositoryError,
@@ -46,13 +47,6 @@ def token_sources() -> QuerySet[Connection]:
         kind=Connection.Kind.SOURCE,
         auth_strategy=Connection.AuthStrategy.API_KEY,
         status=Connection.Status.CONNECTED,
-    )
-
-
-def can_check(connection: Connection | None) -> bool:
-    """App sources need the App on this server. Token sources need only themselves."""
-    return usable_source(connection) and (
-        connection.auth_strategy != Connection.AuthStrategy.MANAGED or configured()
     )
 
 
@@ -103,6 +97,8 @@ def sync_moved_repositories() -> int:
                 last_sync_error=str(error)[:500]
             )
             logger.warning("could not sync %s: %s", repository.display_name, error)
+            if repository.source_type == Repository.SourceType.GITHUB:
+                check_after_failure(repository.github_connection)
             continue
         if result.last_sync_error:
             logger.warning(

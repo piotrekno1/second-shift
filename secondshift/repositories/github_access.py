@@ -10,6 +10,7 @@ from django.utils import timezone
 
 from secondshift.connections.models import Connection
 from secondshift.github import credentials, repos
+from secondshift.github.app import configured
 from secondshift.github.errors import GitHubError
 from secondshift.github.identity import clone_url
 from secondshift.repositories.models import Repository
@@ -41,6 +42,13 @@ def usable_source(connection: Connection | None) -> bool:
         return True
     return connection.auth_strategy == Connection.AuthStrategy.API_KEY and bool(
         connection.access_token
+    )
+
+
+def can_check(connection: Connection | None) -> bool:
+    """App sources need the App on this server. Token sources need only themselves."""
+    return usable_source(connection) and (
+        connection.auth_strategy != Connection.AuthStrategy.MANAGED or configured()
     )
 
 

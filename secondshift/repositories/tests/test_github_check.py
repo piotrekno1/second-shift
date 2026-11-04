@@ -1,10 +1,11 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from unittest.mock import Mock
 
 import pytest
 from django.contrib.auth import get_user_model
 from django.test import Client
+from django.utils import timezone
 
 from secondshift.connections.models import Connection
 from secondshift.github import app, permissions
@@ -238,3 +239,55 @@ def test_testing_a_source_runs_the_check(
         "tools",
         "draft_pull_requests",
     ]
+
+
+def checked(connection: Connection, ok: bool, at: datetime) -> None:
+    connection.metadata = {
+        "last_check": {"ok": ok, "message": "", "checked_at": at.isoformat()}
+    }
+    connection.save()
+
+
+def test_sources_are_checked_once_a_day(
+    workspace: Workspace, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    fresh = token_source(workspace)
+    checked(fresh, True, timezone.now() - timedelta(hours=2))
+    stale = Connection.objects.create(
+        workspace=workspace,
+        provider=Connection.Provider.GITHUB,
+        kind=Connection.Kind.SOURCE,
+        auth_strategy=Connection.AuthStrategy.API_KEY,
+        external_account_id="token:other",
+        display_name="GitHub · other",
+        access_token=TOKEN,
+    )
+    checked(stale, True, timezone.now() - timedelta(days=2))
+    never = token_source(Workspace.objects.create(name="Other", slug="other"))
+    check = Mock()
+    monkeypatch.setattr(github_check, "check_source", check)
+    assert github_check.check_due_sources() == 2
+    assert {call.args[0].pk for call in check.call_args_list} == {stale.pk, never.pk}
+
+
+def test_app_sources_wait_for_the_app_on_this_server(
+    workspace: Workspace, monkeypatch: pytest.MonkeyPatch, settings: Any
+) -> None:
+    settings.GITHUB_APP_ID = ""
+    app_source(workspace)
+    check = Mock()
+    monkeypatch.setattr(github_check, "check_source", check)
+    assert github_check.check_due_sources() == 0
+
+
+def test_a_sync_failure_checks_its_connection_unless_already_failing(
+    workspace: Workspace, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    connection = token_source(workspace)
+    check = Mock()
+    monkeypatch.setattr(github_check, "check_source", check)
+    github_check.check_after_failure(connection)
+    assert check.call_count == 1
+    checked(connection, False, timezone.now())
+    github_check.check_after_failure(connection)
+    assert check.call_count == 1

@@ -5,6 +5,9 @@ each gap with a link to fix it on GitHub. Tokens are never part of it.
 """
 
 from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta
+
+from django.utils import timezone
 
 from secondshift.config.constants import GITHUB_BASE_URL
 from secondshift.connections.checks import record_check
@@ -14,10 +17,14 @@ from secondshift.github.errors import GitHubError
 from secondshift.github.tokens import inspect_token
 from secondshift.repositories.github_access import (
     GitHubAccess,
+    can_check,
     connection_source,
     github_access,
 )
 from secondshift.repositories.models import Repository
+
+# A grant can be withdrawn on GitHub at any time, so each source is checked daily.
+CHECK_INTERVAL = timedelta(days=1)
 
 GITHUB_TOKENS_URL = f"{GITHUB_BASE_URL}/settings/personal-access-tokens"
 
@@ -218,3 +225,37 @@ def check_source(connection: Connection) -> SourceCheck:
         fix_url=result.fix_url,
     )
     return result
+
+
+def last_checked(connection: Connection) -> datetime | None:
+    check = connection.metadata.get("last_check") or {}
+    try:
+        return datetime.fromisoformat(check["checked_at"])
+    except (KeyError, TypeError, ValueError):
+        return None
+
+
+def check_due_sources() -> int:
+    """Check each GitHub source not checked within a day. Returns how many."""
+    due = timezone.now() - CHECK_INTERVAL
+    checked = 0
+    for connection in Connection.objects.filter(
+        provider=Connection.Provider.GITHUB,
+        kind=Connection.Kind.SOURCE,
+        status=Connection.Status.CONNECTED,
+    ):
+        when = last_checked(connection)
+        if not can_check(connection) or (when is not None and when > due):
+            continue
+        check_source(connection)
+        checked += 1
+    return checked
+
+
+def check_after_failure(connection: Connection | None) -> None:
+    """A sync failed, so show why on the connection, unless it already shows a failure."""
+    if not can_check(connection):
+        return
+    if (connection.metadata.get("last_check") or {}).get("ok") is False:
+        return
+    check_source(connection)
