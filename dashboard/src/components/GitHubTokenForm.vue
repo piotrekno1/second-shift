@@ -34,12 +34,14 @@ async function submit(): Promise<void> {
         <template #icon><AppIcon name="check" /></template>
       </Button>
     </div>
-    <small v-if="connectionId === null">
-      <a :href="newTokenUrl()" target="_blank" rel="noopener noreferrer">Create a token on GitHub <AppIcon name="open-in-new" /></a>
-      with the permissions filled in, then choose its repositories.
-      For draft pull requests and issues, <a :href="newTokenUrl(true)" target="_blank" rel="noopener noreferrer">create one with write access <AppIcon name="open-in-new" /></a>.
-      <DocsLink :page="DocsPage.GitHubAccess" section="use-a-personal-access-token">Permissions</DocsLink>
-    </small>
+    <div v-if="connectionId === null" class="github-token-guide">
+      <ol>
+        <li><a :href="newTokenUrl()" target="_blank" rel="noopener noreferrer">Create a fine-grained token on GitHub <AppIcon name="open-in-new" /></a>. Read permissions are filled in.</li>
+        <li>Choose the resource owner (your account or organization), set an expiration, and select only the repositories you want to connect.</li>
+        <li>Generate the token, copy it, then paste it above and select Connect. If your organization requires approval, an owner must approve it before its repositories appear.</li>
+      </ol>
+      <p>Need draft pull requests or issues? <a :href="newTokenUrl(true)" target="_blank" rel="noopener noreferrer">Create a token with write access <AppIcon name="open-in-new" /></a> instead. <DocsLink :page="DocsPage.GitHubAccess" section="use-a-personal-access-token">Full permissions guide</DocsLink></p>
+    </div>
     <small v-else>
       On GitHub, <a :href="GITHUB_TOKENS_URL" target="_blank" rel="noopener noreferrer">regenerate the token <AppIcon name="open-in-new" /></a> to keep its repositories and permissions. The new token must belong to the same GitHub account.
     </small>

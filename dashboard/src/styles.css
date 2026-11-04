@@ -963,3 +963,9 @@ body .workspace-menu { width: 224px; }
   .agent-card { flex-wrap: wrap; }
   .agent-card > div { flex-basis: calc(100% - 40px); }
 }
+
+.github-token-guide { color: var(--muted); font-size: 13px; line-height: 1.6; }
+.github-token-guide ol { margin: 4px 0; padding-left: 20px; }
+.github-token-guide li + li { margin-top: 8px; }
+.github-token-guide p { margin: 12px 0 0; }
+.github-token-guide a { color: var(--ink); text-decoration: underline; }
