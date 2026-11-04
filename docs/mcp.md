@@ -7,15 +7,19 @@ integrations. An agent can read jobs, runs and reports, start approved jobs,
 and check a `.secondshift.yaml` before it is committed. An agent can never
 grant access. Approvals, connections and secrets stay in the dashboard.
 
-![API tokens on the account page](screenshots/07-api-tokens.png)
+![Connect your agent dialog](screenshots/agent-setup-form.png)
 
 ## Connect a client
 
-1. Open the account menu and choose **API tokens**.
-2. Name the token. Pick the workspace it works in, its access and when it
-   expires.
-3. Choose **Create token** and copy the setup command. The token is shown
-   once.
+1. Open the account menu and choose **Connect your agent**. You can also
+   connect from the empty overview or the **API tokens** account page.
+2. Choose Claude Code, Codex, Cursor or **Other client**. Name the token and
+   pick the workspace it works in, its access and when it expires.
+3. Choose **Create token & show setup** and copy the command, configuration
+   or connection settings. Follow the client instructions in the dialog. The
+   token is shown once; copy the setup before closing.
+
+Manage and revoke existing tokens from **Account menu → API tokens**.
 
 Claude Code:
 

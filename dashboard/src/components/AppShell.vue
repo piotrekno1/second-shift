@@ -3,6 +3,9 @@ import AppIcon from './AppIcon.vue'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Menu from 'primevue/menu'
+import Dialog from 'primevue/dialog'
+import AgentTokenSetup from './AgentTokenSetup.vue'
+import { useAgentConnectionStore } from '../stores/agentConnection'
 import type { MenuItem } from 'primevue/menuitem'
 import { signOut } from '../services/api'
 import { DOCS_HOME_URL } from '../utils/docs'
@@ -12,6 +15,8 @@ import InvitePrompt from './InvitePrompt.vue'
 import ShiftStatus from './ShiftStatus.vue'
 import WorkspaceSwitcher from './WorkspaceSwitcher.vue'
 
+const agentConnection = useAgentConnectionStore()
+const creatingAgentToken = ref(false)
 const route = useRoute()
 const router = useRouter()
 const app = useAppStore()
@@ -70,6 +75,7 @@ const accountName = computed(() => (app.user?.email ?? '').split('@')[0] || 'Acc
 const accountMenu = ref<InstanceType<typeof Menu> | null>(null)
 const accountOpen = ref(false)
 const accountItems = computed<MenuItem[]>(() => [
+  { label: 'Connect your agent', appIcon: 'link-plus', command: () => { mobileOpen.value = false; agentConnection.visible = true } },
   { label: 'API tokens', appIcon: 'key-variant', command: () => void router.push('/account') },
   { label: 'Docs', appIcon: 'book-open-variant-outline', url: DOCS_HOME_URL, target: '_blank' },
   { label: 'Sign out', appIcon: 'logout', disabled: signingOut.value, command: () => void handleSignOut() },
@@ -142,6 +148,9 @@ async function handleSignOut(): Promise<void> {
         </Menu>
       </div>
     </aside>
+    <Dialog v-model:visible="agentConnection.visible" modal header="Connect your agent" class="agent-dialog" :draggable="false" :closable="!creatingAgentToken" :close-on-escape="!creatingAgentToken">
+      <AgentTokenSetup v-if="agentConnection.visible" @busy="creatingAgentToken = $event" />
+    </Dialog>
     <main>
       <InvitePrompt />
       <slot />

@@ -6,6 +6,7 @@ export const DOCS_HOME_URL = `${DOCS_BASE_URL}/overview/`
 
 export const DocsPage = {
   Tasks: 'tasks',
+  MCP: 'mcp',
   RepositoryConfiguration: 'repository-configuration',
   SecurityModel: 'security-model',
   GitHubAccess: 'github-app',

@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import AppIcon from '../components/AppIcon.vue'
 import { computed } from 'vue'
+import Button from 'primevue/button'
+import { useAgentConnectionStore } from '../stores/agentConnection'
 import ExecutionWarning from '../components/ExecutionWarning.vue'
 import PageHeader from '../components/PageHeader.vue'
 import RunsChart from '../components/RunsChart.vue'
@@ -16,6 +18,7 @@ import {
   accessLabel, countLabel, formatCost, formatDate, formatRelative, formatScheduled, healthHeadline, runsTrend, spendTrend, utcTitle, weekRange,
 } from '../utils/format'
 
+const agentConnection = useAgentConnectionStore()
 const app = useAppStore()
 // While a run is active only its numbers change; otherwise refresh everything, since
 // scheduled runs and job changes can happen in other tabs.
@@ -101,6 +104,11 @@ const passRate = computed(() => {
     </PageHeader>
 
     <SetupChecklist v-if="setup" :steps="setup" />
+    <div v-if="app.overview && !app.repositories.length" class="agent-discovery">
+      <AppIcon name="link-plus" />
+      <div><strong>Set up with your coding agent</strong><span>Connect over MCP to explore SecondShift and check your repository configuration.</span></div>
+      <Button label="Connect your agent" severity="secondary" size="small" @click="agentConnection.visible = true" />
+    </div>
     <!-- The checklist already asks for what runs jobs. -->
     <ExecutionWarning v-if="!setup || !app.overview?.execution?.needs_setup" />
 
