@@ -95,6 +95,22 @@ def pull_request_link(run: Run) -> dict[str, str] | None:
     return {"url": delivery.external_url} if delivery else None
 
 
+def pull_request_line(run: Run) -> str:
+    """The draft's link, or why there is none, for runs that asked for one."""
+    if not (run.execution_plan or {}).get("pull_request"):
+        return ""
+    delivery = run.deliveries.filter(kind=RunDelivery.Kind.PULL_REQUEST).first()
+    if delivery is None:
+        return ""
+    if delivery.status == RunDelivery.Status.DELIVERED:
+        return f"<{delivery.external_url}|Review the draft pull request>"
+    if delivery.status == RunDelivery.Status.SKIPPED:
+        return f"No draft pull request. {delivery.message}".strip()
+    if delivery.status == RunDelivery.Status.FAILED:
+        return f"The draft pull request could not open. {delivery.message}".strip()
+    return ""
+
+
 def changed_file_count(run: Run) -> int:
     changes = (run.outputs or {}).get("changes") or {}
     return int(changes.get("file_count", 0)) if changes.get("path") else 0
@@ -120,8 +136,8 @@ def run_report_text(run: Run, run_url: str) -> str:
     ]
     if outputs := outputs_line(run):
         lines.append(outputs)
-    if pull_request := pull_request_link(run):
-        lines.append(f"<{pull_request['url']}|Review the draft pull request>")
+    if pull_request := pull_request_line(run):
+        lines.append(pull_request)
     # Slack link syntax. Mattermost and Discord /slack webhooks accept it.
     lines.append(f"<{run_url}|Open run #{run.pk}>")
     return "\n\n".join(lines)

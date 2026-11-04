@@ -297,9 +297,9 @@ onMounted(loadRepository)
               <button v-if="app.can(Action.ChangeRepositoryState)" type="button" class="link-button" :disabled="action === 'auto-sync'" @click="toggleAutoSync">{{ repository.auto_sync ? 'Turn off' : 'Turn on' }}</button>
             </dd>
           </div>
-          <div v-if="repository.can_open_pull_requests">
+          <div v-if="repository.can_open_pull_requests" id="draft-pull-requests">
             <dt>Draft pull requests</dt>
-            <dd class="auto-sync" title="Tasks can push a secondshift/run branch and open a draft. The GitHub App needs write access.">
+            <dd class="auto-sync" title="Jobs and tasks can push a secondshift/run branch and open a draft. The GitHub App or token needs Contents and Pull requests write access.">
               <span>{{ repository.allow_pull_requests ? 'On' : 'Off' }}</span>
               <button v-if="app.can(Action.AllowPullRequests)" type="button" class="link-button" :disabled="action === 'pull-requests'" @click="setPullRequests(!repository.allow_pull_requests, false)">{{ repository.allow_pull_requests ? 'Turn off' : 'Turn on' }}</button>
             </dd>

@@ -63,17 +63,24 @@ test('approvalPending hides Approve once the chosen connection is approved', () 
 function setup(overrides: Partial<SetupState> = {}): SetupState {
   return {
     repositories: 0,
+    repositoryName: '',
     accessProblem: '',
     execution: status({ needs_setup: true, problem: 'Nothing runs jobs.' }),
+    jobs: 0,
     enabledJobs: 0,
     hasRuns: false,
-    reviewJobId: null,
+    readyJob: null,
+    reviewJob: null,
+    missingBinding: null,
     canAddGitHub: true,
     canAddLocal: false,
     canReview: true,
+    canConnect: true,
     ...overrides,
   }
 }
+
+const withCode = { repositories: 1, repositoryName: 'second-shift', execution: status(), jobs: 4 }
 
 test('a hosted server offers only GitHub for the first repository', () => {
   const steps = setupSteps(setup())!
@@ -83,9 +90,10 @@ test('a hosted server offers only GitHub for the first repository', () => {
   assert.deepEqual(steps[2]!.actions, [])
 })
 
-test('a local install offers both ways to add code', () => {
+test('a local install starts with a local repository and offers GitHub second', () => {
   const steps = setupSteps(setup({ canAddLocal: true }))!
-  assert.deepEqual(steps[0]!.actions.map((action) => action.label), ['Connect GitHub', 'Add local repository'])
+  assert.deepEqual(steps[0]!.actions.map((action) => action.label), ['Add local repository', 'Connect GitHub'])
+  assert.match(steps[0]!.detail, /draft pull requests/)
 })
 
 test('code is not done while its GitHub access fails', () => {
@@ -95,13 +103,34 @@ test('code is not done while its GitHub access fails', () => {
   assert.equal(steps[0]!.actions[0]!.label, 'Check access')
 })
 
-test('the job step reviews access first', () => {
-  const steps = setupSteps(setup({ repositories: 1, execution: status(), reviewJobId: 4 }))!
+test('done steps name what was set up', () => {
+  const steps = setupSteps(setup({ ...withCode, readyJob: { id: 3, name: 'Documentation drift' } }))!
+  assert.equal(steps[0]!.detail, 'second-shift is connected.')
+  assert.equal(steps[1]!.detail, 'Model provider runs jobs.')
+  assert.equal(setupSteps(setup({ ...withCode, repositories: 2 }))![0]!.detail, '2 repositories are connected.')
+})
+
+test('the job step prefers a job that can run now', () => {
+  const steps = setupSteps(setup({ ...withCode, readyJob: { id: 3, name: 'Documentation drift' }, reviewJob: { id: 4, name: 'Briefing' } }))!
   assert.deepEqual(steps.map((step) => step.done), [true, true, false])
-  assert.deepEqual(steps[2]!.actions[0]!.to, { path: '/jobs', query: { review: '4' } })
+  assert.equal(steps[2]!.actions[0]!.label, 'Open Documentation drift')
+  assert.deepEqual(steps[2]!.actions[0]!.to, { path: '/jobs/3' })
+})
+
+test('without a ready job, the job step reviews access, then asks for a connection', () => {
+  const review = setupSteps(setup({ ...withCode, reviewJob: { id: 4, name: 'Briefing' }, missingBinding: 'github' }))!
+  assert.deepEqual(review[2]!.actions[0]!.to, { path: '/jobs', query: { review: '4' } })
+  const connect = setupSteps(setup({ ...withCode, missingBinding: 'github' }))!
+  assert.equal(connect[2]!.actions[0]!.label, 'Connect github')
+  assert.deepEqual(connect[2]!.actions[0]!.to, { path: '/connections', query: { binding: 'github' } })
+})
+
+test('a repository without jobs says how to add one', () => {
+  const steps = setupSteps(setup({ ...withCode, jobs: 0 }))!
+  assert.match(steps[2]!.detail, /Add a job to \.secondshift\.yaml/)
 })
 
 test('setup is done once a job is enabled or has run', () => {
-  assert.equal(setupSteps(setup({ repositories: 1, execution: status(), enabledJobs: 1 })), null)
-  assert.equal(setupSteps(setup({ repositories: 1, execution: status(), hasRuns: true })), null)
+  assert.equal(setupSteps(setup({ ...withCode, enabledJobs: 1 })), null)
+  assert.equal(setupSteps(setup({ ...withCode, hasRuns: true })), null)
 })

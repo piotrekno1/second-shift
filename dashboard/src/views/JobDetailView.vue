@@ -247,7 +247,8 @@ useLiveRefresh(loadJob, () => (job.value?.recent_runs ?? []).some((run) => isRun
             <div v-if="job.pull_request">
               <dt>Changes</dt>
               <dd v-if="job.pull_requests_allowed">Opens a draft pull request</dd>
-              <dd v-else>Asks for a draft pull request. An owner must allow them in the <RouterLink :to="`/repositories/${job.repository_id}`" class="detail-link">repository settings</RouterLink>.</dd>
+              <dd v-else-if="!job.can_open_pull_requests">Asks for a draft pull request, but local repositories cannot open one. Each run's changes are kept as a download.</dd>
+              <dd v-else>Asks for a draft pull request. An owner must turn on <RouterLink :to="{ path: `/repositories/${job.repository_id}`, hash: '#draft-pull-requests' }" class="detail-link">Draft pull requests</RouterLink> for the repository. GitHub needs Contents and Pull requests write access.</dd>
             </div>
             <div><dt>Synced commit</dt><dd><code>{{ job.repository_revision.slice(0, 12) }}</code></dd></div>
             <div><dt>History</dt><dd>{{ historyLabel(job.history) }}</dd></div>

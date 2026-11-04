@@ -155,6 +155,8 @@ class JobDetailSchema(JobSchema):
     triggers: list[str]
     # The configuration asks for a draft pull request with each run's changes.
     pull_request: bool
+    # A GitHub repository, so drafts could open. Local repositories cannot.
+    can_open_pull_requests: bool
     # An owner allows pull requests for the repository, so drafts open.
     pull_requests_allowed: bool
     repository_revision: str

@@ -53,70 +53,117 @@ export interface SetupStep {
   title: string
   detail: string
   done: boolean
+  /** The first is the main action. Only the current step shows them. */
   actions: { label: string, to: RouteLocationRaw, icon: string }[]
+}
+
+/** A job named by the checklist. */
+export interface SetupJob {
+  id: number
+  name: string
 }
 
 export interface SetupState {
   repositories: number
+  /** The repository's name while there is only one. */
+  repositoryName: string
   /** Why a GitHub connection that repositories use failed its last check, or ''. */
   accessProblem: string
   execution: ExecutionStatus | null | undefined
+  jobs: number
   enabledJobs: number
   hasRuns: boolean
-  /** The first job waiting for access to be reviewed. */
-  reviewJobId: number | null
+  /** A job that needs no more access, so it can run now. */
+  readyJob: SetupJob | null
+  /** A job whose access can be reviewed now: each binding it needs has a connection. */
+  reviewJob: SetupJob | null
+  /** A required binding no connection serves yet. */
+  missingBinding: string | null
   canAddGitHub: boolean
   canAddLocal: boolean
   canReview: boolean
+  canConnect: boolean
+}
+
+function codeStep(state: SetupState): SetupStep {
+  const step: SetupStep = { key: 'code', title: 'Add your code', detail: '', done: false, actions: [] }
+  if (state.accessProblem) {
+    step.detail = state.accessProblem
+    step.actions.push({ label: 'Check access', to: { path: '/connections' }, icon: 'shield-key-outline' })
+    return step
+  }
+  if (state.repositories > 0) {
+    step.done = true
+    step.detail = state.repositories === 1 && state.repositoryName
+      ? `${state.repositoryName} is connected.`
+      : `${state.repositories} repositories are connected.`
+    return step
+  }
+  const github = { label: 'Connect GitHub', to: { path: '/repositories', query: { add: 'github' } }, icon: 'github' }
+  if (state.canAddLocal) {
+    // On a local install a folder on disk is the quickest start. GitHub adds draft pull requests.
+    step.detail = 'Pick a Git repository with a .secondshift.yaml. Connect GitHub instead if jobs should open draft pull requests.'
+    step.actions.push({ label: 'Add local repository', to: { path: '/repositories', query: { add: 'local' } }, icon: 'folder-open-outline' })
+    if (state.canAddGitHub) step.actions.push(github)
+  } else {
+    step.detail = 'Choose GitHub repositories with a .secondshift.yaml. SecondShift lists their jobs.'
+    if (state.canAddGitHub) step.actions.push(github)
+  }
+  return step
+}
+
+function runnerStep(state: SetupState): SetupStep {
+  const done = !state.execution?.needs_setup
+  return {
+    key: 'runner',
+    title: 'Choose what runs jobs',
+    detail: done
+      ? (state.execution?.label ? `${state.execution.label} runs jobs.` : 'Ready to run jobs.')
+      : 'Add a model API key, or connect a Claude Code or Codex subscription.',
+    done,
+    actions: done ? [] : [{ label: 'Set up a model', to: { path: '/models' }, icon: 'creation-outline' }],
+  }
+}
+
+function jobStep(state: SetupState): SetupStep {
+  const step: SetupStep = { key: 'job', title: 'Run your first job', detail: '', done: state.enabledJobs > 0 || state.hasRuns, actions: [] }
+  if (step.done) {
+    step.detail = state.enabledJobs > 0 ? 'A job is on the schedule.' : 'A job has run.'
+    return step
+  }
+  if (state.repositories === 0) {
+    step.detail = 'Jobs appear once a repository is added.'
+    return step
+  }
+  if (state.jobs === 0) {
+    step.detail = 'Add a job to .secondshift.yaml, then resync the repository.'
+    step.actions.push({ label: 'Open repositories', to: { path: '/repositories' }, icon: 'arrow-right' })
+    return step
+  }
+  // Prefer a job that can run now over one that waits for access.
+  if (state.readyJob) {
+    step.detail = `${state.readyJob.name} needs no extra access, so it can run right away.`
+    step.actions.push({ label: `Open ${state.readyJob.name}`, to: { path: `/jobs/${state.readyJob.id}` }, icon: 'play-outline' })
+  } else if (state.reviewJob && state.canReview) {
+    step.detail = `${state.reviewJob.name} asks for access. Review it, then run the job.`
+    step.actions.push({ label: 'Review access', to: { path: '/jobs', query: { review: String(state.reviewJob.id) } }, icon: 'shield-key-outline' })
+  } else if (state.missingBinding && state.canConnect) {
+    step.detail = `Every job needs a connection first. Connect ${state.missingBinding}, then review its access.`
+    step.actions.push({ label: `Connect ${state.missingBinding}`, to: { path: '/connections', query: { binding: state.missingBinding } }, icon: 'link-plus' })
+  } else {
+    step.detail = 'Open a job to review its access and run it.'
+    step.actions.push({ label: 'Open jobs', to: { path: '/jobs' }, icon: 'arrow-right' })
+  }
+  return step
 }
 
 /**
- * The three steps before the first scheduled run, or null once all are done.
+ * The three steps before the first run, or null once all are done.
  * Code comes first: importing a repository shows its jobs before any model spend.
  * Local repositories exist only where the server allows them, so a hosted
  * server offers GitHub alone.
  */
 export function setupSteps(state: SetupState): SetupStep[] | null {
-  const hasCode = state.repositories > 0
-  const code: SetupStep = {
-    key: 'code',
-    title: 'Add your code',
-    detail: state.accessProblem || (hasCode
-      ? `${state.repositories === 1 ? 'A repository is' : `${state.repositories} repositories are`} connected.`
-      : 'Connect a repository with a .secondshift.yaml. SecondShift finds its jobs.'),
-    done: hasCode && !state.accessProblem,
-    actions: [],
-  }
-  if (state.accessProblem) code.actions.push({ label: 'Check access', to: { path: '/connections' }, icon: 'shield-key-outline' })
-  else if (!hasCode) {
-    if (state.canAddGitHub) code.actions.push({ label: 'Connect GitHub', to: { path: '/repositories', query: { add: 'github' } }, icon: 'github' })
-    if (state.canAddLocal) code.actions.push({ label: 'Add local repository', to: { path: '/repositories', query: { add: 'local' } }, icon: 'folder-open-outline' })
-  }
-  const runnerReady = !state.execution?.needs_setup
-  const runner: SetupStep = {
-    key: 'runner',
-    title: 'Choose what runs jobs',
-    detail: runnerReady
-      ? (state.execution?.label ? `${state.execution.label} runs jobs.` : 'Ready to run jobs.')
-      : 'Add a model API key, or connect a Claude Code or Codex subscription.',
-    done: runnerReady,
-    actions: runnerReady ? [] : [{ label: 'Choose what runs jobs', to: { path: '/models' }, icon: 'arrow-right' }],
-  }
-  const jobDone = state.enabledJobs > 0 || state.hasRuns
-  const job: SetupStep = {
-    key: 'job',
-    title: 'Turn on your first job',
-    detail: jobDone
-      ? 'A job is on the schedule.'
-      : hasCode ? 'Review what it may access, then enable it.' : 'Jobs appear once a repository is added.',
-    done: jobDone,
-    actions: [],
-  }
-  if (!jobDone && hasCode) {
-    job.actions.push(state.reviewJobId !== null && state.canReview
-      ? { label: 'Review access', to: { path: '/jobs', query: { review: String(state.reviewJobId) } }, icon: 'shield-key-outline' }
-      : { label: 'Open jobs', to: { path: '/jobs' }, icon: 'arrow-right' })
-  }
-  const steps = [code, runner, job]
+  const steps = [codeStep(state), runnerStep(state), jobStep(state)]
   return steps.every((step) => step.done) ? null : steps
 }
