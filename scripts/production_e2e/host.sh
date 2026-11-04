@@ -166,7 +166,7 @@ wipe)
   load_env
   step "Lose the server (the fake GitHub's volume is kept: GitHub is external)"
   dc down
-  for volume in postgres_data caddy_data caddy_config rustfs_data; do
+  for volume in postgres_data artifacts caddy_data caddy_config rustfs_data; do
     docker volume rm "secondshift_$volume" >/dev/null
   done
   rm -rf "$RUNNER_ROOT" deploy/production/compose.env deploy/production/*.env \
@@ -192,6 +192,21 @@ upgrade)
   load_env
   run_doc 4
   dc ps --format 'table {{.Service}}\t{{.Image}}\t{{.Status}}'
+  ;;
+agent-probe)
+  load_env
+  docker build -q -t secondshift-agent:e2e-probe -f "$E/Dockerfile.agent-probe" "$E" >/dev/null
+  # gVisor cannot use Docker's embedded DNS. The probe reaches the broker by IP.
+  printf 'nameserver 1.1.1.1\n' > "$RUNNER_ROOT/agent-resolv.conf"
+  image=$(docker image inspect --format '{{.Id}}' secondshift-agent:e2e-probe)
+  printf '\nAGENT_IMAGE=%s\n' "$image" >> deploy/production/compose.env
+  for storage in s3 filesystem; do
+    printf '\nARTIFACT_STORAGE=%s\n' "$storage" >> deploy/production/compose.env
+    dc up -d --wait web gateway worker runner
+    dc exec -T web python /scripts/production_e2e/agent_run.py
+  done
+  printf '\nARTIFACT_STORAGE=s3\nAGENT_IMAGE=\n' >> deploy/production/compose.env
+  dc up -d --wait web gateway worker runner
   ;;
 logs)
   load_env

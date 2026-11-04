@@ -60,7 +60,7 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/* && \
     groupadd --gid 10001 secondshift && \
     useradd --uid 10001 --gid secondshift --home-dir /var/lib/secondshift --no-create-home secondshift && \
-    install -d -o secondshift -g secondshift -m 0700 /var/lib/secondshift
+    install -d -o secondshift -g secondshift -m 0700 /var/lib/secondshift /var/lib/secondshift/artifacts
 # The official CLI binary is self-contained. Omit dockerd, containerd and plugins.
 COPY --from=docker-cli /usr/local/bin/docker /usr/local/bin/docker
 COPY --from=builder /app/.venv /app/.venv

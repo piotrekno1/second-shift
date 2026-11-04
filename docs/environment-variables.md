@@ -158,8 +158,9 @@ account to check delivery. Without email configured, password resets are unavail
 ## Stored run files
 
 Run files default to the shared filesystem volume. To use an existing private
-S3 bucket, set these identically in **web and worker**. Gateway/runner do not
-need artifact credentials:
+S3 bucket, set the same backend, bucket and prefix in **web, worker and gateway**.
+The gateway reads webhook payloads for subscription agents and can use a separate
+read-only credential. The runner needs no artifact credentials:
 
 ```dotenv
 SECONDSHIFT_ARTIFACT_STORAGE=s3
@@ -172,6 +173,26 @@ if needed, `SECONDSHIFT_ARTIFACT_ADDRESSING_STYLE=path`. Supply
 `SECONDSHIFT_ARTIFACT_ACCESS_KEY_ID` and `SECONDSHIFT_ARTIFACT_SECRET_ACCESS_KEY`,
 or use the AWS credential chain (for example IAM roles). Bucket creation is
 managed separately. Adding these variables does not upload existing local files.
+
+For filesystem storage, set `SECONDSHIFT_ARTIFACT_STORAGE=filesystem` and
+`SECONDSHIFT_ARTIFACT_ROOT` to the shared persistent directory. Web and worker
+need write access; gateway needs read access. Never mount this store in agent
+containers or repository command sandboxes.
+
+## Server subscription agents
+
+The production Compose example sets these from its server-owned env file:
+
+| Variable | Meaning and default |
+| --- | --- |
+| `SECONDSHIFT_AGENT_IMAGE` | Agent image pinned by digest; empty disables subscriptions on servers. |
+| `SECONDSHIFT_AGENT_BROKER_URL` | Agent-reachable run-scoped MCP URL on the gateway. |
+| `SECONDSHIFT_AGENT_NETWORK` | Docker network for transient agent containers; default `bridge`. |
+| `SECONDSHIFT_AGENT_RESOLV_CONF` | Runner-only absolute host path to a resolver file mounted read-only at `/etc/resolv.conf`; empty uses Docker's resolver. Use a reachable non-loopback DNS server with gVisor on a dedicated bridge. |
+
+Only operators configure these settings. Repository input cannot change images,
+networks, resolver mounts or credentials. See the
+[production guide](production-deployment.md#optional-subscription-agents).
 
 ## HTTP server
 

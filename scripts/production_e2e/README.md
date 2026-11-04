@@ -24,7 +24,12 @@ images and gVisor. A run takes about five minutes and ends with `Passed.`
    GitHub tokens never appear in prompts, webhooks or artifacts.
 3. The guide's backup, then its update commands to the image built from this
    working tree.
-4. After the upgrade, a full restart, and a restore of a backup onto a wiped
+4. A deterministic agent runs under gVisor through the real workflow and MCP
+   broker, reads its webhook payload from both S3 and local storage, and checks
+   that artifact credentials, artifact mounts and database DNS are unavailable
+   inside its container. This checks transport and isolation, not real CLI or
+   provider authentication.
+5. After the upgrade, a full restart, and a restore of a backup onto a wiped
    server: password sign-in, run history, artifacts, saved credentials and new
    runs all work.
 

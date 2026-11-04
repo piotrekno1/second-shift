@@ -168,11 +168,12 @@ container, the CLI reached the broker, and the run failed with the expected
 reconnect message. Real provider logins and gVisor have not been tested end to
 end.
 
-A single-runner server can be set up by hand with the settings above on the
-control plane and runner. The production environment generator does not set
-them yet. Jobs that read webhook payloads also need the gateway to get the
-worker's artifact storage settings, which the standard production Compose file
-doesn't pass to it yet.
+The [production Compose guide](production-deployment.md#optional-subscription-agents)
+configures a single-runner server with a digest-pinned agent image, a dedicated
+agent/gateway network and shared artifact storage. The gateway reads payloads
+from S3 or a read-only local artifact volume; agent containers receive neither
+storage credentials nor the artifact volume. Back up runner login files with
+server secrets.
 
 Before hosted use, SecondShift still needs:
 

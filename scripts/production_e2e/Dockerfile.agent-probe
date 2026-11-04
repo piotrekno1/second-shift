@@ -1,0 +1,5 @@
+# Deterministic broker client in the real runner's gVisor container boundary.
+FROM python:3.13.11-slim-trixie@sha256:2b9c9803c6a287cafa0a8c917211dddd23dcd2016f049690ee5219f5d3f1636e
+COPY agent_probe.py /probe/secondshift/runner/agent_image/agent.py
+ENV PYTHONPATH=/probe
+USER 10001:10001

@@ -43,3 +43,5 @@ AGENT_IMAGE_TAGS_ALLOWED = False
 # Internal services in tests have explicit addresses, independent of the shell.
 RUNNER_SERVICE_URL = "http://127.0.0.1:8002"
 MODEL_GATEWAY_URL = "http://127.0.0.1:8001"
+
+AGENT_RESOLV_CONF = ""

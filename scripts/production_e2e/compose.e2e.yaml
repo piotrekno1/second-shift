@@ -10,6 +10,8 @@ services:
   # Web, gateway and worker also trust the test CA, to reach the fakes.
   web:
     image: ${E2E_IMAGE:?}
+    volumes:
+      - ./scripts:/scripts:ro
   gateway:
     image: ${E2E_IMAGE:?}
   worker:

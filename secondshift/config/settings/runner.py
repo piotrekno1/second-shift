@@ -117,6 +117,7 @@ LOGGING = logging_config(
 LOCAL = os.environ.get(ENVIRONMENT_VAR) == Environment.LOCAL
 AGENT_IMAGE = env.str(AppEnv.AGENT_IMAGE, default=LOCAL_AGENT_TAG if LOCAL else "")
 AGENT_IMAGE_TAGS_ALLOWED = LOCAL
+AGENT_RESOLV_CONF = env.str(AppEnv.AGENT_RESOLV_CONF, default="")
 AGENT_NETWORK = env.str(AppEnv.AGENT_NETWORK, default="bridge")
 AGENT_BROKER_URL = env.str(
     AppEnv.AGENT_BROKER_URL,

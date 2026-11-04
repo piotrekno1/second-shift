@@ -51,7 +51,15 @@ def test_agent_container_configuration_is_server_owned(
     }
     assert TOKEN not in repr(AgentInput(**values))
     assert "auth" not in AgentInput(**values).model_dump()
-    for option in ("image", "mounts", "network", "runtime", "argv", "broker_url"):
+    for option in (
+        "image",
+        "mounts",
+        "network",
+        "runtime",
+        "argv",
+        "broker_url",
+        "resolv_conf",
+    ):
         with pytest.raises(ValidationError):
             AgentInput(**values, **{option: "evil"})
 
@@ -376,3 +384,27 @@ def test_runner_checks_a_login_with_a_fixed_prompt(
     }
     assert TOKEN not in str(seen["command"])
     remove.assert_called_once_with(f"secondshift-agent-check-{'c' * 32}")
+
+
+def test_agent_resolver_mount_is_server_owned_and_read_only(
+    settings: Any, tmp_path: Path
+) -> None:
+    resolver = tmp_path / "resolv.conf"
+    resolver.write_text("nameserver 1.1.1.1\n")
+    settings.AGENT_RESOLV_CONF = str(resolver)
+    command = agent_command("run-1", tmp_path / "auth", IMAGE)
+    assert f"--mount=type=bind,src={resolver},dst=/etc/resolv.conf,readonly" in command
+    for value in ("relative.conf", str(tmp_path / "missing")):
+        settings.AGENT_RESOLV_CONF = value
+        with pytest.raises(RunnerProtocolError, match="resolver"):
+            agent_command("run-1", tmp_path / "auth", IMAGE)
+
+
+def test_agent_resolver_refuses_symlinks(settings: Any, tmp_path: Path) -> None:
+    resolver = tmp_path / "resolv.conf"
+    resolver.write_text("nameserver 1.1.1.1\n")
+    alias = tmp_path / "alias.conf"
+    alias.symlink_to(resolver)
+    settings.AGENT_RESOLV_CONF = str(alias)
+    with pytest.raises(RunnerProtocolError, match="resolver"):
+        agent_command("run-1", tmp_path / "auth", IMAGE)
