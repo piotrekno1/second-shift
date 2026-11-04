@@ -244,15 +244,15 @@ useLiveRefresh(loadJob, () => (job.value?.recent_runs ?? []).some((run) => isRun
             <div><dt>Defined in</dt><dd><code>.secondshift.yaml</code> → <code>{{ job.key }}</code></dd></div>
             <div><dt>Schedule</dt><dd v-if="job.cron" :title="job.cron">{{ describeCron(job.cron) }} <span class="run-details-muted">· {{ job.timezone }}</span></dd><dd v-else>{{ job.triggers.length ? 'None. A webhook or Run now starts it.' : 'Manual only. Start it with Run now.' }}</dd></div>
             <div v-if="job.triggers.length"><dt>Triggers</dt><dd><a href="#triggers" class="detail-link">Webhook</a></dd></div>
-            <div v-if="job.pull_request">
+            <div v-if="job.open_pull_request">
               <dt>Changes</dt>
               <dd v-if="job.pull_requests_allowed">Opens a draft pull request</dd>
               <dd v-else-if="!job.can_open_pull_requests">Asks for a draft pull request, but local repositories cannot open one. Each run's changes are kept as a download.</dd>
               <dd v-else>Asks for a draft pull request. An owner must turn on <RouterLink :to="{ path: `/repositories/${job.repository_id}`, hash: '#draft-pull-requests' }" class="detail-link">Draft pull requests</RouterLink> for the repository. GitHub needs Contents and Pull requests write access.</dd>
             </div>
-            <div v-if="job.issues">
+            <div v-if="job.open_issues">
               <dt>Issues</dt>
-              <dd v-if="job.issues_allowed">Opens the issues each run proposes</dd>
+              <dd v-if="job.issues_allowed">Opens up to {{ countLabel(job.open_issues.max, 'issue') }} per run<template v-if="job.open_issues.labels.length">, labeled <template v-for="(label, index) in job.open_issues.labels" :key="label"><code>{{ label }}</code>{{ index < job.open_issues.labels.length - 1 ? ', ' : '' }}</template></template></dd>
               <dd v-else-if="!job.can_open_pull_requests">Asks to open issues, but local repositories cannot receive them. Proposed issues are listed on each run.</dd>
               <dd v-else>Asks to open issues. An owner must turn on <RouterLink :to="{ path: `/repositories/${job.repository_id}`, hash: '#issues' }" class="detail-link">Issues</RouterLink> for the repository. GitHub needs Issues write access.</dd>
             </div>

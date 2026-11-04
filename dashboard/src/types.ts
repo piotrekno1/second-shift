@@ -248,13 +248,13 @@ export interface JobDetail extends Job {
   /** Trigger kinds the configuration names, such as "webhook". */
   triggers: TriggerKind[]
   /** The configuration asks for a draft pull request with each run's changes. */
-  pull_request: boolean
+  open_pull_request: boolean
   /** A GitHub repository, so drafts could open. Local repositories cannot. */
   can_open_pull_requests: boolean
   /** An owner allows pull requests for the repository, so drafts open. */
   pull_requests_allowed: boolean
-  /** The configuration asks to open the issues each run proposes. */
-  issues: boolean
+  /** The configuration asks to open the issues each run proposes. Null when it does not. */
+  open_issues: { labels: string[], max: number } | null
   /** An owner allows issues for the repository, so they open. */
   issues_allowed: boolean
   repository_revision: string
