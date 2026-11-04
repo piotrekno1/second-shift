@@ -11,7 +11,12 @@ import httpx
 from django.conf import settings
 from django.utils import timezone
 
-from secondshift.connections.http_api.spec import BODY, APIError, APIRequestError
+from secondshift.connections.http_api.spec import (
+    BODY,
+    APIArgumentError,
+    APIError,
+    APIRequestError,
+)
 from secondshift.connections.mcp.transport import MCP_RESPONSE_MAX_BYTES, MCPTransport
 from secondshift.connections.models import Connection
 
@@ -57,17 +62,17 @@ def auth_header(settings_: dict[str, str], token: str) -> dict[str, str]:
 def path_value(value: Any) -> str:
     """One path segment. Slashes, dots-only segments, and URLs are refused."""
     if isinstance(value, bool) or not isinstance(value, SCALAR_TYPES):
-        raise APIError("Path values must be text or numbers.")
+        raise APIArgumentError("Path values must be text or numbers.")
     text = str(value)
     if not text or text in {".", ".."} or "/" in text or "\\" in text or "://" in text:
-        raise APIError("A path value is not allowed.")
+        raise APIArgumentError("A path value is not allowed.")
     return quote(text, safe="")
 
 
 def query_values(value: Any) -> list[str]:
     values = value if isinstance(value, list) else [value]
     if any(item is None or not isinstance(item, SCALAR_TYPES) for item in values):
-        raise APIError("Query values must be text, numbers, or lists of them.")
+        raise APIArgumentError("Query values must be text, numbers, or lists of them.")
     return [
         str(item).lower() if isinstance(item, bool) else str(item) for item in values
     ]
@@ -79,13 +84,13 @@ def build_request(
     declared = {item["name"]: item for item in operation["parameters"]}
     unknown = set(arguments) - set(declared) - ({BODY} if operation["body"] else set())
     if unknown:
-        raise APIError("The call has arguments the operation does not declare.")
+        raise APIArgumentError("The call has arguments the operation does not declare.")
     path = operation["path"]
     for name, item in declared.items():
         if item["in"] != "path":
             continue
         if name not in arguments:
-            raise APIError("A required path value is missing.")
+            raise APIArgumentError("A required path value is missing.")
         path = path.replace("{" + name + "}", path_value(arguments[name]))
     query: list[tuple[str, str]] = []
     for name, item in declared.items():

@@ -9,6 +9,7 @@ from secondshift.config.constants import (
     SentryMCPTool,
 )
 from secondshift.connections.mcp.base import (
+    MCPArgumentError,
     MCPError,
     MCPProvider,
     MCPSetting,
@@ -64,23 +65,31 @@ def scoped_sentry_arguments(
         raise MCPError("This Sentry tool is not supported.")
     # A region URL picks the Sentry host. The scoped endpoint finds it itself.
     if arguments.get("regionUrl"):
-        raise MCPError("Leave regionUrl empty. The approved scope sets the region.")
+        raise MCPArgumentError(
+            "Leave regionUrl empty. The approved scope sets the region."
+        )
     _, _, project = scope.partition("/")
     for key in ("projectSlug", "projectSlugOrId"):
         value = arguments.get(key)
         if project and value and value != project:
-            raise MCPError("The tool must target the approved Sentry project.")
+            raise MCPArgumentError("The tool must target the approved Sentry project.")
     query = arguments.get("query")
     if isinstance(query, str) and len(query) > SENTRY_QUERY_MAX_CHARS:
-        raise MCPError(f"Keep the search under {SENTRY_QUERY_MAX_CHARS} characters.")
+        raise MCPArgumentError(
+            f"Keep the search under {SENTRY_QUERY_MAX_CHARS} characters."
+        )
     if tool == SentryMCPTool.GET_SENTRY_RESOURCE:
         # A URL could name any organization. Look resources up by ID instead.
         if arguments.get("url"):
-            raise MCPError("Fetch Sentry resources by resourceType and resourceId.")
+            raise MCPArgumentError(
+                "Fetch Sentry resources by resourceType and resourceId."
+            )
         if arguments.get("resourceType") not in SENTRY_RESOURCE_TYPES:
-            raise MCPError("Only issues, events, and traces can be fetched.")
+            raise MCPArgumentError("Only issues, events, and traces can be fetched.")
         if not arguments.get("resourceId"):
-            raise MCPError("Fetch Sentry resources by resourceType and resourceId.")
+            raise MCPArgumentError(
+                "Fetch Sentry resources by resourceType and resourceId."
+            )
     return dict(arguments)
 
 

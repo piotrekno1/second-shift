@@ -5,6 +5,7 @@ from typing import Literal
 
 from pydantic_ai.exceptions import ModelHTTPError
 
+from secondshift.connections.errors import ExternalRequestError, ExternalToolError
 from secondshift.github.errors import GitHubError
 from secondshift.jobs.tool_rules import ToolRuleViolation
 from secondshift.runner.protocol import RunnerProtocolError
@@ -80,6 +81,13 @@ def failure_detail(error: BaseException) -> str:
         # Names the argument and the rule, never the value the model sent.
         return one_line(f"{TOOL_RULE_PREFIX}{error}")
     if isinstance(error, SHOWN_ERROR_TYPES) and str(error).strip():
+        return one_line(str(error))
+    # SecondShift writes these for people. Request errors may quote the
+    # remote service, so they stay hidden.
+    shown_tool_error = isinstance(error, ExternalToolError) and not isinstance(
+        error, ExternalRequestError
+    )
+    if shown_tool_error and str(error).strip():
         return one_line(str(error))
     return f"Unexpected {type(error).__name__}."
 

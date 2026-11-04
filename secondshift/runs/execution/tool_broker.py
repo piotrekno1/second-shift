@@ -7,7 +7,7 @@ from typing import Any
 from dbos import DBOS
 from jsonschema import ValidationError, validate
 
-from secondshift.connections.errors import ExternalToolError
+from secondshift.connections.errors import ExternalToolError, ToolArgumentError
 from secondshift.connections.external import Authorization, external_kind
 from secondshift.connections.models import Connection
 from secondshift.jobs.models import JobGrant
@@ -78,6 +78,15 @@ def broker_connection(run: Run, name: str) -> Authorization:
     )
 
 
+def schema_problem(error: ValidationError) -> str:
+    """Where the arguments break the schema. Never repeats a value the model sent."""
+    prefix = "The tool arguments do not match its schema"
+    if error.validator in {"required", "additionalProperties"}:
+        # These messages name properties only.
+        return f"{prefix}: {error.message}."
+    return f"{prefix}: {error.json_path} fails the {error.validator!s} rule."
+
+
 @DBOS.step(name="secondshift.call_external_tool")
 def call_external_tool_step(
     run_id: int, name: str, arguments: dict[str, Any], call_id: str
@@ -102,8 +111,14 @@ def call_external_tool_step(
         raise
     try:
         validate(arguments, authorization.definition["inputSchema"])
-    except ValidationError:
-        raise ExternalToolError("The tool arguments do not match its schema.") from None
+    except ValidationError as error:
+        RunEvent.objects.create(
+            run=run,
+            level="warning",
+            message=f"Tool arguments refused: {name}",
+            metadata={"tool": name, "ok": False, "reason": schema_problem(error)},
+        )
+        raise ToolArgumentError(schema_problem(error)) from None
     evidence = {
         "tool": name,
         "connection_id": authorization.connection.pk,

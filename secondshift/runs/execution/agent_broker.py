@@ -7,7 +7,7 @@ from typing import Any
 from django.db import transaction
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-from pydantic_ai import RunContext, RunUsage, Tool
+from pydantic_ai import ModelRetry, RunContext, RunUsage, Tool, ToolFailed
 
 from secondshift.connections.agents import usable_agent_connection
 from secondshift.connections.models import AgentConnection
@@ -105,6 +105,9 @@ def tool_result(
             "content": [{"type": "text", "text": json.dumps(value)}],
             "isError": False,
         }
+    except (ModelRetry, ToolFailed) as error:
+        # SecondShift wrote these for the agent, for example which argument to fix.
+        return {"content": [{"type": "text", "text": error.message}], "isError": True}
     except Exception:
         # Provider exceptions can include request contents. Return no raw errors.
         return {

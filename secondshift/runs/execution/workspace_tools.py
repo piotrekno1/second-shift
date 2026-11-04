@@ -7,7 +7,7 @@ from typing import Annotated, Any
 
 from dbos import DBOS
 from pydantic import Field
-from pydantic_ai import RunContext, Tool
+from pydantic_ai import ModelRetry, RunContext, Tool
 from pydantic_ai.tools import ToolDefinition
 
 from secondshift.jobs.tool_policy import LOCAL_TOOLS
@@ -111,6 +111,14 @@ def workspace_path(value: str) -> str:
     return path.as_posix()
 
 
+def argument_path(value: str) -> str:
+    """Check a path the model sent. A bad one goes back to the model to fix."""
+    try:
+        return workspace_path(value)
+    except ValueError as error:
+        raise ModelRetry(str(error)) from None
+
+
 def truncate_output(output: str, limit: int) -> tuple[str, bool]:
     if len(output) <= limit:
         return output, False
@@ -128,7 +136,7 @@ def list_files(
     """List repository files recursively beneath a relative path."""
     return ctx.deps.execute(
         ctx.tool_call_id,
-        ["find", workspace_path(path), "-type", "f", "-print"],
+        ["find", argument_path(path), "-type", "f", "-print"],
     )
 
 
@@ -136,7 +144,7 @@ def read_file(ctx: RunContext[WorkspaceToolDeps], path: PathArgument) -> dict[st
     """Read a text file at a relative repository path."""
     return ctx.deps.execute(
         ctx.tool_call_id,
-        ["cat", "--", workspace_path(path)],
+        ["cat", "--", argument_path(path)],
     )
 
 
@@ -147,10 +155,10 @@ def search_text(
 ) -> dict[str, Any]:
     """Search repository text recursively using a fixed-string query."""
     if "\0" in query:
-        raise ValueError("Search text cannot contain NUL bytes.")
+        raise ModelRetry("Search text cannot contain NUL bytes.")
     return ctx.deps.execute(
         ctx.tool_call_id,
-        ["grep", "-R", "-n", "-F", "--", query, workspace_path(path)],
+        ["grep", "-R", "-n", "-F", "--", query, argument_path(path)],
     )
 
 
@@ -164,7 +172,7 @@ def run_command(
     return ctx.deps.execute(
         ctx.tool_call_id,
         argv,
-        cwd=workspace_path(cwd),
+        cwd=argument_path(cwd),
         timeout_seconds=timeout_seconds,
     )
 
