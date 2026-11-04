@@ -61,6 +61,8 @@ class SkillSubmission(BaseModel):
             )
         if self.definition.pull_request:
             raise ValueError("Set pull_request on the task, not in its definition.")
+        if self.definition.issues:
+            raise ValueError("Only saved jobs can open issues.")
         return self
 
 

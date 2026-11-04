@@ -36,6 +36,8 @@ class Job(RunLimitOverrides):
     webhook = models.JSONField(default=dict, blank=True)
     # The repository asks for a draft pull request with each run's changes.
     pull_request = models.BooleanField(default=False)
+    # The repository asks to open the issues each run's agent proposes.
+    issues = models.BooleanField(default=False)
     enabled = models.BooleanField(default=False)
     next_run_at = models.DateTimeField(null=True, blank=True)
     config_hash = models.CharField(max_length=64)

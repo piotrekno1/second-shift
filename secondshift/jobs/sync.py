@@ -96,6 +96,7 @@ def job_fields(
         "triggers": [str(kind) for kind in item.triggers],
         "webhook": item.webhook.model_dump(mode="json") if item.webhook else {},
         "pull_request": item.pull_request,
+        "issues": item.issues,
         "config_hash": manifest_hash(item),
     }
 

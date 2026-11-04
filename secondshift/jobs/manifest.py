@@ -117,6 +117,9 @@ class JobManifest(BaseModel):
     # Open a draft pull request with the agent's changes. An owner still
     # allows pull requests for the repository.
     pull_request: bool = False
+    # Open the issues the agent proposes. An owner still allows issues for
+    # the repository.
+    issues: bool = False
 
     @field_validator("skill")
     @classmethod
@@ -256,6 +259,8 @@ def manifest_hash(job: JobManifest) -> str:
     unset = {"triggers"} if not job.triggers else set()
     if not job.pull_request:
         unset.add("pull_request")
+    if not job.issues:
+        unset.add("issues")
     if job.webhook is None:
         unset.add("webhook")
     data = job.model_dump(exclude=unset or None)

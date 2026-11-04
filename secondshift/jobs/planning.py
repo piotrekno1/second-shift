@@ -7,7 +7,11 @@ from typing import Any
 
 from django.conf import settings
 
-from secondshift.config.constants import COMMIT_SHA_PATTERN, AgentBackend
+from secondshift.config.constants import (
+    COMMIT_SHA_PATTERN,
+    MAX_RUN_ISSUES,
+    AgentBackend,
+)
 from secondshift.connections.external import EXTERNAL_KINDS
 from secondshift.connections.model_providers import provider_family
 from secondshift.connections.models import Connection
@@ -187,6 +191,7 @@ def compile_execution_plan(
     limits: dict[str, int],
     commit_sha: str,
     pull_request: dict[str, Any] | None = None,
+    issues: bool = False,
 ) -> dict[str, Any]:
     """Compile server-resolved policy into the existing versioned plan format."""
     if repository.workspace_id != workspace.pk:
@@ -248,6 +253,8 @@ def compile_execution_plan(
         },
         # The draft pull request's base branch and CI choice, when asked for.
         "pull_request": pull_request,
+        # The agent may propose this many issues. They open after the run.
+        "issues": {"max": MAX_RUN_ISSUES} if issues else None,
         "model": model,
         "capabilities": capabilities,
     }
@@ -292,6 +299,7 @@ def build_execution_plan(job: Job) -> dict[str, Any]:
         }
         if job.pull_request
         else None,
+        issues=job.issues,
     )
 
 

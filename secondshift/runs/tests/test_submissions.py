@@ -708,3 +708,11 @@ def test_a_task_definition_cannot_ask_for_a_pull_request(
             repository,
             definition={"name": "Review", "skill": SKILL, "pull_request": True},
         )
+
+
+def test_a_task_cannot_open_issues(repository: Repository) -> None:
+    with pytest.raises(ValidationError, match="Only saved jobs can open issues"):
+        submission(
+            repository,
+            definition={"name": "Review", "skill": SKILL, "issues": True},
+        )

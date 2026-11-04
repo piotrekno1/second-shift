@@ -159,6 +159,10 @@ class JobDetailSchema(JobSchema):
     can_open_pull_requests: bool
     # An owner allows pull requests for the repository, so drafts open.
     pull_requests_allowed: bool
+    # The configuration asks to open the issues each run proposes.
+    issues: bool
+    # An owner allows issues for the repository, so they open.
+    issues_allowed: bool
     repository_revision: str
     repository_enabled: bool
     # The skill file at the synced commit. Empty until the next sync.

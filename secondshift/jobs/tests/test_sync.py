@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 from django.contrib.auth import get_user_model
 
-from secondshift.config.constants import MAX_SKILL_PREVIEW_CHARS
+from secondshift.config.constants import MAX_RUN_ISSUES, MAX_SKILL_PREVIEW_CHARS
 from secondshift.connections.models import Connection
 from secondshift.jobs.manifest import parse_manifest
 from secondshift.jobs.models import CapabilityRequest, Job, JobGrant
@@ -308,3 +308,35 @@ jobs:
     job = Job.objects.get(pk=sync_manifest(repository, path)[0].pk)
     assert job.pull_request is False
     assert build_execution_plan(job)["pull_request"] is None
+
+
+def test_a_job_can_ask_to_open_issues(db, tmp_path: Path) -> None:
+    user = get_user_model().objects.create_user(username="owner")
+    workspace = create_workspace(name="Test", slug="test", owner=user)
+    repository = Repository.objects.create(
+        workspace=workspace, full_name="example/project", config_sha="a" * 40
+    )
+    path = tmp_path / ".secondshift.yaml"
+    path.write_text(
+        """
+version: 1
+jobs:
+  review:
+    name: Weekly review
+    skill: .agents/skills/review/SKILL.md
+    issues: true
+""".strip()
+    )
+
+    job = Job.objects.get(pk=sync_manifest(repository, path)[0].pk)
+    plan = build_execution_plan(job)
+
+    assert job.issues is True
+    assert plan["issues"] == {"max": MAX_RUN_ISSUES}
+    # Issues need no file changes, so the run does not record them.
+    assert plan["runner"]["collect_changes"] is False
+
+    path.write_text(path.read_text().replace("\n    issues: true", ""))
+    job = Job.objects.get(pk=sync_manifest(repository, path)[0].pk)
+    assert job.issues is False
+    assert build_execution_plan(job)["issues"] is None

@@ -145,12 +145,14 @@ def test_jobs_without_triggers_or_pull_requests_keep_their_hash() -> None:
     plain = parse_manifest(job_with("")).jobs["triage"]
     triggered = parse_manifest(job_with("    triggers: [webhook]")).jobs["triage"]
     drafting = parse_manifest(job_with("    pull_request: true")).jobs["triage"]
-    before = plain.model_dump(exclude={"triggers", "webhook", "pull_request"})
+    filing = parse_manifest(job_with("    issues: true")).jobs["triage"]
+    before = plain.model_dump(exclude={"triggers", "webhook", "pull_request", "issues"})
     canonical = json.dumps(before, sort_keys=True, separators=(",", ":"))
 
     assert manifest_hash(plain) == hashlib.sha256(canonical.encode()).hexdigest()
     assert manifest_hash(triggered) != manifest_hash(plain)
     assert manifest_hash(drafting) != manifest_hash(plain)
+    assert manifest_hash(filing) != manifest_hash(plain)
 
 
 WEBHOOK = """    triggers: [webhook]
@@ -203,7 +205,7 @@ def test_manifest_refuses_bad_webhook_settings(extra: str, message: str) -> None
 def test_jobs_without_webhook_settings_keep_their_hash() -> None:
     triggered = parse_manifest(job_with("    triggers: [webhook]")).jobs["triage"]
     canonical = json.dumps(
-        triggered.model_dump(exclude={"webhook", "pull_request"}),
+        triggered.model_dump(exclude={"webhook", "pull_request", "issues"}),
         sort_keys=True,
         separators=(",", ":"),
     )
