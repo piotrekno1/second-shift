@@ -6,6 +6,7 @@ from secondshift.github import app
 
 READ = {"contents": "read"}
 WRITE = {"contents": "write", "pull_requests": "write"}
+ISSUES_WRITE = {"issues": "write"}
 
 
 @dataclass(frozen=True)

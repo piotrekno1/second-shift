@@ -14,6 +14,7 @@ from secondshift.github.rest import send
 SYNC = ("contents",)
 TOOLS = ("pull_requests", "actions", "statuses")
 DRAFT_PULL_REQUESTS = ("contents", "pull_requests")
+ISSUES = ("issues",)
 
 
 def probe_paths(branch: str) -> dict[str, str]:

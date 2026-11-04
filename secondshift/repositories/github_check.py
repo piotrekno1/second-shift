@@ -33,6 +33,7 @@ PERMISSION_LABELS = {
     "pull_requests": "Pull requests",
     "actions": "Actions",
     "statuses": "Commit statuses",
+    "issues": "Issues",
 }
 
 
@@ -67,6 +68,7 @@ def features(
             FeatureCheck("sync", "Sync", None, unknown),
             FeatureCheck("tools", "GitHub tools", None, unknown),
             FeatureCheck("draft_pull_requests", "Draft pull requests", None, unknown),
+            FeatureCheck("issues", "Issues", None, unknown),
         ]
     missing_tools = [name for name in permissions.TOOLS if not reads[name]]
     sync = (
@@ -91,33 +93,47 @@ def features(
             f"Needs read access to {names(missing_tools)}.",
         )
     )
+    drafts = write_feature(
+        writes,
+        "draft_pull_requests",
+        "Draft pull requests",
+        permissions.DRAFT_PULL_REQUESTS,
+        "Can push a branch and open a draft pull request.",
+        "a draft pull request opens",
+    )
+    issues = write_feature(
+        writes,
+        "issues",
+        "Issues",
+        permissions.ISSUES,
+        "Can open issues.",
+        "an issue opens",
+    )
+    return [sync, tools, drafts, issues]
+
+
+def write_feature(
+    writes: dict[str, bool] | None,
+    feature: str,
+    label: str,
+    needed: tuple[str, ...],
+    ready: str,
+    first_use: str,
+) -> FeatureCheck:
+    """A feature that writes. A token's write access is only known on use."""
     if writes is None:
-        drafts = FeatureCheck(
-            "draft_pull_requests",
-            "Draft pull requests",
+        return FeatureCheck(
+            feature,
+            label,
             None,
-            "A token's write access is checked when a draft pull request opens.",
+            f"A token's write access is checked when {first_use}.",
         )
-    else:
-        missing_writes = [
-            name for name in permissions.DRAFT_PULL_REQUESTS if not writes[name]
-        ]
-        drafts = (
-            FeatureCheck(
-                "draft_pull_requests",
-                "Draft pull requests",
-                True,
-                "Can push a branch and open a draft pull request.",
-            )
-            if not missing_writes
-            else FeatureCheck(
-                "draft_pull_requests",
-                "Draft pull requests",
-                False,
-                f"Needs write access to {names(missing_writes)}.",
-            )
+    missing = [name for name in needed if not writes[name]]
+    if missing:
+        return FeatureCheck(
+            feature, label, False, f"Needs write access to {names(missing)}."
         )
-    return [sync, tools, drafts]
+    return FeatureCheck(feature, label, True, ready)
 
 
 def reach(repositories: list[Repository]) -> tuple[GitHubAccess | None, list[str]]:
@@ -194,7 +210,9 @@ def check_installation(
     unreachable = reach(repositories)[1]
     checked = features(
         permissions.granted_reads(granted, permissions.SYNC + permissions.TOOLS),
-        permissions.granted_writes(granted, permissions.DRAFT_PULL_REQUESTS),
+        permissions.granted_writes(
+            granted, permissions.DRAFT_PULL_REQUESTS + permissions.ISSUES
+        ),
     )
     ok, message = summary(repositories, unreachable, checked)
     return SourceCheck(ok, message, checked, details.settings_url)

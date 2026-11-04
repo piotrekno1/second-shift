@@ -104,6 +104,7 @@ def test_an_app_with_every_permission_passes(
             "pull_requests": "write",
             "actions": "read",
             "statuses": "read",
+            "issues": "write",
         },
     )
     result = github_check.check_source(connection)
@@ -113,6 +114,7 @@ def test_an_app_with_every_permission_passes(
         "sync": True,
         "tools": True,
         "draft_pull_requests": True,
+        "issues": True,
     }
     assert connection.metadata["last_check"]["fix_url"] == SETTINGS_URL
 
@@ -134,6 +136,7 @@ def test_an_app_names_each_missing_permission(
     assert features["draft_pull_requests"]["message"] == (
         "Needs write access to Contents, Pull requests."
     )
+    assert features["issues"]["message"] == "Needs write access to Issues."
 
 
 def test_an_app_without_contents_fails(
@@ -199,6 +202,9 @@ def test_a_token_is_probed_and_its_expiry_refreshed(
     assert features["tools"]["message"] == "Needs read access to Actions."
     # Write access cannot be probed without writing.
     assert features["draft_pull_requests"]["ok"] is None
+    assert features["issues"]["message"] == (
+        "A token's write access is checked when an issue opens."
+    )
     assert connection.expires_at == expires
     assert TOKEN not in str(connection.metadata)
 
@@ -249,6 +255,7 @@ def test_testing_a_source_runs_the_check(
         "sync",
         "tools",
         "draft_pull_requests",
+        "issues",
     ]
 
 

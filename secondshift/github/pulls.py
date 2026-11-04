@@ -6,7 +6,7 @@ import httpx
 
 from secondshift.config.constants import GITHUB_API_URL
 from secondshift.github.errors import GitHubError
-from secondshift.github.rest import send
+from secondshift.github.rest import parsed, reason, send
 
 # GitHub refuses a longer description.
 MAX_BODY_CHARS = 60_000
@@ -41,13 +41,6 @@ def open_draft(
     raise GitHubError(f"GitHub did not open the pull request: {reason(created)}")
 
 
-def parsed(response: httpx.Response) -> object:
-    try:
-        return response.json()
-    except ValueError:
-        return None
-
-
 def pull_request(response: httpx.Response) -> dict[str, Any]:
     return checked(parsed(response))
 
@@ -60,18 +53,3 @@ def checked(payload: object) -> dict[str, Any]:
     ):
         raise GitHubError("GitHub returned an invalid pull request.")
     return payload
-
-
-def reason(response: httpx.Response) -> str:
-    """GitHub's own short reason, which never contains the token."""
-    payload = parsed(response)
-    errors = payload.get("errors") if isinstance(payload, dict) else None
-    details = [
-        str(item.get("message"))
-        for item in errors or []
-        if isinstance(item, dict) and item.get("message")
-    ]
-    message = details[0] if details else ""
-    if not message and isinstance(payload, dict):
-        message = str(payload.get("message", ""))
-    return (message or f"HTTP {response.status_code}")[:200]
