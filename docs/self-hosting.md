@@ -36,7 +36,7 @@ cd ~/.secondshift && sqlite3 secondshift.sqlite3 ".backup workflows.sqlite3"
 ```
 
 Skip this if `workflows.sqlite3` already exists. See the
-[beta 8 release notes](https://github.com/piotrekno1/second-shift/blob/main/docs/releases/0.1.0b8.md).
+[beta 9 release notes](https://github.com/piotrekno1/second-shift/blob/main/docs/releases/0.1.0b9.md).
 
 Once started, `secondshift up` opens your dashboard. With `--no-browser`, or
 when no browser is available, it prints a one-time sign-in link instead:
