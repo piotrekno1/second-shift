@@ -69,7 +69,7 @@ LIMIT_SPECS = {
     ),
     RunLimit.MAX_TOOL_CALLS: LimitSpec(
         "Tool calls",
-        "Reading files, searching and running commands.",
+        "Reading files, searching, running commands and calling connected services.",
         LimitUnit.COUNT,
         "AGENT_MAX_TOOL_CALLS",
         minimum=0,

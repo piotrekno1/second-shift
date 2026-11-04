@@ -1,3 +1,5 @@
+import datetime
+
 import pytest
 from django.contrib.auth import get_user_model
 from django.utils import timezone
@@ -93,3 +95,12 @@ def test_input_tab_shows_the_missing_bindings(make_run) -> None:
     skill = CommandResult(call_id="x", exit_code=0, output="# Triage\n")
 
     assert "- `sentry`: waiting for approval" in render_run_input(run, skill)
+
+
+def test_reporting_time_has_whole_seconds_in_utc(make_run) -> None:
+    # Models copy this into tool arguments, and Grafana refuses fractional seconds.
+    run = make_run([])
+    warsaw = datetime.timezone(datetime.timedelta(hours=1))
+    run.scheduled_for = datetime.datetime(2026, 11, 4, 15, 50, 0, 888128, tzinfo=warsaw)
+
+    assert "Reporting time (UTC): 2026-11-04T14:50:00Z" in run_prompt(run)

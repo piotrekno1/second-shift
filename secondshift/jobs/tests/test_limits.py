@@ -1,6 +1,7 @@
 from typing import Any
 
 import pytest
+from django.conf import settings as django_settings
 from django.contrib.auth import get_user_model
 from django.test import Client
 from django.utils import timezone
@@ -24,6 +25,12 @@ from secondshift.runs.execution.budgets import Budget, budget_summary
 from secondshift.runs.models import Run
 from secondshift.workspaces.models import WorkspaceMembership
 from secondshift.workspaces.services import workspace_owner
+
+
+def test_owners_can_raise_tool_calls_without_a_server_change() -> None:
+    """Skills that query several services need more than the default."""
+    assert django_settings.AGENT_MAX_TOOL_CALLS == 150
+    assert django_settings.AGENT_MAX_TOOL_CALLS_CEILING == 200
 
 
 @pytest.fixture

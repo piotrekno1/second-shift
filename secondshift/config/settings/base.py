@@ -378,7 +378,7 @@ SOURCE_CACHE_MAX_BYTES = env.int(
 # for the workspace or a job, up to the *_CEILING maximums. Repository manifests
 # cannot set them. The values that apply are frozen into each execution plan.
 AGENT_MAX_TURNS = env.int("SECONDSHIFT_AGENT_MAX_TURNS", default=24)
-AGENT_MAX_TOOL_CALLS = env.int("SECONDSHIFT_AGENT_MAX_TOOL_CALLS", default=64)
+AGENT_MAX_TOOL_CALLS = env.int("SECONDSHIFT_AGENT_MAX_TOOL_CALLS", default=150)
 AGENT_MAX_TOOL_RESULT_CHARS = env.int(
     "SECONDSHIFT_AGENT_MAX_TOOL_RESULT_CHARS", default=65_536
 )
@@ -392,11 +392,13 @@ if AGENT_MAX_TOOL_RESULT_CHARS < 1:
     )
 # The highest limits a workspace owner can choose for a workspace or a job.
 # Each defaults to its limit, so owners can only lower it until this is raised.
+# Tool calls are the exception: skills that query several services need more
+# than the default, so owners can raise them to 200 without a server change.
 AGENT_MAX_TURNS_CEILING = env.int(
     "SECONDSHIFT_AGENT_MAX_TURNS_CEILING", default=AGENT_MAX_TURNS
 )
 AGENT_MAX_TOOL_CALLS_CEILING = env.int(
-    "SECONDSHIFT_AGENT_MAX_TOOL_CALLS_CEILING", default=AGENT_MAX_TOOL_CALLS
+    "SECONDSHIFT_AGENT_MAX_TOOL_CALLS_CEILING", default=max(200, AGENT_MAX_TOOL_CALLS)
 )
 if AGENT_MAX_TURNS_CEILING < AGENT_MAX_TURNS:
     raise ImproperlyConfigured(

@@ -235,8 +235,8 @@ Each run has four limits. Each has a default and a maximum:
   The clock starts when the run starts, so time in the queue does not count.
 - `SECONDSHIFT_AGENT_MAX_TURNS` (default 24) counts model requests, not tool
   actions. One request can ask for several tool calls.
-- `SECONDSHIFT_AGENT_MAX_TOOL_CALLS` (default 64) counts file reads, searches
-  and commands.
+- `SECONDSHIFT_AGENT_MAX_TOOL_CALLS` (default 150) counts file reads, searches,
+  commands and calls to connected services such as MCP servers.
 - `SECONDSHIFT_MODEL_RUN_TOKEN_BUDGET` (default 2,000,000) counts input and
   output tokens. The model gateway enforces it.
 
@@ -245,7 +245,9 @@ workspace, and on a job's page for that job. A job's limit wins over the
 workspace's, and the workspace's wins over the default. No value can go above
 its maximum. Set the maximum with the same variable plus `_CEILING`, for
 example `SECONDSHIFT_AGENT_MAX_TURNS_CEILING`. Each maximum defaults to its
-limit, so owners can only lower a limit until you raise the maximum. Lowering a
+limit, so owners can only lower a limit until you raise the maximum. Tool calls
+are the exception: their maximum defaults to 200, or to the default when that
+is higher. Lowering a
 maximum later also caps values owners already chose. `.secondshift.yaml` cannot
 set limits.
 

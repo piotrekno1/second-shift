@@ -35,15 +35,17 @@ def test_role_files_are_private_and_have_only_their_required_settings(
         == "https://app.example"
     )
     assert "SECONDSHIFT_PUBLIC_URL" not in gateway
+    # The gateway's agent broker runs workspace tools for subscription runs.
     assert (
         web["SECONDSHIFT_RUNNER_SERVICE_TOKEN"]
+        == gateway["SECONDSHIFT_RUNNER_SERVICE_TOKEN"]
         == worker["SECONDSHIFT_RUNNER_SERVICE_TOKEN"]
     )
     assert (
         web["SECONDSHIFT_RUNNER_SERVICE_URL"]
+        == gateway["SECONDSHIFT_RUNNER_SERVICE_URL"]
         == worker["SECONDSHIFT_RUNNER_SERVICE_URL"]
     )
-    assert "SECONDSHIFT_RUNNER_SERVICE_TOKEN" not in gateway
     assert (
         worker["SECONDSHIFT_RUNNER_SERVICE_TOKEN"]
         == runner["SECONDSHIFT_RUNNER_SERVICE_TOKEN"]

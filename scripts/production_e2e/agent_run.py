@@ -53,7 +53,7 @@ def main() -> None:
         output = read_text(run.output_path, 4000)[0]
         assert output == "production-agent-payload-probe", output
         print(
-            "1 checks passed: agent reads its payload without storage or database access"
+            "1 checks passed: agent reads its payload and lists workspace files without storage or database access"
         )
     finally:
         choose_execution(workspace, model=model)

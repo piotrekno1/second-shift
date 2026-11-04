@@ -95,7 +95,7 @@ def test_plan_contains_only_effective_approved_tools(db) -> None:
         "protocol": "pydantic-ai-v1",
         "limits": {
             "max_turns": 24,
-            "max_tool_calls": 64,
+            "max_tool_calls": 150,
             "max_tool_result_chars": 65536,
             "token_budget": 2_000_000,
             "timeout_seconds": 900,

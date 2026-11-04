@@ -1,3 +1,4 @@
+import datetime
 import hashlib
 import logging
 from typing import Any
@@ -106,12 +107,22 @@ pull request description, so say what changed and why, which checks you ran and
 their results, and anything left unresolved."""
 
 
+def reporting_time(run: Run) -> str:
+    """When the run was due, in UTC to the second, such as 2026-11-04T14:50:00Z.
+
+    Models copy this format into tool arguments. Some services, such as
+    Grafana, refuse times with fractional seconds.
+    """
+    due = run.scheduled_for.astimezone(datetime.UTC).replace(microsecond=0)
+    return due.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
 def run_prompt(run: Run) -> str:
     """The first user message: the task, the reporting time, the trigger
     payload, missing optional bindings and any history."""
     prompt = (
         task_prompt(str(run.input_snapshot.get("skill_path") or ""))
-        + f"\nReporting time (UTC): {run.scheduled_for.isoformat()}"
+        + f"\nReporting time (UTC): {reporting_time(run)}"
     )
     if submission_input := run.input_snapshot.get("submission_input"):
         prompt = f"{prompt}\n\nInput from the person submitting this task:\n{submission_input}"
