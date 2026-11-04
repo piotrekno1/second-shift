@@ -8,7 +8,7 @@ import pytest
 from django.contrib.auth import get_user_model
 from django.core.files.storage import storages
 from django.utils import timezone
-from pydantic_ai import RunContext, RunUsage
+from pydantic_ai import ModelRetry, RunContext, RunUsage
 from pydantic_ai.models.test import TestModel
 
 from secondshift.jobs.models import Job
@@ -69,10 +69,12 @@ def test_file_tools_reject_paths_outside_the_workspace() -> None:
     )
     ctx = tool_context(deps)
 
-    with pytest.raises(ValueError, match="inside the repository"):
+    with pytest.raises(ModelRetry, match="inside the repository"):
         read_file(ctx, "/etc/passwd")
-    with pytest.raises(ValueError, match="inside the repository"):
+    with pytest.raises(ModelRetry, match="inside the repository"):
         read_file(ctx, "../../secret")
+    with pytest.raises(ModelRetry, match="inside the repository"):
+        run_command(ctx, ["ls"], cwd="/")
 
 
 def test_runner_call_is_stable_bounded_and_contains_no_runtime_configuration(
