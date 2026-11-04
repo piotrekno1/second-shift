@@ -163,6 +163,19 @@ async function setPullRequests(allow: boolean, runCi: boolean): Promise<void> {
   }
 }
 
+async function setIssues(allow: boolean): Promise<void> {
+  if (!repository.value) return
+  action.value = 'issues'
+  error.value = null
+  try {
+    repository.value = await apiPost<RepositoryDetail>(`/repositories/${repositoryId}/issues`, { allow })
+  } catch (changeError) {
+    error.value = changeError instanceof Error ? changeError.message : 'Unable to change issue settings'
+  } finally {
+    action.value = null
+  }
+}
+
 const autoSyncLabel = computed(() => {
   if (!repository.value?.auto_sync) return 'Off'
   return repository.value.server_syncs ? 'On' : 'Off on this server'
@@ -309,6 +322,13 @@ onMounted(loadRepository)
             <dd class="auto-sync" :title="repository.pull_request_ci ? 'CI runs on the first push. Only for repositories you trust.' : 'The first push skips CI. Push a commit after review to run it.'">
               <span>{{ repository.pull_request_ci ? 'Runs at once' : 'After review' }}</span>
               <button v-if="app.can(Action.AllowPullRequests)" type="button" class="link-button" :disabled="action === 'pull-requests'" @click="setPullRequests(true, !repository.pull_request_ci)">{{ repository.pull_request_ci ? 'Wait for review' : 'Run at once' }}</button>
+            </dd>
+          </div>
+          <div v-if="repository.can_open_pull_requests" id="issues">
+            <dt>Issues</dt>
+            <dd class="auto-sync" title="Jobs with issues: true can open the issues their agent proposes. The GitHub App or token needs Issues write access.">
+              <span>{{ repository.allow_issues ? 'On' : 'Off' }}</span>
+              <button v-if="app.can(Action.AllowIssues)" type="button" class="link-button" :disabled="action === 'issues'" @click="setIssues(!repository.allow_issues)">{{ repository.allow_issues ? 'Turn off' : 'Turn on' }}</button>
             </dd>
           </div>
           <div><dt>Synced commit</dt><dd><code>{{ repository.revision.slice(0, 12) || '—' }}</code></dd></div>

@@ -250,6 +250,12 @@ useLiveRefresh(loadJob, () => (job.value?.recent_runs ?? []).some((run) => isRun
               <dd v-else-if="!job.can_open_pull_requests">Asks for a draft pull request, but local repositories cannot open one. Each run's changes are kept as a download.</dd>
               <dd v-else>Asks for a draft pull request. An owner must turn on <RouterLink :to="{ path: `/repositories/${job.repository_id}`, hash: '#draft-pull-requests' }" class="detail-link">Draft pull requests</RouterLink> for the repository. GitHub needs Contents and Pull requests write access.</dd>
             </div>
+            <div v-if="job.issues">
+              <dt>Issues</dt>
+              <dd v-if="job.issues_allowed">Opens the issues each run proposes</dd>
+              <dd v-else-if="!job.can_open_pull_requests">Asks to open issues, but local repositories cannot receive them. Proposed issues are listed on each run.</dd>
+              <dd v-else>Asks to open issues. An owner must turn on <RouterLink :to="{ path: `/repositories/${job.repository_id}`, hash: '#issues' }" class="detail-link">Issues</RouterLink> for the repository. GitHub needs Issues write access.</dd>
+            </div>
             <div><dt>Synced commit</dt><dd><code>{{ job.repository_revision.slice(0, 12) }}</code></dd></div>
             <div><dt>History</dt><dd>{{ historyLabel(job.history) }}</dd></div>
             <div><dt>External access</dt><dd>{{ job.capabilities.length ? countLabel(job.capabilities.length, 'connection') : 'None requested' }}</dd></div>
