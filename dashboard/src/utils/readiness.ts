@@ -78,6 +78,8 @@ export interface SetupState {
   hasRuns: boolean
   canAddGitHub: boolean
   canAddLocal: boolean
+  /** Only owners add model keys and fix connections. */
+  canConnect: boolean
   /** The person has no MCP token yet, so connecting an agent is worth offering. */
   offerAgent: boolean
 }
@@ -86,7 +88,8 @@ function codeStep(state: SetupState): SetupStep {
   const step: SetupStep = { key: 'code', title: 'Add your code', detail: '', done: false, actions: [], agentHint: null }
   if (state.accessProblem) {
     step.detail = state.accessProblem
-    step.actions.push({ label: 'Check access', to: { path: '/connections' }, icon: 'shield-key-outline' })
+    if (state.canConnect) step.actions.push({ label: 'Check access', to: { path: '/connections' }, icon: 'shield-key-outline' })
+    else step.detail += ' Ask a workspace owner to fix it.'
     return step
   }
   if (state.repositories > 0) {
@@ -94,6 +97,11 @@ function codeStep(state: SetupState): SetupStep {
     step.detail = state.repositories === 1 && state.repositoryName
       ? `${state.repositoryName} is connected.`
       : `${state.repositories} repositories are connected.`
+    return step
+  }
+  // People who cannot add repositories get one clear line instead of buttons.
+  if (!state.canAddLocal && !state.canAddGitHub) {
+    step.detail = 'Ask a workspace owner to add a repository.'
     return step
   }
   // Without a .secondshift.yaml there is nothing to add. A coding agent can draft and check one.
@@ -118,9 +126,11 @@ function runnerStep(state: SetupState): SetupStep {
     title: 'Choose what runs jobs',
     detail: done
       ? (state.execution?.label ? `${state.execution.label} runs jobs.` : 'Ready to run jobs.')
-      : 'Add a model API key, or connect a Claude Code or Codex subscription.',
+      : state.canConnect
+        ? 'Add a model API key, or connect a Claude Code or Codex subscription.'
+        : 'Ask a workspace owner to set up a model.',
     done,
-    actions: done ? [] : [{ label: 'Set up a model', to: { path: '/models' }, icon: 'creation-outline' }],
+    actions: done || !state.canConnect ? [] : [{ label: 'Set up a model', to: { path: '/models' }, icon: 'creation-outline' }],
     agentHint: null,
   }
 }

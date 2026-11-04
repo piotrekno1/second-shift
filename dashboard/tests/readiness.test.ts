@@ -71,6 +71,7 @@ function setup(overrides: Partial<SetupState> = {}): SetupState {
     hasRuns: false,
     canAddGitHub: true,
     canAddLocal: false,
+    canConnect: true,
     offerAgent: false,
     ...overrides,
   }
@@ -133,4 +134,15 @@ test('connecting an agent is offered while there is configuration to write', () 
   assert.equal(setupSteps(setup({ repositories: 1, accessProblem: 'Cannot reach owner/project.', offerAgent: true }))![0]!.agentHint, null)
   // People who already have a token are not asked again.
   assert.equal(setupSteps(setup())![0]!.agentHint, null)
+})
+
+test('people who cannot set things up are told who can, with no buttons', () => {
+  const steps = setupSteps(setup({ canAddGitHub: false, canAddLocal: false, canConnect: false, offerAgent: true }))!
+  assert.equal(steps[0]!.detail, 'Ask a workspace owner to add a repository.')
+  assert.equal(steps[1]!.detail, 'Ask a workspace owner to set up a model.')
+  assert.deepEqual(steps.map((step) => step.actions.length), [0, 0, 0])
+  assert.equal(steps[0]!.agentHint, null)
+  const access = setupSteps(setup({ repositories: 1, accessProblem: 'Cannot reach owner/project.', canConnect: false }))!
+  assert.equal(access[0]!.detail, 'Cannot reach owner/project. Ask a workspace owner to fix it.')
+  assert.deepEqual(access[0]!.actions, [])
 })
