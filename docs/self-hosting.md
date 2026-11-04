@@ -24,7 +24,19 @@ The beta is distributed through
 available on PyPI.
 
 Upgrading from an alpha? This beta resets database migrations and requires a
-fresh database. Read the [beta 1 release notes](releases/0.1.0b1.md) first.
+fresh database. Read the [beta 1 release notes](https://github.com/piotrekno1/second-shift/blob/main/docs/releases/0.1.0b1.md) first.
+
+Upgrading from beta 7 or earlier? Durable workflows now use their own SQLite
+file, `workflows.sqlite3`, in the data folder. To keep queued runs and their
+history, stop SecondShift and copy the database before you start the new
+version:
+
+```bash
+cd ~/.secondshift && sqlite3 secondshift.sqlite3 ".backup workflows.sqlite3"
+```
+
+Skip this if `workflows.sqlite3` already exists. See the
+[beta 8 release notes](https://github.com/piotrekno1/second-shift/blob/main/docs/releases/0.1.0b8.md).
 
 Once started, `secondshift up` opens your dashboard. With `--no-browser`, or
 when no browser is available, it prints a one-time sign-in link instead:

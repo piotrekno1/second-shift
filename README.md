@@ -64,22 +64,27 @@ jobs:
 ## Quick start
 
 You need [uv](https://docs.astral.sh/uv/getting-started/installation/), Docker,
-and a model provider API key. Start Docker, then run:
+and a model provider API key or a Claude Code or Codex subscription. Start
+Docker, then run:
 
 ```bash
 release=https://github.com/piotrekno1/second-shift/releases
 uv tool install --force --python 3.13 \
-  "$release/download/v0.1.0b7/secondshift-0.1.0b7-py3-none-any.whl"
+  "$release/download/v0.1.0b8/secondshift-0.1.0b8-py3-none-any.whl"
 secondshift up
 ```
 
-Open the sign-in link printed in the terminal. Then let SecondShift review its
-own documentation:
+The first start builds the agent image for subscriptions and takes a few
+minutes. Use `secondshift up --no-agents` to skip it. Open the sign-in link
+printed in the terminal. Then let SecondShift review its own documentation:
 
 1. Clone this repository: `git clone https://github.com/piotrekno1/second-shift.git`
-2. In **Models**, add an API key or a Claude Code or Codex subscription.
-3. In **Repositories**, choose **Add local repository** and select the clone.
+2. In **Repositories**, choose **Add local repository** and select the clone.
+3. In **Models**, add an API key or a Claude Code or Codex subscription.
 4. In **Jobs**, open **Documentation drift** and click **Run now**.
+
+For one-off work, open a repository, click **New task** and write what to do.
+See the [tasks guide](https://second-shift.app/docs/tasks/).
 
 ## Deploy for your team
 

@@ -3,18 +3,18 @@ title: Try SecondShift locally
 description: Install SecondShift and run a repository skill on your machine.
 ---
 
-You’ll run the documentation drift check included in the SecondShift repository, then inspect its report. You need [uv](https://docs.astral.sh/uv/getting-started/installation/), Docker, Git, and a model provider. Start Docker before continuing.
+You’ll run the documentation drift check included in the SecondShift repository, then inspect its report. You need [uv](https://docs.astral.sh/uv/getting-started/installation/), Docker, Git, and a model provider API key or a Claude Code or Codex subscription. Start Docker before continuing.
 
 ## Install and start
 
 ```bash
 release=https://github.com/piotrekno1/second-shift/releases
 uv tool install --force --python 3.13 \
-  "$release/download/v0.1.0b7/secondshift-0.1.0b7-py3-none-any.whl"
+  "$release/download/v0.1.0b8/secondshift-0.1.0b8-py3-none-any.whl"
 secondshift up
 ```
 
-SecondShift opens your dashboard when it is ready. Keep it running. Press Ctrl+C to stop.
+SecondShift opens your dashboard when it is ready. The first start builds the agent image for subscriptions and takes a few minutes. To skip it, run `secondshift up --no-agents`. Keep SecondShift running. Press Ctrl+C to stop.
 
 ## Get the example repository
 
@@ -26,9 +26,9 @@ git clone https://github.com/piotrekno1/second-shift.git
 
 ## Run the check
 
-1. In **Models**, add an API key and choose a default model, or add a Claude Code or Codex subscription.
-2. In **Repositories**, select **Add local repository** and choose the cloned directory.
+1. In **Repositories**, select **Add local repository** and choose the cloned directory.
+2. In **Models**, add an API key and choose a default model, or add a Claude Code or Codex subscription.
 3. Open **Documentation drift** in **Jobs** and select **Run now**.
 4. Open the finished run to see its report, activity, and model cost.
 
-Model usage may incur charges. For local sign-in and upgrade details, see [self-hosting](/docs/self-hosting/#local-trial). To add your own task, continue with [Add a task](/docs/engineering-tasks/).
+Model usage may incur charges. For local sign-in and upgrade details, see [self-hosting](/docs/self-hosting/#local-trial). To hand over one-off work, see [Tasks](/docs/tasks/). To add your own scheduled job, continue with [Add a task](/docs/engineering-tasks/).
