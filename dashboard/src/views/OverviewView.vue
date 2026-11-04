@@ -29,19 +29,32 @@ const missingConnection = computed(() => app.needs.find((need) => need.required 
 // While nothing can run jobs every run fails, so fixing that is the one next step.
 const executionBlocked = computed(() => Boolean(app.overview?.execution?.problem))
 const failing = computed(() => app.overview?.failing_jobs ?? [])
-// First-time setup replaces the single next step until a job is on the schedule.
+// A job is ready when nothing it requires still waits for access.
+const readyJob = computed(() => app.jobs.find((job) =>
+  !job.enabled && job.capabilities.every((capability) => !capability.required || capability.grant_status === 'approved'),
+) ?? null)
+// Review only helps once every binding the job is waiting for has a connection.
+const reviewJob = computed(() => approvalJobs.value.find((job) =>
+  job.capabilities.every((capability) => !capability.required || capability.grant_status === 'approved' || capability.connection_id !== null),
+) ?? null)
+// First-time setup replaces the single next step until a job is on the schedule or has run.
 const setup = computed(() => app.overview ? setupSteps({
   repositories: app.repositories.length,
+  repositoryName: app.repositories.length === 1 ? app.repositories[0]!.display_name : '',
   accessProblem: app.repositories.length
     ? app.connections.find((connection) => connection.kind === 'source' && connection.status === 'connected' && connection.last_check?.ok === false)?.last_check?.message ?? ''
     : '',
   execution: app.overview.execution,
+  jobs: app.jobs.length,
   enabledJobs: app.overview.enabled_jobs,
   hasRuns: app.runs.length > 0,
-  reviewJobId: approvalJobs.value[0]?.id ?? null,
+  readyJob: readyJob.value,
+  reviewJob: reviewJob.value,
+  missingBinding: missingConnection.value?.binding ?? null,
   canAddGitHub: app.can(Action.AddGitHubRepositories),
   canAddLocal: app.canAddLocalRepositories,
   canReview: app.can(Action.ReviewCapabilities),
+  canConnect: app.can(Action.AddConnections),
 }) : null)
 // Soonest first; jobs without a next run (just enabled, not yet scheduled) go last.
 const upcoming = computed(() => app.jobs
