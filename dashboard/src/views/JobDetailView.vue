@@ -127,10 +127,10 @@ useLiveRefresh(loadJob, () => (job.value?.recent_runs ?? []).some((run) => isRun
 <template>
   <div class="page">
     <PageHeader compact :title="job?.name ?? 'Job'" :description="detailSubtitle" :parent="{ label: 'Jobs', to: '/jobs' }">
-      <Button v-if="job && job.cron && app.can(Action.EnableJobs)" :label="job.enabled ? 'Disable' : 'Enable'" severity="secondary" outlined :disabled="Boolean(enableBlocker(job))" :title="enableBlocker(job) || undefined" :loading="action === 'toggle'" @click="toggleJob">
+      <Button v-if="job && job.cron && app.can(Action.EnableJobs)" :label="job.enabled ? 'Pause schedule' : 'Resume schedule'" severity="secondary" outlined :disabled="Boolean(enableBlocker(job))" :title="enableBlocker(job) || undefined" :loading="action === 'toggle'" @click="toggleJob">
         <template #icon><AppIcon :name="job.enabled ? 'pause' : 'play'" /></template>
       </Button>
-      <Button class="main-action" v-if="job && app.can(Action.RunJobs)" label="Run now" :disabled="!job.repository_enabled" :title="job.repository_enabled ? (runWarning(app.overview?.execution, job) || 'Start a run and open it') : 'Enable the repository to run its jobs'" :loading="action === 'run'" @click="runNow">
+      <Button class="main-action" v-if="job && app.can(Action.RunJobs)" label="Run now" :disabled="!job.repository_enabled" :title="job.repository_enabled ? (runWarning(app.overview?.execution, job) || 'Start a run and open it') : 'Resume the repository to run its jobs'" :loading="action === 'run'" @click="runNow">
         <template #icon><AppIcon name="play" /></template>
       </Button>
     </PageHeader>
@@ -149,7 +149,7 @@ useLiveRefresh(loadJob, () => (job.value?.recent_runs ?? []).some((run) => isRun
           <small>{{ formatRelative(job.next_run_at) }}</small>
         </div>
         <div v-else-if="!job.cron" class="job-status-item"><span>No schedule</span><strong>{{ job.triggers.length ? 'Runs when a webhook or Run now starts it' : 'Runs only when you choose Run now' }}</strong></div>
-        <div v-else class="job-status-item"><span>Schedule paused</span><strong>Run now still works. Enable the job to run on schedule</strong></div>
+        <div v-else class="job-status-item"><span>Schedule paused</span><strong>{{ job.repository_enabled ? 'Run now still works. Resume the schedule for automatic runs.' : 'Resume the repository before starting runs or resuming this schedule.' }}</strong></div>
         <div class="job-status-item">
           <span>Last run</span>
           <RouterLink v-if="lastRun" :to="`/runs/${lastRun.id}`" class="job-last-run" :title="`${formatDate(lastRun.scheduled_for)} · ${utcTitle(lastRun.scheduled_for)}`">
@@ -160,7 +160,7 @@ useLiveRefresh(loadJob, () => (job.value?.recent_runs ?? []).some((run) => isRun
         <RouterLink v-if="accessNeedsAction(job.grant_status)" :to="{ path: '/jobs', query: { review: String(job.id) } }" class="job-status-action">
           <StatusPill :status="job.grant_status" :label="accessLabel(job.grant_status)" /> Review access <AppIcon name="arrow-right" />
         </RouterLink>
-        <span v-if="!job.repository_enabled" class="job-status-warning"><AppIcon name="alert-outline" /> Repository disabled</span>
+        <span v-if="!job.repository_enabled" class="job-status-warning"><AppIcon name="alert-outline" /> Repository paused</span>
       </section>
 
       <div class="run-layout">
