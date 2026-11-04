@@ -59,11 +59,11 @@ export const useGitHubRepositoriesStore = defineStore('githubRepositories', () =
   }
 
   /** True once GitHub accepted the token. Errors never repeat the token. */
-  async function connectToken(token: string): Promise<boolean> {
+  async function connectToken(token: string, connectionId: number | null = null): Promise<boolean> {
     connecting.value = true
     tokenError.value = null
     try {
-      await connectGitHubToken(token.trim())
+      await connectGitHubToken(token.trim(), connectionId)
       return true
     } catch (caught) {
       tokenError.value = caught instanceof Error ? caught.message : 'Unable to connect the token'
@@ -73,5 +73,7 @@ export const useGitHubRepositoriesStore = defineStore('githubRepositories', () =
     }
   }
 
-  return { sources, error, importing, loading, branches, branchesLoading, branchesError, connecting, tokenError, load, loadBranches, importRepository, connectToken }
+  function clearTokenError(): void { tokenError.value = null }
+
+  return { clearTokenError, sources, error, importing, loading, branches, branchesLoading, branchesError, connecting, tokenError, load, loadBranches, importRepository, connectToken }
 })

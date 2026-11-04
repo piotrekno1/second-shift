@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import type { Run } from '../src/types'
 
-import { formatLimit, accessLabel, accessNeedsAction, connectionUsageLine, countLabel, describeCron, formatDate, formatSeconds, healthHeadline, runsTrend, weekRange, jobOutcomes, spendTrend, formatRelative, formatScheduled, formatTime, utcTitle, zoneName, formatBytes, plainSummary, providerLabel, runStats, statusLabel, formatDuration, formatModelUsage, finishedBinding, formatSchedule, jobState, historyLabel, lastRunLine, titleFromSlug, typingBinding, kindLabel, expiresSoon } from '../src/utils/format'
+import { formatLimit, accessLabel, accessNeedsAction, connectionUsageLine, countLabel, describeCron, formatDate, formatSeconds, healthHeadline, runsTrend, weekRange, jobOutcomes, spendTrend, formatRelative, formatScheduled, formatTime, utcTitle, zoneName, formatBytes, plainSummary, providerLabel, runStats, statusLabel, formatDuration, formatModelUsage, finishedBinding, formatSchedule, jobState, historyLabel, lastRunLine, titleFromSlug, typingBinding, kindLabel, expiresSoon, tokenExpired, sourceAuthLabel } from '../src/utils/format'
 
 test('formatSchedule keeps cron and timezone visible', () => {
   assert.equal(formatSchedule('0 9 * * 1', 'Europe/Warsaw'), 'Mondays at 09:00 · Europe/Warsaw')
@@ -248,7 +248,6 @@ test('a job without a schedule reads as manual only', () => {
 test('kindLabel and statusLabel use the same words on every page', () => {
   assert.equal(kindLabel('notification'), 'Notification')
   assert.equal(kindLabel('mcp'), 'MCP')
-  assert.equal(kindLabel('source'), 'Source')
   assert.equal(statusLabel('unconfigured'), 'Not connected')
 })
 
@@ -272,4 +271,17 @@ test('tokens warn two weeks before they expire', () => {
   assert.equal(expiresSoon('2026-12-01T00:00:00Z', now), false)
   assert.equal(expiresSoon('2026-11-10T00:00:00Z', now), true)
   assert.equal(expiresSoon('2026-10-01T00:00:00Z', now), true)
+})
+
+test('an expired token is told apart from one about to expire', () => {
+  const now = Date.parse('2026-11-01T00:00:00Z')
+  assert.equal(tokenExpired(null, now), false)
+  assert.equal(tokenExpired('2026-11-10T00:00:00Z', now), false)
+  assert.equal(tokenExpired('2026-10-01T00:00:00Z', now), true)
+})
+
+test('repository access names how it reaches GitHub', () => {
+  assert.equal(kindLabel('source'), 'Repository access')
+  assert.equal(sourceAuthLabel('token'), 'Personal token')
+  assert.equal(sourceAuthLabel('app'), 'GitHub App')
 })

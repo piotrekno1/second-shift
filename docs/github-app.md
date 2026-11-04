@@ -142,10 +142,14 @@ and each job's request goes through the usual approval.
 
 ## Use a personal access token
 
-On **Repositories**, choose **Use a token** (or **Connect GitHub with a token**
-on a server without the App) and paste a
-[fine-grained personal access token](https://github.com/settings/personal-access-tokens/new).
-SecondShift refuses classic tokens, because they reach every repository you can.
+On **Repositories**, choose **Connect GitHub**, then paste a
+[fine-grained personal access token](https://github.com/settings/personal-access-tokens/new)
+under **Personal access token**. SecondShift refuses classic tokens, because
+they reach every repository you can.
+
+The **Create a token on GitHub** link opens GitHub's form with the name,
+a 90-day expiry and the read-only permissions filled in. You only choose the
+repositories. A second link fills in write access for draft pull requests.
 
 Give the token only the repositories SecondShift should use, and these
 repository permissions:
@@ -158,8 +162,10 @@ repository permissions:
 
 GitHub checks the token before it is saved. It is stored encrypted and never
 returned to the browser or put in a sandbox. Its expiry date shows on
-**Connections**, with a warning two weeks before. Paste a new token for the same
-GitHub account to replace it. Its repositories keep working.
+**Connections**, with a warning two weeks before. Choose **Replace token** on
+the connection and paste a new token for the same GitHub account. Regenerating
+the token on GitHub keeps its repositories and permissions. Its repositories in
+SecondShift keep working.
 
 A token works differently from the App:
 

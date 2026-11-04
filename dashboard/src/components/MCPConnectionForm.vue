@@ -48,6 +48,13 @@ const supportsSource = computed(() => provider.value?.auth_methods.includes('sou
 const signedIn = computed(() => props.connection?.auth === 'oauth')
 // GitHub can borrow the token of each repository's own GitHub connection.
 const hasGitHubSource = computed(() => app.connections.some((item) => item.provider === 'github' && item.kind === 'source' && item.status === 'connected'))
+// A token cannot be narrowed per call, so say what each call really gets.
+const sourceHint = computed(() => {
+  const sources = app.connections.filter((item) => item.provider === 'github' && item.kind === 'source' && item.status === 'connected')
+  if (!sources.some((item) => item.auth === 'token')) return "Each call gets a read-only token for the run's repository only."
+  if (sources.every((item) => item.auth === 'token')) return 'Each call uses the token its repository was added with, with everything that token can do.'
+  return "App repositories get a read-only token for that repository only. Token repositories use the whole token."
+})
 const borrowSource = ref(props.connection ? props.connection.auth === 'source' : hasGitHubSource.value)
 /** A new connection to a server that may offer sign-in: check it first. */
 const needsCheck = computed(() => !editing.value && supportsOAuth.value && supportsToken.value && server.value === null)
@@ -207,7 +214,7 @@ async function submit(): Promise<void> {
           <input v-model="borrowSource" type="radio" name="mcp-credentials" :value="false">
           <span>Paste a token for this connection</span>
         </label>
-        <small v-if="mode === 'source'">Each call gets a read-only token for the run's repository only. <DocsLink :page="DocsPage.GitHubAccess" section="github-tools">How it works</DocsLink></small>
+        <small v-if="mode === 'source'">{{ sourceHint }} <DocsLink :page="DocsPage.GitHubAccess" section="github-tools">How it works</DocsLink></small>
       </fieldset>
       <p v-if="editing && mode === 'source'" class="need-setup-wide mcp-choice-note">Uses each repository's GitHub connection. No token is stored here.</p>
       <label v-if="showToken" class="need-setup-wide">

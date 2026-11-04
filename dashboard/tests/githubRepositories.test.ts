@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { createPinia, setActivePinia } from 'pinia'
 import { useGitHubRepositoriesStore } from '../src/stores/githubRepositories'
+import { newTokenUrl } from '../src/services/githubRepositories'
 
 const source = { connection_id: 1, repository_id: 7, full_name: 'owner/project', default_branch: 'main' }
 
@@ -66,6 +67,38 @@ test('a refused token shows GitHub\'s reason and is not kept', async () => {
     globalThis.fetch = async () => Response.json({ id: 1, kind: 'source', auth: 'token' })
     assert.equal(await store.connectToken('github_pat_secret'), true)
     assert.equal(store.tokenError, null)
+  } finally {
+    globalThis.fetch = originalFetch
+    Object.defineProperty(globalThis, 'document', { value: originalDocument, configurable: true })
+  }
+})
+
+test('the new-token link fills in read-only permissions unless drafts need write', () => {
+  const read = new URL(newTokenUrl()).searchParams
+  assert.equal(read.get('name'), 'SecondShift')
+  assert.equal(read.get('expires_in'), '90')
+  assert.deepEqual(['contents', 'pull_requests', 'actions', 'statuses'].map((name) => read.get(name)), ['read', 'read', 'read', 'read'])
+  assert.equal(read.get('workflows'), null)
+  const write = new URL(newTokenUrl(true)).searchParams
+  assert.equal(write.get('contents'), 'write')
+  assert.equal(write.get('pull_requests'), 'write')
+  assert.equal(write.get('statuses'), 'read')
+})
+
+test('replacing a token names the connection it replaces', async () => {
+  setActivePinia(createPinia())
+  const store = useGitHubRepositoriesStore()
+  const originalFetch = globalThis.fetch
+  const originalDocument = globalThis.document
+  Object.defineProperty(globalThis, 'document', { value: { cookie: '' }, configurable: true })
+  const bodies: string[] = []
+  try {
+    globalThis.fetch = async (_url, init) => {
+      bodies.push(String(init?.body))
+      return Response.json({ id: 3 })
+    }
+    assert.equal(await store.connectToken(' github_pat_x ', 3), true)
+    assert.deepEqual(JSON.parse(bodies[0]!), { token: 'github_pat_x', connection_id: 3 })
   } finally {
     globalThis.fetch = originalFetch
     Object.defineProperty(globalThis, 'document', { value: originalDocument, configurable: true })

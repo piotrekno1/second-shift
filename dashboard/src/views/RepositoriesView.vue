@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import AppIcon from '../components/AppIcon.vue'
-import DocsLink from '../components/DocsLink.vue'
-import { DocsPage } from '../utils/docs'
+import GitHubTokenForm from '../components/GitHubTokenForm.vue'
 import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import Button from 'primevue/button'
@@ -59,9 +58,10 @@ const githubSourceConnections = computed(() => app.connections.filter((connectio
 const githubConnected = computed(() => githubSourceConnections.value.length > 0)
 const hasAppSource = computed(() => githubSourceConnections.value.some((connection) => connection.auth === 'app'))
 const hasTokenSource = computed(() => githubSourceConnections.value.some((connection) => connection.auth === 'token'))
-const { sources: githubSources, error: githubError, importing: githubBusy, connecting: tokenBusy, tokenError } = storeToRefs(github)
-const addingToken = ref(false)
-const githubToken = ref('')
+const { sources: githubSources, error: githubError, importing: githubBusy } = storeToRefs(github)
+// One place to choose how SecondShift reaches GitHub.
+const connectingGitHub = ref(false)
+const appInstallUrl = computed(() => hasAppSource.value ? '/github/connect/?install=1' : '/github/connect/')
 const addingGitHub = ref(false)
 const githubChoice = ref('')
 const githubBranch = ref('')
@@ -82,21 +82,23 @@ watch(githubChoice, () => {
   githubBranch.value = source?.default_branch ?? ''
   void github.loadBranches(source)
 })
-function openImport(): void {
+/** Load what can be imported. Right after connecting, show the result even when empty. */
+function openImport(justConnected: boolean = false): void {
   void github.load().then(() => {
-    addingGitHub.value = githubOptions.value.length > 0
+    addingGitHub.value = justConnected || githubOptions.value.length > 0
     if (githubOptions.value.length === 1) githubChoice.value = githubOptions.value[0]!.key
   })
 }
 // Start before the first render so the header button shows its loading state at once.
 if (app.can(Action.AddGitHubRepositories) && githubConnected.value) openImport()
-async function connectToken(): Promise<void> {
-  if (!githubToken.value.trim()) return
-  if (!await github.connectToken(githubToken.value)) return
-  githubToken.value = ''
-  addingToken.value = false
+async function tokenConnected(): Promise<void> {
+  connectingGitHub.value = false
   await app.refresh()
-  openImport()
+  openImport(true)
+}
+function showConnect(): void {
+  connectingGitHub.value = !connectingGitHub.value
+  addingGitHub.value = false
 }
 async function addGitHubRepository(): Promise<void> {
   const source = selectedGitHubSource.value
@@ -157,38 +159,40 @@ function chooseDirectory(path: string): void {
         <Button class="main-action" v-if="githubConnected" label="Add GitHub repository" :loading="github.loading" :disabled="github.loading" @click="addingGitHub = !addingGitHub">
           <template #icon><AppIcon name="github" /></template>
         </Button>
-        <template v-else>
-          <Button v-if="githubConfigured" label="Use a token" severity="secondary" outlined @click="addingToken = !addingToken">
-            <template #icon><AppIcon name="shield-key-outline" /></template>
-          </Button>
-          <Button class="main-action" v-if="githubConfigured" label="Connect GitHub" as="a" href="/github/connect/">
-            <template #icon><AppIcon name="github" /></template>
-          </Button>
-          <Button class="main-action" v-else label="Connect GitHub with a token" @click="addingToken = !addingToken">
-            <template #icon><AppIcon name="github" /></template>
-          </Button>
-        </template>
+        <Button class="main-action" v-else label="Connect GitHub" :aria-expanded="connectingGitHub" aria-controls="github-connect" @click="showConnect">
+          <template #icon><AppIcon name="github" /></template>
+        </Button>
       </template>
     </PageHeader>
     <p v-if="githubError && !addingGitHub" class="form-error" role="alert">{{ githubError }}</p>
-    <form v-if="addingToken" class="panel local-repository-form github-token-form" :aria-busy="tokenBusy" @submit.prevent="connectToken">
-      <div><h2>Connect GitHub with a token</h2><p>A fine-grained token reaches only the repositories you give it. It is stored encrypted.</p></div>
-      <InputText v-model="githubToken" type="password" aria-label="Fine-grained personal access token" placeholder="github_pat_…" autocomplete="new-password" maxlength="2000" autofocus />
-      <div class="local-repository-actions">
-        <Button class="main-action" type="submit" label="Connect" :loading="tokenBusy" :disabled="!githubToken.trim()">
-          <template #icon><AppIcon name="check" /></template>
-        </Button>
+    <section v-if="connectingGitHub" id="github-connect" class="panel github-import github-connect">
+      <div class="github-import-heading">
+        <span class="github-import-icon"><AppIcon name="github" /></span>
+        <div><h2>Connect GitHub</h2><p>SecondShift reads jobs from the repositories you choose, and only those.</p></div>
       </div>
-      <small><a :href="`${GITHUB_TOKENS_URL}/new`" target="_blank" rel="noopener noreferrer">Create a token on GitHub</a>. <DocsLink :page="DocsPage.GitHubAccess" section="use-a-personal-access-token">Permissions it needs</DocsLink></small>
-      <p v-if="tokenError" class="form-error" role="alert">{{ tokenError }}</p>
-    </form>
+      <div class="github-connect-options" :class="{ single: !githubConfigured }">
+        <div v-if="githubConfigured" class="github-connect-option">
+          <h3>GitHub App <span class="mcp-flag ok">Recommended</span></h3>
+          <p>Choose repositories on GitHub. Each step gets a short-lived token for one repository.</p>
+          <Button class="main-action" label="Install the GitHub App" as="a" :href="appInstallUrl">
+            <template #icon><AppIcon name="open-in-new" /></template>
+          </Button>
+        </div>
+        <div class="github-connect-option">
+          <h3>Personal access token</h3>
+          <p>For a single machine, or an organization where you cannot install apps. Stored encrypted.</p>
+          <GitHubTokenForm @connected="tokenConnected" />
+        </div>
+      </div>
+    </section>
     <form v-if="addingGitHub" class="panel github-import" :aria-busy="githubBusy" @submit.prevent="addGitHubRepository">
       <div class="github-import-heading">
         <span class="github-import-icon"><AppIcon name="github" /></span>
         <div><h2>Add a GitHub repository</h2><p>Choose the repository and branch SecondShift should follow.</p></div>
       </div>
-      <p v-if="!githubOptions.length" class="github-import-empty">Every repository you granted access to is already imported.</p>
-      <div v-else class="github-import-fields">
+      <p v-if="!githubSources.length && !githubError" class="github-import-empty">GitHub shows no repositories for this connection yet. Choose repositories for it on GitHub, then reload this page.</p>
+      <p v-else-if="!githubOptions.length && !githubError" class="github-import-empty">Every repository you granted access to is already imported.</p>
+      <div v-if="githubOptions.length" class="github-import-fields">
         <div class="github-import-field">
           <label for="github-repository">Repository</label>
           <Select v-model="githubChoice" input-id="github-repository" aria-label="Repository" :options="githubOptions" option-label="label" option-value="key" filter filter-placeholder="Find a repository…" placeholder="Choose a repository" :disabled="githubBusy" class="github-import-select" empty-filter-message="No matching repositories" />
@@ -212,7 +216,7 @@ function chooseDirectory(path: string): void {
         <span class="github-import-links">
           <a v-if="hasAppSource" href="/github/connect/?install=1">Missing a repository? Manage access <AppIcon name="open-in-new" /></a>
           <a v-if="hasTokenSource" :href="GITHUB_TOKENS_URL" target="_blank" rel="noopener noreferrer">Edit your token's repositories <AppIcon name="open-in-new" /></a>
-          <button v-if="!hasTokenSource" type="button" class="link-button" @click="addingToken = true; addingGitHub = false">Use a token too</button>
+          <button type="button" class="link-button" @click="addingGitHub = false; connectingGitHub = true">Add a GitHub connection</button>
         </span>
       </div>
     </form>
