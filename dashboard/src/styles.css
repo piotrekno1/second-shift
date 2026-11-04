@@ -916,3 +916,5 @@ body .workspace-menu { width: 224px; }
 .job-trigger-count { margin-left: 8px; color: var(--subtle); font-size: 12px; }
 .job-trigger-cap small { color: var(--subtle); font-size: 12px; }
 @media (max-width: 640px) { .job-trigger-url { flex-wrap: wrap; } .job-trigger-events li { grid-template-columns: 1fr auto; } .job-trigger-events li > .status-pill { grid-column: 1 / -1; justify-self: start; } }
+.source-access { display: grid; gap: 6px; margin: -8px 4px 16px 52px; padding: 0; list-style: none; font-size: 11px; color: var(--muted); }.source-access li { display: flex; align-items: center; gap: 8px; }.source-access strong { min-width: 132px; color: var(--ink); font-weight: 600; }.source-access li.ok .app-icon { color: var(--mint); }.source-access li.gap .app-icon, .source-access li.gap span { color: var(--amber); }.source-access-fix a { display: inline-flex; align-items: center; gap: 4px; }
+@media (max-width: 720px) { .source-access { margin-left: 0; }.source-access li { flex-wrap: wrap; }.source-access strong { min-width: 0; } }

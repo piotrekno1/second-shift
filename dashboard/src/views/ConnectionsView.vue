@@ -8,6 +8,7 @@ import Menu from 'primevue/menu'
 import type { MenuItem } from 'primevue/menuitem'
 import ConnectionForm from '../components/ConnectionForm.vue'
 import GitHubTokenForm from '../components/GitHubTokenForm.vue'
+import SourceAccess from '../components/SourceAccess.vue'
 import PageHeader from '../components/PageHeader.vue'
 import ProviderIcon from '../components/ProviderIcon.vue'
 import StatusPill from '../components/StatusPill.vue'
@@ -143,6 +144,8 @@ async function tokenReplaced(connection: Connection): Promise<void> {
 /** The one thing to do on a connection row, when something is wrong with it. */
 function fixLabel(connection: Connection): string | null {
   if (replaceable(connection) && expiresSoon(connection.expires_at)) return 'Replace token'
+  // GitHub refused the token itself, so only a new one fixes it.
+  if (replaceable(connection) && connection.last_check?.ok === false && !connection.last_check.features?.length) return 'Replace token'
   if (!editable(connection)) return null
   if (connection.status !== 'connected') return 'Reconnect'
   if (connection.last_check && !connection.last_check.ok) return 'Fix'
@@ -154,6 +157,7 @@ function testLabel(connection: Connection): string | null {
   if (connection.kind === 'mcp') return 'Check tools'
   if (connection.kind === 'api') return 'Check operations'
   if (connection.provider === 'webhook') return 'Send test'
+  if (connection.kind === 'source') return 'Check access'
   return null
 }
 
@@ -256,7 +260,7 @@ function sendTest(connection: Connection, noticeKey: string): Promise<void> {
     // Checks and deliveries are saved on the connection; refresh so its pill reflects the result.
     await app.refresh()
     if (!result.ok) throw new Error(result.message)
-    if (connection.kind === 'mcp' || connection.kind === 'api') return result.message
+    if (connection.provider !== 'webhook') return result.message
     return 'Test message delivered.'
   }, 'Unable to send a test message')
 }
@@ -408,6 +412,7 @@ onMounted(async () => {
           <p v-else-if="connection.last_check" class="need-notice" :class="{ ok: connection.last_check.ok }" :title="`${formatDate(connection.last_check.checked_at)} · ${utcTitle(connection.last_check.checked_at)}`">
             <AppIcon :name="connection.last_check.ok ? 'check-circle-outline' : 'alert-circle-outline'" /> {{ connection.last_check.message }} <span class="check-age">{{ isWebhook(connection) ? 'Last delivery' : 'Checked' }} {{ formatRelative(connection.last_check.checked_at) }}</span>
           </p>
+          <SourceAccess v-if="connection.kind === 'source' && connection.status === 'connected' && connection.last_check" :check="connection.last_check" />
           <OAuthScopeWarning :connection="connection" />
           <div v-if="confirmRevoke === connection.id" class="confirm-strip" role="alert">
             <span>Disconnecting discards the stored URL or token. {{ connection.usage?.jobs ? `${countLabel(connection.usage.jobs, 'job')} that use${connection.usage.jobs === 1 ? 's' : ''} it will be blocked` : 'Jobs that use it are blocked' }} until you reconnect.</span>

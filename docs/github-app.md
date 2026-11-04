@@ -84,6 +84,26 @@ disable polling. Changed capabilities continue through the existing approval
 process. A failed sync preserves the last good revision and appears in repository
 validation. It does not silently replace a working job definition.
 
+## Check access
+
+On **Connections**, choose **Check access** in a GitHub connection's menu. It
+checks three things:
+
+- The credential still works. For a token, this also refreshes its expiry date.
+- Every added repository is still reachable.
+- What each feature can do:
+  - **Sync** needs read access to Contents.
+  - **GitHub tools** need read access to Pull requests, Actions and Commit
+    statuses.
+  - **Draft pull requests** need write access to Contents and Pull requests.
+
+For the App, SecondShift reads the installation's permissions. For a token, it
+makes one read request per permission. A token's write access cannot be checked
+without writing, so it is checked when a draft pull request opens.
+
+Each gap links to the page on GitHub that fixes it. The worker checks each
+GitHub connection once a day, and right away when a sync fails.
+
 ## Credentials and limitations
 
 For each sync, checkout or check, SecondShift creates one short-lived
