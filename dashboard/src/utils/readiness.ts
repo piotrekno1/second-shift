@@ -66,12 +66,6 @@ export interface AgentHint {
   link: string
 }
 
-/** A job named by the checklist. */
-export interface SetupJob {
-  id: number
-  name: string
-}
-
 export interface SetupState {
   repositories: number
   /** The repository's name while there is only one. */
@@ -82,16 +76,8 @@ export interface SetupState {
   jobs: number
   enabledJobs: number
   hasRuns: boolean
-  /** A job that needs no more access, so it can run now. */
-  readyJob: SetupJob | null
-  /** A job whose access can be reviewed now: each binding it needs has a connection. */
-  reviewJob: SetupJob | null
-  /** A required binding no connection serves yet. */
-  missingBinding: string | null
   canAddGitHub: boolean
   canAddLocal: boolean
-  canReview: boolean
-  canConnect: boolean
   /** The person has no MCP token yet, so connecting an agent is worth offering. */
   offerAgent: boolean
 }
@@ -155,20 +141,9 @@ function jobStep(state: SetupState): SetupStep {
     if (state.offerAgent) step.agentHint = { lead: '', link: 'Let your coding agent write a job' }
     return step
   }
-  // Prefer a job that can run now over one that waits for access.
-  if (state.readyJob) {
-    step.detail = `${state.readyJob.name} needs no extra access, so it can run right away.`
-    step.actions.push({ label: `Open ${state.readyJob.name}`, to: { path: `/jobs/${state.readyJob.id}` }, icon: 'play-outline' })
-  } else if (state.reviewJob && state.canReview) {
-    step.detail = `${state.reviewJob.name} asks for access. Review it, then run the job.`
-    step.actions.push({ label: 'Review access', to: { path: '/jobs', query: { review: String(state.reviewJob.id) } }, icon: 'shield-key-outline' })
-  } else if (state.missingBinding && state.canConnect) {
-    step.detail = `Every job needs a connection first. Connect ${state.missingBinding}, then review its access.`
-    step.actions.push({ label: `Connect ${state.missingBinding}`, to: { path: '/connections', query: { binding: state.missingBinding } }, icon: 'link-plus' })
-  } else {
-    step.detail = 'Open a job to review its access and run it.'
-    step.actions.push({ label: 'Open jobs', to: { path: '/jobs' }, icon: 'arrow-right' })
-  }
+  // The Jobs page shows what each job still waits for, so one line is enough here.
+  step.detail = 'Run a job or a one-off task.'
+  step.actions.push({ label: 'Open jobs', to: { path: '/jobs' }, icon: 'arrow-right' })
   return step
 }
 
