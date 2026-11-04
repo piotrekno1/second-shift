@@ -296,6 +296,8 @@ After each run, the server sends one `POST` with a JSON body like this:
 - `summary` is the start of the report, up to 4,000 characters. For a failed
   run it says why the run failed. The full report stays in SecondShift.
 - `text` is the same summary with the status and a link, ready for chat.
+  A link in the summary to a saved file, such as `[report](/outputs/report.csv)`,
+  opens that file's download. Opening it needs a sign-in.
 - `url` opens the run in SecondShift. Opening it needs a sign-in.
 - `outputs` counts the files the agent changed and lists the files it saved,
   by name and size. Open the run to read or download them.

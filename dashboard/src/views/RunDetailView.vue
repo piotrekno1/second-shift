@@ -13,6 +13,7 @@ import type { RunDelivery, RunDetail } from '../types'
 import { Action } from '../utils/permissions'
 import { countLabel, formatBytes, formatDate, formatTime, runStats, utcTitle, zoneName } from '../utils/format'
 import { renderMarkdown } from '../utils/markdown'
+import { runOutputLink } from '../utils/runOutputLink'
 import { runWarning } from '../utils/readiness'
 import { startedByLabel } from '../utils/triggers'
 
@@ -49,7 +50,7 @@ const REPORT_COLLAPSED_PX = 640
 const stats = computed(() => (run.value ? runStats(run.value, now.value) : []))
 const timelineZone = computed(() => zoneName(run.value?.events[0]?.created_at ?? run.value?.created_at ?? new Date().toISOString()))
 const taskInstructionsHtml = computed(() => run.value?.submission_input ? renderMarkdown(run.value.submission_input) : '')
-const reportHtml = computed(() => (run.value?.output_excerpt ? renderMarkdown(run.value.output_excerpt) : ''))
+const reportHtml = computed(() => (run.value?.output_excerpt ? renderMarkdown(run.value.output_excerpt, (href) => runOutputLink(href, runId.value)) : ''))
 const inputFile = computed(() => run.value?.files.find((file) => file.name === 'input') ?? null)
 const outputFile = computed(() => run.value?.files.find((file) => file.name === 'output') ?? null)
 const excerptOnly = computed(() => Boolean(run.value?.output_size_bytes && run.value.output_size_bytes > run.value.output_excerpt.length))
