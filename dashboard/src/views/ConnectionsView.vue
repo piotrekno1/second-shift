@@ -12,7 +12,7 @@ import SourceAccess from '../components/SourceAccess.vue'
 import PageHeader from '../components/PageHeader.vue'
 import ProviderIcon from '../components/ProviderIcon.vue'
 import StatusPill from '../components/StatusPill.vue'
-import { approveNeed, deleteConnection, revokeConnection, testConnection } from '../services/connections'
+import { approveNeed, createMCPConnection, deleteConnection, revokeConnection, testConnection } from '../services/connections'
 import { useAppStore } from '../stores/app'
 import type { CapabilityNeed, Connection, Notice } from '../types'
 import { Action } from '../utils/permissions'
@@ -100,6 +100,41 @@ const providerIcon: Record<Connection['provider'], string> = {
 
 // Model providers live on Models. Here are the connections jobs ask for by name.
 const connections = computed(() => app.connections.filter((connection) => connection.kind !== 'model'))
+// GitHub's connections show as one card: repository access, its tools, and sign-in.
+// Each stays its own connection underneath. Other providers list as rows.
+const GITHUB_ORDER: Record<string, number> = { source: 0, mcp: 1, identity: 2 }
+const githubConnections = computed(() => connections.value
+  .filter((connection) => connection.provider === 'github')
+  .sort((a, b) => (GITHUB_ORDER[a.kind] ?? 3) - (GITHUB_ORDER[b.kind] ?? 3)))
+const connectionGroups = computed(() => [
+  { key: 'github', connections: githubConnections.value },
+  { key: 'other', connections: connections.value.filter((connection) => connection.provider !== 'github') },
+].filter((group) => group.connections.length))
+const githubSources = computed(() => githubConnections.value.filter((connection) => connection.kind === 'source' && connection.status === 'connected'))
+const githubTools = computed(() => githubConnections.value.find((connection) => connection.kind === 'mcp' && connection.status === 'connected') ?? null)
+const githubSummary = computed(() => {
+  const failing = githubSources.value.filter((connection) => connection.last_check?.ok === false).length
+  const signIns = githubConnections.value.filter((connection) => connection.kind === 'identity').length
+  return [
+    githubSources.value.length ? countLabel(githubSources.value.length, 'repository connection') : 'No repository access yet',
+    failing ? `${failing} failing its check` : '',
+    signIns ? countLabel(signIns, 'sign-in') : '',
+  ].filter(Boolean).join(' · ')
+})
+const GITHUB_TOOLS_BINDING = 'github'
+
+/** Turn GitHub tools on: one MCP connection that uses each repository's own GitHub access. */
+function turnOnGitHubTools(): Promise<void> {
+  return act('github-tools', 'github-tools', async () => {
+    // A disconnected one holds the binding. It has no credential left to keep.
+    const old = githubConnections.value.find((connection) => connection.kind === 'mcp' && connection.status === 'revoked' && connection.binding_key === GITHUB_TOOLS_BINDING)
+    if (old) await deleteConnection(old.id)
+    const connection = await createMCPConnection({ provider: 'github', binding_key: GITHUB_TOOLS_BINDING, display_name: 'GitHub tools', token: '', settings: {}, require_approval: false, auth: 'source' })
+    await app.refresh()
+    return `GitHub tools on. ${countLabel(connection.available_tools.length, 'tool')} for jobs that name github. Each job reads only its own repository.`
+  }, 'Unable to turn on GitHub tools')
+}
+
 const openNeeds = computed(() => app.needs.filter((need) => need.status !== 'ready'))
 // What blocks a job comes first: broken, then missing, then waiting on approval. Optional last.
 const SETUP_ORDER: Record<CapabilityNeed['status'], number> = { unavailable: 0, missing: 1, needs_approval: 2, ready: 3 }
@@ -271,6 +306,7 @@ async function disconnect(connection: Connection): Promise<void> {
   return act(`revoke-${connection.id}`, `connection-${connection.id}`, async () => {
     await revokeConnection(connection.id)
     await app.refresh()
+    if (connection.auth === 'source') return 'GitHub tools off. Turn them on again from the GitHub card.'
     return 'Disconnected. Its stored URL or token was discarded; jobs using it are blocked until you reconnect.'
   }, 'Unable to disconnect')
 }
@@ -375,11 +411,26 @@ onMounted(async () => {
         <div><h2>Connections <span class="heading-count">{{ connections.length }}</span></h2><p>Shared by the whole workspace. A job uses one when its <code>.secondshift.yaml</code> names it.</p></div>
       </div>
       <div v-if="connections.length" class="need-list">
-        <article v-for="connection in connections" :id="`connection-${connection.id}`" :key="connection.id" class="need" :class="{ unavailable: connection.status !== 'connected' }">
+        <div v-for="group in connectionGroups" :key="group.key" :class="group.key === 'github' ? 'provider-group' : 'connection-group'">
+        <div v-if="group.key === 'github'" class="provider-group-heading">
+          <div class="row-glyph"><ProviderIcon provider="github" fallback="github" /></div>
+          <div class="need-primary"><strong class="connection-name">GitHub</strong><span>{{ githubSummary }}</span></div>
+          <div class="provider-group-tools">
+            <span>GitHub tools</span>
+            <StatusPill :status="githubTools ? 'connected' : 'pending'" :label="githubTools ? 'On' : 'Off'" />
+            <Button v-if="canEdit && !githubTools && githubSources.length" label="Turn on" size="small" :loading="busy === 'github-tools'" @click="turnOnGitHubTools" />
+            <Button v-else-if="canEdit && githubTools && app.can(Action.DisconnectConnections)" label="Turn off" size="small" severity="secondary" text @click="confirmRevoke = githubTools.id; confirmDelete = null" />
+          </div>
+        </div>
+        <p v-if="group.key === 'github' && notices['github-tools']" class="need-notice" :class="{ ok: notices['github-tools'].ok }">
+          <AppIcon :name="notices['github-tools'].ok ? 'check-circle-outline' : 'alert-circle-outline'" /> {{ notices['github-tools'].text }}
+        </p>
+        <p v-else-if="group.key === 'github' && !githubTools && !githubSources.length" class="provider-group-hint">Connect GitHub on <RouterLink to="/repositories">Repositories</RouterLink> first. GitHub tools then use the same access.</p>
+        <article v-for="connection in group.connections" :id="`connection-${connection.id}`" :key="connection.id" class="need" :class="{ unavailable: connection.status !== 'connected' }">
           <div class="need-row">
             <div class="row-glyph"><ProviderIcon :provider="connection.provider" :fallback="providerIcon[connection.provider] ?? kindIcon[connection.kind]" /></div>
             <div class="need-primary">
-              <strong class="connection-name">{{ connection.display_name }}</strong>
+              <strong class="connection-name">{{ group.key === 'github' ? connection.display_name.replace(/^GitHub · /, '') : connection.display_name }}</strong>
               <span>{{ kindLabel(connection.kind) }} · {{ connection.kind === 'source' ? sourceAuthLabel(connection.auth) : providerLabel(connection.provider) }}<template v-if="connection.target"> → {{ connection.target }}</template></span>
               <small v-if="connection.auth === 'source'">Uses each repository's GitHub connection</small>
               <small v-if="connection.kind === 'source' && connection.auth === 'token'" :class="{ expiring: expiresSoon(connection.expires_at), expired: tokenExpired(connection.expires_at) }">{{ !connection.expires_at ? 'Token does not expire' : tokenExpired(connection.expires_at) ? `Token expired ${formatDate(connection.expires_at)}. Syncs and runs stop until you replace it.` : `Token expires ${formatDate(connection.expires_at)}` }}</small>
@@ -415,9 +466,10 @@ onMounted(async () => {
           <SourceAccess v-if="connection.kind === 'source' && connection.status === 'connected' && connection.last_check" :check="connection.last_check" />
           <OAuthScopeWarning :connection="connection" />
           <div v-if="confirmRevoke === connection.id" class="confirm-strip" role="alert">
-            <span>Disconnecting discards the stored URL or token. {{ connection.usage?.jobs ? `${countLabel(connection.usage.jobs, 'job')} that use${connection.usage.jobs === 1 ? 's' : ''} it will be blocked` : 'Jobs that use it are blocked' }} until you reconnect.</span>
+            <span v-if="connection.auth === 'source'">Turning off GitHub tools blocks jobs that name <code>{{ connection.binding_key }}</code> until you turn them on again. Repository access stays as it is.</span>
+            <span v-else>Disconnecting discards the stored URL or token. {{ connection.usage?.jobs ? `${countLabel(connection.usage.jobs, 'job')} that use${connection.usage.jobs === 1 ? 's' : ''} it will be blocked` : 'Jobs that use it are blocked' }} until you reconnect.</span>
             <Button label="Cancel" severity="secondary" text size="small" @click="confirmRevoke = null" />
-            <Button label="Disconnect" severity="danger" size="small" :loading="busy === `revoke-${connection.id}`" @click="disconnect(connection)" />
+            <Button :label="connection.auth === 'source' ? 'Turn off' : 'Disconnect'" severity="danger" size="small" :loading="busy === `revoke-${connection.id}`" @click="disconnect(connection)" />
           </div>
           <div v-if="confirmDelete === connection.id" class="confirm-strip" role="alert">
             <span>Deleting removes the connection. Jobs that used it go back to awaiting approval.</span>
@@ -427,6 +479,7 @@ onMounted(async () => {
           <GitHubTokenForm v-if="isOpen({ mode: 'edit', id: connection.id }) && replaceable(connection)" class="need-setup inset" :connection-id="connection.id" @connected="tokenReplaced(connection)" />
           <ConnectionForm v-else-if="isOpen({ mode: 'edit', id: connection.id })" class="inset" :connection="connection" @done="formDone" @cancel="openForm = null" />
         </article>
+        </div>
       </div>
       <div v-else class="empty-state compact"><AppIcon name="power-plug-off-outline" /><strong>Nothing connected yet</strong><span v-if="canEdit">Use <strong>Add connection</strong>, or connect a binding above.</span><span v-else>Workspace owners add connections.</span></div>
     </section>

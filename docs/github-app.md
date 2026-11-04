@@ -137,8 +137,10 @@ checkout. Reinstall/re-authorize through **Connect GitHub** to reconnect.
 ## GitHub tools
 
 Jobs read pull requests, commits and Actions runs through the GitHub MCP
-connection. When you add it under **Connections**, choose **Use each
-repository's GitHub connection**. No token is stored on it. Each tool call gets
+connection. On **Connections**, the GitHub card groups repository access,
+GitHub tools and sign-in. Choose **Turn on** next to GitHub tools. This adds
+the `github` binding, using each repository's GitHub connection. No token is
+stored on it. Each tool call gets
 a read-only token for the run's repository alone, from the App installation or
 token the repository was added with. The token never enters the sandbox.
 
@@ -157,8 +159,10 @@ keep each job on its repository. Repositories added from a local folder have no
 GitHub connection to borrow. Connect GitHub tools for them with their own
 fine-grained token instead.
 
-Installing the App does not turn on GitHub tools. An owner adds the connection,
-and each job's request goes through the usual approval.
+Installing the App does not turn on GitHub tools. An owner turns them on, and
+each job's request goes through the usual approval. **Turn off** blocks jobs
+that name `github` and leaves repository access as it is. **Check access** on a
+repository connection shows whether the tools' permissions are granted.
 
 ## Use a personal access token
 
