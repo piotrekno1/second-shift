@@ -117,6 +117,8 @@ export interface Overview {
   run_days: RunDay[]
   /** What runs the workspace's jobs and why runs would fail. */
   execution: ExecutionStatus | null
+  /** Whether this person has a usable MCP token in this workspace. */
+  has_agent_token: boolean
 }
 
 export interface ExecutionStatus {

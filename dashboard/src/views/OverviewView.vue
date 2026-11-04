@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import AppIcon from '../components/AppIcon.vue'
-import { computed } from 'vue'
-import Button from 'primevue/button'
+import { computed, watch } from 'vue'
 import { useAgentConnectionStore } from '../stores/agentConnection'
 import ExecutionWarning from '../components/ExecutionWarning.vue'
 import PageHeader from '../components/PageHeader.vue'
@@ -58,7 +57,10 @@ const setup = computed(() => app.overview ? setupSteps({
   canAddLocal: app.canAddLocalRepositories,
   canReview: app.can(Action.ReviewCapabilities),
   canConnect: app.can(Action.AddConnections),
+  offerAgent: !app.overview.has_agent_token,
 }) : null)
+// A token made in the agent dialog takes the offer off the checklist.
+watch(() => agentConnection.visible, (visible) => { if (!visible && setup.value) void app.refresh() })
 // Soonest first; jobs without a next run (just enabled, not yet scheduled) go last.
 const upcoming = computed(() => app.jobs
   .filter((job) => job.enabled)
@@ -117,11 +119,6 @@ const passRate = computed(() => {
     </PageHeader>
 
     <SetupChecklist v-if="setup" :steps="setup" />
-    <div v-if="app.overview && !app.repositories.length" class="agent-discovery">
-      <AppIcon name="link-plus" />
-      <div><strong>Set up with your coding agent</strong><span>Connect over MCP to explore SecondShift and check your repository configuration.</span></div>
-      <Button label="Connect your agent" severity="secondary" size="small" @click="agentConnection.visible = true" />
-    </div>
     <!-- The checklist already asks for what runs jobs. -->
     <ExecutionWarning v-if="!setup || !app.overview?.execution?.needs_setup" />
 

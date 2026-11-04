@@ -55,6 +55,8 @@ export interface SetupStep {
   done: boolean
   /** The first is the main action. Only the current step shows them. */
   actions: { label: string, to: RouteLocationRaw, icon: string }[]
+  /** Offer to connect a coding agent, which can help write .secondshift.yaml. */
+  offerAgent: boolean
 }
 
 /** A job named by the checklist. */
@@ -83,10 +85,12 @@ export interface SetupState {
   canAddLocal: boolean
   canReview: boolean
   canConnect: boolean
+  /** The person has no MCP token yet, so connecting an agent is worth offering. */
+  offerAgent: boolean
 }
 
 function codeStep(state: SetupState): SetupStep {
-  const step: SetupStep = { key: 'code', title: 'Add your code', detail: '', done: false, actions: [] }
+  const step: SetupStep = { key: 'code', title: 'Add your code', detail: '', done: false, actions: [], offerAgent: false }
   if (state.accessProblem) {
     step.detail = state.accessProblem
     step.actions.push({ label: 'Check access', to: { path: '/connections' }, icon: 'shield-key-outline' })
@@ -99,6 +103,8 @@ function codeStep(state: SetupState): SetupStep {
       : `${state.repositories} repositories are connected.`
     return step
   }
+  // A coding agent can help write the .secondshift.yaml the repository needs.
+  step.offerAgent = state.offerAgent
   const github = { label: 'Connect GitHub', to: { path: '/repositories', query: { add: 'github' } }, icon: 'github' }
   if (state.canAddLocal) {
     // On a local install a folder on disk is the quickest start. GitHub adds draft pull requests.
@@ -122,11 +128,12 @@ function runnerStep(state: SetupState): SetupStep {
       : 'Add a model API key, or connect a Claude Code or Codex subscription.',
     done,
     actions: done ? [] : [{ label: 'Set up a model', to: { path: '/models' }, icon: 'creation-outline' }],
+    offerAgent: false,
   }
 }
 
 function jobStep(state: SetupState): SetupStep {
-  const step: SetupStep = { key: 'job', title: 'Run your first job', detail: '', done: state.enabledJobs > 0 || state.hasRuns, actions: [] }
+  const step: SetupStep = { key: 'job', title: 'Run your first job', detail: '', done: state.enabledJobs > 0 || state.hasRuns, actions: [], offerAgent: false }
   if (step.done) {
     step.detail = state.enabledJobs > 0 ? 'A job is on the schedule.' : 'A job has run.'
     return step
@@ -138,6 +145,7 @@ function jobStep(state: SetupState): SetupStep {
   if (state.jobs === 0) {
     step.detail = 'Add a job to .secondshift.yaml, then resync the repository.'
     step.actions.push({ label: 'Open repositories', to: { path: '/repositories' }, icon: 'arrow-right' })
+    step.offerAgent = state.offerAgent
     return step
   }
   // Prefer a job that can run now over one that waits for access.
