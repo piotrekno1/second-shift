@@ -1,18 +1,14 @@
-# Engineering tasks
+# Repository jobs
 
 [README](../README.md) · [Repository configuration](repository-configuration.md)
 
-SecondShift executes tasks defined by repository skills. A task can investigate
-code, produce a briefing, or change connected service data through explicitly
-approved MCP tools or HTTP API operations.
+A repository job is a skill and an entry in `.secondshift.yaml`. It runs on a
+schedule, from a webhook, or when you choose **Run now**. A job can investigate
+code, write a briefing, or change data in a connected service through tools an
+owner approved.
 
-The [examples](../examples/README.md) include reviews, briefings, and a ticket
-reconciliation task that updates connected services. Each skill defines its
-actions and boundaries. Root `.agents/skills` contains discovery symlinks.
-
-Choose a workflow from the [skill catalog](../examples/README.md). Each example
-explains its data sources and suggests a schedule where appropriate. This guide
-covers the shared setup process.
+Start from the [skill catalog](../examples/README.md). Each example lists the
+data it needs and suggests a schedule. This guide covers the setup they share.
 
 For a one-time request without repository configuration, use
 [one-off tasks](tasks.md). You can write instructions directly, queue work for
