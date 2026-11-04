@@ -37,7 +37,7 @@ async function submit(): Promise<void> {
     <small v-if="connectionId === null">
       <a :href="newTokenUrl()" target="_blank" rel="noopener noreferrer">Create a token on GitHub <AppIcon name="open-in-new" /></a>
       with the permissions filled in, then choose its repositories.
-      For draft pull requests, <a :href="newTokenUrl(true)" target="_blank" rel="noopener noreferrer">create one with write access <AppIcon name="open-in-new" /></a>.
+      For draft pull requests and issues, <a :href="newTokenUrl(true)" target="_blank" rel="noopener noreferrer">create one with write access <AppIcon name="open-in-new" /></a>.
       <DocsLink :page="DocsPage.GitHubAccess" section="use-a-personal-access-token">Permissions</DocsLink>
     </small>
     <small v-else>

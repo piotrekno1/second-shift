@@ -203,6 +203,8 @@ export interface RepositoryDetail extends Repository {
   allow_pull_requests: boolean
   /** CI runs on the draft at once instead of waiting for a review. */
   pull_request_ci: boolean
+  /** Jobs may open the issues their agent proposes. GitHub repositories only. */
+  allow_issues: boolean
   validation: RepositoryValidation
   jobs: RepositoryJob[]
 }
@@ -246,11 +248,15 @@ export interface JobDetail extends Job {
   /** Trigger kinds the configuration names, such as "webhook". */
   triggers: TriggerKind[]
   /** The configuration asks for a draft pull request with each run's changes. */
-  pull_request: boolean
+  open_pull_request: boolean
   /** A GitHub repository, so drafts could open. Local repositories cannot. */
   can_open_pull_requests: boolean
   /** An owner allows pull requests for the repository, so drafts open. */
   pull_requests_allowed: boolean
+  /** The configuration asks to open the issues each run proposes. Null when it does not. */
+  open_issues: { labels: string[], max: number } | null
+  /** An owner allows issues for the repository, so they open. */
+  issues_allowed: boolean
   repository_revision: string
   repository_enabled: boolean
   /** The skill file at the synced commit. Empty until the repository syncs again. */
@@ -365,7 +371,7 @@ export interface RunFile {
 
 export interface RunDelivery {
   id: number
-  kind: 'notification' | 'pull_request' | string
+  kind: 'notification' | 'pull_request' | 'issues' | string
   target: string
   status: 'pending' | 'delivered' | 'skipped' | 'failed'
   attempts: number
@@ -397,6 +403,15 @@ export interface RunSkippedFile {
   reason: string
 }
 
+/** An issue the agent proposed. It has a number once it opens on GitHub. */
+export interface RunIssue {
+  title: string
+  number: number | null
+  url: string
+  /** An open issue already had this title, so none was opened. */
+  already_open: boolean
+}
+
 export interface RunDetail extends Run {
   submission_input?: string
   job_key: string
@@ -412,6 +427,7 @@ export interface RunDetail extends Run {
   events: RunEvent[]
   files: RunFile[]
   deliveries: RunDelivery[]
+  issues: RunIssue[]
   changes: RunChanges | null
   saved_files: RunSavedFile[]
   skipped_files: RunSkippedFile[]

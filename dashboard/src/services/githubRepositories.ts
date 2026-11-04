@@ -6,13 +6,13 @@ export const GITHUB_TOKENS_URL = 'https://github.com/settings/personal-access-to
 
 // Metadata read access is always included, so it is not listed.
 const READ_PERMISSIONS = { contents: 'read', pull_requests: 'read', actions: 'read', statuses: 'read' }
-const WRITE_PERMISSIONS = { ...READ_PERMISSIONS, contents: 'write', pull_requests: 'write' }
+const WRITE_PERMISSIONS = { ...READ_PERMISSIONS, contents: 'write', pull_requests: 'write', issues: 'write' }
 
 /** GitHub's new-token form, filled in with what SecondShift needs. The owner still picks repositories. */
 export function newTokenUrl(drafts: boolean = false): string {
   const params = new URLSearchParams({
     name: 'SecondShift',
-    description: drafts ? 'SecondShift: sync, GitHub tools and draft pull requests.' : 'SecondShift: sync and read-only GitHub tools.',
+    description: drafts ? 'SecondShift: sync, GitHub tools, draft pull requests and issues.' : 'SecondShift: sync and read-only GitHub tools.',
     expires_in: '90',
     ...(drafts ? WRITE_PERMISSIONS : READ_PERMISSIONS),
   })

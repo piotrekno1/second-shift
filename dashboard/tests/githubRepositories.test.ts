@@ -79,9 +79,11 @@ test('the new-token link fills in read-only permissions unless drafts need write
   assert.equal(read.get('expires_in'), '90')
   assert.deepEqual(['contents', 'pull_requests', 'actions', 'statuses'].map((name) => read.get(name)), ['read', 'read', 'read', 'read'])
   assert.equal(read.get('workflows'), null)
+  assert.equal(read.get('issues'), null)
   const write = new URL(newTokenUrl(true)).searchParams
   assert.equal(write.get('contents'), 'write')
   assert.equal(write.get('pull_requests'), 'write')
+  assert.equal(write.get('issues'), 'write')
   assert.equal(write.get('statuses'), 'read')
 })
 
