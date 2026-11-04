@@ -42,6 +42,8 @@ class Repository(models.Model):
     # Run CI on that branch at once. Off by default, because the patch is
     # untrusted until a person reviews it.
     pull_request_ci = models.BooleanField(default=False)
+    # Jobs may open the issues their agent proposes. Owners decide.
+    allow_issues = models.BooleanField(default=False)
     config_path = models.CharField(max_length=255, default=".secondshift.yaml")
     # The commit runs use. It moves only when a sync succeeds.
     config_sha = models.CharField(max_length=64, blank=True)

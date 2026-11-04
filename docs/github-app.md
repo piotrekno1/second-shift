@@ -96,10 +96,11 @@ checks three things:
   - **GitHub tools** need read access to Pull requests, Actions and Commit
     statuses.
   - **Draft pull requests** need write access to Contents and Pull requests.
+  - **Issues** need write access to Issues.
 
 For the App, SecondShift reads the installation's permissions. For a token, it
 makes one read request per permission. A token's write access cannot be checked
-without writing, so it is checked when a draft pull request opens.
+without writing, so it is checked when a draft pull request or an issue opens.
 
 Each gap links to the page on GitHub that fixes it. The worker checks each
 GitHub connection once a day, and right away when a sync fails.
@@ -128,6 +129,17 @@ the App's permissions, each installation owner must accept them on GitHub.
 
 Only publishing asks for a write token. It is scoped to one repository and
 used for one push and one request. Syncs and checkouts stay read-only.
+
+## Issues
+
+Jobs that set `open_issues` can open the issues their agent proposes, when an
+owner allows issues for the repository. For this, the App needs one more
+repository permission:
+
+- **Issues: Read and write**, to search open issues and open new ones.
+
+Opening issues asks for a token limited to the run's repository and to issues.
+It is used after the run and never reaches the sandbox or the model.
 
 Disconnecting the source connection blocks future syncs and new run checkouts.
 Removing repository access or uninstalling the App is detected by the next sync,
@@ -183,6 +195,7 @@ repository permissions:
   tools.
 - **Contents** and **Pull requests: Read and write**, for draft pull requests.
   Do not grant **Workflows**, for the reason given above.
+- **Issues: Read and write**, for jobs that open issues.
 
 GitHub checks the token before it is saved. It is stored encrypted and never
 returned to the browser or put in a sandbox. Its expiry date shows on
@@ -195,7 +208,7 @@ A token works differently from the App:
 
 - One token does everything it was given. SecondShift cannot narrow it per
   step, so a token that can write is also the one used to read.
-- Pushes and draft pull requests appear as the token's owner, and GitHub does
+- Pushes, draft pull requests and issues appear as the token's owner, and GitHub does
   not let you approve your own pull request.
 - API calls count against the owner's hourly GitHub limit.
 - When the owner loses access to a repository, or the token expires, its syncs

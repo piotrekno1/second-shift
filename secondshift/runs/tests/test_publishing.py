@@ -251,7 +251,7 @@ def test_runs_publish_before_they_notify(
 @pytest.mark.django_db
 def test_each_run_of_a_drafting_job_waits_to_publish(db: object) -> None:
     job = execution_run(db).job
-    Job.objects.filter(pk=job.pk).update(pull_request=True)
+    Job.objects.filter(pk=job.pk).update(open_pull_request=True)
     job.refresh_from_db()
 
     run = create_run(job, timezone.now(), started_by=RunStart.MANUAL)
@@ -274,14 +274,17 @@ def test_other_job_runs_have_no_pull_request(db: object) -> None:
 @pytest.mark.django_db
 def test_the_job_page_says_whether_its_drafts_can_open(client: Any, db: object) -> None:
     job = execution_run(db).job
-    Job.objects.filter(pk=job.pk).update(pull_request=True)
+    Job.objects.filter(pk=job.pk).update(open_pull_request=True)
     client.force_login(workspace_owner(job.workspace))
 
     blocked = client.get(f"/api/jobs/{job.pk}").json()
     Repository.objects.filter(pk=job.repository_id).update(allow_pull_requests=True)
     allowed = client.get(f"/api/jobs/{job.pk}").json()
 
-    assert (blocked["pull_request"], blocked["pull_requests_allowed"]) == (True, False)
+    assert (blocked["open_pull_request"], blocked["pull_requests_allowed"]) == (
+        True,
+        False,
+    )
     assert blocked["can_open_pull_requests"] is True
     assert allowed["pull_requests_allowed"] is True
     Repository.objects.filter(pk=job.repository_id).update(

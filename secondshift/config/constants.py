@@ -17,6 +17,7 @@ EXECUTE_RUN_WORKFLOW = "secondshift.execute_run"
 SCHEDULED_JOB_WORKFLOW = "secondshift.scheduled_job"
 RETRY_NOTIFICATION_WORKFLOW = "secondshift.retry_notification"
 RETRY_PULL_REQUEST_WORKFLOW = "secondshift.retry_pull_request"
+RETRY_ISSUES_WORKFLOW = "secondshift.retry_issues"
 
 ENVIRONMENT_VAR = "SECONDSHIFT_ENV"
 SETTINGS_MODULE_VAR = "DJANGO_SETTINGS_MODULE"
@@ -95,6 +96,8 @@ MAX_SOURCE_FILES = 200_000
 MAX_CHANGES_BYTES = 20 * 1024 * 1024
 MAX_OUTPUT_FILES = 100
 MAX_OUTPUT_BYTES = 100 * 1024 * 1024
+# Issues one run may open. A weekly review should file a few, not dozens.
+MAX_RUN_ISSUES = 10
 # Where a sandbox finds the folder for files it wants to hand back.
 SANDBOX_OUTPUTS_DIR = "/outputs"
 GITHUB_MCP_URL = "https://api.githubcopilot.com/mcp/readonly"

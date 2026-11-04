@@ -14,6 +14,7 @@ from secondshift.connections.models import AgentConnection
 from secondshift.runs.artifacts import run_payload
 from secondshift.runs.execution.deadlines import check_deadline, run_deadline
 from secondshift.runs.execution.external_tools import external_tools
+from secondshift.runs.execution.issues import issue_limit, issue_tool
 from secondshift.runs.execution.payload import payload_tool
 from secondshift.runs.execution.workspace_tools import (
     MODEL_TOOL_NAMES,
@@ -65,6 +66,8 @@ def broker_tools(run: Run) -> dict[str, Tool[WorkspaceToolDeps]]:
     tools = [tool for tool in workspace_tools() if tool.name in local]
     if run_payload(run):
         tools.append(payload_tool())
+    if issue_limit(run.execution_plan):
+        tools.append(issue_tool())
     return {tool.name: tool for tool in (*tools, *external_tools(run))}
 
 
@@ -97,6 +100,7 @@ def tool_result(
         deadline=run_deadline(run),
         allowed_tools=tuple(run.execution_plan["agent"]["tools"]),
         payload=run_payload(run),
+        issue_limit=issue_limit(run.execution_plan),
     )
     context = RunContext(deps=deps, model=None, usage=RunUsage(), tool_call_id=call_id)
     try:

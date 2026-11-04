@@ -19,6 +19,7 @@ from secondshift.runs.schemas import (
     RunFailureSchema,
     RunFileName,
     RunFileSchema,
+    RunIssueSchema,
     RunSavedFileSchema,
     RunSchema,
     RunSkippedFileSchema,
@@ -209,6 +210,15 @@ def serialize_run_detail(run: Run) -> RunDetailSchema:
         ],
         files=run_files(run),
         deliveries=[serialize_delivery(item) for item in run.deliveries.all()],
+        issues=[
+            RunIssueSchema(
+                title=issue.title,
+                number=issue.number,
+                url=issue.url,
+                already_open=issue.already_open,
+            )
+            for issue in run.issues.all()
+        ],
         changes=run_changes(run),
         saved_files=[
             RunSavedFileSchema(name=item["name"], size_bytes=item["size_bytes"])

@@ -59,8 +59,12 @@ class SkillSubmission(BaseModel):
             raise ValueError(
                 "A standalone task cannot set a schedule, triggers or job history."
             )
-        if self.definition.pull_request:
-            raise ValueError("Set pull_request on the task, not in its definition.")
+        if self.definition.open_pull_request:
+            raise ValueError(
+                "Set pull_request on the task, not open_pull_request in its definition."
+            )
+        if self.definition.open_issues:
+            raise ValueError("Only saved jobs can open issues.")
         return self
 
 

@@ -42,6 +42,10 @@ class RepositoryPullRequestsSchema(Schema):
     run_ci: bool = False
 
 
+class RepositoryIssuesSchema(Schema):
+    allow: bool
+
+
 class RepositoryValidationSchema(Schema):
     status: Literal["valid", "warning", "error"]
     message: str
@@ -69,6 +73,8 @@ class RepositoryDetailSchema(RepositorySchema):
     can_open_pull_requests: bool
     allow_pull_requests: bool
     pull_request_ci: bool
+    # GitHub repositories only, like pull requests.
+    allow_issues: bool
     validation: RepositoryValidationSchema
     jobs: list[RepositoryJobSchema]
 

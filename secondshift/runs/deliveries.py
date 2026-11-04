@@ -7,6 +7,7 @@ from django.conf import settings
 from django.db import transaction
 
 from secondshift.config.constants import (
+    RETRY_ISSUES_WORKFLOW,
     RETRY_NOTIFICATION_WORKFLOW,
     RETRY_PULL_REQUEST_WORKFLOW,
 )
@@ -20,9 +21,10 @@ class DeliveryQueueUnavailable(Exception):
 
 
 def retryable(delivery: RunDelivery) -> bool:
-    # A pull request needs no connection. The repository's GitHub App sends it.
+    # Pull requests and issues need no connection. The repository's own
+    # GitHub access sends them.
     return delivery.status == RunDelivery.Status.FAILED and (
-        delivery.kind == RunDelivery.Kind.PULL_REQUEST
+        delivery.kind in {RunDelivery.Kind.PULL_REQUEST, RunDelivery.Kind.ISSUES}
         or delivery.connection_id is not None
     )
 
@@ -46,6 +48,9 @@ def retry_delivery(run: Run, delivery_id: int) -> RunDelivery:
     if delivery.kind == RunDelivery.Kind.PULL_REQUEST:
         RunEvent.objects.create(run=run, message="Retrying the pull request.")
         enqueue_retry(RETRY_PULL_REQUEST_WORKFLOW, f"pull-request-{run.pk}", run.pk)
+    elif delivery.kind == RunDelivery.Kind.ISSUES:
+        RunEvent.objects.create(run=run, message="Retrying the issues.")
+        enqueue_retry(RETRY_ISSUES_WORKFLOW, f"issues-{run.pk}", run.pk)
     else:
         RunEvent.objects.create(
             run=run, message=f"Retrying the notification to {delivery.target}."

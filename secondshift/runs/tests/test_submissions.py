@@ -703,8 +703,16 @@ def test_asking_for_a_pull_request_is_part_of_the_submission(
 def test_a_task_definition_cannot_ask_for_a_pull_request(
     repository: Repository,
 ) -> None:
-    with pytest.raises(ValidationError, match="not in its definition"):
+    with pytest.raises(ValidationError, match="not open_pull_request in its definition"):
         submission(
             repository,
-            definition={"name": "Review", "skill": SKILL, "pull_request": True},
+            definition={"name": "Review", "skill": SKILL, "open_pull_request": True},
+        )
+
+
+def test_a_task_cannot_open_issues(repository: Repository) -> None:
+    with pytest.raises(ValidationError, match="Only saved jobs can open issues"):
+        submission(
+            repository,
+            definition={"name": "Review", "skill": SKILL, "open_issues": True},
         )
