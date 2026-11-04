@@ -108,6 +108,8 @@ Ask for files in the task, such as "save the findings as a CSV". The agent saves
 them in `/outputs`, and the run page lists them under **Files**. Saved files
 always download, so a browser never opens them as a page. SecondShift keeps up
 to 100 files and 100 MiB per run. Links and other special files are skipped.
+When the report links to a saved file, such as `[findings](/outputs/findings.csv)`,
+the link downloads that file from the run.
 
 If the agent edits repository files, **Files** shows how many changed. Open or
 download the changes as a patch. Nothing is pushed to the repository unless the

@@ -99,3 +99,28 @@ def test_notifications_without_collected_files_add_no_line(settings: Any) -> Non
 
     assert payload["outputs"] == {"changed_files": 0, "saved_files": []}
     assert payload["text"].count("\n\n") == 2
+
+
+def test_links_to_saved_files_open_their_download(settings: Any) -> None:
+    settings.FRONTEND_URL = "https://secondshift.example/"
+    run = finished_run(
+        Run.Status.SUCCEEDED,
+        "See [the list](/outputs/reports/license%20list.csv), "
+        "[a|b](/outputs/a.csv) and [missing](/outputs/gone.csv).",
+    )
+    run.outputs = {
+        "files": [
+            {"name": "reports/license list.csv", "size_bytes": 9, "path": "x"},
+            {"name": "a.csv", "size_bytes": 3, "path": "y"},
+        ]
+    }
+
+    payload = run_report_payload(run)
+
+    base = "https://secondshift.example/api/runs/2/saved-files"
+    assert payload["text"].splitlines()[2] == (
+        f"See <{base}/reports/license%20list.csv|the list>, "
+        f"<{base}/a.csv|ab> and [missing](/outputs/gone.csv)."
+    )
+    # The structured summary stays as the agent wrote it.
+    assert payload["run"]["summary"].startswith("See [the list](/outputs/")

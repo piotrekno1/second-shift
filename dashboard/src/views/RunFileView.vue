@@ -6,6 +6,7 @@ import PageHeader from '../components/PageHeader.vue'
 import { fetchRunFile, runFileUrl } from '../services/runs'
 import type { RunFileName } from '../types'
 import { renderMarkdown } from '../utils/markdown'
+import { runOutputLink } from '../utils/runOutputLink'
 
 const LABELS: Record<RunFileName, string> = { input: 'Input', output: 'Output' }
 const DESCRIPTIONS: Record<RunFileName, string> = {
@@ -21,7 +22,11 @@ const view = ref<'rendered' | 'raw'>('rendered')
 
 const runId = computed(() => Number(route.params.id))
 const name = computed<RunFileName>(() => (route.params.name === 'input' ? 'input' : 'output'))
-const rendered = computed(() => (content.value === null ? '' : renderMarkdown(content.value)))
+// Only the report's links point at files this run saved.
+const rendered = computed(() => {
+  if (content.value === null) return ''
+  return name.value === 'output' ? renderMarkdown(content.value, (href) => runOutputLink(href, runId.value)) : renderMarkdown(content.value)
+})
 
 async function load(): Promise<void> {
   loading.value = true

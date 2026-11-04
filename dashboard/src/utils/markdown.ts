@@ -12,7 +12,16 @@ DOMPurify.addHook('afterSanitizeAttributes', (node) => {
   }
 })
 
-export function renderMarkdown(text: string): string {
-  const html = marked.parse(text, { async: false, gfm: true })
+/** Render sanitized HTML. `link` may rewrite each link target first. */
+export function renderMarkdown(text: string, link?: (href: string) => string): string {
+  const html = marked.parse(text, {
+    async: false,
+    gfm: true,
+    walkTokens: link
+      ? (token) => {
+          if (token.type === 'link') token.href = link(token.href)
+        }
+      : null,
+  })
   return DOMPurify.sanitize(html, { FORBID_TAGS: FORBIDDEN_TAGS, FORBID_ATTR: ['style'] })
 }

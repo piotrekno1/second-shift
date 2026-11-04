@@ -1,5 +1,7 @@
+import re
 from datetime import UTC, datetime, timedelta
 from typing import Any
+from urllib.parse import quote, unquote
 
 from django.conf import settings
 
@@ -21,6 +23,8 @@ STATUS_MARKS = {
     Run.Status.FAILED: "❌",
     Run.Status.CANCELED: "⏹️",
 }
+# A Markdown link to a file the agent saved, such as [report](/outputs/a.csv).
+OUTPUT_LINK = re.compile(r"\[([^\]\n]+)\]\(/outputs/([^)\s]+)\)")
 
 
 def notification_targets(run: Run) -> list[int]:
@@ -125,11 +129,27 @@ def outputs_line(run: Run) -> str:
     return " · ".join(parts)
 
 
+def link_saved_files(run: Run, text: str) -> str:
+    """Point links to saved files at their download. Opening one needs a sign-in."""
+    saved = {item["name"] for item in (run.outputs or {}).get("files", [])}
+    base = f"{settings.FRONTEND_URL.rstrip('/')}/api/runs/{run.pk}/saved-files/"
+
+    def replace(match: re.Match[str]) -> str:
+        name = unquote(match.group(2))
+        if name not in saved:
+            return match.group(0)
+        # | and > would end Slack's link syntax early.
+        label = re.sub(r"[|<>]", "", match.group(1)).strip() or name
+        return f"<{base}{quote(name)}|{label}>"
+
+    return OUTPUT_LINK.sub(replace, text)
+
+
 def run_report_text(run: Run, run_url: str) -> str:
     """Status first, then the summary, then the link, with blank lines between."""
     status = STATUS_LABELS.get(run.status, run.status)
     mark = STATUS_MARKS.get(run.status, "•")
-    summary = run.summary.strip() or "No summary."
+    summary = link_saved_files(run, run.summary.strip()) or "No summary."
     lines = [
         f"{mark} {run.display_name} {status} · {run.repository.full_name}",
         summary,
