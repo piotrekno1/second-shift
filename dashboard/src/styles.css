@@ -922,3 +922,41 @@ body .workspace-menu { width: 224px; }
 @media (max-width: 720px) { .setup-checklist li { grid-template-columns: 28px minmax(0,1fr); }.setup-actions { grid-column: 2; justify-content: flex-start; } }
 .provider-group { margin: 8px 0 16px; padding: 0 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--white-3); }.provider-group > .need:first-of-type { border-top: 1px solid var(--white-8); }.provider-group-heading { display: grid; grid-template-columns: 40px minmax(0,1fr) auto; align-items: center; gap: 16px; padding: 14px 4px; }.provider-group-heading .connection-name { font-family: var(--font-sans); font-size: 14px; }.provider-group-tools { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 12px; }.provider-group-hint { margin: 0 4px 14px 60px; color: var(--muted); font-size: 11px; }
 @media (max-width: 720px) { .provider-group-heading { grid-template-columns: 36px minmax(0,1fr); }.provider-group-tools { grid-column: 2; flex-wrap: wrap; }.provider-group-hint { margin-left: 0; } }
+
+/* Agent setup uses the same dialog surface and field rhythm as task submission. */
+.agent-dialog.p-dialog { width: min(600px, calc(100vw - 32px)); max-height: calc(100dvh - 48px); border: 1px solid var(--border); border-radius: 16px; color: var(--ink); background: var(--night-900); box-shadow: 0 32px 100px #0009; }
+.agent-dialog .p-dialog-header { padding: 24px 28px 8px; }
+.agent-dialog .p-dialog-title { font-size: 20px; font-weight: 600; letter-spacing: -.025em; }
+.agent-dialog .p-dialog-content { padding: 0 28px 24px; }
+.agent-lead { margin: 8px 0 24px; color: var(--muted); font-size: 13px; line-height: 1.6; }
+.agent-fields, .agent-result { display: grid; gap: 16px; margin-top: 20px; }
+.agent-field { display: grid; gap: 8px; min-width: 0; font-size: 13px; font-weight: 500; }
+.agent-field .p-inputtext, .agent-field .p-select { width: 100%; min-width: 0; font-size: 13px; color: var(--ink); background: var(--field); border-color: var(--field-border); }
+.agent-field .p-inputtext { padding: 10px 12px; }
+.agent-options { display: grid; grid-template-columns: minmax(0, 1fr) 140px; gap: 12px; }
+.agent-field .p-select-label { white-space: normal; }
+.agent-workspace { display: flex; justify-content: space-between; gap: 12px; margin: 0; color: var(--muted); font-size: 12px; }
+.agent-workspace strong { color: var(--ink); overflow-wrap: anywhere; }
+.agent-hint { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.agent-success { display: flex; align-items: center; gap: 8px; color: var(--mint); font-size: 13px; }
+.agent-instruction { margin: 0; font-size: 13px; line-height: 1.6; }
+.agent-code { margin: 0; padding: 16px; border: 1px solid var(--border); border-radius: 8px; color: var(--ink); background: var(--night-950); white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; line-height: 1.7; }
+.agent-code:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.agent-result > .p-button { justify-self: start; }
+.agent-prompt { color: var(--ink); }
+.agent-help { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border); color: var(--subtle); font-size: 11px; line-height: 1.6; }
+.agent-help > span { min-width: 0; overflow-wrap: anywhere; }
+.agent-help a { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); }
+.agent-discovery { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; padding: 16px 20px; border: 1px solid var(--border); border-radius: 12px; background: var(--white-3); }
+.agent-discovery > .app-icon { flex: none; color: var(--muted); font-size: 20px; }
+.agent-discovery > div { flex: 1; display: grid; gap: 4px; }
+.agent-discovery strong { font-size: 13px; font-weight: 500; }
+.agent-discovery span { color: var(--muted); font-size: 12px; line-height: 1.6; }
+.agent-discovery > .p-button { flex: none; }
+@media (max-width: 600px) {
+  .agent-dialog .p-dialog-header { padding: 20px 20px 8px; }
+  .agent-dialog .p-dialog-content { padding: 0 20px 20px; }
+  .agent-options { grid-template-columns: minmax(0, 1fr); }
+  .agent-discovery { flex-wrap: wrap; }
+  .agent-discovery > .p-button { margin-left: 36px; }
+}
