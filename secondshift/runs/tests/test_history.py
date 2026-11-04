@@ -11,7 +11,7 @@ from secondshift.jobs.manifest import JobManifest, load_manifest
 from secondshift.jobs.models import Job
 from secondshift.repositories.models import Repository
 from secondshift.runs.artifacts import artifact_storage, store_run_text
-from secondshift.runs.execution.run import run_prompt
+from secondshift.runs.execution.run import reporting_time, run_prompt
 from secondshift.runs.history import CUT_NOTE, previous_reports
 from secondshift.runs.models import Run
 from secondshift.runs.orchestration.workflows import create_scheduled_run_step
@@ -104,7 +104,7 @@ def test_without_history_the_prompt_is_unchanged(repository) -> None:
     run = create_run(job, timezone.now())
 
     assert run.input_snapshot["history_run_ids"] == []
-    assert run_prompt(run).endswith(run.scheduled_for.isoformat())
+    assert run_prompt(run).endswith(reporting_time(run))
 
 
 def test_missing_report_is_marked_not_fatal(repository) -> None:
