@@ -57,6 +57,9 @@ def generate_environment(hostname: str, directory: Path) -> None:
         },
         Service.GATEWAY: {
             **common,
+            # The agent broker runs workspace tools for subscription runs.
+            AppEnv.RUNNER_SERVICE_URL: "http://secondshift-runner:8002",
+            AppEnv.RUNNER_SERVICE_TOKEN: token,
             AppEnv.ALLOWED_HOSTS: "secondshift-gateway",
             "SECONDSHIFT_HTTP_BIND": "0.0.0.0:8001",
             "SECONDSHIFT_HTTP_GRACEFUL_TIMEOUT_SECONDS": "600",

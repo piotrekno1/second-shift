@@ -30,6 +30,7 @@ TOKEN_KEYS = (
     "cache_read_input_tokens",
 )
 BROKER_TOKEN_VAR = "SECONDSHIFT_BROKER_TOKEN"
+BROKER_STARTUP_TIMEOUT_SECONDS = 60
 
 
 @dataclass
@@ -110,6 +111,10 @@ def codex(config: dict[str, Any]) -> tuple[list[str], dict[str, str]]:
 # The broker enforces the run's approved tools. Unattended runs cannot
 # answer a second approval prompt from the CLI.
 default_tools_approval_mode = "approve"
+# Without the broker the run has no tools. Wait for it, and fail the run
+# if it never answers, instead of letting the model report missing tools.
+required = true
+startup_timeout_sec = {BROKER_STARTUP_TIMEOUT_SECONDS}
 url = {json.dumps(config["broker_url"])}
 bearer_token_env_var = "{BROKER_TOKEN_VAR}"
 """
@@ -133,6 +138,8 @@ apps = false
 computer_use = false
 image_generation = false
 apply_patch_freeform = false
+# Start the turn only after the broker has listed its tools.
+incremental_tools = false
 {broker}""",
     )
     argv = ["codex", "exec", "--skip-git-repo-check", "--ephemeral"]

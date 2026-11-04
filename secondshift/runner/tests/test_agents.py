@@ -154,6 +154,13 @@ def test_packaged_agents_disable_native_tools_and_use_only_the_broker(
     assert parsed["mcp_servers"]["secondshift"]["default_tools_approval_mode"] == (
         "approve"
     )
+    # A slow broker must not start the turn without tools, or the model reports
+    # the tools as missing and the run still succeeds.
+    assert parsed["mcp_servers"]["secondshift"]["required"] is True
+    assert parsed["mcp_servers"]["secondshift"]["startup_timeout_sec"] == (
+        agent.BROKER_STARTUP_TIMEOUT_SECONDS
+    )
+    assert parsed["features"]["incremental_tools"] is False
     for feature in (
         "shell_tool",
         "unified_exec",
