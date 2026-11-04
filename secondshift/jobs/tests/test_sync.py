@@ -293,20 +293,20 @@ jobs:
   docs:
     name: Docs drift
     skill: .agents/skills/docs/SKILL.md
-    pull_request: true
+    open_pull_request: true
 """.strip()
     )
 
     job = Job.objects.get(pk=sync_manifest(repository, path)[0].pk)
     plan = build_execution_plan(job)
 
-    assert job.pull_request is True
+    assert job.open_pull_request is True
     assert plan["pull_request"] == {"base": "main", "run_ci": False}
     assert plan["runner"]["collect_changes"] is True
 
-    path.write_text(path.read_text().replace("\n    pull_request: true", ""))
+    path.write_text(path.read_text().replace("\n    open_pull_request: true", ""))
     job = Job.objects.get(pk=sync_manifest(repository, path)[0].pk)
-    assert job.pull_request is False
+    assert job.open_pull_request is False
     assert build_execution_plan(job)["pull_request"] is None
 
 
@@ -324,19 +324,19 @@ jobs:
   review:
     name: Weekly review
     skill: .agents/skills/review/SKILL.md
-    issues: true
+    open_issues: true
 """.strip()
     )
 
     job = Job.objects.get(pk=sync_manifest(repository, path)[0].pk)
     plan = build_execution_plan(job)
 
-    assert job.issues is True
-    assert plan["issues"] == {"max": MAX_RUN_ISSUES}
+    assert job.open_issues == {"max": MAX_RUN_ISSUES, "labels": []}
+    assert plan["issues"] == {"max": MAX_RUN_ISSUES, "labels": []}
     # Issues need no file changes, so the run does not record them.
     assert plan["runner"]["collect_changes"] is False
 
-    path.write_text(path.read_text().replace("\n    issues: true", ""))
+    path.write_text(path.read_text().replace("\n    open_issues: true", ""))
     job = Job.objects.get(pk=sync_manifest(repository, path)[0].pk)
-    assert job.issues is False
+    assert job.open_issues is None
     assert build_execution_plan(job)["issues"] is None

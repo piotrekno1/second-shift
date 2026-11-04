@@ -48,12 +48,17 @@ def open_issue_titled(token: str, full_name: str, title: str) -> Issue | None:
     return None
 
 
-def open_issue(token: str, full_name: str, title: str, body: str) -> Issue:
+def open_issue(
+    token: str, full_name: str, title: str, body: str, labels: list[str]
+) -> Issue:
+    payload: dict[str, Any] = {
+        "title": title[:MAX_TITLE_CHARS],
+        "body": body[:MAX_BODY_CHARS],
+    }
+    if labels:
+        payload["labels"] = labels
     created = send(
-        "POST",
-        f"{GITHUB_API_URL}/repos/{full_name}/issues",
-        token,
-        json={"title": title[:MAX_TITLE_CHARS], "body": body[:MAX_BODY_CHARS]},
+        "POST", f"{GITHUB_API_URL}/repos/{full_name}/issues", token, json=payload
     )
     if created.status_code != 201:
         raise GitHubError(f"GitHub did not open the issue: {reason(created)}")

@@ -147,6 +147,11 @@ class RunLimitsUpdateSchema(Schema):
     timeout_seconds: int | None = None
 
 
+class OpenIssuesSchema(Schema):
+    labels: list[str]
+    max: int
+
+
 class JobDetailSchema(JobSchema):
     key: str
     config_hash: str
@@ -154,13 +159,13 @@ class JobDetailSchema(JobSchema):
     # Trigger kinds the configuration names, such as "webhook".
     triggers: list[str]
     # The configuration asks for a draft pull request with each run's changes.
-    pull_request: bool
+    open_pull_request: bool
     # A GitHub repository, so drafts could open. Local repositories cannot.
     can_open_pull_requests: bool
     # An owner allows pull requests for the repository, so drafts open.
     pull_requests_allowed: bool
-    # The configuration asks to open the issues each run proposes.
-    issues: bool
+    # The configuration asks to open the issues each run proposes. None if not.
+    open_issues: OpenIssuesSchema | None
     # An owner allows issues for the repository, so they open.
     issues_allowed: bool
     repository_revision: str

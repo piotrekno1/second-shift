@@ -16,7 +16,7 @@ def reply(status: int, payload: object) -> httpx.Response:
 def test_an_issue_opens(monkeypatch: pytest.MonkeyPatch) -> None:
     send = Mock(return_value=reply(201, {"number": 12, "html_url": URL}))
     monkeypatch.setattr(issues, "send", send)
-    opened = issues.open_issue("token", "owner/project", "Flaky test", "Details")
+    opened = issues.open_issue("token", "owner/project", "Flaky test", "Details", [])
     assert opened == issues.Issue(12, URL)
     assert send.call_args.args[:2] == (
         "POST",
@@ -32,7 +32,7 @@ def test_a_refused_issue_says_why(monkeypatch: pytest.MonkeyPatch) -> None:
         Mock(return_value=reply(403, {"message": "Resource not accessible"})),
     )
     with pytest.raises(GitHubError, match="Resource not accessible"):
-        issues.open_issue("token", "owner/project", "Flaky test", "Details")
+        issues.open_issue("token", "owner/project", "Flaky test", "Details", [])
 
 
 def test_an_open_issue_with_the_same_title_is_found(
@@ -78,3 +78,10 @@ def test_only_the_exact_title_counts(monkeypatch: pytest.MonkeyPatch) -> None:
         issues.Issue(3, URL)
     )
     assert issues.open_issue_titled("token", "owner/project", "Flaky") is None
+
+
+def test_labels_are_sent_when_given(monkeypatch: pytest.MonkeyPatch) -> None:
+    send = Mock(return_value=reply(201, {"number": 12, "html_url": URL}))
+    monkeypatch.setattr(issues, "send", send)
+    issues.open_issue("token", "owner/project", "Flaky test", "", ["triage", "ci"])
+    assert send.call_args.kwargs["json"]["labels"] == ["triage", "ci"]

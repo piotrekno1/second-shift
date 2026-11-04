@@ -35,7 +35,9 @@ def context(
 
 @pytest.fixture
 def filing_run(job: Job) -> Run:  # noqa: F811
-    Job.objects.filter(pk=job.pk).update(issues=True)
+    Job.objects.filter(pk=job.pk).update(
+        open_issues={"max": MAX_RUN_ISSUES, "labels": []}
+    )
     return start_run(Job.objects.get(pk=job.pk), RunStart.MANUAL)
 
 

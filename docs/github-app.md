@@ -132,7 +132,7 @@ used for one push and one request. Syncs and checkouts stay read-only.
 
 ## Issues
 
-Jobs that set `issues: true` can open the issues their agent proposes, when an
+Jobs that set `open_issues` can open the issues their agent proposes, when an
 owner allows issues for the repository. For this, the App needs one more
 repository permission:
 

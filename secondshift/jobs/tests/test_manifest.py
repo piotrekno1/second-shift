@@ -144,9 +144,11 @@ def test_manifest_refuses_unknown_or_repeated_triggers(extra: str) -> None:
 def test_jobs_without_triggers_or_pull_requests_keep_their_hash() -> None:
     plain = parse_manifest(job_with("")).jobs["triage"]
     triggered = parse_manifest(job_with("    triggers: [webhook]")).jobs["triage"]
-    drafting = parse_manifest(job_with("    pull_request: true")).jobs["triage"]
-    filing = parse_manifest(job_with("    issues: true")).jobs["triage"]
-    before = plain.model_dump(exclude={"triggers", "webhook", "pull_request", "issues"})
+    drafting = parse_manifest(job_with("    open_pull_request: true")).jobs["triage"]
+    filing = parse_manifest(job_with("    open_issues: true")).jobs["triage"]
+    before = plain.model_dump(
+        exclude={"triggers", "webhook", "open_pull_request", "open_issues"}
+    )
     canonical = json.dumps(before, sort_keys=True, separators=(",", ":"))
 
     assert manifest_hash(plain) == hashlib.sha256(canonical.encode()).hexdigest()
@@ -205,7 +207,7 @@ def test_manifest_refuses_bad_webhook_settings(extra: str, message: str) -> None
 def test_jobs_without_webhook_settings_keep_their_hash() -> None:
     triggered = parse_manifest(job_with("    triggers: [webhook]")).jobs["triage"]
     canonical = json.dumps(
-        triggered.model_dump(exclude={"webhook", "pull_request", "issues"}),
+        triggered.model_dump(exclude={"webhook", "open_pull_request", "open_issues"}),
         sort_keys=True,
         separators=(",", ":"),
     )
@@ -213,3 +215,37 @@ def test_jobs_without_webhook_settings_keep_their_hash() -> None:
     assert manifest_hash(triggered) == hashlib.sha256(canonical.encode()).hexdigest()
     with_settings = parse_manifest(job_with(WEBHOOK)).jobs["triage"]
     assert manifest_hash(with_settings) != manifest_hash(triggered)
+
+
+def test_open_issues_takes_labels_and_a_limit() -> None:
+    short = parse_manifest(job_with("    open_issues: true")).jobs["triage"]
+    full = parse_manifest(
+        job_with("    open_issues:\n      labels: [triage, ci]\n      max: 3")
+    ).jobs["triage"]
+    off = parse_manifest(job_with("    open_issues: false")).jobs["triage"]
+
+    assert short.open_issues is not None
+    assert (short.open_issues.labels, short.open_issues.max) == ([], 10)
+    assert full.open_issues is not None
+    assert (full.open_issues.labels, full.open_issues.max) == (["triage", "ci"], 3)
+    assert off.open_issues is None
+    assert manifest_hash(off) == manifest_hash(
+        parse_manifest(job_with("")).jobs["triage"]
+    )
+
+
+@pytest.mark.parametrize(
+    ("extra", "message"),
+    [
+        ("    open_issues:\n      max: 11", "max"),
+        ("    open_issues:\n      max: 0", "max"),
+        ("    open_issues:\n      labels: [ci, CI]", "list each label once"),
+        ("    open_issues:\n      labels: [' padded ']", "labels"),
+        ("    open_issues:\n      assignees: [someone]", "assignees"),
+    ],
+)
+def test_open_issues_refuses_bad_settings(extra: str, message: str) -> None:
+    with pytest.raises(ManifestError) as error:
+        parse_manifest(job_with(extra))
+
+    assert message in str(error.value)

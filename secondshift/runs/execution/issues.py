@@ -90,6 +90,11 @@ def issue_tool() -> Tool[WorkspaceToolDeps]:
     return Tool(propose_issue, name=TOOL_NAME, prepare=only_with_issues)
 
 
+def issue_labels(plan: dict[str, Any]) -> list[str]:
+    """The labels the repository puts on every issue. The agent cannot add any."""
+    return list((plan.get("issues") or {}).get("labels", []))
+
+
 def issue_limit(plan: dict[str, Any]) -> int:
     """How many issues the plan lets the agent propose. Zero means none."""
     issues = plan.get("issues") or {}

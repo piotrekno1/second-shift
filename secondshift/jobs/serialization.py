@@ -19,6 +19,7 @@ from secondshift.jobs.schemas import (
     JobDetailSchema,
     JobSchema,
     LastRunSchema,
+    OpenIssuesSchema,
     ToolInputSchema,
 )
 from secondshift.repositories.models import Repository
@@ -167,10 +168,10 @@ def serialize_job_detail(job: Job, can_edit_limits: bool) -> JobDetailSchema:
         config_hash=job.config_hash,
         history=job.history,
         triggers=job.triggers,
-        pull_request=job.pull_request,
+        open_pull_request=job.open_pull_request,
         can_open_pull_requests=is_github,
         pull_requests_allowed=job.repository.allow_pull_requests and is_github,
-        issues=job.issues,
+        open_issues=OpenIssuesSchema(**job.open_issues) if job.open_issues else None,
         issues_allowed=job.repository.allow_issues and is_github,
         repository_revision=job.repository.config_sha,
         repository_enabled=job.repository.enabled,

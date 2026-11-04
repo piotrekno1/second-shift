@@ -40,8 +40,12 @@ class GitHub:
         number = self.already_open.get(title)
         return Issue(number, url(number)) if number else None
 
-    def open(self, token: str, full_name: str, title: str, body: str) -> Issue:
+    def open(
+        self, token: str, full_name: str, title: str, body: str, labels: list[str]
+    ) -> Issue:
         assert (token, full_name) == ("ghs_token", "current/project")
+        # Only the repository's labels. The agent cannot add any.
+        assert labels == ["triage"]
         if title in self.refuse:
             raise GitHubError("GitHub did not open the issue: Validation Failed")
         self.opened.append((title, body))
@@ -69,7 +73,7 @@ def run(db: object) -> Run:
     Repository.objects.filter(pk=run.repository.pk).update(allow_issues=True)
     run.status = Run.Status.SUCCEEDED
     run.finished_at = timezone.now()
-    run.execution_plan["issues"] = {"max": MAX_RUN_ISSUES}
+    run.execution_plan["issues"] = {"max": MAX_RUN_ISSUES, "labels": ["triage"]}
     run.save()
     RunDelivery.objects.create(
         run=run, kind=RunDelivery.Kind.ISSUES, target="Issues in current/project"
@@ -218,7 +222,9 @@ def test_runs_open_issues_before_they_notify(
 @pytest.mark.django_db
 def test_each_run_of_a_filing_job_waits_to_open_issues(db: object) -> None:
     job = execution_run(db).job
-    Job.objects.filter(pk=job.pk).update(issues=True)
+    Job.objects.filter(pk=job.pk).update(
+        open_issues={"max": MAX_RUN_ISSUES, "labels": []}
+    )
     job.refresh_from_db()
 
     run = create_run(job, timezone.now(), started_by=RunStart.MANUAL)
@@ -231,13 +237,16 @@ def test_each_run_of_a_filing_job_waits_to_open_issues(db: object) -> None:
 def test_the_job_and_run_pages_show_issues(
     client: Any, run: Run, github: GitHub
 ) -> None:
-    Job.objects.filter(pk=run.job_id).update(issues=True)
+    Job.objects.filter(pk=run.job_id).update(
+        open_issues={"max": MAX_RUN_ISSUES, "labels": []}
+    )
     client.force_login(workspace_owner(run.job.workspace))
     workflows.open_issues_step(run.pk)
 
     job = client.get(f"/api/jobs/{run.job_id}").json()
     detail = client.get(f"/api/runs/{run.pk}").json()
 
-    assert (job["issues"], job["issues_allowed"]) == (True, True)
+    assert job["open_issues"] == {"max": MAX_RUN_ISSUES, "labels": []}
+    assert job["issues_allowed"] is True
     assert [issue["number"] for issue in detail["issues"]] == [101, 7]
     assert detail["issues"][1]["already_open"] is True

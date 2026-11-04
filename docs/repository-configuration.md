@@ -83,8 +83,8 @@ standard-library tests work without installing packages.
 | `jobs.<key>.notify` | No | Webhook notification bindings requested by this job. |
 | `jobs.<key>.triggers` | No | Events that can start the job. Only `webhook` is supported. An owner or admin turns it on. See [webhook triggers](#webhook-triggers). |
 | `jobs.<key>.webhook` | No | Which webhook requests start a run: `skip_when`, `repeat_key` and `repeat_window`. Needs `triggers: [webhook]`. See [ignore requests and repeats](#ignore-requests-and-repeats). |
-| `jobs.<key>.pull_request` | No | Set to `true` to open a draft pull request with each run's changes. An owner must allow pull requests for the repository. See [draft pull requests](#draft-pull-requests). |
-| `jobs.<key>.issues` | No | Set to `true` to let the agent propose GitHub issues, which open after each successful run. An owner must allow issues for the repository. See [GitHub issues](#github-issues). |
+| `jobs.<key>.open_pull_request` | No | Set to `true` to open a draft pull request with each run's changes. An owner must allow pull requests for the repository. See [draft pull requests](#draft-pull-requests). |
+| `jobs.<key>.open_issues` | No | Set to `true`, or to `labels` and `max`, to let the agent propose GitHub issues. They open after each successful run. An owner must allow issues for the repository. See [GitHub issues](#github-issues). |
 | `jobs.<key>.requires` | No | MCP tools and HTTP API operations the job needs. See below. |
 
 Skill paths must stay inside the repository. Unknown fields are rejected.
@@ -129,7 +129,7 @@ jobs:
     name: Docs drift
     skill: .agents/skills/docs-drift/SKILL.md
     schedule: "0 9 * * 1"
-    pull_request: true
+    open_pull_request: true
 ```
 
 Each run then works on the followed branch, and the draft targets it. The
@@ -153,12 +153,21 @@ jobs:
     skill: .agents/skills/weekly-review/SKILL.md
     schedule: "0 9 * * 1"
     history: 1
-    issues: true
+    open_issues:
+      labels: [secondshift, weekly-review]
+      max: 5
     notify:
       - binding: team-chat
 ```
 
-The agent gets a `propose_issue` tool and can propose up to 10 issues per run.
+`open_issues: true` uses the defaults: no labels and up to 10 issues per run.
+
+| Field | Default | Description |
+|---|---|---|
+| `labels` | none | Up to 10 labels added to every issue the job opens. The agent cannot add or change labels. |
+| `max` | `10` | How many issues one run may propose, from 1 to 10. |
+
+The agent gets a `propose_issue` tool and can propose up to `max` issues per run.
 It never gets write access to GitHub. After a successful run, SecondShift opens
 each proposed issue in the job's repository, with a footer naming the run. It
 skips a proposal when an open issue has the same title, so a weekly job does

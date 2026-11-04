@@ -18,7 +18,7 @@ from pydantic import (
 )
 from pydantic_core import ErrorDetails
 
-from secondshift.config.constants import TriggerKind
+from secondshift.config.constants import MAX_RUN_ISSUES, TriggerKind
 
 
 class CapabilityManifest(BaseModel):
@@ -99,6 +99,28 @@ class WebhookManifest(BaseModel):
         return self
 
 
+IssueLabel = Annotated[
+    str, Field(min_length=1, max_length=50, pattern=r"^\S(?:.*\S)?$")
+]
+
+
+class OpenIssuesManifest(BaseModel):
+    """Where SecondShift opens the issues a job's agent proposes, and how many."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    # Added to every issue. The agent cannot choose labels.
+    labels: list[IssueLabel] = Field(default_factory=list, max_length=10)
+    max: int = Field(default=MAX_RUN_ISSUES, ge=1, le=MAX_RUN_ISSUES)
+
+    @field_validator("labels")
+    @classmethod
+    def distinct_labels(cls, value: list[str]) -> list[str]:
+        if len({label.casefold() for label in value}) != len(value):
+            raise ValueError("list each label once")
+        return value
+
+
 class JobManifest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -116,10 +138,19 @@ class JobManifest(BaseModel):
     webhook: WebhookManifest | None = None
     # Open a draft pull request with the agent's changes. An owner still
     # allows pull requests for the repository.
-    pull_request: bool = False
-    # Open the issues the agent proposes. An owner still allows issues for
-    # the repository.
-    issues: bool = False
+    open_pull_request: bool = False
+    # Open the issues the agent proposes. true uses the defaults. An owner
+    # still allows issues for the repository.
+    open_issues: OpenIssuesManifest | None = None
+
+    @field_validator("open_issues", mode="before")
+    @classmethod
+    def open_issues_short_form(cls, value: object) -> object:
+        if value is True:
+            return {}
+        if value is False:
+            return None
+        return value
 
     @field_validator("skill")
     @classmethod
@@ -257,10 +288,10 @@ def field_path(item: ErrorDetails) -> str:
 def manifest_hash(job: JobManifest) -> str:
     # Jobs keep the hash they had before these optional fields existed.
     unset = {"triggers"} if not job.triggers else set()
-    if not job.pull_request:
-        unset.add("pull_request")
-    if not job.issues:
-        unset.add("issues")
+    if not job.open_pull_request:
+        unset.add("open_pull_request")
+    if job.open_issues is None:
+        unset.add("open_issues")
     if job.webhook is None:
         unset.add("webhook")
     data = job.model_dump(exclude=unset or None)

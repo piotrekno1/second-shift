@@ -13,7 +13,7 @@ from secondshift.github.errors import GitHubError
 from secondshift.github.issues import open_issue, open_issue_titled
 from secondshift.repositories.github_access import github_access
 from secondshift.repositories.models import Repository
-from secondshift.runs.execution.issues import issue_limit
+from secondshift.runs.execution.issues import issue_labels, issue_limit
 from secondshift.runs.models import Run, RunDelivery, RunEvent, RunIssue
 from secondshift.runs.reporting.collection import plural
 
@@ -90,7 +90,11 @@ def open_run_issues(run_id: int) -> None:
             found = open_issue_titled(access.token, access.full_name, issue.title)
             if found is None:
                 found = open_issue(
-                    access.token, access.full_name, issue.title, issue_body(run, issue)
+                    access.token,
+                    access.full_name,
+                    issue.title,
+                    issue_body(run, issue),
+                    issue_labels(run.execution_plan),
                 )
             else:
                 issue.already_open = True
