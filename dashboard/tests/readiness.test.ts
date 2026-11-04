@@ -138,12 +138,12 @@ test('setup is done once a job is enabled or has run', () => {
 
 test('connecting an agent is offered while there is configuration to write', () => {
   const first = setupSteps(setup({ offerAgent: true }))!
-  assert.deepEqual(first.map((step) => step.offerAgent), [true, false, false])
+  assert.deepEqual(first.map((step) => step.agentHint?.link ?? ''), ['Let your coding agent write one', '', ''])
   const noJobs = setupSteps(setup({ ...withCode, jobs: 0, offerAgent: true }))!
-  assert.deepEqual(noJobs.map((step) => step.offerAgent), [false, false, true])
+  assert.deepEqual(noJobs.map((step) => step.agentHint?.link ?? ''), ['', '', 'Let your coding agent write a job'])
   // Once jobs exist, or access fails, the agent is not the next step.
-  assert.equal(setupSteps(setup({ ...withCode, offerAgent: true }))![2]!.offerAgent, false)
-  assert.equal(setupSteps(setup({ repositories: 1, accessProblem: 'Cannot reach owner/project.', offerAgent: true }))![0]!.offerAgent, false)
+  assert.equal(setupSteps(setup({ ...withCode, offerAgent: true }))![2]!.agentHint, null)
+  assert.equal(setupSteps(setup({ repositories: 1, accessProblem: 'Cannot reach owner/project.', offerAgent: true }))![0]!.agentHint, null)
   // People who already have a token are not asked again.
-  assert.equal(setupSteps(setup())![0]!.offerAgent, false)
+  assert.equal(setupSteps(setup())![0]!.agentHint, null)
 })

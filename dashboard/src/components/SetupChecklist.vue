@@ -30,15 +30,17 @@ const doneCount = computed(() => props.steps.filter((step) => step.done).length)
         :aria-current="index === current ? 'step' : undefined"
       >
         <span class="setup-mark"><AppIcon v-if="step.done" name="check" /><template v-else>{{ index + 1 }}</template></span>
-        <div class="setup-copy"><strong>{{ step.title }}</strong><span>{{ step.detail }}</span></div>
-        <div v-if="index === current && (step.actions.length || step.offerAgent)" class="setup-actions">
+        <div class="setup-copy">
+          <strong>{{ step.title }}</strong><span>{{ step.detail }}</span>
+          <span v-if="index === current && step.agentHint" class="setup-hint">{{ step.agentHint.lead }} <button type="button" class="link-button" @click="agentConnection.visible = true">{{ step.agentHint.link }}</button></span>
+        </div>
+        <div v-if="index === current && step.actions.length" class="setup-actions">
           <RouterLink
             v-for="(action, actionIndex) in step.actions"
             :key="action.label"
             :to="action.to"
             :class="actionIndex === 0 ? 'primary-action' : 'secondary-action'"
           ><AppIcon :name="action.icon" /> {{ action.label }}</RouterLink>
-          <button v-if="step.offerAgent" type="button" class="secondary-action" title="Your coding agent can write .secondshift.yaml with you over MCP." @click="agentConnection.visible = true"><AppIcon name="link-plus" /> Connect your agent</button>
         </div>
       </li>
     </ol>

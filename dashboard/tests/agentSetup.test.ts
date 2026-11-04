@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { agentSetup } from '../src/utils/agentSetup'
+import { agentCardDismissed, agentSetup, dismissAgentCard } from '../src/utils/agentSetup'
 
 test('all clients use the current instance, bearer token and workspace name', () => {
   for (const client of ['claude', 'codex', 'cursor', 'other'] as const) {
@@ -30,4 +30,20 @@ test('other clients get the transport and separate header name and value', () =>
   const setup = agentSetup('other', 'acme', 'http://127.0.0.1:8000', 'ss_example')
   assert.ok(setup.content.includes('Transport: Streamable HTTP'))
   assert.ok(setup.content.includes('Header: Authorization\nValue: Bearer ss_example'))
+})
+
+test('closing the agent card is remembered per person and workspace', () => {
+  const items = new Map<string, string>()
+  const storage = { getItem: (key: string) => items.get(key) ?? null, setItem: (key: string, value: string) => { items.set(key, value) } }
+  assert.equal(agentCardDismissed(storage, 'a@x.dev', 'acme'), false)
+  dismissAgentCard(storage, 'a@x.dev', 'acme')
+  assert.equal(agentCardDismissed(storage, 'a@x.dev', 'acme'), true)
+  assert.equal(agentCardDismissed(storage, 'b@x.dev', 'acme'), false)
+  assert.equal(agentCardDismissed(storage, 'a@x.dev', 'beta'), false)
+})
+
+test('storage that refuses access never breaks the card', () => {
+  const broken = { getItem: (): string | null => { throw new Error('denied') }, setItem: (): void => { throw new Error('denied') } }
+  assert.equal(agentCardDismissed(broken, 'a@x.dev', 'acme'), false)
+  assert.doesNotThrow(() => dismissAgentCard(broken, 'a@x.dev', 'acme'))
 })

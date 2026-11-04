@@ -45,3 +45,25 @@ export function agentSetup(client: AgentClient, workspaceSlug: string, origin: s
     nextStep: 'Save the server in your client and refresh its tools to check the connection.',
   }
 }
+
+/** Where the browser remembers that someone closed the after-setup agent card. */
+export function agentCardKey(email: string, workspaceSlug: string): string {
+  return `secondshift:agent-card-dismissed:${workspaceSlug}:${email}`
+}
+
+/** Whether this person closed the card in this workspace. Storage errors count as not closed. */
+export function agentCardDismissed(storage: Pick<Storage, 'getItem'>, email: string, workspaceSlug: string): boolean {
+  try {
+    return storage.getItem(agentCardKey(email, workspaceSlug)) !== null
+  } catch {
+    return false
+  }
+}
+
+export function dismissAgentCard(storage: Pick<Storage, 'setItem'>, email: string, workspaceSlug: string): void {
+  try {
+    storage.setItem(agentCardKey(email, workspaceSlug), new Date().toISOString())
+  } catch {
+    // Private browsing can refuse storage. The card then shows again next visit.
+  }
+}
