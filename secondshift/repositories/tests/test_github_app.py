@@ -526,7 +526,7 @@ def token_connection(workspace: Any) -> Connection:
         kind=Connection.Kind.SOURCE,
         auth_strategy=Connection.AuthStrategy.API_KEY,
         external_account_id="token:someone",
-        display_name="GitHub · someone (token)",
+        display_name="GitHub · someone",
         access_token="github_pat_" + "a" * 40,
     )
 

@@ -100,6 +100,52 @@ def test_a_new_token_for_the_same_account_replaces_the_old_one(
     assert second.access_token.endswith("b" * 40)
 
 
+def test_replacing_a_connection_keeps_it(
+    owner_client: Client, workspace: Workspace, token_owner: Mock
+) -> None:
+    first = github.connect_token_source(workspace, TOKEN)
+    response = owner_client.post(
+        "/api/connections/github-token",
+        {"token": "github_pat_" + "b" * 40, "connection_id": first.pk},
+        content_type="application/json",
+    )
+    assert response.status_code == 200
+    assert response.json()["id"] == first.pk
+    first.refresh_from_db()
+    assert first.access_token.endswith("b" * 40)
+
+
+def test_replacing_refuses_a_token_from_another_account(
+    owner_client: Client, workspace: Workspace, token_owner: Mock
+) -> None:
+    first = github.connect_token_source(workspace, TOKEN)
+    token_owner.return_value = TokenOwner("someone-else", None)
+    response = owner_client.post(
+        "/api/connections/github-token",
+        {"token": "github_pat_" + "b" * 40, "connection_id": first.pk},
+        content_type="application/json",
+    )
+    assert response.status_code == 422
+    assert "someone-else" in response.json()["detail"]
+    assert Connection.objects.count() == 1
+    first.refresh_from_db()
+    assert first.access_token == TOKEN
+
+
+def test_replacing_needs_a_token_connection(
+    owner_client: Client, workspace: Workspace, token_owner: Mock
+) -> None:
+    installation = github.Installation("42", "someone")
+    (app,) = github.link_installations(workspace, [installation])
+    response = owner_client.post(
+        "/api/connections/github-token",
+        {"token": TOKEN, "connection_id": app.pk},
+        content_type="application/json",
+    )
+    assert response.status_code == 404
+    token_owner.assert_not_called()
+
+
 def source(workspace: Workspace, **values: Any) -> Connection:
     return Connection.objects.create(
         workspace=workspace,

@@ -73,6 +73,8 @@ class WebhookConnectionUpdateSchema(Schema):
 
 class GitHubTokenConnectSchema(Schema):
     token: str = Field(min_length=1, max_length=2000)
+    # Replace the token of this connection instead of adding one.
+    connection_id: int | None = None
 
 
 class MCPConnectionCreateSchema(Schema):

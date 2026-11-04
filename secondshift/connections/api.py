@@ -160,8 +160,18 @@ def connect_github_token(
 ) -> ConnectionSchema:
     """Reach repositories with a personal access token instead of the App."""
     workspace = require(request, Action.ADD_GITHUB_REPOSITORIES)
+    replacing = None
+    if payload.connection_id is not None:
+        replacing = get_object_or_404(
+            Connection,
+            pk=payload.connection_id,
+            workspace=workspace,
+            provider=Connection.Provider.GITHUB,
+            kind=Connection.Kind.SOURCE,
+            auth_strategy=Connection.AuthStrategy.API_KEY,
+        )
     try:
-        connection = connect_token_source(workspace, payload.token)
+        connection = connect_token_source(workspace, payload.token, replacing)
     except GitHubError as error:
         raise HttpError(422, str(error)) from error
     return serialize_connection(connection)
