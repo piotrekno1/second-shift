@@ -658,3 +658,11 @@ def test_autosync_checks_token_repositories_and_skips_app_ones_without_the_app(
     [call] = heads.call_args_list
     assert call.args[0] == token_connection.access_token
     assert not Repository.objects.exclude(last_sync_error="").exists()
+
+
+def test_unconfigured_app_opens_token_setup(owner_client: Any, settings: Any) -> None:
+    settings.GITHUB_APP_ID = ""
+    response = owner_client.get("/github/connect/")
+    assert response.status_code == 302
+    assert response.url == "/repositories?add=github"
+    assert STATE_KEY not in owner_client.session

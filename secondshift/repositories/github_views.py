@@ -28,7 +28,7 @@ def github_start(request: HttpRequest) -> HttpResponse:
     except AccessDenied as error:
         raise PermissionDenied(str(error)) from error
     if not configured():
-        return HttpResponseBadRequest("GitHub App is not configured on this server.")
+        return redirect("/repositories?add=github")
     state = secrets.token_urlsafe(32)
     request.session[STATE_KEY] = {
         "state": state,

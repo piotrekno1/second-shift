@@ -91,9 +91,8 @@ function openImport(justConnected: boolean = false): void {
   })
 }
 // Start before the first render so the header button shows its loading state at once.
-if (app.can(Action.AddGitHubRepositories) && githubConnected.value) openImport()
-// Overview's setup links here with ?add=github or ?add=local.
-else if (route.query.add === 'github' && app.can(Action.AddGitHubRepositories)) connectingGitHub.value = true
+if (route.query.add === 'github' && app.can(Action.AddGitHubRepositories)) connectingGitHub.value = true
+else if (app.can(Action.AddGitHubRepositories) && githubConnected.value) openImport()
 async function tokenConnected(): Promise<void> {
   connectingGitHub.value = false
   await app.refresh()
@@ -159,6 +158,7 @@ function chooseDirectory(path: string): void {
         <template #icon><AppIcon name="folder-open-outline" /></template>
       </Button>
       <template v-if="app.can(Action.AddGitHubRepositories)">
+        <Button v-if="githubConnected" label="Connect GitHub / add PAT" severity="secondary" outlined :aria-expanded="connectingGitHub" aria-controls="github-connect" @click="showConnect" />
         <Button class="main-action" v-if="githubConnected" label="Add GitHub repository" :loading="github.loading" :disabled="github.loading" @click="addingGitHub = !addingGitHub">
           <template #icon><AppIcon name="github" /></template>
         </Button>
@@ -182,9 +182,9 @@ function chooseDirectory(path: string): void {
           </Button>
         </div>
         <div class="github-connect-option">
-          <h3>Personal access token</h3>
+          <h3>Personal access token (PAT)</h3>
           <p v-if="githubConfigured">For a single machine, or an organization where you cannot install apps. Stored encrypted.</p>
-          <p v-else>Choose its repositories on GitHub. SecondShift reaches only those. Stored encrypted.</p>
+          <p v-else>The GitHub App is not configured on this server. Connect with a fine-grained personal access token instead. Your token is stored encrypted.</p>
           <GitHubTokenForm @connected="tokenConnected" />
         </div>
       </div>
@@ -218,9 +218,9 @@ function chooseDirectory(path: string): void {
       <div class="github-import-footer">
         <span>Schedules stay off until you review the imported jobs.</span>
         <span class="github-import-links">
-          <a v-if="hasAppSource" href="/github/connect/?install=1">Missing a repository? Manage access <AppIcon name="open-in-new" /></a>
+          <a v-if="hasAppSource && githubConfigured" href="/github/connect/?install=1">Missing a repository? Manage access <AppIcon name="open-in-new" /></a>
           <a v-if="hasTokenSource" :href="GITHUB_TOKENS_URL" target="_blank" rel="noopener noreferrer">Edit your token's repositories <AppIcon name="open-in-new" /></a>
-          <button type="button" class="link-button" @click="addingGitHub = false; connectingGitHub = true">Add a GitHub connection</button>
+          <Button type="button" label="Connect another account / add PAT" severity="secondary" outlined @click="addingGitHub = false; connectingGitHub = true" />
         </span>
       </div>
     </form>

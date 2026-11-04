@@ -416,22 +416,24 @@ onMounted(async () => {
           <div class="row-glyph"><ProviderIcon provider="github" fallback="github" /></div>
           <div class="need-primary"><strong class="connection-name">GitHub</strong><span>{{ githubSummary }}</span></div>
           <div class="provider-group-tools">
-            <span>GitHub tools</span>
+            <span>Job tools</span>
             <StatusPill :status="githubTools ? 'connected' : 'pending'" :label="githubTools ? 'On' : 'Off'" />
             <Button v-if="canEdit && !githubTools && githubSources.length" label="Turn on" size="small" :loading="busy === 'github-tools'" @click="turnOnGitHubTools" />
             <Button v-else-if="canEdit && githubTools && app.can(Action.DisconnectConnections)" label="Turn off" size="small" severity="secondary" text @click="confirmRevoke = githubTools.id; confirmDelete = null" />
           </div>
         </div>
+        <p v-if="group.key === 'github' && !githubSources.length" class="provider-group-hint">Connect GitHub on <RouterLink :to="app.can(Action.AddGitHubRepositories) ? '/repositories?add=github' : '/repositories'">Repositories</RouterLink> to sync code and enable job tools.</p>
         <p v-if="group.key === 'github' && notices['github-tools']" class="need-notice" :class="{ ok: notices['github-tools'].ok }">
           <AppIcon :name="notices['github-tools'].ok ? 'check-circle-outline' : 'alert-circle-outline'" /> {{ notices['github-tools'].text }}
         </p>
-        <p v-else-if="group.key === 'github' && !githubTools && !githubSources.length" class="provider-group-hint">Connect GitHub on <RouterLink to="/repositories">Repositories</RouterLink> first. GitHub tools then use the same access.</p>
         <article v-for="connection in group.connections" :id="`connection-${connection.id}`" :key="connection.id" class="need" :class="{ unavailable: connection.status !== 'connected' }">
           <div class="need-row">
             <div class="row-glyph"><ProviderIcon :provider="connection.provider" :fallback="providerIcon[connection.provider] ?? kindIcon[connection.kind]" /></div>
             <div class="need-primary">
-              <strong class="connection-name">{{ group.key === 'github' ? connection.display_name.replace(/^GitHub · /, '') : connection.display_name }}</strong>
+              <strong class="connection-name">{{ group.key === 'github' && connection.auth === 'source' ? 'GitHub job tools' : group.key === 'github' ? connection.display_name.replace(/^GitHub · /, '') : connection.display_name }}</strong>
               <span>{{ kindLabel(connection.kind) }} · {{ connection.kind === 'source' ? sourceAuthLabel(connection.auth) : providerLabel(connection.provider) }}<template v-if="connection.target"> → {{ connection.target }}</template></span>
+              <small v-if="connection.provider === 'github' && connection.kind === 'source'">Repository access for {{ connection.display_name.replace(/^GitHub · /, '') }}</small>
+              <small v-if="connection.provider === 'github' && connection.kind === 'identity'">Sign-in only. Does not grant repository access.</small>
               <small v-if="connection.auth === 'source'">Uses each repository's GitHub connection</small>
               <small v-if="connection.kind === 'source' && connection.auth === 'token'" :class="{ expiring: expiresSoon(connection.expires_at), expired: tokenExpired(connection.expires_at) }">{{ !connection.expires_at ? 'Token does not expire' : tokenExpired(connection.expires_at) ? `Token expired ${formatDate(connection.expires_at)}. Syncs and runs stop until you replace it.` : `Token expires ${formatDate(connection.expires_at)}` }}</small>
               <small v-if="servedBindings(connection).length" class="served">
