@@ -21,7 +21,7 @@ from secondshift.gateway.tokens import revoke_run_tokens
 from secondshift.jobs.models import Job
 from secondshift.jobs.readiness import execution_problems
 from secondshift.jobs.scheduling import next_occurrence
-from secondshift.repositories.github_sync import github_repository_metadata
+from secondshift.repositories.github_access import github_access
 from secondshift.repositories.models import Repository
 from secondshift.repositories.sources import source_snapshot
 from secondshift.runner.client import get_runner_client
@@ -119,7 +119,7 @@ def prepare_source_step(run_id: int) -> None:
     repository = run.repository
     if repository.source_type != Repository.SourceType.LOCAL:
         # Lost access stops the run here, even if the snapshot is cached.
-        github_repository_metadata(repository)
+        github_access(repository)
     snapshot = source_snapshot(repository, run.commit_sha)
     RunEvent.objects.create(
         run=run,

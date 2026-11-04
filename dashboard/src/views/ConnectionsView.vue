@@ -7,6 +7,7 @@ import Button from 'primevue/button'
 import Menu from 'primevue/menu'
 import type { MenuItem } from 'primevue/menuitem'
 import ConnectionForm from '../components/ConnectionForm.vue'
+import GitHubTokenForm from '../components/GitHubTokenForm.vue'
 import PageHeader from '../components/PageHeader.vue'
 import ProviderIcon from '../components/ProviderIcon.vue'
 import StatusPill from '../components/StatusPill.vue'
@@ -14,7 +15,7 @@ import { approveNeed, deleteConnection, revokeConnection, testConnection } from 
 import { useAppStore } from '../stores/app'
 import type { CapabilityNeed, Connection, Notice } from '../types'
 import { Action } from '../utils/permissions'
-import { connectionUsageLine, countLabel, formatDate, formatRelative, kindLabel, providerLabel, utcTitle } from '../utils/format'
+import { connectionUsageLine, countLabel, expiresSoon, formatDate, tokenExpired, sourceAuthLabel, formatRelative, kindLabel, providerLabel, utcTitle } from '../utils/format'
 
 /** Which form is open: the header "Add", a need row, or a connection row. */
 type OpenForm = { mode: 'add' } | { mode: 'need', binding: string } | { mode: 'edit', id: number }
@@ -128,8 +129,20 @@ function editable(connection: Connection): boolean {
   return canEdit.value && (connection.kind === 'mcp' || connection.kind === 'api' || connection.provider === 'webhook')
 }
 
+/** A GitHub token source. Its token is replaced, not edited. */
+function replaceable(connection: Connection): boolean {
+  return connection.kind === 'source' && connection.auth === 'token' && connection.status === 'connected' && app.can(Action.AddGitHubRepositories)
+}
+
+async function tokenReplaced(connection: Connection): Promise<void> {
+  openForm.value = null
+  await app.refresh()
+  notices[`connection-${connection.id}`] = { ok: true, text: 'Token replaced. Its repositories keep working.' }
+}
+
 /** The one thing to do on a connection row, when something is wrong with it. */
 function fixLabel(connection: Connection): string | null {
+  if (replaceable(connection) && expiresSoon(connection.expires_at)) return 'Replace token'
   if (!editable(connection)) return null
   if (connection.status !== 'connected') return 'Reconnect'
   if (connection.last_check && !connection.last_check.ok) return 'Fix'
@@ -153,6 +166,7 @@ function openRowMenu(event: Event, connection: Connection): void {
   const test = testLabel(connection)
   if (test) items.push({ label: test, appIcon: connection.provider === 'webhook' ? 'send-outline' : 'refresh', command: () => sendTest(connection, `connection-${connection.id}`) })
   if (editable(connection)) items.push({ label: connection.status === 'connected' ? 'Edit' : 'Reconnect', appIcon: 'pencil-outline', command: () => toggle({ mode: 'edit', id: connection.id }) })
+  if (replaceable(connection)) items.push({ label: 'Replace token', appIcon: 'shield-key-outline', command: () => toggle({ mode: 'edit', id: connection.id }) })
   const danger: MenuItem[] = []
   if (connection.status !== 'revoked' && app.can(Action.DisconnectConnections)) danger.push({ label: 'Disconnect…', appIcon: 'power-plug-off-outline', danger: true, command: () => { confirmRevoke.value = connection.id; confirmDelete.value = null } })
   if (connection.status === 'revoked' && app.can(Action.DeleteConnections)) danger.push({ label: 'Delete…', appIcon: 'trash-can-outline', danger: true, command: () => { confirmDelete.value = connection.id; confirmRevoke.value = null } })
@@ -162,7 +176,7 @@ function openRowMenu(event: Event, connection: Connection): void {
 }
 
 function hasMenu(connection: Connection): boolean {
-  return Boolean(testLabel(connection) || editable(connection)
+  return Boolean(testLabel(connection) || editable(connection) || replaceable(connection)
     || (connection.status !== 'revoked' && app.can(Action.DisconnectConnections))
     || (connection.status === 'revoked' && app.can(Action.DeleteConnections)))
 }
@@ -362,7 +376,9 @@ onMounted(async () => {
             <div class="row-glyph"><ProviderIcon :provider="connection.provider" :fallback="providerIcon[connection.provider] ?? kindIcon[connection.kind]" /></div>
             <div class="need-primary">
               <strong class="connection-name">{{ connection.display_name }}</strong>
-              <span>{{ kindLabel(connection.kind) }} · {{ providerLabel(connection.provider) }}<template v-if="connection.target"> → {{ connection.target }}</template></span>
+              <span>{{ kindLabel(connection.kind) }} · {{ connection.kind === 'source' ? sourceAuthLabel(connection.auth) : providerLabel(connection.provider) }}<template v-if="connection.target"> → {{ connection.target }}</template></span>
+              <small v-if="connection.auth === 'source'">Uses each repository's GitHub connection</small>
+              <small v-if="connection.kind === 'source' && connection.auth === 'token'" :class="{ expiring: expiresSoon(connection.expires_at), expired: tokenExpired(connection.expires_at) }">{{ !connection.expires_at ? 'Token does not expire' : tokenExpired(connection.expires_at) ? `Token expired ${formatDate(connection.expires_at)}. Syncs and runs stop until you replace it.` : `Token expires ${formatDate(connection.expires_at)}` }}</small>
               <small v-if="servedBindings(connection).length" class="served">
                 Serves <template v-for="(need, index) in servedBindings(connection)" :key="need.binding"><template v-if="index">, </template><code>{{ need.binding }}</code> for <template v-for="(job, jobIndex) in need.jobs" :key="job.job_id"><template v-if="jobIndex">, </template><RouterLink :to="`/jobs/${job.job_id}`" class="need-job">{{ job.job_name }}</RouterLink><template v-if="need.required && !job.required"> (optional)</template></template></template>
               </small>
@@ -377,6 +393,7 @@ onMounted(async () => {
               </small>
             </div>
             <StatusPill v-if="connection.status === 'connected' && connection.last_check && !connection.last_check.ok" status="error" :label="isWebhook(connection) ? 'Delivery failed' : 'Check failed'" :title="connection.last_check.message" />
+            <StatusPill v-else-if="connection.status === 'connected' && connection.kind === 'source' && tokenExpired(connection.expires_at)" status="error" label="Token expired" />
             <StatusPill v-else :status="connection.status" />
             <div class="need-actions">
               <Button v-if="fixLabel(connection)" :label="isOpen({ mode: 'edit', id: connection.id }) ? 'Cancel' : fixLabel(connection)!" size="small" :loading="busy === `test-${connection.id}`" @click="toggle({ mode: 'edit', id: connection.id })" />
@@ -402,7 +419,8 @@ onMounted(async () => {
             <Button label="Cancel" severity="secondary" text size="small" @click="confirmDelete = null" />
             <Button label="Delete" severity="danger" size="small" :loading="busy === `delete-${connection.id}`" @click="remove(connection)" />
           </div>
-          <ConnectionForm v-if="isOpen({ mode: 'edit', id: connection.id })" class="inset" :connection="connection" @done="formDone" @cancel="openForm = null" />
+          <GitHubTokenForm v-if="isOpen({ mode: 'edit', id: connection.id }) && replaceable(connection)" class="need-setup inset" :connection-id="connection.id" @connected="tokenReplaced(connection)" />
+          <ConnectionForm v-else-if="isOpen({ mode: 'edit', id: connection.id })" class="inset" :connection="connection" @done="formDone" @cancel="openForm = null" />
         </article>
       </div>
       <div v-else class="empty-state compact"><AppIcon name="power-plug-off-outline" /><strong>Nothing connected yet</strong><span v-if="canEdit">Use <strong>Add connection</strong>, or connect a binding above.</span><span v-else>Workspace owners add connections.</span></div>

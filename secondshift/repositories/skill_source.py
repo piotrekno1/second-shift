@@ -6,8 +6,8 @@ from pathlib import Path
 from django.conf import settings
 
 from secondshift.config.constants import COMMIT_SHA_PATTERN
-from secondshift.repositories.github_app import installation_token
-from secondshift.repositories.github_sync import git_fetch, github_repository_metadata
+from secondshift.github.git import authenticated_git
+from secondshift.repositories.github_access import github_access
 from secondshift.repositories.local import committed_file, git
 from secondshift.repositories.mirrors import locked_mirror
 from secondshift.repositories.models import Repository
@@ -42,21 +42,19 @@ def skill_commit(
         if skill_path is not None:
             committed_file(root, commit, skill_path)
         return commit
-    metadata = github_repository_metadata(repository)
-    token = installation_token(
-        repository.github_connection.external_account_id, int(repository.external_id)
-    )
+    access = github_access(repository)
+    token = access.token
     with locked_mirror(repository.pk) as mirror:
-        git_fetch(
+        authenticated_git(
             mirror,
             token,
             "fetch",
             "--no-tags",
             "--",
-            f"https://github.com/{metadata['full_name']}.git",
+            access.clone_url,
             requested if is_commit else f"refs/heads/{requested}",
         )
-        commit = git_fetch(
+        commit = authenticated_git(
             mirror, token, "rev-parse", "--verify", "FETCH_HEAD^{commit}"
         )
         if not re.fullmatch(COMMIT_SHA_PATTERN, commit):

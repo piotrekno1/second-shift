@@ -3,8 +3,8 @@ from types import SimpleNamespace
 import pytest
 from pydantic_ai.exceptions import ModelHTTPError
 
+from secondshift.github.errors import GitHubError
 from secondshift.jobs.tool_rules import ToolRuleViolation
-from secondshift.repositories.github_app import GitHubAppError
 from secondshift.runner.protocol import RunnerProtocolError
 from secondshift.runs.models import Run
 from secondshift.runs.orchestration import workflows
@@ -180,7 +180,7 @@ def test_describe_failure_reads_what_failure_summary_writes() -> None:
 
 def test_checkout_explains_github_access_failure() -> None:
     assert failure_summary(
-        "checkout", GitHubAppError("The GitHub installation is disconnected.")
+        "checkout", GitHubError("The GitHub installation is disconnected.")
     ) == ("Couldn't check out the repository: The GitHub installation is disconnected.")
 
 

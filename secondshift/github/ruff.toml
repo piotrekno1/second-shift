@@ -1,0 +1,16 @@
+# This package must not depend on the Django apps, so every app can use it.
+# This list replaces the root one, so the root ban on requests is repeated.
+extend = "../../pyproject.toml"
+
+[lint.flake8-tidy-imports.banned-api]
+"requests".msg = "Use httpx, the project's one HTTP client."
+"secondshift.connections".msg = "secondshift.github must not import Django apps."
+"secondshift.core".msg = "secondshift.github must not import Django apps."
+"secondshift.gateway".msg = "secondshift.github must not import Django apps."
+"secondshift.jobs".msg = "secondshift.github must not import Django apps."
+"secondshift.mcp_server".msg = "secondshift.github must not import Django apps."
+"secondshift.repositories".msg = "secondshift.github must not import Django apps."
+"secondshift.runner".msg = "secondshift.github must not import Django apps."
+"secondshift.runs".msg = "secondshift.github must not import Django apps."
+"secondshift.triggers".msg = "secondshift.github must not import Django apps."
+"secondshift.workspaces".msg = "secondshift.github must not import Django apps."

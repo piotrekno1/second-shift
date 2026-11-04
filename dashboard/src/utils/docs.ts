@@ -8,6 +8,7 @@ export const DocsPage = {
   Tasks: 'tasks',
   RepositoryConfiguration: 'repository-configuration',
   SecurityModel: 'security-model',
+  GitHubAccess: 'github-app',
 } as const
 export type DocsPage = (typeof DocsPage)[keyof typeof DocsPage]
 

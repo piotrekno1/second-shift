@@ -51,11 +51,12 @@ def test_a_missing_commit_is_fetched_once_then_cached(
     source, revision = upstream
     fetched = []
 
-    def fetch(repository: Repository, commit_sha: str, mirror: Path) -> None:
+    def fetch(access: object, commit_sha: str, mirror: Path) -> None:
         fetched.append(commit_sha)
         git(mirror, "fetch", "--quiet", str(source), commit_sha)
 
     monkeypatch.setattr(sources, "fetch_github_commit", fetch)
+    monkeypatch.setattr(sources, "github_access", lambda repository: None)
 
     first = source_snapshot(github_repository, revision)
     second = source_snapshot(github_repository, revision)
@@ -75,10 +76,9 @@ def test_a_wiped_cache_rebuilds_the_same_snapshot(
     monkeypatch.setattr(
         sources,
         "fetch_github_commit",
-        lambda repository, sha, mirror: git(
-            mirror, "fetch", "--quiet", str(source), sha
-        ),
+        lambda access, sha, mirror: git(mirror, "fetch", "--quiet", str(source), sha),
     )
+    monkeypatch.setattr(sources, "github_access", lambda repository: None)
     first = source_snapshot(github_repository, revision)
 
     shutil.rmtree(settings.SOURCE_CACHE_ROOT)

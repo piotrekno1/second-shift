@@ -7,6 +7,7 @@ from django.utils import timezone
 
 from secondshift.config.constants import SandboxRuntime
 from secondshift.connections.models import Connection
+from secondshift.github.identity import clone_url
 from secondshift.jobs.models import Job
 from secondshift.repositories.models import Repository
 from secondshift.runs.models import Run, RunEvent
@@ -89,7 +90,7 @@ def seed_demo_data() -> None:
             github_connection=connections[Connection.Provider.GITHUB],
             external_id=f"demo-repository-{index}",
             full_name=name,
-            clone_url=f"https://github.com/{name}.git",
+            clone_url=clone_url(name),
             default_branch=branch,
             enabled=enabled,
             config_sha=commit_sha,

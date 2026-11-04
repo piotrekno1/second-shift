@@ -2,7 +2,6 @@
 
 import secrets
 import time
-from urllib.parse import urlencode
 
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
@@ -12,17 +11,13 @@ from django.shortcuts import redirect
 from django.urls import reverse
 from django.views.decorators.http import require_GET
 
-from secondshift.connections.models import Connection
-from secondshift.repositories.github_app import (
-    API_URL,
-    OAUTH_URL,
-    STATE_KEY,
-    GitHubAppError,
-    configured,
-    request_json,
-)
+from secondshift.connections.github import link_installations
+from secondshift.github import installations
+from secondshift.github.app import configured
+from secondshift.github.errors import GitHubError
 from secondshift.workspaces.access import AccessDenied, Action, require
-from secondshift.workspaces.models import Workspace
+
+STATE_KEY = "secondshift.github_installation"
 
 
 @login_required
@@ -41,8 +36,8 @@ def github_start(request: HttpRequest) -> HttpResponse:
         "time": time.time(),
     }
     if request.GET.get("install"):
-        return redirect(installation_url(state))
-    return redirect(authorization_url(state))
+        return redirect(installations.installation_url(state))
+    return redirect(installations.authorization_url(state, callback_url()))
 
 
 @login_required
@@ -74,80 +69,22 @@ def github_callback(request: HttpRequest) -> HttpResponse:
     code = request.GET.get("code", "")
     if not code:
         # Installations that already exist still require user authorization.
-        return redirect(authorization_url(state))
+        return redirect(installations.authorization_url(state, callback_url()))
     request.session.pop(STATE_KEY, None)
     try:
-        data = request_json(
-            "POST",
-            f"{OAUTH_URL}/access_token",
-            json={
-                "client_id": settings.GITHUB_APP_CLIENT_ID,
-                "client_secret": settings.GITHUB_APP_CLIENT_SECRET,
-                "code": code,
-                "redirect_uri": callback_url(),
-            },
-        )
-        token = data.get("access_token")
-        if not token:
-            raise GitHubAppError("GitHub did not authorize this user.")
-        if not link_installations(workspace, token):
+        token = installations.user_token(code, callback_url())
+        if not link_installations(workspace, installations.user_installations(token)):
             state = secrets.token_urlsafe(32)
             request.session[STATE_KEY] = {
                 "state": state,
                 "workspace": workspace.pk,
                 "time": time.time(),
             }
-            return redirect(installation_url(state))
-    except GitHubAppError as error:
+            return redirect(installations.installation_url(state))
+    except GitHubError as error:
         return HttpResponseBadRequest(str(error))
     return redirect("/repositories?github=connected")
 
 
-def link_installations(workspace: Workspace, token: str) -> int:
-    installations = []
-    for page in range(1, 101):
-        batch = request_json(
-            "GET", f"{API_URL}/user/installations?per_page=100&page={page}", token
-        ).get("installations", [])
-        installations.extend(batch)
-        if len(batch) < 100:
-            break
-    linked = 0
-    for installation in installations:
-        if str(installation.get("app_id")) != str(settings.GITHUB_APP_ID):
-            continue
-        linked += 1
-        installation_id = str(installation["id"])
-        Connection.objects.update_or_create(
-            workspace=workspace,
-            provider=Connection.Provider.GITHUB,
-            external_account_id=installation_id,
-            defaults={
-                "kind": Connection.Kind.SOURCE,
-                "auth_strategy": Connection.AuthStrategy.MANAGED,
-                "display_name": f"GitHub · {installation['account']['login']}",
-                "status": Connection.Status.CONNECTED,
-            },
-        )
-    return linked
-
-
 def callback_url() -> str:
     return settings.FRONTEND_URL.rstrip("/") + reverse("github-callback")
-
-
-def authorization_url(state: str) -> str:
-    return f"{OAUTH_URL}/authorize?" + urlencode(
-        {
-            "client_id": settings.GITHUB_APP_CLIENT_ID,
-            "state": state,
-            "redirect_uri": callback_url(),
-        }
-    )
-
-
-def installation_url(state: str) -> str:
-    return (
-        f"https://github.com/apps/{settings.GITHUB_APP_SLUG}/installations/new?"
-        + urlencode({"state": state})
-    )

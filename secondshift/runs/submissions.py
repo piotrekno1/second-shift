@@ -15,10 +15,10 @@ from django.utils import timezone
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
 
 from secondshift.config.constants import COMMIT_SHA_PATTERN, RunStart, TaskOrigin
+from secondshift.github.errors import GitHubError
 from secondshift.jobs.manifest import TaskManifest
 from secondshift.jobs.planning import build_skill_execution_plan
 from secondshift.jobs.readiness import execution_problems
-from secondshift.repositories.github_app import GitHubAppError
 from secondshift.repositories.local import LocalRepositoryError
 from secondshift.repositories.models import Repository
 from secondshift.repositories.skill_source import SkillSourceError, skill_commit
@@ -147,7 +147,7 @@ def submit_skill(
         commit = skill_commit(
             repository, submission.definition.skill, submission.revision
         )
-    except (LocalRepositoryError, GitHubAppError, SkillSourceError) as error:
+    except (LocalRepositoryError, GitHubError, SkillSourceError) as error:
         # GitHub helpers already redact credentials from errors.
         message = (
             "The skill or revision is unavailable in this repository."

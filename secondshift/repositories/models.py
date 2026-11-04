@@ -34,7 +34,6 @@ class Repository(models.Model):
     full_name = models.CharField(max_length=255)
     clone_url = models.URLField(blank=True)
     default_branch = models.CharField(max_length=255, default="main")
-    installation_id = models.CharField(max_length=64, blank=True)
     enabled = models.BooleanField(default=False)
     # Sync new commits on the branch without pressing Resync.
     auto_sync = models.BooleanField(default=True)

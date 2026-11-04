@@ -16,7 +16,11 @@ from secondshift.connections.http_api.client import (
     send,
     validate_api_connection,
 )
-from secondshift.connections.mcp.client import mcp_request, validate_mcp_connection
+from secondshift.connections.mcp.client import (
+    borrows_source,
+    mcp_request,
+    validate_mcp_connection,
+)
 from secondshift.connections.mcp.oauth import fresh_connection
 from secondshift.connections.mcp.providers import (
     MCP_PROVIDERS,
@@ -50,6 +54,8 @@ class Authorization:
     # Start of the model-facing tool name, such as "github" or "api".
     name_prefix: str
     scope_label: str
+    # The run's repository. Connections that borrow its source need it.
+    repository: Repository | None = None
 
 
 class ExternalKind(Protocol):
@@ -104,6 +110,10 @@ class MCPKind:
                 provider.missing_scope_message,
                 provider.missing_scope_reason,
             )
+        if borrows_source(connection) and not provider.source_reachable(repository):
+            return Access(
+                False, None, provider.missing_source_message, "mcp_source_missing"
+            )
         return Access(
             True,
             scope,
@@ -146,14 +156,22 @@ class MCPKind:
             definition=frozen_definition(connection, frozen, tool, "MCP tool"),
             name_prefix=provider.key,
             scope_label=provider.scope_label,
+            repository=repository,
         )
 
     def call(
         self, authorization: Authorization, tool: str, arguments: dict[str, Any]
     ) -> dict[str, Any]:
-        provider = mcp_provider(authorization.connection.provider)
+        connection = authorization.connection
+        provider = mcp_provider(connection.provider)
         scoped = provider.scope_arguments(authorization.scope, tool, arguments)
-        return async_to_sync(mcp_request)(authorization.connection, tool, scoped)
+        token = ""
+        if borrows_source(connection):
+            if provider.source_token is None or authorization.repository is None:
+                raise ExternalToolError("This MCP connection has no repository.")
+            # Minted for this call and this repository only. Never stored.
+            token = provider.source_token(authorization.repository)
+        return async_to_sync(mcp_request)(connection, tool, scoped, token)
 
 
 class APIKind:

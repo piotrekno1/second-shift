@@ -7,16 +7,14 @@ from ninja.errors import HttpError
 from ninja.security import django_auth
 
 from secondshift.connections.models import Connection
+from secondshift.github.app import configured
+from secondshift.github.errors import GitHubError
 from secondshift.repositories.access import repository_for_request
-from secondshift.repositories.github_app import (
-    GitHubAppError,
-    configured,
-    repository_branches,
-)
 from secondshift.repositories.github_sync import (
     GitHubRepositoryExistsError,
     attach_github_repository,
     available_github_sources,
+    repository_branches,
 )
 from secondshift.repositories.local import (
     LocalRepositoryError,
@@ -108,9 +106,7 @@ def local_repository_directories(
 @router.get("/repositories/github/available", response=GitHubAppStatusSchema)
 def available_github_repositories(request: HttpRequest) -> GitHubAppStatusSchema:
     workspace = require(request, Action.ADD_GITHUB_REPOSITORIES)
-    available, errors = (
-        available_github_sources(workspace) if configured() else ([], [])
-    )
+    available, errors = available_github_sources(workspace)
     return GitHubAppStatusSchema(
         configured=configured(),
         error=" ".join(errors),
@@ -131,12 +127,11 @@ def github_branches(
         workspace=workspace,
         provider=Connection.Provider.GITHUB,
         kind=Connection.Kind.SOURCE,
-        auth_strategy=Connection.AuthStrategy.MANAGED,
         status=Connection.Status.CONNECTED,
     )
     try:
-        return repository_branches(connection.external_account_id, repository_id)
-    except GitHubAppError as error:
+        return repository_branches(connection, repository_id)
+    except GitHubError as error:
         raise HttpError(422, str(error)) from error
 
 
@@ -151,7 +146,6 @@ def create_github_repository(
         workspace=workspace,
         provider=Connection.Provider.GITHUB,
         kind=Connection.Kind.SOURCE,
-        auth_strategy=Connection.AuthStrategy.MANAGED,
         status=Connection.Status.CONNECTED,
     )
     try:
@@ -160,7 +154,7 @@ def create_github_repository(
         )
     except GitHubRepositoryExistsError as error:
         raise HttpError(409, str(error)) from error
-    except GitHubAppError as error:
+    except GitHubError as error:
         raise HttpError(422, str(error)) from error
     return serialize_repository(request, repository)
 

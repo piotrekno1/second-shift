@@ -133,7 +133,7 @@ const KIND_LABELS: Record<string, string> = {
   api: 'API',
   model: 'Model provider',
   identity: 'Sign-in',
-  source: 'Source',
+  source: 'Repository access',
 }
 
 /** How a binding or connection kind is named everywhere in the dashboard. */
@@ -461,4 +461,21 @@ export function typingBinding(value: string): string {
 /** The finished binding name, without a trailing dash. */
 export function finishedBinding(value: string): string {
   return typingBinding(value).replace(/-+$/, '')
+}
+
+/** A token expiring within this many days gets a warning. */
+export const TOKEN_WARNING_DAYS = 14
+
+export function tokenExpired(expiresAt: string | null, now: number = Date.now()): boolean {
+  return Boolean(expiresAt) && new Date(expiresAt!).getTime() <= now
+}
+
+/** How a repository source reaches GitHub. */
+export function sourceAuthLabel(auth: string | undefined): string {
+  return auth === 'token' ? 'Personal token' : 'GitHub App'
+}
+
+export function expiresSoon(expiresAt: string | null, now: number = Date.now()): boolean {
+  if (!expiresAt) return false
+  return new Date(expiresAt).getTime() - now < TOKEN_WARNING_DAYS * 24 * 60 * 60 * 1000
 }

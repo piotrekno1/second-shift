@@ -16,9 +16,9 @@ from secondshift.core.workspace_settings import (
     environment_label,
     sandbox_label,
 )
+from secondshift.github.app import configured as github_app_configured
 from secondshift.jobs.execution import execution_status
 from secondshift.jobs.models import Job
-from secondshift.repositories.github_app import configured as github_app_configured
 from secondshift.repositories.models import Repository
 from secondshift.runs.models import Run, run_workspace_filter
 from secondshift.runs.reporting.health import (

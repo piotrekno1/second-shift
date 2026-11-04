@@ -27,6 +27,7 @@ from environ import Env
 from secondshift.config.constants import (
     DEFAULT_SANDBOX_IMAGE,
     ENVIRONMENT_VAR,
+    GITHUB_BASE_URL,
     LOCAL_AGENT_TAG,
     LOCAL_GATEWAY_URL,
     SERVICE_VAR,
@@ -351,7 +352,7 @@ SECURE_CSP = {
     "font-src": [CSP.SELF, "https://fonts.gstatic.com"],
     "img-src": [CSP.SELF, "data:"],
     "connect-src": [CSP.SELF],
-    "form-action": [CSP.SELF, "https://github.com"],
+    "form-action": [CSP.SELF, GITHUB_BASE_URL],
     "frame-ancestors": [CSP.NONE],
     "base-uri": [CSP.SELF],
     "object-src": [CSP.NONE],

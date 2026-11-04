@@ -4,18 +4,28 @@ import re
 from typing import Any
 
 from secondshift.config.constants import (
+    GITHUB_BASE_URL,
+    GITHUB_FINE_GRAINED_TOKEN_PATTERN,
     GITHUB_MCP_TOOLS,
     GITHUB_MCP_URL,
     GITHUB_REPOSITORY_PATTERN,
+    GITHUB_TOKEN_HINT,
     GitHubMCPTool,
 )
-from secondshift.connections.mcp.base import MCPError, MCPProvider, MCPSettings
+from secondshift.connections.mcp.base import (
+    SOURCE_AUTH,
+    MCPError,
+    MCPProvider,
+    MCPSettings,
+)
 from secondshift.connections.models import Connection
+from secondshift.github import credentials
+from secondshift.github.errors import GitHubError
 from secondshift.repositories.github import github_repository_scope
+from secondshift.repositories.github_access import connection_source, usable_source
 from secondshift.repositories.models import Repository
+from secondshift.workspaces.models import Workspace
 
-# Fine-grained tokens are limited to chosen repositories. Classic tokens are not.
-GITHUB_FINE_GRAINED_TOKEN_PATTERN = r"github_pat_[A-Za-z0-9_]+"
 # Search text is written by the model. A short limit keeps it a search.
 GITHUB_SEARCH_QUERY_MAX_CHARS = 256
 # Artifacts and log archives are left out. They return download links.
@@ -29,6 +39,10 @@ GITHUB_ACTIONS_METHODS = {
 }
 GITHUB_ACTIONS_TOOLS = frozenset(
     {GitHubMCPTool.ACTIONS_LIST, GitHubMCPTool.ACTIONS_GET, GitHubMCPTool.GET_JOB_LOGS}
+)
+GITHUB_MISSING_SOURCE = (
+    "This repository was not added from GitHub, so it has no GitHub connection "
+    "to borrow. Use a GitHub connection with its own token."
 )
 # The end of a failed job's log usually holds the error.
 GITHUB_JOB_LOG_MAX_LINES = 300
@@ -130,16 +144,71 @@ def github_tool_error(tool: str, text: str) -> str | None:
         return None
     if tool in GITHUB_ACTIONS_TOOLS:
         return (
-            "GitHub refused this call. The token needs read access to Actions "
-            "on this repository. Update the token, then save the GitHub connection."
+            "GitHub refused this call. It needs read access to Actions on this "
+            "repository. Give it to the token or the GitHub App, then retry."
         )
-    return "GitHub refused this call. Check the token's repository permissions."
+    return (
+        "GitHub refused this call. Check the repository permissions of the "
+        "token or the GitHub App."
+    )
 
 
 def github_scope(settings: MCPSettings, repository: Repository) -> str | None:
     """A job reads only its own repository, whatever the token can reach."""
     del settings
     return github_repository_scope(repository)
+
+
+# What the tools read. An App token asks only for those the installation has.
+GITHUB_TOOL_PERMISSIONS = ("contents", "pull_requests", "actions", "statuses")
+
+
+def github_source_reachable(repository: Repository) -> bool:
+    connection = repository.github_connection
+    return (
+        repository.source_type == Repository.SourceType.GITHUB
+        and usable_source(connection)
+        and connection.workspace_id == repository.workspace_id
+    )
+
+
+def github_source_token(repository: Repository) -> str:
+    """A read token for this repository only, from the source it was added with."""
+    connection = repository.github_connection
+    if repository.source_type != Repository.SourceType.GITHUB or connection is None:
+        raise MCPError(GITHUB_MISSING_SOURCE)
+    if connection.workspace_id != repository.workspace_id:
+        raise MCPError("The repository's GitHub connection is disconnected.")
+    try:
+        return credentials.read_token_for(
+            connection_source(connection),
+            int(repository.external_id),
+            GITHUB_TOOL_PERMISSIONS,
+        )
+    except GitHubError as error:
+        # These messages never contain a token.
+        raise MCPError(str(error)) from error
+
+
+def github_discovery_token(workspace: Workspace) -> str:
+    """Any source connection of the workspace can list GitHub's tools."""
+    for connection in Connection.objects.filter(
+        workspace=workspace,
+        provider=Connection.Provider.GITHUB,
+        kind=Connection.Kind.SOURCE,
+        status=Connection.Status.CONNECTED,
+    ):
+        if not usable_source(connection):
+            continue
+        try:
+            return credentials.read_token_for(
+                connection_source(connection), None, GITHUB_TOOL_PERMISSIONS
+            )
+        except GitHubError:
+            continue
+    raise MCPError(
+        "Connect GitHub on the Repositories page first, with the GitHub App or a token."
+    )
 
 
 def describe_github_scope(scope: str) -> str:
@@ -156,7 +225,7 @@ GITHUB_MCP = MCPProvider(
         "X-MCP-Readonly": "true",
     },
     token_pattern=GITHUB_FINE_GRAINED_TOKEN_PATTERN,
-    token_hint="Enter a fine-grained GitHub token. It starts with github_pat_.",
+    token_hint=GITHUB_TOKEN_HINT,
     scope=github_scope,
     describe_scope=describe_github_scope,
     scope_label="repository",
@@ -171,12 +240,17 @@ GITHUB_MCP = MCPProvider(
     ),
     default_binding="github",
     token_label="Fine-grained personal access token",
-    setup_url="https://github.com/settings/personal-access-tokens/new",
+    setup_url=f"{GITHUB_BASE_URL}/settings/personal-access-tokens/new",
     setup_help=(
         "Pick your jobs' repositories and grant read-only Pull requests, "
         "Commit statuses, and Contents. Add read-only Actions for jobs that "
         "read CI runs and logs."
     ),
+    auth_methods=("token", SOURCE_AUTH),
+    source_token=github_source_token,
+    discovery_token=github_discovery_token,
+    source_reachable=github_source_reachable,
+    missing_source_message=GITHUB_MISSING_SOURCE,
     scope_arguments=scoped_github_arguments,
     narrow_schema=narrowed_github_schema,
     tool_error=github_tool_error,

@@ -460,8 +460,11 @@ export interface Connection {
   usage?: ConnectionUsage | null
   /** MCP only: the organization or project the owner chose. */
   settings?: Record<string, string>
-  /** MCP only: how it signs in. */
-  auth?: 'oauth' | 'token' | ''
+  /**
+   * How it signs in. MCP: oauth, token, or source (borrows each repository's
+   * GitHub connection). GitHub sources: app or token.
+   */
+  auth?: 'oauth' | 'token' | 'app' | 'source' | ''
   /** MCP only: OAuth scopes the server granted. */
   scopes?: string[]
   /** MCP only: scopes selected when signing in; required on refresh and reconnect. */
@@ -495,7 +498,7 @@ export interface MCPProviderInfo {
   /** Values entered when connecting, such as a Sentry organization. */
   settings: MCPSettingInfo[]
   tools: string[]
-  /** "token" for a pasted token, "oauth" for a browser sign-in. */
+  /** "token" for a pasted token, "oauth" for a browser sign-in, "source" to borrow GitHub connections. */
   auth_methods: string[]
   /** Custom servers: the owner chooses tools after connecting. */
   owner_selects_tools: boolean
