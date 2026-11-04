@@ -412,9 +412,11 @@ def test_webhook_sample_shows_what_a_run_report_sends(
         "job",
         "repository",
         "pull_request",
+        "issues",
         "outputs",
     }
     assert payload["pull_request"] is None
+    assert payload["issues"] is None
     assert payload["outputs"]["saved_files"] == [
         {"name": "stale-steps.csv", "size_bytes": 182}
     ]

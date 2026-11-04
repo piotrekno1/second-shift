@@ -14,6 +14,7 @@ from secondshift.jobs.planning import build_execution_plan
 from secondshift.jobs.readiness import plan_problems
 from secondshift.runs.artifacts import job_input_snapshot, store_run_payload
 from secondshift.runs.history import previous_run_ids
+from secondshift.runs.issue_delivery import record_pending_issues
 from secondshift.runs.models import Run, RunEvent, Task
 from secondshift.runs.orchestration.dispatch import enqueue_run
 from secondshift.runs.publishing import record_pending_pull_request
@@ -65,6 +66,7 @@ def create_run(
         job=job, task=task, scheduled_for=scheduled_for, **defaults
     )
     record_pending_pull_request(run)
+    record_pending_issues(run)
     return run
 
 

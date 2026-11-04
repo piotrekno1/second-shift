@@ -80,6 +80,15 @@ class RunDeliverySchema(Schema):
     retryable: bool
 
 
+class RunIssueSchema(Schema):
+    title: str
+    # Empty until the issue opens on GitHub.
+    number: int | None
+    url: str
+    # An open issue already had this title, so none was opened.
+    already_open: bool
+
+
 class RunChangesSchema(Schema):
     file_count: int
     # The first changed paths. The patch holds all of them.
@@ -114,6 +123,8 @@ class RunDetailSchema(RunSchema):
     events: list[RunEventSchema]
     files: list[RunFileSchema]
     deliveries: list[RunDeliverySchema] = []
+    # Issues the agent proposed, opened after the run if allowed.
+    issues: list[RunIssueSchema] = []
     # What the sandbox left behind. None when nothing was collected.
     changes: RunChangesSchema | None = None
     saved_files: list[RunSavedFileSchema] = []

@@ -10,6 +10,7 @@ from django.utils import timezone
 
 from secondshift.config.constants import (
     EXECUTE_RUN_WORKFLOW,
+    RETRY_ISSUES_WORKFLOW,
     RETRY_NOTIFICATION_WORKFLOW,
     RETRY_PULL_REQUEST_WORKFLOW,
     SCHEDULED_JOB_WORKFLOW,
@@ -33,7 +34,9 @@ from secondshift.runs.execution.deadlines import (
     run_timeout_seconds,
     timeout_summary,
 )
+from secondshift.runs.execution.issues import issue_limit
 from secondshift.runs.execution.run import execute_agent_run
+from secondshift.runs.issue_delivery import open_run_issues
 from secondshift.runs.models import Run, RunDelivery, RunEvent
 from secondshift.runs.orchestration.admission import task_admission_problem
 from secondshift.runs.orchestration.reconciliation import mark_run_terminal
@@ -364,16 +367,31 @@ def retry_pull_request_workflow(run_id: int) -> None:
     publish_pull_request_step(run_id)
 
 
+@DBOS.step(name="secondshift.open_issues")
+def open_issues_step(run_id: int) -> None:
+    open_run_issues(run_id)
+
+
+@DBOS.workflow(name=RETRY_ISSUES_WORKFLOW)
+def retry_issues_workflow(run_id: int) -> None:
+    open_issues_step(run_id)
+
+
 def deliver(run_id: int) -> None:
-    """Publish first, so the notification can link to the pull request."""
+    """Publish first, so the notification can link to the pull request and issues."""
     run = Run.objects.only("execution_plan").get(pk=run_id)
-    # Only plans that ask for a pull request add the step, so workflows
-    # started before this step existed replay the same steps.
+    # Only plans that ask for a pull request or issues add the step, so
+    # workflows started before these steps existed replay the same steps.
     if run.execution_plan.get("pull_request"):
         try:
             publish_pull_request_step(run_id)
         except Exception:
             logger.exception("could not publish run %s", run_id)
+    if issue_limit(run.execution_plan):
+        try:
+            open_issues_step(run_id)
+        except Exception:
+            logger.exception("could not open issues for run %s", run_id)
     notify(run_id)
 
 

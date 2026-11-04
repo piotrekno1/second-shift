@@ -75,6 +75,7 @@ def run_report_payload(run: Run) -> dict[str, Any]:
         },
         "repository": {"full_name": run.repository.full_name},
         "pull_request": pull_request_link(run),
+        "issues": issue_links(run),
         # Names and sizes only. The files open from the run, after sign-in.
         "outputs": {
             "changed_files": changed_file_count(run),
@@ -111,6 +112,50 @@ def pull_request_line(run: Run) -> str:
     return ""
 
 
+def has_issues(run: Run) -> bool:
+    return bool((run.execution_plan or {}).get("issues"))
+
+
+def issue_links(run: Run) -> list[dict[str, Any]] | None:
+    """The run's issues on GitHub, opened now or already open. None if not asked."""
+    if not has_issues(run):
+        return None
+    return [
+        {
+            "number": issue.number,
+            "title": issue.title,
+            "url": issue.url,
+            "already_open": issue.already_open,
+        }
+        for issue in run.issues.exclude(number__isnull=True)
+    ]
+
+
+def slack_text(text: str) -> str:
+    """Escape the characters Slack reads as markup, so a title stays text."""
+    return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+def issues_line(run: Run) -> str:
+    """Each issue's link, or why none opened, for runs that asked for issues."""
+    if not has_issues(run):
+        return ""
+    delivery = run.deliveries.filter(kind=RunDelivery.Kind.ISSUES).first()
+    if delivery is None or delivery.status == RunDelivery.Status.PENDING:
+        return ""
+    if delivery.status == RunDelivery.Status.SKIPPED:
+        return f"No issues opened. {delivery.message}".strip()
+    lines = [
+        delivery.message
+        if delivery.status == RunDelivery.Status.DELIVERED
+        else f"Some issues could not open. {delivery.message}".strip()
+    ]
+    for issue in run.issues.exclude(number__isnull=True):
+        note = " (already open)" if issue.already_open else ""
+        lines.append(f"• <{issue.url}|#{issue.number} {slack_text(issue.title)}>{note}")
+    return "\n".join(lines)
+
+
 def changed_file_count(run: Run) -> int:
     changes = (run.outputs or {}).get("changes") or {}
     return int(changes.get("file_count", 0)) if changes.get("path") else 0
@@ -138,6 +183,8 @@ def run_report_text(run: Run, run_url: str) -> str:
         lines.append(outputs)
     if pull_request := pull_request_line(run):
         lines.append(pull_request)
+    if issues := issues_line(run):
+        lines.append(issues)
     # Slack link syntax. Mattermost and Discord /slack webhooks accept it.
     lines.append(f"<{run_url}|Open run #{run.pk}>")
     return "\n\n".join(lines)

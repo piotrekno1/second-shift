@@ -209,6 +209,7 @@ class RunDelivery(models.Model):
     class Kind(models.TextChoices):
         NOTIFICATION = "notification", "Notification"
         PULL_REQUEST = "pull_request", "Pull request"
+        ISSUES = "issues", "Issues"
 
     class Status(models.TextChoices):
         PENDING = "pending", "Pending"
@@ -249,6 +250,11 @@ class RunDelivery(models.Model):
                 fields=["run"],
                 condition=models.Q(kind="pull_request"),
                 name="unique_run_pull_request",
+            ),
+            models.UniqueConstraint(
+                fields=["run"],
+                condition=models.Q(kind="issues"),
+                name="unique_run_issues",
             ),
         ]
 
