@@ -46,6 +46,7 @@ const setup = computed(() => app.overview ? setupSteps({
   hasRuns: app.runs.length > 0,
   canAddGitHub: app.can(Action.AddGitHubRepositories),
   canAddLocal: app.canAddLocalRepositories,
+  canConnect: app.can(Action.AddConnections),
   offerAgent: !app.overview.has_agent_token,
 }) : null)
 // A token made in the agent dialog takes the offer off the page.
