@@ -1,21 +1,12 @@
-# Task examples
+# Skill catalog
 
-These examples demonstrate reviews, briefings, and ticket updates through
-approved MCP tools or API operations.
-See the [task setup guide](../docs/engineering-tasks.md#tasks-that-change-service-data)
-for an action workflow and its access requirements.
+Ready-made skills for recurring engineering work. Copy one into your
+repository, adapt it to your services and rules, and run it as a
+[repository job](../docs/engineering-tasks.md).
 
-Each directory contains the canonical `.agents/skills/<name>/SKILL.md`, a sample
-`.secondshift.yaml`, and setup instructions. Root `.agents/skills/<name>` symlinks
-to the canonical skill for local agent discovery. Registered jobs in the root
-manifest use canonical example paths directly.
-
-Choose a skill below, then follow the [setup guide](../docs/engineering-tasks.md)
-to copy it, connect data, approve access, and try it before enabling a schedule.
-Individual examples provide service-specific setup and suggested cadences.
-
-Skills are grouped by the role that usually owns them. Many are useful to
-more than one team.
+Each example has the skill, a sample `.secondshift.yaml` and setup steps.
+Skills are grouped by the team that usually owns them. Many are useful to more
+than one team.
 
 ## Developers and code health
 
@@ -51,24 +42,22 @@ more than one team.
 | [Ticket follow-up brief](ticket-follow-up/README.md) | Finds tickets that may be ready to close or update and explains what still needs checking. | Repository history and approved tracker read access. |
 | [Ticket reconciliation](ticket-reconciliation/README.md) | Updates or closes tickets that meet the team's completion rules. | Repository history, explicit workflow rules, and approved tracker read and write operations. |
 
-## Reuse in your project
+## Use a skill
 
-Copy the actual skill directory from its example into your project's
-`.agents/skills`, rather than copying this repository's discovery symlink.
-The skills work with repository files and approved service tools. They do not
-assume SecondShift source code, a particular framework, or a Python runtime.
-They can also run in a local coding agent with equivalent approved tools.
-The engineering briefing is specifically for GitHub projects.
+1. Copy the skill directory from `examples/<name>/.agents/skills` into your
+   repository's `.agents/skills`. Copy the directory itself, not this
+   repository's discovery symlink.
+2. Add the job to your `.secondshift.yaml` and commit both.
+3. Connect the services it needs and approve its access.
+4. Choose **Run now** and check the report before you turn on a schedule.
 
-Historical comparisons need accessible history, and service investigations need
-the relevant records. Missing history, logs, or telemetry is reported as a
-coverage limitation. Individual examples describe their fallback behavior.
+The skills work with any codebase and the tools an owner approves. They also
+run in a local coding agent. When history, logs or telemetry are missing, a
+skill reports the gap instead of treating it as a clean result.
 
-Only repository health, release readiness, docs drift, and engineering briefing
-are registered in this repository's root manifest. Other sample jobs are
-available to copy and review. They are not automatically registered.
-Recurring examples propose schedules.
-Release readiness stays manual because it needs an explicit release scope.
+See [repository jobs](../docs/engineering-tasks.md) for setup details and
+[jobs that change service data](../docs/engineering-tasks.md#tasks-that-change-service-data).
 
-See the [setup guide](../docs/engineering-tasks.md) for the manual-first
-workflow and connection approval steps.
+In this repository, repository health, release readiness, docs drift and the
+engineering briefing are registered in the root manifest. The others are there
+to copy.
