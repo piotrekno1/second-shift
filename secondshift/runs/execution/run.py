@@ -36,6 +36,7 @@ from secondshift.runs.execution.deadlines import (
     timeout_summary,
 )
 from secondshift.runs.execution.external_tools import external_tools
+from secondshift.runs.execution.issues import issue_limit, issue_tool, issues_note
 from secondshift.runs.execution.payload import payload_note, payload_tool
 from secondshift.runs.execution.workspace_tools import (
     WorkspaceToolDeps,
@@ -64,7 +65,7 @@ logger = logging.getLogger(__name__)
 
 WORKSPACE_AGENT = build_agent(
     instructions=SYSTEM_INSTRUCTIONS,
-    tools=(*workspace_tools(), payload_tool()),
+    tools=(*workspace_tools(), payload_tool(), issue_tool()),
     deps_type=WorkspaceToolDeps,
 )
 
@@ -120,6 +121,8 @@ def run_prompt(run: Run) -> str:
         prompt = f"{prompt}\n\n{missing}"
     if run.execution_plan.get("pull_request"):
         prompt = f"{prompt}\n\n{PULL_REQUEST_NOTE}"
+    if limit := issue_limit(run.execution_plan):
+        prompt = f"{prompt}\n\n{issues_note(limit)}"
     history = previous_reports(run)
     return f"{prompt}\n\n{history}" if history else prompt
 
@@ -254,6 +257,7 @@ def execute_agent_run(run: Run, session_id: str) -> dict[str, Any]:
         deadline=run_deadline(run),
         allowed_tools=tuple(plan["agent"]["tools"]),
         payload=run_payload(run),
+        issue_limit=issue_limit(plan),
     )
     capture_run_input_step(run.pk, session_id)
     with capture_run_messages() as messages:

@@ -256,6 +256,36 @@ class RunDelivery(models.Model):
         return f"{self.run_id}: {self.kind} to {self.target} {self.status}"
 
 
+class RunIssue(models.Model):
+    """An issue the agent proposed. SecondShift opens it after the run.
+
+    Opened issues keep their number, so a retry opens only the rest.
+    """
+
+    run = models.ForeignKey(Run, on_delete=models.CASCADE, related_name="issues")
+    # The model's tool call. A replayed call finds its proposal instead of
+    # adding it again.
+    call_id = models.CharField(max_length=128)
+    title = models.CharField(max_length=256)
+    body = models.TextField(blank=True)
+    number = models.PositiveIntegerField(null=True, blank=True)
+    url = models.URLField(max_length=500, blank=True)
+    # An open issue already had this title, so none was opened.
+    already_open = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at", "pk"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["run", "call_id"], name="unique_run_issue_call"
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.run_id}: {self.title}"
+
+
 class AgentLease(models.Model):
     """One active agent process, with a revocable run-scoped broker token."""
 

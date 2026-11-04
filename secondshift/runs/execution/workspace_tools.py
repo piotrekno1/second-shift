@@ -49,6 +49,8 @@ class WorkspaceToolDeps:
     allowed_tools: tuple[str, ...] = LOCAL_TOOLS
     # What the input snapshot records about a trigger's request body, if any.
     payload: dict[str, Any] | None = None
+    # How many issues the agent may propose. Zero hides the tool.
+    issue_limit: int = 0
 
     def execute(
         self,
