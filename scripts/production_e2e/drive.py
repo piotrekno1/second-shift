@@ -449,10 +449,69 @@ def after_restart() -> None:
     )
 
 
+def pat_only() -> None:
+    client = Client()
+    sign_in(client)
+    check(
+        "PAT-only server has no GitHub App",
+        not client.json("GET", "/api/me")["github_app_configured"],
+    )
+    token = "github_pat_" + "p" * 40
+    connection = client.json("POST", "/api/connections/github-token", {"token": token})
+    check("token is not returned to the browser", token not in json.dumps(connection))
+    available = client.json("GET", "/api/repositories/github/available")
+    check(
+        "PAT lists repositories without App",
+        any(
+            item["connection_id"] == connection["id"]
+            for item in available["repositories"]
+        ),
+        available,
+    )
+    repositories = client.json("GET", "/api/repositories")
+    repository = next(
+        item for item in repositories if item["full_name"] == "acme/e2e-fixture"
+    )
+    client.json("DELETE", f"/api/repositories/{repository['id']}")
+    imported = import_repository(client, connection["id"])
+    client.json(
+        "POST", f"/api/repositories/{imported['id']}/enabled", {"enabled": True}
+    )
+    marker = "smoke-" + secrets.token_hex(6)
+    with urllib.request.urlopen(
+        urllib.request.Request(
+            FAKE + "/_e2e/commit",
+            data=json.dumps({"marker": marker}).encode(),
+            method="POST",
+        ),
+        timeout=30,
+    ) as response:
+        head = json.load(response)["sha"]
+    deadline = time.monotonic() + 90
+    while time.monotonic() < deadline:
+        detail = client.json("GET", f"/api/repositories/{imported['id']}")
+        if detail["revision"] == head:
+            break
+        time.sleep(2)
+    check(
+        "worker automatically syncs PAT repository without App",
+        detail["revision"] == head,
+        detail,
+    )
+    saved = json.loads(STATE.read_text())
+    check_report(client, saved["report_job"], marker, head)
+    check(
+        "PAT absent from stored artifacts",
+        all(token.encode() not in value for value in bucket_objects().values()),
+    )
+
+
 def main() -> int:
     try:
         if sys.argv[1] == "first":
             first(sys.argv[2])
+        elif sys.argv[1] == "pat-only":
+            pat_only()
         else:
             after_restart()
     except Failure as error:

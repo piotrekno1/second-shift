@@ -92,6 +92,7 @@ step backup backup
 step lose-the-server wipe
 step restore restore
 step after-restore drive after-restart
+step pat-only pat-only
 
 echo
 echo "Passed."

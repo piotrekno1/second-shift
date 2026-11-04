@@ -36,6 +36,12 @@ images and gVisor. A run takes about five minutes and ends with `Passed.`
 The backup, restore and update steps run the bash blocks of the guide's
 "Update and back up" section, so the published commands are what is tested.
 
+The final PAT-only stage removes App credentials from web and worker, connects
+a fine-grained test token through the API, imports its repository, waits for
+worker autosync, runs a job, and pushes a real branch before opening a draft PR
+against the fake GitHub API. Real GitHub token approval and permission behavior
+still need an operator smoke test.
+
 ## How it works
 
 `run.sh` builds the image, starts a `docker:dind` host, installs a pinned gVisor

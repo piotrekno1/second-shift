@@ -24,6 +24,7 @@ REPOSITORY_ID = 9001
 FULL_NAME = "acme/e2e-fixture"
 USER_TOKEN = "gho_e2e_user_token"
 INSTALLATION_TOKEN = "ghs_e2e_installation_token"
+PERSONAL_TOKEN = "github_pat_" + "p" * 40
 GIT_ROOT = Path("/srv/git")
 BARE = GIT_ROOT / f"{FULL_NAME}.git"
 WORK = Path("/srv/work")
@@ -60,11 +61,13 @@ def commit_marker(marker: str) -> str:
 
 def setup_repository() -> None:
     if BARE.exists():
+        git("config", "http.receivepack", "true", cwd=BARE)
         return
     subprocess.run(["cp", "-r", str(FIXTURE), str(WORK)], check=True)
     git("init", "--quiet", "--initial-branch", "main")
     BARE.parent.mkdir(parents=True, exist_ok=True)
     git("init", "--quiet", "--bare", str(BARE), cwd=GIT_ROOT)
+    git("config", "http.receivepack", "true", cwd=BARE)
     commit_marker("smoke-000000000000")
 
 
@@ -97,7 +100,10 @@ class Handler(smoke.FakeServicesHandler):
         )
 
     def require_installation_token(self) -> bool:
-        if self.headers.get("Authorization") != f"Bearer {INSTALLATION_TOKEN}":
+        if self.headers.get("Authorization") not in {
+            f"Bearer {INSTALLATION_TOKEN}",
+            f"Bearer {PERSONAL_TOKEN}",
+        }:
             problems.append(f"{self.command} {self.path} without installation token")
             self.send_json(401, {"message": "Bad credentials"})
             return False
@@ -149,7 +155,12 @@ class Handler(smoke.FakeServicesHandler):
 
     def github_api_get(self) -> None:
         path = self.path.split("?")[0]
-        if path == "/user/installations":
+        if path == "/user":
+            if self.headers.get("Authorization") != f"Bearer {PERSONAL_TOKEN}":
+                self.send_json(401, {"message": "Bad credentials"})
+                return
+            self.send_json(200, {"login": "pat-owner"})
+        elif path == "/user/installations":
             if self.headers.get("Authorization") != f"Bearer {USER_TOKEN}":
                 problems.append("installations listed without the user token")
             self.send_json(
@@ -167,9 +178,12 @@ class Handler(smoke.FakeServicesHandler):
             )
         elif not self.require_installation_token():
             return
-        elif path == "/installation/repositories":
+        elif path in {"/installation/repositories", "/user/repos"}:
             self.send_json(
-                200, {"total_count": 1, "repositories": [repository_payload()]}
+                200,
+                [repository_payload()]
+                if path == "/user/repos"
+                else {"total_count": 1, "repositories": [repository_payload()]},
             )
         elif path == f"/repositories/{REPOSITORY_ID}":
             self.send_json(200, repository_payload())
@@ -182,7 +196,19 @@ class Handler(smoke.FakeServicesHandler):
 
     def github_api_post(self) -> None:
         path = self.path.split("?")[0]
-        if path == f"/app/installations/{INSTALLATION_ID}/access_tokens":
+        if path == f"/repos/{FULL_NAME}/pulls":
+            if self.headers.get("Authorization") != f"Bearer {PERSONAL_TOKEN}":
+                self.send_json(401, {"message": "Bad credentials"})
+                return
+            body = self.read_json()
+            assert body["draft"] is True
+            # A real git push must precede the API request.
+            git("rev-parse", f"refs/heads/{body['head']}", cwd=BARE)
+            self.send_json(
+                201,
+                {"number": 77, "html_url": f"https://github.com/{FULL_NAME}/pull/77"},
+            )
+        elif path == f"/app/installations/{INSTALLATION_ID}/access_tokens":
             parts = (self.headers.get("Authorization") or "").removeprefix("Bearer ")
             if parts.count(".") != 2:
                 problems.append("installation token requested without an app JWT")
@@ -197,9 +223,13 @@ class Handler(smoke.FakeServicesHandler):
 
     def git_backend(self) -> None:
         """Serve Git smart HTTP through git http-backend (CGI)."""
-        expected = base64.b64encode(f"x-access-token:{INSTALLATION_TOKEN}".encode())
+        expected = {
+            "basic "
+            + base64.b64encode(f"x-access-token:{token}".encode()).decode().lower()
+            for token in (INSTALLATION_TOKEN, PERSONAL_TOKEN)
+        }
         authorization = self.headers.get("Authorization", "")
-        if authorization.lower() != f"basic {expected.decode()}".lower():
+        if authorization.lower() not in expected:
             problems.append(f"git {self.path} without the installation token")
         path, _, query = self.path.partition("?")
         length = int(self.headers.get("Content-Length") or 0)
@@ -207,6 +237,7 @@ class Handler(smoke.FakeServicesHandler):
         environment = {
             "GIT_PROJECT_ROOT": str(GIT_ROOT),
             "GIT_HTTP_EXPORT_ALL": "1",
+            "REMOTE_USER": "e2e",
             "PATH_INFO": path,
             "QUERY_STRING": query,
             "REQUEST_METHOD": self.command,

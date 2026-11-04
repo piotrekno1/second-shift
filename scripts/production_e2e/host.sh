@@ -208,6 +208,17 @@ agent-probe)
   printf '\nARTIFACT_STORAGE=s3\nAGENT_IMAGE=\n' >> deploy/production/compose.env
   dc up -d --wait web gateway worker runner
   ;;
+pat-only)
+  load_env
+  for role in web worker; do
+    sed '/^SECONDSHIFT_GITHUB_APP_/d' "deploy/production/$role.env" > "$STATE/$role.env"
+    cat "$STATE/$role.env" > "deploy/production/$role.env"
+  done
+  echo 'SECONDSHIFT_REPOSITORY_SYNC_INTERVAL_SECONDS=2' >> deploy/production/worker.env
+  dc up -d --wait web worker
+  sh "$0" drive pat-only
+  dc exec -T web python /scripts/production_e2e/pat_publish.py
+  ;;
 logs)
   load_env
   shift

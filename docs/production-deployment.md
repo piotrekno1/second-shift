@@ -130,6 +130,39 @@ execution limits. Keep the old agent image available until active runs finish.
 
 ## Configure repository access
 
+Choose a fine-grained personal access token (PAT) or a GitHub App. PAT-only
+installations do not need any `SECONDSHIFT_GITHUB_APP_*` settings, OAuth callback,
+or App registration. GitHub sign-in is separate and optional.
+
+### Personal access token
+
+On **Repositories → Connect GitHub**, paste a fine-grained PAT. Classic tokens
+are refused. Use the **Create a token on GitHub** link and select only the
+repositories this workspace should access. The token needs:
+
+- **Contents: Read-only** for import, checkout and automatic sync.
+- **Pull requests**, **Actions** and **Commit statuses: Read-only** for GitHub tools.
+- **Contents** and **Pull requests: Read and write** for draft pull requests.
+  Do not grant **Workflows**.
+
+Saving checks the token's identity. After importing, use the connection's
+**Check** action to check repository reach and read permissions. PAT write
+permissions are confirmed only when publishing a draft. A read-only token can
+sync successfully while draft publishing fails.
+
+Tokens are encrypted with the existing application encryption key and stored
+in PostgreSQL. Web and worker already share that key; no PAT belongs in env
+files, repository configuration or runner settings. Worker polling works
+without App credentials and picks up newly added PAT connections without a
+restart. Preserve the encryption key during upgrades and restores.
+
+When a token expires or is revoked, choose **Replace token** on **Connections**
+and provide a replacement from the same GitHub account. An organization may
+require approval before a token can access its repositories. See the
+[GitHub access guide](github-app.md#use-a-personal-access-token) for details.
+
+### GitHub App
+
 Register a [GitHub App](github-app.md#register-the-app) with callback URL
 `https://secondshift.example.com/github/callback/`, using your hostname.
 Enable user authorization during installation, grant read-only repository
@@ -197,8 +230,8 @@ and the run fails with "The sandbox ran out of memory."
 
 ## Import and verify a job
 
-As the workspace owner, open **Repositories → Connect GitHub**, authorize the
-App, and grant access to the desired repository. Select its branch and import
+As the workspace owner, open **Repositories → Connect GitHub** and either
+connect a fine-grained PAT or authorize the App and grant repository access. Select its branch and import
 it. The selected commit must include a valid `.secondshift.yaml` and referenced
 skills. Connect the required model provider and services, review capabilities,
 and start a manual run before enabling schedules. See the
@@ -296,6 +329,21 @@ dc up -d
 
 Sign in and open an earlier run's report to confirm the restore. Update to a
 newer release only after it works.
+
+Before upgrading an existing GitHub App installation to use new GitHub tools
+or draft pull requests, update its permissions:
+
+- GitHub tools need **Pull requests**, **Actions** and **Commit statuses: Read-only**.
+- Draft publishing needs **Contents** and **Pull requests: Read and write**.
+- Each installation owner must accept the App's changed permissions on GitHub.
+
+Read-only sync needs no write permission. PAT users instead replace or update
+their token with the permissions for the features they intend to use. Check
+repository access and perform a draft publication after changing permissions;
+a successful token save alone does not prove write access. Enable draft pull
+requests in the repository settings and, for saved jobs, in the job definition.
+GitHub credentials used for source access also serve GitHub tools and publishing;
+no runner credential or extra deployment service is needed.
 
 For an update, take a backup, fetch the intended release, update
 `SECONDSHIFT_IMAGE` in `compose.env` to that release version (or digest), and run:
