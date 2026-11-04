@@ -56,9 +56,9 @@ onMounted(load)
     <div class="panel-heading">
       <div>
         <h2>API tokens <span v-if="tokens.length" class="heading-count">{{ tokens.length }}</span></h2>
-        <p>Connect coding agents and other MCP clients to SecondShift. A token works in one workspace and can do no more than you can there.</p>
+        <p>Create and revoke tokens for coding agents and other MCP clients. Each token works in one workspace, within your permissions.</p>
       </div>
-      <Button label="Connect your agent" severity="secondary" @click="agentConnection.visible = true"><template #icon><AppIcon name="link-plus" /></template></Button>
+      <Button label="Create API token" @click="agentConnection.visible = true"><template #icon><AppIcon name="plus" /></template></Button>
     </div>
 
     <ul v-if="tokens.length" class="member-list token-list">
@@ -80,7 +80,7 @@ onMounted(load)
         <Button v-else label="Revoke" severity="secondary" text size="small" @click="confirming = token.id" />
       </li>
     </ul>
-    <p v-else-if="loaded" class="token-empty">No tokens yet. Connect your agent to create one.</p>
+    <p v-else-if="loaded" class="token-empty">No API tokens yet. Create a token to give your agent access to SecondShift.</p>
 
     <p v-if="error" class="page-error">{{ error }}</p>
   </section>

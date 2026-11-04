@@ -109,7 +109,7 @@ onMounted(load)
 </script>
 
 <template>
-  <p class="agent-lead">Give your coding agent access to jobs, runs and reports through SecondShift’s MCP server.</p>
+  <p class="agent-lead">Create an API token for SecondShift’s MCP server. After creation, you’ll get setup instructions for your agent.</p>
   <label class="agent-field" for="agent-client">Your agent
     <Select v-model="client" input-id="agent-client" aria-label="Your agent" :options="agentClients" option-label="label" option-value="value" />
   </label>
@@ -131,7 +131,7 @@ onMounted(load)
     </div>
     <p class="agent-hint">This token works only in the selected workspace, within your permissions.</p>
     <p v-if="scope === 'run'" class="token-note"><AppIcon name="alert-outline" /> Runs can spend model budget and change data through approved tools.</p>
-    <Button type="submit" label="Create token & show setup" :loading="busy" :disabled="busy" class="main-action" />
+    <Button type="submit" label="Create token" :loading="busy" :disabled="busy" class="main-action" />
   </form>
   <p v-else-if="!loaded && !error" class="agent-hint" role="status">Loading workspaces…</p>
   <p v-else-if="loaded && !workspaces.length" class="agent-hint">Join a workspace before connecting an agent.</p>
