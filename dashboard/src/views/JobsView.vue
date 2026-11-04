@@ -208,7 +208,8 @@ async function toggleJob(job: Job): Promise<void> {
 <template>
   <div class="page">
     <PageHeader compact title="Jobs" :description="jobsSubtitle" />
-    <ExecutionWarning v-if="app.can(Action.RunJobs)" />
+    <!-- The warning guards the Run buttons. With no jobs, the Overview checklist asks for a model instead. -->
+    <ExecutionWarning v-if="app.can(Action.RunJobs) && app.jobs.length" />
     <div v-if="app.jobs.length" class="list-toolbar runs-toolbar">
       <SearchInput :model-value="search" placeholder="Search jobs, repositories or skills" @update:model-value="list.update({ q: $event })" />
       <Select v-if="app.repositories.length > 1" :model-value="repositoryFilter" :options="repositoryOptions" option-label="label" option-value="value" placeholder="All repositories" show-clear class="list-select" aria-label="Repository" @update:model-value="list.update({ repository: $event })" />
@@ -323,6 +324,10 @@ async function toggleJob(job: Job): Promise<void> {
       <div v-else-if="filtered" class="empty-state wide">
         <AppIcon name="filter-remove-outline" /><strong>No jobs match these filters</strong>
         <Button label="Clear filters" severity="secondary" text size="small" @click="clearFilters" />
+      </div>
+      <div v-else-if="!app.repositories.length" class="empty-state wide">
+        <AppIcon name="source-branch-plus" /><strong>No repositories yet</strong><span>Jobs come from a repository's .secondshift.yaml. Add one to see its jobs here.</span>
+        <RouterLink to="/" class="detail-link">Open setup</RouterLink>
       </div>
       <div v-else class="empty-state wide"><AppIcon name="calendar-search" /><strong>No jobs discovered</strong><span>Add `.secondshift.yaml` to an enabled repository.</span></div>
     </section>
