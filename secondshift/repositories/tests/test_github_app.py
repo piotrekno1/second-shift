@@ -259,6 +259,7 @@ def test_import_without_a_manifest_keeps_the_repository(
 def test_autosync_picks_up_the_first_manifest_of_a_disabled_repository(
     workspace: Any,
     source_connection: Any,
+    app_settings: Any,
     tmp_path: Any,
     monkeypatch: Any,
     settings: Any,
@@ -314,7 +315,7 @@ def test_revoked_connection_blocks_sync(workspace: Any, source_connection: Any) 
 
 
 def test_failed_poll_is_visible_and_retains_last_revision(
-    workspace: Any, source_connection: Any, monkeypatch: Any
+    workspace: Any, source_connection: Any, app_settings: Any, monkeypatch: Any
 ) -> None:
     repository = Repository.objects.create(
         workspace=workspace,
@@ -499,7 +500,7 @@ def test_a_failed_sync_leaves_a_readded_repository_removed(
 
 
 def test_an_autosync_check_mints_one_token_per_repository(
-    workspace: Any, source_connection: Any, monkeypatch: Any
+    workspace: Any, source_connection: Any, app_settings: Any, monkeypatch: Any
 ) -> None:
     Repository.objects.create(
         workspace=workspace,
