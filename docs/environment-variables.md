@@ -95,9 +95,11 @@ of these sandbox choices.
 ## GitHub App repository access
 
 Set these together in **web and worker only**, or in the checkout's `.env` for
-process-compose development. They are separate from GitHub sign-in and job MCP
-connections. Follow the [GitHub App setup guide](github-app.md) to register the
-App and configure the callback.
+process-compose development. They are separate from GitHub sign-in. Without
+them, owners can still connect repositories with a
+[personal access token](github-app.md#use-a-personal-access-token). Follow the
+[GitHub App setup guide](github-app.md) to register the App and configure the
+callback.
 
 | Variable | Meaning |
 | --- | --- |

@@ -462,3 +462,11 @@ export function typingBinding(value: string): string {
 export function finishedBinding(value: string): string {
   return typingBinding(value).replace(/-+$/, '')
 }
+
+/** A token expiring within this many days gets a warning. */
+export const TOKEN_WARNING_DAYS = 14
+
+export function expiresSoon(expiresAt: string | null, now: number = Date.now()): boolean {
+  if (!expiresAt) return false
+  return new Date(expiresAt).getTime() - now < TOKEN_WARNING_DAYS * 24 * 60 * 60 * 1000
+}

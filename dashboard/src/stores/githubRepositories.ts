@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { githubRepositories, githubBranches, importGitHubRepository, type GitHubSource } from '../services/githubRepositories'
+import { connectGitHubToken, githubRepositories, githubBranches, importGitHubRepository, type GitHubSource } from '../services/githubRepositories'
 
 export const useGitHubRepositoriesStore = defineStore('githubRepositories', () => {
   const sources = ref<GitHubSource[]>([])
@@ -10,6 +10,8 @@ export const useGitHubRepositoriesStore = defineStore('githubRepositories', () =
   const branches = ref<string[]>([])
   const branchesLoading = ref(false)
   const branchesError = ref<string | null>(null)
+  const connecting = ref(false)
+  const tokenError = ref<string | null>(null)
   let branchRequest = 0
 
   async function loadBranches(source: GitHubSource | null): Promise<void> {
@@ -56,5 +58,20 @@ export const useGitHubRepositoriesStore = defineStore('githubRepositories', () =
     }
   }
 
-  return { sources, error, importing, loading, branches, branchesLoading, branchesError, load, loadBranches, importRepository }
+  /** True once GitHub accepted the token. Errors never repeat the token. */
+  async function connectToken(token: string): Promise<boolean> {
+    connecting.value = true
+    tokenError.value = null
+    try {
+      await connectGitHubToken(token.trim())
+      return true
+    } catch (caught) {
+      tokenError.value = caught instanceof Error ? caught.message : 'Unable to connect the token'
+      return false
+    } finally {
+      connecting.value = false
+    }
+  }
+
+  return { sources, error, importing, loading, branches, branchesLoading, branchesError, connecting, tokenError, load, loadBranches, importRepository, connectToken }
 })

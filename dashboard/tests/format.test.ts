@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import type { Run } from '../src/types'
 
-import { formatLimit, accessLabel, accessNeedsAction, connectionUsageLine, countLabel, describeCron, formatDate, formatSeconds, healthHeadline, runsTrend, weekRange, jobOutcomes, spendTrend, formatRelative, formatScheduled, formatTime, utcTitle, zoneName, formatBytes, plainSummary, providerLabel, runStats, statusLabel, formatDuration, formatModelUsage, finishedBinding, formatSchedule, jobState, historyLabel, lastRunLine, titleFromSlug, typingBinding, kindLabel } from '../src/utils/format'
+import { formatLimit, accessLabel, accessNeedsAction, connectionUsageLine, countLabel, describeCron, formatDate, formatSeconds, healthHeadline, runsTrend, weekRange, jobOutcomes, spendTrend, formatRelative, formatScheduled, formatTime, utcTitle, zoneName, formatBytes, plainSummary, providerLabel, runStats, statusLabel, formatDuration, formatModelUsage, finishedBinding, formatSchedule, jobState, historyLabel, lastRunLine, titleFromSlug, typingBinding, kindLabel, expiresSoon } from '../src/utils/format'
 
 test('formatSchedule keeps cron and timezone visible', () => {
   assert.equal(formatSchedule('0 9 * * 1', 'Europe/Warsaw'), 'Mondays at 09:00 · Europe/Warsaw')
@@ -264,4 +264,12 @@ test('runStats distinguishes CLI-reported usage, zero and unavailable usage', ()
   assert.equal(runStats(base)[0].title, 'CLI-reported: 120 input · 3 output tokens')
   assert.equal(runStats({ ...base, model_tokens: 0 })[0].text, '0 tok reported')
   assert.equal(runStats({ ...base, model_tokens: null })[0].text, 'Usage unavailable')
+})
+
+test('tokens warn two weeks before they expire', () => {
+  const now = Date.parse('2026-11-01T00:00:00Z')
+  assert.equal(expiresSoon(null, now), false)
+  assert.equal(expiresSoon('2026-12-01T00:00:00Z', now), false)
+  assert.equal(expiresSoon('2026-11-10T00:00:00Z', now), true)
+  assert.equal(expiresSoon('2026-10-01T00:00:00Z', now), true)
 })

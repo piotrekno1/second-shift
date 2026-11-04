@@ -1,8 +1,13 @@
-# GitHub App repository access
+# GitHub repository access
 
-SecondShift uses a GitHub App to read repositories and synchronize committed
-`.secondshift.yaml` files and skills. This is separate from GitHub sign-in and
-from the GitHub MCP connection used by jobs.
+SecondShift reads repositories and syncs their committed `.secondshift.yaml`
+files and skills through a GitHub App or a fine-grained personal access token.
+Both are separate from GitHub sign-in.
+
+The App is the better choice for a team. Each step gets its own short-lived
+token, limited to one repository and to the access that step needs. A token
+suits a single machine, or an organization where you cannot install the App.
+See [Use a personal access token](#use-a-personal-access-token).
 
 ## Register the App
 
@@ -16,7 +21,8 @@ Developer settings → GitHub Apps → New GitHub App**.
 - Disable webhooks for now. The worker polls for changes instead.
 - Repository permissions: **Contents: Read-only**. GitHub includes metadata read
   access automatically. No organization or account permissions are needed.
-  For draft pull requests, see [below](#draft-pull-requests).
+  For draft pull requests, see [below](#draft-pull-requests). For GitHub tools
+  in jobs, see [GitHub tools](#github-tools).
 - Choose whether installation is limited to your account or available to others.
 
 Generate a client secret and a private key. Record the App ID, URL slug, and
@@ -80,9 +86,9 @@ validation. It does not silently replace a working job definition.
 
 ## Credentials and limitations
 
-SecondShift creates short-lived installation tokens scoped to the repository
-and read-only contents permission. Tokens stay in trusted source-fetching
-processes. When a run starts, the worker sends the runner a snapshot of the
+For each sync, checkout or check, SecondShift creates one short-lived
+installation token, limited to the repository and to read-only contents. Tokens
+stay in trusted source-fetching processes. When a run starts, the worker sends the runner a snapshot of the
 files at the run's recorded commit. The snapshot holds no Git history and no
 credentials. See [repository data flow](architecture.md#repository-data-flow). GitHub's
 [installation authentication guide](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/authenticating-as-a-github-app-installation)
@@ -107,7 +113,63 @@ Disconnecting the source connection blocks future syncs and new run checkouts.
 Removing repository access or uninstalling the App is detected by the next sync,
 validation, or run checkout. Already running sandboxes can finish their pinned
 checkout. Reinstall/re-authorize through **Connect GitHub** to reconnect.
-The GitHub App does not automatically authorize a job's GitHub MCP tools.
+
+## GitHub tools
+
+Jobs read pull requests, commits and Actions runs through the GitHub MCP
+connection. When you add it under **Connections**, choose **Use each
+repository's GitHub connection**. No token is stored on it. Each tool call gets
+a read-only token for the run's repository alone, from the App installation or
+token the repository was added with. The token never enters the sandbox.
+
+With the App, add these repository permissions:
+
+- **Pull requests: Read-only**, or read and write if you also open drafts.
+- **Actions: Read-only**, for CI runs and job logs.
+- **Commit statuses: Read-only**.
+
+A tool token asks only for the permissions the installation granted, and only
+for read access. A permission the App lacks fails just the tools that need it.
+
+GitHub enforces the one-repository limit for private repositories. Any token
+can read a public repository, so for those SecondShift's own argument checks
+keep each job on its repository. Repositories added from a local folder have no
+GitHub connection to borrow. Connect GitHub tools for them with their own
+fine-grained token instead.
+
+Installing the App does not turn on GitHub tools. An owner adds the connection,
+and each job's request goes through the usual approval.
+
+## Use a personal access token
+
+On **Repositories**, choose **Use a token** (or **Connect GitHub with a token**
+on a server without the App) and paste a
+[fine-grained personal access token](https://github.com/settings/personal-access-tokens/new).
+SecondShift refuses classic tokens, because they reach every repository you can.
+
+Give the token only the repositories SecondShift should use, and these
+repository permissions:
+
+- **Contents: Read-only**, to import and sync.
+- **Pull requests**, **Actions** and **Commit statuses: Read-only**, for GitHub
+  tools.
+- **Contents** and **Pull requests: Read and write**, for draft pull requests.
+  Do not grant **Workflows**, for the reason given above.
+
+GitHub checks the token before it is saved. It is stored encrypted and never
+returned to the browser or put in a sandbox. Its expiry date shows on
+**Connections**, with a warning two weeks before. Paste a new token for the same
+GitHub account to replace it. Its repositories keep working.
+
+A token works differently from the App:
+
+- One token does everything it was given. SecondShift cannot narrow it per
+  step, so a token that can write is also the one used to read.
+- Pushes and draft pull requests appear as the token's owner, and GitHub does
+  not let you approve your own pull request.
+- API calls count against the owner's hourly GitHub limit.
+- When the owner loses access to a repository, or the token expires, its syncs
+  and runs stop until a new token is added.
 
 This first version uses polling, not webhooks. Each sync fetches only new
 commits into a mirror kept by SecondShift. A run's files may be up to 64 MiB

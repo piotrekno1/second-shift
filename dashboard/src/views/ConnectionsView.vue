@@ -14,7 +14,7 @@ import { approveNeed, deleteConnection, revokeConnection, testConnection } from 
 import { useAppStore } from '../stores/app'
 import type { CapabilityNeed, Connection, Notice } from '../types'
 import { Action } from '../utils/permissions'
-import { connectionUsageLine, countLabel, formatDate, formatRelative, kindLabel, providerLabel, utcTitle } from '../utils/format'
+import { connectionUsageLine, countLabel, expiresSoon, formatDate, formatRelative, kindLabel, providerLabel, utcTitle } from '../utils/format'
 
 /** Which form is open: the header "Add", a need row, or a connection row. */
 type OpenForm = { mode: 'add' } | { mode: 'need', binding: string } | { mode: 'edit', id: number }
@@ -363,6 +363,8 @@ onMounted(async () => {
             <div class="need-primary">
               <strong class="connection-name">{{ connection.display_name }}</strong>
               <span>{{ kindLabel(connection.kind) }} · {{ providerLabel(connection.provider) }}<template v-if="connection.target"> → {{ connection.target }}</template></span>
+              <small v-if="connection.auth === 'source'">Uses each repository's GitHub connection</small>
+              <small v-if="connection.kind === 'source' && connection.auth === 'token'" :class="{ expiring: expiresSoon(connection.expires_at) }">{{ connection.expires_at ? `Token expires ${formatDate(connection.expires_at)}` : 'Token does not expire' }}</small>
               <small v-if="servedBindings(connection).length" class="served">
                 Serves <template v-for="(need, index) in servedBindings(connection)" :key="need.binding"><template v-if="index">, </template><code>{{ need.binding }}</code> for <template v-for="(job, jobIndex) in need.jobs" :key="job.job_id"><template v-if="jobIndex">, </template><RouterLink :to="`/jobs/${job.job_id}`" class="need-job">{{ job.job_name }}</RouterLink><template v-if="need.required && !job.required"> (optional)</template></template></template>
               </small>

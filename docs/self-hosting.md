@@ -13,7 +13,7 @@ run the [production end-to-end test](../scripts/production_e2e/README.md).
 For a local trial, use `secondshift up` as described in the
 [quick start](../README.md#quick-start).
 
-See [GitHub App repository access](github-app.md) to configure repository import
+See [GitHub repository access](github-app.md) to configure repository import
 and automatic syncing.
 
 ## Local trial

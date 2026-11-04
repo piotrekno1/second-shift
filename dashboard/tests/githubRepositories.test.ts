@@ -46,3 +46,28 @@ test('branch loading failures can be retried and clearing selection cancels a pe
     assert.equal(store.branchesLoading, false)
   } finally { globalThis.fetch = originalFetch }
 })
+
+test('a refused token shows GitHub\'s reason and is not kept', async () => {
+  setActivePinia(createPinia())
+  const store = useGitHubRepositoriesStore()
+  const originalFetch = globalThis.fetch
+  const originalDocument = globalThis.document
+  Object.defineProperty(globalThis, 'document', { value: { cookie: '' }, configurable: true })
+  const bodies: string[] = []
+  try {
+    globalThis.fetch = async (_url, init) => {
+      bodies.push(String(init?.body))
+      return Response.json({ detail: 'GitHub refused this token. It may have expired.' }, { status: 422 })
+    }
+    assert.equal(await store.connectToken('  github_pat_secret  '), false)
+    assert.equal(store.tokenError, 'GitHub refused this token. It may have expired.')
+    assert.equal(store.connecting, false)
+    assert.deepEqual(JSON.parse(bodies[0]!), { token: 'github_pat_secret' })
+    globalThis.fetch = async () => Response.json({ id: 1, kind: 'source', auth: 'token' })
+    assert.equal(await store.connectToken('github_pat_secret'), true)
+    assert.equal(store.tokenError, null)
+  } finally {
+    globalThis.fetch = originalFetch
+    Object.defineProperty(globalThis, 'document', { value: originalDocument, configurable: true })
+  }
+})

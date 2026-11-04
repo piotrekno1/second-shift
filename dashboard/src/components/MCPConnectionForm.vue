@@ -44,11 +44,16 @@ const error = ref('')
 
 const supportsOAuth = computed(() => provider.value?.auth_methods.includes('oauth') ?? false)
 const supportsToken = computed(() => provider.value?.auth_methods.includes('token') ?? false)
+const supportsSource = computed(() => provider.value?.auth_methods.includes('source') ?? false)
 const signedIn = computed(() => props.connection?.auth === 'oauth')
+// GitHub can borrow the token of each repository's own GitHub connection.
+const hasGitHubSource = computed(() => app.connections.some((item) => item.provider === 'github' && item.kind === 'source' && item.status === 'connected'))
+const borrowSource = ref(props.connection ? props.connection.auth === 'source' : hasGitHubSource.value)
 /** A new connection to a server that may offer sign-in: check it first. */
 const needsCheck = computed(() => !editing.value && supportsOAuth.value && supportsToken.value && server.value === null)
-const mode = computed<'oauth' | 'token'>(() => {
-  if (editing.value) return signedIn.value ? 'oauth' : 'token'
+const mode = computed<'oauth' | 'token' | 'source'>(() => {
+  if (editing.value) return signedIn.value ? 'oauth' : props.connection?.auth === 'source' ? 'source' : 'token'
+  if (supportsSource.value && borrowSource.value) return 'source'
   if (!supportsToken.value) return 'oauth'
   if (!supportsOAuth.value) return 'token'
   return server.value?.oauth && !useToken.value ? 'oauth' : 'token'
@@ -134,7 +139,7 @@ async function save(): Promise<void> {
         tools: chooseTools ? tools.value : undefined,
         require_approval: requireApproval.value,
       })
-    : await createMCPConnection({ provider: provider.value.key, binding_key: binding.value, display_name: name.value, token: token.value, settings: cleanSettings(), require_approval: requireApproval.value })
+    : await createMCPConnection({ provider: provider.value.key, binding_key: binding.value, display_name: name.value, token: mode.value === 'source' ? '' : token.value, settings: cleanSettings(), require_approval: requireApproval.value, auth: mode.value === 'source' ? 'source' : 'token' })
   token.value = ''
   await app.refresh()
   const verb = reconnecting.value ? 'Reconnected' : editing.value ? 'Saved' : 'Connected'
@@ -192,6 +197,19 @@ async function submit(): Promise<void> {
         <small>The selected scopes are required. Sign-in fails if any are missing; additional scopes appear as a warning on the connection.</small>
       </fieldset>
 
+      <fieldset v-if="supportsSource && !editing" class="need-setup-wide mcp-choice">
+        <legend>Credentials</legend>
+        <label class="mcp-choice-item">
+          <input v-model="borrowSource" type="radio" name="mcp-credentials" :value="true" :disabled="!hasGitHubSource">
+          <span>Use each repository's GitHub connection<template v-if="!hasGitHubSource"> · connect GitHub on the Repositories page first</template></span>
+        </label>
+        <label class="mcp-choice-item">
+          <input v-model="borrowSource" type="radio" name="mcp-credentials" :value="false">
+          <span>Paste a token for this connection</span>
+        </label>
+        <small v-if="mode === 'source'">Each call gets a read-only token for the run's repository only. <DocsLink :page="DocsPage.GitHubAccess" section="github-tools">How it works</DocsLink></small>
+      </fieldset>
+      <p v-if="editing && mode === 'source'" class="need-setup-wide mcp-choice-note">Uses each repository's GitHub connection. No token is stored here.</p>
       <label v-if="showToken" class="need-setup-wide">
         <span>{{ provider.token_label }}</span>
         <InputText v-model="token" type="password" :required="tokenRequired" :placeholder="tokenRequired ? undefined : 'Leave blank to keep the current token'" autocomplete="new-password" maxlength="2000" />

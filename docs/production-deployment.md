@@ -4,7 +4,8 @@ This single-server example runs SecondShift behind Caddy with HTTPS,
 PostgreSQL and an existing private S3 bucket. It uses
 [`compose.production.yaml`](../compose.production.yaml) on a Linux Docker host.
 
-GitHub repositories are imported through a GitHub App. This example targets one
+GitHub repositories are imported through a GitHub App, or a personal access
+token. This example targets one
 dedicated server and has downtime during updates. It does not provide high
 availability.
 

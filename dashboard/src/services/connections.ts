@@ -92,7 +92,7 @@ export function fetchMCPProviders(): Promise<MCPProviderInfo[]> {
   return apiGet<MCPProviderInfo[]>('/connections/mcp-providers')
 }
 
-export function createMCPConnection(input: { provider: string, binding_key: string, display_name: string, token: string, settings: Record<string, string>, require_approval: boolean }): Promise<Connection> {
+export function createMCPConnection(input: { provider: string, binding_key: string, display_name: string, token: string, settings: Record<string, string>, require_approval: boolean, auth?: 'token' | 'source' }): Promise<Connection> {
   return apiPost<Connection>('/connections/mcp', input)
 }
 

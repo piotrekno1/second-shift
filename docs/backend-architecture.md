@@ -6,12 +6,20 @@
 | `jobs` | Manifest interpretation, job reconciliation, capability requests, grants, execution-plan compilation, schedule registration |
 | `triggers` | Job triggers, their secrets, the public endpoint that starts runs, received requests |
 | `runs` | Task assignments, execution records, audit events, agent execution, durable workflows, recovery, artifacts, retention, report delivery |
-| `connections` | Connection lifecycle, encrypted credentials, OAuth sign-ins, provider adapters for MCP, HTTP APIs, models and webhooks |
+| `connections` | Connection lifecycle, encrypted credentials, OAuth sign-ins, GitHub source connections (App installations and tokens), provider adapters for MCP, HTTP APIs, models and webhooks |
 | `runner` | The isolated service's sandbox sessions, runtime enforcement, command execution, shared protocol and client |
 | `gateway` | Model proxy, run tokens, model usage |
 | `mcp_server` | The `/mcp` endpoint, MCP tool adapters, tool call audit and rate limit |
 | `workspaces` | Membership, workspace selection, authorization, API tokens and workspace settings endpoints |
 | `core` | Account and application infrastructure, cross-domain dashboard overview |
+
+`secondshift/github` is a plain package, not an app. It holds GitHub App
+credentials, tokens, the REST client, git transport and repository lookups.
+It takes plain values such as an installation ID and imports no Django apps,
+which its own ruff configuration enforces. `repositories.github_access` turns a
+repository and its source connection into one token and a checked identity for
+each operation. Syncs, checkouts, publishing and the GitHub MCP adapter all use
+it.
 
 Each HTTP app uses `api.py` for endpoints, `schemas.py` for its transport
 contracts, and `serialization.py` for response builders when needed.
