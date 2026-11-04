@@ -8,7 +8,11 @@ from django.test import Client, RequestFactory, override_settings
 
 from secondshift.workspaces.models import ApiToken, Workspace, WorkspaceMembership
 from secondshift.workspaces.services import create_workspace
-from secondshift.workspaces.tokens import ApiTokenAuth, create_api_token
+from secondshift.workspaces.tokens import (
+    ApiTokenAuth,
+    create_api_token,
+    revoke_api_token,
+)
 
 Role = WorkspaceMembership.Role
 TOKENS = "/api/account/api-tokens"
@@ -165,3 +169,19 @@ def test_tokens_cannot_manage_tokens(acme: Workspace, owner: AbstractUser) -> No
 
     assert response.status_code == 401
     assert ApiToken.objects.count() == 1
+
+
+def test_overview_says_whether_this_person_has_a_usable_token(
+    client: Client, acme: Workspace, owner: AbstractUser
+) -> None:
+    person = user("member")
+    join(acme, person, Role.MEMBER)
+    create_api_token(membership(acme, person), "Member's", "read", 30)
+    client.force_login(owner)
+    assert client.get("/api/overview").json()["has_agent_token"] is False
+
+    mine = create_api_token(membership(acme, owner), "Owner's", "read", 30)
+    assert client.get("/api/overview").json()["has_agent_token"] is True
+
+    revoke_api_token(mine.token)
+    assert client.get("/api/overview").json()["has_agent_token"] is False
