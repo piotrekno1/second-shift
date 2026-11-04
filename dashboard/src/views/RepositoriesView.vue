@@ -2,7 +2,7 @@
 import AppIcon from '../components/AppIcon.vue'
 import GitHubTokenForm from '../components/GitHubTokenForm.vue'
 import { computed, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
 import Select from 'primevue/select'
@@ -22,6 +22,7 @@ import { Action } from '../utils/permissions'
 import { countLabel, formatDate, formatRelative, utcTitle } from '../utils/format'
 
 const app = useAppStore()
+const route = useRoute()
 const router = useRouter()
 const list = useListQuery()
 
@@ -91,6 +92,8 @@ function openImport(justConnected: boolean = false): void {
 }
 // Start before the first render so the header button shows its loading state at once.
 if (app.can(Action.AddGitHubRepositories) && githubConnected.value) openImport()
+// Overview's setup links here with ?add=github or ?add=local.
+else if (route.query.add === 'github' && app.can(Action.AddGitHubRepositories)) connectingGitHub.value = true
 async function tokenConnected(): Promise<void> {
   connectingGitHub.value = false
   await app.refresh()
@@ -109,7 +112,7 @@ async function addGitHubRepository(): Promise<void> {
     await router.push(`/repositories/${repository.id}`)
   }
 }
-const addingLocal = ref(false)
+const addingLocal = ref(route.query.add === 'local' && app.canAddLocalRepositories)
 const localPath = ref('')
 const localError = ref<string | null>(null)
 const saving = ref(false)
@@ -180,7 +183,8 @@ function chooseDirectory(path: string): void {
         </div>
         <div class="github-connect-option">
           <h3>Personal access token</h3>
-          <p>For a single machine, or an organization where you cannot install apps. Stored encrypted.</p>
+          <p v-if="githubConfigured">For a single machine, or an organization where you cannot install apps. Stored encrypted.</p>
+          <p v-else>Choose its repositories on GitHub. SecondShift reaches only those. Stored encrypted.</p>
           <GitHubTokenForm @connected="tokenConnected" />
         </div>
       </div>

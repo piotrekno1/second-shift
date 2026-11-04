@@ -84,6 +84,26 @@ disable polling. Changed capabilities continue through the existing approval
 process. A failed sync preserves the last good revision and appears in repository
 validation. It does not silently replace a working job definition.
 
+## Check access
+
+On **Connections**, choose **Check access** in a GitHub connection's menu. It
+checks three things:
+
+- The credential still works. For a token, this also refreshes its expiry date.
+- Every added repository is still reachable.
+- What each feature can do:
+  - **Sync** needs read access to Contents.
+  - **GitHub tools** need read access to Pull requests, Actions and Commit
+    statuses.
+  - **Draft pull requests** need write access to Contents and Pull requests.
+
+For the App, SecondShift reads the installation's permissions. For a token, it
+makes one read request per permission. A token's write access cannot be checked
+without writing, so it is checked when a draft pull request opens.
+
+Each gap links to the page on GitHub that fixes it. The worker checks each
+GitHub connection once a day, and right away when a sync fails.
+
 ## Credentials and limitations
 
 For each sync, checkout or check, SecondShift creates one short-lived
@@ -117,8 +137,10 @@ checkout. Reinstall/re-authorize through **Connect GitHub** to reconnect.
 ## GitHub tools
 
 Jobs read pull requests, commits and Actions runs through the GitHub MCP
-connection. When you add it under **Connections**, choose **Use each
-repository's GitHub connection**. No token is stored on it. Each tool call gets
+connection. On **Connections**, the GitHub card groups repository access,
+GitHub tools and sign-in. Choose **Turn on** next to GitHub tools. This adds
+the `github` binding, using each repository's GitHub connection. No token is
+stored on it. Each tool call gets
 a read-only token for the run's repository alone, from the App installation or
 token the repository was added with. The token never enters the sandbox.
 
@@ -137,8 +159,10 @@ keep each job on its repository. Repositories added from a local folder have no
 GitHub connection to borrow. Connect GitHub tools for them with their own
 fine-grained token instead.
 
-Installing the App does not turn on GitHub tools. An owner adds the connection,
-and each job's request goes through the usual approval.
+Installing the App does not turn on GitHub tools. An owner turns them on, and
+each job's request goes through the usual approval. **Turn off** blocks jobs
+that name `github` and leaves repository access as it is. **Check access** on a
+repository connection shows whether the tools' permissions are granted.
 
 ## Use a personal access token
 

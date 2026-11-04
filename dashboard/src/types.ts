@@ -454,8 +454,8 @@ export interface Connection {
   default_model: string
   is_default: boolean
   available_models: string[]
-  /** Result of the last Check (model providers): listing models and one test call. */
-  last_check: { ok: boolean, message: string, checked_at: string } | null
+  /** Result of the last check. Sources add what each feature can do. */
+  last_check: ConnectionCheck | null
   /** Present on the connections list only. */
   usage?: ConnectionUsage | null
   /** MCP only: the organization or project the owner chose. */
@@ -556,6 +556,23 @@ export interface WebhookSample {
   payload: Record<string, unknown>
   /** How many characters of the report the summary field holds. */
   summary_max_chars: number
+}
+
+/** One feature of a source connection. ok is null when it cannot be checked without using it. */
+export interface FeatureCheck {
+  feature: string
+  label: string
+  ok: boolean | null
+  message: string
+}
+
+export interface ConnectionCheck {
+  ok: boolean
+  message: string
+  checked_at: string
+  features?: FeatureCheck[]
+  /** Where to fix a gap on GitHub. Empty when there is nowhere to send the person. */
+  fix_url?: string
 }
 
 export interface ConnectionTest {

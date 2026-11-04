@@ -2,6 +2,7 @@ import pytest
 
 from secondshift.runs.management.commands.run_dbos_worker import (
     PRUNE_INTERVAL_SECONDS,
+    SOURCE_CHECK_POLL_SECONDS,
     worker_tasks,
 )
 from secondshift.runs.orchestration.periodic import PeriodicTask
@@ -69,6 +70,7 @@ def test_the_worker_syncs_repositories_only_when_the_server_does(
     assert tasks["prune runs"].every == PRUNE_INTERVAL_SECONDS
     assert tasks["sync repositories"].every == 300
     assert tasks["sync repositories"].enabled() is True
+    assert tasks["check GitHub connections"].every == SOURCE_CHECK_POLL_SECONDS
 
     settings.REPOSITORY_SYNC_INTERVAL_SECONDS = 0  # type: ignore[attr-defined]
     assert tasks["sync repositories"].enabled() is False

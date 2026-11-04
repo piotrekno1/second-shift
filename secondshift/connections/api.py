@@ -94,6 +94,7 @@ from secondshift.connections.webhooks import (
 from secondshift.github.errors import GitHubError
 from secondshift.jobs.automatic_grants import approve_waiting_for, set_require_approval
 from secondshift.jobs.execution import apply_model_default, use_when_nothing_runs
+from secondshift.repositories.github_check import check_source
 from secondshift.runs.reporting.connection_usage import (
     ConnectionUsage,
     connection_usage,
@@ -606,6 +607,14 @@ def test_connection(request: HttpRequest, connection_id: int) -> ConnectionTestS
         check = check_model_connection(connection)
         return ConnectionTestSchema(
             ok=check.ok, status_code=None, message=check.message, models=check.models
+        )
+    if (
+        connection.kind == Connection.Kind.SOURCE
+        and connection.provider == Connection.Provider.GITHUB
+    ):
+        check = check_source(connection)
+        return ConnectionTestSchema(
+            ok=check.ok, status_code=None, message=check.message
         )
     if connection.provider != Connection.Provider.WEBHOOK:
         raise HttpError(400, "Testing is not available for this connection yet.")

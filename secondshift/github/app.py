@@ -3,12 +3,13 @@
 import base64
 import json
 import time
+from dataclasses import dataclass
 
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding
 from django.conf import settings
 
-from secondshift.config.constants import GITHUB_API_URL
+from secondshift.config.constants import GITHUB_API_URL, GITHUB_BASE_URL
 from secondshift.github.errors import GitHubError
 from secondshift.github.rest import paginated, request_json
 
@@ -77,12 +78,28 @@ def installation_repositories(installation_id: str) -> list[dict]:
     )
 
 
-def installation_permissions(installation_id: str) -> dict[str, str]:
-    """What the installation's owner granted the App, such as {"actions": "read"}."""
+@dataclass(frozen=True)
+class InstallationDetails:
+    """What the installation's owner granted, and where they change it."""
+
+    permissions: dict[str, str]
+    settings_url: str
+
+
+def installation(installation_id: str) -> InstallationDetails:
     if not installation_id.isdecimal():
         raise GitHubError("Invalid installation identity.")
     data = request_json(
         "GET", f"{GITHUB_API_URL}/app/installations/{installation_id}", app_token()
     )
     permissions = data.get("permissions")
-    return permissions if isinstance(permissions, dict) else {}
+    url = data.get("html_url")
+    return InstallationDetails(
+        permissions if isinstance(permissions, dict) else {},
+        url if isinstance(url, str) and url.startswith(GITHUB_BASE_URL) else "",
+    )
+
+
+def installation_permissions(installation_id: str) -> dict[str, str]:
+    """What the installation's owner granted the App, such as {"actions": "read"}."""
+    return installation(installation_id).permissions

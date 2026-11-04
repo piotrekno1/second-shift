@@ -11,6 +11,7 @@ from django.conf import settings
 from secondshift.jobs.scheduling import synchronize_schedules
 from secondshift.mcp_server.audit import prune_tool_calls
 from secondshift.repositories.autosync import server_syncs, sync_moved_repositories
+from secondshift.repositories.github_check import check_due_sources
 from secondshift.repositories.sources import prune_source_cache
 from secondshift.runs.orchestration.dbos_runtime import (
     launch_dbos_worker,
@@ -24,6 +25,8 @@ from secondshift.runs.retention import prune_runs
 logger = logging.getLogger(__name__)
 
 PRUNE_INTERVAL_SECONDS = 24 * 60 * 60
+# How often to look for GitHub connections due for their daily check.
+SOURCE_CHECK_POLL_SECONDS = 60 * 60
 
 
 def worker_tasks(client: DBOSClient) -> list[PeriodicTask]:
@@ -51,6 +54,10 @@ def worker_tasks(client: DBOSClient) -> list[PeriodicTask]:
         if synced := sync_moved_repositories():
             logger.info("synced %s repository(s) with new commits", synced)
 
+    def sources() -> None:
+        if checked := check_due_sources():
+            logger.info("checked %s GitHub connection(s)", checked)
+
     return [
         PeriodicTask("reconcile runs", every=0, run=reconcile),
         PeriodicTask("dispatch waiting tasks", every=0, run=dispatch_waiting_tasks),
@@ -61,6 +68,11 @@ def worker_tasks(client: DBOSClient) -> list[PeriodicTask]:
             every=settings.REPOSITORY_SYNC_INTERVAL_SECONDS,
             run=repositories,
             enabled=server_syncs,
+        ),
+        PeriodicTask(
+            "check GitHub connections",
+            every=SOURCE_CHECK_POLL_SECONDS,
+            run=sources,
         ),
     ]
 
