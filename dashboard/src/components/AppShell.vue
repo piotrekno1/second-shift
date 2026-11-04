@@ -29,11 +29,13 @@ interface NavItem { label: string; to: string; icon: string; note: string; tone?
 // Connections says what these add up to, so the two counts always match.
 const toFix = computed(() => app.brokenConnections + app.bindingsToSetUp)
 
-// Runs fail until something works. Nothing chosen waits on you; a broken choice is broken.
+// Runs fail until something works. Nothing chosen waits on you. A broken choice is broken.
+// There is only ever one, so the note names its state instead of a count.
+// "failing" is the word Connections uses for a broken connection.
 const modelNote = computed(() => {
   const execution = app.overview?.execution
   if (!execution?.problem) return ''
-  return execution.chosen ? 'to fix' : 'to choose'
+  return execution.chosen ? 'failing' : 'not set up'
 })
 
 // Day-to-day pages first, then the ones you set up once.
@@ -43,7 +45,7 @@ const groups = computed<{ label: string; items: NavItem[] }[]>(() => [
     items: [
       { label: 'Overview', to: '/', icon: 'view-dashboard-outline', note: '' },
       { label: 'Repositories', to: '/repositories', icon: 'source-repository', note: '' },
-      { label: 'Jobs', to: '/jobs', icon: 'calendar-clock-outline', note: app.jobsNeedingReview ? `${app.jobsNeedingReview} to approve` : '', tone: 'warning' },
+      { label: 'Jobs', to: '/jobs', icon: 'calendar-clock-outline', note: app.jobsAwaitingApproval ? `${app.jobsAwaitingApproval} to approve` : '', tone: 'warning' },
       { label: 'Runs', to: '/runs', icon: 'play-circle-outline', note: '' },
     ],
   },
