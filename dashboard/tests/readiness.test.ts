@@ -76,6 +76,7 @@ function setup(overrides: Partial<SetupState> = {}): SetupState {
     canAddLocal: false,
     canReview: true,
     canConnect: true,
+    offerAgent: false,
     ...overrides,
   }
 }
@@ -133,4 +134,16 @@ test('a repository without jobs says how to add one', () => {
 test('setup is done once a job is enabled or has run', () => {
   assert.equal(setupSteps(setup({ ...withCode, enabledJobs: 1 })), null)
   assert.equal(setupSteps(setup({ ...withCode, hasRuns: true })), null)
+})
+
+test('connecting an agent is offered while there is configuration to write', () => {
+  const first = setupSteps(setup({ offerAgent: true }))!
+  assert.deepEqual(first.map((step) => step.agentHint?.link ?? ''), ['Let your coding agent write one', '', ''])
+  const noJobs = setupSteps(setup({ ...withCode, jobs: 0, offerAgent: true }))!
+  assert.deepEqual(noJobs.map((step) => step.agentHint?.link ?? ''), ['', '', 'Let your coding agent write a job'])
+  // Once jobs exist, or access fails, the agent is not the next step.
+  assert.equal(setupSteps(setup({ ...withCode, offerAgent: true }))![2]!.agentHint, null)
+  assert.equal(setupSteps(setup({ repositories: 1, accessProblem: 'Cannot reach owner/project.', offerAgent: true }))![0]!.agentHint, null)
+  // People who already have a token are not asked again.
+  assert.equal(setupSteps(setup())![0]!.agentHint, null)
 })

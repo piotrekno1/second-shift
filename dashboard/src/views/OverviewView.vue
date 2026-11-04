@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import AppIcon from '../components/AppIcon.vue'
-import { computed } from 'vue'
 import Button from 'primevue/button'
+import { computed, ref, watch } from 'vue'
 import { useAgentConnectionStore } from '../stores/agentConnection'
 import ExecutionWarning from '../components/ExecutionWarning.vue'
 import PageHeader from '../components/PageHeader.vue'
@@ -12,6 +12,7 @@ import StatusPill from '../components/StatusPill.vue'
 import { useLiveRefresh } from '../composables/useLiveRefresh'
 import { isRunActive } from '../services/runs'
 import { useAppStore } from '../stores/app'
+import { agentCardDismissed, dismissAgentCard } from '../utils/agentSetup'
 import { setupSteps } from '../utils/readiness'
 import { Action } from '../utils/permissions'
 import {
@@ -58,7 +59,21 @@ const setup = computed(() => app.overview ? setupSteps({
   canAddLocal: app.canAddLocalRepositories,
   canReview: app.can(Action.ReviewCapabilities),
   canConnect: app.can(Action.AddConnections),
+  offerAgent: !app.overview.has_agent_token,
 }) : null)
+// A token made in the agent dialog takes the offer off the page.
+watch(() => agentConnection.visible, (visible) => { if (!visible) void app.refresh() })
+// After setup the agent can run jobs and read reports, so the offer changes. Closing it is remembered here.
+const agentCardClosed = ref(false)
+const showAgentCard = computed(() => {
+  const user = app.user
+  if (setup.value || !app.overview || app.overview.has_agent_token || !user?.workspace_slug) return false
+  return !agentCardClosed.value && !agentCardDismissed(localStorage, user.email, user.workspace_slug)
+})
+function closeAgentCard(): void {
+  if (app.user?.workspace_slug) dismissAgentCard(localStorage, app.user.email, app.user.workspace_slug)
+  agentCardClosed.value = true
+}
 // Soonest first; jobs without a next run (just enabled, not yet scheduled) go last.
 const upcoming = computed(() => app.jobs
   .filter((job) => job.enabled)
@@ -117,11 +132,6 @@ const passRate = computed(() => {
     </PageHeader>
 
     <SetupChecklist v-if="setup" :steps="setup" />
-    <div v-if="app.overview && !app.repositories.length" class="agent-discovery">
-      <AppIcon name="link-plus" />
-      <div><strong>Set up with your coding agent</strong><span>Connect over MCP to explore SecondShift and check your repository configuration.</span></div>
-      <Button label="Connect your agent" severity="secondary" size="small" @click="agentConnection.visible = true" />
-    </div>
     <!-- The checklist already asks for what runs jobs. -->
     <ExecutionWarning v-if="!setup || !app.overview?.execution?.needs_setup" />
 
@@ -169,6 +179,13 @@ const passRate = computed(() => {
       </div>
     </section>
 
+    <!-- An optional tip, so it waits below anything that needs fixing. -->
+    <div v-if="showAgentCard" class="agent-card">
+      <AppIcon name="link-plus" />
+      <div><strong>Use SecondShift from your editor</strong><span>Your coding agent can check .secondshift.yaml changes, follow runs and read their reports over MCP.</span></div>
+      <Button label="Not now" severity="secondary" text size="small" @click="closeAgentCard" />
+      <Button label="Connect your agent" severity="secondary" size="small" @click="agentConnection.visible = true" />
+    </div>
     <section v-if="hasFinishedRuns" class="panel runs-panel">
       <div class="panel-heading">
         <div><h2>Finished runs</h2><p>{{ passRate || 'Per day, by outcome, over the last two weeks.' }}</p></div>

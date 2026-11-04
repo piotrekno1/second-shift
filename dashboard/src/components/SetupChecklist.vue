@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import AppIcon from './AppIcon.vue'
+import { useAgentConnectionStore } from '../stores/agentConnection'
 import type { SetupStep } from '../utils/readiness'
 
 /** First-time setup. Only the first open step shows its actions, so there is one clear next step. */
 const props = defineProps<{ steps: SetupStep[] }>()
 const current = computed(() => props.steps.findIndex((step) => !step.done))
+const agentConnection = useAgentConnectionStore()
 const doneCount = computed(() => props.steps.filter((step) => step.done).length)
 </script>
 
@@ -28,7 +30,10 @@ const doneCount = computed(() => props.steps.filter((step) => step.done).length)
         :aria-current="index === current ? 'step' : undefined"
       >
         <span class="setup-mark"><AppIcon v-if="step.done" name="check" /><template v-else>{{ index + 1 }}</template></span>
-        <div class="setup-copy"><strong>{{ step.title }}</strong><span>{{ step.detail }}</span></div>
+        <div class="setup-copy">
+          <strong>{{ step.title }}</strong><span>{{ step.detail }}</span>
+          <span v-if="index === current && step.agentHint" class="setup-hint">{{ step.agentHint.lead }} <button type="button" class="link-button" @click="agentConnection.visible = true">{{ step.agentHint.link }}</button></span>
+        </div>
         <div v-if="index === current && step.actions.length" class="setup-actions">
           <RouterLink
             v-for="(action, actionIndex) in step.actions"

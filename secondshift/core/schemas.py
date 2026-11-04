@@ -67,3 +67,5 @@ class OverviewSchema(Schema):
     spend_by_job: list[JobSpendSchema] = []
     run_days: list[RunDaySchema] = []
     execution: ExecutionStatusSchema | None = None
+    # Whether this person has a usable MCP token in this workspace.
+    has_agent_token: bool = False

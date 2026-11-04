@@ -34,6 +34,7 @@ from secondshift.workspaces.access import (
     permitted_actions,
 )
 from secondshift.workspaces.services import can_create_workspace
+from secondshift.workspaces.tokens import own_tokens
 
 router = Router(auth=django_auth, tags=["core"])
 
@@ -108,4 +109,5 @@ def overview(request: HttpRequest) -> OverviewSchema:
         ],
         run_days=[RunDaySchema(**vars(day)) for day in runs_by_day(workspace)],
         execution=execution_status(workspace),
+        has_agent_token=own_tokens(request.user).filter(workspace=workspace).exists(),
     )

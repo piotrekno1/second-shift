@@ -947,16 +947,17 @@ body .workspace-menu { width: 224px; }
 .agent-help { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border); color: var(--subtle); font-size: 11px; line-height: 1.6; }
 .agent-help > span { min-width: 0; overflow-wrap: anywhere; }
 .agent-help a { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); }
-.agent-discovery { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; padding: 16px 20px; border: 1px solid var(--border); border-radius: 12px; background: var(--white-3); }
-.agent-discovery > .app-icon { flex: none; color: var(--muted); font-size: 20px; }
-.agent-discovery > div { flex: 1; display: grid; gap: 4px; }
-.agent-discovery strong { font-size: 13px; font-weight: 500; }
-.agent-discovery span { color: var(--muted); font-size: 12px; line-height: 1.6; }
-.agent-discovery > .p-button { flex: none; }
+.agent-card { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; padding: 16px 20px; border: 1px solid var(--border); border-radius: 12px; background: var(--white-3); }
+.agent-card > .app-icon { flex: none; color: var(--muted); font-size: 20px; }
+.agent-card > div { flex: 1; display: grid; gap: 4px; margin-left: 4px; }
+.agent-card strong { font-size: 13px; font-weight: 500; }
+.agent-card span { color: var(--muted); font-size: 12px; line-height: 1.6; }
+.agent-card > .p-button { flex: none; }
+.setup-copy .setup-hint .link-button { color: var(--muted); font-size: 12px; }
 @media (max-width: 600px) {
   .agent-dialog .p-dialog-header { padding: 20px 20px 8px; }
   .agent-dialog .p-dialog-content { padding: 0 20px 20px; }
   .agent-options { grid-template-columns: minmax(0, 1fr); }
-  .agent-discovery { flex-wrap: wrap; }
-  .agent-discovery > .p-button { margin-left: 36px; }
+  .agent-card { flex-wrap: wrap; }
+  .agent-card > div { flex-basis: calc(100% - 40px); }
 }
