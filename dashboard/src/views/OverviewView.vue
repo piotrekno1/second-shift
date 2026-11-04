@@ -106,14 +106,14 @@ const passRate = computed(() => {
 
 <template>
   <div class="page">
-    <PageHeader title="This week" :aside="weekRange(new Date())" :description="subtitle">
+    <!-- During setup there is no week to report on yet, so the header stays plain. -->
+    <PageHeader v-if="setup" title="Overview" description="Finish these steps and your jobs start running on schedule." />
+    <PageHeader v-else title="This week" :aside="weekRange(new Date())" :description="subtitle">
       <!-- After setup, the one next step: approve what blocks a job, or add a repository.
            While nothing can run jobs, the warning below carries the step instead. -->
-      <template v-if="!setup">
       <RouterLink v-if="!executionBlocked && missingConnection && app.can(Action.AddConnections)" :to="{ path: '/connections', query: { binding: missingConnection.binding } }" class="primary-action"><AppIcon name="link-plus" /> Connect {{ missingConnection.binding }}</RouterLink>
       <RouterLink v-else-if="!executionBlocked && approvalJobs[0] && app.can(Action.ReviewCapabilities)" :to="{ path: '/jobs', query: { review: String(approvalJobs[0].id) } }" class="primary-action"><AppIcon name="shield-key-outline" /> Review access</RouterLink>
       <RouterLink v-else-if="!executionBlocked && !app.repositories.length && app.canAddLocalRepositories" to="/repositories" class="primary-action"><AppIcon name="plus" /> Add repository</RouterLink>
-      </template>
     </PageHeader>
 
     <SetupChecklist v-if="setup" :steps="setup" />
@@ -125,6 +125,9 @@ const passRate = computed(() => {
     <!-- The checklist already asks for what runs jobs. -->
     <ExecutionWarning v-if="!setup || !app.overview?.execution?.needs_setup" />
 
+    <!-- Until the first run there is nothing to count or list, and the checklist
+         already carries the next step, so the rest of the page waits. -->
+    <template v-if="!setup">
     <section class="stats-grid">
       <StatCard label="Needs attention" :value="failing.length" :detail="attentionDetail" :tone="failing.length ? 'danger' : undefined" :to="failing.length ? { hash: '#failing' } : undefined" />
       <StatCard label="Runs" :value="app.overview?.runs_7d ?? 0" :delta="runs.delta" :detail="runs.detail" :to="{ path: '/runs', query: { period: '7d' } }" />
@@ -219,6 +222,7 @@ const passRate = computed(() => {
         </RouterLink>
       </div>
     </section>
+    </template>
   </div>
 </template>
 
