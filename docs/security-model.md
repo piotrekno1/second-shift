@@ -57,6 +57,9 @@ Draft pull requests are published the same way. After the sandbox stops, the
 worker applies the stored patch to the run's commit and pushes it with a
 short-lived write token. The token never reaches the sandbox or the model. The
 patch cannot hold a credential either, since none ever enter the sandbox.
+Issues work the same way. The agent only proposes them through a tool, and the
+worker opens them after the run with a token limited to the repository's
+issues.
 
 ## Where secrets live
 
@@ -202,6 +205,10 @@ the `#alerts` and `#ops` channels.
   changes to workflow files, because SecondShift never asks for that
   permission. Other files CI runs, such as build scripts and tests, can still
   change.
+- **An issue is model output.** Injected text can steer what the agent files,
+  and anyone who can read the repository can read its issues. An issue only
+  goes to the run's own repository, at most 10 per run, and each one names the
+  run that opened it.
 
 Approve only the tools a job needs, restrict the arguments that pick a target,
 and prefer read-only credentials.

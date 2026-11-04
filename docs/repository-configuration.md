@@ -84,6 +84,7 @@ standard-library tests work without installing packages.
 | `jobs.<key>.triggers` | No | Events that can start the job. Only `webhook` is supported. An owner or admin turns it on. See [webhook triggers](#webhook-triggers). |
 | `jobs.<key>.webhook` | No | Which webhook requests start a run: `skip_when`, `repeat_key` and `repeat_window`. Needs `triggers: [webhook]`. See [ignore requests and repeats](#ignore-requests-and-repeats). |
 | `jobs.<key>.pull_request` | No | Set to `true` to open a draft pull request with each run's changes. An owner must allow pull requests for the repository. See [draft pull requests](#draft-pull-requests). |
+| `jobs.<key>.issues` | No | Set to `true` to let the agent propose GitHub issues, which open after each successful run. An owner must allow issues for the repository. See [GitHub issues](#github-issues). |
 | `jobs.<key>.requires` | No | MCP tools and HTTP API operations the job needs. See below. |
 
 Skill paths must stay inside the repository. Unknown fields are rejected.
@@ -140,6 +141,35 @@ repository's settings, and the GitHub App needs write access. Until then, runs
 still produce their report, and each skipped draft says why. CI waits for a
 review unless the owner lets it run at once. [Tasks](tasks.md#draft-pull-requests)
 explains the rest.
+
+## GitHub issues
+
+A job can file what it finds as GitHub issues, such as a weekly review:
+
+```yaml
+jobs:
+  weekly-review:
+    name: Weekly review
+    skill: .agents/skills/weekly-review/SKILL.md
+    schedule: "0 9 * * 1"
+    history: 1
+    issues: true
+    notify:
+      - binding: team-chat
+```
+
+The agent gets a `propose_issue` tool and can propose up to 10 issues per run.
+It never gets write access to GitHub. After a successful run, SecondShift opens
+each proposed issue in the job's repository, with a footer naming the run. It
+skips a proposal when an open issue has the same title, so a weekly job does
+not file the same finding twice. The run page and the webhook message link
+each issue.
+
+The configuration only asks. A workspace owner allows issues in the
+repository's settings, and the GitHub App or token needs write access to
+Issues. Until then, runs still produce their report, and the run says why no
+issues opened. A failed attempt can be retried from the run page. It opens only
+the issues that did not open yet. Local repositories cannot receive issues.
 
 ## Webhook triggers
 
