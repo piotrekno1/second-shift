@@ -43,7 +43,7 @@ const groups = computed<{ label: string; items: NavItem[] }[]>(() => [
     items: [
       { label: 'Overview', to: '/', icon: 'view-dashboard-outline', note: '' },
       { label: 'Repositories', to: '/repositories', icon: 'source-repository', note: '' },
-      { label: 'Jobs', to: '/jobs', icon: 'calendar-clock-outline', note: app.jobsNeedingReview ? `${app.jobsNeedingReview} to approve` : '', tone: 'warning' },
+      { label: 'Jobs', to: '/jobs', icon: 'calendar-clock-outline', note: app.jobsAwaitingApproval ? `${app.jobsAwaitingApproval} to approve` : '', tone: 'warning' },
       { label: 'Runs', to: '/runs', icon: 'play-circle-outline', note: '' },
     ],
   },

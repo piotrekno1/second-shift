@@ -20,7 +20,7 @@ import { DocsPage } from '../utils/docs'
 import { Action } from '../utils/permissions'
 import { approvalPending, enableBlocker, runWarning } from '../utils/readiness'
 import { sameRules } from '../utils/toolRules'
-import { accessLabel, accessNeedsAction, countLabel, formatDate, formatRelative, lastRunLine, formatSchedule, formatScheduled, jobState, kindLabel, utcTitle } from '../utils/format'
+import { accessLabel, accessNeedsAction, awaitsApproval, countLabel, formatDate, formatRelative, lastRunLine, formatSchedule, formatScheduled, jobState, kindLabel, utcTitle } from '../utils/format'
 
 const app = useAppStore()
 const route = useRoute()
@@ -38,7 +38,7 @@ const jobsSubtitle = computed(() => {
   if (total === 0) return 'No jobs discovered yet.'
 
   const enabled = app.jobs.filter((job) => job.enabled).length
-  const needsApproval = app.jobs.filter((job) => job.grant_status === 'pending' || job.grant_status === 'denied').length
+  const needsApproval = app.jobs.filter((job) => awaitsApproval(job.grant_status)).length
   const summary = [countLabel(total, 'job'), `${countLabel(enabled, 'job')} enabled`]
   if (needsApproval > 0) {
     summary.push(`${countLabel(needsApproval, 'job')} ${needsApproval === 1 ? 'needs' : 'need'} approval`)
@@ -53,7 +53,7 @@ const JOB_STATES: { value: JobState, label: string, matches: (job: Job) => boole
   // Manual jobs have no schedule to switch on, so they are their own group.
   { value: 'disabled', label: 'Disabled', matches: (job) => Boolean(job.cron) && !job.enabled },
   { value: 'manual', label: 'Manual', matches: (job) => !job.cron },
-  { value: 'review', label: 'Needs approval', matches: (job) => job.grant_status === 'pending' || job.grant_status === 'denied' },
+  { value: 'review', label: 'Needs approval', matches: (job) => awaitsApproval(job.grant_status) },
 ]
 const search = computed(() => list.text('q'))
 const repositoryFilter = computed(() => list.number('repository'))

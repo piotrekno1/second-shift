@@ -157,6 +157,11 @@ export function accessNeedsAction(status: string): boolean {
   return status === 'pending' || status === 'denied'
 }
 
+/** Whether a job waits for someone to decide on its access. A denied job was already decided. */
+export function awaitsApproval(status: string): boolean {
+  return status === 'pending'
+}
+
 const PROVIDER_LABELS: Record<string, string> = {
   anthropic: 'Anthropic',
   openai: 'OpenAI',

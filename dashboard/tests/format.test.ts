@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import type { Run } from '../src/types'
 
-import { formatLimit, accessLabel, accessNeedsAction, connectionUsageLine, countLabel, describeCron, formatDate, formatSeconds, healthHeadline, runsTrend, weekRange, jobOutcomes, spendTrend, formatRelative, formatScheduled, formatTime, utcTitle, zoneName, formatBytes, plainSummary, providerLabel, runStats, statusLabel, formatDuration, formatModelUsage, finishedBinding, formatSchedule, jobState, historyLabel, lastRunLine, titleFromSlug, typingBinding, kindLabel, expiresSoon, tokenExpired, sourceAuthLabel } from '../src/utils/format'
+import { formatLimit, accessLabel, accessNeedsAction, awaitsApproval, connectionUsageLine, countLabel, describeCron, formatDate, formatSeconds, healthHeadline, runsTrend, weekRange, jobOutcomes, spendTrend, formatRelative, formatScheduled, formatTime, utcTitle, zoneName, formatBytes, plainSummary, providerLabel, runStats, statusLabel, formatDuration, formatModelUsage, finishedBinding, formatSchedule, jobState, historyLabel, lastRunLine, titleFromSlug, typingBinding, kindLabel, expiresSoon, tokenExpired, sourceAuthLabel } from '../src/utils/format'
 
 test('formatSchedule keeps cron and timezone visible', () => {
   assert.equal(formatSchedule('0 9 * * 1', 'Europe/Warsaw'), 'Mondays at 09:00 · Europe/Warsaw')
@@ -126,6 +126,8 @@ test('status, access and provider labels are readable', () => {
   assert.equal(statusLabel('succeeded'), 'Succeeded')
   assert.equal(accessLabel('pending'), 'Needs approval')
   assert.deepEqual(['pending', 'denied', 'approved', 'not_required'].map(accessNeedsAction), [true, true, false, false])
+  // Only an undecided job counts as waiting. A denied one keeps its pill but is not counted.
+  assert.deepEqual(['pending', 'denied', 'approved', 'not_required'].map(awaitsApproval), [true, false, false, false])
   assert.equal(providerLabel('openai_compatible'), 'OpenAI-compatible')
   assert.equal(providerLabel('something_new'), 'Something new')
 })

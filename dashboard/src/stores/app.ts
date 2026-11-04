@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 
 import { apiGet, AuthenticationRequired } from '../services/api'
 import { signInUrl } from '../utils/signIn'
+import { awaitsApproval } from '../utils/format'
 import { Action, allows } from '../utils/permissions'
 import { fetchMCPProviders } from '../services/connections'
 import { fetchPendingInvite } from '../services/invites'
@@ -49,9 +50,9 @@ export const useAppStore = defineStore('app', {
     /** The server must allow local repositories and the role must allow adding them. */
     canAddLocalRepositories: (state): boolean =>
       Boolean(state.user?.local_repositories_enabled) && allows(state.user, Action.AddLocalRepositories),
-    /** Jobs whose access is pending or denied, so they cannot run until reviewed. */
-    jobsNeedingReview: (state): number =>
-      state.jobs.filter((job) => job.grant_status === 'pending' || job.grant_status === 'denied').length,
+    /** Jobs whose access no one has decided on yet, so they cannot run. */
+    jobsAwaitingApproval: (state): number =>
+      state.jobs.filter((job) => awaitsApproval(job.grant_status)).length,
     /** Connections that are not working: disconnected, or their last check failed. Model providers count on Models. */
     brokenConnections: (state): number =>
       state.connections.filter((connection) => connection.kind !== 'model' && (connection.status !== 'connected' || connection.last_check?.ok === false)).length,
