@@ -147,20 +147,24 @@ jobs:
     subagents: 3
 ```
 
-The agent then has a `start_subagent` tool. Each sub-agent gets one task,
-the run's repository and external tools, and none of the run's messages. It
-returns a report to the agent that started it. A skill can use this to have a
-finding checked by an agent that never saw the reasoning behind it.
+The agent can then start sub-agents. Each sub-agent gets one task, the run's
+repository and external tools, and none of the run's messages. It returns a
+report to the agent that started it. A skill can use this to have a finding
+checked by an agent that never saw the reasoning behind it.
 
+- With the built-in agent, the run has a `start_subagent` tool.
+- With a Claude Code subscription, the run has Claude Code's Agent tool and
+  one sub-agent type, `secondshift-worker`. It has only the run's tools.
+  Claude Code's own sub-agent types are refused.
+- Codex runs cannot start sub-agents yet.
 - Sub-agents share the run's limits. Their model requests, tool calls and
-  tokens count toward the run's, and the run keeps one model request for its
+  tokens count toward the run's. A built-in run keeps one model request for its
   own report.
-- They run one at a time, and cannot start sub-agents of their own.
-- The run's timeline shows when each one started and what it used.
+- They cannot start sub-agents of their own. Built-in runs start them one at a
+  time.
+- The run's timeline shows each one and what it used.
 - They use the same model as the run, so their checks are not an independent
   review.
-- Only the built-in agent can start them so far. Runs that use a Claude Code
-  or Codex subscription have no `start_subagent` tool.
 
 Sub-agents grant no new access, so `subagents` needs no approval. The server's
 `SECONDSHIFT_RUN_SUBAGENTS_MAX` caps it. A manifest above it fails to sync,

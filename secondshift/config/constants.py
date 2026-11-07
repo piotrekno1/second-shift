@@ -236,3 +236,7 @@ class AgentBackend(StrEnum):
     PYDANTIC = "pydantic"
     CLAUDE_CODE = "claude_code"
     CODEX = "codex"
+
+
+# The backends whose runs can start sub-agents.
+SUBAGENT_BACKENDS = (AgentBackend.PYDANTIC, AgentBackend.CLAUDE_CODE)

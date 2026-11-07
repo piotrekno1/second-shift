@@ -9,6 +9,7 @@ from django.conf import settings
 
 from secondshift.config.constants import (
     COMMIT_SHA_PATTERN,
+    SUBAGENT_BACKENDS,
     AgentBackend,
 )
 from secondshift.connections.external import EXTERNAL_KINDS
@@ -230,11 +231,11 @@ def compile_execution_plan(
         RunLimit.TOKEN_BUDGET: limits[RunLimit.TOKEN_BUDGET],
         RunLimit.TIMEOUT_SECONDS: limits[RunLimit.TIMEOUT_SECONDS],
     }
-    # Only the built-in agent can start sub-agents so far. Lowering the server
-    # maximum applies before the manifest is synced again.
+    # Codex cannot start sub-agents yet. Lowering the server maximum applies
+    # before the manifest is synced again.
     agent["subagents"] = (
         min(subagents, settings.RUN_SUBAGENTS_MAX)
-        if selection.backend == AgentBackend.PYDANTIC
+        if selection.backend in SUBAGENT_BACKENDS
         else 0
     )
     plan = {

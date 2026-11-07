@@ -18,6 +18,8 @@ class AgentInput(Schema):
     max_turns: int = Field(ge=1, le=10000)
     token_budget: int = Field(ge=1)
     timeout_seconds: int = Field(ge=1, le=86400)
+    # The most sub-agents the agent may start. Only Claude Code can so far.
+    subagents: int = Field(default=0, ge=0, le=100)
 
 
 class AgentCheckInput(Schema):
@@ -34,6 +36,8 @@ class AgentOutput(Schema):
     succeeded: bool = False
     reason: str = AgentOutcome.AGENT_FAILED
     usage: dict[str, int] = Field(default_factory=dict)
+    # Each sub-agent's model requests and tool calls, in the order they started.
+    subagents: list[dict[str, int]] = Field(default_factory=list, max_length=100)
     versions: dict[str, str] = Field(default_factory=dict)
 
     def as_dict(self) -> dict[str, Any]:

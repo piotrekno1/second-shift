@@ -15,6 +15,7 @@ from secondshift.runner.client import get_runner_client
 from secondshift.runs.artifacts import store_run_text
 from secondshift.runs.execution.agent_broker import AgentAccessError, run_connection
 from secondshift.runs.execution.deadlines import run_deadline
+from secondshift.runs.execution.subagents import FINISHED, finish
 from secondshift.runs.models import AgentLease, Run, RunEvent
 
 FAILURE_SUMMARIES = {
@@ -23,6 +24,7 @@ FAILURE_SUMMARIES = {
     AgentOutcome.TIMED_OUT: "The agent reached this run's time limit.",
     AgentOutcome.TOKEN_BUDGET_EXHAUSTED: "The agent reported usage at or above this run's token budget.",
     AgentOutcome.TURN_BUDGET_EXHAUSTED: "The agent reached this run's maximum turns.",
+    AgentOutcome.SUBAGENT_REFUSED: "The agent ran a sub-agent this run does not allow, so it was stopped.",
 }
 DEFAULT_FAILURE = "The agent could not finish. Check its login and subscription usage before starting a new run."
 
@@ -52,6 +54,22 @@ def confirm_sign_in(run: Run, connection: AgentConnection) -> str:
         return AgentOutcome.QUOTA_EXHAUSTED
     # Refused, or a check that did not finish and so proves nothing.
     return AgentOutcome.RECONNECT_REQUIRED
+
+
+def record_subagents(run: Run, subagents: list[dict[str, int]]) -> None:
+    """One timeline event for each sub-agent, as the built-in agent records.
+
+    The CLI reports only counts, after it ends, so there is no start event.
+    """
+    for number, used in enumerate(subagents, start=1):
+        finish(
+            run.pk,
+            f"cli-{number}",
+            number,
+            FINISHED if used.get("finished") else "stopped",
+            int(used.get("requests", 0)),
+            int(used.get("tool_calls", 0)),
+        )
 
 
 @DBOS.step(name="secondshift.execute_cli_agent")
@@ -100,6 +118,7 @@ def execute_cli_step(run_id: int, session_id: str, prompt: str) -> dict[str, Any
                 "max_turns": limits["max_turns"],
                 "token_budget": limits["token_budget"],
                 "timeout_seconds": remaining,
+                "subagents": run.execution_plan["agent"].get("subagents", 0),
             },
         )
         result = client.response_payload(response)
@@ -110,6 +129,7 @@ def execute_cli_step(run_id: int, session_id: str, prompt: str) -> dict[str, Any
     reason = str(result.get("reason", AgentOutcome.AGENT_FAILED))
     if reason == AgentOutcome.RECONNECT_REQUIRED:
         reason = confirm_sign_in(run, connection)
+    record_subagents(run, result.get("subagents", []))
     RunEvent.objects.create(
         run=run,
         message="Agent execution finished.",

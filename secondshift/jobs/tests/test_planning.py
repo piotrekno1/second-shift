@@ -275,17 +275,21 @@ def test_plan_caps_subagents_at_the_server_maximum(db, settings) -> None:
     assert build_execution_plan(job)["agent"]["subagents"] == 2
 
 
-def test_only_the_built_in_agent_plans_subagents(db, monkeypatch) -> None:
+@pytest.mark.parametrize(
+    ("backend", "planned"),
+    [(AgentBackend.CLAUDE_CODE, 2), (AgentBackend.CODEX, 0)],
+)
+def test_codex_runs_plan_no_subagents(db, monkeypatch, backend, planned) -> None:
     job = create_job(db)
     job.subagents = 2
     selection = planning.workspace_execution(job.workspace)
     monkeypatch.setattr(
         planning,
         "workspace_execution",
-        lambda workspace: replace(selection, backend=AgentBackend.CLAUDE_CODE),
+        lambda workspace: replace(selection, backend=backend),
     )
 
-    assert build_execution_plan(job)["agent"]["subagents"] == 0
+    assert build_execution_plan(job)["agent"]["subagents"] == planned
 
 
 def test_a_task_can_start_subagents(db) -> None:

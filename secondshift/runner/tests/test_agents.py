@@ -205,6 +205,7 @@ def test_agent_events_keep_only_final_report_and_numeric_usage() -> None:
         "succeeded": True,
         "reason": "completed",
         "usage": {"input_tokens": 20},
+        "subagents": [],
     }
     codex_done = outcome_of(
         codex.read_codex,
