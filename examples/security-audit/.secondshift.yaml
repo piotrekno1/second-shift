@@ -1,0 +1,13 @@
+version: 1
+
+jobs:
+  security-audit:
+    name: Weekly security audit
+    skill: .agents/skills/scheduled-security-audit/SKILL.md
+    schedule: "0 6 * * 1"
+    timezone: Europe/Warsaw
+    # Each run reads the last run's coverage ledger and findings from /history.
+    history: 1
+    # Fresh agents that verify each candidate without seeing the hunt.
+    # Runs that cannot start them report unverified leads.
+    subagents: 3

@@ -32,6 +32,7 @@ than one team.
 | Skill | What it does | Data needed |
 | --- | --- | --- |
 | [Security regression](security-regression/README.md) | Finds security defects introduced by recent changes. | Repository code and local or approved source-control history. Observability is optional. |
+| [Security audit](security-audit/README.md) | Runs Cloudflare's security-audit skill one part of the codebase per week, with sub-agents verifying each finding. | Repository code and Cloudflare's skill, copied into the repository. |
 | [Quarterly access review](quarterly-access-review/README.md) | Flags accounts and permissions that owners should change, remove, or confirm, and shows unreviewed systems. | Workforce status, identity-provider and system access data, a system inventory, and access rules. |
 
 ## Release and engineering management
