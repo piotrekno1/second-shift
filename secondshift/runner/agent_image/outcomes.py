@@ -29,6 +29,7 @@ class AgentOutcome(StrEnum):
     TIMED_OUT = "timed_out"
     TOKEN_BUDGET_EXHAUSTED = "token_budget_exhausted"
     TURN_BUDGET_EXHAUSTED = "turn_budget_exhausted"
+    SUBAGENT_REFUSED = "subagent_refused"
     AGENT_OUTPUT_LIMIT = "agent_output_limit"
     INVALID_AGENT_OUTPUT = "invalid_agent_output"
     AGENT_FAILED = "agent_failed"
@@ -46,6 +47,16 @@ class Outcome:
     error: str = ""
     # Token usage of each model reply so far, by message ID.
     replies: dict[str, dict[str, int]] = field(default_factory=dict)
+    # Set for runs with sub-agents: the most model replies, theirs included,
+    # and the most sub-agents.
+    max_replies: int | None = None
+    max_subagents: int = 0
+    # Whether each sub-agent start the agent asked for is allowed, by tool call.
+    starts: dict[str, bool] = field(default_factory=dict)
+    # The model replies and tool calls of each sub-agent that ran, in order.
+    subagents: dict[str, dict[str, int]] = field(default_factory=dict)
+    # Tool calls already counted, by ID. One call can arrive more than once.
+    tool_calls: set[str] = field(default_factory=set)
 
 
 def numbers(values: dict[str, Any]) -> dict[str, int]:

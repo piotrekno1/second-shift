@@ -64,6 +64,7 @@ def test_agent_image_builds_from_only_the_packaged_agent_files(
         "secondshift/runner/agent_image/claude.py",
         "secondshift/runner/agent_image/codex.py",
         "secondshift/runner/agent_image/outcomes.py",
+        "secondshift/runner/agent_image/subagent_hook.py",
     ]
     assert seen["build"][-3:-1] == ["-t", "secondshift-agent:local"]
 

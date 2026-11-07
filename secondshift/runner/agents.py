@@ -13,7 +13,12 @@ from pathlib import Path
 
 from django.conf import settings
 
-from secondshift.config.constants import HOST_ALIAS, AgentOutcome, SandboxRuntime
+from secondshift.config.constants import (
+    HOST_ALIAS,
+    AgentBackend,
+    AgentOutcome,
+    SandboxRuntime,
+)
 from secondshift.runner.agent_credentials import decrypt_agent_auth
 from secondshift.runner.agent_protocol import AgentCheckInput, AgentInput, AgentOutput
 from secondshift.runner.images import resolve_image_id
@@ -173,6 +178,9 @@ def execute_locked_agent(session_id: str, request: AgentInput) -> AgentOutput:
         "prompt": request.prompt,
         "max_turns": request.max_turns,
         "token_budget": request.token_budget,
+        "subagents": request.subagents
+        if request.backend == AgentBackend.CLAUDE_CODE
+        else 0,
     }
     return run_agent_container(
         agent_name(session_id),

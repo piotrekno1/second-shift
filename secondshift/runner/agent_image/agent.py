@@ -56,6 +56,8 @@ def result(outcome: Outcome, exit_code: int) -> dict[str, Any]:
         "succeeded": succeeded,
         "reason": reason,
         "usage": outcome.usage,
+        # Only counts, in the order the sub-agents started.
+        "subagents": list(outcome.subagents.values()),
     }
 
 
@@ -73,6 +75,9 @@ def run(config: dict[str, Any]) -> dict[str, Any]:
     binary, start, read = BACKENDS[config["backend"]]
     argv, env = start(config)
     outcome = Outcome()
+    if subagents := int(config.get("subagents", 0)):
+        outcome.max_replies = int(config["max_turns"])
+        outcome.max_subagents = subagents
     process = subprocess.Popen(
         argv,
         stdin=subprocess.PIPE,
@@ -96,6 +101,8 @@ def run(config: dict[str, Any]) -> dict[str, Any]:
                 continue
             if isinstance(event, dict):
                 read(event, outcome)
+            if outcome.reason:
+                break
             if sum(outcome.usage.get(key, 0) for key in TOKEN_KEYS) >= int(
                 config["token_budget"]
             ):
