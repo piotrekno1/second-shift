@@ -168,6 +168,7 @@ def serialize_job_detail(job: Job, can_edit_limits: bool) -> JobDetailSchema:
         key=job.key,
         config_hash=job.config_hash,
         history=job.history,
+        subagents=job.subagents,
         triggers=job.triggers,
         open_pull_request=job.open_pull_request,
         can_open_pull_requests=is_github,

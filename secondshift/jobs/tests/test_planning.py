@@ -1,8 +1,13 @@
+from dataclasses import replace
+
 import pytest
 from django.contrib.auth import get_user_model
 
+from secondshift.config.constants import AgentBackend
 from secondshift.connections.models import Connection
+from secondshift.jobs import planning
 from secondshift.jobs.execution import choose_execution
+from secondshift.jobs.manifest import TaskManifest
 from secondshift.jobs.models import CapabilityRequest, Job, JobGrant
 from secondshift.jobs.planning import build_execution_plan
 from secondshift.jobs.readiness import readiness_problems
@@ -100,6 +105,7 @@ def test_plan_contains_only_effective_approved_tools(db) -> None:
             "token_budget": 2_000_000,
             "timeout_seconds": 900,
         },
+        "subagents": 0,
         "tools": [
             "mcp.observability.query_metrics",
             "workspace.list_files",
@@ -259,3 +265,35 @@ def test_plan_fails_closed_with_an_unusable_default_model(
     assert plan["ready"] is False
     assert plan["model"] is None
     assert problem in readiness_problems(job)
+
+
+def test_plan_caps_subagents_at_the_server_maximum(db, settings) -> None:
+    settings.RUN_SUBAGENTS_MAX = 2
+    job = create_job(db)
+    job.subagents = 5
+
+    assert build_execution_plan(job)["agent"]["subagents"] == 2
+
+
+def test_only_the_built_in_agent_plans_subagents(db, monkeypatch) -> None:
+    job = create_job(db)
+    job.subagents = 2
+    selection = planning.workspace_execution(job.workspace)
+    monkeypatch.setattr(
+        planning,
+        "workspace_execution",
+        lambda workspace: replace(selection, backend=AgentBackend.CLAUDE_CODE),
+    )
+
+    assert build_execution_plan(job)["agent"]["subagents"] == 0
+
+
+def test_a_task_can_start_subagents(db) -> None:
+    job = create_job(db)
+    definition = TaskManifest(name="Audit", subagents=1)
+
+    plan = planning.build_skill_execution_plan(
+        job.repository, definition, key="audit", commit_sha="a" * 40
+    )
+
+    assert plan["agent"]["subagents"] == 1

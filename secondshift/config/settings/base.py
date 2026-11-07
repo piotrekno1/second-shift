@@ -446,6 +446,10 @@ RUN_OUTPUT_EXCERPT_BYTES = 16 * 1024
 JOB_HISTORY_MAX = env.int("SECONDSHIFT_JOB_HISTORY_MAX", default=5)
 if JOB_HISTORY_MAX < 0:
     raise ImproperlyConfigured("SECONDSHIFT_JOB_HISTORY_MAX cannot be negative")
+# The most sub-agents one run may start, whatever its manifest asks for.
+RUN_SUBAGENTS_MAX = env.int("SECONDSHIFT_RUN_SUBAGENTS_MAX", default=5)
+if RUN_SUBAGENTS_MAX < 0:
+    raise ImproperlyConfigured("SECONDSHIFT_RUN_SUBAGENTS_MAX cannot be negative")
 # The longest an API token can last. Its creator can choose a shorter time.
 API_TOKEN_MAX_DAYS = env.int("SECONDSHIFT_API_TOKEN_MAX_DAYS", default=90)
 if API_TOKEN_MAX_DAYS < 1:

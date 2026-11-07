@@ -81,6 +81,8 @@ def submission_fingerprint(submission: SkillSubmission, user: User) -> str:
         data.pop("not_before")
     if not submission.pull_request:
         data.pop("pull_request")
+    if not submission.definition.subagents:
+        data["definition"].pop("subagents")
     data["submitted_by"] = user.pk
     return hashlib.sha256(json.dumps(data, sort_keys=True).encode()).hexdigest()
 

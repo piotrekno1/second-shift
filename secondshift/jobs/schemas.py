@@ -158,6 +158,7 @@ class JobDetailSchema(JobSchema):
     key: str
     config_hash: str
     history: int
+    subagents: int
     # Trigger kinds the configuration names, such as "webhook".
     triggers: list[str]
     # The configuration asks for a draft pull request with each run's changes.

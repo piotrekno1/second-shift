@@ -131,6 +131,8 @@ class JobManifest(BaseModel):
     timezone: str = "UTC"
     # How many of the job's own earlier reports each run starts with.
     history: int = Field(default=0, ge=0)
+    # How many sub-agents one run may start. They share the run's limits.
+    subagents: int = Field(default=0, ge=0)
     requires: RequirementsManifest = Field(default_factory=RequirementsManifest)
     notify: list[NotificationManifest] = Field(default_factory=list)
     # Events that may start the job. An owner still turns each one on.
@@ -175,6 +177,15 @@ class JobManifest(BaseModel):
         if value > settings.JOB_HISTORY_MAX:
             raise ValueError(
                 f"history cannot be above {settings.JOB_HISTORY_MAX} on this server"
+            )
+        return value
+
+    @field_validator("subagents")
+    @classmethod
+    def validate_subagents(cls, value: int) -> int:
+        if value > settings.RUN_SUBAGENTS_MAX:
+            raise ValueError(
+                f"subagents cannot be above {settings.RUN_SUBAGENTS_MAX} on this server"
             )
         return value
 
@@ -294,6 +305,8 @@ def manifest_hash(job: JobManifest) -> str:
         unset.add("open_issues")
     if job.webhook is None:
         unset.add("webhook")
+    if not job.subagents:
+        unset.add("subagents")
     data = job.model_dump(exclude=unset or None)
     canonical = json.dumps(data, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(canonical.encode()).hexdigest()
