@@ -56,6 +56,12 @@ image_generation = false
 apply_patch_freeform = false
 # Start the turn only after the broker has listed its tools.
 incremental_tools = false
+
+# Some models ask for Codex's multi-agent tools, and their request wins over
+# features.multi_agent. Only this setting removes the tools for every model.
+# Codex sub-agents report no token usage, and nesting limits do not hold.
+[agents]
+enabled = false
 {broker}""",
     )
     argv = ["codex", "exec", "--skip-git-repo-check", "--ephemeral"]
