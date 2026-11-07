@@ -551,3 +551,32 @@ def test_agent_resolver_refuses_symlinks(settings: Any, tmp_path: Path) -> None:
     settings.AGENT_RESOLV_CONF = str(alias)
     with pytest.raises(RunnerProtocolError, match="resolver"):
         agent_command("run-1", tmp_path / "auth", IMAGE)
+
+
+@pytest.mark.parametrize(
+    ("exit_code", "output", "reason"),
+    [
+        # Stopped, or killed for running out of memory.
+        (137, b"", "agent_stopped"),
+        (
+            0,
+            b'{"reason": "completed", "succeeded": true, "report": "Done"}',
+            "completed",
+        ),
+        (0, b"not json", "invalid_agent_output"),
+    ],
+)
+def test_a_stopped_agent_container_is_not_blamed_on_the_login(
+    monkeypatch: pytest.MonkeyPatch, exit_code: int, output: bytes, reason: str
+) -> None:
+    monkeypatch.setattr(agents.DockerRunnerService, "remove_container", Mock())
+
+    def run(command: list[str], **kwargs: Any) -> Mock:
+        kwargs["stdout"].write(output)
+        return Mock(returncode=exit_code)
+
+    monkeypatch.setattr(agents.subprocess, "run", run)
+
+    result = agents.run_agent_container("agent", ["docker"], {}, 10)
+
+    assert result.reason == reason

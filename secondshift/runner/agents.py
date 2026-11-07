@@ -226,10 +226,9 @@ def run_agent_container(
             )
             output.seek(0)
             data = output.read(settings.RUNNER_COMMAND_OUTPUT_MAX_BYTES + 1)
-            if (
-                len(data) > settings.RUNNER_COMMAND_OUTPUT_MAX_BYTES
-                or completed.returncode
-            ):
+            if completed.returncode:
+                return AgentOutput(reason=AgentOutcome.AGENT_STOPPED)
+            if len(data) > settings.RUNNER_COMMAND_OUTPUT_MAX_BYTES:
                 return AgentOutput(reason=AgentOutcome.AGENT_FAILED)
             try:
                 return AgentOutput.model_validate_json(data)

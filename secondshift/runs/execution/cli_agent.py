@@ -25,6 +25,7 @@ FAILURE_SUMMARIES = {
     AgentOutcome.TOKEN_BUDGET_EXHAUSTED: "The agent reported usage at or above this run's token budget.",
     AgentOutcome.TURN_BUDGET_EXHAUSTED: "The agent reached this run's maximum turns.",
     AgentOutcome.SUBAGENT_REFUSED: "The agent ran a sub-agent this run does not allow, so it was stopped.",
+    AgentOutcome.AGENT_STOPPED: "The agent's sandbox stopped before it finished, for example because it ran out of memory or was stopped. Start a new run.",
 }
 DEFAULT_FAILURE = "The agent could not finish. Check its login and subscription usage before starting a new run."
 

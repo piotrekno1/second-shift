@@ -36,6 +36,9 @@ class AgentOutcome(StrEnum):
     AGENT_OUTPUT_LIMIT = "agent_output_limit"
     INVALID_AGENT_OUTPUT = "invalid_agent_output"
     AGENT_FAILED = "agent_failed"
+    # The agent's container ended without a result, for example because it ran
+    # out of memory or was stopped. The wrapper itself always exits cleanly.
+    AGENT_STOPPED = "agent_stopped"
 
 
 @dataclass
