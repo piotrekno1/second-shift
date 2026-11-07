@@ -34,7 +34,7 @@ const stackRows = [
     { name: 'CoreWeave', icon: coreWeaveIcon.src, fullColor: true, wide: true },
     { name: 'Nebius', icon: nebiusIcon.src, color: '#e1ff4f' },
   ] },
-  { label: 'Tools', href: '/docs/repository-configuration/#mcp-and-api-declarations', brands: [
+  { label: 'Tools', href: '/docs/mcp-recipes/#connect-any-mcp-server', showMcpSetup: true, brands: [
     { name: 'GitHub', icon: githubIcon.src, color: '#ededed' },
     { name: 'Sentry', icon: sentryIcon.src, color: '#9b83c2' },
     { name: 'Grafana', icon: grafanaIcon.src, color: 'linear-gradient(#fbca0a, #f46800)' },
@@ -151,6 +151,7 @@ const stackRows = [
       .stack-kind { width: 64px; flex: none; color: #ededed; font-size: 13px; font-weight: 600; }
       .stack-brands { display: flex; align-items: center; gap: 18px; min-width: 0; }
       .stack-brand { display: inline-flex; align-items: center; gap: 6px; color: #bdbdbd; font-size: 12px; white-space: nowrap; }
+      .stack-more { color: #ffb454; font-size: 12px; white-space: nowrap; }
       .stack-brand-icon { width: 18px; height: 18px; flex: none; background: var(--brand-color); -webkit-mask: var(--icon-url) center / contain no-repeat; mask: var(--icon-url) center / contain no-repeat; }
       .stack-brand-icon.wide { width: 25px; }
       .stack-brand-icon.full-color { background: none; -webkit-mask: none; mask: none; object-fit: contain; }
@@ -211,6 +212,9 @@ const stackRows = [
         .stack-intro { display: block; margin-bottom: 4px; }
         .stack-brands { gap: 6px; }
       }
+      @media (max-width: 560px) {
+        .stack-more-detail { position: absolute; clip-path: inset(50%); }
+      }
     </style>
   </head>
   <body>
@@ -250,6 +254,9 @@ const stackRows = [
                         <span class="stack-brand-name">{brand.name}</span>
                       </span>
                     ))}
+                    {row.showMcpSetup && (
+                      <span class="stack-more">+ <span class="stack-more-detail">your </span>MCP<span class="stack-more-detail"> servers</span></span>
+                    )}
                   </span>
                   <span class="stack-arrow" aria-hidden="true">↗</span>
                 </a>
