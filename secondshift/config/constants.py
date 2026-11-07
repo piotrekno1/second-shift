@@ -233,10 +233,24 @@ MAX_SKILL_PREVIEW_CHARS = 200_000
 
 
 class AgentBackend(StrEnum):
+    """Who runs the agent: SecondShift's own loop, or a subscription CLI."""
+
     PYDANTIC = "pydantic"
     CLAUDE_CODE = "claude_code"
     CODEX = "codex"
 
+    @property
+    def uses_model_api(self) -> bool:
+        """Runs call a model provider through SecondShift's gateway. The CLIs
+        call their provider directly with the subscription login."""
+        return self is AgentBackend.PYDANTIC
 
-# The backends whose runs can start sub-agents.
-SUBAGENT_BACKENDS = (AgentBackend.PYDANTIC, AgentBackend.CLAUDE_CODE)
+    @property
+    def starts_subagents(self) -> bool:
+        """Runs can start sub-agents when the job allows them."""
+        return self is not AgentBackend.CODEX
+
+    @property
+    def limits_model_calls(self) -> bool:
+        """Runs stop at the run's model-call limit."""
+        return self is not AgentBackend.CODEX

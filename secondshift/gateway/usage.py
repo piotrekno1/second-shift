@@ -11,7 +11,9 @@ def with_model_usage(runs: QuerySet[Run]) -> QuerySet[Run]:
     agent_usage = (
         RunEvent.objects.filter(
             run_id=OuterRef("pk"),
-            metadata__backend__in=[AgentBackend.CLAUDE_CODE, AgentBackend.CODEX],
+            metadata__backend__in=[
+                backend for backend in AgentBackend if not backend.uses_model_api
+            ],
             metadata__has_key="usage",
         )
         .order_by("-pk")

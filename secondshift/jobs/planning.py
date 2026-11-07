@@ -1,5 +1,5 @@
 import re
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from copy import deepcopy
 from dataclasses import dataclass, field
 from enum import StrEnum
@@ -9,7 +9,6 @@ from django.conf import settings
 
 from secondshift.config.constants import (
     COMMIT_SHA_PATTERN,
-    SUBAGENT_BACKENDS,
     AgentBackend,
 )
 from secondshift.connections.external import EXTERNAL_KINDS
@@ -203,7 +202,9 @@ def compile_execution_plan(
     ready = all(item["authorized"] for item in capabilities if item["required"])
     selection = workspace_execution(workspace)
     model = (
-        model_plan(workspace) if selection.backend == AgentBackend.PYDANTIC else None
+        model_plan(workspace)
+        if AgentBackend(selection.backend).uses_model_api
+        else None
     )
     execution = {
         "backend": selection.backend,
@@ -235,7 +236,7 @@ def compile_execution_plan(
     # before the manifest is synced again.
     agent["subagents"] = (
         min(subagents, settings.RUN_SUBAGENTS_MAX)
-        if selection.backend in SUBAGENT_BACKENDS
+        if AgentBackend(selection.backend).starts_subagents
         else 0
     )
     plan = {
@@ -364,4 +365,14 @@ def build_skill_execution_plan(
         commit_sha,
         pull_request,
         subagents=definition.subagents,
+    )
+
+
+def plan_backend(plan: Mapping[str, Any]) -> AgentBackend:
+    """The backend frozen into a plan.
+
+    Plans from released versions have no execution block. They use the model.
+    """
+    return AgentBackend(
+        (plan.get("execution") or {}).get("backend", AgentBackend.PYDANTIC)
     )

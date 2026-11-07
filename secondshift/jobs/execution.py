@@ -195,7 +195,7 @@ def execution_status(workspace: Workspace) -> dict[str, Any]:
         "fix_connection_id": workspace.default_model_connection_id
         if selected.problem
         and not nothing_chosen
-        and selected.backend == AgentBackend.PYDANTIC
+        and AgentBackend(selected.backend).uses_model_api
         else None,
     }
 
