@@ -163,6 +163,8 @@ def test_packaged_agents_disable_native_tools_and_use_only_the_broker(
         codex.BROKER_STARTUP_TIMEOUT_SECONDS
     )
     assert parsed["features"]["incremental_tools"] is False
+    # The model's own multi-agent setting overrides features.multi_agent.
+    assert parsed["agents"]["enabled"] is False
     for feature in (
         "shell_tool",
         "unified_exec",
