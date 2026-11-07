@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 import type { Capability, ExecutionStatus } from '../src/types'
-import { approvalPending, enableBlocker, executionFix, runWarning, setupSteps, type SetupState } from '../src/utils/readiness'
+import { REMOVED_JOB, approvalPending, enableBlocker, executionFix, runWarning, setupSteps, type SetupState } from '../src/utils/readiness'
 
 function capability(binding: string, required: boolean, grant: Capability['grant_status']): Capability {
   return { id: 1, binding, kind: 'notification', requested_tools: [], required, grant_status: grant, connection_id: null, connection_name: null }
@@ -15,6 +15,10 @@ test('enableBlocker names required bindings that are not approved', () => {
   const connected = [{ ...capability('engineering-reports', true, 'pending'), connection_id: 4 }]
   assert.equal(enableBlocker({ enabled: false, capabilities: connected }), 'Approve engineering-reports first. Scheduled runs would fail without it.')
   assert.equal(enableBlocker({ enabled: false, capabilities: [capability('alerts', false, 'pending')] }), '')
+})
+
+test('enableBlocker refuses a job removed from the manifest', () => {
+  assert.equal(enableBlocker({ enabled: false, capabilities: [], removed_at: '2026-11-07T10:00:00Z' }), REMOVED_JOB)
 })
 
 function status(overrides: Partial<ExecutionStatus> = {}): ExecutionStatus {

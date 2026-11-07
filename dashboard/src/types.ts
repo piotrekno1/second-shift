@@ -191,6 +191,8 @@ export interface RepositoryJob {
   timezone: string
   enabled: boolean
   grant_status: 'approved' | 'pending' | 'denied' | 'not_required'
+  /** Set when a sync no longer finds the job in .secondshift.yaml. It cannot run then. */
+  removed_at: string | null
 }
 
 export interface RepositoryDetail extends Repository {
@@ -235,6 +237,8 @@ export interface Job {
   timezone: string
   enabled: boolean
   next_run_at: string | null
+  /** Set when a sync no longer finds the job in .secondshift.yaml. It cannot run then. */
+  removed_at: string | null
   requested_capabilities: number
   grant_status: 'approved' | 'pending' | 'denied' | 'not_required'
   capabilities: Capability[]

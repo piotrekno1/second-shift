@@ -18,7 +18,7 @@ import { useAppStore } from '../stores/app'
 import type { Access, Capability, Connection, Job, ToolRules } from '../types'
 import { DocsPage } from '../utils/docs'
 import { Action } from '../utils/permissions'
-import { approvalPending, enableBlocker, runWarning } from '../utils/readiness'
+import { REMOVED_JOB, approvalPending, enableBlocker, runWarning } from '../utils/readiness'
 import { sameRules } from '../utils/toolRules'
 import { accessLabel, accessNeedsAction, awaitsApproval, countLabel, formatDate, formatRelative, lastRunLine, formatSchedule, formatScheduled, jobState, kindLabel, utcTitle } from '../utils/format'
 
@@ -247,7 +247,7 @@ async function toggleJob(job: Job): Promise<void> {
               <template v-if="job.cron && job.enabled && job.next_run_at"><strong :title="utcTitle(job.next_run_at)">Next {{ formatRelative(job.next_run_at) }}</strong><small class="cell-sub">{{ formatScheduled(job.next_run_at, job.timezone) }}</small></template>
             </div>
             <div class="job-statuses">
-              <StatusPill :status="jobState(job)" :title="job.cron ? undefined : 'No schedule. Start it with Run now'" />
+              <StatusPill :status="jobState(job)" :title="job.removed_at ? REMOVED_JOB : job.cron ? undefined : 'No schedule. Start it with Run now'" />
               <StatusPill v-if="accessNeedsAction(job.grant_status)" :status="job.grant_status" :label="accessLabel(job.grant_status)" />
             </div>
             <div class="job-actions">
@@ -255,7 +255,7 @@ async function toggleJob(job: Job): Promise<void> {
               <button v-else-if="job.capabilities.length" type="button" class="job-action labeled" :class="{ active: expandedJobId === job.id }" title="See access and connections" :aria-expanded="expandedJobId === job.id" :aria-controls="`job-access-${job.id}`" @click="expandedJobId = expandedJobId === job.id ? null : job.id">
                 <AppIcon aria-hidden="true" name="shield-check-outline" /><span>Access</span>
               </button>
-              <button v-if="app.can(Action.RunJobs)" type="button" class="job-action" :class="{ 'is-loading': action === `run-${job.id}`, warn: Boolean(runWarning(app.overview?.execution, job)) }" aria-label="Run now" :aria-description="runWarning(app.overview?.execution, job) || undefined" :title="runWarning(app.overview?.execution, job) || (job.enabled || !job.cron ? 'Run now' : 'Run once. The schedule stays off')" :aria-busy="action === `run-${job.id}`" :disabled="action === `run-${job.id}`" @click="runNow(job.id)">
+              <button v-if="app.can(Action.RunJobs) && !job.removed_at" type="button" class="job-action" :class="{ 'is-loading': action === `run-${job.id}`, warn: Boolean(runWarning(app.overview?.execution, job)) }" aria-label="Run now" :aria-description="runWarning(app.overview?.execution, job) || undefined" :title="runWarning(app.overview?.execution, job) || (job.enabled || !job.cron ? 'Run now' : 'Run once. The schedule stays off')" :aria-busy="action === `run-${job.id}`" :disabled="action === `run-${job.id}`" @click="runNow(job.id)">
                 <AppIcon :name="action === `run-${job.id}` ? 'loading' : 'play-outline'" aria-hidden="true" />
               </button>
             </div>
@@ -263,11 +263,11 @@ async function toggleJob(job: Job): Promise<void> {
           <section v-if="expandedJobId === job.id" :id="`job-access-${job.id}`" class="job-review">
             <div class="job-review-heading">
               <div><h3>Access review</h3><p>This job asks for these bindings. Choose the connection for each one, then approve. <RouterLink :to="`/jobs/${job.id}#skill`" class="review-skill-link">Read the skill first</RouterLink> <DocsLink :page="DocsPage.SecurityModel" section="who-grants-what" class="review-skill-link">How access works</DocsLink></p></div>
-              <Button v-if="job.cron && app.can(Action.EnableJobs)" :label="job.enabled ? 'Pause schedule' : 'Resume schedule'" severity="secondary" outlined :disabled="Boolean(enableBlocker(job))" :title="enableBlocker(job) || undefined" :loading="action === `toggle-${job.id}`" @click="toggleJob(job)">
+              <Button v-if="job.cron && !job.removed_at && app.can(Action.EnableJobs)" :label="job.enabled ? 'Pause schedule' : 'Resume schedule'" severity="secondary" outlined :disabled="Boolean(enableBlocker(job))" :title="enableBlocker(job) || undefined" :loading="action === `toggle-${job.id}`" @click="toggleJob(job)">
                 <template #icon><AppIcon :name="job.enabled ? 'pause' : 'play'" /></template>
               </Button>
             </div>
-            <p v-if="job.cron && app.can(Action.EnableJobs) && enableBlocker(job)" class="review-blocker">{{ enableBlocker(job) }}</p>
+            <p v-if="job.cron && !job.removed_at && app.can(Action.EnableJobs) && enableBlocker(job)" class="review-blocker">{{ enableBlocker(job) }}</p>
             <div v-for="capability in job.capabilities" :key="capability.id" class="capability-review-row">
               <div class="capability-summary">
                 <strong>{{ capability.binding }}</strong>
