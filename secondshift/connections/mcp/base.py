@@ -24,14 +24,6 @@ class MCPRequestError(MCPError, ExternalRequestError):
     """A remote failure the agent may report as unavailable evidence."""
 
 
-class CustomMCPToolError(MCPRequestError):
-    """A custom tool failure with a redacted reason for the model."""
-
-    def __init__(self, message: str, reason: str) -> None:
-        super().__init__(message)
-        self.reason = reason
-
-
 class MCPArgumentError(MCPError, ToolArgumentError):
     """Arguments outside the approved scope. The model may fix them."""
 
@@ -87,7 +79,7 @@ class MCPProvider:
         lambda tool, schema: schema
     )
     # A safe message for a failed tool call, chosen by matching the remote
-    # error text, or None to use the client's fallback.
+    # error text, or None for the general one. The remote text is never shown.
     tool_error: Callable[[str, str], str | None] = lambda tool, text: None
     # Drop tools the server does not mark read-only.
     require_read_only_hint: bool = False

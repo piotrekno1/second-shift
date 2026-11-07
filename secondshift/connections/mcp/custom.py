@@ -1,5 +1,6 @@
 """Any MCP server the owner names. SecondShift cannot scope what it reaches."""
 
+import re
 from typing import Any
 
 from secondshift.connections.mcp.base import (
@@ -49,6 +50,14 @@ def describe_custom_scope(scope: str) -> str:
     return f"anything the credential can reach on {scope}"
 
 
+def custom_tool_error(tool: str, text: str) -> str | None:
+    """Recognize known refusals and return only SecondShift-authored text."""
+    del tool
+    if re.search(r"\btime range exceeds [0-9]+[smhdw]\b", text, re.IGNORECASE):
+        return "The MCP server rejected the query's time range. Try a shorter range."
+    return None
+
+
 CUSTOM_MCP = MCPProvider(
     key=Connection.Provider.MCP,
     label="Custom server",
@@ -56,6 +65,7 @@ CUSTOM_MCP = MCPProvider(
     tools=(),
     scope=custom_scope,
     scope_arguments=custom_arguments,
+    tool_error=custom_tool_error,
     describe_scope=describe_custom_scope,
     access_verb="use",
     scope_label="server",

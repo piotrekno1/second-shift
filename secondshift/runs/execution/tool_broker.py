@@ -2,7 +2,6 @@
 
 import hashlib
 import json
-from dataclasses import dataclass
 from typing import Any
 
 from dbos import DBOS
@@ -10,7 +9,6 @@ from jsonschema import ValidationError, validate
 
 from secondshift.connections.errors import ExternalToolError, ToolArgumentError
 from secondshift.connections.external import Authorization, external_kind
-from secondshift.connections.mcp.base import CustomMCPToolError
 from secondshift.connections.models import Connection
 from secondshift.jobs.models import JobGrant
 from secondshift.jobs.tool_policy import AuthorizedTool, resolve_tool
@@ -18,12 +16,6 @@ from secondshift.jobs.tool_rules import ToolRuleViolation, apply_rules
 from secondshift.runs.models import Run, RunEvent
 
 FINISHED = {Run.Status.CANCELED, Run.Status.FAILED, Run.Status.SUCCEEDED}
-
-
-@dataclass(frozen=True)
-class ExternalToolFailure:
-    message: str
-    remote_reason: str
 
 
 def frozen_rules(run: Run, tool: AuthorizedTool) -> dict[str, Any]:
@@ -98,7 +90,7 @@ def schema_problem(error: ValidationError) -> str:
 @DBOS.step(name="secondshift.call_external_tool")
 def call_external_tool_step(
     run_id: int, name: str, arguments: dict[str, Any], call_id: str
-) -> dict[str, Any] | ExternalToolFailure:
+) -> dict[str, Any]:
     run = Run.objects.select_related("job__repository", "task__repository").get(
         pk=run_id
     )
@@ -136,16 +128,13 @@ def call_external_tool_step(
         result = external_kind(tool.kind).call(
             authorization, str(tool.provider_tool), arguments
         )
-    except ExternalToolError as error:
+    except ExternalToolError:
         RunEvent.objects.create(
             run=run,
             level="warning",
             message=f"Tool failed: {name}",
             metadata={**evidence, "ok": False},
         )
-        if isinstance(error, CustomMCPToolError):
-            # Store the reason as a step result so DBOS treats it as tool data.
-            return ExternalToolFailure(str(error), error.reason)
         raise
     # Never record arguments, credentials, or remote payloads in audit events.
     RunEvent.objects.create(

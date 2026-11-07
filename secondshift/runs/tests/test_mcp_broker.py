@@ -3,6 +3,7 @@ from datetime import UTC, datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from threading import Thread
+from urllib.parse import quote
 
 import pytest
 from django.contrib.auth import get_user_model
@@ -124,8 +125,25 @@ def test_broker_calls_real_sdk_and_records_safe_evidence(planned_run, mcp_http) 
 
 
 @pytest.mark.django_db(transaction=True)
-def test_custom_mcp_failure_reaches_model_as_bounded_untrusted_data(
-    planned_run: Run, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+@pytest.mark.parametrize(
+    ("server_error", "model_error"),
+    [
+        (
+            "time range exceeds 24h",
+            "The MCP server rejected the query's time range. Try a shorter range.",
+        ),
+        (
+            "unknown query failure",
+            "Custom server could not complete this tool call.",
+        ),
+    ],
+)
+def test_custom_mcp_failure_reaches_model_as_a_fixed_message(
+    planned_run: Run,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    server_error: str,
+    model_error: str,
 ) -> None:
     token = 'custom-"token'
     endpoint = "https://mcp.example.com/mcp"
@@ -138,9 +156,7 @@ def test_custom_mcp_failure_reaches_model_as_bounded_untrusted_data(
     planned_run.execution_plan = build_execution_plan(planned_run.job)
     planned_run.save()
 
-    reason = f"time range exceeds 24h (token {token})"
-    prefix = reason.ljust(495, ".")
-    remote = prefix + token + "discard this tail"
+    remote = f"{server_error}. Internal details: {token}, {quote(token)}"
     monkeypatch.setattr(
         "secondshift.connections.mcp.client.MCPTransport",
         lambda: tool_error_transport(remote),
@@ -168,17 +184,13 @@ def test_custom_mcp_failure_reaches_model_as_bounded_untrusted_data(
         if isinstance(part, ToolReturnPart)
     )
     assert returned.outcome == "failed"
-    label = "Untrusted text from the MCP server: "
-    assert label in returned.content
-    assert (
-        json.loads(returned.content.split(label, 1)[1])
-        == remote.replace(token, "[redacted]")[:500]
-    )
-    assert token not in returned.content
+    assert returned.content == model_error
     event = planned_run.events.get()
     assert event.metadata["ok"] is False
-    assert "time range exceeds" not in str(event.metadata)
-    assert "time range exceeds" not in caplog.text
+    for sensitive in (server_error, token, quote(token)):
+        assert sensitive not in str(event.metadata)
+        assert sensitive not in event.message
+        assert sensitive not in caplog.text
 
 
 @pytest.mark.django_db

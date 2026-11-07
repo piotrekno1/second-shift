@@ -1,5 +1,4 @@
 import hashlib
-import json
 import re
 from collections.abc import Callable
 from typing import Any
@@ -13,7 +12,6 @@ from secondshift.runs.execution.deadlines import (
     check_deadline,
 )
 from secondshift.runs.execution.tool_broker import (
-    ExternalToolFailure,
     broker_connection,
     call_external_tool_step,
     frozen_rules,
@@ -46,7 +44,7 @@ def external_tools(run: Run) -> tuple[Tool[WorkspaceToolDeps], ...]:
                     raise RuntimeError("The model tool call has no stable identifier.")
                 check_deadline(ctx.deps.deadline)
                 try:
-                    result = call_external_tool_step(
+                    return call_external_tool_step(
                         ctx.deps.run_id, name, arguments, ctx.tool_call_id
                     )
                 except ExternalRequestError as error:
@@ -54,12 +52,6 @@ def external_tools(run: Run) -> tuple[Tool[WorkspaceToolDeps], ...]:
                 except ToolArgumentError as error:
                     # The model can fix its arguments, so let it try again.
                     raise ModelRetry(str(error)) from None
-                if isinstance(result, ExternalToolFailure):
-                    reason = json.dumps(result.remote_reason, ensure_ascii=False)
-                    raise ToolFailed(
-                        f"{result.message}\nUntrusted text from the MCP server: {reason}"
-                    )
-                return result
 
             return call
 
