@@ -3,11 +3,10 @@ from typing import Literal
 from dbos import DBOSClient
 from django.conf import settings
 from django.db import transaction
-from django.utils import timezone
 
-from secondshift.gateway.models import RunToken
 from secondshift.runs.models import Run, RunEvent
 from secondshift.runs.orchestration.dbos_runtime import new_dbos_client
+from secondshift.runs.transitions import finish_run
 
 FAILED_WORKFLOW_STATUSES = {"ERROR", "MAX_RECOVERY_ATTEMPTS_EXCEEDED"}
 TERMINAL_WORKFLOW_STATUSES = {*FAILED_WORKFLOW_STATUSES, "CANCELLED", "SUCCESS"}
@@ -22,11 +21,7 @@ def mark_run_terminal(
     workflow_status: str,
     metadata: dict[str, object] | None = None,
 ) -> bool:
-    run = (
-        Run.objects.select_for_update()
-        .filter(pk=run_id, status__in=Run.ACTIVE_STATUSES)
-        .first()
-    )
+    run = finish_run(run_id, status, summary)
     if run is None:
         return False
     RunEvent.objects.create(
@@ -34,13 +29,6 @@ def mark_run_terminal(
         level="error" if status == Run.Status.FAILED else "info",
         message=summary,
         metadata={**(metadata or {}), "workflow_status": workflow_status},
-    )
-    run.status = status
-    run.summary = summary
-    run.finished_at = timezone.now()
-    run.save(update_fields=["status", "summary", "finished_at"])
-    RunToken.objects.filter(run=run, revoked_at__isnull=True).update(
-        revoked_at=timezone.now()
     )
     return True
 

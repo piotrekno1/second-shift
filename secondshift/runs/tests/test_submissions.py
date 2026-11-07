@@ -52,6 +52,7 @@ from secondshift.runs.reporting.notifications import (
 from secondshift.runs.retention import prune_runs
 from secondshift.runs.services import RunRefused
 from secondshift.runs.submissions import SkillSubmission, submit_skill
+from secondshift.runs.transitions import start_run
 from secondshift.workspaces.models import WorkspaceMembership
 from secondshift.workspaces.services import create_workspace
 
@@ -321,6 +322,7 @@ def test_worker_source_sandbox_output_and_retention(
     assert spec.commit_sha == run.commit_sha
     assert spec.repository == repository.full_name
     output = store_run_text(run, "Review complete.")
+    start_run(run.pk, run.dbos_workflow_id)
     finish_run_step.__wrapped__(
         run.pk,
         {
@@ -703,7 +705,9 @@ def test_asking_for_a_pull_request_is_part_of_the_submission(
 def test_a_task_definition_cannot_ask_for_a_pull_request(
     repository: Repository,
 ) -> None:
-    with pytest.raises(ValidationError, match="not open_pull_request in its definition"):
+    with pytest.raises(
+        ValidationError, match="not open_pull_request in its definition"
+    ):
         submission(
             repository,
             definition={"name": "Review", "skill": SKILL, "open_pull_request": True},

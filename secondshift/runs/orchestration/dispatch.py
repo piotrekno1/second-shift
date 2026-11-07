@@ -12,6 +12,7 @@ from secondshift.runs.models import Run, RunEvent
 from secondshift.runs.orchestration.admission import task_admission_problem
 from secondshift.runs.orchestration.dbos_runtime import new_dbos_client
 from secondshift.runs.orchestration.reconciliation import mark_run_terminal
+from secondshift.runs.transitions import finish_run
 
 logger = logging.getLogger(__name__)
 
@@ -47,10 +48,7 @@ def enqueue_workflow(run: Run) -> str:
             return ""
         message = "The durable workflow could not be enqueued."
         RunEvent.objects.create(run=run, level="error", message=message)
-        run.status = Run.Status.FAILED
-        run.summary = message
-        run.finished_at = timezone.now()
-        run.save(update_fields=["status", "summary", "finished_at"])
+        finish_run(run.pk, Run.Status.FAILED, message, only_from={Run.Status.QUEUED})
         raise
     finally:
         if client is not None:
