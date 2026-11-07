@@ -17,7 +17,7 @@ from secondshift.runner.agent_credentials import (
     encrypt_agent_auth,
     provisioning_public_key,
 )
-from secondshift.runner.agent_image import agent
+from secondshift.runner.agent_image import agent, claude, codex, outcomes
 from secondshift.runner.agent_protocol import AgentCheckInput, AgentInput
 from secondshift.runner.agents import agent_command, require_agent_configuration
 from secondshift.runner.models import RunnerSession
@@ -128,11 +128,11 @@ BROKER = {
 def test_packaged_agents_disable_native_tools_and_use_only_the_broker(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(agent, "TMP", tmp_path)
-    monkeypatch.setattr(agent, "AUTH", tmp_path)
+    monkeypatch.setattr(outcomes, "TMP", tmp_path)
+    monkeypatch.setattr(outcomes, "AUTH", tmp_path)
     (tmp_path / "claude-token").write_text(TOKEN)
 
-    argv, env = agent.claude(BROKER)
+    argv, env = claude.claude(BROKER)
     assert argv[argv.index("--tools") + 1] == ""
     assert "--strict-mcp-config" in argv
     assert env == {"CLAUDE_CODE_OAUTH_TOKEN": TOKEN}
@@ -146,7 +146,7 @@ def test_packaged_agents_disable_native_tools_and_use_only_the_broker(
         }
     }
 
-    argv, env = agent.codex(BROKER)
+    argv, env = codex.codex(BROKER)
     assert "--skip-git-repo-check" in argv
     assert env == {"SECONDSHIFT_BROKER_TOKEN": "broker-secret"}
     config = (tmp_path / "config.toml").read_text()
@@ -160,7 +160,7 @@ def test_packaged_agents_disable_native_tools_and_use_only_the_broker(
     # the tools as missing and the run still succeeds.
     assert parsed["mcp_servers"]["secondshift"]["required"] is True
     assert parsed["mcp_servers"]["secondshift"]["startup_timeout_sec"] == (
-        agent.BROKER_STARTUP_TIMEOUT_SECONDS
+        codex.BROKER_STARTUP_TIMEOUT_SECONDS
     )
     assert parsed["features"]["incremental_tools"] is False
     for feature in (
@@ -181,7 +181,7 @@ def test_packaged_agents_disable_native_tools_and_use_only_the_broker(
 
 
 def outcome_of(read: Any, events: list[dict[str, Any]], exit_code: int = 0) -> Any:
-    outcome = agent.Outcome()
+    outcome = outcomes.Outcome()
     for event in events:
         read(event, outcome)
     return agent.result(outcome, exit_code)
@@ -189,7 +189,7 @@ def outcome_of(read: Any, events: list[dict[str, Any]], exit_code: int = 0) -> A
 
 def test_agent_events_keep_only_final_report_and_numeric_usage() -> None:
     done = outcome_of(
-        agent.read_claude,
+        claude.read_claude,
         [
             {
                 "type": "result",
@@ -207,7 +207,7 @@ def test_agent_events_keep_only_final_report_and_numeric_usage() -> None:
         "usage": {"input_tokens": 20},
     }
     codex_done = outcome_of(
-        agent.read_codex,
+        codex.read_codex,
         [
             {"type": "item.completed", "item": {"type": "agent_message", "text": "Hi"}},
             {"type": "turn.completed", "usage": {"output_tokens": 3}},
@@ -215,7 +215,7 @@ def test_agent_events_keep_only_final_report_and_numeric_usage() -> None:
     )
     assert codex_done["report"] == "Hi" and codex_done["succeeded"] is True
     # A failing CLI exit code never counts as success.
-    assert outcome_of(agent.read_codex, [], exit_code=0)["reason"] == "agent_failed"
+    assert outcome_of(codex.read_codex, [], exit_code=0)["reason"] == "agent_failed"
 
 
 def reply(message_id: str, sub_agent: bool = False, **usage: int) -> dict[str, Any]:
@@ -227,7 +227,7 @@ def reply(message_id: str, sub_agent: bool = False, **usage: int) -> dict[str, A
 
 
 def test_claude_usage_adds_up_each_reply_once_with_sub_agents() -> None:
-    outcome = agent.Outcome()
+    outcome = outcomes.Outcome()
     events = [
         # One reply can arrive as several events with the same usage.
         reply("msg_1", input_tokens=2, cache_read_input_tokens=5000),
@@ -236,7 +236,7 @@ def test_claude_usage_adds_up_each_reply_once_with_sub_agents() -> None:
         reply("msg_3", sub_agent=True, input_tokens=2, output_tokens=16),
     ]
     for event in events:
-        agent.read_claude(event, outcome)
+        claude.read_claude(event, outcome)
 
     # Counted as replies arrive, so a budget can stop the run before it ends.
     assert outcome.usage == {
@@ -247,7 +247,7 @@ def test_claude_usage_adds_up_each_reply_once_with_sub_agents() -> None:
 
     # The final usage leaves out sub-agents. The per-model usage includes them.
     # The largest of each count is kept.
-    agent.read_claude(
+    claude.read_claude(
         {
             "type": "result",
             "result": "Done",
@@ -284,7 +284,7 @@ def test_the_token_budget_stops_claude_mid_run(monkeypatch) -> None:
         return [sys.executable, "-c", script], {}
 
     monkeypatch.setitem(
-        agent.BACKENDS, "claude_code", (sys.executable, start, agent.read_claude)
+        agent.BACKENDS, "claude_code", (sys.executable, start, claude.read_claude)
     )
     started = time.monotonic()
 
@@ -302,7 +302,7 @@ def test_the_token_budget_stops_claude_mid_run(monkeypatch) -> None:
     ("read", "events", "reason"),
     [
         (
-            agent.read_claude,
+            claude.read_claude,
             [
                 {
                     "type": "result",
@@ -313,12 +313,12 @@ def test_the_token_budget_stops_claude_mid_run(monkeypatch) -> None:
             "reconnect_required",
         ),
         (
-            agent.read_claude,
+            claude.read_claude,
             [{"type": "result", "subtype": "error_max_turns", "is_error": True}],
             "turn_budget_exhausted",
         ),
         (
-            agent.read_codex,
+            codex.read_codex,
             [{"type": "turn.failed", "error": {"message": "You hit your usage limit"}}],
             "quota_exhausted",
         ),
@@ -408,18 +408,18 @@ def test_launcher_passes_agent_settings_but_no_control_plane_keys(
 def test_a_login_check_has_no_tools_at_all(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(agent, "TMP", tmp_path)
-    monkeypatch.setattr(agent, "AUTH", tmp_path)
+    monkeypatch.setattr(outcomes, "TMP", tmp_path)
+    monkeypatch.setattr(outcomes, "AUTH", tmp_path)
     (tmp_path / "claude-token").write_text(TOKEN)
     check = {"max_turns": 1}
 
-    argv, env = agent.claude(check)
+    argv, env = claude.claude(check)
     assert "--strict-mcp-config" in argv and argv[argv.index("--tools") + 1] == ""
     assert "--mcp-config" not in argv and "--allowedTools" not in argv
     assert env == {"CLAUDE_CODE_OAUTH_TOKEN": TOKEN}
     assert not (tmp_path / "mcp.json").exists()
 
-    argv, env = agent.codex(check)
+    argv, env = codex.codex(check)
     assert env == {}
     parsed = tomllib.loads((tmp_path / "config.toml").read_text())
     assert "mcp_servers" not in parsed
