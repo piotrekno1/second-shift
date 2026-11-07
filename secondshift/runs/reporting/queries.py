@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Literal
 
-from django.db.models import Count, F, Q, QuerySet
+from django.db.models import Count, F, Q, QuerySet, Subquery
 from django.utils import timezone
 
 from secondshift.gateway.usage import with_model_usage
@@ -92,14 +92,20 @@ def run_page(
     last_page = max((count + page_size - 1) // page_size, 1)
     page = min(page, last_page)
     start = (page - 1) * page_size
-    ordered = with_model_usage(
+    page_slice = slice(start, start + page_size)
+    newest = ("-created_at", "-pk")
+    if filters.sort == "newest":
+        # Limit the run IDs before joining and aggregating usage for the page.
+        page_ids = runs.order_by(*newest).values("pk")[page_slice]
+        runs = Run.objects.filter(pk__in=Subquery(page_ids))
+
+    with_usage = with_model_usage(
         runs.select_related("job__repository", "task__repository")
     )
     if filters.sort == "cost":
-        ordered = ordered.order_by(
-            F("model_cost_usd").desc(nulls_last=True), "-created_at", "-pk"
-        )
+        ordered = with_usage.order_by(
+            F("model_cost_usd").desc(nulls_last=True), *newest
+        )[page_slice]
     else:
-        ordered = ordered.order_by("-created_at", "-pk")
-    items = list(ordered[start : start + page_size])
-    return RunPage(items, count, page, page_size, status_counts)
+        ordered = with_usage.order_by(*newest)
+    return RunPage(list(ordered), count, page, page_size, status_counts)
