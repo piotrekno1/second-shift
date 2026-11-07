@@ -54,7 +54,7 @@ def serialize_connection(
         kind=connection.kind,
         binding_key=connection.binding_key,
         display_name=connection.display_name,
-        status=connection.status,
+        status=connection.current_status,
         expires_at=connection.expires_at,
         available_tools=connection.available_tools,
         target=connection_target(connection),

@@ -4,6 +4,7 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
 from django.db import models
+from django.utils import timezone
 from encrypted_model_fields.fields import EncryptedTextField
 
 from secondshift.workspaces.models import Workspace
@@ -113,6 +114,26 @@ class Connection(models.Model):
     def __str__(self) -> str:
         binding = f" [{self.binding_key}]" if self.binding_key else ""
         return f"{self.get_provider_display()}: {self.display_name}{binding}"
+
+    @property
+    def token_expired(self) -> bool:
+        """The saved token is past its expiry. It is never sent."""
+        return bool(self.expires_at and self.expires_at <= timezone.now())
+
+    @property
+    def current_status(self) -> str:
+        """The saved status, or expired once a token that cannot refresh runs out.
+
+        An OAuth token past its expiry still counts as connected. It refreshes
+        when used, and a refused refresh saves the expired status.
+        """
+        if (
+            self.status == self.Status.CONNECTED
+            and self.auth_strategy != self.AuthStrategy.OAUTH
+            and self.token_expired
+        ):
+            return self.Status.EXPIRED
+        return self.status
 
     def clean(self) -> None:
         # Repositories never name identities or model providers, so neither
