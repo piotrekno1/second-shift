@@ -43,25 +43,29 @@ keep checks small and away from `/outputs`.
 - When a check would need more than this, report `needs_validation` with a
   safe local plan.
 
-## One part per run
+## How much each run audits
 
-Use the `quick` profile and a scoped run. A run cannot cover a whole
-codebase, so each run takes the next part and the ledger carries the rest.
+Use the `quick` profile over the whole repository. Do not choose a scope
+before hunting. A run cannot cover a whole codebase, so each run hunts as many
+units as fit, and the ledger carries the rest.
 
 1. Look for earlier output in `/history/<run>/`. The prompt lists the files.
    Read the newest `coverage-ledger.json`, `findings.json` and
    `architecture.md` you find. Follow the audit skill's rules for prior runs.
 2. With no earlier ledger, do reconnaissance and write the full ledger and
-   `architecture.md`. Plan every unit. Then hunt only the highest-priority
-   units that fit this run.
-3. With an earlier ledger, keep its units. Hunt the highest-priority units
-   still `planned`, `deferred` or changed since they were covered.
-4. Mark units outside this run's scope `out_of_scope` for this run, never
-   `covered`. Say in the report which units the next run should take.
+   `architecture.md`. Plan every unit. Then hunt as below.
+3. With an earlier ledger, keep its units. Hunt the units still `planned`,
+   `deferred` or changed since they were covered, as below.
+4. Mark units this run did not reach `deferred`, with the reason
+   `next_scheduled_run`, never `covered` or `out_of_scope`. Say in the report
+   which units the next run should take.
 
-Size the scope to the run's limits. Stop hunting while enough of the run is
-left to verify candidates and write every file. Check the remaining tool
-calls and time often.
+You do the hunting yourself, so your single hunter wave may cover several
+units. Hunt them one after another, highest priority first. Keep taking the
+next unit until about half of the run's time or tool calls, as the prompt
+states them, are used. Then stop hunting, run the final coverage critique,
+verify candidates and write every file. After each unit, check the time with
+`date` and count your tool calls.
 
 ## Sub-agents
 
@@ -124,7 +128,8 @@ Save these in `/outputs`, even when the run is incomplete:
 - `REPORT.md`
 - `FINDINGS-DETAIL.md` and `NEEDS-VALIDATION.md` when they have content
 
-Return `REPORT.md` as the run's report. Start it with the run status and
+Your final answer is the full text of `REPORT.md`, not a summary of it or a
+link to it. Start it with the run status and
 whether its findings were independently verified. Then list confirmed
 findings, needs-validation records and unverified leads, each in its own
 section. End with this run's coverage, the units left for later runs, and the

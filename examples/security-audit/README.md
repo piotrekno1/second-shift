@@ -6,10 +6,11 @@ vulnerabilities, and has each candidate checked by a fresh agent that never
 saw the hunt. Only candidates that survive that check become confirmed
 findings.
 
-A full audit is too large for one run, so this example audits one part of the
-codebase per run. Each run saves the audit's coverage ledger and findings in
-`/outputs`. The next run reads them from `/history`, takes the next part, and
-re-checks earlier findings against the current code.
+A full audit of a large codebase does not fit in one run. Each run plans the
+whole repository, audits as many parts as fit in about half its time or tool
+calls, and leaves the rest for later. It saves the audit's coverage ledger and
+findings in `/outputs`. The next run reads them from `/history`, takes the
+parts left, and re-checks earlier findings against the current code.
 
 The [wrapper skill](.agents/skills/scheduled-security-audit/SKILL.md) adapts
 the audit to a SecondShift run. Cloudflare's skill is not included. You copy
@@ -59,7 +60,7 @@ another model. See [sub-agents](../../docs/repository-configuration.md#sub-agent
    tool calls. Start with an hour, 150 turns and 400 tool calls, and adjust
    from the first runs. See [run limits](../../docs/self-hosting.md#run-limits).
 5. Choose **Run now**. The first run maps the codebase and audits the
-   highest-priority part. Read its report and saved files, then enable the
+   highest-priority parts that fit. Read its report and saved files, then enable the
    Monday 06:00 Europe/Warsaw schedule.
 
 The job needs no connections and no approvals. It only reads the repository
