@@ -57,8 +57,7 @@ another model. See [sub-agents](../../docs/repository-configuration.md#sub-agent
 4. Raise this job's run limits on its page. An audit run needs far more time,
    turns and tool calls than the defaults of 15 minutes, 24 turns and 150
    tool calls. Start with an hour, 150 turns and 400 tool calls, and adjust
-   from the first runs. Values above the server's maximums need the
-   `_CEILING` settings in [run limits](../../docs/self-hosting.md#run-limits).
+   from the first runs. See [run limits](../../docs/self-hosting.md#run-limits).
 5. Choose **Run now**. The first run maps the codebase and audits the
    highest-priority part. Read its report and saved files, then enable the
    Monday 06:00 Europe/Warsaw schedule.
