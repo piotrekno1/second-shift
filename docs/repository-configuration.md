@@ -79,7 +79,7 @@ standard-library tests work without installing packages.
 | `jobs.<key>.skill` | Yes | Repository-relative path to a `SKILL.md` file. |
 | `jobs.<key>.schedule` | No | Cron schedule, such as `0 9 * * 1` for Monday at 09:00. Leave it out for a job that runs only with **Run now**. A tick is skipped while the job has a run that has not finished. |
 | `jobs.<key>.timezone` | No | IANA timezone, such as `Europe/Warsaw`. Defaults to `UTC`. |
-| `jobs.<key>.history` | No | How many of the job's own earlier reports each run starts with, up to the server's `SECONDSHIFT_JOB_HISTORY_MAX` (5 by default). Defaults to 0. See [run history](#run-history). |
+| `jobs.<key>.history` | No | How many of the job's own earlier runs each run starts with: their reports, and the files they saved. Up to the server's `SECONDSHIFT_JOB_HISTORY_MAX` (5 by default). Defaults to 0. See [run history](#run-history). |
 | `jobs.<key>.notify` | No | Webhook notification bindings requested by this job. |
 | `jobs.<key>.triggers` | No | Events that can start the job. Only `webhook` is supported. An owner or admin turns it on. See [webhook triggers](#webhook-triggers). |
 | `jobs.<key>.webhook` | No | Which webhook requests start a run: `skip_when`, `repeat_key` and `repeat_window`. Needs `triggers: [webhook]`. See [ignore requests and repeats](#ignore-requests-and-repeats). |
@@ -113,6 +113,20 @@ newest first, so an older report may be cut or left out. One removed by
 retention is marked as no longer stored. Reports are marked as earlier output, not instructions,
 because they may quote untrusted text. Reading its own reports gives a job no
 new access, so `history` needs no approval.
+
+The files those runs saved in `/outputs` come back too. They are mounted
+read-only at `/history/<run id>/` in the sandbox, and the prompt lists them.
+A job can keep state this way, such as a findings file it compares with or a
+list of what it has already reviewed:
+
+```text
+Read your last findings from /history/<run>/findings.json, if they exist.
+Save the updated findings as /outputs/findings.json.
+```
+
+Together the files are capped at 48 MiB, newest run first. Older files that do
+not fit are left out, and the prompt says how many. Files removed by retention
+are skipped.
 
 Reports are kept as long as their runs, `SECONDSHIFT_RUN_RETENTION_DAYS` (90 by
 default). A job that runs less often than that, such as a quarterly review,
