@@ -379,7 +379,7 @@ export interface RunDelivery {
   id: number
   kind: 'notification' | 'pull_request' | 'issues' | string
   target: string
-  status: 'pending' | 'delivered' | 'skipped' | 'failed'
+  status: 'pending' | 'retrying' | 'delivered' | 'skipped' | 'failed'
   attempts: number
   message: string
   /** Where the result lives, such as the draft pull request. Empty if none. */

@@ -139,6 +139,26 @@ def test_a_notification_that_keeps_erroring_ends_failed(
 
 
 @pytest.mark.django_db
+def test_a_notification_waiting_for_another_attempt_is_retrying(
+    approved_run: tuple[Run, Connection, JobGrant],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    run, connection, _ = approved_run
+
+    def unavailable(connection: Connection, payload: dict[str, Any]) -> Any:
+        return webhooks.WebhookDelivery(False, 503, "Unavailable.", retryable=True)
+
+    monkeypatch.setattr(workflows, "deliver_webhook", unavailable)
+
+    with pytest.raises(workflows.RetryableDeliveryError):
+        workflows.deliver_run_notification_step(run.pk, connection.pk)
+
+    delivery = only_delivery(run)
+    assert delivery.status == RunDelivery.Status.RETRYING
+    assert delivery.attempts == 1
+
+
+@pytest.mark.django_db
 def test_retrying_sends_the_stored_report_again(
     approved_run: tuple[Run, Connection, JobGrant],
     receiver: Receiver,
@@ -152,7 +172,7 @@ def test_retrying_sends_the_stored_report_again(
     deliveries.retry_delivery(run, delivery.pk)
 
     delivery.refresh_from_db()
-    assert delivery.status == RunDelivery.Status.PENDING
+    assert delivery.status == RunDelivery.Status.RETRYING
     options, *arguments = queue.enqueue.call_args.args
     assert options["workflow_name"] == RETRY_NOTIFICATION_WORKFLOW
     assert arguments == [run.pk, connection.pk]
@@ -254,6 +274,6 @@ def test_retry_endpoint_needs_run_permission(
     client.force_login(owner)
     response = client.post(url)
     assert response.status_code == 200
-    assert response.json()["status"] == "pending"
+    assert response.json()["status"] == "retrying"
     assert client.post(url).status_code == 409
     assert client.post(f"/api/runs/{run.pk}/deliveries/999/retry").status_code == 404

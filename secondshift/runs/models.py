@@ -212,7 +212,10 @@ class RunDelivery(models.Model):
         ISSUES = "issues", "Issues"
 
     class Status(models.TextChoices):
+        # Not tried yet.
         PENDING = "pending", "Pending"
+        # Tried and failed, and another attempt is coming.
+        RETRYING = "retrying", "Retrying"
         DELIVERED = "delivered", "Delivered"
         SKIPPED = "skipped", "Skipped"
         FAILED = "failed", "Failed"

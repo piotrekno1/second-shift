@@ -304,7 +304,7 @@ def deliver_run_notification_step(run_id: int, connection_id: int) -> None:
     delivery.attempts += 1
     delivery.status_code = result.status_code
     if result.retryable:
-        record_delivery(delivery, RunDelivery.Status.PENDING, result.message)
+        record_delivery(delivery, RunDelivery.Status.RETRYING, result.message)
         raise RetryableDeliveryError(result.message)
     record_delivery(
         delivery,
