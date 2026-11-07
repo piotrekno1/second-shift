@@ -11,10 +11,11 @@ from django.test import Client
 from secondshift.connections import agents as agent_logins
 from secondshift.connections.agents import (
     AgentConnectionError,
+    retry_credential_cleanups,
     save_agent_connection,
     validate_agent_auth,
 )
-from secondshift.connections.models import AgentConnection
+from secondshift.connections.models import AgentConnection, AgentCredentialCleanup
 from secondshift.runner.protocol import RunnerProtocolError
 from secondshift.workspaces.models import Workspace, WorkspaceMembership
 from secondshift.workspaces.services import create_workspace
@@ -138,7 +139,30 @@ def test_reconnect_rotates_the_runner_credential_key(
 
 
 @pytest.mark.django_db
-def test_disconnect_clears_login_even_when_runner_cleanup_fails(
+def test_disconnect_removes_the_runner_copy(
+    agent_login: tuple[Workspace, AgentConnection, User],
+    client: Client,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _, login, owner = agent_login
+    runner = runner_cleanup(monkeypatch)
+    client.force_login(owner)
+
+    response = client.delete(f"/api/agent-connections/{login.pk}")
+
+    assert response.status_code == 204
+    runner.send.assert_called_once_with(
+        "DELETE", f"/v1/agent-credentials/{login.credential_key.hex}"
+    )
+    assert not AgentCredentialCleanup.objects.exists()
+    assert (
+        client.get("/api/agent-connections").json()[0]["runner_cleanup_pending"]
+        is False
+    )
+
+
+@pytest.mark.django_db
+def test_a_copy_the_runner_kept_is_recorded_and_removed_later(
     agent_login: tuple[Workspace, AgentConnection, User],
     client: Client,
     monkeypatch: pytest.MonkeyPatch,
@@ -146,8 +170,79 @@ def test_disconnect_clears_login_even_when_runner_cleanup_fails(
     _, login, owner = agent_login
     runner_cleanup(monkeypatch, RunnerProtocolError("unavailable"))
     client.force_login(owner)
+
     response = client.delete(f"/api/agent-connections/{login.pk}")
-    assert response.status_code == 503
+
+    assert response.status_code == 204
     login.refresh_from_db()
     assert login.connected is False
     assert login.auth_data == ""
+    cleanup = AgentCredentialCleanup.objects.get()
+    assert (cleanup.credential_key, cleanup.attempts) == (login.credential_key, 1)
+    assert (
+        client.get("/api/agent-connections").json()[0]["runner_cleanup_pending"] is True
+    )
+
+    assert retry_credential_cleanups() == 0
+    cleanup.refresh_from_db()
+    assert cleanup.attempts == 2
+
+    runner = runner_cleanup(monkeypatch)
+    assert retry_credential_cleanups() == 1
+    runner.send.assert_called_once_with(
+        "DELETE", f"/v1/agent-credentials/{login.credential_key.hex}"
+    )
+    assert not AgentCredentialCleanup.objects.exists()
+    assert (
+        client.get("/api/agent-connections").json()[0]["runner_cleanup_pending"]
+        is False
+    )
+
+
+@pytest.mark.django_db
+def test_reconnect_works_while_the_runner_is_down(
+    agent_login: tuple[Workspace, AgentConnection, User],
+    client: Client,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _, login, owner = agent_login
+    runner_cleanup(monkeypatch, RunnerProtocolError("unavailable"))
+    old_key = login.credential_key
+    client.force_login(owner)
+
+    response = client.post(
+        f"/api/agent-connections/{login.pk}",
+        data=json.dumps({"backend": "claude_code", "auth": TOKEN + "2"}),
+        content_type="application/json",
+    )
+
+    assert response.status_code == 200
+    login.refresh_from_db()
+    assert login.connected is True
+    assert login.auth_data == TOKEN + "2"
+    assert login.credential_key != old_key
+    assert AgentCredentialCleanup.objects.get().credential_key == old_key
+
+
+@pytest.mark.django_db
+def test_a_refused_reconnect_leaves_nothing_to_clean_up(
+    agent_login: tuple[Workspace, AgentConnection, User],
+    client: Client,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _, login, owner = agent_login
+    runner = runner_cleanup(monkeypatch)
+    old_key = login.credential_key
+    client.force_login(owner)
+
+    response = client.post(
+        f"/api/agent-connections/{login.pk}",
+        data=json.dumps({"backend": "codex", "auth": TOKEN}),
+        content_type="application/json",
+    )
+
+    assert response.status_code == 422
+    login.refresh_from_db()
+    assert (login.connected, login.credential_key) == (True, old_key)
+    assert not AgentCredentialCleanup.objects.exists()
+    runner.send.assert_not_called()

@@ -239,3 +239,28 @@ class AgentConnection(models.Model):
     last_check = models.JSONField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+
+class AgentCredentialCleanup(models.Model):
+    """A runner's cached copy of a login that is still to be removed.
+
+    The row is saved with the disconnect or reconnect that replaced the login.
+    It is deleted once the runner confirms the copy is gone. The worker
+    retries the rows that remain.
+    """
+
+    credential_key = models.UUIDField(unique=True)
+    # Empty once the login itself is gone. The copy is still removed.
+    connection = models.ForeignKey(
+        AgentConnection,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="credential_cleanups",
+    )
+    attempts = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self) -> str:
+        return f"Runner cleanup for {self.credential_key.hex}"

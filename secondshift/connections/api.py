@@ -11,7 +11,6 @@ from ninja.security import django_auth
 from secondshift.config.constants import SUMMARY_MAX_CHARS
 from secondshift.connections.agents import (
     AgentConnectionError,
-    RunnerCleanupPending,
     check_agent_connection,
     disconnect_agent_connection,
     reconnect_agent_connection,
@@ -698,8 +697,6 @@ def reconnect_agent(
         )
     except AgentConnectionError as error:
         raise HttpError(422, str(error)) from None
-    except RunnerCleanupPending as error:
-        raise HttpError(503, str(error)) from None
 
 
 @router.post("/agent-connections/{connection_id}/check", response=AgentConnectionSchema)
@@ -738,8 +735,6 @@ def disconnect_agent(request: HttpRequest, connection_id: int) -> Status[None]:
     connection = get_object_or_404(
         AgentConnection, pk=connection_id, workspace=workspace, owner=request.user
     )
-    try:
-        disconnect_agent_connection(connection)
-    except RunnerCleanupPending as error:
-        raise HttpError(503, str(error)) from None
+    # A cached copy the runner keeps is removed by the worker.
+    disconnect_agent_connection(connection)
     return Status(204, None)

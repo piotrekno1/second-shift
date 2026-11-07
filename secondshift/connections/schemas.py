@@ -244,6 +244,12 @@ class AgentConnectionSchema(Schema):
     recent_runs: int = 0
     can_manage: bool = False
     last_check: dict[str, Any] | None = None
+    # The runner still holds a cached copy of an earlier login.
+    runner_cleanup_pending: bool = False
+
+    @staticmethod
+    def resolve_runner_cleanup_pending(obj: AgentConnection) -> bool:
+        return obj.credential_cleanups.exists()
 
     @staticmethod
     def resolve_can_manage(obj: AgentConnection, context: dict[str, Any]) -> bool:

@@ -8,6 +8,7 @@ import djclick as click
 from dbos import DBOS, DBOSClient
 from django.conf import settings
 
+from secondshift.connections.agents import retry_credential_cleanups
 from secondshift.jobs.scheduling import synchronize_schedules
 from secondshift.mcp_server.audit import prune_tool_calls
 from secondshift.repositories.autosync import server_syncs, sync_moved_repositories
@@ -27,6 +28,13 @@ logger = logging.getLogger(__name__)
 PRUNE_INTERVAL_SECONDS = 24 * 60 * 60
 # How often to look for GitHub connections due for their daily check.
 SOURCE_CHECK_POLL_SECONDS = 60 * 60
+# How often to ask the runner again to remove logins it kept.
+CREDENTIAL_CLEANUP_SECONDS = 60
+
+
+def remove_cached_logins() -> None:
+    if removed := retry_credential_cleanups():
+        logger.info("removed %s cached agent login(s) from the runner", removed)
 
 
 def worker_tasks(client: DBOSClient) -> list[PeriodicTask]:
@@ -73,6 +81,11 @@ def worker_tasks(client: DBOSClient) -> list[PeriodicTask]:
             "check GitHub connections",
             every=SOURCE_CHECK_POLL_SECONDS,
             run=sources,
+        ),
+        PeriodicTask(
+            "remove cached agent logins",
+            every=CREDENTIAL_CLEANUP_SECONDS,
+            run=remove_cached_logins,
         ),
     ]
 

@@ -123,8 +123,11 @@ async function confirm(row: ModelRow): Promise<void> {
   if (!step) return
   await act(row.key, async () => {
     if (row.login) {
-      await agents.disconnect(row.login.id)
-      return 'Disconnected.'
+      const id = row.login.id
+      await agents.disconnect(id)
+      return agents.connections.find((login) => login.id === id)?.runner_cleanup_pending
+        ? 'Disconnected. The runner did not answer, so its cached copy is removed once it does.'
+        : 'Disconnected.'
     }
     if (step.action === 'delete') await deleteConnection(row.connection!.id)
     else await revokeConnection(row.connection!.id)
@@ -274,6 +277,7 @@ onMounted(async () => {
                 <small v-else-if="row.lastCheck" :title="row.lastCheck.message">
                   {{ row.lastCheck.message }} · checked {{ formatRelative(row.lastCheck.checked_at) }}
                 </small>
+                <small v-if="row.login?.runner_cleanup_pending">The runner still holds a cached copy of an earlier login. SecondShift removes it once the runner answers.</small>
               </template>
             </div>
             <StatusPill v-if="row.connection?.status === 'connected' && row.connection.last_check?.ok === false" status="error" label="Check failed" :title="row.connection.last_check.message" />
