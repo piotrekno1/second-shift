@@ -8,7 +8,7 @@ from secondshift.connections.models import Connection
 from secondshift.jobs.manifest import parse_manifest
 from secondshift.jobs.models import CapabilityRequest, Job, JobGrant
 from secondshift.jobs.planning import build_execution_plan
-from secondshift.jobs.scheduling import desired_schedules
+from secondshift.jobs.scheduling import desired_schedules, next_occurrence
 from secondshift.jobs.sync import sync_jobs, sync_manifest
 from secondshift.repositories.models import Repository
 from secondshift.workspaces.services import create_workspace
@@ -98,6 +98,39 @@ jobs:
     assert job.next_run_at is None
     assert job.enabled is False
     assert desired_schedules() == []
+
+
+@pytest.mark.parametrize(
+    ("schedule", "zone"),
+    [("0 18 * * 1", "UTC"), ("0 9 * * 1", "America/New_York")],
+)
+def test_changing_the_schedule_moves_the_next_run(
+    db, tmp_path: Path, schedule: str, zone: str
+) -> None:
+    user = get_user_model().objects.create_user(username="owner")
+    workspace = create_workspace(name="Test", slug="test", owner=user)
+    repository = Repository.objects.create(
+        workspace=workspace, full_name="example/project", enabled=True
+    )
+    path = tmp_path / ".secondshift.yaml"
+    manifest = """
+jobs:
+  review:
+    name: Review
+    skill: .agents/skills/review/SKILL.md
+    schedule: "{schedule}"
+    timezone: {zone}
+""".strip()
+    path.write_text(manifest.format(schedule="0 9 * * 1", zone="UTC"))
+    job = sync_manifest(repository, path)[0]
+    before = job.next_run_at
+
+    path.write_text(manifest.format(schedule=schedule, zone=zone))
+    sync_manifest(repository, path)
+
+    job.refresh_from_db()
+    assert job.next_run_at == next_occurrence(job)
+    assert job.next_run_at != before
 
 
 def test_sync_keeps_the_skill_text_for_people_to_read(db, tmp_path: Path) -> None:
