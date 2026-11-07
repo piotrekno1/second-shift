@@ -1,5 +1,7 @@
 import json
 import subprocess
+import sys
+import time
 import tomllib
 from pathlib import Path
 from typing import Any
@@ -214,6 +216,86 @@ def test_agent_events_keep_only_final_report_and_numeric_usage() -> None:
     assert codex_done["report"] == "Hi" and codex_done["succeeded"] is True
     # A failing CLI exit code never counts as success.
     assert outcome_of(agent.read_codex, [], exit_code=0)["reason"] == "agent_failed"
+
+
+def reply(message_id: str, sub_agent: bool = False, **usage: int) -> dict[str, Any]:
+    return {
+        "type": "assistant",
+        "parent_tool_use_id": "toolu_1" if sub_agent else None,
+        "message": {"id": message_id, "usage": usage},
+    }
+
+
+def test_claude_usage_adds_up_each_reply_once_with_sub_agents() -> None:
+    outcome = agent.Outcome()
+    events = [
+        # One reply can arrive as several events with the same usage.
+        reply("msg_1", input_tokens=2, cache_read_input_tokens=5000),
+        reply("msg_1", input_tokens=2, cache_read_input_tokens=5000),
+        reply("msg_2", sub_agent=True, input_tokens=2, cache_read_input_tokens=1000),
+        reply("msg_3", sub_agent=True, input_tokens=2, output_tokens=16),
+    ]
+    for event in events:
+        agent.read_claude(event, outcome)
+
+    # Counted as replies arrive, so a budget can stop the run before it ends.
+    assert outcome.usage == {
+        "input_tokens": 6,
+        "cache_read_input_tokens": 6000,
+        "output_tokens": 16,
+    }
+
+    # The final usage leaves out sub-agents. The per-model usage includes them.
+    # The largest of each count is kept.
+    agent.read_claude(
+        {
+            "type": "result",
+            "result": "Done",
+            "is_error": False,
+            "usage": {"input_tokens": 4, "output_tokens": 900},
+            "modelUsage": {
+                "claude-haiku": {"outputTokens": 1500, "costUSD": 0.01},
+                "claude-sonnet": {"inputTokens": 3, "cacheReadInputTokens": 7000},
+            },
+        },
+        outcome,
+    )
+    assert outcome.usage == {
+        "input_tokens": 6,
+        "cache_read_input_tokens": 7000,
+        "output_tokens": 1500,
+    }
+
+
+def test_the_token_budget_stops_claude_mid_run(monkeypatch) -> None:
+    """A CLI that keeps going past the budget is stopped, not waited for."""
+    events = [
+        reply("msg_1", cache_read_input_tokens=600),
+        reply("msg_2", sub_agent=True, cache_read_input_tokens=600),
+    ]
+    script = (
+        "import json, sys, time\n"
+        f"for event in {events!r}:\n"
+        "    print(json.dumps(event), flush=True)\n"
+        "time.sleep(60)\n"
+    )
+
+    def start(config: dict[str, Any]) -> tuple[list[str], dict[str, str]]:
+        return [sys.executable, "-c", script], {}
+
+    monkeypatch.setitem(
+        agent.BACKENDS, "claude_code", (sys.executable, start, agent.read_claude)
+    )
+    started = time.monotonic()
+
+    finished = agent.run(
+        {"backend": "claude_code", "prompt": "Audit", "token_budget": 1000}
+    )
+
+    assert time.monotonic() - started < 30
+    assert finished["reason"] == "token_budget_exhausted"
+    assert finished["succeeded"] is False
+    assert finished["usage"] == {"cache_read_input_tokens": 1200}
 
 
 @pytest.mark.parametrize(

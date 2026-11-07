@@ -148,8 +148,10 @@ refused before they started don't count. There is no limit by default.
 - The broker enforces the tool call budget and the run deadline.
 - Claude Code also gets the run's maximum turns. Codex has no equivalent
   setting, so the deadline and tool budget bound it.
-- Token budgets are checked when the CLI reports usage, which can be after the
-  budget is passed. Use the model API when you need a strict token cap.
+- Token budgets are checked when the CLI reports usage. Claude Code reports
+  usage after each model reply, so a run stops soon after it passes the budget.
+  Codex reports usage only when it finishes. Use the model API when you need a
+  strict token cap.
 - Runs show CLI-reported token usage when available, including cached input.
   Missing usage is shown as unavailable. These counts do not measure remaining
   subscription allowance or dollar cost. Model API spend totals exclude them.

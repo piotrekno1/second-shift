@@ -29,6 +29,13 @@ TOKEN_KEYS = (
     "cache_creation_input_tokens",
     "cache_read_input_tokens",
 )
+# How Claude Code names the same counts in its per-model usage.
+MODEL_USAGE_KEYS = {
+    "inputTokens": "input_tokens",
+    "outputTokens": "output_tokens",
+    "cacheCreationInputTokens": "cache_creation_input_tokens",
+    "cacheReadInputTokens": "cache_read_input_tokens",
+}
 BROKER_TOKEN_VAR = "SECONDSHIFT_BROKER_TOKEN"
 BROKER_STARTUP_TIMEOUT_SECONDS = 60
 
@@ -43,6 +50,8 @@ class Outcome:
     reason: str = ""
     # The last error the CLI reported, used to explain a failure.
     error: str = ""
+    # Token usage of each model reply so far, by message ID.
+    replies: dict[str, dict[str, int]] = field(default_factory=dict)
 
 
 def numbers(values: dict[str, Any]) -> dict[str, int]:
@@ -147,10 +156,59 @@ incremental_tools = false
     return argv, ({BROKER_TOKEN_VAR: config["broker_token"]} if broker else {})
 
 
+def reply_totals(replies: dict[str, dict[str, int]]) -> dict[str, int]:
+    totals = {
+        key: sum(usage.get(key, 0) for usage in replies.values()) for key in TOKEN_KEYS
+    }
+    return {key: value for key, value in totals.items() if value}
+
+
+def model_usage_totals(model_usage: Any) -> dict[str, int]:
+    """The result's per-model usage, summed. It includes sub-agents."""
+    totals: dict[str, int] = {}
+    if not isinstance(model_usage, dict):
+        return totals
+    for usage in model_usage.values():
+        if not isinstance(usage, dict):
+            continue
+        for name, key in MODEL_USAGE_KEYS.items():
+            value = usage.get(name)
+            if isinstance(value, int) and not isinstance(value, bool) and value:
+                totals[key] = totals.get(key, 0) + value
+    return totals
+
+
 def read_claude(event: dict[str, Any], outcome: Outcome) -> None:
+    """Claude Code reports usage on each reply, sub-agents' replies included.
+
+    Adding them up as they arrive lets the budget stop the CLI mid-run. One
+    reply can arrive as several events, so each message ID counts once, at its
+    largest. Replies report output tokens before they finish, so this total
+    runs a little low. The result's usage leaves out sub-agents, and its
+    per-model usage includes them, so the run keeps the largest of each count.
+    """
+    if event.get("type") == "assistant":
+        message = event.get("message") or {}
+        message_id = message.get("id")
+        if not isinstance(message_id, str):
+            return
+        usage = numbers(message.get("usage") or {})
+        earlier = outcome.replies.get(message_id, {})
+        outcome.replies[message_id] = {
+            key: max(usage.get(key, 0), earlier.get(key, 0)) for key in TOKEN_KEYS
+        }
+        outcome.usage = reply_totals(outcome.replies)
+        return
     if event.get("type") != "result":
         return
-    outcome.usage = numbers(event.get("usage") or {})
+    final = numbers(event.get("usage") or {})
+    for totals in (
+        reply_totals(outcome.replies),
+        model_usage_totals(event.get("modelUsage")),
+    ):
+        for key, value in totals.items():
+            final[key] = max(final.get(key, 0), value)
+    outcome.usage = final
     if event.get("subtype") == "error_max_turns":
         outcome.reason = AgentOutcome.TURN_BUDGET_EXHAUSTED
     elif event.get("is_error", True):
