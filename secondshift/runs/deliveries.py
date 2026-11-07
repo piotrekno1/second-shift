@@ -41,7 +41,7 @@ def retry_delivery(run: Run, delivery_id: int) -> RunDelivery:
         raise RunRefused("Only a failed delivery can be retried.")
     if not retryable(delivery):
         raise RunRefused("The connection for this delivery was removed.")
-    delivery.status = RunDelivery.Status.PENDING
+    delivery.status = RunDelivery.Status.RETRYING
     delivery.message = "Waiting to retry."
     delivery.save(update_fields=["status", "message", "updated_at"])
     # Enqueued inside the transaction, so a queue outage leaves it failed.

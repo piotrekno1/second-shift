@@ -205,7 +205,7 @@ def test_a_failed_publish_is_retried_without_the_agent(
     options, *args = queue.enqueue.call_args.args
     assert options["workflow_name"] == RETRY_PULL_REQUEST_WORKFLOW
     assert args == [run.pk]
-    assert delivery(run).status == RunDelivery.Status.PENDING
+    assert delivery(run).status == RunDelivery.Status.RETRYING
     # What the retry workflow runs.
     workflows.publish_pull_request_step(run.pk)
 
