@@ -31,6 +31,7 @@ from secondshift.runs.execution.budgets import (
     budget_summary,
     exhausted_budget,
     is_token_budget_refusal,
+    limits_note,
     partial_report,
     reached_budget,
 )
@@ -151,6 +152,8 @@ def run_prompt(run: Run) -> str:
         prompt = f"{prompt}\n\n{PULL_REQUEST_NOTE}"
     if limit := issue_limit(run.execution_plan):
         prompt = f"{prompt}\n\n{issues_note(limit)}"
+    backend = plan_backend(run.execution_plan)
+    prompt = f"{prompt}\n\n{limits_note(run.execution_plan, backend, run.started_at)}"
     if subagents := subagent_limit(run.execution_plan):
         prompt = (
             f"{prompt}\n\n{subagents_note(subagents, plan_backend(run.execution_plan))}"

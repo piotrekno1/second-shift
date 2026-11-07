@@ -6,8 +6,9 @@ the report with what it has. A run that still runs out keeps what the model
 wrote so far as a partial report. So does a run that times out.
 """
 
+import datetime
 from collections import Counter
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any
@@ -19,8 +20,8 @@ from pydantic_ai.messages import ModelMessage, ModelResponse, TextPart, ToolCall
 from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.usage import RunUsage
 
-from secondshift.config.constants import TOKEN_BUDGET_MESSAGE
-from secondshift.jobs.limits import RunLimit, raise_hint
+from secondshift.config.constants import TOKEN_BUDGET_MESSAGE, AgentBackend
+from secondshift.jobs.limits import RunLimit, plan_limit, raise_hint
 
 BUDGET_HEADLINE = "Budget used up"
 FINISH_INSTRUCTIONS = (
@@ -147,3 +148,27 @@ def partial_report(messages: Sequence[ModelMessage]) -> str:
             + "\n".join(f"- `{name}`: {count}" for name, count in calls.items())
         )
     return "\n\n".join(sections)
+
+
+def limits_note(
+    plan: Mapping[str, Any], backend: str, started_at: datetime.datetime | None
+) -> str:
+    """The prompt lines that tell the agent how much room the run has."""
+    minutes = plan_limit(plan, RunLimit.TIMEOUT_SECONDS) // 60
+    limits = [
+        f"{minutes} minutes",
+        f"{plan_limit(plan, RunLimit.MAX_TOOL_CALLS):,} tool calls",
+    ]
+    # Codex runs have no limit on model calls.
+    if backend != AgentBackend.CODEX:
+        limits.append(f"{plan_limit(plan, RunLimit.MAX_TURNS):,} model calls")
+    start = ""
+    if started_at is not None:
+        start = started_at.astimezone(datetime.UTC).strftime(
+            " It started at %H:%M:%S UTC."
+        )
+    return (
+        f"This run's limits are {', '.join(limits[:-1])} and {limits[-1]}.{start} "
+        "Sub-agents' tool calls count toward them. Plan the work to fit, and "
+        "keep enough room to write your report."
+    )

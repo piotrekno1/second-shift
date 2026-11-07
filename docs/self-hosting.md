@@ -282,6 +282,9 @@ reason **Timed out** and keeps what the agent wrote so far as a partial report.
 Each sandbox command also has its own limit,
 `SECONDSHIFT_RUNNER_COMMAND_TIMEOUT_SECONDS` (default 120).
 
+Each run's prompt states its time, tool-call and model-call limits, so the agent
+can size its work. Codex runs have no model-call limit.
+
 When the agent reaches its last model request, or has no tool calls left, its
 tools are taken away and it is asked to write the report with what it has. The
 run then succeeds and its timeline notes that the budget ran out. A run that
