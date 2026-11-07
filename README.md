@@ -16,7 +16,7 @@ own server in production.
 [Security model](docs/security-model.md) ·
 [Docs](https://second-shift.app/docs/overview/)
 
-https://github.com/user-attachments/assets/0a9a7baa-f79e-4934-af81-8e5374e9cdbf
+https://github.com/user-attachments/assets/69cbc92f-72f6-45fb-98ad-27b4b1056581
 
 ## The problem
 
