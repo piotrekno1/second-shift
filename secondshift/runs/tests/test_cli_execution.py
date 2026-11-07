@@ -111,6 +111,19 @@ def test_cli_run_is_never_repeated(
         execute_cli_step(run.pk, "run-1", "Read the skill")
 
 
+def test_cli_run_explains_a_stopped_sandbox_without_blaming_the_login(
+    agent_run: tuple[Run, User], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run, _ = agent_run
+    fake_runner(monkeypatch, {"reason": "agent_stopped"})
+
+    result = execute_cli_step(run.pk, "run-1", "Read the skill")
+
+    assert result["succeeded"] is False
+    assert result["summary"].startswith("The agent's sandbox stopped")
+    assert "login" not in result["summary"]
+
+
 def test_cli_run_explains_a_login_lost_before_start(
     agent_run: tuple[Run, User], monkeypatch: pytest.MonkeyPatch
 ) -> None:
