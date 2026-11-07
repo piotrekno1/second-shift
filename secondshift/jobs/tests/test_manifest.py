@@ -146,8 +146,15 @@ def test_jobs_without_triggers_or_pull_requests_keep_their_hash() -> None:
     triggered = parse_manifest(job_with("    triggers: [webhook]")).jobs["triage"]
     drafting = parse_manifest(job_with("    open_pull_request: true")).jobs["triage"]
     filing = parse_manifest(job_with("    open_issues: true")).jobs["triage"]
+    delegating = parse_manifest(job_with("    subagents: 2")).jobs["triage"]
     before = plain.model_dump(
-        exclude={"triggers", "webhook", "open_pull_request", "open_issues"}
+        exclude={
+            "triggers",
+            "webhook",
+            "open_pull_request",
+            "open_issues",
+            "subagents",
+        }
     )
     canonical = json.dumps(before, sort_keys=True, separators=(",", ":"))
 
@@ -155,6 +162,7 @@ def test_jobs_without_triggers_or_pull_requests_keep_their_hash() -> None:
     assert manifest_hash(triggered) != manifest_hash(plain)
     assert manifest_hash(drafting) != manifest_hash(plain)
     assert manifest_hash(filing) != manifest_hash(plain)
+    assert manifest_hash(delegating) != manifest_hash(plain)
 
 
 WEBHOOK = """    triggers: [webhook]
@@ -207,7 +215,9 @@ def test_manifest_refuses_bad_webhook_settings(extra: str, message: str) -> None
 def test_jobs_without_webhook_settings_keep_their_hash() -> None:
     triggered = parse_manifest(job_with("    triggers: [webhook]")).jobs["triage"]
     canonical = json.dumps(
-        triggered.model_dump(exclude={"webhook", "open_pull_request", "open_issues"}),
+        triggered.model_dump(
+            exclude={"webhook", "open_pull_request", "open_issues", "subagents"}
+        ),
         sort_keys=True,
         separators=(",", ":"),
     )
@@ -249,3 +259,11 @@ def test_open_issues_refuses_bad_settings(extra: str, message: str) -> None:
         parse_manifest(job_with(extra))
 
     assert message in str(error.value)
+
+
+def test_subagents_cannot_pass_the_server_maximum(settings) -> None:
+    settings.RUN_SUBAGENTS_MAX = 2
+
+    assert parse_manifest(job_with("    subagents: 2")).jobs["triage"].subagents == 2
+    with pytest.raises(ManifestError, match="subagents cannot be above 2"):
+        parse_manifest(job_with("    subagents: 3"))

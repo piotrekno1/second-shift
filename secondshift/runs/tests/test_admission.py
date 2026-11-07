@@ -237,6 +237,7 @@ def test_pre_queue_idempotency_key_still_replays(
     previous_data = payload.model_dump(
         mode="json", exclude={"idempotency_key", "not_before", "pull_request"}
     )
+    previous_data["definition"].pop("subagents")
     previous_data["submitted_by"] = owner.pk
     run.task.input_snapshot["submission_fingerprint"] = hashlib.sha256(
         json.dumps(previous_data, sort_keys=True).encode()

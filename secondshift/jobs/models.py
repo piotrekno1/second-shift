@@ -34,6 +34,8 @@ class Job(RunLimitOverrides):
     timezone = models.CharField(max_length=64, default="UTC")
     # How many of its own earlier reports each run starts with.
     history = models.PositiveSmallIntegerField(default=0)
+    # How many sub-agents one run may start.
+    subagents = models.PositiveSmallIntegerField(default=0)
     # Trigger kinds the repository names, such as "webhook". See JobTrigger.
     triggers = models.JSONField(default=list, blank=True)
     # The repository's webhook settings: skip_when, repeat_key, repeat_window.

@@ -251,6 +251,7 @@ export interface JobDetail extends Job {
   config_hash: string
   /** How many of its own earlier reports each run starts with. */
   history: number
+  subagents: number
   /** Trigger kinds the configuration names, such as "webhook". */
   triggers: TriggerKind[]
   /** The configuration asks for a draft pull request with each run's changes. */

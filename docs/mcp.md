@@ -161,7 +161,7 @@ Request only tools listed by `list_bindings`. `definition` uses the same shape
 as a manifest job, with an optional `skill`. A task without a skill requires
 nonblank `input`; its original instructions are frozen and included in the agent
 prompt and stored input artifact. It never tries to read or generate a skill file.
-A standalone task cannot specify a schedule, triggers or job history. Requires and notify are optional. Omit `revision` to use the
+A standalone task cannot specify a schedule, triggers or job history. Requires, notify and `subagents` are optional. Omit `revision` to use the
 repository's followed branch; an explicit branch or full commit SHA also works.
 The accepted task pins the exact commit, definition, input and submitting user.
 Changes to the branch after acceptance do not alter it.

@@ -39,6 +39,7 @@ from secondshift.runs.execution.deadlines import (
 from secondshift.runs.execution.external_tools import external_tools
 from secondshift.runs.execution.issues import issue_limit, issue_tool, issues_note
 from secondshift.runs.execution.payload import payload_note, payload_tool
+from secondshift.runs.execution.subagents import subagent_tool, subagents_note
 from secondshift.runs.execution.workspace_tools import (
     WorkspaceToolDeps,
     workspace_path,
@@ -66,7 +67,7 @@ logger = logging.getLogger(__name__)
 
 WORKSPACE_AGENT = build_agent(
     instructions=SYSTEM_INSTRUCTIONS,
-    tools=(*workspace_tools(), payload_tool(), issue_tool()),
+    tools=(*workspace_tools(), payload_tool(), issue_tool(), subagent_tool()),
     deps_type=WorkspaceToolDeps,
 )
 
@@ -107,6 +108,14 @@ pull request description, so say what changed and why, which checks you ran and
 their results, and anything left unresolved."""
 
 
+def subagent_limit(plan: dict[str, Any]) -> int:
+    """How many sub-agents the run may start. Only the built-in agent can."""
+    backend = plan.get("execution", {}).get("backend", AgentBackend.PYDANTIC)
+    if backend != AgentBackend.PYDANTIC:
+        return 0
+    return int(plan.get("agent", {}).get("subagents", 0))
+
+
 def reporting_time(run: Run) -> str:
     """When the run was due, in UTC to the second, such as 2026-11-04T14:50:00Z.
 
@@ -134,6 +143,8 @@ def run_prompt(run: Run) -> str:
         prompt = f"{prompt}\n\n{PULL_REQUEST_NOTE}"
     if limit := issue_limit(run.execution_plan):
         prompt = f"{prompt}\n\n{issues_note(limit)}"
+    if subagents := subagent_limit(run.execution_plan):
+        prompt = f"{prompt}\n\n{subagents_note(subagents)}"
     history = previous_reports(run)
     return f"{prompt}\n\n{history}" if history else prompt
 
@@ -269,6 +280,7 @@ def execute_agent_run(run: Run, session_id: str) -> dict[str, Any]:
         allowed_tools=tuple(plan["agent"]["tools"]),
         payload=run_payload(run),
         issue_limit=issue_limit(plan),
+        subagent_limit=subagent_limit(plan),
     )
     capture_run_input_step(run.pk, session_id)
     with capture_run_messages() as messages:

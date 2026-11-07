@@ -54,6 +54,7 @@ def run_model(run_id: int) -> Model:
 
 def build_agent(
     *,
+    name: str = "secondshift",
     instructions: str,
     tools: Sequence[Any] = (),
     deps_type: type[Any] = object,
@@ -65,7 +66,7 @@ def build_agent(
     """
     return Agent(
         model=RUN_MODEL_ID,
-        name="secondshift",
+        name=name,
         instructions=instructions,
         deps_type=deps_type,
         tools=tools,
@@ -73,6 +74,7 @@ def build_agent(
         capabilities=[
             ResolveModelId(resolve_run_model),
             FinishWithinBudget(),
-            DBOSDurability(name="secondshift"),
+            # Durable steps are named by the agent, so each agent needs its own.
+            DBOSDurability(name=name),
         ],
     )

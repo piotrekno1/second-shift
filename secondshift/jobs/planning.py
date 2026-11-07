@@ -191,6 +191,7 @@ def compile_execution_plan(
     commit_sha: str,
     pull_request: dict[str, Any] | None = None,
     issues: dict[str, Any] | None = None,
+    subagents: int = 0,
 ) -> dict[str, Any]:
     """Compile server-resolved policy into the existing versioned plan format."""
     if repository.workspace_id != workspace.pk:
@@ -229,6 +230,13 @@ def compile_execution_plan(
         RunLimit.TOKEN_BUDGET: limits[RunLimit.TOKEN_BUDGET],
         RunLimit.TIMEOUT_SECONDS: limits[RunLimit.TIMEOUT_SECONDS],
     }
+    # Only the built-in agent can start sub-agents so far. Lowering the server
+    # maximum applies before the manifest is synced again.
+    agent["subagents"] = (
+        min(subagents, settings.RUN_SUBAGENTS_MAX)
+        if selection.backend == AgentBackend.PYDANTIC
+        else 0
+    )
     plan = {
         "version": 5,
         "execution": execution,
@@ -302,6 +310,7 @@ def build_execution_plan(job: Job) -> dict[str, Any]:
         if job.open_pull_request
         else None,
         issues=job.open_issues,
+        subagents=job.subagents,
     )
 
 
@@ -353,4 +362,5 @@ def build_skill_execution_plan(
         },
         commit_sha,
         pull_request,
+        subagents=definition.subagents,
     )
