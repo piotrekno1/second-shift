@@ -95,7 +95,11 @@ def denial(result: subprocess.CompletedProcess) -> str:
 
 
 def start(**fields: Any) -> dict[str, Any]:
-    task = {"subagent_type": WORKER, "prompt": "Check it"} | fields
+    task = {
+        "subagent_type": WORKER,
+        "prompt": "Check it",
+        "run_in_background": False,
+    } | fields
     return {"hook_event_name": "PreToolUse", "tool_name": "Agent", "tool_input": task}
 
 
@@ -113,7 +117,12 @@ def test_the_hook_allows_the_worker_up_to_the_limit(tmp_path: Path) -> None:
         (start(subagent_type=None), "subagent_type"),
         # A call from inside a sub-agent carries its agent ID.
         (start() | {"agent_id": "a1", "agent_type": WORKER}, "cannot start"),
-        (start(run_in_background=True), "foreground"),
+        (start(run_in_background=True), "run_in_background set to false"),
+        # Claude Code runs a start without the flag in the background.
+        (
+            {**start(), "tool_input": {"subagent_type": WORKER, "prompt": "Check"}},
+            "run_in_background set to false",
+        ),
     ],
 )
 def test_the_hook_refuses_other_starts(
@@ -145,7 +154,8 @@ def call(call_id: str, name: str = "mcp__secondshift__read", **task: Any) -> dic
 
 
 def worker(call_id: str, **task: Any) -> dict[str, Any]:
-    return call(call_id, "Agent", **({"subagent_type": WORKER} | task))
+    fields = {"subagent_type": WORKER, "run_in_background": False} | task
+    return call(call_id, "Agent", **fields)
 
 
 def handback(call_id: str) -> dict[str, Any]:
@@ -199,6 +209,11 @@ def test_each_subagent_reports_what_it_used() -> None:
         ],
         # A background sub-agent.
         [reply("m1", None, worker("s1", run_in_background=True)), reply("m2", "s1")],
+        # Without the flag, Claude Code runs it in the background too.
+        [
+            reply("m1", None, call("s1", "Agent", subagent_type=WORKER)),
+            reply("m2", "s1"),
+        ],
         # More sub-agents than the run allows.
         [
             reply("m1", None, worker("s1"), worker("s2"), worker("s3")),
