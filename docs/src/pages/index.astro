@@ -21,6 +21,8 @@ import teamsIcon from '../assets/brands/microsoftteams.svg';
 import fireworksIcon from '../assets/brands/fireworks.svg';
 import togetherIcon from '../assets/brands/together.svg';
 import basetenIcon from '../assets/brands/baseten.svg';
+import coreWeaveIcon from '../assets/brands/coreweave.svg';
+import nebiusIcon from '../assets/brands/nebius.svg';
 const stackRows = [
   { label: 'Models', href: '/docs/self-hosting/#model-providers', brands: [
     { name: 'OpenAI', icon: openAiIcon.src, color: '#ededed' },
@@ -29,6 +31,8 @@ const stackRows = [
     { name: 'Fireworks', icon: fireworksIcon.src, color: '#9b6bff' },
     { name: 'Together AI', icon: togetherIcon.src, color: '#3d8bff' },
     { name: 'Baseten', icon: basetenIcon.src, color: '#19e76e' },
+    { name: 'CoreWeave', icon: coreWeaveIcon.src, color: '#ededed' },
+    { name: 'Nebius', icon: nebiusIcon.src, color: '#b7ff5a' },
   ] },
   { label: 'Tools', href: '/docs/repository-configuration/#mcp-and-api-declarations', brands: [
     { name: 'GitHub', icon: githubIcon.src, color: '#ededed' },
@@ -183,6 +187,9 @@ const stackRows = [
       .file .muted { color: #808080; }
       @media (min-width: 1600px) { .shell { width: min(100% - 96px, 1440px); } }
       @media (max-width: 900px) { .hero { gap: 30px; } h1 { font-size: 44px; } }
+      @media (max-width: 1050px) {
+        .stack-brand-name { display: none; }
+      }
       @media (max-width: 700px) {
         .shell { width: calc(100% - 36px); }
         .hero { grid-template-columns: 1fr; gap: 26px; padding: 24px 0 32px; }
@@ -196,9 +203,13 @@ const stackRows = [
         .stack-row { gap: 8px; padding: 0 4px; }
         .stack-kind { width: 51px; font-size: 11px; }
         .stack-brands { gap: 12px; }
-        .stack-brand-name { display: none; }
         .example-heading { align-items: start; flex-direction: column; gap: 10px; }
         .files { grid-template-columns: 1fr; }
+      }
+      @media (max-width: 440px) {
+        .stack-strip { display: block; }
+        .stack-intro { display: block; margin-bottom: 4px; }
+        .stack-brands { gap: 6px; }
       }
     </style>
   </head>
