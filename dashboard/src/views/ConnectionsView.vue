@@ -486,7 +486,7 @@ onMounted(async () => {
         </article>
         </div>
       </div>
-      <div v-else class="empty-state compact"><AppIcon name="power-plug-off-outline" /><strong>Nothing connected yet</strong><span v-if="canEdit">Use <strong>Add connection</strong>, or connect a binding above.</span><span v-else>Workspace owners add connections.</span></div>
+      <div v-else class="empty-state compact"><AppIcon name="power-plug-off-outline" /><strong>Nothing connected yet</strong><span v-if="!canEdit">Workspace owners add connections.</span></div>
     </section>
 
     <p v-if="!app.needs.length" class="quiet-line">
