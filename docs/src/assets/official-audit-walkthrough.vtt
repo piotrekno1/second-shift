@@ -1,0 +1,57 @@
+WEBVTT
+
+00:00:00.000 --> 00:00:06.000
+Run repository skills in SecondShift
+Use skills for release reviews, CI triage, team briefings, and security audits.
+
+00:00:06.000 --> 00:00:12.000
+Add a skill to your repository
+This example uses Cloudflare’s security-audit skill and a small invoice service.
+
+00:00:12.000 --> 00:00:16.000
+Click Run now
+Try the job before you turn on its schedule.
+
+00:00:16.000 --> 00:00:20.000
+The manual run starts
+SecondShift queues the job against the synced commit.
+
+00:00:20.000 --> 00:00:27.000
+Check the finding with a sub-agent
+A fresh agent checks the same source and repeats the test with demo data.
+
+00:00:27.000 --> 00:00:34.000
+Read the audit report
+The demo showed that Cedar could read an invoice belonging to Maple.
+
+00:00:34.000 --> 00:00:40.000
+Keep the evidence with the run
+Download the report, findings JSON, and coverage ledger.
+
+00:00:40.000 --> 00:00:46.000
+Enable the cron schedule
+Choose a time in the repository manifest. This demo uses a short interval.
+
+00:00:46.000 --> 00:00:53.000
+The next audit runs on schedule
+The run shows what started it and keeps its own report.
+
+00:00:53.000 --> 00:01:00.000
+Reuse files from the previous run
+SecondShift gives the next run the saved ledger and findings to review.
+
+00:01:00.000 --> 00:01:07.000
+File a verified finding in GitHub
+The publishing job checks the audit record and files an issue with the autofix label.
+
+00:01:07.000 --> 00:01:13.000
+Run autofix every night
+At midnight, a separate job looks for open issues labeled autofix.
+
+00:01:13.000 --> 00:01:19.000
+Open a draft PR from the nightly run
+SecondShift links the draft to the issue and leaves it for review.
+
+00:01:19.000 --> 00:01:26.000
+Review the proposed fix
+The lookup now checks who owns the invoice before returning it.

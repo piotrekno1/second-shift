@@ -4,7 +4,8 @@ const site = 'https://second-shift.app/';
 const shareImage = new URL(shareImageAsset.src, site).href;
 const title = 'SecondShift: stop prompting agents for the same work';
 const description = 'Define recurring agent work once in Git. SecondShift runs it for the whole team in a sandbox without your keys. Open source and self-hosted.';
-import demoPoster from '../assets/demo-poster.jpg';
+import demoPoster from '../assets/official-audit-walkthrough.jpg';
+import demoCaptions from '../assets/official-audit-walkthrough.vtt?url&no-inline';
 import shareImageAsset from '../assets/og.png';
 import githubIcon from '../assets/brands/github.svg';
 import sentryIcon from '../assets/brands/sentry.svg';
@@ -231,9 +232,10 @@ const stackRows = [
             <div class="actions"><a class="button" href="/docs/quickstart/">Try it locally →</a><a class="secondary-action" href="/docs/production-deployment/">Deploy for your team →</a></div>
           </div>
           <div class="showcase">
-            <video controls playsinline preload="metadata" poster={demoPoster.src} aria-label="SecondShift product demo">
-              <source src="https://github.com/user-attachments/assets/0a9a7baa-f79e-4934-af81-8e5374e9cdbf" type="video/mp4" />
-              <a href="https://github.com/user-attachments/assets/0a9a7baa-f79e-4934-af81-8e5374e9cdbf">Watch the product demo</a>
+            <video controls playsinline preload="metadata" poster={demoPoster.src} aria-label="SecondShift walkthrough showing manual and scheduled audits, a GitHub issue, and a nightly draft pull request">
+              <source src="https://github.com/user-attachments/assets/69cbc92f-72f6-45fb-98ad-27b4b1056581" type="video/mp4" />
+              <track kind="captions" src={demoCaptions} srclang="en" label="English" />
+              <a href="https://github.com/user-attachments/assets/69cbc92f-72f6-45fb-98ad-27b4b1056581">Watch the product demo</a>
             </video>
           </div>
         </div>
