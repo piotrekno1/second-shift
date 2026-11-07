@@ -52,6 +52,9 @@ class ModelUsage(models.Model):
 
     class Meta:
         ordering = ["created_at"]
+        indexes = [
+            models.Index(fields=["created_at"], name="gateway_usage_created_at_idx")
+        ]
 
     def __str__(self) -> str:
         return f"Run {self.run_id}: {self.model} ({self.status_code})"
