@@ -91,11 +91,30 @@ test('runStats shows tokens against the run budget', () => {
     max_turns: null,
   }
   const [tokens] = runStats({ ...base, token_budget: 2_000_000 })
-  assert.equal(tokens.text, '12.3K / 2M tok')
-  assert.equal(tokens.title, '12K input · 300 output tokens, of 2,000,000 allowed')
+  assert.equal(tokens.text, '12.3K / 2M budget')
+  assert.equal(tokens.title, '12K input · 300 output tokens. 12,300 of 2,000,000 budget tokens used')
   assert.equal(tokens.warn, false)
   assert.equal(runStats({ ...base, model_tokens: 1_700_000, token_budget: 2_000_000 })[0].warn, true)
   assert.equal(runStats({ ...base, token_budget: null })[0].text, '12.3K tok')
+})
+
+test('runStats counts cached input as a tenth toward the budget', () => {
+  const cached = {
+    started_at: null, finished_at: null, model_cost_usd: null, model_cost_partial: false,
+    model_requests: 0, max_turns: null, token_budget: 2_000_000,
+    model_tokens: 700_000, model_input_tokens: 688_000, model_output_tokens: 12_000,
+    model_cache_read_tokens: 598_000, model_budget_tokens: 161_800,
+  }
+  const [tokens] = runStats(cached)
+  assert.equal(tokens.text, '161.8K / 2M budget')
+  assert.equal(
+    tokens.title,
+    '90K input · 598K cached input · 12K output tokens. 161,800 of 2,000,000 budget tokens used. Cached input counts as a tenth',
+  )
+  // All tokens are past 80% of the budget, but the budget count is not.
+  const busy = { ...cached, model_tokens: 1_900_000, model_input_tokens: 1_888_000, model_cache_read_tokens: 1_700_000 }
+  assert.equal(runStats({ ...busy, model_budget_tokens: 370_000 })[0].warn, false)
+  assert.equal(runStats({ ...busy, model_budget_tokens: 1_600_000 })[0].warn, true)
 })
 
 test('formatLimit reads each kind of limit', () => {

@@ -273,7 +273,7 @@ type RunStatSource = Pick<
   Run,
   'started_at' | 'finished_at' | 'model_tokens' | 'model_input_tokens' | 'model_output_tokens'
   | 'model_cost_usd' | 'model_cost_partial' | 'model_requests' | 'max_turns'
-> & Partial<Pick<Run, 'token_budget' | 'model_usage_source'>>
+> & Partial<Pick<Run, 'token_budget' | 'model_usage_source' | 'model_cache_read_tokens' | 'model_budget_tokens'>>
 
 /** Comparable numbers for one run, in a fixed order, for list rows. */
 export function runStats(run: RunStatSource, now = Date.now()): RunStat[] {
@@ -288,13 +288,22 @@ export function runStats(run: RunStatSource, now = Date.now()): RunStat[] {
   const agentUsage = run.model_usage_source === 'agent'
   if (run.model_tokens || (agentUsage && run.model_tokens === 0)) {
     const budget = run.token_budget ?? null
+    // The budget counts cached input as a tenth, so it can be far below all tokens.
+    const counted = run.model_budget_tokens ?? run.model_tokens
+    const cached = run.model_cache_read_tokens ?? 0
     const source = agentUsage ? 'CLI-reported: ' : ''
-    const split = `${source}${formatTokens(run.model_input_tokens)} input · ${formatTokens(run.model_output_tokens)} output tokens`
+    const input = cached
+      ? `${formatTokens(run.model_input_tokens - cached)} input · ${formatTokens(cached)} cached input`
+      : `${formatTokens(run.model_input_tokens)} input`
+    const split = `${source}${input} · ${formatTokens(run.model_output_tokens)} output tokens`
+    const counting = cached ? '. Cached input counts as a tenth' : ''
     stats.push({
       key: 'tokens',
-      text: (budget ? `${formatTokens(run.model_tokens)} / ${formatTokens(budget)} tok` : `${formatTokens(run.model_tokens)} tok`) + (agentUsage ? ' reported' : ''),
-      title: budget ? `${split}, of ${budget.toLocaleString('en')} allowed` : split,
-      warn: Boolean(budget && run.model_tokens >= budget * 0.8),
+      text: (budget ? `${formatTokens(counted)} / ${formatTokens(budget)} budget` : `${formatTokens(run.model_tokens)} tok`) + (agentUsage ? ' reported' : ''),
+      title: budget
+        ? `${split}. ${counted.toLocaleString('en')} of ${budget.toLocaleString('en')} budget tokens used${counting}`
+        : split,
+      warn: Boolean(budget && counted >= budget * 0.8),
     })
   }
   if (agentUsage && run.model_tokens == null) {
