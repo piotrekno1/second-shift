@@ -114,12 +114,12 @@ def week_summary(workspace: Workspace, now: datetime | None = None) -> WeekSumma
     now = now or timezone.now()
     start, previous_start = now - WINDOW, now - 2 * WINDOW
     runs = Run.objects.filter(run_workspace_filter(workspace.pk), created_at__gte=start)
-    usage = ModelUsage.objects.filter(run_workspace_filter(workspace.pk, "run__"))
+    usage = ModelUsage.objects.filter(
+        run_workspace_filter(workspace.pk, "run__"), created_at__gte=previous_start
+    )
     totals = usage.aggregate(
         spend=Sum("cost_usd", filter=Q(created_at__gte=start)),
-        previous=Sum(
-            "cost_usd", filter=Q(created_at__gte=previous_start, created_at__lt=start)
-        ),
+        previous=Sum("cost_usd", filter=Q(created_at__lt=start)),
     )
     return WeekSummary(
         runs=runs.count(),
