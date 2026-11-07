@@ -1,5 +1,3 @@
-from typing import Literal
-
 from django.http import HttpRequest
 
 from secondshift.github import repos
@@ -18,6 +16,7 @@ from secondshift.repositories.schemas import (
     RepositorySchema,
     RepositoryValidationSchema,
 )
+from secondshift.repositories.status import source_status
 from secondshift.workspaces.access import (
     Action,
     allows,
@@ -50,73 +49,51 @@ def serialize_repository(
     )
 
 
-def problem_status(repository: Repository) -> Literal["warning", "error"]:
-    """How a configuration problem reads. Before any good sync it is setup."""
-    return "error" if repository.config_sha else "warning"
+def validation_schema(
+    repository: Repository, head: str | None, problem: str
+) -> RepositoryValidationSchema:
+    """`head` is None when the branch could not be read."""
+    status = source_status(repository, head, problem)
+    return RepositoryValidationSchema(
+        status=status.status,
+        message=status.message,
+        current_revision=head,
+        synced_revision=repository.config_sha,
+        needs_sync=status.needs_sync,
+    )
+
+
+def unreachable(repository: Repository, error: Exception) -> RepositoryValidationSchema:
+    return RepositoryValidationSchema(
+        status="error",
+        message=str(error),
+        current_revision=None,
+        synced_revision=repository.config_sha,
+        needs_sync=False,
+    )
 
 
 def validate_repository(repository: Repository) -> RepositoryValidationSchema:
+    """Read the branch head, then report the state the last syncs saved."""
     if repository.source_type != Repository.SourceType.LOCAL:
         try:
             access = github_access(repository)
             head = repos.branch_head(
                 access.token, access.repository_id, repository.default_branch
             )
-            valid = bool(repository.config_sha) and not repository.last_sync_error
-            return RepositoryValidationSchema(
-                status="valid"
-                if valid
-                else problem_status(repository)
-                if repository.last_sync_error
-                else "error",
-                message="Repository synchronized."
-                if valid
-                else repository.last_sync_error
-                or "Sync the repository before enabling schedules.",
-                current_revision=head,
-                synced_revision=repository.config_sha,
-                needs_sync=head != repository.checked_sha,
-            )
         except GitHubError as error:
-            return RepositoryValidationSchema(
-                status="error",
-                message=str(error),
-                current_revision=None,
-                synced_revision=repository.config_sha,
-                needs_sync=False,
-            )
+            return unreachable(repository, error)
+        return validation_schema(repository, head, repository.last_sync_error)
     try:
         metadata = inspect_local_repository(
             repository.local_path, repository.default_branch
         )
     except RepositoryConfigError as error:
-        return RepositoryValidationSchema(
-            status=problem_status(repository),
-            message=str(error),
-            current_revision=None,
-            synced_revision=repository.config_sha,
-            needs_sync=False,
-        )
+        # The branch is readable, but its configuration is broken right now.
+        return validation_schema(repository, None, str(error))
     except LocalRepositoryError as error:
-        return RepositoryValidationSchema(
-            status="error",
-            message=str(error),
-            current_revision=None,
-            synced_revision=repository.config_sha,
-            needs_sync=False,
-        )
-    needs_sync = metadata.revision != repository.config_sha
-    return RepositoryValidationSchema(
-        status="warning" if needs_sync else "valid",
-        message=(
-            "The repository has a newer revision. Resync before enabling schedules."
-            if needs_sync
-            else "Manifest, skills, and synchronized revision are valid."
-        ),
-        current_revision=metadata.revision,
-        synced_revision=repository.config_sha,
-        needs_sync=needs_sync,
-    )
+        return unreachable(repository, error)
+    return validation_schema(repository, metadata.revision, repository.last_sync_error)
 
 
 def serialize_repository_detail(
