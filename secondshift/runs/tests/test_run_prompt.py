@@ -104,3 +104,27 @@ def test_reporting_time_has_whole_seconds_in_utc(make_run) -> None:
     run.scheduled_for = datetime.datetime(2026, 11, 4, 15, 50, 0, 888128, tzinfo=warsaw)
 
     assert "Reporting time (UTC): 2026-11-04T14:50:00Z" in run_prompt(run)
+
+
+@pytest.mark.parametrize(
+    ("backend", "expected"),
+    [
+        ("pydantic", "45 minutes, 300 tool calls and 80 model calls."),
+        # Codex runs have no limit on model calls.
+        ("codex", "45 minutes and 300 tool calls."),
+    ],
+)
+def test_the_prompt_states_the_runs_limits(make_run, backend, expected) -> None:
+    run = make_run([])
+    run.execution_plan = {
+        "execution": {"backend": backend},
+        "agent": {
+            "limits": {"timeout_seconds": 2700, "max_tool_calls": 300, "max_turns": 80}
+        },
+    }
+    run.started_at = datetime.datetime(2026, 11, 7, 21, 18, 16, tzinfo=datetime.UTC)
+
+    prompt = run_prompt(run)
+
+    assert f"This run's limits are {expected}" in prompt
+    assert "It started at 21:18:16 UTC." in prompt
