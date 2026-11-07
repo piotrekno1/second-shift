@@ -1,5 +1,5 @@
-from secondshift.config.constants import AgentBackend
 from secondshift.jobs.limits import RunLimit
+from secondshift.jobs.planning import plan_backend
 from secondshift.runner.agent_image.outcomes import cache_reads, usage_budget
 from secondshift.runs.deliveries import retryable
 from secondshift.runs.execution.budgets import BUDGET_HEADLINE
@@ -60,13 +60,8 @@ def run_failure(run: Run) -> RunFailureSchema | None:
     )
 
 
-def uses_model_api(run: Run) -> bool:
-    execution = run.execution_plan.get("execution") or {}
-    return execution.get("backend", AgentBackend.PYDANTIC) == AgentBackend.PYDANTIC
-
-
 def serialize_run(run: Run) -> RunSchema:
-    api = uses_model_api(run)
+    api = plan_backend(run.execution_plan).uses_model_api
     input_tokens = getattr(run, "model_input_tokens", None) or 0
     output_tokens = getattr(run, "model_output_tokens", None) or 0
     tokens = getattr(run, "model_tokens", None) or 0

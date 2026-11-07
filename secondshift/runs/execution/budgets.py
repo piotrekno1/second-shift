@@ -151,7 +151,7 @@ def partial_report(messages: Sequence[ModelMessage]) -> str:
 
 
 def limits_note(
-    plan: Mapping[str, Any], backend: str, started_at: datetime.datetime | None
+    plan: Mapping[str, Any], backend: AgentBackend, started_at: datetime.datetime | None
 ) -> str:
     """The prompt lines that tell the agent how much room the run has."""
     minutes = plan_limit(plan, RunLimit.TIMEOUT_SECONDS) // 60
@@ -159,8 +159,7 @@ def limits_note(
         f"{minutes} minutes",
         f"{plan_limit(plan, RunLimit.MAX_TOOL_CALLS):,} tool calls",
     ]
-    # Codex runs have no limit on model calls.
-    if backend != AgentBackend.CODEX:
+    if backend.limits_model_calls:
         limits.append(f"{plan_limit(plan, RunLimit.MAX_TURNS):,} model calls")
     start = ""
     if started_at is not None:

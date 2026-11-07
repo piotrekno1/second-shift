@@ -11,12 +11,11 @@ from pydantic_ai.messages import ModelMessage
 from pydantic_ai.toolsets import FunctionToolset
 
 from secondshift.config.constants import (
-    SUBAGENT_BACKENDS,
     SUMMARY_MAX_CHARS,
-    AgentBackend,
 )
 from secondshift.jobs.limits import RunLimit, plan_limit
 from secondshift.jobs.models import CapabilityRequest
+from secondshift.jobs.planning import plan_backend
 from secondshift.runner.client import get_runner_client
 from secondshift.runner.protocol import CommandRequest, CommandResult
 from secondshift.runs.artifacts import (
@@ -114,15 +113,10 @@ their results, and anything left unresolved."""
 
 
 def subagent_limit(plan: dict[str, Any]) -> int:
-    """How many sub-agents the run may start. Codex cannot yet."""
-    if plan_backend(plan) not in SUBAGENT_BACKENDS:
+    """How many sub-agents the run may start."""
+    if not plan_backend(plan).starts_subagents:
         return 0
     return int(plan.get("agent", {}).get("subagents", 0))
-
-
-def plan_backend(plan: dict[str, Any]) -> str:
-    # Plans from released versions have no execution block. They use the model.
-    return str(plan.get("execution", {}).get("backend", AgentBackend.PYDANTIC))
 
 
 def reporting_time(run: Run) -> str:
@@ -269,7 +263,7 @@ def capture_run_input_step(run_id: int, session_id: str) -> None:
 def execute_agent_run(run: Run, session_id: str) -> dict[str, Any]:
     """Run the durable model loop against one already-created sandbox session."""
     plan = run.execution_plan
-    if plan_backend(plan) != AgentBackend.PYDANTIC:
+    if not plan_backend(plan).uses_model_api:
         capture_run_input_step(run.pk, session_id)
         return execute_cli_step(
             run.pk, session_id, SYSTEM_INSTRUCTIONS + "\n\n" + run_prompt(run)
