@@ -16,6 +16,7 @@ from mcp.client.streamable_http import streamable_http_client
 
 from secondshift.connections.mcp.base import (
     SOURCE_AUTH,
+    CustomMCPToolError,
     MCPError,
     MCPProvider,
     MCPRequestError,
@@ -34,6 +35,7 @@ from secondshift.connections.services import ConnectionConflict
 from secondshift.workspaces.models import Workspace
 
 MCP_MAX_PAGES = 10
+MCP_ERROR_REASON_MAX_CHARS = 500
 # Custom servers keep every tool for the owner to choose from, up to this many.
 MCP_MAX_OFFERED_TOOLS = 200
 AUTH_STRATEGIES = {
@@ -71,7 +73,7 @@ async def mcp_request(
     arguments: dict[str, Any] | None = None,
     token: str = "",
 ) -> dict[str, Any]:
-    """No token, HTTP exception text, or remote error text leaves this boundary.
+    """Redact the token and keep HTTP exception text inside this boundary.
 
     A connection that borrows a source passes the token it minted for the call.
     """
@@ -120,10 +122,15 @@ async def mcp_request(
         ) from None
     if tool is not None and payload.get("isError"):
         # Raised outside the session so the catch-all above keeps its message.
-        message = provider.tool_error(tool, error_text(payload))
-        raise MCPRequestError(
-            message or f"{provider.label} could not complete this tool call."
-        )
+        text = error_text(payload)
+        if message := provider.tool_error(tool, text):
+            raise MCPRequestError(message)
+        message = f"{provider.label} could not complete this tool call."
+        if provider.key == Connection.Provider.MCP:
+            reason = text.replace(secret, "[redacted]").strip()
+            if reason:
+                raise CustomMCPToolError(message, reason[:MCP_ERROR_REASON_MAX_CHARS])
+        raise MCPRequestError(message)
     encoded = json.dumps(payload)
     if len(encoded.encode()) > MCP_RESPONSE_MAX_BYTES:
         raise MCPError("The MCP result exceeded the size limit.")
@@ -140,7 +147,7 @@ async def call_tool(
 
 
 def error_text(payload: dict[str, Any]) -> str:
-    """The remote error text, for matching only. It never leaves SecondShift."""
+    """Collect text blocks from a remote error before applying provider policy."""
     return " ".join(
         str(item.get("text", ""))
         for item in payload.get("content", [])
