@@ -16,6 +16,16 @@ from secondshift.runs.transitions import finish_run
 
 logger = logging.getLogger(__name__)
 
+RUN_ENQUEUE_FAILED = "The durable workflow could not be enqueued."
+
+
+class RunEnqueueFailed(Exception):
+    """The workflow could not be queued and the run was marked failed."""
+
+    def __init__(self, run: Run) -> None:
+        super().__init__(RUN_ENQUEUE_FAILED)
+        self.run = run
+
 
 def enqueue_run(run: Run) -> str:
     if run.job_id is None:
@@ -36,7 +46,7 @@ def enqueue_workflow(run: Run) -> str:
         client = new_dbos_client()
         handle = client.enqueue(options, run.pk)
         workflow_id = handle.get_workflow_id()
-    except Exception:
+    except Exception as error:
         if run.job_id is None:
             # The Run is the durable outbox. Retry with the same workflow ID,
             # including after a crash between DBOS accepting and our save.
@@ -46,17 +56,18 @@ def enqueue_workflow(run: Run) -> str:
                 defaults={"level": "warning"},
             )
             return ""
-        message = "The durable workflow could not be enqueued."
-        RunEvent.objects.create(run=run, level="error", message=message)
-        finish_run(run.pk, Run.Status.FAILED, message, only_from={Run.Status.QUEUED})
+        RunEvent.objects.create(run=run, level="error", message=RUN_ENQUEUE_FAILED)
+        failed = finish_run(
+            run.pk, Run.Status.FAILED, RUN_ENQUEUE_FAILED, only_from={Run.Status.QUEUED}
+        )
+        if failed is not None:
+            raise RunEnqueueFailed(failed) from error
         raise
     finally:
         if client is not None:
             try:
                 client.destroy()
             except Exception:
-                if run.job_id is not None:
-                    raise
                 logger.warning(
                     "Could not close execution queue client for run %s", run.pk
                 )

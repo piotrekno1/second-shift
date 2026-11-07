@@ -18,6 +18,7 @@ from django.utils import timezone
 from secondshift.config.constants import RunStart, TriggerKind
 from secondshift.jobs.models import JOB_REMOVED, Job
 from secondshift.runs.models import Run
+from secondshift.runs.orchestration.dispatch import RUN_ENQUEUE_FAILED, RunEnqueueFailed
 from secondshift.runs.services import RunInProgress, RunNotReady, RunRefused, start_run
 from secondshift.triggers.filters import (
     parse_body,
@@ -36,6 +37,11 @@ UNAUTHORIZED_RECORD_SECONDS = 60
 SECRET_PREFIX = "sst_"
 
 RUN_STARTS = {TriggerKind.WEBHOOK: RunStart.WEBHOOK}
+ENQUEUE_RETRY_SECONDS = 60
+
+# The queue already stored this summary on failed runs before webhook refusals
+# linked to them. It also survives pruning of trigger events.
+QUEUE_FAILED = Q(status=Run.Status.FAILED, summary=RUN_ENQUEUE_FAILED)
 
 
 class TriggerError(Exception):
@@ -56,6 +62,7 @@ class Received:
     status: int
     detail: str
     run: Run | None = None
+    retry_after: int | None = None
 
 
 def new_secret() -> str:
@@ -170,6 +177,7 @@ def earlier_run(job: Job, key: str, webhook: dict[str, Any]) -> Run | None:
     return (
         job.runs.filter(input_snapshot__repeat_key=key)
         .filter(Q(status__in=Run.ACTIVE_STATUSES) | Q(finished_at__gte=since))
+        .exclude(QUEUE_FAILED)
         .order_by("-pk")
         .first()
     )
@@ -203,10 +211,14 @@ def refusal(trigger: JobTrigger) -> Received | None:
 
 def hourly_refusal(trigger: JobTrigger) -> Received | None:
     limit = runs_per_hour(trigger)
-    started = trigger.job.runs.filter(
-        started_by=RUN_STARTS[TriggerKind(trigger.kind)],
-        created_at__gte=timezone.now() - timedelta(hours=1),
-    ).count()
+    started = (
+        trigger.job.runs.filter(
+            started_by=RUN_STARTS[TriggerKind(trigger.kind)],
+            created_at__gte=timezone.now() - timedelta(hours=1),
+        )
+        .exclude(QUEUE_FAILED)
+        .count()
+    )
     if started < limit:
         return None
     runs = "run" if limit == 1 else "runs"
@@ -228,6 +240,10 @@ def start(trigger: JobTrigger, body: bytes, key: str | None) -> Received:
         return refuse(trigger, 409, not_ready_reason(error))
     except RunRefused as error:
         return refuse(trigger, 409, str(error))
+    except RunEnqueueFailed as error:
+        reason = "The run could not be queued."
+        record(trigger, TriggerEvent.Outcome.REFUSED, reason, run=error.run)
+        return Received(503, reason, error.run, retry_after=ENQUEUE_RETRY_SECONDS)
     record(trigger, TriggerEvent.Outcome.STARTED, run=run)
     return Received(202, "Run started.", run)
 
