@@ -411,7 +411,7 @@ onMounted(async () => {
 
     <section class="panel services-panel">
       <div class="panel-heading">
-        <div><h2>Connections <span class="heading-count">{{ connections.length }}</span></h2><p>Shared by the whole workspace. A job uses one when its <code>.secondshift.yaml</code> names it.</p></div>
+        <div><h2>Connections <span class="heading-count">{{ connections.length }}</span></h2><p>Shared by the whole workspace. A job uses one when its <code>.secondshift.yaml</code> names it under <code>notify</code> or <code>requires</code>.</p></div>
       </div>
       <div v-if="connections.length" class="need-list">
         <div v-for="group in connectionGroups" :key="group.key" :class="group.key === 'github' ? 'provider-group' : 'connection-group'">
@@ -486,11 +486,11 @@ onMounted(async () => {
         </article>
         </div>
       </div>
-      <div v-else class="empty-state compact"><AppIcon name="power-plug-off-outline" /><strong>Nothing connected yet</strong><span v-if="canEdit">Use <strong>Add connection</strong>, or connect a binding above.</span><span v-else>Workspace owners add connections.</span></div>
+      <div v-else class="empty-state compact"><AppIcon name="power-plug-off-outline" /><strong>Nothing connected yet</strong><span v-if="!canEdit">Workspace owners add connections.</span></div>
     </section>
 
     <p v-if="!app.needs.length" class="quiet-line">
-      <AppIcon name="check-decagram-outline" /> No job needs a connection yet. Bindings under <code>notify</code> or <code>requires</code> in a repository's <code>.secondshift.yaml</code> show up here.
+      <AppIcon name="check-decagram-outline" /> No job needs a connection yet.
     </p>
 
     <Menu ref="rowMenu" :model="rowMenuItems" popup class="row-menu">
