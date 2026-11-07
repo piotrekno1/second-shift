@@ -8,7 +8,11 @@ from pathlib import Path
 from django.conf import settings
 from django.db import IntegrityError, transaction
 
-from secondshift.config.constants import SANDBOX_OUTPUTS_DIR, SandboxRuntime
+from secondshift.config.constants import (
+    SANDBOX_HISTORY_DIR,
+    SANDBOX_OUTPUTS_DIR,
+    SandboxRuntime,
+)
 from secondshift.runner.collection import OUTPUTS_DIR, collect, record_baseline
 from secondshift.runner.models import RunnerCommand, RunnerSession
 from secondshift.runner.protocol import (
@@ -21,6 +25,8 @@ from secondshift.runner.protocol import (
 from secondshift.runner.sources import sweep_sources, unpack_source
 
 TRUNCATION_MARKER = b"\n[... command output truncated by SecondShift ...]\n"
+# Beside the workspace: the files earlier runs of the job saved.
+HISTORY_DIR = "history"
 
 
 class RunnerConfigurationError(RuntimeError):
@@ -96,6 +102,7 @@ class DockerRunnerService(RunnerBackend):
                         image=spec.image,
                         source_sha256=spec.source_sha256,
                         collect_changes=spec.collect_changes,
+                        history_sha256=spec.history_sha256,
                         container_name=container_name,
                         workspace_path=str(workspace),
                     )
@@ -120,6 +127,7 @@ class DockerRunnerService(RunnerBackend):
         workspace.mkdir(parents=True, mode=0o700)
         outputs = session_root / OUTPUTS_DIR
         outputs.mkdir(mode=0o700)
+        (session_root / HISTORY_DIR).mkdir(mode=0o700)
         try:
             self.prepare_sandbox(spec, container_name, workspace, outputs)
         except Exception:
@@ -141,12 +149,17 @@ class DockerRunnerService(RunnerBackend):
         workspace: Path,
         outputs: Path,
     ) -> None:
-        """Unpack the commit, record it if asked, and start the container."""
+        """Unpack the commit and any earlier files, record the commit if asked,
+        and start the container."""
         unpack_source(spec.source_sha256, workspace)
+        history = workspace.parent / HISTORY_DIR
+        if spec.history_sha256:
+            unpack_source(spec.history_sha256, history)
         if spec.collect_changes:
             record_baseline(workspace.parent, workspace)
         self.prepare_workspace_permissions(workspace)
         self.prepare_workspace_permissions(outputs)
+        self.prepare_workspace_permissions(history)
         completed = self.run_command(
             self.create_command(spec, container_name, workspace)
         )
@@ -306,6 +319,7 @@ class DockerRunnerService(RunnerBackend):
             session.image,
             session.source_sha256,
             session.collect_changes,
+            session.history_sha256,
         )
         requested = (
             spec.run_id,
@@ -314,6 +328,7 @@ class DockerRunnerService(RunnerBackend):
             spec.image,
             spec.source_sha256,
             spec.collect_changes,
+            spec.history_sha256,
         )
         if recorded != requested:
             raise RunnerProtocolError("The run already has a different session spec.")
@@ -341,6 +356,9 @@ class DockerRunnerService(RunnerBackend):
             # Files the agent hands back. The runner collects them at the end.
             f"--mount=type=bind,src={workspace.parent / OUTPUTS_DIR},"
             f"dst={SANDBOX_OUTPUTS_DIR}",
+            # Files earlier runs of the job saved. The sandbox can only read them.
+            f"--mount=type=bind,src={workspace.parent / HISTORY_DIR},"
+            f"dst={SANDBOX_HISTORY_DIR},readonly",
             "--workdir=/workspace",
             f"--user={settings.RUNNER_SANDBOX_UID}:{settings.RUNNER_SANDBOX_GID}",
             "--env=HOME=/tmp",

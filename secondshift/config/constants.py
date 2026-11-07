@@ -96,10 +96,15 @@ MAX_SOURCE_FILES = 200_000
 MAX_CHANGES_BYTES = 20 * 1024 * 1024
 MAX_OUTPUT_FILES = 100
 MAX_OUTPUT_BYTES = 100 * 1024 * 1024
+# Earlier runs' saved files that one run gets back. Uploaded like a snapshot,
+# so it stays under that limit even when the files do not compress.
+MAX_HISTORY_FILES_BYTES = 48 * 1024 * 1024
 # Issues one run may open. A weekly review should file a few, not dozens.
 MAX_RUN_ISSUES = 10
 # Where a sandbox finds the folder for files it wants to hand back.
 SANDBOX_OUTPUTS_DIR = "/outputs"
+# Where a sandbox finds the files its job's earlier runs saved. Read-only.
+SANDBOX_HISTORY_DIR = "/history"
 GITHUB_MCP_URL = "https://api.githubcopilot.com/mcp/readonly"
 # The model gateway refuses a run past its token budget with this message.
 TOKEN_BUDGET_MESSAGE = "This run has used its token budget."

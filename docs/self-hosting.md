@@ -226,6 +226,7 @@ A job with `history` starts each run with its earlier reports.
 Lowering it also applies to jobs that already ask for more.
 `SECONDSHIFT_RUN_HISTORY_MAX_CHARS` (default 65,536) caps their total length.
 The newest report is included first. What does not fit is cut or left out.
+The files those runs saved are mounted read-only at `/history`, up to 48 MiB.
 
 ## Run limits
 

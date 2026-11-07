@@ -29,6 +29,9 @@ class RunnerSessionSpec:
     # Record the unpacked files, so the agent's changes can be collected.
     # The control plane sets it from the run's plan, never from repository input.
     collect_changes: bool = False
+    # An uploaded archive of earlier runs' saved files, mounted read-only.
+    # Empty when the run has none.
+    history_sha256: str = ""
 
     def __post_init__(self) -> None:
         if self.run_id < 1:
@@ -45,6 +48,8 @@ class RunnerSessionSpec:
             raise ValueError("a server-owned image is required")
         if not SOURCE_SHA256.fullmatch(self.source_sha256):
             raise ValueError("source_sha256 must be a lowercase SHA-256")
+        if self.history_sha256 and not SOURCE_SHA256.fullmatch(self.history_sha256):
+            raise ValueError("history_sha256 must be empty or a lowercase SHA-256")
 
     @property
     def session_id(self) -> str:
