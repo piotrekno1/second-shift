@@ -1,8 +1,12 @@
 import type { RouteLocationRaw } from 'vue-router'
 import type { Capability, ExecutionStatus, Job } from '../types'
 
+/** Why a job removed from the manifest cannot run. The server says the same. */
+export const REMOVED_JOB = 'This job is no longer in .secondshift.yaml. Add it back to run it.'
+
 /** Why a job cannot be switched on yet, or '' when nothing blocks it. */
-export function enableBlocker(job: Pick<Job, 'enabled' | 'capabilities'>): string {
+export function enableBlocker(job: Pick<Job, 'enabled' | 'capabilities'> & Partial<Pick<Job, 'removed_at'>>): string {
+  if (job.removed_at) return REMOVED_JOB
   if (job.enabled) return ''
   const waiting = job.capabilities.filter((capability) => capability.required && capability.grant_status !== 'approved')
   if (!waiting.length) return ''

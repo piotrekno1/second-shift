@@ -12,7 +12,7 @@ from django.utils import timezone
 
 from secondshift.connections.models import Connection
 from secondshift.jobs.execution import choose_execution
-from secondshift.jobs.models import CapabilityRequest, Job
+from secondshift.jobs.models import JOB_REMOVED, CapabilityRequest, Job
 from secondshift.repositories.models import Repository
 from secondshift.runs.models import Run, Task
 from secondshift.triggers.models import JobTrigger, TriggerEvent
@@ -238,6 +238,19 @@ def test_trigger_the_configuration_dropped_is_refused(
 
     assert response.status_code == 409
     assert "no longer names" in response.json()["detail"]
+
+
+def test_a_job_removed_from_the_manifest_is_refused(
+    client: Client, owner: AbstractUser, job: Job, queued: list[int]
+) -> None:
+    change = turn_on(client, owner, job)
+    Job.objects.filter(pk=job.pk).update(removed_at=timezone.now())
+
+    response = send(client, path_of(change), str(change["secret"]))
+
+    assert response.status_code == 409
+    assert response.json()["detail"] == JOB_REMOVED
+    assert queued == []
 
 
 def test_disabled_repository_is_refused(

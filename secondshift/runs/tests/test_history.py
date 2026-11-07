@@ -170,8 +170,13 @@ def test_lowering_the_server_cap_applies_without_a_resync(settings, repository) 
         ("examples/security-regression/.secondshift.yaml", "security-regression"),
         ("examples/repository-health/.secondshift.yaml", "repository-health"),
         ("examples/docs-drift/.secondshift.yaml", "docs-drift"),
+        (
+            "examples/implicit-state-machines/.secondshift.yaml",
+            "implicit-state-machines",
+        ),
         (".secondshift.yaml", "repository-health"),
         (".secondshift.yaml", "docs-drift"),
+        (".secondshift.yaml", "implicit-state-machines"),
     ],
 )
 def test_review_examples_read_their_previous_report(manifest: str, job: str) -> None:

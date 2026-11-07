@@ -527,6 +527,14 @@ def test_resync_and_soft_remove_local_repository(client, tmp_path: Path) -> None
 
     detail = client.get(f"/api/repositories/{repository.pk}")
     assert detail.json()["validation"]["needs_sync"] is True
+    # Runs use the last good sync, so new commits do not block enabling.
+    assert detail.json()["validation"]["status"] == "valid"
+    enabled = client.post(
+        f"/api/repositories/{repository.pk}/enabled",
+        data=json.dumps({"enabled": True}),
+        content_type="application/json",
+    )
+    assert enabled.status_code == 200
     resynced = client.post(f"/api/repositories/{repository.pk}/resync")
     assert resynced.status_code == 200
     assert resynced.json()["revision"] != previous_revision

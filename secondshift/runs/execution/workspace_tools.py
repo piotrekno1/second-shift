@@ -10,6 +10,7 @@ from pydantic import Field
 from pydantic_ai import ModelRetry, RunContext, Tool
 from pydantic_ai.tools import ToolDefinition
 
+from secondshift.config.constants import SANDBOX_HISTORY_DIR
 from secondshift.jobs.tool_policy import LOCAL_TOOLS
 from secondshift.runner.client import get_runner_client
 from secondshift.runner.protocol import CommandRequest, CommandResult
@@ -121,6 +122,22 @@ def argument_path(value: str) -> str:
         raise ModelRetry(str(error)) from None
 
 
+def readable_path(value: str) -> str:
+    """A repository path, or one under /history, where earlier runs' files are."""
+    path = PurePosixPath(value)
+    if (
+        path.is_relative_to(SANDBOX_HISTORY_DIR)
+        and ".." not in path.parts
+        and "\0" not in value
+    ):
+        return path.as_posix()
+    if path.is_absolute():
+        raise ModelRetry(
+            f"Paths must stay inside the repository or {SANDBOX_HISTORY_DIR}."
+        )
+    return argument_path(value)
+
+
 def truncate_output(output: str, limit: int) -> tuple[str, bool]:
     if len(output) <= limit:
         return output, False
@@ -135,18 +152,19 @@ def truncate_output(output: str, limit: int) -> tuple[str, bool]:
 def list_files(
     ctx: RunContext[WorkspaceToolDeps], path: PathArgument = "."
 ) -> dict[str, Any]:
-    """List repository files recursively beneath a relative path."""
+    """List files recursively beneath a relative repository path, or under
+    /history, where earlier runs' saved files are."""
     return ctx.deps.execute(
         ctx.tool_call_id,
-        ["find", argument_path(path), "-type", "f", "-print"],
+        ["find", readable_path(path), "-type", "f", "-print"],
     )
 
 
 def read_file(ctx: RunContext[WorkspaceToolDeps], path: PathArgument) -> dict[str, Any]:
-    """Read a text file at a relative repository path."""
+    """Read a text file at a relative repository path, or under /history."""
     return ctx.deps.execute(
         ctx.tool_call_id,
-        ["cat", "--", argument_path(path)],
+        ["cat", "--", readable_path(path)],
     )
 
 
@@ -155,12 +173,13 @@ def search_text(
     query: SearchArgument,
     path: PathArgument = ".",
 ) -> dict[str, Any]:
-    """Search repository text recursively using a fixed-string query."""
+    """Search text recursively using a fixed-string query, beneath a relative
+    repository path or under /history."""
     if "\0" in query:
         raise ModelRetry("Search text cannot contain NUL bytes.")
     return ctx.deps.execute(
         ctx.tool_call_id,
-        ["grep", "-R", "-n", "-F", "--", query, argument_path(path)],
+        ["grep", "-R", "-n", "-F", "--", query, readable_path(path)],
     )
 
 

@@ -1,10 +1,14 @@
 from django.core.exceptions import ValidationError
 from django.db import models
 
+from secondshift.config.constants import MANIFEST_FILE
 from secondshift.connections.models import Connection
 from secondshift.core.models import RunLimitOverrides
 from secondshift.repositories.models import Repository
 from secondshift.workspaces.models import Workspace
+
+# Why a job removed from the manifest cannot run or be resumed.
+JOB_REMOVED = f"This job is no longer in {MANIFEST_FILE}. Add it back to run it."
 
 
 class Job(RunLimitOverrides):
@@ -41,6 +45,9 @@ class Job(RunLimitOverrides):
     open_issues = models.JSONField(null=True, blank=True)
     enabled = models.BooleanField(default=False)
     next_run_at = models.DateTimeField(null=True, blank=True)
+    # Set when a sync no longer finds the job in the manifest. The job and its
+    # runs stay for history, but it cannot run until the manifest names it again.
+    removed_at = models.DateTimeField(null=True, blank=True)
     config_hash = models.CharField(max_length=64)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

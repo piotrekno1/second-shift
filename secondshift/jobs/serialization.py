@@ -134,6 +134,7 @@ def serialize_job(
         timezone=job.timezone,
         enabled=job.enabled,
         next_run_at=job.next_run_at,
+        removed_at=job.removed_at,
         requested_capabilities=len(requests),
         grant_status=job.capability_grant_status(),
         capabilities=capabilities,

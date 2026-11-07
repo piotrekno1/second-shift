@@ -14,6 +14,7 @@ class SessionInput(StrictSchema):
     image: str = Field(min_length=1, max_length=300)
     source_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     collect_changes: bool = False
+    history_sha256: str = Field(default="", pattern=r"^(?:[0-9a-f]{64})?$")
 
 
 class SessionOutput(Schema):

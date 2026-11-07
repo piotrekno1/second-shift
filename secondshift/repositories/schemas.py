@@ -62,6 +62,7 @@ class RepositoryJobSchema(Schema):
     timezone: str
     enabled: bool
     grant_status: str
+    removed_at: datetime | None = None
 
 
 class RepositoryDetailSchema(RepositorySchema):

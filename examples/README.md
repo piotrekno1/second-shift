@@ -14,6 +14,7 @@ than one team.
 | --- | --- | --- |
 | [Repository health](repository-health/README.md) | Prioritizes code defects, unsafe configuration, and test gaps. | Repository source, configuration, project guidance, and tests. |
 | [Documentation drift](docs-drift/README.md) | Finds docs that no longer match project files and behavior. | Documentation and the repository files it describes. |
+| [Implicit state machines](implicit-state-machines/README.md) | Finds state machines the code has without naming them. | Repository source. |
 | [CI failures](ci-failure-review/README.md) | Groups recurring failures and explains what still blocks builds. | GitHub Actions runs and job logs through the built-in GitHub connection, or another CI service you connect, plus repository code. |
 
 ## SRE and operations
@@ -58,6 +59,6 @@ skill reports the gap instead of treating it as a clean result.
 See [repository jobs](../docs/engineering-tasks.md) for setup details and
 [jobs that change service data](../docs/engineering-tasks.md#tasks-that-change-service-data).
 
-In this repository, repository health, release readiness, docs drift and the
-engineering briefing are registered in the root manifest. The others are there
+In this repository, repository health, release readiness, docs drift, implicit
+state machines and the engineering briefing are registered in the root manifest. The others are there
 to copy.

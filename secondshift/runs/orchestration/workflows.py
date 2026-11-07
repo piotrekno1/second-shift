@@ -35,6 +35,7 @@ from secondshift.runs.execution.deadlines import (
 )
 from secondshift.runs.execution.issues import issue_limit
 from secondshift.runs.execution.run import execute_agent_run
+from secondshift.runs.history import pack_earlier_files
 from secondshift.runs.issue_delivery import open_run_issues
 from secondshift.runs.models import Run, RunDelivery, RunEvent
 from secondshift.runs.orchestration.admission import task_admission_problem
@@ -74,9 +75,17 @@ def create_scheduled_run_step(scheduled_time: datetime, context: Any) -> int | N
     return run.pk
 
 
+class RunNotReadyError(RuntimeError):
+    """The run's access plan was not ready when it was created.
+
+    A RuntimeError, so its message, which SecondShift writes, shows in the summary.
+    """
+
+
 @DBOS.step(name="secondshift.mark_run_started")
 @transaction.atomic
 def mark_run_started_step(run_id: int) -> bool:
+    """Start a queued run. Raises RunNotReadyError before any work is done."""
     run = Run.objects.select_related("task").get(pk=run_id)
     if run.job_id is None:
         repository = Repository.objects.select_for_update().get(
@@ -91,6 +100,13 @@ def mark_run_started_step(run_id: int) -> bool:
     if run.status == Run.Status.RUNNING and run.dbos_workflow_id == DBOS.workflow_id:
         # The application commit may precede DBOS persisting this step's result.
         return True
+    plan = run.execution_plan
+    if run.status == Run.Status.QUEUED and not plan.get("ready", False):
+        # A scheduled tick creates the run even when the job lost its access.
+        problems = execution_problems(run.repository, plan)
+        raise RunNotReadyError(
+            " ".join(problems) or "The frozen execution plan is not ready."
+        )
     started = start_run(run_id, DBOS.workflow_id or run.dbos_workflow_id)
     if started:
         RunEvent.objects.create(run_id=run_id, message="Run started.")
@@ -138,11 +154,6 @@ def start_runner_session_step(run_id: int) -> str:
         pk=run_id
     )
     plan = run.execution_plan
-    if not plan.get("ready", False):
-        problems = execution_problems(run.repository, plan)
-        raise RuntimeError(
-            " ".join(problems) or "The frozen execution plan is not ready."
-        )
     runner_plan = plan.get("runner", {})
     if runner_plan.get("network_policy") != "none":
         raise RuntimeError("The execution plan does not require an offline sandbox.")
@@ -152,6 +163,13 @@ def start_runner_session_step(run_id: int) -> str:
     snapshot = source_snapshot(run.repository, run.commit_sha)
     client = get_runner_client()
     client.upload_source(snapshot.sha256, snapshot.path)
+    with tempfile.TemporaryDirectory(prefix="secondshift-history-") as folder:
+        archive = Path(folder) / "history.tar.gz"
+        history = pack_earlier_files(run, archive)
+        if history is not None:
+            client.upload_source(history.sha256, archive)
+            run.input_snapshot["history_files"] = history.record
+            Run.objects.filter(pk=run.pk).update(input_snapshot=run.input_snapshot)
     session_id = client.start(
         RunnerSessionSpec(
             run_id=run.pk,
@@ -161,6 +179,7 @@ def start_runner_session_step(run_id: int) -> str:
             image=str(runner_plan["image"]),
             source_sha256=snapshot.sha256,
             collect_changes=bool(runner_plan.get("collect_changes", False)),
+            history_sha256=history.sha256 if history is not None else "",
         )
     )
     Run.objects.filter(pk=run.pk).update(sandbox_runtime=RunSandbox.ISOLATED_RUNNER)
@@ -294,7 +313,7 @@ def deliver_run_notification_step(run_id: int, connection_id: int) -> None:
     delivery.attempts += 1
     delivery.status_code = result.status_code
     if result.retryable:
-        record_delivery(delivery, RunDelivery.Status.PENDING, result.message)
+        record_delivery(delivery, RunDelivery.Status.RETRYING, result.message)
         raise RetryableDeliveryError(result.message)
     record_delivery(
         delivery,

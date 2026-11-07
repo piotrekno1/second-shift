@@ -22,6 +22,14 @@ jobs:
     schedule: "0 8 * * 1"
     timezone: UTC
 
+  # Idea from Steve Ruiz: https://x.com/steveruizok/status/2116552016218710389
+  implicit-state-machines:
+    name: Implicit state machines
+    skill: examples/implicit-state-machines/.agents/skills/implicit-state-machines/SKILL.md
+    history: 1
+    schedule: "0 8 1 * *"
+    timezone: UTC
+
   engineering-briefing:
     name: Monday engineering briefing
     skill: examples/engineering-briefing/.agents/skills/engineering-briefing/SKILL.md

@@ -145,7 +145,10 @@ def issues_line(run: Run) -> str:
     if not has_issues(run):
         return ""
     delivery = run.deliveries.filter(kind=RunDelivery.Kind.ISSUES).first()
-    if delivery is None or delivery.status == RunDelivery.Status.PENDING:
+    if delivery is None or delivery.status in {
+        RunDelivery.Status.PENDING,
+        RunDelivery.Status.RETRYING,
+    }:
         return ""
     if delivery.status == RunDelivery.Status.SKIPPED:
         return f"No issues opened. {delivery.message}".strip()

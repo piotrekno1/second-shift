@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { isDeliveryPending, isRunActive, retryDelivery, runChangesUrl, runFileUrl, runQueryString, savedFileUrl, startJobRun } from '../src/services/runs'
+import { isDeliveryInProgress, isRunActive, retryDelivery, runChangesUrl, runFileUrl, runQueryString, savedFileUrl, startJobRun } from '../src/services/runs'
 import type { RunDelivery } from '../src/types'
 
 test('runQueryString omits empty filters and the first page', () => {
@@ -63,10 +63,10 @@ test('startJobRun still fails when the job cannot run', async () => {
   })
 })
 
-test('isDeliveryPending is true only while a delivery is being sent', () => {
+test('isDeliveryInProgress is true while a delivery waits to be sent or retried', () => {
   assert.deepEqual(
-    (['pending', 'delivered', 'skipped', 'failed'] as const).map((status) => isDeliveryPending({ status } as RunDelivery)),
-    [true, false, false, false],
+    (['pending', 'retrying', 'delivered', 'skipped', 'failed'] as const).map((status) => isDeliveryInProgress({ status } as RunDelivery)),
+    [true, true, false, false, false],
   )
 })
 

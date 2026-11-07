@@ -245,6 +245,8 @@ test('a job without a schedule reads as manual only', () => {
   assert.equal(jobState({ cron: '', enabled: false }), 'manual')
   assert.equal(jobState({ cron: '0 9 * * 1', enabled: false }), 'disabled')
   assert.equal(jobState({ cron: '0 9 * * 1', enabled: true }), 'enabled')
+  assert.equal(jobState({ cron: '0 9 * * 1', enabled: false, removed_at: '2026-11-07T10:00:00Z' }), 'removed')
+  assert.equal(statusLabel('removed'), 'Removed from manifest')
 })
 
 test('kindLabel and statusLabel use the same words on every page', () => {

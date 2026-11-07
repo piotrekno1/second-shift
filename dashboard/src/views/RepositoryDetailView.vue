@@ -356,7 +356,7 @@ onMounted(loadRepository)
             <div class="job-primary"><strong>{{ job.name }}</strong><span :title="job.skill_path">{{ job.skill_path }}</span></div>
             <div class="job-cell"><strong :title="job.cron">{{ formatSchedule(job.cron, job.timezone) }}</strong></div>
             <div class="job-statuses">
-              <StatusPill v-if="job.cron" :status="jobState(job)" />
+              <StatusPill v-if="job.cron || job.removed_at" :status="jobState(job)" />
               <StatusPill v-if="accessNeedsAction(job.grant_status)" :status="job.grant_status" :label="accessLabel(job.grant_status)" />
             </div>
             <RouterLink v-if="accessNeedsAction(job.grant_status) && app.can(Action.ReviewCapabilities)" :to="{ path: '/jobs', query: { review: String(job.id) } }" class="job-row-action">Review access <AppIcon name="arrow-right" /></RouterLink>
