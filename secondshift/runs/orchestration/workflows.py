@@ -18,7 +18,6 @@ from secondshift.config.constants import (
 )
 from secondshift.connections.models import Connection
 from secondshift.connections.webhooks import deliver_webhook
-from secondshift.gateway.tokens import revoke_run_tokens
 from secondshift.jobs.models import Job
 from secondshift.jobs.readiness import execution_problems
 from secondshift.jobs.scheduling import next_occurrence
@@ -48,6 +47,7 @@ from secondshift.runs.reporting.notifications import (
     run_report_payload,
 )
 from secondshift.runs.services import create_scheduled_run
+from secondshift.runs.transitions import finish_run, start_run
 
 logger = logging.getLogger(__name__)
 
@@ -91,12 +91,7 @@ def mark_run_started_step(run_id: int) -> bool:
     if run.status == Run.Status.RUNNING and run.dbos_workflow_id == DBOS.workflow_id:
         # The application commit may precede DBOS persisting this step's result.
         return True
-    started = Run.objects.filter(pk=run_id, status=Run.Status.QUEUED).update(
-        status=Run.Status.RUNNING,
-        started_at=timezone.now(),
-        sandbox_runtime=RunSandbox.PENDING,
-        dbos_workflow_id=DBOS.workflow_id or run.dbos_workflow_id,
-    )
+    started = start_run(run_id, DBOS.workflow_id or run.dbos_workflow_id)
     if started:
         RunEvent.objects.create(run_id=run_id, message="Run started.")
     return bool(started)
@@ -218,10 +213,29 @@ def stop_runner_session_step(session_id: str) -> None:
 
 
 @DBOS.step(name="secondshift.finish_run")
+@transaction.atomic
 def finish_run_step(run_id: int, result: dict[str, Any]) -> None:
-    revoke_run_tokens(run_id)
     status = Run.Status.SUCCEEDED if result["succeeded"] else Run.Status.FAILED
-    run = Run.objects.get(pk=run_id)
+    fields: dict[str, object] = {"exit_code": result["exit_code"]}
+    if output := result.get("output"):
+        fields |= {
+            "output_path": output["path"],
+            "output_size_bytes": output["size_bytes"],
+            "output_sha256": output["sha256"],
+            "output_truncated": output["truncated"],
+            "output_excerpt": read_output_excerpt(output["path"]),
+        }
+    run = finish_run(
+        run_id,
+        status,
+        str(result["summary"]),
+        only_from={Run.Status.RUNNING},
+        fields=fields,
+    )
+    if run is None:
+        # A replay, or the run was canceled while it ran. Its result stands.
+        logger.info("run %s had already finished", run_id)
+        return
     details = result.get("details") or {}
     if reached := details.get("budget_reached"):
         RunEvent.objects.create(
@@ -241,25 +255,6 @@ def finish_run_step(run_id: int, result: dict[str, Any]) -> None:
             else str(result["summary"])
         ),
     )
-    run.status = status
-    run.exit_code = result["exit_code"]
-    run.summary = str(result["summary"])
-    run.finished_at = timezone.now()
-    update_fields = ["status", "exit_code", "summary", "finished_at"]
-    if output := result.get("output"):
-        run.output_path = output["path"]
-        run.output_size_bytes = output["size_bytes"]
-        run.output_sha256 = output["sha256"]
-        run.output_truncated = output["truncated"]
-        run.output_excerpt = read_output_excerpt(output["path"])
-        update_fields += [
-            "output_path",
-            "output_size_bytes",
-            "output_sha256",
-            "output_truncated",
-            "output_excerpt",
-        ]
-    run.save(update_fields=update_fields)
 
 
 class RetryableDeliveryError(Exception):
@@ -408,7 +403,6 @@ def retry_notification_workflow(run_id: int, connection_id: int) -> None:
 
 @DBOS.step(name="secondshift.fail_run")
 def fail_run_step(run_id: int, summary: str, details: dict[str, object]) -> None:
-    revoke_run_tokens(run_id)
     mark_run_terminal(
         run_id,
         Run.Status.FAILED,
