@@ -154,7 +154,7 @@ def allowed_start(call: dict[str, Any], parent: Any) -> bool:
         parent is None
         and isinstance(task, dict)
         and task.get("subagent_type") == WORKER
-        and not task.get("run_in_background")
+        and task.get("run_in_background") is False
     )
 
 

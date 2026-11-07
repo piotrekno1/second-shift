@@ -29,8 +29,13 @@ def refusal(event: dict[str, Any], limit: int, counter: Path) -> str:
     task = event.get("tool_input") or {}
     if task.get("subagent_type") != WORKER:
         return f"Start sub-agents with subagent_type {WORKER}."
-    if task.get("run_in_background"):
-        return "Start sub-agents in the foreground and wait for their report."
+    # Claude Code runs a sub-agent in the background unless the call says not
+    # to, so only an explicit false keeps it in the foreground.
+    if task.get("run_in_background") is not False:
+        return (
+            "Start sub-agents with run_in_background set to false, and wait "
+            "for their report."
+        )
     with counter.open("a+") as stream:
         fcntl.flock(stream, fcntl.LOCK_EX)
         stream.seek(0)

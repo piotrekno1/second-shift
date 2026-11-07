@@ -66,7 +66,8 @@ TaskArgument = Annotated[str, Field(min_length=1, max_length=MAX_TASK_CHARS)]
 def subagents_note(limit: int, backend: str) -> str:
     """The prompt lines for runs that may start sub-agents."""
     how = (
-        f"the Agent tool, with subagent_type {WORKER}, in the foreground"
+        f"the Agent tool, with subagent_type {WORKER} and run_in_background "
+        "set to false"
         if backend == AgentBackend.CLAUDE_CODE
         else TOOL_NAME
     )

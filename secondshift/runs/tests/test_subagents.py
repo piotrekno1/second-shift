@@ -228,6 +228,7 @@ def test_a_claude_code_run_is_told_how_to_start_the_worker(budget_run) -> None: 
     prompt = run_prompt(run)
     assert "up to 2 sub-agents with the Agent tool" in prompt
     assert f"subagent_type {WORKER}" in prompt
+    assert "run_in_background set to false" in prompt
     assert TOOL_NAME not in prompt
 
 
