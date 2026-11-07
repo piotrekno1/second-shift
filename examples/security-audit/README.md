@@ -74,8 +74,10 @@ and writes its own files.
   separately, with no severity.
 - The saved files follow the audit skill's formats: `findings.json`,
   `coverage-ledger.json`, `architecture.md` and the report files.
-- The run does not execute the target's code. Behavior that only running
-  code could show is reported as needing validation.
+- To confirm a finding, the run may call one target function or one existing
+  focused test with dummy data, in the sandbox with no network. It installs
+  nothing, builds nothing and starts no servers. Behavior that needs more,
+  or facts outside the repository, is reported as needing validation.
 - The audit's validators need Node, which SecondShift's default sandbox image
   does not include. Without it, the run checks its files by reading them and
   says the validators did not run. To run them, set
