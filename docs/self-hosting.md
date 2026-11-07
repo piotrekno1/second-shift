@@ -110,9 +110,9 @@ must remain within the operator's environment.
 ## Model providers
 
 A workspace owner adds model providers on **Models**. Anthropic,
-OpenAI and OpenRouter need only an API key. Any other provider with an
-OpenAI-compatible chat completions API works as an **OpenAI-compatible**
-connection with its base URL.
+OpenAI and OpenRouter need only an API key. For other providers with an
+OpenAI-compatible chat completions API, choose **OpenAI-compatible** and
+enter the base URL and API key.
 
 | Provider | Connection | Base URL |
 | --- | --- | --- |
@@ -122,10 +122,14 @@ connection with its base URL.
 | Fireworks AI | OpenAI-compatible | `https://api.fireworks.ai/inference/v1` |
 | Together AI | OpenAI-compatible | `https://api.together.xyz/v1` |
 | Baseten | OpenAI-compatible | `https://inference.baseten.co/v1` |
+| [CoreWeave Serverless Inference](https://wandb.ai/site/inference/) | OpenAI-compatible | `https://api.inference.wandb.ai/v1` |
+| [Nebius Token Factory](https://dev.nebius.com/token-factory) | OpenAI-compatible | `https://api.tokenfactory.nebius.com/v1` |
 
-Runs call tools, so choose a model that supports tool calling. Amazon SageMaker
-endpoints use AWS request signing, not an API key. Put an OpenAI-compatible
-proxy such as LiteLLM in front of them.
+Runs call tools, so choose a model that supports tool calling. The endpoint
+must also return token usage in streaming responses for per-run budgets.
+
+Amazon SageMaker endpoints use AWS request signing, not an API key. Put an
+OpenAI-compatible proxy such as LiteLLM in front of them.
 
 ## Public address and outbound calls
 
