@@ -26,7 +26,6 @@ const showTaskForm = ref(false)
 const repositoryMenu = ref<InstanceType<typeof Menu> | null>(null)
 const repositoryActions = computed(() => [
   { label: 'Validate configuration', appIcon: 'check-circle-outline', command: validateRepository },
-  ...(app.can(Action.ChangeRepositoryState) ? [{ label: repository.value?.enabled ? 'Disable repository' : 'Enable repository', appIcon: repository.value?.enabled ? 'pause' : 'play', command: toggleRepository }] : []),
 ])
 const repositoryId = Number(route.params.id)
 const justAdded = computed(() => route.query.added === '1')
@@ -232,7 +231,10 @@ onMounted(loadRepository)
         <Button v-if="app.can(Action.ResyncRepositories)" label="Resync" severity="secondary" outlined :loading="action === 'resync'" title="Import the committed manifest and skill definitions" @click="resyncRepository">
           <template #icon><AppIcon name="refresh" /></template>
         </Button>
-        <Button label="More" severity="secondary" text aria-label="More repository actions" aria-haspopup="true" aria-controls="repository-actions-menu" :loading="action === 'validate' || action === 'toggle'" @click="repositoryMenu?.toggle($event)" />
+        <Button v-if="app.can(Action.ChangeRepositoryState)" :label="repository.enabled ? 'Pause repository' : 'Resume repository'" severity="secondary" outlined :loading="action === 'toggle'" :disabled="action !== null" title="Pausing blocks scheduled jobs and new manual runs. Runs already in progress continue." @click="toggleRepository">
+          <template #icon><AppIcon :name="repository.enabled ? 'pause' : 'play'" /></template>
+        </Button>
+        <Button label="More" severity="secondary" text aria-label="More repository actions" aria-haspopup="true" aria-controls="repository-actions-menu" :loading="action === 'validate'" @click="repositoryMenu?.toggle($event)" />
         <Menu id="repository-actions-menu" ref="repositoryMenu" :model="repositoryActions" popup class="row-menu">
           <template #item="{ item, props }"><a v-bind="props.action" class="row-menu-item"><AppIcon :name="item.appIcon" />{{ item.label }}</a></template>
         </Menu>
@@ -243,6 +245,16 @@ onMounted(loadRepository)
     <div v-else-if="!repository" class="panel empty-state"><AppIcon name="alert-outline" /><strong>Repository unavailable</strong><span>{{ error }}</span></div>
     <template v-else>
       <p v-if="error" class="page-error">{{ error }}</p>
+      <section v-if="!repository.enabled" class="panel repository-alert warning" role="status">
+        <AppIcon name="pause" />
+        <div>
+          <strong>Repository paused</strong>
+          <span>Scheduled jobs and new manual runs are blocked. Runs already in progress continue. Resuming preserves each job’s schedule setting.</span>
+        </div>
+        <Button v-if="app.can(Action.ChangeRepositoryState)" label="Resume repository" severity="secondary" outlined :loading="action === 'toggle'" :disabled="action !== null" @click="toggleRepository">
+          <template #icon><AppIcon name="play" /></template>
+        </Button>
+      </section>
       <TaskSubmissionForm v-if="showTaskForm && repository.enabled && app.can(Action.RunJobs)" :repository-id="repositoryId" :repository-name="repository.display_name" :default-branch="repository.default_branch" :allows-pull-requests="repository.allow_pull_requests" @cancel="showTaskForm = false" />
 
       <section v-if="!setupComplete || justAdded" class="panel repository-setup" :class="{ complete: setupComplete }">
