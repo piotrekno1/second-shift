@@ -14,7 +14,7 @@ function model(id: number, overrides: Partial<Connection> = {}): Connection {
 }
 
 function login(id: number, overrides: Partial<AgentConnection> = {}): AgentConnection {
-  return { id, backend: 'codex', display_name: `Login ${id}`, connected: true, can_manage: true, max_runs_per_day: null, recent_runs: 2, last_check: null, ...overrides }
+  return { id, backend: 'codex', display_name: `Login ${id}`, connected: true, can_manage: true, max_runs_per_day: null, recent_runs: 2, last_check: null, runner_cleanup_pending: false, ...overrides }
 }
 
 function configuration(selected: string, choices: AgentConfiguration['choices']): AgentConfiguration {

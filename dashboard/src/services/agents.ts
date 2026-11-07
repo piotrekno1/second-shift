@@ -10,6 +10,8 @@ export interface AgentConnection {
   recent_runs: number
   /** The last login check. Only a refused sign-in stops runs. */
   last_check: AgentCheck | null
+  /** The runner still holds a cached copy of an earlier login. The worker removes it. */
+  runner_cleanup_pending: boolean
 }
 
 export interface AgentCheck {

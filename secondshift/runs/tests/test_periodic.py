@@ -1,6 +1,7 @@
 import pytest
 
 from secondshift.runs.management.commands.run_dbos_worker import (
+    CREDENTIAL_CLEANUP_SECONDS,
     PRUNE_INTERVAL_SECONDS,
     SOURCE_CHECK_POLL_SECONDS,
     worker_tasks,
@@ -71,6 +72,7 @@ def test_the_worker_syncs_repositories_only_when_the_server_does(
     assert tasks["sync repositories"].every == 300
     assert tasks["sync repositories"].enabled() is True
     assert tasks["check GitHub connections"].every == SOURCE_CHECK_POLL_SECONDS
+    assert tasks["remove cached agent logins"].every == CREDENTIAL_CLEANUP_SECONDS
 
     settings.REPOSITORY_SYNC_INTERVAL_SECONDS = 0  # type: ignore[attr-defined]
     assert tasks["sync repositories"].enabled() is False

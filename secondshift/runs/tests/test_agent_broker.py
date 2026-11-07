@@ -11,7 +11,7 @@ from django.utils import timezone
 from pydantic_ai import ModelRetry, RunContext, Tool
 
 from secondshift.connections import agents as agent_logins
-from secondshift.connections.models import AgentConnection
+from secondshift.connections.models import AgentConnection, AgentCredentialCleanup
 from secondshift.connections.tests.test_agent_connections import (
     agent_login as agent_login_fixture,
 )
@@ -162,7 +162,7 @@ def test_broker_auth_does_not_accept_user_or_model_gateway_tokens(
     assert json.loads(response.content)["result"]["capabilities"] == {"tools": {}}
 
 
-def test_disconnect_blocks_the_broker_before_runner_cleanup(
+def test_disconnect_blocks_the_broker_while_the_runner_is_down(
     leased_run: tuple[Run, AgentLease, User],
     client: Client,
     monkeypatch: pytest.MonkeyPatch,
@@ -175,7 +175,8 @@ def test_disconnect_blocks_the_broker_before_runner_cleanup(
     response = client.delete(
         f"/api/agent-connections/{run.job.workspace.default_agent_connection_id}"
     )
-    assert response.status_code == 503
+    assert response.status_code == 204
+    assert AgentCredentialCleanup.objects.exists()
     with pytest.raises(AgentAccessError):
         mcp_request(lease, {"id": 1, "method": "ping"})
 
