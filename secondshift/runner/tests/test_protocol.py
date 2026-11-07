@@ -114,3 +114,9 @@ def test_session_key_must_be_lowercase_hex(session_key: str) -> None:
             image="secondshift-runner:test",
             source_sha256="d" * 64,
         )
+
+
+@pytest.mark.parametrize("history_sha256", ["../x", "E" * 64, "e" * 63])
+def test_history_archive_must_be_named_by_its_sha256(history_sha256: str) -> None:
+    with pytest.raises(ValueError, match="history_sha256"):
+        RunnerSessionSpec(**{**spec().__dict__, "history_sha256": history_sha256})
