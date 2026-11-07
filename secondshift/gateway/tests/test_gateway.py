@@ -198,7 +198,8 @@ def test_gateway_injects_provider_key_and_meters_usage(
     usage = ModelUsage.objects.get(run=run)
     assert (usage.input_tokens, usage.output_tokens) == (100, 20)
     assert (usage.cache_read_tokens, usage.cache_write_tokens) == (300, 5)
-    assert RunToken.objects.get(run=run).used_tokens == 425
+    # The 300 cache reads count as 30 toward the budget.
+    assert RunToken.objects.get(run=run).used_tokens == 155
     assert usage.cost_usd is not None and usage.cost_usd > 0
 
 
@@ -530,3 +531,28 @@ def test_pinned_backend_connects_to_the_vetted_address(
     with pytest.raises(httpcore.ConnectError):
         async_to_sync(backend.connect_tcp)("api.example", 443)
     assert connected == ["93.184.215.14"]
+
+
+@pytest.mark.urls("secondshift.config.urls")
+@pytest.mark.django_db
+def test_runs_count_budget_tokens_the_way_the_gateway_does(
+    client: Client, workspace: Workspace
+) -> None:
+    run = make_run(workspace)
+    issue_run_token(run, provider(workspace))
+    run_token = RunToken.objects.select_related("connection").get(run=run)
+    # Each request rounds its cache reads up to the next tenth.
+    for usage in (
+        Usage(input_tokens=10, output_tokens=2, cache_read_tokens=15),
+        Usage(input_tokens=5, cache_read_tokens=5, cache_write_tokens=3),
+    ):
+        async_to_sync(record_usage)(
+            run_token, "anthropic", "claude-opus-5-5", 200, usage
+        )
+
+    client.force_login(workspace_owner(workspace))
+    listed = client.get("/api/runs").json()["items"][0]
+    assert RunToken.objects.get(run=run).used_tokens == 12 + 2 + 8 + 1
+    assert listed["model_budget_tokens"] == 23
+    assert listed["model_cache_read_tokens"] == 20
+    assert listed["model_tokens"] == 40

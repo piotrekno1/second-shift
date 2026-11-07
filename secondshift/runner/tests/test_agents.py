@@ -271,8 +271,9 @@ def test_claude_usage_adds_up_each_reply_once_with_sub_agents() -> None:
 def test_the_token_budget_stops_claude_mid_run(monkeypatch) -> None:
     """A CLI that keeps going past the budget is stopped, not waited for."""
     events = [
-        reply("msg_1", cache_read_input_tokens=600),
-        reply("msg_2", sub_agent=True, cache_read_input_tokens=600),
+        # Cache reads count as a tenth: 600 each.
+        reply("msg_1", cache_read_input_tokens=6000),
+        reply("msg_2", sub_agent=True, cache_read_input_tokens=6000),
     ]
     script = (
         "import json, sys, time\n"
@@ -296,7 +297,57 @@ def test_the_token_budget_stops_claude_mid_run(monkeypatch) -> None:
     assert time.monotonic() - started < 30
     assert finished["reason"] == "token_budget_exhausted"
     assert finished["succeeded"] is False
-    assert finished["usage"] == {"cache_read_input_tokens": 1200}
+    assert finished["usage"] == {"cache_read_input_tokens": 12000}
+
+
+@pytest.mark.parametrize(
+    ("usage", "budget"),
+    [
+        # Claude Code reports cache reads beside fresh input.
+        (
+            {
+                "input_tokens": 10,
+                "output_tokens": 5,
+                "cache_creation_input_tokens": 4,
+                "cache_read_input_tokens": 91,
+            },
+            29,
+        ),
+        # Codex reports cached input inside input.
+        ({"input_tokens": 101, "cached_input_tokens": 91, "output_tokens": 5}, 25),
+        ({}, 0),
+    ],
+)
+def test_cache_reads_count_as_a_tenth_toward_the_budget(
+    usage: dict[str, int], budget: int
+) -> None:
+    assert outcomes.usage_budget(usage) == budget
+
+
+def test_a_codex_run_with_mostly_cached_input_finishes(monkeypatch) -> None:
+    usage = {"input_tokens": 5000, "cached_input_tokens": 4900, "output_tokens": 50}
+    events = [
+        {"type": "item.completed", "item": {"type": "agent_message", "text": "Done"}},
+        {"type": "turn.completed", "usage": usage},
+    ]
+    script = (
+        "import json\n"
+        f"for event in {events!r}:\n"
+        "    print(json.dumps(event), flush=True)\n"
+    )
+
+    def start(config: dict[str, Any]) -> tuple[list[str], dict[str, str]]:
+        return [sys.executable, "-c", script], {}
+
+    monkeypatch.setitem(
+        agent.BACKENDS, "codex", (sys.executable, start, codex.read_codex)
+    )
+
+    # 100 fresh input, 50 output and 490 for the cache reads.
+    finished = agent.run({"backend": "codex", "prompt": "Audit", "token_budget": 1000})
+
+    assert finished["succeeded"] is True
+    assert finished["usage"] == usage
 
 
 @pytest.mark.parametrize(

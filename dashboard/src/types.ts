@@ -350,10 +350,14 @@ export interface Run {
   model_requests: number
   model_input_tokens: number
   model_output_tokens: number
+  /** Cached input, already inside model_input_tokens. */
+  model_cache_read_tokens?: number
   failure: RunFailure | null
   has_input: boolean
   has_output: boolean
   model_tokens: number | null
+  /** What counts toward token_budget. Cached input counts as a tenth. */
+  model_budget_tokens?: number | null
   model_usage_source?: 'api' | 'agent'
   model_cost_usd: number | null
   model_cost_partial: boolean

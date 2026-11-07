@@ -243,7 +243,10 @@ Each run has four limits. Each has a default and a maximum:
 - `SECONDSHIFT_AGENT_MAX_TOOL_CALLS` (default 150) counts file reads, searches,
   commands and calls to connected services such as MCP servers.
 - `SECONDSHIFT_MODEL_RUN_TOKEN_BUDGET` (default 2,000,000) counts input and
-  output tokens. The model gateway enforces it.
+  output tokens. The model gateway enforces it. Cached input counts as a
+  tenth, because providers charge about a tenth for it. An agent sends its
+  whole conversation again on every request, so most of a long run's input is
+  cached.
 
 The workspace owner can change these limits on the Settings page for the whole
 workspace, and on a job's page for that job. A job's limit wins over the
@@ -284,5 +287,6 @@ tools are taken away and it is asked to write the report with what it has. The
 run then succeeds and its timeline notes that the budget ran out. A run that
 still goes past a limit, or hits the token budget, fails with the reason
 **Budget used up**. It names the limit and keeps what the agent wrote so far as
-a partial report. The run page links to the job's limits, and runs show their
-token use against the budget, for example `12.3k / 2m tok`.
+a partial report. The run page links to the job's limits, and runs show what
+counts toward the budget against it, for example `161.8K / 2M budget`. Hover
+over it to see all tokens as the provider reported them.

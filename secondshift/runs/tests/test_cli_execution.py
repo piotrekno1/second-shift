@@ -151,15 +151,17 @@ def test_subscription_runs_show_no_model_call_count(
                 "cache_read_input_tokens": 100,
                 "cache_creation_input_tokens": 10,
             },
-            (130, 3, 133),
+            # Cache reads count as a tenth toward the budget.
+            (130, 3, 133, 100, 43),
         ),
         (
             "codex",
             {"input_tokens": 120, "cached_input_tokens": 100, "output_tokens": 3},
-            (120, 3, 123),
+            # Codex counts cached input inside input.
+            (120, 3, 123, 100, 33),
         ),
-        ("codex", {}, (0, 0, None)),
-        ("claude_code", {"input_tokens": 0, "output_tokens": 0}, (0, 0, 0)),
+        ("codex", {}, (0, 0, None, 0, None)),
+        ("claude_code", {"input_tokens": 0, "output_tokens": 0}, (0, 0, 0, 0, 0)),
     ],
 )
 def test_cli_usage_in_run_responses(
@@ -167,7 +169,7 @@ def test_cli_usage_in_run_responses(
     monkeypatch: pytest.MonkeyPatch,
     backend: str,
     usage: dict[str, int],
-    expected: tuple[int, int, int | None],
+    expected: tuple[int, int, int | None, int, int | None],
     django_assert_num_queries: Any,
 ) -> None:
     run, _ = agent_run
@@ -193,6 +195,8 @@ def test_cli_usage_in_run_responses(
         response.model_input_tokens,
         response.model_output_tokens,
         response.model_tokens,
+        response.model_cache_read_tokens,
+        response.model_budget_tokens,
     ) == expected
     assert response.model_usage_source == "agent"
     assert response.model_cost_usd is None

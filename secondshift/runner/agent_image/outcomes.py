@@ -20,6 +20,9 @@ TOKEN_KEYS = (
     "cache_creation_input_tokens",
     "cache_read_input_tokens",
 )
+# Cache reads cost about a tenth of fresh input on Anthropic and OpenAI, so
+# they count as a tenth toward a run's token budget.
+CACHE_READ_DIVISOR = 10
 
 
 class AgentOutcome(StrEnum):
@@ -70,3 +73,28 @@ def numbers(values: dict[str, Any]) -> dict[str, int]:
 def private_file(path: Path, text: str) -> None:
     path.write_text(text)
     path.chmod(0o600)
+
+
+def budget_count(fresh: int, cache_reads: int) -> int:
+    """Tokens counted toward a run's budget. Cache reads count as a tenth,
+    rounded up."""
+    return fresh + -(-cache_reads // CACHE_READ_DIVISOR)
+
+
+def cache_reads(usage: dict[str, int]) -> int:
+    """Cached input from CLI usage. Claude Code and Codex name it differently."""
+    return usage.get("cache_read_input_tokens", 0) + usage.get("cached_input_tokens", 0)
+
+
+def usage_budget(usage: dict[str, int]) -> int:
+    """Tokens counted toward a run's budget, from CLI usage."""
+    # Codex counts cached input inside its input tokens.
+    fresh_input = max(
+        usage.get("input_tokens", 0) - usage.get("cached_input_tokens", 0), 0
+    )
+    fresh = (
+        fresh_input
+        + usage.get("output_tokens", 0)
+        + usage.get("cache_creation_input_tokens", 0)
+    )
+    return budget_count(fresh, cache_reads(usage))

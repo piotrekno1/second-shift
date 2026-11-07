@@ -76,7 +76,7 @@ LIMIT_SPECS = {
     ),
     RunLimit.TOKEN_BUDGET: LimitSpec(
         "Tokens",
-        "Input and output tokens. Model calls past this are refused.",
+        "Input and output tokens. Cached input counts as a tenth. Model calls past this are refused.",
         LimitUnit.TOKENS,
         "MODEL_RUN_TOKEN_BUDGET",
         minimum=1_000,
