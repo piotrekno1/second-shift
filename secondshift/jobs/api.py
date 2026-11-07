@@ -14,6 +14,7 @@ from secondshift.jobs.models import CapabilityRequest
 from secondshift.jobs.needs import capability_needs
 from secondshift.jobs.planning import build_execution_plan
 from secondshift.jobs.readiness import plan_problems
+from secondshift.jobs.scheduling import restart_schedules
 from secondshift.jobs.schemas import (
     CapabilityNeedSchema,
     GrantDecisionSchema,
@@ -108,8 +109,11 @@ def set_job_enabled(
         plan = build_execution_plan(job)
         if not plan["ready"]:
             raise HttpError(409, " ".join(plan_problems(job, plan)))
+    turned_on = payload.enabled and not job.enabled
     job.enabled = payload.enabled
     job.save(update_fields=["enabled", "updated_at"])
+    if turned_on:
+        restart_schedules([job])
     return serialize_job(job_for_request(request, job_id))
 
 

@@ -1,4 +1,5 @@
 import json
+from datetime import timedelta
 
 import pytest
 from django.contrib.auth import get_user_model
@@ -152,6 +153,27 @@ def test_owner_can_approve_required_capability_and_enable_job(
     assert detail.json()["recent_runs"][0]["id"] == run.pk
     assert runs.json()["items"][0]["job_id"] == job.pk
     assert runs.json()["items"][0]["repository_id"] == job.repository_id
+
+
+@pytest.mark.django_db
+def test_turning_a_job_back_on_moves_its_next_run_to_the_future(
+    client: Client,
+    approval_setup: tuple[AbstractUser, Workspace, Job],
+) -> None:
+    user, _, job = approval_setup
+    job.next_run_at = timezone.now() - timedelta(days=30)
+    job.save(update_fields=["next_run_at"])
+    client.force_login(user)
+
+    enabled = client.post(
+        f"/api/jobs/{job.pk}/enabled",
+        data=json.dumps({"enabled": True}),
+        content_type="application/json",
+    )
+
+    assert enabled.status_code == 200
+    job.refresh_from_db()
+    assert job.next_run_at > timezone.now()
 
 
 @pytest.mark.django_db

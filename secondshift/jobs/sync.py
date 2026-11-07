@@ -101,11 +101,12 @@ def job_fields(
     }
 
 
-def schedule(job: Job) -> list[str]:
+def schedule(job: Job, changed: list[str]) -> list[str]:
+    """`changed` names the fields this sync changed on the job."""
     if not job.cron:
         # A job without a schedule is never on the scheduler.
         return assign(job, {"next_run_at": None, "enabled": False})
-    if job.next_run_at is None:
+    if job.next_run_at is None or {"cron", "timezone"} & set(changed):
         job.next_run_at = next_occurrence(job)
         return ["next_run_at"]
     return []
@@ -121,7 +122,7 @@ def sync_job_rows(
         job = existing.get(key) or Job(key=key)
         job.repository = repository
         changed = assign(job, job_fields(repository, item, skills.get(item.skill, "")))
-        changed += schedule(job)
+        changed += schedule(job, changed)
         if job.pk is None:
             created.append(job)
         else:

@@ -20,6 +20,17 @@ def next_occurrence(job: Job, after: datetime | None = None) -> datetime:
     return next_local.astimezone(ZoneInfo("UTC"))
 
 
+def restart_schedules(jobs: list[Job]) -> None:
+    """Set the next run from now for jobs whose schedule was off.
+
+    A job keeps its old next run while it is off. That time is in the past
+    when the job turns back on.
+    """
+    for job in jobs:
+        job.next_run_at = next_occurrence(job) if job.cron else None
+    Job.objects.bulk_update(jobs, ["next_run_at"])
+
+
 def schedule_name(job_id: int) -> str:
     return f"{SCHEDULE_PREFIX}{job_id}"
 

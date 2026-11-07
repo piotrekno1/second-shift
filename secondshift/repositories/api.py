@@ -9,6 +9,7 @@ from ninja.security import django_auth
 from secondshift.connections.models import Connection
 from secondshift.github.app import configured
 from secondshift.github.errors import GitHubError
+from secondshift.jobs.scheduling import restart_schedules
 from secondshift.repositories.access import repository_for_request
 from secondshift.repositories.github_sync import (
     GitHubRepositoryExistsError,
@@ -219,8 +220,11 @@ def set_repository_enabled(
         validation = validate_repository(repository)
         if validation.status != "valid":
             raise HttpError(409, validation.message)
+    turned_on = payload.enabled and not repository.enabled
     repository.enabled = payload.enabled
     repository.save(update_fields=["enabled", "updated_at"])
+    if turned_on:
+        restart_schedules(list(repository.jobs.filter(enabled=True)))
     return serialize_repository_detail(request, repository)
 
 
