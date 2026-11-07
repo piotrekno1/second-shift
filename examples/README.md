@@ -14,7 +14,7 @@ than one team.
 | --- | --- | --- |
 | [Repository health](repository-health/README.md) | Prioritizes code defects, unsafe configuration, and test gaps. | Repository source, configuration, project guidance, and tests. |
 | [Documentation drift](docs-drift/README.md) | Finds docs that no longer match project files and behavior. | Documentation and the repository files it describes. |
-| [Implicit state machines](implicit-state-machines/README.md) | Finds state that changes without a defined set of states and moves, and ranks what to make explicit. | Repository source. |
+| [Implicit state machines](implicit-state-machines/README.md) | Finds state machines the code has without naming them. | Repository source. |
 | [CI failures](ci-failure-review/README.md) | Groups recurring failures and explains what still blocks builds. | GitHub Actions runs and job logs through the built-in GitHub connection, or another CI service you connect, plus repository code. |
 
 ## SRE and operations

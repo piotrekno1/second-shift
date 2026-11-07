@@ -1,12 +1,10 @@
 # Implicit state machines
 
-Find the state machines your application has without naming them. These are
-status fields written from many places, booleans that describe one thing, and
-timestamps that decide behavior. The report ranks which ones to make explicit
-first. This example needs only a model provider. It reads the repository in
-the offline sandbox and connects to nothing else. The job sets `history: 1`, so
-each run reads the previous report and marks findings as new, still open, or
-fixed.
+Find all of the implicit state machines in your app. The skill is the
+original one-line prompt plus a few rules for running it unattended. This
+example needs only a model provider. It reads the repository in the offline
+sandbox and connects to nothing else. The job sets `history: 1`, so each run
+reads the previous report and marks findings as new, still open, or fixed.
 
 The idea comes from Steve Ruiz, who suggested asking an agent to
 ["Find all of the implicit state machines in my app"](https://x.com/steveruizok/status/2116552016218710389).
@@ -45,5 +43,5 @@ Then approve the job's notification access. See
 ## Make it yours
 
 The skill is plain Markdown. Edit `SKILL.md` to point it at the parts of your
-app that matter most, or to change how the report reads, then commit and
+app that matter most, or to ask for a different report, then commit and
 resync. Every run records the commit it used.
