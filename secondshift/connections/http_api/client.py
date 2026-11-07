@@ -9,7 +9,6 @@ from urllib.parse import quote, urlencode
 import anyio
 import httpx
 from django.conf import settings
-from django.utils import timezone
 
 from secondshift.connections.http_api.spec import (
     BODY,
@@ -115,7 +114,7 @@ def validate_api_connection(connection: Connection) -> None:
         or not connection.access_token
         or not saved
         or connection.endpoint_url != saved
-        or (connection.expires_at and connection.expires_at <= timezone.now())
+        or connection.token_expired
     ):
         raise APIError("This API connection is unavailable.")
 

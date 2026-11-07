@@ -93,8 +93,8 @@ def connection_reasons(
     workspace: Workspace, request: RequestedCapability, connection: Connection
 ) -> list[str]:
     reasons = []
-    if connection.status != Connection.Status.CONNECTED:
-        reasons.append(f"connection_{connection.status}")
+    if connection.current_status != Connection.Status.CONNECTED:
+        reasons.append(f"connection_{connection.current_status}")
     if connection.workspace_id != workspace.pk:
         reasons.append("connection_workspace_mismatch")
     if connection.kind != request.kind:

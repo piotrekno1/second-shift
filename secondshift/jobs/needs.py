@@ -54,10 +54,10 @@ def connection_problem(
             f"The {connection.binding_key} connection is a "
             f"{connection.get_kind_display()} connection, not {kind}.",
         )
-    if connection.status != Connection.Status.CONNECTED:
+    if (status := connection.current_status) != Connection.Status.CONNECTED:
         return (
             "unavailable",
-            f"The connection is {connection.get_status_display().lower()}.",
+            f"The connection is {Connection.Status(status).label.lower()}.",
         )
     if kind in EXTERNAL_KINDS:
         for repository in repositories:

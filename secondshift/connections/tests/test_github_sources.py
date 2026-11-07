@@ -171,6 +171,45 @@ def test_an_expired_token_says_so(workspace: Workspace) -> None:
         connection_source(expired)
 
 
+def test_the_dashboard_sees_an_expired_token_as_expired(
+    owner_client: Client, workspace: Workspace
+) -> None:
+    source(workspace, expires_at=timezone.now() - timedelta(minutes=1))
+
+    listed = owner_client.get("/api/connections").json()
+
+    assert [item["status"] for item in listed] == ["expired"]
+
+
+@pytest.mark.parametrize(
+    ("strategy", "status", "minutes", "expected"),
+    [
+        (Connection.AuthStrategy.API_KEY, Connection.Status.CONNECTED, -1, "expired"),
+        (Connection.AuthStrategy.API_KEY, Connection.Status.CONNECTED, 60, "connected"),
+        (
+            Connection.AuthStrategy.API_KEY,
+            Connection.Status.CONNECTED,
+            None,
+            "connected",
+        ),
+        (Connection.AuthStrategy.API_KEY, Connection.Status.REVOKED, -1, "revoked"),
+        # An OAuth token refreshes when used, so its expiry is no problem yet.
+        (Connection.AuthStrategy.OAUTH, Connection.Status.CONNECTED, -1, "connected"),
+    ],
+)
+def test_current_status_counts_tokens_that_cannot_refresh(
+    strategy: str, status: str, minutes: int | None, expected: str
+) -> None:
+    expires_at = (
+        None if minutes is None else timezone.now() + timedelta(minutes=minutes)
+    )
+    connection = Connection(
+        auth_strategy=strategy, status=status, expires_at=expires_at
+    )
+
+    assert connection.current_status == expected
+
+
 def test_a_revoked_token_source_is_disconnected(workspace: Workspace) -> None:
     revoked = source(workspace, status=Connection.Status.REVOKED)
     with pytest.raises(GitHubError, match="disconnected"):

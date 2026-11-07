@@ -66,7 +66,7 @@ def catalog_binding(connection: Connection) -> CatalogBinding:
         binding=connection.binding_key,
         kind=connection.kind,
         provider=connection.get_provider_display(),
-        connected=connection.status == Connection.Status.CONNECTED,
+        connected=connection.current_status == Connection.Status.CONNECTED,
         tools=[
             catalog_tool(name, definitions.get(name) or {}, name in changing)
             for name in allowed

@@ -6,8 +6,6 @@ uses that token for every call and git command it makes.
 
 from dataclasses import dataclass
 
-from django.utils import timezone
-
 from secondshift.connections.models import Connection
 from secondshift.github import credentials, repos
 from secondshift.github.app import configured
@@ -58,7 +56,7 @@ def connection_source(connection: Connection | None) -> credentials.Source:
         raise GitHubError("The GitHub connection is disconnected.")
     if connection.auth_strategy == Connection.AuthStrategy.MANAGED:
         return credentials.AppInstallation(connection.external_account_id)
-    if connection.expires_at and connection.expires_at <= timezone.now():
+    if connection.current_status == Connection.Status.EXPIRED:
         raise GitHubError("The GitHub token expired. Enter a new one.")
     return credentials.PersonalToken(connection.access_token)
 

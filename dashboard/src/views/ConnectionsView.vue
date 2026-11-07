@@ -16,7 +16,7 @@ import { approveNeed, createMCPConnection, deleteConnection, revokeConnection, t
 import { useAppStore } from '../stores/app'
 import type { CapabilityNeed, Connection, Notice } from '../types'
 import { Action } from '../utils/permissions'
-import { connectionUsageLine, countLabel, expiresSoon, formatDate, tokenExpired, sourceAuthLabel, formatRelative, kindLabel, providerLabel, utcTitle } from '../utils/format'
+import { connectionUsageLine, countLabel, expiresSoon, formatDate, sourceAuthLabel, formatRelative, kindLabel, providerLabel, utcTitle } from '../utils/format'
 
 /** Which form is open: the header "Add", a need row, or a connection row. */
 type OpenForm = { mode: 'add' } | { mode: 'need', binding: string } | { mode: 'edit', id: number }
@@ -110,13 +110,16 @@ const connectionGroups = computed(() => [
   { key: 'github', connections: githubConnections.value },
   { key: 'other', connections: connections.value.filter((connection) => connection.provider !== 'github') },
 ].filter((group) => group.connections.length))
-const githubSources = computed(() => githubConnections.value.filter((connection) => connection.kind === 'source' && connection.status === 'connected'))
+const githubSourceRows = computed(() => githubConnections.value.filter((connection) => connection.kind === 'source'))
+const githubSources = computed(() => githubSourceRows.value.filter((connection) => connection.status === 'connected'))
 const githubTools = computed(() => githubConnections.value.find((connection) => connection.kind === 'mcp' && connection.status === 'connected') ?? null)
 const githubSummary = computed(() => {
   const failing = githubSources.value.filter((connection) => connection.last_check?.ok === false).length
+  const expired = githubSourceRows.value.filter((connection) => connection.status === 'expired').length
   const signIns = githubConnections.value.filter((connection) => connection.kind === 'identity').length
   return [
-    githubSources.value.length ? countLabel(githubSources.value.length, 'repository connection') : 'No repository access yet',
+    githubSourceRows.value.length ? countLabel(githubSourceRows.value.length, 'repository connection') : 'No repository access yet',
+    expired ? `${expired} with an expired token` : '',
     failing ? `${failing} failing its check` : '',
     signIns ? countLabel(signIns, 'sign-in') : '',
   ].filter(Boolean).join(' · ')
@@ -165,9 +168,9 @@ function editable(connection: Connection): boolean {
   return canEdit.value && (connection.kind === 'mcp' || connection.kind === 'api' || connection.provider === 'webhook')
 }
 
-/** A GitHub token source. Its token is replaced, not edited. */
+/** A GitHub token source. Its token is replaced, not edited, including once it expired. */
 function replaceable(connection: Connection): boolean {
-  return connection.kind === 'source' && connection.auth === 'token' && connection.status === 'connected' && app.can(Action.AddGitHubRepositories)
+  return connection.kind === 'source' && connection.auth === 'token' && (connection.status === 'connected' || connection.status === 'expired') && app.can(Action.AddGitHubRepositories)
 }
 
 async function tokenReplaced(connection: Connection): Promise<void> {
@@ -422,7 +425,7 @@ onMounted(async () => {
             <Button v-else-if="canEdit && githubTools && app.can(Action.DisconnectConnections)" label="Turn off" size="small" severity="secondary" text @click="confirmRevoke = githubTools.id; confirmDelete = null" />
           </div>
         </div>
-        <p v-if="group.key === 'github' && !githubSources.length" class="provider-group-hint">Connect GitHub on <RouterLink :to="app.can(Action.AddGitHubRepositories) ? '/repositories?add=github' : '/repositories'">Repositories</RouterLink> to sync code and enable job tools.</p>
+        <p v-if="group.key === 'github' && !githubSourceRows.length" class="provider-group-hint">Connect GitHub on <RouterLink :to="app.can(Action.AddGitHubRepositories) ? '/repositories?add=github' : '/repositories'">Repositories</RouterLink> to sync code and enable job tools.</p>
         <p v-if="group.key === 'github' && notices['github-tools']" class="need-notice" :class="{ ok: notices['github-tools'].ok }">
           <AppIcon :name="notices['github-tools'].ok ? 'check-circle-outline' : 'alert-circle-outline'" /> {{ notices['github-tools'].text }}
         </p>
@@ -435,7 +438,7 @@ onMounted(async () => {
               <small v-if="connection.provider === 'github' && connection.kind === 'source'">Repository access for {{ connection.display_name.replace(/^GitHub · /, '') }}</small>
               <small v-if="connection.provider === 'github' && connection.kind === 'identity'">Sign-in only. Does not grant repository access.</small>
               <small v-if="connection.auth === 'source'">Uses each repository's GitHub connection</small>
-              <small v-if="connection.kind === 'source' && connection.auth === 'token'" :class="{ expiring: expiresSoon(connection.expires_at), expired: tokenExpired(connection.expires_at) }">{{ !connection.expires_at ? 'Token does not expire' : tokenExpired(connection.expires_at) ? `Token expired ${formatDate(connection.expires_at)}. Syncs and runs stop until you replace it.` : `Token expires ${formatDate(connection.expires_at)}` }}</small>
+              <small v-if="connection.kind === 'source' && connection.auth === 'token'" :class="{ expiring: expiresSoon(connection.expires_at), expired: connection.status === 'expired' }">{{ !connection.expires_at ? 'Token does not expire' : connection.status === 'expired' ? `Token expired ${formatDate(connection.expires_at)}. Syncs and runs stop until you replace it.` : `Token expires ${formatDate(connection.expires_at)}` }}</small>
               <small v-if="servedBindings(connection).length" class="served">
                 Serves <template v-for="(need, index) in servedBindings(connection)" :key="need.binding"><template v-if="index">, </template><code>{{ need.binding }}</code> for <template v-for="(job, jobIndex) in need.jobs" :key="job.job_id"><template v-if="jobIndex">, </template><RouterLink :to="`/jobs/${job.job_id}`" class="need-job">{{ job.job_name }}</RouterLink><template v-if="need.required && !job.required"> (optional)</template></template></template>
               </small>
@@ -450,7 +453,7 @@ onMounted(async () => {
               </small>
             </div>
             <StatusPill v-if="connection.status === 'connected' && connection.last_check && !connection.last_check.ok" status="error" :label="isWebhook(connection) ? 'Delivery failed' : 'Check failed'" :title="connection.last_check.message" />
-            <StatusPill v-else-if="connection.status === 'connected' && connection.kind === 'source' && tokenExpired(connection.expires_at)" status="error" label="Token expired" />
+            <StatusPill v-else-if="connection.status === 'expired' && connection.kind === 'source'" status="error" label="Token expired" />
             <StatusPill v-else :status="connection.status" />
             <div class="need-actions">
               <Button v-if="fixLabel(connection)" :label="isOpen({ mode: 'edit', id: connection.id }) ? 'Cancel' : fixLabel(connection)!" size="small" :loading="busy === `test-${connection.id}`" @click="toggle({ mode: 'edit', id: connection.id })" />

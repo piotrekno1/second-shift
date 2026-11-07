@@ -10,7 +10,6 @@ import httpx
 from asgiref.sync import async_to_sync
 from django.conf import settings
 from django.db import IntegrityError, transaction
-from django.utils import timezone
 from jsonschema import Draft202012Validator
 from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
@@ -55,7 +54,7 @@ def validate_mcp_connection(connection: Connection) -> MCPProvider:
         not in {AUTH_STRATEGIES[method] for method in provider.auth_methods}
         or connection.status != Connection.Status.CONNECTED
         or (not borrows_source(connection) and not connection.access_token)
-        or (connection.expires_at and connection.expires_at <= timezone.now())
+        or connection.token_expired
     ):
         raise MCPError(f"This {provider.label} MCP connection is unavailable.")
     return provider
