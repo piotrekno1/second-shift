@@ -52,6 +52,8 @@ class WorkspaceToolDeps:
     payload: dict[str, Any] | None = None
     # How many issues the agent may propose. Zero hides the tool.
     issue_limit: int = 0
+    # How many sub-agents the run may start. Zero hides the tool.
+    subagent_limit: int = 0
 
     def execute(
         self,

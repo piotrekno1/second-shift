@@ -148,6 +148,8 @@ refused before they started don't count. There is no limit by default.
 - The broker enforces the tool call budget and the run deadline.
 - Claude Code also gets the run's maximum turns. Codex has no equivalent
   setting, so the deadline and tool budget bound it.
+- Subscription runs cannot start sub-agents yet, even when the job sets
+  `subagents`.
 - Token budgets are checked when the CLI reports usage. Claude Code reports
   usage after each model reply, so a run stops soon after it passes the budget.
   Codex reports usage only when it finishes. Use the model API when you need a

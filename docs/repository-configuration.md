@@ -80,6 +80,7 @@ standard-library tests work without installing packages.
 | `jobs.<key>.schedule` | No | Cron schedule, such as `0 9 * * 1` for Monday at 09:00. Leave it out for a job that runs only with **Run now**. A tick is skipped while the job has a run that has not finished. |
 | `jobs.<key>.timezone` | No | IANA timezone, such as `Europe/Warsaw`. Defaults to `UTC`. |
 | `jobs.<key>.history` | No | How many of the job's own earlier runs each run starts with: their reports, and the files they saved. Up to the server's `SECONDSHIFT_JOB_HISTORY_MAX` (5 by default). Defaults to 0. See [run history](#run-history). |
+| `jobs.<key>.subagents` | No | How many sub-agents each run may start, up to the server's `SECONDSHIFT_RUN_SUBAGENTS_MAX` (5 by default). Defaults to 0. See [sub-agents](#sub-agents). |
 | `jobs.<key>.notify` | No | Webhook notification bindings requested by this job. |
 | `jobs.<key>.triggers` | No | Events that can start the job. Only `webhook` is supported. An owner or admin turns it on. See [webhook triggers](#webhook-triggers). |
 | `jobs.<key>.webhook` | No | Which webhook requests start a run: `skip_when`, `repeat_key` and `repeat_window`. Needs `triggers: [webhook]`. See [ignore requests and repeats](#ignore-requests-and-repeats). |
@@ -132,6 +133,38 @@ Reports are kept as long as their runs, `SECONDSHIFT_RUN_RETENTION_DAYS` (90 by
 default). A job that runs less often than that, such as a quarterly review,
 finds its previous report already removed: raise the retention or leave
 `history` off for that job.
+
+## Sub-agents
+
+A job that checks its own findings, such as a security audit, can let each run
+start fresh agents for single tasks:
+
+```yaml
+jobs:
+  security-audit:
+    name: Security audit
+    skill: .agents/skills/security-audit/SKILL.md
+    subagents: 3
+```
+
+The agent then has a `start_subagent` tool. Each sub-agent gets one task,
+the run's repository and external tools, and none of the run's messages. It
+returns a report to the agent that started it. A skill can use this to have a
+finding checked by an agent that never saw the reasoning behind it.
+
+- Sub-agents share the run's limits. Their model requests, tool calls and
+  tokens count toward the run's, and the run keeps one model request for its
+  own report.
+- They run one at a time, and cannot start sub-agents of their own.
+- The run's timeline shows when each one started and what it used.
+- They use the same model as the run, so their checks are not an independent
+  review.
+- Only the built-in agent can start them so far. Runs that use a Claude Code
+  or Codex subscription have no `start_subagent` tool.
+
+Sub-agents grant no new access, so `subagents` needs no approval. The server's
+`SECONDSHIFT_RUN_SUBAGENTS_MAX` caps it. A manifest above it fails to sync,
+and lowering it also caps jobs already synced.
 
 ## Draft pull requests
 
