@@ -10,7 +10,7 @@ from secondshift.jobs.access import job_for_request
 from secondshift.jobs.api_limits import limit_error_detail, limit_updates
 from secondshift.jobs.grants import GrantError, decide_grant
 from secondshift.jobs.limits import LimitError, save_overrides
-from secondshift.jobs.models import CapabilityRequest
+from secondshift.jobs.models import JOB_REMOVED, CapabilityRequest
 from secondshift.jobs.needs import capability_needs
 from secondshift.jobs.planning import build_execution_plan
 from secondshift.jobs.readiness import plan_problems
@@ -102,6 +102,8 @@ def set_job_enabled(
     job = job_for_request(request, job_id)
     require(request, Action.ENABLE_JOBS)
     if payload.enabled:
+        if job.removed_at is not None:
+            raise HttpError(409, JOB_REMOVED)
         if not job.cron:
             raise HttpError(409, "This job has no schedule. Use Run now to run it.")
         if not job.repository.enabled:

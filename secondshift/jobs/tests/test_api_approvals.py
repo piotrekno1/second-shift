@@ -9,7 +9,7 @@ from django.utils import timezone
 
 from secondshift.connections.models import Connection
 from secondshift.jobs.execution import NOTHING_CHOSEN, choose_execution
-from secondshift.jobs.models import CapabilityRequest, Job, JobGrant
+from secondshift.jobs.models import JOB_REMOVED, CapabilityRequest, Job, JobGrant
 from secondshift.repositories.models import Repository
 from secondshift.runs.models import Run, Task
 from secondshift.workspaces.models import Workspace, WorkspaceMembership
@@ -153,6 +153,37 @@ def test_owner_can_approve_required_capability_and_enable_job(
     assert detail.json()["recent_runs"][0]["id"] == run.pk
     assert runs.json()["items"][0]["job_id"] == job.pk
     assert runs.json()["items"][0]["repository_id"] == job.repository_id
+
+
+@pytest.mark.django_db
+def test_a_removed_job_cannot_run_or_be_resumed(
+    client: Client,
+    approval_setup: tuple[AbstractUser, Workspace, Job],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    user, _, job = approval_setup
+    queued: list[int] = []
+    monkeypatch.setattr(
+        "secondshift.runs.services.enqueue_run", lambda run: queued.append(run.pk)
+    )
+    job.removed_at = timezone.now()
+    job.save(update_fields=["removed_at"])
+    client.force_login(user)
+
+    run = client.post(f"/api/jobs/{job.pk}/run")
+    enabled = client.post(
+        f"/api/jobs/{job.pk}/enabled",
+        data=json.dumps({"enabled": True}),
+        content_type="application/json",
+    )
+    listed = client.get("/api/jobs").json()[0]
+
+    assert run.status_code == 409
+    assert run.json()["detail"] == JOB_REMOVED
+    assert enabled.status_code == 409
+    assert enabled.json()["detail"] == JOB_REMOVED
+    assert queued == []
+    assert listed["removed_at"] is not None
 
 
 @pytest.mark.django_db

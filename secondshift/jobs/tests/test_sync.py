@@ -133,6 +133,49 @@ jobs:
     assert job.next_run_at != before
 
 
+def test_a_job_dropped_from_the_manifest_is_marked_removed_until_named_again(
+    db, tmp_path: Path
+) -> None:
+    user = get_user_model().objects.create_user(username="owner")
+    workspace = create_workspace(name="Test", slug="test", owner=user)
+    repository = Repository.objects.create(
+        workspace=workspace, full_name="example/project", enabled=True
+    )
+    path = tmp_path / ".secondshift.yaml"
+    both = """
+jobs:
+  review:
+    name: Review
+    skill: .agents/skills/review/SKILL.md
+    schedule: "0 9 * * 1"
+  triage:
+    name: Triage
+    skill: .agents/skills/triage/SKILL.md
+""".strip()
+    path.write_text(both)
+    review = sync_manifest(repository, path)[0]
+    Job.objects.filter(pk=review.pk).update(enabled=True)
+
+    path.write_text(both.split("  triage:")[0].replace("review:", "kept:"))
+    sync_manifest(repository, path)
+    review.refresh_from_db()
+    removed_at = review.removed_at
+
+    assert removed_at is not None
+    assert review.enabled is False
+    assert desired_schedules() == []
+    # A later sync keeps the time it was first missing.
+    sync_manifest(repository, path)
+    review.refresh_from_db()
+    assert review.removed_at == removed_at
+
+    path.write_text(both)
+    sync_manifest(repository, path)
+    review.refresh_from_db()
+    assert review.removed_at is None
+    assert review.enabled is False
+
+
 def test_sync_keeps_the_skill_text_for_people_to_read(db, tmp_path: Path) -> None:
     user = get_user_model().objects.create_user(username="owner")
     workspace = create_workspace(name="Test", slug="test", owner=user)

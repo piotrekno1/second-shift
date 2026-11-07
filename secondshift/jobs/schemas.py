@@ -108,6 +108,8 @@ class JobSchema(Schema):
     timezone: str
     enabled: bool
     next_run_at: datetime | None
+    # When a sync stopped finding the job in the manifest. It cannot run then.
+    removed_at: datetime | None = None
     requested_capabilities: int
     grant_status: str
     capabilities: list[CapabilitySchema]

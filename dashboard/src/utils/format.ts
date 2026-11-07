@@ -113,7 +113,8 @@ export function formatSchedule(cron: string, timezone: string): string {
 }
 
 /** A job without a schedule runs only when started with Run now. */
-export function jobState(job: { cron: string, enabled: boolean }): 'enabled' | 'disabled' | 'manual' {
+export function jobState(job: { cron: string, enabled: boolean, removed_at?: string | null }): 'enabled' | 'disabled' | 'manual' | 'removed' {
+  if (job.removed_at) return 'removed'
   if (!job.cron) return 'manual'
   return job.enabled ? 'enabled' : 'disabled'
 }
@@ -121,6 +122,7 @@ export function jobState(job: { cron: string, enabled: boolean }): 'enabled' | '
 const STATUS_LABELS: Record<string, string> = {
   not_required: 'No access needed',
   manual: 'Manual only',
+  removed: 'Removed from manifest',
   // Same words the Connections page uses for a binding with no connection.
   unconfigured: 'Not connected',
   'policy-ready': 'Policy ready',

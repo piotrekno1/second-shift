@@ -60,7 +60,9 @@ def sync_jobs(
     jobs = sync_job_rows(repository, manifest, skills or {})
     requests = sync_capability_requests(repository, jobs, manifest)
     sync_grants(repository, requests)
-    repository.jobs.exclude(key__in=manifest.jobs).update(enabled=False)
+    repository.jobs.exclude(key__in=manifest.jobs).filter(
+        removed_at__isnull=True
+    ).update(enabled=False, removed_at=timezone.now())
     repository.last_synced_at = timezone.now()
     repository.save(update_fields=["last_synced_at", "updated_at"])
     return jobs
@@ -98,6 +100,8 @@ def job_fields(
         "open_pull_request": item.open_pull_request,
         "open_issues": item.open_issues.model_dump() if item.open_issues else None,
         "config_hash": manifest_hash(item),
+        # A job named again comes back. Its schedule stays off until resumed.
+        "removed_at": None,
     }
 
 

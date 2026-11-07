@@ -17,7 +17,7 @@ import { saveJobLimits } from '../services/settings'
 import { useAppStore } from '../stores/app'
 import type { Job, JobDetail, RunLimitUpdate } from '../types'
 import { Action } from '../utils/permissions'
-import { enableBlocker, runWarning } from '../utils/readiness'
+import { REMOVED_JOB, enableBlocker, runWarning } from '../utils/readiness'
 import { renderMarkdown } from '../utils/markdown'
 import { splitFrontmatter } from '../utils/frontmatter'
 import { accessLabel, accessNeedsAction, countLabel, describeCron, formatDate, historyLabel, formatRelative, formatSchedule, formatScheduled, jobState, kindLabel, utcTitle } from '../utils/format'
@@ -127,10 +127,10 @@ useLiveRefresh(loadJob, () => (job.value?.recent_runs ?? []).some((run) => isRun
 <template>
   <div class="page">
     <PageHeader compact :title="job?.name ?? 'Job'" :description="detailSubtitle" :parent="{ label: 'Jobs', to: '/jobs' }">
-      <Button v-if="job && job.cron && app.can(Action.EnableJobs)" :label="job.enabled ? 'Pause schedule' : 'Resume schedule'" severity="secondary" outlined :disabled="Boolean(enableBlocker(job))" :title="enableBlocker(job) || undefined" :loading="action === 'toggle'" @click="toggleJob">
+      <Button v-if="job && job.cron && !job.removed_at && app.can(Action.EnableJobs)" :label="job.enabled ? 'Pause schedule' : 'Resume schedule'" severity="secondary" outlined :disabled="Boolean(enableBlocker(job))" :title="enableBlocker(job) || undefined" :loading="action === 'toggle'" @click="toggleJob">
         <template #icon><AppIcon :name="job.enabled ? 'pause' : 'play'" /></template>
       </Button>
-      <Button class="main-action" v-if="job && app.can(Action.RunJobs)" label="Run now" :disabled="!job.repository_enabled" :title="job.repository_enabled ? (runWarning(app.overview?.execution, job) || 'Start a run and open it') : 'Resume the repository to run its jobs'" :loading="action === 'run'" @click="runNow">
+      <Button class="main-action" v-if="job && app.can(Action.RunJobs)" label="Run now" :disabled="!job.repository_enabled || Boolean(job.removed_at)" :title="job.removed_at ? REMOVED_JOB : job.repository_enabled ? (runWarning(app.overview?.execution, job) || 'Start a run and open it') : 'Resume the repository to run its jobs'" :loading="action === 'run'" @click="runNow">
         <template #icon><AppIcon name="play" /></template>
       </Button>
     </PageHeader>
@@ -143,7 +143,8 @@ useLiveRefresh(loadJob, () => (job.value?.recent_runs ?? []).some((run) => isRun
 
       <section class="panel job-status-strip" :class="{ disabled: !job.enabled }">
         <StatusPill :status="jobState(job)" />
-        <div v-if="job.enabled" class="job-status-item">
+        <div v-if="job.removed_at" class="job-status-item"><span>Removed {{ formatRelative(job.removed_at) }}</span><strong>{{ REMOVED_JOB }} Its runs stay in history.</strong></div>
+        <div v-else-if="job.enabled" class="job-status-item">
           <span>Next run</span>
           <strong :title="utcTitle(job.next_run_at)">{{ formatScheduled(job.next_run_at, job.timezone) }}</strong>
           <small>{{ formatRelative(job.next_run_at) }}</small>
