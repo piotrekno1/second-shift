@@ -3,6 +3,7 @@ import hmac
 import json
 import time
 from datetime import timedelta
+from unittest.mock import Mock
 
 import pytest
 from django.contrib.auth import get_user_model
@@ -403,6 +404,45 @@ def test_repeat_of_a_running_event_is_ignored(
     assert task.origin == "webhook"
     assert task.submitted_by is None
     assert Run.objects.get(pk=first["run_id"]).task_id == task.pk
+
+
+def test_webhook_can_retry_the_same_event_after_enqueue_failure(
+    client: Client,
+    owner: AbstractUser,
+    job: Job,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with_webhook(job, repeat_key="groupKey")
+    change = turn_on(client, owner, job)
+    JobTrigger.objects.filter(job=job).update(max_runs_per_hour=1)
+    path, secret = path_of(change), str(change["secret"])
+    queue = Mock()
+    queue.enqueue.side_effect = OSError("Queue unavailable")
+    monkeypatch.setattr(
+        "secondshift.runs.orchestration.dispatch.new_dbos_client", lambda: queue
+    )
+
+    response = send(client, path, secret, FIRING)
+
+    assert response.status_code == 503
+    assert int(response["Retry-After"]) > 0
+    failed = job.runs.get()
+    assert failed.status == Run.Status.FAILED
+    event = TriggerEvent.objects.get()
+    assert event.outcome == TriggerEvent.Outcome.REFUSED
+    assert event.run_id == failed.pk
+    assert event.reason == "The run could not be queued."
+    assert response.json() == {"detail": event.reason, "run_id": failed.pk}
+
+    queue.enqueue.side_effect = None
+    queue.enqueue.return_value.get_workflow_id.return_value = "recovered-workflow"
+    retry = send(client, path, secret, FIRING)
+
+    assert retry.status_code == 202
+    assert "Retry-After" not in retry
+    started = TriggerEvent.objects.get(outcome=TriggerEvent.Outcome.STARTED)
+    assert started.run_id == retry.json()["run_id"] != failed.pk
+    assert started.run.dbos_workflow_id == "recovered-workflow"
 
 
 @pytest.mark.parametrize(

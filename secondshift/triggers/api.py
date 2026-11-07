@@ -1,7 +1,7 @@
 import logging
 
 from django.conf import settings
-from django.http import HttpRequest
+from django.http import HttpRequest, HttpResponse
 from ninja import Router, Status
 from ninja.errors import HttpError
 from ninja.security import django_auth
@@ -81,12 +81,12 @@ def set_limit(
     "/triggers/{public_id}",
     auth=None,
     response={
-        frozenset({200, 202, 401, 409, 413, 429}): TriggerReceivedSchema,
+        frozenset({200, 202, 401, 409, 413, 429, 503}): TriggerReceivedSchema,
     },
     include_in_schema=False,
 )
 def receive_trigger(
-    request: HttpRequest, public_id: str
+    request: HttpRequest, response: HttpResponse, public_id: str
 ) -> Status[TriggerReceivedSchema]:
     """The public URL a webhook calls. Its secret is the only sign-in."""
     trigger = (
@@ -107,8 +107,10 @@ def receive_trigger(
             413, TriggerReceivedSchema(detail="The request body is too large.")
         )
     received = receive(trigger, request.headers, body)
-    if received.run is None:
+    if received.status != 202:
         logger.info("trigger %s did not start a run: %s", trigger.pk, received.detail)
+    if received.retry_after is not None:
+        response["Retry-After"] = str(received.retry_after)
     return Status(
         received.status,
         TriggerReceivedSchema(

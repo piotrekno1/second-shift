@@ -316,6 +316,11 @@ A request starts a run when all of these hold:
    the request gets 429.
 5. The job is ready and has no active run. Otherwise it gets 409.
 
+If the execution queue is unavailable, the request gets 503 with a
+`Retry-After` header in seconds and the failed run's ID. The job page records
+the request as refused. The failed attempt does not count toward the hourly
+cap or prevent a retry with the same repeat key.
+
 The job page lists recent requests and what happened to each. It keeps the
 newest 100 of each outcome. A failed sign-in is listed at most once a minute.
 Turning the trigger off or rotating the secret applies from the next request.
