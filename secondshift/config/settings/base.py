@@ -391,14 +391,13 @@ if AGENT_MAX_TOOL_RESULT_CHARS < 1:
         "SECONDSHIFT_AGENT_MAX_TOOL_RESULT_CHARS must be positive"
     )
 # The highest limits a workspace owner can choose for a workspace or a job.
-# Each defaults to its limit, so owners can only lower it until this is raised.
-# Tool calls are the exception: skills that query several services need more
-# than the default, so owners can raise them to 200 without a server change.
+# The defaults suit short reviews. The maximums leave room for long jobs, such
+# as an audit, so an owner can raise one job's limits without a server change.
 AGENT_MAX_TURNS_CEILING = env.int(
-    "SECONDSHIFT_AGENT_MAX_TURNS_CEILING", default=AGENT_MAX_TURNS
+    "SECONDSHIFT_AGENT_MAX_TURNS_CEILING", default=max(200, AGENT_MAX_TURNS)
 )
 AGENT_MAX_TOOL_CALLS_CEILING = env.int(
-    "SECONDSHIFT_AGENT_MAX_TOOL_CALLS_CEILING", default=max(200, AGENT_MAX_TOOL_CALLS)
+    "SECONDSHIFT_AGENT_MAX_TOOL_CALLS_CEILING", default=max(500, AGENT_MAX_TOOL_CALLS)
 )
 if AGENT_MAX_TURNS_CEILING < AGENT_MAX_TURNS:
     raise ImproperlyConfigured(
@@ -428,7 +427,7 @@ MODEL_GATEWAY_URL = env.str(
 )
 RUN_TIMEOUT_SECONDS = env.int("SECONDSHIFT_RUN_TIMEOUT_SECONDS", default=900)
 RUN_TIMEOUT_SECONDS_CEILING = env.int(
-    "SECONDSHIFT_RUN_TIMEOUT_SECONDS_CEILING", default=RUN_TIMEOUT_SECONDS
+    "SECONDSHIFT_RUN_TIMEOUT_SECONDS_CEILING", default=max(7200, RUN_TIMEOUT_SECONDS)
 )
 if RUN_TIMEOUT_SECONDS < 1:
     raise ImproperlyConfigured("SECONDSHIFT_RUN_TIMEOUT_SECONDS must be positive")
@@ -497,7 +496,8 @@ MODEL_RUN_TOKEN_BUDGET = env.int(
     "SECONDSHIFT_MODEL_RUN_TOKEN_BUDGET", default=2_000_000
 )
 MODEL_RUN_TOKEN_BUDGET_CEILING = env.int(
-    "SECONDSHIFT_MODEL_RUN_TOKEN_BUDGET_CEILING", default=MODEL_RUN_TOKEN_BUDGET
+    "SECONDSHIFT_MODEL_RUN_TOKEN_BUDGET_CEILING",
+    default=max(20_000_000, MODEL_RUN_TOKEN_BUDGET),
 )
 if MODEL_RUN_TOKEN_BUDGET < 1:
     raise ImproperlyConfigured("SECONDSHIFT_MODEL_RUN_TOKEN_BUDGET must be positive")

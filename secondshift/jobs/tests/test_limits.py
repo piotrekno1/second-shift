@@ -1,7 +1,6 @@
 from typing import Any
 
 import pytest
-from django.conf import settings as django_settings
 from django.contrib.auth import get_user_model
 from django.test import Client
 from django.utils import timezone
@@ -27,10 +26,16 @@ from secondshift.workspaces.models import WorkspaceMembership
 from secondshift.workspaces.services import workspace_owner
 
 
-def test_owners_can_raise_tool_calls_without_a_server_change() -> None:
-    """Skills that query several services need more than the default."""
-    assert django_settings.AGENT_MAX_TOOL_CALLS == 150
-    assert django_settings.AGENT_MAX_TOOL_CALLS_CEILING == 200
+def test_owners_can_raise_a_long_jobs_limits_without_a_server_change() -> None:
+    """Short defaults, with room for long jobs such as an audit."""
+    assert {
+        limit: (spec.default(), spec.ceiling()) for limit, spec in LIMIT_SPECS.items()
+    } == {
+        RunLimit.MAX_TURNS: (24, 200),
+        RunLimit.MAX_TOOL_CALLS: (150, 500),
+        RunLimit.TOKEN_BUDGET: (2_000_000, 20_000_000),
+        RunLimit.TIMEOUT_SECONDS: (900, 7200),
+    }
 
 
 @pytest.fixture

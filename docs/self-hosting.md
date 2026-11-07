@@ -249,12 +249,20 @@ The workspace owner can change these limits on the Settings page for the whole
 workspace, and on a job's page for that job. A job's limit wins over the
 workspace's, and the workspace's wins over the default. No value can go above
 its maximum. Set the maximum with the same variable plus `_CEILING`, for
-example `SECONDSHIFT_AGENT_MAX_TURNS_CEILING`. Each maximum defaults to its
-limit, so owners can only lower a limit until you raise the maximum. Tool calls
-are the exception: their maximum defaults to 200, or to the default when that
-is higher. Lowering a
-maximum later also caps values owners already chose. `.secondshift.yaml` cannot
-set limits.
+example `SECONDSHIFT_AGENT_MAX_TURNS_CEILING`. The defaults suit short reviews.
+The maximums leave room for long jobs, such as an audit, so an owner can raise
+one job's limits without a server change:
+
+| Limit | Default | Maximum |
+| --- | --- | --- |
+| Time | 15 minutes | 2 hours |
+| Turns | 24 | 200 |
+| Tool calls | 150 | 500 |
+| Tokens | 2,000,000 | 20,000,000 |
+
+A maximum is never below its default. Lower a maximum to stop owners from
+choosing such long runs. Lowering a maximum later also caps values owners
+already chose. `.secondshift.yaml` cannot set limits.
 
 Webhook triggers have their own cap on runs.
 `SECONDSHIFT_TRIGGER_MAX_RUNS_PER_HOUR` (default 10) is how many runs one
