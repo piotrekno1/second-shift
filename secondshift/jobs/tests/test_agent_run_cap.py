@@ -14,7 +14,10 @@ from secondshift.jobs.models import Job
 from secondshift.jobs.planning import build_execution_plan
 from secondshift.repositories.models import Repository
 from secondshift.runs.models import Run
-from secondshift.runs.orchestration.workflows import start_runner_session_step
+from secondshift.runs.orchestration.workflows import (
+    RunNotReadyError,
+    mark_run_started_step,
+)
 from secondshift.runs.services import (
     RunNotReady,
     create_scheduled_run,
@@ -128,8 +131,11 @@ def test_a_scheduled_run_at_the_cap_fails_with_the_reason(job: Job) -> None:
     finished_run(job)
     run = create_scheduled_run(job, timezone.now())
     assert run is not None
-    with pytest.raises(RuntimeError, match="reached its limit"):
-        start_runner_session_step(run.pk)
+    # The run fails before checkout, without starting a sandbox.
+    with pytest.raises(RunNotReadyError, match="reached its limit"):
+        mark_run_started_step(run.pk)
+    run.refresh_from_db()
+    assert run.status == Run.Status.QUEUED
 
 
 def test_owner_sets_and_clears_the_cap(

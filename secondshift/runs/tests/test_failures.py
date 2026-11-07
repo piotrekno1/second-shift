@@ -143,6 +143,51 @@ def test_failed_run_records_stage_events_and_a_clear_summary(db, monkeypatch) ->
 
 
 @pytest.mark.django_db
+def test_a_run_that_lost_its_access_fails_before_any_work(db, monkeypatch) -> None:
+    run = execution_run(db)
+    run.job.repository.enabled = True
+    run.job.repository.save(update_fields=["enabled"])
+    run.execution_plan = {
+        "ready": False,
+        "execution": {"ready": True},
+        "capabilities": [
+            {
+                "binding": "observability",
+                "required": True,
+                "authorized": False,
+                "reasons": ["grant_denied"],
+            }
+        ],
+    }
+    run.save(update_fields=["execution_plan"])
+    prepared: list[int] = []
+    delivered: list[int] = []
+    monkeypatch.setattr(workflows, "prepare_source_step", prepared.append)
+    monkeypatch.setattr(workflows, "deliver", delivered.append)
+    monkeypatch.setattr(workflows, "DBOS", SimpleNamespace(workflow_id="wf-test"))
+
+    with pytest.raises(workflows.RunNotReadyError):
+        workflows.execute_run(run.pk)
+
+    run.refresh_from_db()
+    assert run.status == Run.Status.FAILED
+    assert (
+        run.summary == "The run could not start: observability was denied by an owner."
+    )
+    assert run.started_at is None
+    assert prepared == []
+    # A failed scheduled run still notifies.
+    assert delivered == [run.pk]
+    assert list(run.events.values_list("message", flat=True)) == [run.summary]
+    failure = run_failure(run)
+    assert failure is not None
+    assert (failure.label, failure.reason) == (
+        "Start",
+        "observability was denied by an owner.",
+    )
+
+
+@pytest.mark.django_db
 def test_success_event_does_not_repeat_the_report(db) -> None:
     run = execution_run(db)
     Run.objects.filter(pk=run.pk).update(status=Run.Status.RUNNING)
