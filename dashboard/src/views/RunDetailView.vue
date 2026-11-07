@@ -7,7 +7,7 @@ import PageHeader from '../components/PageHeader.vue'
 import StatusPill from '../components/StatusPill.vue'
 import DocsLink from '../components/DocsLink.vue'
 import { DocsPage } from '../utils/docs'
-import { cancelTask, fetchRun, isDeliveryPending, isRunActive, retryDelivery, runChangesUrl, runFileUrl, savedFileUrl, startJobRun } from '../services/runs'
+import { cancelTask, fetchRun, isDeliveryInProgress, isRunActive, retryDelivery, runChangesUrl, runFileUrl, savedFileUrl, startJobRun } from '../services/runs'
 import { useAppStore } from '../stores/app'
 import type { RunDelivery, RunDetail } from '../types'
 import { Action } from '../utils/permissions'
@@ -35,8 +35,8 @@ let requestSerial = 0
 const runId = computed(() => Number(route.params.id))
 const active = computed(() => (run.value ? isRunActive(run.value.status) : false))
 // A delivery being retried can still change after the run has finished.
-const changing = computed(() => active.value || Boolean(run.value?.deliveries.some(isDeliveryPending)))
-const DELIVERY_LABELS: Record<RunDelivery['status'], string> = { pending: 'Sending', delivered: 'Delivered', skipped: 'Skipped', failed: 'Failed' }
+const changing = computed(() => active.value || Boolean(run.value?.deliveries.some(isDeliveryInProgress)))
+const DELIVERY_LABELS: Record<RunDelivery['status'], string> = { pending: 'Sending', retrying: 'Retrying', delivered: 'Delivered', skipped: 'Skipped', failed: 'Failed' }
 // Drafts and issues open on GitHub after the run, and always say what happened.
 const OPENS_ON_GITHUB = new Set<RunDelivery['kind']>(['pull_request', 'issues'])
 function deliveryLabel(delivery: RunDelivery): string {
@@ -294,7 +294,7 @@ onUnmounted(stopPolling)
                 <span :title="delivery.target">{{ delivery.kind === 'pull_request' ? `Draft pull request into ${delivery.target.split(' into ').pop()}` : delivery.target }}</span>
                 <span class="run-delivery-status" :class="delivery.status" :title="delivery.message || undefined"> · {{ deliveryLabel(delivery) }}</span>
                 <a v-if="delivery.url" class="run-delivery-link" :href="delivery.url" target="_blank" rel="noopener noreferrer">{{ delivery.message || 'Open on GitHub' }}<AppIcon name="open-in-new" /></a>
-                <span v-else-if="delivery.message && (delivery.status === 'failed' || OPENS_ON_GITHUB.has(delivery.kind))" class="run-details-muted run-delivery-reason">{{ delivery.message }}</span>
+                <span v-else-if="delivery.message && (delivery.status === 'failed' || delivery.status === 'retrying' || OPENS_ON_GITHUB.has(delivery.kind))" class="run-details-muted run-delivery-reason">{{ delivery.message }}</span>
                 <ul v-if="delivery.kind === 'issues' && run.issues.length" class="run-delivery-issues">
                   <li v-for="issue in run.issues" :key="issue.title">
                     <a v-if="issue.url" class="run-delivery-link" :href="issue.url" target="_blank" rel="noopener noreferrer">#{{ issue.number }} {{ issue.title }}<AppIcon name="open-in-new" /></a>
@@ -340,6 +340,7 @@ onUnmounted(stopPolling)
 .run-delivery + .run-delivery { margin-top: 6px; }
 .run-delivery-status.delivered { color: var(--mint); }
 .run-delivery-status.failed { color: var(--danger); }
+.run-delivery-status.retrying { color: var(--amber); }
 .run-delivery-status.pending, .run-delivery-status.skipped { color: var(--subtle); }
 .run-delivery-reason { display: block; font-size: 12px; }
 .run-delivery-link { display: inline-flex; align-items: center; gap: 4px; margin-top: 2px; font-size: 12px; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }

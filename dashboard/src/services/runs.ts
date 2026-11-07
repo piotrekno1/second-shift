@@ -32,8 +32,9 @@ export function retryDelivery(runId: number, deliveryId: number): Promise<RunDel
   return apiPost<RunDelivery>(`/runs/${runId}/deliveries/${deliveryId}/retry`)
 }
 
-export function isDeliveryPending(delivery: RunDelivery): boolean {
-  return delivery.status === 'pending'
+/** Not sent yet, or failed once and about to be sent again. */
+export function isDeliveryInProgress(delivery: RunDelivery): boolean {
+  return delivery.status === 'pending' || delivery.status === 'retrying'
 }
 
 export interface RunStart {
