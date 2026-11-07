@@ -1,0 +1,5 @@
+version: 1
+jobs:
+  django-perf-review:
+    name: Django performance review
+    skill: .agents/skills/django-perf-review/SKILL.md

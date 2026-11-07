@@ -15,6 +15,10 @@ jobs:
       - binding: engineering-alerts
         required: false
 
+  django-perf-review:
+    name: Django performance review
+    skill: examples/django-perf-review/.agents/skills/django-perf-review/SKILL.md
+
   docs-drift:
     name: Documentation drift
     skill: examples/docs-drift/.agents/skills/docs-drift/SKILL.md
