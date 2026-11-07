@@ -1,14 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 224.09 161.1">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="17 30 190 111">
   <defs>
     <style>
       .cls-1, .cls-2 {
-        fill: #000;
+        fill: #f9fafc;
         stroke-width: 0px;
       }
 
       .cls-2 {
         fill-rule: evenodd;
+      }
+
+      path:first-of-type {
+        fill: #2741e7;
       }
     </style>
   </defs>
