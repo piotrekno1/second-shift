@@ -121,6 +121,7 @@ def serialize_repository_detail(
                 timezone=job.timezone,
                 enabled=job.enabled,
                 grant_status=job.capability_grant_status(),
+                removed_at=job.removed_at,
             )
             for job in jobs
         ],

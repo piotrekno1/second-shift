@@ -9,7 +9,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from secondshift.config.constants import RunStart, TaskOrigin
-from secondshift.jobs.models import Job
+from secondshift.jobs.models import JOB_REMOVED, Job
 from secondshift.jobs.planning import build_execution_plan
 from secondshift.jobs.readiness import plan_problems
 from secondshift.runs.artifacts import job_input_snapshot, store_run_payload
@@ -95,6 +95,8 @@ def start_run(
     for the same event find this run.
     """
     # Starting now does not need the schedule. It still needs the repository.
+    if job.removed_at is not None:
+        raise RunRefused(JOB_REMOVED)
     if not job.repository.enabled:
         raise RunRefused("Enable the repository before running its jobs.")
     with transaction.atomic():

@@ -16,7 +16,7 @@ from django.db.models import Q
 from django.utils import timezone
 
 from secondshift.config.constants import RunStart, TriggerKind
-from secondshift.jobs.models import Job
+from secondshift.jobs.models import JOB_REMOVED, Job
 from secondshift.runs.models import Run
 from secondshift.runs.services import RunInProgress, RunNotReady, RunRefused, start_run
 from secondshift.triggers.filters import (
@@ -190,6 +190,8 @@ def refusal(trigger: JobTrigger) -> Received | None:
     job = trigger.job
     if job.repository.removed_at is not None:
         return refuse(trigger, 409, "The job's repository was removed.")
+    if job.removed_at is not None:
+        return refuse(trigger, 409, JOB_REMOVED)
     if not declared(job, TriggerKind(trigger.kind)):
         return refuse(
             trigger,
