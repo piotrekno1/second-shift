@@ -125,7 +125,7 @@ repository and adapt.
 
 | Team | Examples |
 | --- | --- |
-| Developers | [Repository health](examples/repository-health/README.md), [docs drift](examples/docs-drift/README.md), [CI failures](examples/ci-failure-review/README.md) |
+| Developers | [Repository health](examples/repository-health/README.md), [docs drift](examples/docs-drift/README.md), [implicit state machines](examples/implicit-state-machines/README.md), [CI failures](examples/ci-failure-review/README.md) |
 | SRE and operations | [Alert triage](examples/alert-triage/README.md), [production errors](examples/production-error-review/README.md), [monitoring coverage](examples/monitoring-coverage-review/README.md), [on-call coverage](examples/on-call-coverage/README.md) |
 | Security and compliance | [Security regression](examples/security-regression/README.md), [quarterly access review](examples/quarterly-access-review/README.md) |
 | Engineering management | [Monday briefing](examples/engineering-briefing/README.md), [release readiness](examples/release-readiness-review/README.md), [ticket reconciliation](examples/ticket-reconciliation/README.md) |
