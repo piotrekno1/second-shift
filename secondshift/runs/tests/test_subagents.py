@@ -14,6 +14,7 @@ from pydantic_ai.messages import (
 from pydantic_ai.models.function import AgentInfo, FunctionModel
 
 from secondshift.config.constants import AgentBackend
+from secondshift.runner.agent_image.subagent_hook import WORKER
 from secondshift.runs.execution.run import (
     WORKSPACE_AGENT,
     execute_agent_run,
@@ -212,11 +213,22 @@ def test_without_subagents_the_tool_and_note_are_hidden(budget_run) -> None:  # 
 
 
 @pytest.mark.django_db(transaction=True)
-def test_a_subscription_run_starts_no_subagents(budget_run) -> None:  # noqa: F811
+def test_a_codex_run_starts_no_subagents(budget_run) -> None:  # noqa: F811
+    run = delegating_run(budget_run, subagents=2)
+    run.execution_plan["execution"] = {"backend": AgentBackend.CODEX}
+
+    assert "sub-agents" not in run_prompt(run)
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_claude_code_run_is_told_how_to_start_the_worker(budget_run) -> None:  # noqa: F811
     run = delegating_run(budget_run, subagents=2)
     run.execution_plan["execution"] = {"backend": AgentBackend.CLAUDE_CODE}
 
-    assert TOOL_NAME not in run_prompt(run)
+    prompt = run_prompt(run)
+    assert "up to 2 sub-agents with the Agent tool" in prompt
+    assert f"subagent_type {WORKER}" in prompt
+    assert TOOL_NAME not in prompt
 
 
 @pytest.mark.django_db(transaction=True)

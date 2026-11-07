@@ -26,6 +26,8 @@ from pydantic_ai.messages import ModelResponse
 from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.toolsets import FunctionToolset
 
+from secondshift.config.constants import AgentBackend
+from secondshift.runner.agent_image.subagent_hook import WORKER
 from secondshift.runs.execution.agent import build_agent
 from secondshift.runs.execution.external_tools import external_tools
 from secondshift.runs.execution.workspace_tools import (
@@ -61,10 +63,15 @@ SUBAGENT = build_agent(
 TaskArgument = Annotated[str, Field(min_length=1, max_length=MAX_TASK_CHARS)]
 
 
-def subagents_note(limit: int) -> str:
+def subagents_note(limit: int, backend: str) -> str:
     """The prompt lines for runs that may start sub-agents."""
+    how = (
+        f"the Agent tool, with subagent_type {WORKER}, in the foreground"
+        if backend == AgentBackend.CLAUDE_CODE
+        else TOOL_NAME
+    )
     return (
-        f"You may start up to {limit} sub-agents with {TOOL_NAME}, one at a time. "
+        f"You may start up to {limit} sub-agents with {how}, one at a time. "
         "Each starts fresh with this run's tools and none of your messages, so "
         "give it everything it needs in the task. Use them for work that "
         "benefits from a fresh look, such as checking a finding without your "

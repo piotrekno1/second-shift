@@ -254,3 +254,43 @@ def test_other_failures_spend_no_check(
     monkeypatch.setattr(cli_agent, "check_agent_connection", checks)
     execute_cli_step(run.pk, "run-1", "Read the skill")
     checks.assert_not_called()
+
+
+def test_cli_run_records_each_subagent_it_ran(
+    agent_run: tuple[Run, User], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run, _ = agent_run
+    run.execution_plan["agent"]["subagents"] = 2
+    run.save(update_fields=["execution_plan"])
+    sent = fake_runner(
+        monkeypatch,
+        {
+            "report": "Done",
+            "succeeded": True,
+            "reason": "completed",
+            "subagents": [
+                {"requests": 3, "tool_calls": 2, "finished": 1},
+                {"requests": 1, "tool_calls": 0, "finished": 0},
+            ],
+        },
+    )
+
+    execute_cli_step(run.pk, "run-1", "Read the skill")
+
+    assert sent[-1]["json"]["subagents"] == 2
+    events = RunEvent.objects.filter(run=run, metadata__has_key="subagent")
+    assert [event.message for event in events.order_by("pk")] == [
+        "Sub-agent 1 finished after 3 model requests and 2 tool calls.",
+        "Sub-agent 2 stopped after 1 model requests and 0 tool calls.",
+    ]
+
+
+def test_cli_run_explains_a_refused_subagent(
+    agent_run: tuple[Run, User], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run, _ = agent_run
+    fake_runner(monkeypatch, {"report": "", "reason": "subagent_refused"})
+
+    result = execute_cli_step(run.pk, "run-1", "Read the skill")
+
+    assert result["summary"].startswith("The agent ran a sub-agent this run does")
