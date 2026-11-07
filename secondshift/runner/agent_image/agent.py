@@ -16,7 +16,7 @@ from typing import Any
 
 from secondshift.runner.agent_image.claude import claude, read_claude
 from secondshift.runner.agent_image.codex import codex, read_codex
-from secondshift.runner.agent_image.outcomes import TOKEN_KEYS, AgentOutcome, Outcome
+from secondshift.runner.agent_image.outcomes import AgentOutcome, Outcome, usage_budget
 
 MAX_CONFIG_BYTES = 512 * 1024
 MAX_EVENT_BYTES = 1024 * 1024
@@ -103,9 +103,7 @@ def run(config: dict[str, Any]) -> dict[str, Any]:
                 read(event, outcome)
             if outcome.reason:
                 break
-            if sum(outcome.usage.get(key, 0) for key in TOKEN_KEYS) >= int(
-                config["token_budget"]
-            ):
+            if usage_budget(outcome.usage) >= int(config["token_budget"]):
                 outcome.reason = AgentOutcome.TOKEN_BUDGET_EXHAUSTED
                 break
         if not outcome.reason:

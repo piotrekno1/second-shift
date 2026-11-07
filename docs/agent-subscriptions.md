@@ -155,7 +155,8 @@ refused before they started don't count. There is no limit by default.
 - Token budgets are checked when the CLI reports usage. Claude Code reports
   usage after each model reply, so a run stops soon after it passes the budget.
   Codex reports usage only when it finishes. Use the model API when you need a
-  strict token cap.
+  strict token cap. Cached input counts as a tenth toward the budget, as it
+  does for model API runs.
 - Runs show CLI-reported token usage when available, including cached input.
   Missing usage is shown as unavailable. These counts do not measure remaining
   subscription allowance or dollar cost. Model API spend totals exclude them.

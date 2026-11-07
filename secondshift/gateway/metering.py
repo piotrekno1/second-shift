@@ -8,6 +8,7 @@ from django.db.models import F
 
 from secondshift.gateway.models import ModelUsage, RunToken
 from secondshift.gateway.pricing import request_cost
+from secondshift.runner.agent_image.outcomes import budget_count
 
 MAX_SSE_LINE_BYTES = 1024 * 1024
 
@@ -26,6 +27,14 @@ class Usage:
             + self.output_tokens
             + self.cache_read_tokens
             + self.cache_write_tokens
+        )
+
+    @property
+    def budget_tokens(self) -> int:
+        """What counts toward the run's token budget."""
+        return budget_count(
+            self.input_tokens + self.output_tokens + self.cache_write_tokens,
+            self.cache_read_tokens,
         )
 
 
@@ -164,5 +173,5 @@ async def record_usage(
     )
     if usage.total:
         await RunToken.objects.filter(pk=run_token.pk).aupdate(
-            used_tokens=F("used_tokens") + usage.total
+            used_tokens=F("used_tokens") + usage.budget_tokens
         )

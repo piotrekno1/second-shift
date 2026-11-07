@@ -39,10 +39,14 @@ class RunSchema(Schema):
     model_requests: int = 0
     model_input_tokens: int = 0
     model_output_tokens: int = 0
+    # Cached input. Already inside model_input_tokens.
+    model_cache_read_tokens: int = 0
     failure: RunFailureSchema | None = None
     has_input: bool = False
     has_output: bool = False
     model_tokens: int | None = 0
+    # What counts toward token_budget: cached input counts as a tenth.
+    model_budget_tokens: int | None = 0
     model_usage_source: Literal["api", "agent"] = "api"
     model_cost_usd: float | None = None
     model_cost_partial: bool = False

@@ -1,5 +1,6 @@
 from secondshift.config.constants import AgentBackend
 from secondshift.jobs.limits import RunLimit
+from secondshift.runner.agent_image.outcomes import cache_reads, usage_budget
 from secondshift.runs.deliveries import retryable
 from secondshift.runs.execution.budgets import BUDGET_HEADLINE
 from secondshift.runs.execution.deadlines import TIMEOUT_HEADLINE
@@ -69,6 +70,8 @@ def serialize_run(run: Run) -> RunSchema:
     input_tokens = getattr(run, "model_input_tokens", None) or 0
     output_tokens = getattr(run, "model_output_tokens", None) or 0
     tokens = getattr(run, "model_tokens", None) or 0
+    cached_tokens = getattr(run, "model_cache_read_tokens", None) or 0
+    budget_tokens = getattr(run, "model_budget_tokens", None) or 0
     if not api:
         usage = getattr(run, "agent_usage", None) or {}
         # Codex input includes cached tokens; Claude reports cache input separately.
@@ -82,6 +85,8 @@ def serialize_run(run: Run) -> RunSchema:
         )
         output_tokens = usage.get("output_tokens", 0)
         tokens = input_tokens + output_tokens if usage else None
+        cached_tokens = cache_reads(usage)
+        budget_tokens = usage_budget(usage) if usage else None
     return RunSchema(
         id=run.id,
         job_id=run.job_id,
@@ -103,10 +108,12 @@ def serialize_run(run: Run) -> RunSchema:
         model_requests=getattr(run, "model_requests", None) or 0,
         model_input_tokens=input_tokens,
         model_output_tokens=output_tokens,
+        model_cache_read_tokens=cached_tokens,
         failure=run_failure(run),
         has_input=bool(run.input_path),
         has_output=bool(run.output_path),
         model_tokens=tokens,
+        model_budget_tokens=budget_tokens,
         model_usage_source="api" if api else "agent",
         model_cost_usd=(
             float(cost) if (cost := getattr(run, "model_cost_usd", None)) else None
