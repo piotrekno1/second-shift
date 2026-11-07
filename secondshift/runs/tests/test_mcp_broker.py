@@ -8,14 +8,18 @@ import pytest
 from django.contrib.auth import get_user_model
 from django.core.files.storage import storages
 from django.utils import timezone
-from pydantic_ai import ModelRetry, ToolFailed
+from pydantic_ai import Agent, ModelRetry, ToolFailed, capture_run_messages
+from pydantic_ai.messages import ModelRequest, ToolReturnPart
 from pydantic_ai.models.test import TestModel
 
 from secondshift.config.constants import GITHUB_MCP_URL
 from secondshift.connections.errors import ExternalToolError
 from secondshift.connections.mcp.base import MCPError, MCPRequestError
 from secondshift.connections.models import Connection
-from secondshift.connections.tests.test_github_mcp import TOOL_SCHEMAS
+from secondshift.connections.tests.test_github_mcp import (
+    TOOL_SCHEMAS,
+    tool_error_transport,
+)
 from secondshift.connections.tests.test_github_mcp import mcp_http as imported_mcp_http
 from secondshift.connections.webhooks import deliver_webhook
 from secondshift.jobs.execution import choose_execution
@@ -117,6 +121,64 @@ def test_broker_calls_real_sdk_and_records_safe_evidence(planned_run, mcp_http) 
     assert event.metadata["ok"] is True
     assert "github_pat_test_token" not in json.dumps(event.metadata)
     assert "query" not in event.metadata
+
+
+@pytest.mark.django_db(transaction=True)
+def test_custom_mcp_failure_reaches_model_as_bounded_untrusted_data(
+    planned_run: Run, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    token = 'custom-"token'
+    endpoint = "https://mcp.example.com/mcp"
+    connection = Connection.objects.get(binding_key="github")
+    connection.provider = Connection.Provider.MCP
+    connection.endpoint_url = endpoint
+    connection.access_token = token
+    connection.metadata["settings"] = {"url": endpoint}
+    connection.save()
+    planned_run.execution_plan = build_execution_plan(planned_run.job)
+    planned_run.save()
+
+    reason = f"time range exceeds 24h (token {token})"
+    prefix = reason.ljust(495, ".")
+    remote = prefix + token + "discard this tail"
+    monkeypatch.setattr(
+        "secondshift.connections.mcp.client.MCPTransport",
+        lambda: tool_error_transport(remote),
+    )
+    tool = next(
+        tool
+        for tool in external_tools(planned_run)
+        if "search_pull_requests" in tool.name
+    )
+    agent = Agent(TestModel(call_tools=[tool.name]), tools=[tool])
+    deps = WorkspaceToolDeps(
+        run_id=planned_run.pk,
+        session_id="offline",
+        max_output_chars=1000,
+        deadline=LATER,
+    )
+    with capture_run_messages() as messages:
+        agent.run_sync("Query the logs", deps=deps)
+
+    returned = next(
+        part
+        for message in messages
+        if isinstance(message, ModelRequest)
+        for part in message.parts
+        if isinstance(part, ToolReturnPart)
+    )
+    assert returned.outcome == "failed"
+    label = "Untrusted text from the MCP server: "
+    assert label in returned.content
+    assert (
+        json.loads(returned.content.split(label, 1)[1])
+        == remote.replace(token, "[redacted]")[:500]
+    )
+    assert token not in returned.content
+    event = planned_run.events.get()
+    assert event.metadata["ok"] is False
+    assert "time range exceeds" not in str(event.metadata)
+    assert "time range exceeds" not in caplog.text
 
 
 @pytest.mark.django_db
