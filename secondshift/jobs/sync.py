@@ -13,7 +13,7 @@ from django.db import models, transaction
 from django.utils import timezone
 
 from secondshift.config.constants import MAX_SKILL_PREVIEW_CHARS
-from secondshift.connections.models import Connection
+from secondshift.connections.dao import bound_connections
 from secondshift.jobs.automatic_grants import automatic_approval
 from secondshift.jobs.manifest import (
     CapabilityManifest,
@@ -207,9 +207,7 @@ def sync_grants(repository: Repository, requests: list[SyncedRequest]) -> None:
     """
     connections = {
         (connection.binding_key, connection.kind): connection
-        for connection in Connection.objects.filter(
-            workspace_id=repository.workspace_id
-        ).exclude(binding_key="")
+        for connection in bound_connections(repository.workspace_id)
     }
     created: list[JobGrant] = []
     for synced in requests:

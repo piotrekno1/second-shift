@@ -22,6 +22,7 @@ from secondshift.jobs.readiness import execution_problems
 from secondshift.repositories.local import LocalRepositoryError
 from secondshift.repositories.models import Repository
 from secondshift.repositories.skill_source import SkillSourceError, skill_commit
+from secondshift.runs.dao import active_tasks
 from secondshift.runs.models import Run, Task
 from secondshift.runs.orchestration.dispatch import enqueue_run
 from secondshift.runs.publishing import record_pending_pull_request
@@ -105,11 +106,7 @@ def admission(
         if run is None:
             raise RunRefused("This submission no longer has an execution attempt.")
         return SubmissionResult(run, False)
-    active_count = Run.objects.filter(
-        job__isnull=True,
-        task__repository=repository,
-        status__in=Run.ACTIVE_STATUSES,
-    ).count()
+    active_count = active_tasks(repository.pk).count()
     if active_count >= settings.TASK_QUEUE_LIMIT:
         raise RunRefused(
             "This repository's task queue is full. Wait for a task to finish or cancel a queued task."

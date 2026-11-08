@@ -44,6 +44,10 @@ docker build .
   and approval policy, `runs` owns execution and history, `connections` owns
   credentials and provider adapters, and `runner` owns sandbox sessions.
   See `docs/backend-architecture.md` for boundaries and migration history.
+- Each app keeps its reusable model queries in `dao.py`, named for what they
+  do. Other apps call those helpers. They do not query another app's models
+  directly. When a lookup is needed in a second place, move it to the owning
+  app's `dao.py`.
 - No leading underscores in names. Use them only to override a library's own
   private attribute.
 - No magic strings for names used in more than one place. Shared names

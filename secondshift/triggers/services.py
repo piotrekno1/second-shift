@@ -12,13 +12,13 @@ from typing import Any
 
 from django.conf import settings
 from django.db import transaction
-from django.db.models import Q
 from django.utils import timezone
 
 from secondshift.config.constants import RunStart, TriggerKind
 from secondshift.jobs.models import JOB_REMOVED, Job
+from secondshift.runs.dao import run_for_repeat_key, started_run_count
 from secondshift.runs.models import Run
-from secondshift.runs.orchestration.dispatch import RUN_ENQUEUE_FAILED, RunEnqueueFailed
+from secondshift.runs.orchestration.dispatch import RunEnqueueFailed
 from secondshift.runs.services import RunInProgress, RunNotReady, RunRefused, start_run
 from secondshift.triggers.filters import (
     parse_body,
@@ -38,10 +38,6 @@ SECRET_PREFIX = "sst_"
 
 RUN_STARTS = {TriggerKind.WEBHOOK: RunStart.WEBHOOK}
 ENQUEUE_RETRY_SECONDS = 60
-
-# The queue already stored this summary on failed runs before webhook refusals
-# linked to them. It also survives pruning of trigger events.
-QUEUE_FAILED = Q(status=Run.Status.FAILED, summary=RUN_ENQUEUE_FAILED)
 
 
 class TriggerError(Exception):
@@ -174,13 +170,7 @@ def runs_per_hour(trigger: JobTrigger | None) -> int:
 def earlier_run(job: Job, key: str, webhook: dict[str, Any]) -> Run | None:
     """A run for the same event that is active or finished within the window."""
     since = timezone.now() - timedelta(seconds=repeat_window_seconds(webhook))
-    return (
-        job.runs.filter(input_snapshot__repeat_key=key)
-        .filter(Q(status__in=Run.ACTIVE_STATUSES) | Q(finished_at__gte=since))
-        .exclude(QUEUE_FAILED)
-        .order_by("-pk")
-        .first()
-    )
+    return run_for_repeat_key(job, key, since)
 
 
 def repeat_reason(run: Run) -> str:
@@ -211,13 +201,10 @@ def refusal(trigger: JobTrigger) -> Received | None:
 
 def hourly_refusal(trigger: JobTrigger) -> Received | None:
     limit = runs_per_hour(trigger)
-    started = (
-        trigger.job.runs.filter(
-            started_by=RUN_STARTS[TriggerKind(trigger.kind)],
-            created_at__gte=timezone.now() - timedelta(hours=1),
-        )
-        .exclude(QUEUE_FAILED)
-        .count()
+    started = started_run_count(
+        trigger.job,
+        RUN_STARTS[TriggerKind(trigger.kind)],
+        timezone.now() - timedelta(hours=1),
     )
     if started < limit:
         return None

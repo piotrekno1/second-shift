@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 from typing import Literal
 
+from secondshift.connections.dao import connections_by_binding
 from secondshift.connections.external import EXTERNAL_KINDS, Access, external_access
 from secondshift.connections.models import Connection
 from secondshift.jobs.models import CapabilityRequest, JobGrant
@@ -98,15 +99,6 @@ def need_status(
     return "ready", "Connected and reviewed for every job."
 
 
-def workspace_bindings(workspace: Workspace) -> dict[str, Connection]:
-    return {
-        connection.binding_key: connection
-        for connection in Connection.objects.filter(workspace=workspace).exclude(
-            binding_key=""
-        )
-    }
-
-
 def capability_needs(workspace: Workspace) -> list[CapabilityNeed]:
     """Group every capability requested by active jobs by its logical binding."""
     requests = (
@@ -117,7 +109,7 @@ def capability_needs(workspace: Workspace) -> list[CapabilityNeed]:
         .select_related("job__repository", "grant")
         .order_by("binding", "job__name")
     )
-    connections = workspace_bindings(workspace)
+    connections = connections_by_binding(workspace.pk)
     grouped: dict[tuple[str, str], list[CapabilityRequest]] = {}
     for request in requests:
         grouped.setdefault((request.binding, request.kind), []).append(request)

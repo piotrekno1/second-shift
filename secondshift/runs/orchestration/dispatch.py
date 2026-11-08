@@ -8,15 +8,14 @@ from django.utils import timezone
 
 from secondshift.config.constants import EXECUTE_RUN_WORKFLOW
 from secondshift.repositories.models import Repository
-from secondshift.runs.models import Run, RunEvent
+from secondshift.runs.dao import active_runs, active_tasks
+from secondshift.runs.models import RUN_ENQUEUE_FAILED, Run, RunEvent
 from secondshift.runs.orchestration.admission import task_admission_problem
 from secondshift.runs.orchestration.dbos_runtime import new_dbos_client
 from secondshift.runs.orchestration.reconciliation import mark_run_terminal
 from secondshift.runs.transitions import finish_run
 
 logger = logging.getLogger(__name__)
-
-RUN_ENQUEUE_FAILED = "The durable workflow could not be enqueued."
 
 
 class RunEnqueueFailed(Exception):
@@ -98,11 +97,7 @@ def enqueue_task(run: Run) -> str:
             run.pk, Run.Status.FAILED, problem, workflow_status="NOT_ADMITTED"
         )
         return ""
-    if (
-        tasks.filter(status__in=Run.ACTIVE_STATUSES)
-        .exclude(dbos_workflow_id="")
-        .exists()
-    ):
+    if active_tasks(repository.pk).exclude(dbos_workflow_id="").exists():
         return ""
     first = (
         tasks.filter(
@@ -120,11 +115,11 @@ def enqueue_task(run: Run) -> str:
 
 def dispatch_waiting_tasks() -> int:
     """Recover committed submissions and advance the queue on each worker pass."""
-    blocked = Run.objects.filter(
-        job__isnull=True,
-        task__repository_id=OuterRef("task__repository_id"),
-        status__in=Run.ACTIVE_STATUSES,
-    ).exclude(dbos_workflow_id="")
+    blocked = (
+        active_runs()
+        .filter(job__isnull=True, task__repository_id=OuterRef("task__repository_id"))
+        .exclude(dbos_workflow_id="")
+    )
     waiting = list(
         Run.objects.filter(
             job__isnull=True,

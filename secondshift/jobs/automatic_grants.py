@@ -10,6 +10,7 @@ from django.db import transaction
 from django.db.models import QuerySet
 from django.utils import timezone
 
+from secondshift.connections.dao import auto_approved_connections
 from secondshift.connections.external import external_access
 from secondshift.connections.models import Connection
 from secondshift.jobs.capabilities import RequestedCapability
@@ -61,10 +62,9 @@ def approve_waiting(requests: QuerySet[CapabilityRequest]) -> int:
         return 0
     connections = {
         (connection.workspace_id, connection.binding_key): connection
-        for connection in Connection.objects.filter(
-            workspace_id__in={request.job.workspace_id for request in loaded},
-            binding_key__in={request.binding for request in loaded},
-            require_approval=False,
+        for connection in auto_approved_connections(
+            {request.job.workspace_id for request in loaded},
+            {request.binding for request in loaded},
         )
     }
     now = timezone.now()

@@ -11,6 +11,7 @@ from secondshift.config.constants import (
     COMMIT_SHA_PATTERN,
     AgentBackend,
 )
+from secondshift.connections.dao import connection_for_binding, connections_by_binding
 from secondshift.connections.external import EXTERNAL_KINDS
 from secondshift.connections.model_providers import provider_family
 from secondshift.connections.models import Connection
@@ -127,9 +128,9 @@ def missing_reason(
 ) -> Missing:
     if grant and grant.status == JobGrant.Status.DENIED:
         return Missing.DENIED
-    connection = (grant.connection if grant else None) or Connection.objects.filter(
-        workspace=workspace, binding_key=request.binding
-    ).first()
+    connection = (grant.connection if grant else None) or connection_for_binding(
+        workspace.pk, request.binding
+    )
     if connection is None or connection.status != Connection.Status.CONNECTED:
         return Missing.NOT_CONNECTED
     if {"no_grant", "grant_pending", "tools_not_granted"} & set(reasons):
@@ -331,13 +332,9 @@ def build_skill_execution_plan(
     if not re.fullmatch(COMMIT_SHA_PATTERN, commit_sha):
         raise ValueError("A full commit SHA is required before planning a skill.")
     requests = manifest_capabilities(definition)
-    connections = {
-        connection.binding_key: connection
-        for connection in Connection.objects.filter(
-            workspace_id=repository.workspace_id,
-            binding_key__in=[request.binding for request in requests],
-        )
-    }
+    connections = connections_by_binding(
+        repository.workspace_id, [request.binding for request in requests]
+    )
     capabilities = []
     for request in requests:
         connection = connections.get(request.binding)

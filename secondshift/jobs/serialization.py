@@ -2,6 +2,7 @@ from django.db.models import OuterRef, QuerySet, Subquery
 from django.db.models.functions import Coalesce
 
 from secondshift.config.constants import GITHUB_BASE_URL
+from secondshift.connections.dao import connections_by_binding
 from secondshift.connections.external import changing_tools, external_access
 from secondshift.connections.models import Connection
 from secondshift.gateway.usage import with_model_usage
@@ -50,15 +51,6 @@ def last_run(job: Job) -> LastRunSchema | None:
     )
 
 
-def binding_connections(workspace_id: int) -> dict[str, Connection]:
-    return {
-        connection.binding_key: connection
-        for connection in Connection.objects.filter(workspace_id=workspace_id).exclude(
-            binding_key=""
-        )
-    }
-
-
 def tool_inputs(connection: Connection, tools: list[str]) -> dict[str, ToolInputSchema]:
     definitions = connection.metadata.get("tools", {})
     inputs = {}
@@ -79,7 +71,7 @@ def serialize_job(
     """`connections` and `execution` are shared by every job in a list."""
     requests = list(job.capability_requests.all())
     if connections is None and requests:
-        connections = binding_connections(job.workspace_id)
+        connections = connections_by_binding(job.workspace_id)
     capabilities: list[CapabilitySchema] = []
     for capability in requests:
         grant = getattr(capability, "grant", None)
@@ -194,7 +186,7 @@ def serialize_workspace_jobs(workspace: Workspace) -> list[JobSchema]:
             repository__removed_at__isnull=True,
         ).select_related("repository")
     )
-    connections = binding_connections(workspace.pk)
+    connections = connections_by_binding(workspace.pk)
     # Every job runs on the workspace default, so resolve it once.
     execution = workspace_execution(workspace)
     return [

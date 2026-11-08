@@ -13,6 +13,7 @@ from secondshift.jobs.models import JOB_REMOVED, Job
 from secondshift.jobs.planning import build_execution_plan
 from secondshift.jobs.readiness import plan_problems
 from secondshift.runs.artifacts import job_input_snapshot, store_run_payload
+from secondshift.runs.dao import latest_active_run
 from secondshift.runs.history import previous_run_ids
 from secondshift.runs.issue_delivery import record_pending_issues
 from secondshift.runs.models import Run, RunEvent, Task
@@ -102,7 +103,7 @@ def start_run(
     with transaction.atomic():
         # Two starts at the same moment wait here, so only one creates a run.
         Job.objects.select_for_update().filter(pk=job.pk).first()
-        active = job.runs.filter(status__in=Run.ACTIVE_STATUSES).order_by("-pk").first()
+        active = latest_active_run(job)
         if active is not None:
             raise RunInProgress(active)
         execution_plan = build_execution_plan(job)
@@ -140,7 +141,7 @@ def create_scheduled_run(job: Job, scheduled_for: datetime) -> Run | None:
         existing = job.runs.filter(scheduled_for=scheduled_for).first()
         if existing is not None:
             return existing
-        active = job.runs.filter(status__in=Run.ACTIVE_STATUSES).order_by("-pk").first()
+        active = latest_active_run(job)
         if active is not None:
             RunEvent.objects.create(
                 run=active,
