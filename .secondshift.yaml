@@ -19,6 +19,13 @@ jobs:
     name: Django performance review
     skill: examples/django-perf-review/.agents/skills/django-perf-review/SKILL.md
 
+  django-access-review:
+    name: Django access review
+    skill: examples/django-access-review/.agents/skills/django-access-review/SKILL.md
+    history: 1
+    schedule: "0 8 15 * *"
+    timezone: UTC
+
   docs-drift:
     name: Documentation drift
     skill: examples/docs-drift/.agents/skills/docs-drift/SKILL.md

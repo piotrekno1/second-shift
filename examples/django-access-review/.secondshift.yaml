@@ -1,0 +1,8 @@
+version: 1
+jobs:
+  django-access-review:
+    name: Django access review
+    skill: .agents/skills/django-access-review/SKILL.md
+    history: 1
+    schedule: "0 8 15 * *"
+    timezone: UTC
