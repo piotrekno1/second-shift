@@ -1,4 +1,5 @@
 import hashlib
+import logging
 import posixpath
 import subprocess
 from dataclasses import dataclass
@@ -16,6 +17,8 @@ from secondshift.jobs.sync import sync_jobs
 from secondshift.repositories.github import github_remote_name
 from secondshift.repositories.models import Repository
 from secondshift.workspaces.models import Workspace
+
+logger = logging.getLogger(__name__)
 
 
 class LocalRepositoryError(ValueError):
@@ -72,8 +75,14 @@ def git(root: Path, *arguments: str) -> str:
     except subprocess.TimeoutExpired as error:
         raise LocalRepositoryError("Git took too long to answer.") from error
     if completed.returncode:
-        message = completed.stderr.strip() or completed.stdout.strip()
-        raise LocalRepositoryError(message or "Git could not inspect the repository.")
+        # Git's own output can name folders on this machine, so it stays in
+        # the server log. Only owners may see local paths.
+        logger.info(
+            "git %s failed: %s",
+            arguments[0] if arguments else "",
+            completed.stderr.strip() or completed.stdout.strip(),
+        )
+        raise LocalRepositoryError("Git could not inspect the repository.")
     return completed.stdout.strip()
 
 
@@ -82,13 +91,19 @@ def committed_file(root: Path, revision: str, path: str) -> str:
     normalized = posixpath.normpath(path)
     if normalized.startswith(("../", "/")) or normalized in ("..", "."):
         raise LocalRepositoryError(f"{path} must be a file inside the repository.")
-    entry = git(root, "ls-tree", revision, "--", normalized)
+    try:
+        entry = git(root, "ls-tree", revision, "--", normalized)
+    except LocalRepositoryError as error:
+        raise LocalRepositoryError(f"Git could not read {path}.") from error
     if not entry:
         raise LocalRepositoryError(f"{path} is not committed on the branch.")
     mode = entry.split(maxsplit=1)[0]
     if mode not in FILE_MODES:
         raise LocalRepositoryError(f"{path} must be a regular file, not a link.")
-    return git(root, "show", f"{revision}:{normalized}")
+    try:
+        return git(root, "show", f"{revision}:{normalized}")
+    except LocalRepositoryError as error:
+        raise LocalRepositoryError(f"Git could not read {path}.") from error
 
 
 def current_branch(root: Path) -> str:

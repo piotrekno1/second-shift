@@ -178,6 +178,36 @@ def test_attach_local_repository_rejects_non_repository(
         attach_local_repository(workspace, str(directory))
 
 
+def test_git_errors_never_name_folders_on_this_machine(
+    client, workspace: Workspace, tmp_path: Path
+) -> None:
+    # A worktree keeps its objects in the main checkout, and Git names that
+    # folder when one of them is damaged.
+    main = tmp_path / "private-main-checkout"
+    create_local_repository(main)
+    worktree = tmp_path / "project"
+    run_git(main, "worktree", "add", "-b", "work", str(worktree))
+    repository = attach_local_repository(workspace, str(worktree), "work")
+    blob = subprocess.run(
+        ["git", "-C", str(main), "rev-parse", "HEAD:.agents/skills/review/SKILL.md"],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    damaged = main / ".git/objects" / blob[:2] / blob[2:]
+    damaged.chmod(0o644)
+    damaged.write_bytes(b"damaged")
+    member = get_user_model().objects.create_user(username="member")
+    WorkspaceMembership.objects.create(workspace=workspace, user=member)
+    client.force_login(member)
+
+    response = client.post(f"/api/repositories/{repository.pk}/validate")
+
+    message = response.json()["message"]
+    assert message == "Git could not read .agents/skills/review/SKILL.md."
+    assert str(tmp_path) not in message
+
+
 @pytest.mark.django_db
 @override_settings(LOCAL_REPOSITORIES_ENABLED=False)
 def test_local_repository_api_is_hidden_when_disabled(client) -> None:
