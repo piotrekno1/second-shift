@@ -9,6 +9,7 @@ from secondshift.connections.models import Connection
 from secondshift.jobs.dao import approved_notification_targets
 from secondshift.jobs.models import Job
 from secondshift.repositories.models import Repository
+from secondshift.runs.dao import opened_issues, run_delivery
 from secondshift.runs.execution.tool_broker import standalone_connection
 from secondshift.runs.models import Run, RunDelivery
 from secondshift.runs.reporting.collection import plural
@@ -86,9 +87,7 @@ def run_report_payload(run: Run) -> dict[str, Any]:
 def pull_request_link(run: Run) -> dict[str, str] | None:
     if not (run.execution_plan or {}).get("pull_request"):
         return None
-    delivery = run.deliveries.filter(
-        kind=RunDelivery.Kind.PULL_REQUEST, status=RunDelivery.Status.DELIVERED
-    ).first()
+    delivery = run_delivery(run, RunDelivery.Kind.PULL_REQUEST, delivered=True)
     return {"url": delivery.external_url} if delivery else None
 
 
@@ -96,7 +95,7 @@ def pull_request_line(run: Run) -> str:
     """The draft's link, or why there is none, for runs that asked for one."""
     if not (run.execution_plan or {}).get("pull_request"):
         return ""
-    delivery = run.deliveries.filter(kind=RunDelivery.Kind.PULL_REQUEST).first()
+    delivery = run_delivery(run, RunDelivery.Kind.PULL_REQUEST)
     if delivery is None:
         return ""
     if delivery.status == RunDelivery.Status.DELIVERED:
@@ -123,7 +122,7 @@ def issue_links(run: Run) -> list[dict[str, Any]] | None:
             "url": issue.url,
             "already_open": issue.already_open,
         }
-        for issue in run.issues.exclude(number__isnull=True)
+        for issue in opened_issues(run)
     ]
 
 
@@ -136,7 +135,7 @@ def issues_line(run: Run) -> str:
     """Each issue's link, or why none opened, for runs that asked for issues."""
     if not has_issues(run):
         return ""
-    delivery = run.deliveries.filter(kind=RunDelivery.Kind.ISSUES).first()
+    delivery = run_delivery(run, RunDelivery.Kind.ISSUES)
     if delivery is None or delivery.status in {
         RunDelivery.Status.PENDING,
         RunDelivery.Status.RETRYING,
@@ -149,7 +148,7 @@ def issues_line(run: Run) -> str:
         if delivery.status == RunDelivery.Status.DELIVERED
         else f"Some issues could not open. {delivery.message}".strip()
     ]
-    for issue in run.issues.exclude(number__isnull=True):
+    for issue in opened_issues(run):
         note = " (already open)" if issue.already_open else ""
         lines.append(f"• <{issue.url}|#{issue.number} {slack_text(issue.title)}>{note}")
     return "\n".join(lines)

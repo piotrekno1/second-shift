@@ -17,7 +17,8 @@ from secondshift.repositories.pull_requests import (
     publish_pull_request,
 )
 from secondshift.runs.artifacts import artifact_storage, read_text
-from secondshift.runs.models import Run, RunDelivery, RunEvent
+from secondshift.runs.dao import add_event, create_delivery, get_run, run_delivery
+from secondshift.runs.models import Run, RunDelivery
 from secondshift.runs.reporting.collection import plural
 
 logger = logging.getLogger(__name__)
@@ -29,15 +30,15 @@ def record_pending_pull_request(run: Run) -> None:
     """Shown as pending from the start, and kept if publishing fails."""
     plan = run.execution_plan.get("pull_request")
     if plan:
-        RunDelivery.objects.create(
-            run=run,
-            kind=RunDelivery.Kind.PULL_REQUEST,
-            target=f"{run.repository.full_name} into {plan['base']}",
+        create_delivery(
+            run,
+            RunDelivery.Kind.PULL_REQUEST,
+            f"{run.repository.full_name} into {plan['base']}",
         )
 
 
 def pull_request_delivery(run: Run) -> RunDelivery | None:
-    return run.deliveries.filter(kind=RunDelivery.Kind.PULL_REQUEST).first()
+    return run_delivery(run, RunDelivery.Kind.PULL_REQUEST)
 
 
 def skip_reason(run: Run, repository: Repository) -> str:
@@ -86,9 +87,7 @@ def draft_for(run: Run) -> DraftPullRequest:
 
 
 def publish_run(run_id: int) -> None:
-    run = Run.objects.select_related("job__repository", "task__repository").get(
-        pk=run_id
-    )
+    run = get_run(run_id, "job__repository", "task__repository")
     delivery = pull_request_delivery(run)
     if delivery is None or delivery.status == RunDelivery.Status.DELIVERED:
         return
@@ -126,9 +125,9 @@ def finish(delivery: RunDelivery, status: str, message: str) -> None:
     delivery.save(
         update_fields=["status", "message", "attempts", "external_url", "updated_at"]
     )
-    RunEvent.objects.create(
-        run_id=delivery.run_id,
+    add_event(
+        delivery.run_id,
+        f"Pull request: {message}",
         level="warning" if status == RunDelivery.Status.FAILED else "info",
-        message=f"Pull request: {message}",
         metadata={"delivery_id": delivery.pk, "url": delivery.external_url},
     )

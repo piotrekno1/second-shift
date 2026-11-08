@@ -11,7 +11,8 @@ from secondshift.connections.models import Connection
 from secondshift.github.identity import clone_url
 from secondshift.jobs.dao import create_job
 from secondshift.repositories.dao import create_repository
-from secondshift.runs.models import Run, RunEvent
+from secondshift.runs.dao import add_event, create_run_record
+from secondshift.runs.models import Run
 from secondshift.workspaces.dao import get_workspace_by_slug
 
 DEMO_SKILLS = {
@@ -190,7 +191,7 @@ def seed_demo_data() -> None:
         run_specs, start=1
     ):
         finished_at = now - timedelta(days=days_ago)
-        run = Run.objects.create(
+        run = create_run_record(
             job=jobs[job_key],
             status=status,
             commit_sha=jobs[job_key].repository.config_sha,
@@ -202,9 +203,9 @@ def seed_demo_data() -> None:
             summary=summary,
             dbos_workflow_id=f"demo-run-{index}",
         )
-        RunEvent.objects.create(
-            run=run,
+        add_event(
+            run.pk,
+            summary,
             level="info" if status == Run.Status.SUCCEEDED else "error",
-            message=summary,
             metadata={"demo": True},
         )

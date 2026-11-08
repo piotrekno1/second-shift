@@ -12,6 +12,7 @@ from django.utils import timezone
 
 from secondshift.config.constants import RunSandbox
 from secondshift.gateway.dao import revoke_run_tokens
+from secondshift.runs.dao import lock_run_in
 from secondshift.runs.models import Run
 
 # The statuses each status may move to. A finished status has no entry.
@@ -35,6 +36,7 @@ def can_move(current: str, new: str) -> bool:
 
 def start_run(run_id: int, workflow_id: str) -> bool:
     """Move a queued run to running. False when the run is not queued."""
+    # Status writes stay in this module, so it is the only place they happen.
     return bool(
         Run.objects.filter(pk=run_id, status=Run.Status.QUEUED).update(
             status=Run.Status.RUNNING,
@@ -61,9 +63,7 @@ def finish_run(
     """
     if status in Run.ACTIVE_STATUSES:
         raise TransitionRefused(f"{status} is not a final status.")
-    run = (
-        Run.objects.select_for_update().filter(pk=run_id, status__in=only_from).first()
-    )
+    run = lock_run_in(run_id, only_from)
     if run is None:
         return None
     if not can_move(run.status, status):

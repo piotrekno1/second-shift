@@ -11,7 +11,8 @@ from secondshift.config.constants import (
     RETRY_NOTIFICATION_WORKFLOW,
     RETRY_PULL_REQUEST_WORKFLOW,
 )
-from secondshift.runs.models import Run, RunDelivery, RunEvent
+from secondshift.runs.dao import add_event, lock_delivery
+from secondshift.runs.models import Run, RunDelivery
 from secondshift.runs.orchestration.dbos_runtime import new_dbos_client
 from secondshift.runs.services import RunRefused
 
@@ -32,11 +33,7 @@ def retryable(delivery: RunDelivery) -> bool:
 @transaction.atomic
 def retry_delivery(run: Run, delivery_id: int) -> RunDelivery:
     """Queue a failed delivery again. Authorization is checked when it is sent."""
-    delivery = (
-        RunDelivery.objects.select_for_update()
-        .select_related("connection")
-        .get(pk=delivery_id, run=run)
-    )
+    delivery = lock_delivery(run, delivery_id)
     if delivery.status != RunDelivery.Status.FAILED:
         raise RunRefused("Only a failed delivery can be retried.")
     if not retryable(delivery):
@@ -46,15 +43,13 @@ def retry_delivery(run: Run, delivery_id: int) -> RunDelivery:
     delivery.save(update_fields=["status", "message", "updated_at"])
     # Enqueued inside the transaction, so a queue outage leaves it failed.
     if delivery.kind == RunDelivery.Kind.PULL_REQUEST:
-        RunEvent.objects.create(run=run, message="Retrying the pull request.")
+        add_event(run.pk, "Retrying the pull request.")
         enqueue_retry(RETRY_PULL_REQUEST_WORKFLOW, f"pull-request-{run.pk}", run.pk)
     elif delivery.kind == RunDelivery.Kind.ISSUES:
-        RunEvent.objects.create(run=run, message="Retrying the issues.")
+        add_event(run.pk, "Retrying the issues.")
         enqueue_retry(RETRY_ISSUES_WORKFLOW, f"issues-{run.pk}", run.pk)
     else:
-        RunEvent.objects.create(
-            run=run, message=f"Retrying the notification to {delivery.target}."
-        )
+        add_event(run.pk, f"Retrying the notification to {delivery.target}.")
         enqueue_retry(
             RETRY_NOTIFICATION_WORKFLOW,
             f"{run.pk}-{delivery.connection_id}",

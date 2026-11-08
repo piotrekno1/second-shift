@@ -28,6 +28,14 @@ from secondshift.repositories.sources import source_snapshot
 from secondshift.runner.client import get_runner_client
 from secondshift.runner.protocol import RunnerSessionSpec
 from secondshift.runs.artifacts import read_output_excerpt, store_collection
+from secondshift.runs.dao import (
+    add_event,
+    fail_notification_delivery,
+    get_run,
+    notification_delivery,
+    run_execution_plan,
+    update_run,
+)
 from secondshift.runs.execution.budgets import Budget, budget_reached_message
 from secondshift.runs.execution.deadlines import (
     run_deadline,
@@ -38,7 +46,7 @@ from secondshift.runs.execution.issues import issue_limit
 from secondshift.runs.execution.run import execute_agent_run
 from secondshift.runs.history import pack_earlier_files
 from secondshift.runs.issue_delivery import open_run_issues
-from secondshift.runs.models import Run, RunDelivery, RunEvent
+from secondshift.runs.models import Run, RunDelivery
 from secondshift.runs.orchestration.admission import task_admission_problem
 from secondshift.runs.orchestration.reconciliation import mark_run_terminal
 from secondshift.runs.publishing import publish_run
@@ -82,7 +90,7 @@ class RunNotReadyError(RuntimeError):
 @transaction.atomic
 def mark_run_started_step(run_id: int) -> bool:
     """Start a queued run. Raises RunNotReadyError before any work is done."""
-    run = Run.objects.select_related("task").get(pk=run_id)
+    run = get_run(run_id, "task")
     if run.job_id is None:
         repository = lock_repository(run.task.repository_id)
         run.refresh_from_db()
@@ -103,13 +111,13 @@ def mark_run_started_step(run_id: int) -> bool:
         )
     started = start_run(run_id, DBOS.workflow_id or run.dbos_workflow_id)
     if started:
-        RunEvent.objects.create(run_id=run_id, message="Run started.")
+        add_event(run_id, "Run started.")
     return bool(started)
 
 
 @DBOS.step(name="secondshift.record_run_event")
 def record_run_event_step(run_id: int, message: str) -> None:
-    RunEvent.objects.create(run_id=run_id, message=message)
+    add_event(run_id, message)
 
 
 # The name stays from when this step copied local repositories, so runs that
@@ -121,20 +129,16 @@ def record_run_event_step(run_id: int, message: str) -> None:
 )
 def prepare_source_step(run_id: int) -> None:
     """Build the snapshot of the run's commit, fetching it if needed."""
-    run = Run.objects.select_related("job__repository", "task__repository").get(
-        pk=run_id
-    )
+    run = get_run(run_id, "job__repository", "task__repository")
     repository = run.repository
     if repository.source_type != Repository.SourceType.LOCAL:
         # Lost access stops the run here, even if the snapshot is cached.
         github_access(repository)
     snapshot = source_snapshot(repository, run.commit_sha)
-    RunEvent.objects.create(
-        run=run,
-        message=(
-            f"Checked out the repository at {run.commit_sha[:12]} "
-            f"({snapshot.size_bytes / (1024 * 1024):.1f} MiB compressed)."
-        ),
+    add_event(
+        run.pk,
+        f"Checked out the repository at {run.commit_sha[:12]} "
+        f"({snapshot.size_bytes / (1024 * 1024):.1f} MiB compressed).",
     )
 
 
@@ -144,9 +148,7 @@ def prepare_source_step(run_id: int) -> None:
     max_attempts=3,
 )
 def start_runner_session_step(run_id: int) -> str:
-    run = Run.objects.select_related("job__repository", "task__repository").get(
-        pk=run_id
-    )
+    run = get_run(run_id, "job__repository", "task__repository")
     plan = run.execution_plan
     runner_plan = plan.get("runner", {})
     if runner_plan.get("network_policy") != "none":
@@ -163,7 +165,7 @@ def start_runner_session_step(run_id: int) -> str:
         if history is not None:
             client.upload_source(history.sha256, archive)
             run.input_snapshot["history_files"] = history.record
-            Run.objects.filter(pk=run.pk).update(input_snapshot=run.input_snapshot)
+            update_run(run.pk, input_snapshot=run.input_snapshot)
     session_id = client.start(
         RunnerSessionSpec(
             run_id=run.pk,
@@ -176,8 +178,8 @@ def start_runner_session_step(run_id: int) -> str:
             history_sha256=history.sha256 if history is not None else "",
         )
     )
-    Run.objects.filter(pk=run.pk).update(sandbox_runtime=RunSandbox.ISOLATED_RUNNER)
-    RunEvent.objects.create(run=run, message="Sandbox started without network access.")
+    update_run(run.pk, sandbox_runtime=RunSandbox.ISOLATED_RUNNER)
+    add_event(run.pk, "Sandbox started without network access.")
     return session_id
 
 
@@ -188,22 +190,22 @@ def start_runner_session_step(run_id: int) -> str:
 )
 def collect_outputs_step(run_id: int, session_id: str) -> None:
     """Keep the agent's file changes and saved files before the sandbox goes."""
-    run = Run.objects.select_related("job", "task__repository").get(pk=run_id)
+    run = get_run(run_id, "job", "task__repository")
     with tempfile.TemporaryDirectory(prefix="secondshift-collection-") as folder:
         archive = Path(folder) / "collection.tar.gz"
         get_runner_client().collect(session_id, archive)
         outputs = store_collection(run, archive)
-    Run.objects.filter(pk=run_id).update(outputs=outputs)
+    update_run(run_id, outputs=outputs)
     if message := collection_summary(outputs):
-        RunEvent.objects.create(run_id=run_id, message=message)
+        add_event(run_id, message)
 
 
 @DBOS.step(name="secondshift.record_collection_failure")
 def record_collection_failure_step(run_id: int) -> None:
-    RunEvent.objects.create(
-        run_id=run_id,
+    add_event(
+        run_id,
+        "The run's file changes and saved files could not be collected.",
         level="warning",
-        message="The run's file changes and saved files could not be collected.",
     )
 
 
@@ -251,22 +253,19 @@ def finish_run_step(run_id: int, result: dict[str, Any]) -> None:
         return
     details = result.get("details") or {}
     if reached := details.get("budget_reached"):
-        RunEvent.objects.create(
-            run=run,
+        add_event(
+            run.pk,
+            budget_reached_message(Budget(reached)),
             level="warning",
-            message=budget_reached_message(Budget(reached)),
             metadata=details,
         )
-    RunEvent.objects.create(
-        run=run,
+    add_event(
+        run.pk,
+        "Run succeeded. The report is stored as the run's output."
+        if result["succeeded"]
+        else str(result["summary"]),
         level="info" if result["succeeded"] else "error",
         metadata=details,
-        # The report itself is the run's output file; the timeline stays short.
-        message=(
-            "Run succeeded. The report is stored as the run's output."
-            if result["succeeded"]
-            else str(result["summary"])
-        ),
     )
 
 
@@ -276,7 +275,7 @@ class RetryableDeliveryError(Exception):
 
 @DBOS.step(name="secondshift.notification_targets")
 def notification_targets_step(run_id: int) -> list[int]:
-    return notification_targets(Run.objects.select_related("job").get(pk=run_id))
+    return notification_targets(get_run(run_id, "job"))
 
 
 @DBOS.step(
@@ -286,16 +285,9 @@ def notification_targets_step(run_id: int) -> list[int]:
 )
 def deliver_run_notification_step(run_id: int, connection_id: int) -> None:
     # One step per target, so a retry never re-sends to targets that succeeded.
-    run = Run.objects.select_related("job__repository", "task__repository").get(
-        pk=run_id
-    )
+    run = get_run(run_id, "job__repository", "task__repository")
     connection = get_connection(connection_id)
-    delivery, _ = RunDelivery.objects.get_or_create(
-        run=run,
-        kind=RunDelivery.Kind.NOTIFICATION,
-        connection=connection,
-        defaults={"target": connection.binding_key or connection.display_name},
-    )
+    delivery = notification_delivery(run, connection)
     if delivery.status == RunDelivery.Status.DELIVERED:
         return
     # A grant revoked or a connection disconnected since planning stops delivery,
@@ -314,10 +306,10 @@ def deliver_run_notification_step(run_id: int, connection_id: int) -> None:
         RunDelivery.Status.DELIVERED if result.ok else RunDelivery.Status.FAILED,
         result.message,
     )
-    RunEvent.objects.create(
-        run=run,
+    add_event(
+        run.pk,
+        f"Notification to {connection.binding_key}: {result.message}",
         level="info" if result.ok else "warning",
-        message=f"Notification to {connection.binding_key}: {result.message}",
         metadata={"connection_id": connection_id, "status_code": result.status_code},
     )
 
@@ -334,17 +326,11 @@ def record_delivery(delivery: RunDelivery, status: str, message: str) -> None:
 def record_notification_failure_step(run_id: int, connection_id: int) -> None:
     binding = connection_binding(connection_id)
     # The last attempt's message stays, since it says why delivery failed.
-    RunDelivery.objects.filter(
-        run_id=run_id,
-        kind=RunDelivery.Kind.NOTIFICATION,
-        connection_id=connection_id,
-    ).exclude(status=RunDelivery.Status.DELIVERED).update(
-        status=RunDelivery.Status.FAILED, updated_at=timezone.now()
-    )
-    RunEvent.objects.create(
-        run_id=run_id,
+    fail_notification_delivery(run_id, connection_id, timezone.now())
+    add_event(
+        run_id,
+        f"Notification to {binding or 'a connection'} failed after retries.",
         level="warning",
-        message=f"Notification to {binding or 'a connection'} failed after retries.",
         metadata={"connection_id": connection_id},
     )
 
@@ -383,15 +369,15 @@ def retry_issues_workflow(run_id: int) -> None:
 
 def deliver(run_id: int) -> None:
     """Publish first, so the notification can link to the pull request and issues."""
-    run = Run.objects.only("execution_plan").get(pk=run_id)
+    plan = run_execution_plan(run_id)
     # Only plans that ask for a pull request or issues add the step, so
     # workflows started before these steps existed replay the same steps.
-    if run.execution_plan.get("pull_request"):
+    if plan.get("pull_request"):
         try:
             publish_pull_request_step(run_id)
         except Exception:
             logger.exception("could not publish run %s", run_id)
-    if issue_limit(run.execution_plan):
+    if issue_limit(plan):
         try:
             open_issues_step(run_id)
         except Exception:
@@ -435,7 +421,7 @@ def execute_run(run_id: int) -> None:
         stage = "sandbox"
         session_id = start_runner_session_step(run_id)
         stage = "skill"
-        run = Run.objects.select_related("job").get(pk=run_id)
+        run = get_run(run_id, "job")
         record_run_event_step(
             run_id,
             f"Running {run.input_snapshot.get('skill_path') or 'the submitted task'}.",

@@ -4,17 +4,15 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 
-from django.db.models import Count
-from django.db.models.functions import TruncDate
 from django.utils import timezone
 
 from secondshift.gateway.dao import spend_per_job, spend_totals
 from secondshift.jobs.dao import jobs_by_id, jobs_whose_last_run_failed
-from secondshift.runs.models import Run, run_workspace_filter
+from secondshift.runs.dao import finished_runs_per_day, run_counts, runs_by_id
+from secondshift.runs.models import Run
 from secondshift.runs.reporting.failures import describe_failure
 from secondshift.workspaces.models import Workspace
 
-FINISHED = (Run.Status.SUCCEEDED, Run.Status.FAILED, Run.Status.CANCELED)
 WINDOW = timedelta(days=7)
 # Two weeks, so the overview chart shows this week against the one before.
 CHART_DAYS = 14
@@ -74,7 +72,7 @@ def failing_jobs(workspace: Workspace) -> list[FailingJob]:
     jobs still count, marked as paused, since their last run is still broken.
     """
     jobs = jobs_whose_last_run_failed(workspace.pk)
-    runs = Run.objects.in_bulk([job.latest_run_id for job in jobs])
+    runs = runs_by_id(job.latest_run_id for job in jobs)
     failing: list[FailingJob] = []
     for job in jobs:
         run = runs[job.latest_run_id]
@@ -98,17 +96,13 @@ def week_summary(workspace: Workspace, now: datetime | None = None) -> WeekSumma
     """Runs and model spend in the last seven days, with the week before for trend."""
     now = now or timezone.now()
     start, previous_start = now - WINDOW, now - 2 * WINDOW
-    runs = Run.objects.filter(run_workspace_filter(workspace.pk), created_at__gte=start)
+    runs = run_counts(workspace.pk, start, previous_start)
     totals = spend_totals(workspace.pk, start, previous_start)
     return WeekSummary(
-        runs=runs.count(),
-        previous_runs=Run.objects.filter(
-            run_workspace_filter(workspace.pk),
-            created_at__gte=previous_start,
-            created_at__lt=start,
-        ).count(),
-        finished=runs.filter(status__in=FINISHED).count(),
-        succeeded=runs.filter(status=Run.Status.SUCCEEDED).count(),
+        runs=runs["runs"],
+        previous_runs=runs["previous"],
+        finished=runs["finished"],
+        succeeded=runs["succeeded"],
         spend_usd=totals["spend"] or Decimal(0),
         previous_spend_usd=totals["previous"] or Decimal(0),
         spend_partial=totals["unpriced"] > 0,
@@ -121,18 +115,7 @@ def runs_by_day(
     """Finished runs per local day, oldest first. Days without runs count as zero."""
     today = timezone.localdate(now or timezone.now())
     first = today - timedelta(days=days - 1)
-    rows = (
-        Run.objects.filter(
-            run_workspace_filter(workspace.pk),
-            status__in=FINISHED,
-            created_at__date__gte=first,
-            created_at__date__lte=today,
-        )
-        .annotate(day=TruncDate("created_at"))
-        .values("day", "status")
-        .annotate(count=Count("pk"))
-        .order_by()
-    )
+    rows = finished_runs_per_day(workspace.pk, first, today)
     counts = {(row["day"], row["status"]): row["count"] for row in rows}
     return [
         RunDay(

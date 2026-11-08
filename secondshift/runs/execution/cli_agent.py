@@ -13,10 +13,17 @@ from secondshift.connections.models import AgentConnection
 from secondshift.runner.agent_credentials import encrypt_agent_auth
 from secondshift.runner.client import get_runner_client
 from secondshift.runs.artifacts import store_run_text
+from secondshift.runs.dao import (
+    add_event,
+    create_lease,
+    end_lease,
+    get_run,
+    run_has_lease,
+)
 from secondshift.runs.execution.agent_broker import AgentAccessError, run_connection
 from secondshift.runs.execution.deadlines import run_deadline
 from secondshift.runs.execution.subagents import FINISHED, finish
-from secondshift.runs.models import AgentLease, Run, RunEvent
+from secondshift.runs.models import Run
 
 FAILURE_SUMMARIES = {
     AgentOutcome.QUOTA_EXHAUSTED: "Subscription usage exhausted. Wait for your provider's allowance to reset, then start a new run.",
@@ -43,9 +50,9 @@ def confirm_sign_in(run: Run, connection: AgentConnection) -> str:
     except AgentConnectionError:
         # The check could not run. Keep the run's own reason.
         return AgentOutcome.RECONNECT_REQUIRED
-    RunEvent.objects.create(
-        run=run,
-        message="Checked the agent login after the run.",
+    add_event(
+        run.pk,
+        "Checked the agent login after the run.",
         metadata={"reason": check.get("reason", "")},
     )
     found = check.get("reason")
@@ -75,10 +82,10 @@ def record_subagents(run: Run, subagents: list[dict[str, int]]) -> None:
 
 @DBOS.step(name="secondshift.execute_cli_agent")
 def execute_cli_step(run_id: int, session_id: str, prompt: str) -> dict[str, Any]:
-    run = Run.objects.select_related("job").get(pk=run_id)
+    run = get_run(run_id, "job")
     # A lease means an earlier attempt started the agent before the worker
     # stopped. It may already have changed external services.
-    if AgentLease.objects.filter(run=run).exists():
+    if run_has_lease(run):
         raise RuntimeError(
             "The agent was interrupted. It is not started again, because it may "
             "already have changed external services. Start a new run."
@@ -92,11 +99,7 @@ def execute_cli_step(run_id: int, session_id: str, prompt: str) -> dict[str, Any
     if remaining < 1:
         raise RuntimeError("The run reached its time limit.")
     token = secrets.token_urlsafe(40)
-    lease = AgentLease.objects.create(
-        run=run,
-        token_hash=hashlib.sha256(token.encode()).hexdigest(),
-        session_id=session_id,
-    )
+    lease = create_lease(run, hashlib.sha256(token.encode()).hexdigest(), session_id)
     limits = run.execution_plan["agent"]["limits"]
     try:
         client = get_runner_client()
@@ -124,16 +127,16 @@ def execute_cli_step(run_id: int, session_id: str, prompt: str) -> dict[str, Any
         )
         result = client.response_payload(response)
     finally:
-        AgentLease.objects.filter(pk=lease.pk).update(active=False)
+        end_lease(lease.pk)
     report = str(result.get("report", "")).strip()
     succeeded = bool(result.get("succeeded")) and bool(report)
     reason = str(result.get("reason", AgentOutcome.AGENT_FAILED))
     if reason == AgentOutcome.RECONNECT_REQUIRED:
         reason = confirm_sign_in(run, connection)
     record_subagents(run, result.get("subagents", []))
-    RunEvent.objects.create(
-        run=run,
-        message="Agent execution finished.",
+    add_event(
+        run.pk,
+        "Agent execution finished.",
         metadata={
             "backend": connection.backend,
             "reason": reason,

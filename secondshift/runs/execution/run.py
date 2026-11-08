@@ -24,6 +24,7 @@ from secondshift.runs.artifacts import (
     store_run_input,
     store_run_text,
 )
+from secondshift.runs.dao import add_event, get_run, update_run
 from secondshift.runs.execution.agent import AgentLimits, build_agent
 from secondshift.runs.execution.budgets import (
     Budget,
@@ -50,7 +51,7 @@ from secondshift.runs.execution.workspace_tools import (
     workspace_tools,
 )
 from secondshift.runs.history import previous_reports
-from secondshift.runs.models import Run, RunEvent
+from secondshift.runs.models import Run
 from secondshift.runs.reporting.failures import root_error
 
 SYSTEM_INSTRUCTIONS = """You execute one repository task for SecondShift.
@@ -227,7 +228,7 @@ def payload_section(run: Run) -> list[str]:
 def capture_run_input_step(run_id: int, session_id: str) -> None:
     """Store the rendered input. The skill is read from the sandbox, so it is
     the same commit the agent sees. Failing here never fails the run."""
-    run = Run.objects.select_related("job").get(pk=run_id)
+    run = get_run(run_id, "job")
     skill_path = str(run.input_snapshot.get("skill_path") or "")
     skill: CommandResult | None = None
     if skill_path:
@@ -247,14 +248,12 @@ def capture_run_input_step(run_id: int, session_id: str) -> None:
             logger.warning("could not read the skill for run %s input", run_id)
             skill = None
     stored = store_run_input(run, render_run_input(run, skill))
-    Run.objects.filter(pk=run_id).update(
-        input_path=stored.path, input_size_bytes=stored.size_bytes
-    )
+    update_run(run_id, input_path=stored.path, input_size_bytes=stored.size_bytes)
     if skill_path and (skill is None or skill.exit_code != 0):
-        RunEvent.objects.create(
-            run_id=run_id,
+        add_event(
+            run_id,
+            "The skill file could not be read for the stored input.",
             level="warning",
-            message="The skill file could not be read for the stored input.",
         )
 
 

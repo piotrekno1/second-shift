@@ -9,7 +9,7 @@ from django.utils import timezone
 
 from secondshift.gateway.dao import usage_by_connection
 from secondshift.jobs.dao import approved_jobs_per_connection
-from secondshift.runs.models import Run, run_workspace_filter
+from secondshift.runs.dao import login_run_counts
 from secondshift.workspaces.models import Workspace
 
 WINDOW = timedelta(days=7)
@@ -55,11 +55,4 @@ def agent_login_runs(workspace_id: int, now: datetime | None = None) -> Counter[
     used the login.
     """
     start = (now or timezone.now()) - RUN_CAP_WINDOW
-    return Counter(
-        Run.objects.filter(
-            run_workspace_filter(workspace_id),
-            created_at__gte=start,
-            execution_plan__ready=True,
-            execution_plan__execution__connection_id__isnull=False,
-        ).values_list("execution_plan__execution__connection_id", flat=True)
-    )
+    return login_run_counts(workspace_id, start)

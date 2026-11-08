@@ -13,6 +13,7 @@ from secondshift.connections.agents import usable_agent_connection
 from secondshift.connections.dao import find_agent_connection
 from secondshift.connections.models import AgentConnection
 from secondshift.runs.artifacts import run_payload
+from secondshift.runs.dao import active_lease, get_run, lock_lease
 from secondshift.runs.execution.deadlines import check_deadline, run_deadline
 from secondshift.runs.execution.external_tools import external_tools
 from secondshift.runs.execution.issues import issue_limit, issue_tool
@@ -53,7 +54,7 @@ def run_connection(run: Run) -> AgentConnection:
 
 
 def lease_run(lease: AgentLease) -> Run:
-    run = Run.objects.select_related("job").get(pk=lease.run_id)
+    run = get_run(lease.run_id, "job")
     if not lease.active or run.status != Run.Status.RUNNING:
         raise AgentAccessError("This agent run is no longer active.")
     check_deadline(run_deadline(run))
@@ -76,7 +77,7 @@ def tool_result(
     lease: AgentLease, name: str, arguments: dict[str, Any]
 ) -> dict[str, Any]:
     with transaction.atomic():
-        lease = AgentLease.objects.select_for_update().get(pk=lease.pk)
+        lease = lock_lease(lease.pk)
         run = lease_run(lease)
         if lease.tool_calls >= int(
             run.execution_plan["agent"]["limits"]["max_tool_calls"]
@@ -164,13 +165,7 @@ def agent_mcp(request: HttpRequest) -> HttpResponse:
     if request.method != "POST":
         return HttpResponse(status=405)
     token = request.headers.get("Authorization", "").removeprefix("Bearer ")
-    lease = (
-        AgentLease.objects.filter(
-            token_hash=hashlib.sha256(token.encode()).hexdigest(), active=True
-        ).first()
-        if token
-        else None
-    )
+    lease = active_lease(hashlib.sha256(token.encode()).hexdigest()) if token else None
     if lease is None:
         return HttpResponse(status=401)
     if len(request.body) > 1024 * 1024:

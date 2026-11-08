@@ -28,6 +28,13 @@ from pydantic_ai.toolsets import FunctionToolset
 
 from secondshift.config.constants import AgentBackend
 from secondshift.runner.agent_image.subagent_hook import WORKER
+from secondshift.runs.dao import (
+    add_event,
+    get_run,
+    has_subagent_event,
+    subagent_event_count,
+    subagent_start,
+)
 from secondshift.runs.execution.agent import build_agent
 from secondshift.runs.execution.external_tools import external_tools
 from secondshift.runs.execution.workspace_tools import (
@@ -35,7 +42,6 @@ from secondshift.runs.execution.workspace_tools import (
     truncate_output,
     workspace_tools,
 )
-from secondshift.runs.models import Run, RunEvent
 
 TOOL_NAME = "start_subagent"
 STARTED = "started"
@@ -86,17 +92,16 @@ def begin(run_id: int, call_id: str, limit: int, task: str) -> int | None:
 
     A replayed call finds the start it already recorded.
     """
-    started = RunEvent.objects.filter(run_id=run_id, metadata__subagent=STARTED)
-    earlier = started.filter(metadata__call_id=call_id).first()
+    earlier = subagent_start(run_id, STARTED, call_id)
     if earlier is not None:
         return int(earlier.metadata["number"])
-    number = started.count() + 1
+    number = subagent_event_count(run_id, STARTED) + 1
     if number > limit:
         return None
     first_line = task.strip().splitlines()[0][:200]
-    RunEvent.objects.create(
-        run_id=run_id,
-        message=f"Sub-agent {number} started: {first_line}",
+    add_event(
+        run_id,
+        f"Sub-agent {number} started: {first_line}",
         metadata={"subagent": STARTED, "call_id": call_id, "number": number},
     )
     return number
@@ -110,18 +115,13 @@ def finish(
     requests: int,
     tool_calls: int,
 ) -> None:
-    finished = RunEvent.objects.filter(
-        run_id=run_id, metadata__subagent=FINISHED, metadata__call_id=call_id
-    )
-    if finished.exists():
+    if has_subagent_event(run_id, FINISHED, call_id):
         return
-    RunEvent.objects.create(
-        run_id=run_id,
+    add_event(
+        run_id,
+        f"Sub-agent {number} {'finished' if outcome == FINISHED else 'stopped'} "
+        f"after {requests} model requests and {tool_calls} tool calls.",
         level="info" if outcome == FINISHED else "warning",
-        message=(
-            f"Sub-agent {number} {'finished' if outcome == FINISHED else 'stopped'} "
-            f"after {requests} model requests and {tool_calls} tool calls."
-        ),
         metadata={
             "subagent": FINISHED,
             "call_id": call_id,
@@ -134,7 +134,7 @@ def finish(
 
 
 def run_external_tools(run_id: int) -> tuple[Tool[WorkspaceToolDeps], ...]:
-    return external_tools(Run.objects.select_related("job").get(pk=run_id))
+    return external_tools(get_run(run_id, "job"))
 
 
 def pending_calls(ctx: RunContext[WorkspaceToolDeps]) -> int:

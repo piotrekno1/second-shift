@@ -17,6 +17,7 @@ from secondshift.config.constants import MAX_HISTORY_FILES_BYTES, SANDBOX_HISTOR
 from secondshift.jobs.models import Job
 from secondshift.runner.collection import safe_output_name
 from secondshift.runs.artifacts import artifact_storage
+from secondshift.runs.dao import job_runs_by_id, succeeded_run_ids
 from secondshift.runs.models import Run
 
 INTRO = (
@@ -33,8 +34,7 @@ def previous_run_ids(job: Job) -> list[int]:
     count = min(job.history, settings.JOB_HISTORY_MAX)
     if not count:
         return []
-    runs = Run.objects.filter(job=job, status=Run.Status.SUCCEEDED)
-    return list(runs.order_by("-created_at").values_list("pk", flat=True)[:count])
+    return succeeded_run_ids(job, count)
 
 
 def previous_reports(run: Run) -> str:
@@ -43,7 +43,7 @@ def previous_reports(run: Run) -> str:
     if not run_ids or run.job_id is None:
         return ""
     # Filtering on the job again means a snapshot can never reach another job.
-    earlier = Run.objects.filter(job_id=run.job_id).in_bulk(run_ids)
+    earlier = job_runs_by_id(run.job_id, run_ids)
     remaining = settings.RUN_HISTORY_MAX_CHARS
     blocks = []
     for run_id in run_ids:
@@ -101,7 +101,7 @@ def earlier_files(run: Run) -> tuple[list[EarlierFile], int]:
     run_ids = run.input_snapshot.get("history_run_ids", [])
     if not run_ids or run.job_id is None:
         return [], 0
-    earlier = Run.objects.filter(job_id=run.job_id).in_bulk(run_ids)
+    earlier = job_runs_by_id(run.job_id, run_ids)
     kept: list[EarlierFile] = []
     left_out = 0
     total = 0

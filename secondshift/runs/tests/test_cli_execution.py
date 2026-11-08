@@ -14,7 +14,6 @@ from secondshift.connections.tests.test_agent_connections import (
 from secondshift.connections.tests.test_agent_connections import (
     agent_login as agent_login_fixture,
 )
-from secondshift.gateway.usage import with_model_usage
 from secondshift.jobs.tests.test_execution_defaults import (
     agent_run as agent_run_fixture,
 )
@@ -22,6 +21,7 @@ from secondshift.runner.agent_credentials import (
     decrypt_agent_auth,
     provisioning_public_key,
 )
+from secondshift.runs.dao import with_model_usage
 from secondshift.runs.execution import cli_agent
 from secondshift.runs.execution.cli_agent import execute_cli_step
 from secondshift.runs.models import AgentLease, Run, RunEvent

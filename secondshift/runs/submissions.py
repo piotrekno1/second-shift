@@ -23,8 +23,14 @@ from secondshift.repositories.dao import lock_repository
 from secondshift.repositories.local import LocalRepositoryError
 from secondshift.repositories.models import Repository
 from secondshift.repositories.skill_source import SkillSourceError, skill_commit
-from secondshift.runs.dao import active_tasks
-from secondshift.runs.models import Run, Task
+from secondshift.runs.dao import (
+    active_task_count,
+    create_run_record,
+    create_task,
+    find_submitted_task,
+    first_attempt,
+)
+from secondshift.runs.models import Run
 from secondshift.runs.orchestration.dispatch import enqueue_run
 from secondshift.runs.publishing import record_pending_pull_request
 from secondshift.runs.services import RunNotReady, RunRefused
@@ -95,19 +101,17 @@ def admission(
     """Called with the repository row locked, before and after source access."""
     if not repository.enabled or repository.removed_at is not None:
         raise RunRefused("Enable the repository before submitting a task.")
-    task = Task.objects.filter(
-        repository=repository, submission_key=submission.idempotency_key
-    ).first()
+    task = find_submitted_task(repository.pk, submission.idempotency_key)
     if task is not None:
         if task.input_snapshot.get("submission_fingerprint") != fingerprint:
             raise RunRefused(
                 "This idempotency key was already used for a different submission."
             )
-        run = task.runs.order_by("created_at", "pk").first()
+        run = first_attempt(task)
         if run is None:
             raise RunRefused("This submission no longer has an execution attempt.")
         return SubmissionResult(run, False)
-    active_count = active_tasks(repository.pk).count()
+    active_count = active_task_count(repository.pk)
     if active_count >= settings.TASK_QUEUE_LIMIT:
         raise RunRefused(
             "This repository's task queue is full. Wait for a task to finish or cancel a queued task."
@@ -182,7 +186,7 @@ def submit_skill(
             "submission_fingerprint": fingerprint,
         }
         scheduled_for: datetime = submission.not_before or timezone.now()
-        task = Task.objects.create(
+        task = create_task(
             repository=repository,
             submission_key=submission.idempotency_key,
             origin=origin,
@@ -191,7 +195,7 @@ def submit_skill(
             input_snapshot=deepcopy(snapshot),
             scheduled_for=scheduled_for,
         )
-        run = Run.objects.create(
+        run = create_run_record(
             task=task,
             started_by=RunStart.MANUAL,
             commit_sha=commit,

@@ -12,8 +12,13 @@ from pydantic_ai import ModelRetry, RunContext, Tool
 from pydantic_ai.tools import ToolDefinition
 
 from secondshift.github.issues import MAX_TITLE_CHARS, same_title
+from secondshift.runs.dao import (
+    create_issue_proposal,
+    proposed_issue,
+    proposed_issue_count,
+    proposed_issue_titles,
+)
 from secondshift.runs.execution.workspace_tools import WorkspaceToolDeps
-from secondshift.runs.models import RunIssue
 
 TOOL_NAME = "propose_issue"
 # Long enough for steps to reproduce and a few log lines.
@@ -43,18 +48,16 @@ def propose_issue(
     title = " ".join(title.split())
     if not title:
         raise ModelRetry("Give the issue a title.")
-    existing = RunIssue.objects.filter(run_id=ctx.deps.run_id)
+    run_id = ctx.deps.run_id
     # A replayed call finds the proposal it already made.
-    if existing.filter(call_id=ctx.tool_call_id).exists():
-        return proposed(existing.count(), ctx.deps.issue_limit)
-    if any(
-        same_title(item, title) for item in existing.values_list("title", flat=True)
-    ):
+    if proposed_issue(run_id, ctx.tool_call_id):
+        return proposed(proposed_issue_count(run_id), ctx.deps.issue_limit)
+    if any(same_title(item, title) for item in proposed_issue_titles(run_id)):
         return {
             "proposed": False,
             "note": "An issue with this title is already proposed in this run.",
         }
-    if existing.count() >= ctx.deps.issue_limit:
+    if proposed_issue_count(run_id) >= ctx.deps.issue_limit:
         return {
             "proposed": False,
             "note": (
@@ -62,13 +65,8 @@ def propose_issue(
                 f"{ctx.deps.issue_limit}. Put the rest in the report."
             ),
         }
-    RunIssue.objects.create(
-        run_id=ctx.deps.run_id,
-        call_id=ctx.tool_call_id,
-        title=title,
-        body=body.strip(),
-    )
-    return proposed(existing.count(), ctx.deps.issue_limit)
+    create_issue_proposal(run_id, ctx.tool_call_id, title, body.strip())
+    return proposed(proposed_issue_count(run_id), ctx.deps.issue_limit)
 
 
 def proposed(count: int, limit: int) -> dict[str, Any]:

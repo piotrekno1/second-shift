@@ -3,13 +3,19 @@ import logging
 from dbos import EnqueueOptions
 from django.conf import settings
 from django.db import transaction
-from django.db.models import Exists, OuterRef
 from django.utils import timezone
 
 from secondshift.config.constants import EXECUTE_RUN_WORKFLOW
 from secondshift.repositories.dao import lock_repository
-from secondshift.runs.dao import active_runs, active_tasks
-from secondshift.runs.models import RUN_ENQUEUE_FAILED, Run, RunEvent
+from secondshift.runs.dao import (
+    add_event,
+    add_event_once,
+    first_due_task,
+    has_dispatched_task,
+    repository_task_run,
+    waiting_tasks,
+)
+from secondshift.runs.models import RUN_ENQUEUE_FAILED, Run
 from secondshift.runs.orchestration.admission import task_admission_problem
 from secondshift.runs.orchestration.dbos_runtime import new_dbos_client
 from secondshift.runs.orchestration.reconciliation import mark_run_terminal
@@ -49,13 +55,13 @@ def enqueue_workflow(run: Run) -> str:
         if run.job_id is None:
             # The Run is the durable outbox. Retry with the same workflow ID,
             # including after a crash between DBOS accepting and our save.
-            RunEvent.objects.get_or_create(
-                run=run,
-                message="Waiting for the execution queue. The worker will retry automatically.",
-                defaults={"level": "warning"},
+            add_event_once(
+                run.pk,
+                "Waiting for the execution queue. The worker will retry automatically.",
+                "warning",
             )
             return ""
-        RunEvent.objects.create(run=run, level="error", message=RUN_ENQUEUE_FAILED)
+        add_event(run.pk, RUN_ENQUEUE_FAILED, level="error")
         failed = finish_run(
             run.pk, Run.Status.FAILED, RUN_ENQUEUE_FAILED, only_from={Run.Status.QUEUED}
         )
@@ -84,8 +90,7 @@ def enqueue_task(run: Run) -> str:
     It serializes submissions, worker retries and queued cancellations.
     """
     repository = lock_repository(run.task.repository_id)
-    tasks = Run.objects.filter(job__isnull=True, task__repository=repository)
-    run = tasks.select_related("task").get(pk=run.pk)
+    run = repository_task_run(repository.pk, run.pk)
     if run.status != Run.Status.QUEUED:
         return ""
     if run.dbos_workflow_id:
@@ -97,17 +102,9 @@ def enqueue_task(run: Run) -> str:
             run.pk, Run.Status.FAILED, problem, workflow_status="NOT_ADMITTED"
         )
         return ""
-    if active_tasks(repository.pk).exclude(dbos_workflow_id="").exists():
+    if has_dispatched_task(repository.pk):
         return ""
-    first = (
-        tasks.filter(
-            status=Run.Status.QUEUED,
-            scheduled_for__lte=timezone.now(),
-            dbos_workflow_id="",
-        )
-        .order_by("scheduled_for", "created_at", "pk")
-        .first()
-    )
+    first = first_due_task(repository.pk, timezone.now())
     if first is None or first.pk != run.pk:
         return ""
     return enqueue_workflow(run)
@@ -115,20 +112,5 @@ def enqueue_task(run: Run) -> str:
 
 def dispatch_waiting_tasks() -> int:
     """Recover committed submissions and advance the queue on each worker pass."""
-    blocked = (
-        active_runs()
-        .filter(job__isnull=True, task__repository_id=OuterRef("task__repository_id"))
-        .exclude(dbos_workflow_id="")
-    )
-    waiting = list(
-        Run.objects.filter(
-            job__isnull=True,
-            status=Run.Status.QUEUED,
-            dbos_workflow_id="",
-            scheduled_for__lte=timezone.now(),
-        )
-        .filter(~Exists(blocked))
-        .select_related("task")
-        .order_by("scheduled_for", "created_at", "pk")[:500]
-    )
+    waiting = waiting_tasks(timezone.now(), 500)
     return sum(bool(enqueue_task(run)) for run in waiting)

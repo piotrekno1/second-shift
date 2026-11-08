@@ -2,7 +2,6 @@ from secondshift.config.constants import GITHUB_BASE_URL
 from secondshift.connections.dao import connections_by_binding
 from secondshift.connections.external import changing_tools, external_access
 from secondshift.connections.models import Connection
-from secondshift.gateway.usage import with_model_usage
 from secondshift.jobs.api_limits import serialize_limits
 from secondshift.jobs.dao import active_jobs, job_with_last_run, with_last_run
 from secondshift.jobs.execution import (
@@ -22,6 +21,7 @@ from secondshift.jobs.schemas import (
     ToolInputSchema,
 )
 from secondshift.repositories.models import Repository
+from secondshift.runs.dao import newest_job_runs, with_model_usage
 from secondshift.runs.serialization import serialize_run
 from secondshift.workspaces.models import Workspace
 
@@ -137,9 +137,7 @@ def serialize_job_detail(job: Job, can_edit_limits: bool) -> JobDetailSchema:
     summary = serialize_job(job)
     is_github = job.repository.source_type == Repository.SourceType.GITHUB
     # Aggregation drops Meta.ordering, so order explicitly: newest first.
-    recent_runs = with_model_usage(
-        job.runs.select_related("job__repository").order_by("-created_at", "-pk")
-    )[:20]
+    recent_runs = with_model_usage(newest_job_runs(job))[:20]
     return JobDetailSchema(
         **summary.model_dump(),
         key=job.key,
