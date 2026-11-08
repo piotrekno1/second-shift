@@ -1,7 +1,5 @@
 """Queue acceptance, recovery and execution boundaries without an agent call."""
 
-import hashlib
-import json
 import shutil
 from datetime import timedelta
 from pathlib import Path
@@ -225,26 +223,6 @@ def test_capacity_limit_preserves_idempotent_retry(
     cancel_queued_task(second)
     assert start(repository, owner, idempotency_key="third").pk != second.pk
     assert Task.objects.count() == 3
-
-
-def test_pre_queue_idempotency_key_still_replays(
-    repository: Repository,
-    owner: User,
-    client_queue: Mock,
-) -> None:
-    payload = submission(repository)
-    run = start(repository, owner)
-    previous_data = payload.model_dump(
-        mode="json", exclude={"idempotency_key", "not_before", "pull_request"}
-    )
-    previous_data["definition"].pop("subagents")
-    previous_data["submitted_by"] = owner.pk
-    run.task.input_snapshot["submission_fingerprint"] = hashlib.sha256(
-        json.dumps(previous_data, sort_keys=True).encode()
-    ).hexdigest()
-    run.task.save()
-    assert start(repository, owner).pk == run.pk
-    assert client_queue.enqueue.call_count == 1
 
 
 def test_repository_slots_are_independent(

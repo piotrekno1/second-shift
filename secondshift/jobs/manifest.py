@@ -297,16 +297,6 @@ def field_path(item: ErrorDetails) -> str:
 
 
 def manifest_hash(job: JobManifest) -> str:
-    # Jobs keep the hash they had before these optional fields existed.
-    unset = {"triggers"} if not job.triggers else set()
-    if not job.open_pull_request:
-        unset.add("open_pull_request")
-    if job.open_issues is None:
-        unset.add("open_issues")
-    if job.webhook is None:
-        unset.add("webhook")
-    if not job.subagents:
-        unset.add("subagents")
-    data = job.model_dump(exclude=unset or None)
+    data = job.model_dump()
     canonical = json.dumps(data, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(canonical.encode()).hexdigest()

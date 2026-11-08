@@ -33,7 +33,6 @@ from secondshift.runs.dao import (
     fail_notification_delivery,
     get_run,
     notification_delivery,
-    run_execution_plan,
     update_run,
 )
 from secondshift.runs.execution.budgets import Budget, budget_reached_message
@@ -42,7 +41,6 @@ from secondshift.runs.execution.deadlines import (
     run_timeout_seconds,
     timeout_summary,
 )
-from secondshift.runs.execution.issues import issue_limit
 from secondshift.runs.execution.run import execute_agent_run
 from secondshift.runs.history import pack_earlier_files
 from secondshift.runs.issue_delivery import open_run_issues
@@ -120,10 +118,8 @@ def record_run_event_step(run_id: int, message: str) -> None:
     add_event(run_id, message)
 
 
-# The name stays from when this step copied local repositories, so runs that
-# were in flight during an upgrade still replay.
 @DBOS.step(
-    name="secondshift.materialize_local_repository",
+    name="secondshift.prepare_source",
     retries_allowed=True,
     max_attempts=3,
 )
@@ -369,19 +365,14 @@ def retry_issues_workflow(run_id: int) -> None:
 
 def deliver(run_id: int) -> None:
     """Publish first, so the notification can link to the pull request and issues."""
-    plan = run_execution_plan(run_id)
-    # Only plans that ask for a pull request or issues add the step, so
-    # workflows started before these steps existed replay the same steps.
-    if plan.get("pull_request"):
-        try:
-            publish_pull_request_step(run_id)
-        except Exception:
-            logger.exception("could not publish run %s", run_id)
-    if issue_limit(plan):
-        try:
-            open_issues_step(run_id)
-        except Exception:
-            logger.exception("could not open issues for run %s", run_id)
+    try:
+        publish_pull_request_step(run_id)
+    except Exception:
+        logger.exception("could not publish run %s", run_id)
+    try:
+        open_issues_step(run_id)
+    except Exception:
+        logger.exception("could not open issues for run %s", run_id)
     notify(run_id)
 
 
@@ -413,8 +404,7 @@ def execute_run(run_id: int) -> None:
     timeout_seconds = 0
     stage = "starting"
     try:
-        # Older completed steps returned None; preserve their replay behavior.
-        if mark_run_started_step(run_id) is False:
+        if not mark_run_started_step(run_id):
             return
         stage = "checkout"
         prepare_source_step(run_id)

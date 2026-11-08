@@ -17,9 +17,10 @@ SKIPPED_PARTS = {"tests", "migrations", "benchmarks"}
 ALLOWED_FILES = {
     # The only code that changes a run's status. See its module docstring.
     "runs/transitions.py",
-    # Data migrations call these with historical models, which a dao cannot use.
-    "runs/migration_helpers.py",
 }
+# Data migrations call migration_helpers with historical models, which a dao
+# cannot use.
+QUERY_MODULES = {"dao.py", "migration_helpers.py"}
 # Queryset methods that dicts and sets do not have, so a match is a query.
 QUERY_METHODS = {
     "aexists",
@@ -63,7 +64,7 @@ def modules() -> list[Path]:
         path
         for path in sorted(PACKAGE.rglob("*.py"))
         if not set(path.relative_to(PACKAGE).parts) & SKIPPED_PARTS
-        and path.name != "dao.py"
+        and path.name not in QUERY_MODULES
         and path.relative_to(PACKAGE).as_posix() not in ALLOWED_FILES
     ]
 

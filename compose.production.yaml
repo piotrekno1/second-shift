@@ -60,9 +60,9 @@ services:
     env_file: ./deploy/production/gateway.env
     environment:
       <<: [*artifacts, *agents]
-      # Supply a separate s3:GetObject-only key; fall back for existing installs.
-      SECONDSHIFT_ARTIFACT_ACCESS_KEY_ID: ${ARTIFACT_READ_ACCESS_KEY_ID:-${ARTIFACT_ACCESS_KEY_ID:-}}
-      SECONDSHIFT_ARTIFACT_SECRET_ACCESS_KEY: ${ARTIFACT_READ_SECRET_ACCESS_KEY:-${ARTIFACT_SECRET_ACCESS_KEY:-}}
+      # A separate key that may only read (s3:GetObject).
+      SECONDSHIFT_ARTIFACT_ACCESS_KEY_ID: ${ARTIFACT_READ_ACCESS_KEY_ID:-}
+      SECONDSHIFT_ARTIFACT_SECRET_ACCESS_KEY: ${ARTIFACT_READ_SECRET_ACCESS_KEY:-}
       SECONDSHIFT_DATABASE_URL: postgres://secondshift:${APP_DATABASE_PASSWORD:?}@postgres:5432/secondshift
     networks:
       default:

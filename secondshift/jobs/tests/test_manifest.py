@@ -1,5 +1,3 @@
-import hashlib
-import json
 from pathlib import Path
 
 import pytest
@@ -141,28 +139,23 @@ def test_manifest_refuses_unknown_or_repeated_triggers(extra: str) -> None:
         parse_manifest(job_with(extra))
 
 
-def test_jobs_without_triggers_or_pull_requests_keep_their_hash() -> None:
+def test_each_job_setting_changes_its_hash() -> None:
     plain = parse_manifest(job_with("")).jobs["triage"]
-    triggered = parse_manifest(job_with("    triggers: [webhook]")).jobs["triage"]
-    drafting = parse_manifest(job_with("    open_pull_request: true")).jobs["triage"]
-    filing = parse_manifest(job_with("    open_issues: true")).jobs["triage"]
-    delegating = parse_manifest(job_with("    subagents: 2")).jobs["triage"]
-    before = plain.model_dump(
-        exclude={
-            "triggers",
-            "webhook",
-            "open_pull_request",
-            "open_issues",
-            "subagents",
-        }
-    )
-    canonical = json.dumps(before, sort_keys=True, separators=(",", ":"))
+    hashes = {
+        manifest_hash(parse_manifest(job_with(setting)).jobs["triage"])
+        for setting in (
+            "",
+            "    triggers: [webhook]",
+            "    open_pull_request: true",
+            "    open_issues: true",
+            "    subagents: 2",
+        )
+    }
 
-    assert manifest_hash(plain) == hashlib.sha256(canonical.encode()).hexdigest()
-    assert manifest_hash(triggered) != manifest_hash(plain)
-    assert manifest_hash(drafting) != manifest_hash(plain)
-    assert manifest_hash(filing) != manifest_hash(plain)
-    assert manifest_hash(delegating) != manifest_hash(plain)
+    assert len(hashes) == 5
+    assert manifest_hash(plain) == manifest_hash(
+        parse_manifest(job_with("")).jobs["triage"]
+    )
 
 
 WEBHOOK = """    triggers: [webhook]
@@ -212,18 +205,10 @@ def test_manifest_refuses_bad_webhook_settings(extra: str, message: str) -> None
     assert message in str(error.value)
 
 
-def test_jobs_without_webhook_settings_keep_their_hash() -> None:
+def test_webhook_settings_change_the_hash() -> None:
     triggered = parse_manifest(job_with("    triggers: [webhook]")).jobs["triage"]
-    canonical = json.dumps(
-        triggered.model_dump(
-            exclude={"webhook", "open_pull_request", "open_issues", "subagents"}
-        ),
-        sort_keys=True,
-        separators=(",", ":"),
-    )
-
-    assert manifest_hash(triggered) == hashlib.sha256(canonical.encode()).hexdigest()
     with_settings = parse_manifest(job_with(WEBHOOK)).jobs["triage"]
+
     assert manifest_hash(with_settings) != manifest_hash(triggered)
 
 

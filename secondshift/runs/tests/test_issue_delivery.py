@@ -212,11 +212,8 @@ def test_runs_open_issues_before_they_notify(
     monkeypatch.setattr(workflows, "notify", lambda run_id: order.append("notify"))
 
     workflows.deliver(run.pk)
-    run.execution_plan["issues"] = None
-    run.save()
-    workflows.deliver(run.pk)
 
-    assert order == ["issues", "notify", "notify"]
+    assert order == ["issues", "notify"]
 
 
 @pytest.mark.django_db

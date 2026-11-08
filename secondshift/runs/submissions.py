@@ -84,13 +84,6 @@ class SubmissionResult:
 
 def submission_fingerprint(submission: SkillSubmission, user: User) -> str:
     data = submission.model_dump(mode="json", exclude={"idempotency_key"})
-    # Keep retries of pre-queue submissions compatible with their saved hash.
-    if submission.not_before is None:
-        data.pop("not_before")
-    if not submission.pull_request:
-        data.pop("pull_request")
-    if not submission.definition.subagents:
-        data["definition"].pop("subagents")
     data["submitted_by"] = user.pk
     return hashlib.sha256(json.dumps(data, sort_keys=True).encode()).hexdigest()
 

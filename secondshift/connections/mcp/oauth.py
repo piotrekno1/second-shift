@@ -240,14 +240,8 @@ def granted_scopes(tokens: dict[str, Any], requested: list[str]) -> list[str]:
 
 
 def requested_scopes(connection: Connection) -> list[str]:
-    """Keep the original requirement separate from the server's actual grant.
-
-    Older connections did not retain this distinction; use their last known
-    scopes as the baseline until their next successful refresh or sign-in.
-    """
-    return list(
-        connection.metadata.get("oauth", {}).get("requested_scopes", connection.scopes)
-    )
+    """What the connection asked for, apart from what the server granted."""
+    return list(connection.metadata.get("oauth", {}).get("requested_scopes", []))
 
 
 def apply_tokens(connection: Connection, tokens: dict[str, Any]) -> None:

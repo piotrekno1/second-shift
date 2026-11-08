@@ -38,10 +38,6 @@ def get_run(run_id: int, *related: str) -> Run:
     return Run.objects.select_related(*related).get(pk=run_id)
 
 
-def run_execution_plan(run_id: int) -> dict[str, Any]:
-    return Run.objects.only("execution_plan").get(pk=run_id).execution_plan
-
-
 def lock_run(run_id: int, *related: str) -> Run:
     """Lock the run for this transaction, with these relations loaded."""
     return Run.objects.select_for_update().select_related(*related).get(pk=run_id)

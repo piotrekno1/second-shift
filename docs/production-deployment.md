@@ -36,8 +36,7 @@ endpoint and set `ARTIFACT_ADDRESSING_STYLE=path` if required. Web and worker
 receive the read/write credential. The gateway reads webhook
 payloads for subscription agents. Set both `ARTIFACT_READ_ACCESS_KEY_ID` and
 `ARTIFACT_READ_SECRET_ACCESS_KEY` to a separate credential with only
-`s3:GetObject` on the same objects. If omitted, the gateway reuses the
-read/write credential for compatibility with existing installations.
+`s3:GetObject` on the same objects.
 
 For local storage, set `ARTIFACT_STORAGE=filesystem`; the S3 settings can be
 left empty. Compose mounts the persistent `artifacts` volume on web and worker

@@ -7,11 +7,12 @@ from secondshift.runs.models import Run
 from secondshift.runs.orchestration import workflows
 
 
-def start_run_in_the_past(run_id: int) -> None:
+def start_run_in_the_past(run_id: int) -> bool:
     Run.objects.filter(pk=run_id).update(
         status=Run.Status.RUNNING,
         started_at=timezone.now() - timedelta(hours=1),
     )
+    return True
 
 
 @pytest.fixture

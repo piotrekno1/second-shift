@@ -65,13 +65,8 @@ def synchronize_schedules(client: DBOSClient | None = None) -> int:
             application_name=settings.DBOS_APPLICATION_NAME,
         )
         for schedule in existing:
-            existing_name = (
-                schedule["schedule_name"]
-                if isinstance(schedule, dict)
-                else schedule.schedule_name
-            )
-            if existing_name not in desired_names:
-                client.delete_schedule(existing_name)
+            if schedule["schedule_name"] not in desired_names:
+                client.delete_schedule(schedule["schedule_name"])
     finally:
         if owns_client:
             client.destroy()
