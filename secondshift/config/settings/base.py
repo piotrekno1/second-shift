@@ -39,7 +39,7 @@ from secondshift.config.constants import (
 )
 from secondshift.config.first_run import write_generated_env
 from secondshift.config.logging import logging_config
-from secondshift.core.static_storage import immutable_static_file
+from secondshift.config.static_storage import immutable_static_file
 
 # The secondshift package, and the checkout that contains it.
 PACKAGE_DIR = Path(__file__).resolve().parents[2]
@@ -268,7 +268,7 @@ if ARTIFACT_STORAGE not in ARTIFACT_STORAGES:
 STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
     "run_artifacts": ARTIFACT_STORAGES[ARTIFACT_STORAGE],
-    "staticfiles": {"BACKEND": "secondshift.core.static_storage.StaticFilesStorage"},
+    "staticfiles": {"BACKEND": "secondshift.config.static_storage.StaticFilesStorage"},
 }
 
 # --- Accounts and login ------------------------------------------------------

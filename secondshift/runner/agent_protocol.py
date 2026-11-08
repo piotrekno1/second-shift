@@ -5,7 +5,7 @@ from typing import Literal
 from ninja import Schema
 from pydantic import ConfigDict, Field, SecretStr
 
-from secondshift.config.constants import AgentOutcome
+from secondshift.runner.agent_image.outcomes import AgentOutcome
 
 
 class AgentInput(Schema):

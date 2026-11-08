@@ -16,10 +16,10 @@ from django.conf import settings
 from secondshift.config.constants import (
     HOST_ALIAS,
     AgentBackend,
-    AgentOutcome,
     SandboxRuntime,
 )
 from secondshift.runner.agent_credentials import decrypt_agent_auth
+from secondshift.runner.agent_image.outcomes import AgentOutcome
 from secondshift.runner.agent_protocol import AgentCheckInput, AgentInput, AgentOutput
 from secondshift.runner.dao import is_session_active
 from secondshift.runner.images import resolve_image_id

@@ -7,10 +7,11 @@ from typing import Any
 from dbos import DBOS
 from django.utils import timezone
 
-from secondshift.config.constants import SUMMARY_MAX_CHARS, AgentOutcome
+from secondshift.config.constants import SUMMARY_MAX_CHARS
 from secondshift.connections.agents import AgentConnectionError, check_agent_connection
 from secondshift.connections.models import AgentConnection
 from secondshift.runner.agent_credentials import encrypt_agent_auth
+from secondshift.runner.agent_image.outcomes import AgentOutcome
 from secondshift.runner.client import get_runner_client
 from secondshift.runs.artifacts import store_run_text
 from secondshift.runs.dao import (

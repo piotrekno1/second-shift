@@ -10,7 +10,7 @@ from django.contrib.auth.models import User
 from django.db import transaction
 from django.utils import timezone
 
-from secondshift.config.constants import AgentBackend, AgentOutcome
+from secondshift.config.constants import AgentBackend
 from secondshift.connections.dao import (
     count_cleanup_attempt,
     pending_cleanups,
@@ -18,6 +18,7 @@ from secondshift.connections.dao import (
 )
 from secondshift.connections.models import AgentConnection, AgentCredentialCleanup
 from secondshift.runner.agent_credentials import encrypt_agent_auth
+from secondshift.runner.agent_image.outcomes import AgentOutcome
 from secondshift.runner.client import get_runner_client
 from secondshift.runner.protocol import RunnerProtocolError
 from secondshift.workspaces.dao import is_owner
