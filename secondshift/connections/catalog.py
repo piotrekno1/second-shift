@@ -8,6 +8,7 @@ the owner has not allowed are counted but not named.
 from dataclasses import dataclass, field
 from typing import Any
 
+from secondshift.connections.dao import catalog_connections
 from secondshift.connections.external import changing_tools
 from secondshift.connections.mcp.github import GITHUB_MCP
 from secondshift.connections.mcp.sentry import SENTRY_MCP
@@ -78,11 +79,7 @@ def catalog_binding(connection: Connection) -> CatalogBinding:
 def workspace_catalog(
     workspace: Workspace,
 ) -> tuple[list[CatalogBinding], list[BuiltInProvider]]:
-    connections = list(
-        Connection.objects.filter(workspace=workspace, kind__in=BINDING_KINDS)
-        .exclude(binding_key="")
-        .order_by("binding_key")
-    )
+    connections = catalog_connections(workspace, BINDING_KINDS)
     built_ins = [
         BuiltInProvider(
             provider=provider.label,

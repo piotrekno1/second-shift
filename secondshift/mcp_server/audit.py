@@ -5,18 +5,13 @@ from datetime import timedelta
 from django.conf import settings
 from django.utils import timezone
 
+from secondshift.mcp_server.dao import create_tool_call, delete_tool_calls_before
 from secondshift.mcp_server.models import TOOL_NAME_MAX, ToolCall
 from secondshift.workspaces.models import ApiToken
 
 
 def record_call(token: ApiToken, tool: str, outcome: ToolCall.Outcome) -> None:
-    ToolCall.objects.create(
-        workspace_id=token.workspace_id,
-        token=token,
-        user_id=token.created_by_id,
-        tool=tool[:TOOL_NAME_MAX],
-        outcome=outcome,
-    )
+    create_tool_call(token, tool[:TOOL_NAME_MAX], outcome)
 
 
 def prune_tool_calls(days: int | None = None) -> int:
@@ -24,6 +19,4 @@ def prune_tool_calls(days: int | None = None) -> int:
     days = settings.RUN_RETENTION_DAYS if days is None else days
     if days <= 0:
         return 0
-    cutoff = timezone.now() - timedelta(days=days)
-    deleted, _ = ToolCall.objects.filter(created_at__lt=cutoff).delete()
-    return deleted
+    return delete_tool_calls_before(timezone.now() - timedelta(days=days))

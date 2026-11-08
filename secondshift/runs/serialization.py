@@ -1,6 +1,7 @@
 from secondshift.jobs.limits import RunLimit
 from secondshift.jobs.planning import plan_backend
 from secondshift.runner.agent_image.outcomes import cache_reads, usage_budget
+from secondshift.runs.dao import run_events
 from secondshift.runs.deliveries import retryable
 from secondshift.runs.execution.budgets import BUDGET_HEADLINE
 from secondshift.runs.execution.deadlines import TIMEOUT_HEADLINE
@@ -209,7 +210,7 @@ def serialize_run_detail(run: Run) -> RunDetailSchema:
                 message=event.message,
                 created_at=event.created_at,
             )
-            for event in run.events.order_by("created_at", "pk")
+            for event in run_events(run)
         ],
         files=run_files(run),
         deliveries=[serialize_delivery(item) for item in run.deliveries.all()],

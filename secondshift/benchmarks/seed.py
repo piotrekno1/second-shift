@@ -14,8 +14,8 @@ from secondshift.gateway.models import ModelUsage
 from secondshift.jobs.models import Job
 from secondshift.repositories.models import Repository
 from secondshift.runs.models import Run
+from secondshift.workspaces.dao import create_workspace, workspace_owner
 from secondshift.workspaces.models import Workspace
-from secondshift.workspaces.services import create_workspace, workspace_owner
 
 # Seeded sizes. Large enough that a missing index or an N+1 query shows up.
 JOBS = 20

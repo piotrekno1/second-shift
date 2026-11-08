@@ -9,6 +9,9 @@ from secondshift.connections.models import Connection
 from secondshift.jobs.models import Job
 from secondshift.repositories.models import Repository
 
+# The summary of a run whose durable workflow could not be enqueued.
+RUN_ENQUEUE_FAILED = "The durable workflow could not be enqueued."
+
 
 class Task(models.Model):
     """One assignment; runs retain the inputs and policy of each attempt.
@@ -87,6 +90,8 @@ class Run(models.Model):
 
     # A run in one of these has not finished yet.
     ACTIVE_STATUSES = (Status.QUEUED, Status.RUNNING)
+    # A run in one of these is done and will not change status again.
+    FINISHED_STATUSES = (Status.SUCCEEDED, Status.FAILED, Status.CANCELED)
 
     job = models.ForeignKey(
         Job, on_delete=models.PROTECT, related_name="runs", null=True, blank=True

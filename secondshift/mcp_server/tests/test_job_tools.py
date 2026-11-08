@@ -14,8 +14,8 @@ from secondshift.repositories.models import Repository
 from secondshift.repositories.sync import SyncError
 from secondshift.runs.artifacts import store_run_text
 from secondshift.runs.models import Run, Task
+from secondshift.workspaces.dao import create_workspace
 from secondshift.workspaces.models import Workspace, WorkspaceMembership
-from secondshift.workspaces.services import create_workspace
 from secondshift.workspaces.tokens import create_api_token
 
 LOCAL_PATH = "/tmp/secret-project"

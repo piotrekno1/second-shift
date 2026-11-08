@@ -21,7 +21,7 @@ from secondshift.runs.services import (
     start_manual_run,
     start_run,
 )
-from secondshift.workspaces.services import create_workspace
+from secondshift.workspaces.dao import create_workspace
 
 
 @pytest.fixture

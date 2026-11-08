@@ -14,6 +14,7 @@ from jsonschema import Draft202012Validator
 from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
 
+from secondshift.connections.dao import binding_taken
 from secondshift.connections.mcp.base import (
     SOURCE_AUTH,
     CustomMCPToolError,
@@ -272,7 +273,7 @@ def create_mcp_connection(
     if auth == SOURCE_AUTH and token:
         raise MCPError("This connection uses your GitHub connections, not a token.")
     cleaned = provider.clean_settings(settings or {})
-    if Connection.objects.filter(workspace=workspace, binding_key=binding_key).exists():
+    if binding_taken(workspace.pk, binding_key):
         raise ConnectionConflict("This binding already has a connection.")
     connection = Connection(
         workspace=workspace,

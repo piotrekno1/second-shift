@@ -3,11 +3,10 @@
 import hashlib
 import secrets
 
-from django.db.models import QuerySet
 from django.http import HttpRequest
-from django.utils import timezone
 
 from secondshift.connections.models import Connection
+from secondshift.gateway.dao import active_tokens, create_run_token
 from secondshift.gateway.models import RunToken
 from secondshift.jobs.limits import RunLimit, plan_limit
 from secondshift.runs.execution.deadlines import run_deadline
@@ -32,34 +31,15 @@ def issue_run_token(run: Run, connection: Connection) -> str:
     ):
         raise GatewayUnavailable("The model provider belongs to another workspace.")
     token = TOKEN_PREFIX + secrets.token_urlsafe(32)
-    RunToken.objects.create(
-        run=run,
-        connection=connection,
-        token_hash=token_digest(token),
+    create_run_token(
+        run,
+        connection,
+        token_digest(token),
         # Model access ends with the run's time limit.
         expires_at=run_deadline(run),
         budget_tokens=plan_limit(run.execution_plan, RunLimit.TOKEN_BUDGET),
     )
     return token
-
-
-def revoke_run_tokens(run_id: int) -> int:
-    return RunToken.objects.filter(run_id=run_id, revoked_at__isnull=True).update(
-        revoked_at=timezone.now()
-    )
-
-
-def active_tokens(token: str) -> QuerySet[RunToken]:
-    return RunToken.objects.select_related(
-        "connection", "run__job", "run__task__repository"
-    ).filter(
-        token_hash=token_digest(token),
-        revoked_at__isnull=True,
-        expires_at__gt=timezone.now(),
-        run__status__in=Run.ACTIVE_STATUSES,
-        connection__status=Connection.Status.CONNECTED,
-        connection__kind=Connection.Kind.MODEL,
-    )
 
 
 def same_workspace(run_token: RunToken | None) -> RunToken | None:
@@ -73,13 +53,13 @@ def same_workspace(run_token: RunToken | None) -> RunToken | None:
 def authenticate(token: str) -> RunToken | None:
     if not token.startswith(TOKEN_PREFIX):
         return None
-    return same_workspace(active_tokens(token).first())
+    return same_workspace(active_tokens(token_digest(token)).first())
 
 
 async def aauthenticate(token: str) -> RunToken | None:
     if not token.startswith(TOKEN_PREFIX):
         return None
-    return same_workspace(await active_tokens(token).afirst())
+    return same_workspace(await active_tokens(token_digest(token)).afirst())
 
 
 def request_token(request: HttpRequest) -> str:

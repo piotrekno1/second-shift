@@ -17,8 +17,8 @@ from secondshift.workspaces.access import (
     Role,
     role_allows,
 )
+from secondshift.workspaces.dao import create_workspace
 from secondshift.workspaces.models import Workspace, WorkspaceMembership
-from secondshift.workspaces.services import create_workspace
 
 
 def user(name: str) -> AbstractUser:

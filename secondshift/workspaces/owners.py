@@ -1,10 +1,17 @@
 """The first account on a single-host install and the workspace it owns."""
 
-from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 
+from secondshift.workspaces.dao import (
+    create_workspace,
+    ensure_membership,
+    find_workspace_by_slug,
+    get_or_create_user,
+    get_workspace_by_slug,
+    workspace_owner,
+    workspace_slug_has_owner,
+)
 from secondshift.workspaces.models import Workspace, WorkspaceMembership
-from secondshift.workspaces.services import create_workspace, workspace_owner
 
 WORKSPACE_SLUG = "secondshift"
 WORKSPACE_NAME = "SecondShift"
@@ -13,13 +20,11 @@ LOCAL_OWNER_USERNAME = "owner"
 
 
 def has_owner() -> bool:
-    return WorkspaceMembership.objects.filter(
-        workspace__slug=WORKSPACE_SLUG, role=WorkspaceMembership.Role.OWNER
-    ).exists()
+    return workspace_slug_has_owner(WORKSPACE_SLUG)
 
 
 def get_owner() -> AbstractUser:
-    return workspace_owner(Workspace.objects.get(slug=WORKSPACE_SLUG))  # type: ignore[return-value]
+    return workspace_owner(get_workspace_by_slug(WORKSPACE_SLUG))  # type: ignore[return-value]
 
 
 def ensure_owner(email: str = "", password: str | None = None) -> Workspace:
@@ -28,9 +33,9 @@ def ensure_owner(email: str = "", password: str | None = None) -> Workspace:
     Without a password the owner can only sign in with a link from
     `secondshift up` or `secondshift login`.
     """
-    user, created = get_user_model().objects.get_or_create(
-        username=email or LOCAL_OWNER_USERNAME,
-        defaults={"email": email, "is_staff": True, "is_superuser": True},
+    user, created = get_or_create_user(
+        email or LOCAL_OWNER_USERNAME,
+        {"email": email, "is_staff": True, "is_superuser": True},
     )
     if created:
         if password:
@@ -38,14 +43,10 @@ def ensure_owner(email: str = "", password: str | None = None) -> Workspace:
         else:
             user.set_unusable_password()
         user.save()
-    workspace = Workspace.objects.filter(slug=WORKSPACE_SLUG).first()
+    workspace = find_workspace_by_slug(WORKSPACE_SLUG)
     if workspace is None:
         return create_workspace(WORKSPACE_NAME, WORKSPACE_SLUG, user)
-    WorkspaceMembership.objects.get_or_create(
-        workspace=workspace,
-        user=user,
-        defaults={"role": WorkspaceMembership.Role.OWNER},
-    )
+    ensure_membership(workspace, user, WorkspaceMembership.Role.OWNER)
     return workspace
 
 

@@ -2,13 +2,10 @@ from datetime import timedelta
 
 from dbos import DBOSClient
 from django.conf import settings
-from django.db import transaction
 from django.utils import timezone
 
-from secondshift.runs.models import Run, Task
+from secondshift.runs.dao import delete_runs, finished_runs_before
 from secondshift.runs.orchestration.dbos_runtime import new_dbos_client
-
-FINISHED_STATUSES = (Run.Status.SUCCEEDED, Run.Status.FAILED, Run.Status.CANCELED)
 
 
 def prune_runs(days: int | None = None, client: DBOSClient | None = None) -> int:
@@ -19,11 +16,7 @@ def prune_runs(days: int | None = None, client: DBOSClient | None = None) -> int
     if days <= 0:
         return 0
     cutoff = timezone.now() - timedelta(days=days)
-    runs = list(
-        Run.objects.filter(
-            status__in=FINISHED_STATUSES, finished_at__lt=cutoff
-        ).select_related("job")
-    )
+    runs = finished_runs_before(cutoff)
     if not runs:
         return 0
 
@@ -37,10 +30,6 @@ def prune_runs(days: int | None = None, client: DBOSClient | None = None) -> int
             if owns_client:
                 client.destroy()
 
-    with transaction.atomic():
-        task_ids = {run.task_id for run in runs if run.task_id is not None}
-        Run.objects.filter(pk__in=[run.pk for run in runs]).delete()
-        # A task follows its attempts' retention. Keep it if another attempt
-        # still exists, and never sweep unrelated assignments here.
-        Task.objects.filter(pk__in=task_ids, runs__isnull=True).delete()
+    # A task follows its attempts' retention. It goes once no attempt is left.
+    delete_runs(runs)
     return len(runs)

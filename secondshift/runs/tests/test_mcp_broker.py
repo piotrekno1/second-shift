@@ -38,7 +38,7 @@ from secondshift.runs.reporting.notifications import (
     run_report_payload,
 )
 from secondshift.runs.tests.test_execution import tool_context
-from secondshift.workspaces.services import create_workspace, workspace_owner
+from secondshift.workspaces.dao import create_workspace, workspace_owner
 
 LATER = datetime(2100, 1, 1, tzinfo=UTC)
 

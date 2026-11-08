@@ -6,8 +6,8 @@ from django.contrib.auth.models import AbstractUser
 from django.http import HttpResponse
 from django.test import Client
 
+from secondshift.workspaces.dao import create_workspace
 from secondshift.workspaces.models import Workspace, WorkspaceInvite
-from secondshift.workspaces.services import create_workspace
 
 
 def user(name: str) -> AbstractUser:

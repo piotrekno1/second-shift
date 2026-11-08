@@ -13,8 +13,17 @@ from secondshift.github.errors import GitHubError
 from secondshift.github.issues import open_issue, open_issue_titled
 from secondshift.repositories.github_access import github_access
 from secondshift.repositories.models import Repository
+from secondshift.runs.dao import (
+    add_event,
+    create_delivery,
+    get_run,
+    has_proposed_issues,
+    opened_issues,
+    run_delivery,
+    unopened_issues,
+)
 from secondshift.runs.execution.issues import issue_labels, issue_limit
-from secondshift.runs.models import Run, RunDelivery, RunEvent, RunIssue
+from secondshift.runs.models import Run, RunDelivery, RunIssue
 from secondshift.runs.reporting.collection import plural
 
 logger = logging.getLogger(__name__)
@@ -28,15 +37,13 @@ APP_WRITE_HINT = (
 def record_pending_issues(run: Run) -> None:
     """Shown as pending from the start, and kept if opening fails."""
     if issue_limit(run.execution_plan):
-        RunDelivery.objects.create(
-            run=run,
-            kind=RunDelivery.Kind.ISSUES,
-            target=f"Issues in {run.repository.full_name}",
+        create_delivery(
+            run, RunDelivery.Kind.ISSUES, f"Issues in {run.repository.full_name}"
         )
 
 
 def issues_delivery(run: Run) -> RunDelivery | None:
-    return run.deliveries.filter(kind=RunDelivery.Kind.ISSUES).first()
+    return run_delivery(run, RunDelivery.Kind.ISSUES)
 
 
 def skip_reason(run: Run, repository: Repository) -> str:
@@ -47,7 +54,7 @@ def skip_reason(run: Run, repository: Repository) -> str:
         return "An owner has not allowed issues for this repository."
     if run.status != Run.Status.SUCCEEDED:
         return "The run did not succeed."
-    if not run.issues.exists():
+    if not has_proposed_issues(run):
         return "The agent proposed no issues."
     return ""
 
@@ -58,9 +65,11 @@ def issue_body(run: Run, issue: RunIssue) -> str:
 
 
 def open_run_issues(run_id: int) -> None:
-    run = Run.objects.select_related(
-        "job__repository__github_connection", "task__repository__github_connection"
-    ).get(pk=run_id)
+    run = get_run(
+        run_id,
+        "job__repository__github_connection",
+        "task__repository__github_connection",
+    )
     delivery = issues_delivery(run)
     if delivery is None or delivery.status == RunDelivery.Status.DELIVERED:
         return
@@ -86,7 +95,7 @@ def open_run_issues(run_id: int) -> None:
         return
     try:
         # Issues opened by an earlier attempt keep their number.
-        for issue in run.issues.filter(number__isnull=True):
+        for issue in unopened_issues(run):
             found = open_issue_titled(access.token, access.full_name, issue.title)
             if found is None:
                 found = open_issue(
@@ -117,7 +126,7 @@ def open_run_issues(run_id: int) -> None:
 
 def done(run: Run) -> str:
     """What has happened so far, as a sentence or two followed by a space."""
-    issues = list(run.issues.exclude(number__isnull=True))
+    issues = opened_issues(run)
     opened = sum(1 for issue in issues if not issue.already_open)
     already = len(issues) - opened
     parts = []
@@ -133,9 +142,9 @@ def finish(delivery: RunDelivery, status: str, message: str) -> None:
     delivery.status = status
     delivery.message = message
     delivery.save(update_fields=["status", "message", "attempts", "updated_at"])
-    RunEvent.objects.create(
-        run_id=delivery.run_id,
+    add_event(
+        delivery.run_id,
+        f"Issues: {message}",
         level="warning" if status == RunDelivery.Status.FAILED else "info",
-        message=f"Issues: {message}",
         metadata={"delivery_id": delivery.pk},
     )

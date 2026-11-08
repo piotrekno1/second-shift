@@ -6,10 +6,14 @@ from typing import Any
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
-from django.db.models import Exists, OuterRef
 
 from secondshift.config.constants import AgentBackend
 from secondshift.connections.agents import sign_in_refused, usable_agent_connection
+from secondshift.connections.dao import (
+    connected_logins,
+    has_models_or_logins,
+    usable_models,
+)
 from secondshift.connections.models import AgentConnection, Connection
 from secondshift.jobs.models import Job
 from secondshift.runs.reporting.connection_usage import agent_login_runs
@@ -125,12 +129,8 @@ def job_execution(job: Job) -> ExecutionSelection:
 
 def execution_choices(workspace: Workspace, user: User) -> list[ExecutionSelection]:
     """The workspace's model keys, then the user's own logins."""
-    models = Connection.objects.filter(
-        workspace=workspace, kind=Connection.Kind.MODEL
-    ).exclude(status=Connection.Status.REVOKED)
-    logins = AgentConnection.objects.filter(
-        workspace=workspace, owner=user, connected=True
-    )
+    models = usable_models(workspace)
+    logins = connected_logins(workspace, user)
     return [
         *(model_selection(model) for model in models),
         *(subscription_selection(login, workspace) for login in logins),
@@ -171,15 +171,7 @@ def execution_configuration(workspace: Workspace, user: User) -> dict[str, Any]:
 
 def has_anything_to_choose(workspace: Workspace) -> bool:
     """Whether a model provider or a login is saved. One query for both."""
-    return Workspace.objects.filter(
-        Exists(
-            Connection.objects.filter(
-                workspace=OuterRef("pk"), kind=Connection.Kind.MODEL
-            )
-        )
-        | Exists(AgentConnection.objects.filter(workspace=OuterRef("pk"))),
-        pk=workspace.pk,
-    ).exists()
+    return has_models_or_logins(workspace.pk)
 
 
 def execution_status(workspace: Workspace) -> dict[str, Any]:

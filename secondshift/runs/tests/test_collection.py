@@ -15,7 +15,7 @@ from secondshift.runs.models import Run, RunEvent
 from secondshift.runs.orchestration import workflows
 from secondshift.runs.reporting.collection import collection_summary
 from secondshift.runs.tests.test_workflows import execution_run
-from secondshift.workspaces.services import workspace_owner
+from secondshift.workspaces.dao import workspace_owner
 
 
 @pytest.fixture

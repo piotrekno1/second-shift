@@ -32,8 +32,8 @@ from secondshift.jobs.models import Job
 from secondshift.repositories.models import Repository
 from secondshift.runs.models import Run
 from secondshift.runs.orchestration.reconciliation import mark_run_terminal
+from secondshift.workspaces.dao import create_workspace, workspace_owner
 from secondshift.workspaces.models import Workspace
-from secondshift.workspaces.services import create_workspace, workspace_owner
 
 PROVIDER_KEY = "sk-ant-provider-secret"
 pytestmark = pytest.mark.urls("secondshift.gateway.urls")

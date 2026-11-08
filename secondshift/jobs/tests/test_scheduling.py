@@ -3,7 +3,7 @@ from django.contrib.auth import get_user_model
 from secondshift.jobs.models import Job
 from secondshift.jobs.scheduling import schedule_name, synchronize_schedules
 from secondshift.repositories.models import Repository
-from secondshift.workspaces.services import create_workspace
+from secondshift.workspaces.dao import create_workspace
 
 
 class FakeDBOSClient:

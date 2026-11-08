@@ -1,8 +1,8 @@
 import pytest
 from django.contrib.auth import get_user_model
 
+from secondshift.workspaces.dao import create_workspace
 from secondshift.workspaces.models import Workspace
-from secondshift.workspaces.services import create_workspace
 
 
 @pytest.fixture

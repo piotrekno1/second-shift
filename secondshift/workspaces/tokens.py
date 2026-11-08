@@ -12,8 +12,6 @@ from dataclasses import dataclass
 from datetime import timedelta
 
 from django.conf import settings
-from django.contrib.auth.models import AbstractBaseUser
-from django.db.models import F, Q, QuerySet
 from django.http import HttpRequest
 from django.utils import timezone
 from ninja.security import HttpBearer
@@ -23,6 +21,11 @@ from secondshift.workspaces.access import (
     MEMBERSHIP_ATTRIBUTE,
     TOKEN_ACTIONS,
     role_allows,
+)
+from secondshift.workspaces.dao import (
+    api_token_by_hash,
+    create_token_record,
+    touch_token,
 )
 from secondshift.workspaces.models import ApiToken, WorkspaceMembership
 
@@ -47,12 +50,6 @@ def token_hash(secret: str) -> str:
     return hashlib.sha256(secret.encode()).hexdigest()
 
 
-def usable_tokens() -> QuerySet[ApiToken]:
-    return ApiToken.objects.filter(
-        revoked_at__isnull=True, expires_at__gt=timezone.now()
-    )
-
-
 def scope_allowed(role: str, scope: str) -> bool:
     """Whether a role may create a token with this scope."""
     return all(
@@ -70,27 +67,14 @@ def create_api_token(
     if not scope_allowed(membership.role, scope):
         raise TokenError("Only workspace owners and admins can create run tokens.")
     secret = TOKEN_PREFIX + secrets.token_urlsafe(32)
-    token = ApiToken.objects.create(
-        workspace_id=membership.workspace_id,
-        created_by_id=membership.user_id,
-        name=name,
-        scope=ApiToken.Scope(scope),
-        token_hash=token_hash(secret),
-        expires_at=timezone.now() + timedelta(days=days),
+    token = create_token_record(
+        membership,
+        name,
+        ApiToken.Scope(scope),
+        token_hash(secret),
+        timezone.now() + timedelta(days=days),
     )
     return NewApiToken(token, secret)
-
-
-def own_tokens(user: AbstractBaseUser) -> QuerySet[ApiToken]:
-    """The person's usable tokens, in workspaces they still belong to."""
-    return (
-        usable_tokens()
-        .filter(
-            created_by_id=user.pk,
-            created_by__workspace_memberships__workspace_id=F("workspace_id"),
-        )
-        .select_related("workspace")
-    )
 
 
 def revoke_api_token(token: ApiToken) -> None:
@@ -100,22 +84,12 @@ def revoke_api_token(token: ApiToken) -> None:
 
 def find_api_token(secret: str) -> ApiToken | None:
     """The token for a secret while it works: usable, creator still a member."""
-    return (
-        usable_tokens()
-        .filter(
-            token_hash=token_hash(secret),
-            created_by__is_active=True,
-            created_by__workspace_memberships__workspace_id=F("workspace_id"),
-        )
-        .select_related("created_by", "workspace")
-        .first()
-    )
+    return api_token_by_hash(token_hash(secret))
 
 
 def record_use(token: ApiToken) -> None:
     now = timezone.now()
-    stale = Q(last_used_at__isnull=True) | Q(last_used_at__lt=now - LAST_USE_PRECISION)
-    ApiToken.objects.filter(stale, pk=token.pk).update(last_used_at=now)
+    touch_token(token, now, now - LAST_USE_PRECISION)
 
 
 class ApiTokenAuth(HttpBearer):

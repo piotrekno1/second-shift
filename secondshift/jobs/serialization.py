@@ -1,11 +1,9 @@
-from django.db.models import OuterRef, QuerySet, Subquery
-from django.db.models.functions import Coalesce
-
 from secondshift.config.constants import GITHUB_BASE_URL
+from secondshift.connections.dao import connections_by_binding
 from secondshift.connections.external import changing_tools, external_access
 from secondshift.connections.models import Connection
-from secondshift.gateway.usage import with_model_usage
 from secondshift.jobs.api_limits import serialize_limits
+from secondshift.jobs.dao import active_jobs, job_with_last_run, with_last_run
 from secondshift.jobs.execution import (
     ExecutionSelection,
     job_execution,
@@ -23,40 +21,19 @@ from secondshift.jobs.schemas import (
     ToolInputSchema,
 )
 from secondshift.repositories.models import Repository
-from secondshift.runs.models import Run
+from secondshift.runs.dao import newest_job_runs, with_model_usage
 from secondshift.runs.serialization import serialize_run
 from secondshift.workspaces.models import Workspace
 
 
-def with_last_run(jobs: QuerySet[Job]) -> QuerySet[Job]:
-    """Annotate each job with its newest run, so a list needs no query per job."""
-    newest = Run.objects.filter(job=OuterRef("pk")).order_by("-created_at", "-pk")
-    return jobs.annotate(
-        last_run_id=Subquery(newest.values("pk")[:1]),
-        last_run_status=Subquery(newest.values("status")[:1]),
-        last_run_at=Subquery(
-            newest.annotate(at=Coalesce("finished_at", "created_at")).values("at")[:1]
-        ),
-    )
-
-
 def last_run(job: Job) -> LastRunSchema | None:
     if not hasattr(job, "last_run_id"):
-        job = with_last_run(Job.objects.filter(pk=job.pk)).get()
+        job = job_with_last_run(job.pk)
     if job.last_run_id is None:
         return None
     return LastRunSchema(
         id=job.last_run_id, status=job.last_run_status, at=job.last_run_at
     )
-
-
-def binding_connections(workspace_id: int) -> dict[str, Connection]:
-    return {
-        connection.binding_key: connection
-        for connection in Connection.objects.filter(workspace_id=workspace_id).exclude(
-            binding_key=""
-        )
-    }
 
 
 def tool_inputs(connection: Connection, tools: list[str]) -> dict[str, ToolInputSchema]:
@@ -79,7 +56,7 @@ def serialize_job(
     """`connections` and `execution` are shared by every job in a list."""
     requests = list(job.capability_requests.all())
     if connections is None and requests:
-        connections = binding_connections(job.workspace_id)
+        connections = connections_by_binding(job.workspace_id)
     capabilities: list[CapabilitySchema] = []
     for capability in requests:
         grant = getattr(capability, "grant", None)
@@ -160,9 +137,7 @@ def serialize_job_detail(job: Job, can_edit_limits: bool) -> JobDetailSchema:
     summary = serialize_job(job)
     is_github = job.repository.source_type == Repository.SourceType.GITHUB
     # Aggregation drops Meta.ordering, so order explicitly: newest first.
-    recent_runs = with_model_usage(
-        job.runs.select_related("job__repository").order_by("-created_at", "-pk")
-    )[:20]
+    recent_runs = with_model_usage(newest_job_runs(job))[:20]
     return JobDetailSchema(
         **summary.model_dump(),
         key=job.key,
@@ -188,13 +163,8 @@ def serialize_job_detail(job: Job, can_edit_limits: bool) -> JobDetailSchema:
 
 def serialize_workspace_jobs(workspace: Workspace) -> list[JobSchema]:
     """Every job in the workspace whose repository was not removed."""
-    queryset = with_last_run(
-        Job.objects.filter(
-            workspace=workspace,
-            repository__removed_at__isnull=True,
-        ).select_related("repository")
-    )
-    connections = binding_connections(workspace.pk)
+    queryset = with_last_run(active_jobs(workspace.pk))
+    connections = connections_by_binding(workspace.pk)
     # Every job runs on the workspace default, so resolve it once.
     execution = workspace_execution(workspace)
     return [

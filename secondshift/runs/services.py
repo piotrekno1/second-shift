@@ -9,13 +9,22 @@ from django.db import transaction
 from django.utils import timezone
 
 from secondshift.config.constants import RunStart, TaskOrigin
+from secondshift.jobs.dao import lock_job
 from secondshift.jobs.models import JOB_REMOVED, Job
 from secondshift.jobs.planning import build_execution_plan
 from secondshift.jobs.readiness import plan_problems
 from secondshift.runs.artifacts import job_input_snapshot, store_run_payload
+from secondshift.runs.dao import (
+    add_event,
+    create_run_record,
+    create_task,
+    job_run_for_slot,
+    latest_active_run,
+    update_task_snapshot,
+)
 from secondshift.runs.history import previous_run_ids
 from secondshift.runs.issue_delivery import record_pending_issues
-from secondshift.runs.models import Run, RunEvent, Task
+from secondshift.runs.models import Run
 from secondshift.runs.orchestration.dispatch import enqueue_run
 from secondshift.runs.publishing import record_pending_pull_request
 
@@ -54,7 +63,7 @@ def create_run(
             build_execution_plan(job) if execution_plan is None else execution_plan
         ),
     }
-    task = Task.objects.create(
+    task = create_task(
         job=job,
         origin=origin if origin is not None else TaskOrigin(started_by),
         submitted_by=submitted_by,
@@ -62,9 +71,7 @@ def create_run(
         input_snapshot=deepcopy(defaults["input_snapshot"]),
         scheduled_for=scheduled_for,
     )
-    run = Run.objects.create(
-        job=job, task=task, scheduled_for=scheduled_for, **defaults
-    )
+    run = create_run_record(job=job, task=task, scheduled_for=scheduled_for, **defaults)
     record_pending_pull_request(run)
     record_pending_issues(run)
     return run
@@ -101,8 +108,8 @@ def start_run(
         raise RunRefused("Enable the repository before running its jobs.")
     with transaction.atomic():
         # Two starts at the same moment wait here, so only one creates a run.
-        Job.objects.select_for_update().filter(pk=job.pk).first()
-        active = job.runs.filter(status__in=Run.ACTIVE_STATUSES).order_by("-pk").first()
+        lock_job(job)
+        active = latest_active_run(job)
         if active is not None:
             raise RunInProgress(active)
         execution_plan = build_execution_plan(job)
@@ -122,9 +129,7 @@ def start_run(
             run.input_snapshot["repeat_key"] = repeat_key
         if payload is not None or repeat_key is not None:
             run.save(update_fields=["input_snapshot"])
-            Task.objects.filter(pk=run.task_id).update(
-                input_snapshot=deepcopy(run.input_snapshot)
-            )
+            update_task_snapshot(run.task_id, deepcopy(run.input_snapshot))
     enqueue_run(run)
     return run
 
@@ -136,18 +141,16 @@ def create_scheduled_run(job: Job, scheduled_for: datetime) -> Run | None:
     noted on the active run.
     """
     with transaction.atomic():
-        Job.objects.select_for_update().filter(pk=job.pk).first()
-        existing = job.runs.filter(scheduled_for=scheduled_for).first()
+        lock_job(job)
+        existing = job_run_for_slot(job, scheduled_for)
         if existing is not None:
             return existing
-        active = job.runs.filter(status__in=Run.ACTIVE_STATUSES).order_by("-pk").first()
+        active = latest_active_run(job)
         if active is not None:
-            RunEvent.objects.create(
-                run=active,
-                message=(
-                    f"Skipped the scheduled run at {scheduled_for:%Y-%m-%d %H:%M %Z} "
-                    "because this run had not finished."
-                ),
+            add_event(
+                active.pk,
+                f"Skipped the scheduled run at {scheduled_for:%Y-%m-%d %H:%M %Z} "
+                "because this run had not finished.",
             )
             return None
         return create_run(job, scheduled_for)

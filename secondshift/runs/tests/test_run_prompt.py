@@ -9,7 +9,7 @@ from secondshift.repositories.models import Repository
 from secondshift.runner.protocol import CommandResult
 from secondshift.runs.execution.run import render_run_input, run_prompt
 from secondshift.runs.models import Run
-from secondshift.workspaces.services import create_workspace
+from secondshift.workspaces.dao import create_workspace
 
 
 def capability(

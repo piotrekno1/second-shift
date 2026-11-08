@@ -22,8 +22,8 @@ from secondshift.repositories.pull_requests import (
     publish_pull_request,
 )
 from secondshift.repositories.tests.github_fakes import fake_github
+from secondshift.workspaces.dao import create_workspace
 from secondshift.workspaces.models import Workspace
-from secondshift.workspaces.services import create_workspace
 
 DRAFT = DraftPullRequest(
     branch="secondshift/run-7",

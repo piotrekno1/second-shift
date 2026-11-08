@@ -21,8 +21,8 @@ from secondshift.config.constants import (
 )
 from secondshift.runner.agent_credentials import decrypt_agent_auth
 from secondshift.runner.agent_protocol import AgentCheckInput, AgentInput, AgentOutput
+from secondshift.runner.dao import is_session_active
 from secondshift.runner.images import resolve_image_id
-from secondshift.runner.models import RunnerSession
 from secondshift.runner.protocol import CommandRequest, RunnerProtocolError
 from secondshift.runner.services import DockerRunnerService
 
@@ -159,9 +159,7 @@ def execute_agent(session_id: str, request: AgentInput) -> AgentOutput:
 
 def execute_locked_agent(session_id: str, request: AgentInput) -> AgentOutput:
     image = require_agent_configuration()
-    if not RunnerSession.objects.filter(
-        session_id=session_id, status=RunnerSession.Status.ACTIVE
-    ).exists():
+    if not is_session_active(session_id):
         raise RunnerProtocolError("Unknown or inactive runner session.")
     # Reserve once, before starting the process: an ambiguous outcome is not retried.
     reservation = CommandRequest(

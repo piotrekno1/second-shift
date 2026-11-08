@@ -1,7 +1,10 @@
 from django.db import IntegrityError, transaction
 
+from secondshift.connections.dao import binding_taken
 from secondshift.connections.models import Connection
 from secondshift.connections.webhooks import validate_webhook_url, webhook_target_label
+from secondshift.jobs.dao import release_connection_grants
+from secondshift.repositories.dao import has_repositories
 from secondshift.workspaces.models import Workspace
 
 
@@ -24,7 +27,7 @@ def create_webhook_connection(
     url: str,
 ) -> Connection:
     url = validate_webhook_url(url)
-    if Connection.objects.filter(workspace=workspace, binding_key=binding_key).exists():
+    if binding_taken(workspace.pk, binding_key):
         raise ConnectionConflict(
             f"A connection for {binding_key} already exists in this workspace."
         )
@@ -99,17 +102,11 @@ def revoke_connection(connection: Connection) -> Connection:
 def delete_connection(connection: Connection) -> None:
     if connection.kind == Connection.Kind.IDENTITY:
         raise ConnectionConflict("Sign-in connections are managed by their provider.")
-    if connection.kind == Connection.Kind.SOURCE and connection.repositories.exists():
+    if connection.kind == Connection.Kind.SOURCE and has_repositories(connection):
         raise ConnectionConflict(
             "This installation has repository history. Disconnect it instead."
         )
     # Grants are review records: they return to pending instead of disappearing,
     # so the jobs show up again under "Needed by your jobs".
-    connection.job_grants.update(
-        connection=None,
-        status="pending",
-        allowed_tools=[],
-        reviewed_by=None,
-        reviewed_at=None,
-    )
+    release_connection_grants(connection)
     connection.delete()

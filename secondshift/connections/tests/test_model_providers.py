@@ -10,8 +10,8 @@ from django.test import Client
 
 from secondshift.connections import model_providers
 from secondshift.connections.models import Connection
+from secondshift.workspaces.dao import create_workspace
 from secondshift.workspaces.models import Workspace
-from secondshift.workspaces.services import create_workspace
 
 KEY = "sk-provider-secret-key"
 

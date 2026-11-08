@@ -44,6 +44,13 @@ docker build .
   and approval policy, `runs` owns execution and history, `connections` owns
   credentials and provider adapters, and `runner` owns sandbox sessions.
   See `docs/backend-architecture.md` for boundaries and migration history.
+- Each app keeps every query on its models in `dao.py`, named for what it
+  does. Other modules, in the same app or another, call those helpers. They
+  never use a model manager or query through a reverse relation. Reading a
+  relation with `.all()` is fine. A dao function takes plain arguments and
+  runs the query. Decisions like retention windows and limits stay in the
+  service. Instance methods like `save()` and `delete()` stay where they are.
+  `core/tests/test_dao_boundary.py` checks this and lists the exceptions.
 - No leading underscores in names. Use them only to override a library's own
   private attribute.
 - No magic strings for names used in more than one place. Shared names

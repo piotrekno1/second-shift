@@ -8,7 +8,7 @@ from ninja.security import django_auth
 
 from secondshift.config.constants import TriggerKind
 from secondshift.jobs.access import job_for_request
-from secondshift.triggers.models import JobTrigger
+from secondshift.triggers.dao import trigger_for_url
 from secondshift.triggers.schemas import (
     TriggerChangeSchema,
     TriggerEnabledSchema,
@@ -89,11 +89,7 @@ def receive_trigger(
     request: HttpRequest, response: HttpResponse, public_id: str
 ) -> Status[TriggerReceivedSchema]:
     """The public URL a webhook calls. Its secret is the only sign-in."""
-    trigger = (
-        JobTrigger.objects.select_related("job__repository")
-        .filter(public_id=public_id)
-        .first()
-    )
+    trigger = trigger_for_url(public_id)
     if trigger is None:
         raise HttpError(404, "Not found.")
     length = int(request.headers.get("Content-Length") or 0)

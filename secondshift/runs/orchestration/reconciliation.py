@@ -4,7 +4,8 @@ from dbos import DBOSClient
 from django.conf import settings
 from django.db import transaction
 
-from secondshift.runs.models import Run, RunEvent
+from secondshift.runs.dao import active_workflows, add_event
+from secondshift.runs.models import Run
 from secondshift.runs.orchestration.dbos_runtime import new_dbos_client
 from secondshift.runs.transitions import finish_run
 
@@ -24,23 +25,17 @@ def mark_run_terminal(
     run = finish_run(run_id, status, summary)
     if run is None:
         return False
-    RunEvent.objects.create(
-        run=run,
+    add_event(
+        run.pk,
+        summary,
         level="error" if status == Run.Status.FAILED else "info",
-        message=summary,
         metadata={**(metadata or {}), "workflow_status": workflow_status},
     )
     return True
 
 
 def reconcile_terminal_workflows(client: DBOSClient | None = None) -> int:
-    pending_runs = list(
-        Run.objects.filter(
-            status__in=Run.ACTIVE_STATUSES,
-        )
-        .exclude(dbos_workflow_id="")
-        .values_list("pk", "dbos_workflow_id")[:500]
-    )
+    pending_runs = active_workflows(500)
     if not pending_runs:
         return 0
 

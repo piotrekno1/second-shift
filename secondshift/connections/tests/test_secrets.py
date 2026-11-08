@@ -3,7 +3,7 @@ from django.contrib.auth import get_user_model
 from django.db import connection
 
 from secondshift.connections.models import Secret
-from secondshift.workspaces.services import create_workspace
+from secondshift.workspaces.dao import create_workspace
 
 
 @pytest.mark.django_db

@@ -4,17 +4,15 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 
-from django.db.models import Count, OuterRef, Q, Subquery, Sum
-from django.db.models.functions import TruncDate
 from django.utils import timezone
 
-from secondshift.gateway.models import ModelUsage
-from secondshift.jobs.models import Job
-from secondshift.runs.models import Run, run_workspace_filter
+from secondshift.gateway.dao import spend_per_job, spend_totals
+from secondshift.jobs.dao import jobs_by_id, jobs_whose_last_run_failed
+from secondshift.runs.dao import finished_runs_per_day, run_counts, runs_by_id
+from secondshift.runs.models import Run
 from secondshift.runs.reporting.failures import describe_failure
 from secondshift.workspaces.models import Workspace
 
-FINISHED = (Run.Status.SUCCEEDED, Run.Status.FAILED, Run.Status.CANCELED)
 WINDOW = timedelta(days=7)
 # Two weeks, so the overview chart shows this week against the one before.
 CHART_DAYS = 14
@@ -73,23 +71,8 @@ def failing_jobs(workspace: Workspace) -> list[FailingJob]:
     looks only at each job's latest outcome, not at failure history. Paused
     jobs still count, marked as paused, since their last run is still broken.
     """
-    latest = Run.objects.filter(job=OuterRef("pk"), status__in=FINISHED).order_by(
-        "-created_at", "-pk"
-    )
-    jobs = (
-        Job.objects.filter(
-            workspace=workspace,
-            repository__removed_at__isnull=True,
-        )
-        .select_related("repository")
-        .annotate(
-            latest_run_id=Subquery(latest.values("pk")[:1]),
-            latest_status=Subquery(latest.values("status")[:1]),
-        )
-        .filter(latest_status=Run.Status.FAILED)
-        .order_by("name")
-    )
-    runs = Run.objects.in_bulk([job.latest_run_id for job in jobs])
+    jobs = jobs_whose_last_run_failed(workspace.pk)
+    runs = runs_by_id(job.latest_run_id for job in jobs)
     failing: list[FailingJob] = []
     for job in jobs:
         run = runs[job.latest_run_id]
@@ -113,28 +96,16 @@ def week_summary(workspace: Workspace, now: datetime | None = None) -> WeekSumma
     """Runs and model spend in the last seven days, with the week before for trend."""
     now = now or timezone.now()
     start, previous_start = now - WINDOW, now - 2 * WINDOW
-    runs = Run.objects.filter(run_workspace_filter(workspace.pk), created_at__gte=start)
-    usage = ModelUsage.objects.filter(
-        run_workspace_filter(workspace.pk, "run__"), created_at__gte=previous_start
-    )
-    totals = usage.aggregate(
-        spend=Sum("cost_usd", filter=Q(created_at__gte=start)),
-        previous=Sum("cost_usd", filter=Q(created_at__lt=start)),
-    )
+    runs = run_counts(workspace.pk, start, previous_start)
+    totals = spend_totals(workspace.pk, start, previous_start)
     return WeekSummary(
-        runs=runs.count(),
-        previous_runs=Run.objects.filter(
-            run_workspace_filter(workspace.pk),
-            created_at__gte=previous_start,
-            created_at__lt=start,
-        ).count(),
-        finished=runs.filter(status__in=FINISHED).count(),
-        succeeded=runs.filter(status=Run.Status.SUCCEEDED).count(),
+        runs=runs["runs"],
+        previous_runs=runs["previous"],
+        finished=runs["finished"],
+        succeeded=runs["succeeded"],
         spend_usd=totals["spend"] or Decimal(0),
         previous_spend_usd=totals["previous"] or Decimal(0),
-        spend_partial=usage.filter(
-            created_at__gte=start, cost_usd__isnull=True
-        ).exists(),
+        spend_partial=totals["unpriced"] > 0,
     )
 
 
@@ -144,18 +115,7 @@ def runs_by_day(
     """Finished runs per local day, oldest first. Days without runs count as zero."""
     today = timezone.localdate(now or timezone.now())
     first = today - timedelta(days=days - 1)
-    rows = (
-        Run.objects.filter(
-            run_workspace_filter(workspace.pk),
-            status__in=FINISHED,
-            created_at__date__gte=first,
-            created_at__date__lte=today,
-        )
-        .annotate(day=TruncDate("created_at"))
-        .values("day", "status")
-        .annotate(count=Count("pk"))
-        .order_by()
-    )
+    rows = finished_runs_per_day(workspace.pk, first, today)
     counts = {(row["day"], row["status"]): row["count"] for row in rows}
     return [
         RunDay(
@@ -173,21 +133,10 @@ def spend_by_job(
 ) -> list[JobSpend]:
     """The jobs that spent the most on models in the last seven days."""
     start = (now or timezone.now()) - WINDOW
-    rows = (
-        ModelUsage.objects.filter(run__job__workspace=workspace, created_at__gte=start)
-        .values("run__job_id")
-        .annotate(
-            spend=Sum("cost_usd"),
-            runs=Count("run_id", distinct=True),
-            unpriced=Count("pk", filter=Q(cost_usd__isnull=True)),
-        )
-        .order_by()
-    )
+    rows = spend_per_job(workspace.pk, start)
     ranked = sorted(rows, key=lambda row: row["spend"] or Decimal(0), reverse=True)
     ranked = ranked[:limit]
-    jobs = Job.objects.select_related("repository").in_bulk(
-        [row["run__job_id"] for row in ranked]
-    )
+    jobs = jobs_by_id(row["run__job_id"] for row in ranked)
     return [
         JobSpend(
             job_id=row["run__job_id"],

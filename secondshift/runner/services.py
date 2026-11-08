@@ -14,6 +14,15 @@ from secondshift.config.constants import (
     SandboxRuntime,
 )
 from secondshift.runner.collection import OUTPUTS_DIR, collect, record_baseline
+from secondshift.runner.dao import (
+    complete_command,
+    create_command,
+    create_session,
+    get_session,
+    lock_session,
+    session_command,
+    set_session_status,
+)
 from secondshift.runner.models import RunnerCommand, RunnerSession
 from secondshift.runner.protocol import (
     CommandRequest,
@@ -88,13 +97,10 @@ class DockerRunnerService(RunnerBackend):
         workspace = session_root / "workspace"
 
         with transaction.atomic():
-            try:
-                session = RunnerSession.objects.select_for_update().get(
-                    session_id=session_id
-                )
-            except RunnerSession.DoesNotExist:
+            session = lock_session(session_id)
+            if session is None:
                 try:
-                    session = RunnerSession.objects.create(
+                    session = create_session(
                         session_id=session_id,
                         run_id=spec.run_id,
                         repository=spec.repository,
@@ -133,13 +139,9 @@ class DockerRunnerService(RunnerBackend):
         except Exception:
             self.remove_container(container_name)
             self.remove_workspace(session_root)
-            RunnerSession.objects.filter(session_id=session_id).update(
-                status=RunnerSession.Status.ERROR
-            )
+            set_session_status(session_id, RunnerSession.Status.ERROR)
             raise
-        RunnerSession.objects.filter(session_id=session_id).update(
-            status=RunnerSession.Status.ACTIVE
-        )
+        set_session_status(session_id, RunnerSession.Status.ACTIVE)
         return session_id
 
     def prepare_sandbox(
@@ -173,7 +175,7 @@ class DockerRunnerService(RunnerBackend):
         cached = self.reserve_command(session_id, request)
         if cached is not None:
             return cached
-        session = RunnerSession.objects.get(session_id=session_id)
+        session = get_session(session_id)
         timeout = min(request.timeout_seconds, settings.RUNNER_COMMAND_TIMEOUT_SECONDS)
         workdir = "/workspace"
         if request.cwd != ".":
@@ -211,13 +213,12 @@ class DockerRunnerService(RunnerBackend):
                 output=self.read_output(output_path),
                 timed_out=timed_out,
             )
-            RunnerCommand.objects.filter(
-                session=session, call_id=request.call_id
-            ).update(
-                status=RunnerCommand.Status.COMPLETED,
-                exit_code=result.exit_code,
-                output=result.output,
-                timed_out=result.timed_out,
+            complete_command(
+                session,
+                request.call_id,
+                result.exit_code,
+                result.output,
+                result.timed_out,
             )
             if timed_out:
                 self.stop(session_id)
@@ -242,7 +243,7 @@ class DockerRunnerService(RunnerBackend):
         reads them. Asking again returns the same archive.
         """
         try:
-            session = RunnerSession.objects.get(session_id=session_id)
+            session = get_session(session_id)
         except RunnerSession.DoesNotExist as error:
             raise RunnerProtocolError("Unknown runner session.") from error
         if session.status != RunnerSession.Status.ACTIVE:
@@ -258,11 +259,8 @@ class DockerRunnerService(RunnerBackend):
 
     def stop(self, session_id: str) -> None:
         with transaction.atomic():
-            try:
-                session = RunnerSession.objects.select_for_update().get(
-                    session_id=session_id
-                )
-            except RunnerSession.DoesNotExist:
+            session = lock_session(session_id)
+            if session is None:
                 return
             session.status = RunnerSession.Status.STOPPED
             session.save(update_fields=("status", "updated_at"))
@@ -276,24 +274,12 @@ class DockerRunnerService(RunnerBackend):
         self, session_id: str, request: CommandRequest
     ) -> CommandResult | None:
         with transaction.atomic():
-            try:
-                session = RunnerSession.objects.select_for_update().get(
-                    session_id=session_id, status=RunnerSession.Status.ACTIVE
-                )
-            except RunnerSession.DoesNotExist as error:
-                raise RunnerProtocolError(
-                    "Unknown or inactive runner session."
-                ) from error
-            try:
-                command = RunnerCommand.objects.get(
-                    session=session, call_id=request.call_id
-                )
-            except RunnerCommand.DoesNotExist:
-                RunnerCommand.objects.create(
-                    session=session,
-                    call_id=request.call_id,
-                    fingerprint=request.fingerprint,
-                )
+            session = lock_session(session_id, active_only=True)
+            if session is None:
+                raise RunnerProtocolError("Unknown or inactive runner session.")
+            command = session_command(session, request.call_id)
+            if command is None:
+                create_command(session, request.call_id, request.fingerprint)
                 return None
             if command.fingerprint != request.fingerprint:
                 raise RunnerProtocolError(

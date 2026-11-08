@@ -28,7 +28,7 @@ from secondshift.runs.execution.workspace_tools import (
     workspace_tools,
 )
 from secondshift.runs.models import Run
-from secondshift.workspaces.services import create_workspace
+from secondshift.workspaces.dao import create_workspace
 
 LATER = datetime(2100, 1, 1, tzinfo=UTC)
 

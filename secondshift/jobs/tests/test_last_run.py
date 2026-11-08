@@ -4,7 +4,7 @@ from django.utils import timezone
 
 from secondshift.runs.models import Run
 from secondshift.runs.tests.test_run_queries import make_job, make_workspace
-from secondshift.workspaces.services import workspace_owner
+from secondshift.workspaces.dao import workspace_owner
 
 
 @pytest.mark.django_db

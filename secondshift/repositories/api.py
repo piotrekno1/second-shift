@@ -9,8 +9,10 @@ from ninja.security import django_auth
 from secondshift.connections.models import Connection
 from secondshift.github.app import configured
 from secondshift.github.errors import GitHubError
+from secondshift.jobs.dao import disable_repository_jobs, enabled_repository_jobs
 from secondshift.jobs.scheduling import restart_schedules
 from secondshift.repositories.access import repository_for_request
+from secondshift.repositories.dao import active_repositories
 from secondshift.repositories.github_sync import (
     GitHubRepositoryExistsError,
     attach_github_repository,
@@ -57,10 +59,7 @@ def repositories(request: HttpRequest) -> list[RepositorySchema]:
     workspace = current_workspace(request)
     if not workspace:
         return []
-    queryset = Repository.objects.filter(
-        workspace=workspace,
-        removed_at__isnull=True,
-    ).prefetch_related("jobs")
+    queryset = active_repositories(workspace.pk).prefetch_related("jobs")
     return [serialize_repository(request, item) for item in queryset]
 
 
@@ -224,7 +223,7 @@ def set_repository_enabled(
     repository.enabled = payload.enabled
     repository.save(update_fields=["enabled", "updated_at"])
     if turned_on:
-        restart_schedules(list(repository.jobs.filter(enabled=True)))
+        restart_schedules(enabled_repository_jobs(repository))
     return serialize_repository_detail(request, repository)
 
 
@@ -299,5 +298,5 @@ def remove_repository(request: HttpRequest, repository_id: int) -> Status[None]:
     repository.enabled = False
     repository.removed_at = timezone.now()
     repository.save(update_fields=["enabled", "removed_at", "updated_at"])
-    repository.jobs.update(enabled=False)
+    disable_repository_jobs(repository)
     return Status(204, None)

@@ -6,12 +6,14 @@ from django.core.management import call_command
 from django.utils import timezone
 
 from secondshift.config.constants import SandboxRuntime
+from secondshift.connections.dao import create_connection
 from secondshift.connections.models import Connection
 from secondshift.github.identity import clone_url
-from secondshift.jobs.models import Job
-from secondshift.repositories.models import Repository
-from secondshift.runs.models import Run, RunEvent
-from secondshift.workspaces.models import Workspace
+from secondshift.jobs.dao import create_job
+from secondshift.repositories.dao import create_repository
+from secondshift.runs.dao import add_event, create_run_record
+from secondshift.runs.models import Run
+from secondshift.workspaces.dao import get_workspace_by_slug
 
 DEMO_SKILLS = {
     "weekly-infra": """# Weekly infrastructure review
@@ -58,11 +60,11 @@ def command(yes: bool) -> None:
 
 def seed_demo_data() -> None:
     """Load safe, credential-free records for exploring the development UI."""
-    workspace = Workspace.objects.get(slug="secondshift")
+    workspace = get_workspace_by_slug("secondshift")
     now = timezone.now()
 
     connections = {
-        provider: Connection.objects.create(
+        provider: create_connection(
             workspace=workspace,
             provider=provider,
             kind=Connection.Kind.IDENTITY,
@@ -85,7 +87,7 @@ def seed_demo_data() -> None:
     }
 
     repositories = {
-        name: Repository.objects.create(
+        name: create_repository(
             workspace=workspace,
             github_connection=connections[Connection.Provider.GITHUB],
             external_id=f"demo-repository-{index}",
@@ -107,7 +109,7 @@ def seed_demo_data() -> None:
     }
 
     jobs = {
-        key: Job.objects.create(
+        key: create_job(
             workspace=workspace,
             repository=repositories[repository],
             key=key,
@@ -189,7 +191,7 @@ def seed_demo_data() -> None:
         run_specs, start=1
     ):
         finished_at = now - timedelta(days=days_ago)
-        run = Run.objects.create(
+        run = create_run_record(
             job=jobs[job_key],
             status=status,
             commit_sha=jobs[job_key].repository.config_sha,
@@ -201,9 +203,9 @@ def seed_demo_data() -> None:
             summary=summary,
             dbos_workflow_id=f"demo-run-{index}",
         )
-        RunEvent.objects.create(
-            run=run,
+        add_event(
+            run.pk,
+            summary,
             level="info" if status == Run.Status.SUCCEEDED else "error",
-            message=summary,
             metadata={"demo": True},
         )

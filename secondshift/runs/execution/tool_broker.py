@@ -8,16 +8,16 @@ from typing import Any
 from dbos import DBOS
 from jsonschema import ValidationError, validate
 
+from secondshift.connections.dao import auto_approved_connection
 from secondshift.connections.errors import ExternalToolError, ToolArgumentError
 from secondshift.connections.external import Authorization, external_kind
 from secondshift.connections.mcp.base import CustomMCPToolError
 from secondshift.connections.models import Connection
-from secondshift.jobs.models import JobGrant
+from secondshift.jobs.dao import approved_tool_grant
 from secondshift.jobs.tool_policy import AuthorizedTool, resolve_tool
 from secondshift.jobs.tool_rules import ToolRuleViolation, apply_rules
-from secondshift.runs.models import Run, RunEvent
-
-FINISHED = {Run.Status.CANCELED, Run.Status.FAILED, Run.Status.SUCCEEDED}
+from secondshift.runs.dao import add_event, get_run
+from secondshift.runs.models import Run
 
 
 @dataclass(frozen=True)
@@ -55,19 +55,11 @@ def broker_connection(run: Run, name: str) -> Authorization:
             run.repository,
             str(tool.provider_tool),
         )
-    grant = (
-        JobGrant.objects.select_related("connection", "capability_request")
-        .filter(
-            capability_request__job=run.job,
-            capability_request__kind=tool.kind,
-            capability_request__binding=tool.binding,
-            connection_id=capability.get("connection_id"),
-            status=JobGrant.Status.APPROVED,
-        )
-        .first()
+    grant = approved_tool_grant(
+        run.job, tool.kind, tool.binding, capability.get("connection_id")
     )
     if (
-        run.status in FINISHED
+        run.status in Run.FINISHED_STATUSES
         or not grant
         or not grant.connection
         or grant.connection.kind != tool.kind
@@ -99,9 +91,7 @@ def schema_problem(error: ValidationError) -> str:
 def call_external_tool_step(
     run_id: int, name: str, arguments: dict[str, Any], call_id: str
 ) -> dict[str, Any] | ExternalToolFailure:
-    run = Run.objects.select_related("job__repository", "task__repository").get(
-        pk=run_id
-    )
+    run = get_run(run_id, "job__repository", "task__repository")
     authorization = broker_connection(run, name)
     tool = resolve_tool(run.execution_plan, name)
     # Owner rules first. The provider's own scope rules run last, inside call,
@@ -110,20 +100,20 @@ def call_external_tool_step(
         arguments = apply_rules(name, frozen_rules(run, tool), arguments)
     except ToolRuleViolation as error:
         # The message names the property and the rule, never the value sent.
-        RunEvent.objects.create(
-            run=run,
+        add_event(
+            run.pk,
+            f"Tool blocked by a restriction: {name}",
             level="warning",
-            message=f"Tool blocked by a restriction: {name}",
             metadata={"tool": name, "ok": False, "reason": str(error)},
         )
         raise
     try:
         validate(arguments, authorization.definition["inputSchema"])
     except ValidationError as error:
-        RunEvent.objects.create(
-            run=run,
+        add_event(
+            run.pk,
+            f"Tool arguments refused: {name}",
             level="warning",
-            message=f"Tool arguments refused: {name}",
             metadata={"tool": name, "ok": False, "reason": schema_problem(error)},
         )
         raise ToolArgumentError(schema_problem(error)) from None
@@ -137,10 +127,10 @@ def call_external_tool_step(
             authorization, str(tool.provider_tool), arguments
         )
     except ExternalToolError as error:
-        RunEvent.objects.create(
-            run=run,
+        add_event(
+            run.pk,
+            f"Tool failed: {name}",
             level="warning",
-            message=f"Tool failed: {name}",
             metadata={**evidence, "ok": False},
         )
         if isinstance(error, CustomMCPToolError):
@@ -148,9 +138,9 @@ def call_external_tool_step(
             return ExternalToolFailure(str(error), error.reason)
         raise
     # Never record arguments, credentials, or remote payloads in audit events.
-    RunEvent.objects.create(
-        run=run,
-        message=f"Tool completed: {name}",
+    add_event(
+        run.pk,
+        f"Tool completed: {name}",
         metadata={
             **evidence,
             "ok": True,
@@ -167,20 +157,18 @@ def call_external_tool_step(
 def standalone_connection(run: Run, capability: dict[str, Any]) -> Connection | None:
     """Recheck automatic consent; a frozen plan never bypasses disconnection."""
     if (
-        run.status in FINISHED
+        run.status in Run.FINISHED_STATUSES
         and capability.get("kind") != Connection.Kind.NOTIFICATION
     ):
         return None
     if not capability.get("authorized"):
         return None
-    connection = Connection.objects.filter(
-        pk=capability.get("connection_id"),
-        workspace_id=run.workspace_id,
-        kind=capability.get("kind"),
-        binding_key=capability.get("binding"),
-        status=Connection.Status.CONNECTED,
-        require_approval=False,
-    ).first()
+    connection = auto_approved_connection(
+        run.workspace_id,
+        capability.get("connection_id"),
+        capability.get("kind"),
+        capability.get("binding"),
+    )
     if connection is None or set(capability.get("effective_tools", [])) - set(
         connection.available_tools
     ):

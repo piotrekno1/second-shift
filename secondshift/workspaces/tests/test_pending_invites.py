@@ -3,9 +3,9 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 from django.test import Client
 
+from secondshift.workspaces.dao import create_workspace
 from secondshift.workspaces.invites import create_invite, invite_path, revoke_invite
 from secondshift.workspaces.models import Workspace, WorkspaceMembership
-from secondshift.workspaces.services import create_workspace
 
 
 def user(name: str) -> AbstractUser:

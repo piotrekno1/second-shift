@@ -11,15 +11,20 @@ from datetime import timedelta
 from typing import Any
 
 from django.conf import settings
-from django.db import transaction
-from django.db.models import Q
 from django.utils import timezone
 
 from secondshift.config.constants import RunStart, TriggerKind
 from secondshift.jobs.models import JOB_REMOVED, Job
+from secondshift.runs.dao import run_for_repeat_key, started_run_count
 from secondshift.runs.models import Run
-from secondshift.runs.orchestration.dispatch import RUN_ENQUEUE_FAILED, RunEnqueueFailed
+from secondshift.runs.orchestration.dispatch import RunEnqueueFailed
 from secondshift.runs.services import RunInProgress, RunNotReady, RunRefused, start_run
+from secondshift.triggers.dao import (
+    add_event,
+    create_trigger,
+    has_recent_event,
+    job_trigger,
+)
 from secondshift.triggers.filters import (
     parse_body,
     repeat_key,
@@ -38,10 +43,6 @@ SECRET_PREFIX = "sst_"
 
 RUN_STARTS = {TriggerKind.WEBHOOK: RunStart.WEBHOOK}
 ENQUEUE_RETRY_SECONDS = 60
-
-# The queue already stored this summary on failed runs before webhook refusals
-# linked to them. It also survives pruning of trigger events.
-QUEUE_FAILED = Q(status=Run.Status.FAILED, summary=RUN_ENQUEUE_FAILED)
 
 
 class TriggerError(Exception):
@@ -75,7 +76,7 @@ def declared(job: Job, kind: TriggerKind) -> bool:
 
 def set_trigger_enabled(job: Job, kind: TriggerKind, enabled: bool) -> TriggerChange:
     """Turn a trigger on or off. The first time on creates its URL and secret."""
-    trigger = JobTrigger.objects.filter(job=job, kind=kind).first()
+    trigger = job_trigger(job, kind)
     if enabled and not declared(job, kind):
         raise TriggerError(
             f"The job's configuration does not name a {kind} trigger. "
@@ -85,13 +86,7 @@ def set_trigger_enabled(job: Job, kind: TriggerKind, enabled: bool) -> TriggerCh
         if not enabled:
             raise TriggerError("This trigger is not set up.")
         secret = new_secret()
-        trigger = JobTrigger.objects.create(
-            job=job,
-            kind=kind,
-            secret=secret,
-            enabled=True,
-            secret_rotated_at=timezone.now(),
-        )
+        trigger = create_trigger(job, kind, secret, timezone.now())
         return TriggerChange(trigger, secret)
     trigger.enabled = enabled
     trigger.save(update_fields=["enabled", "updated_at"])
@@ -100,7 +95,7 @@ def set_trigger_enabled(job: Job, kind: TriggerKind, enabled: bool) -> TriggerCh
 
 def rotate_secret(job: Job, kind: TriggerKind) -> TriggerChange:
     """Replace the secret. Requests signed with the old one are refused."""
-    trigger = JobTrigger.objects.filter(job=job, kind=kind).first()
+    trigger = job_trigger(job, kind)
     if trigger is None:
         raise TriggerError("This trigger is not set up.")
     secret = new_secret()
@@ -112,7 +107,7 @@ def rotate_secret(job: Job, kind: TriggerKind) -> TriggerChange:
 
 def set_runs_per_hour(job: Job, kind: TriggerKind, value: int | None) -> JobTrigger:
     """Set the trigger's hourly cap. None goes back to the server default."""
-    trigger = JobTrigger.objects.filter(job=job, kind=kind).first()
+    trigger = job_trigger(job, kind)
     if trigger is None:
         raise TriggerError("This trigger is not set up.")
     ceiling = settings.TRIGGER_MAX_RUNS_PER_HOUR_CEILING
@@ -130,16 +125,7 @@ def record(
 
     Kept per outcome, so a flood of refusals never pushes out started runs.
     """
-    with transaction.atomic():
-        TriggerEvent.objects.create(
-            trigger=trigger, outcome=outcome, reason=reason[:500], run=run
-        )
-        stale = (
-            trigger.events.filter(outcome=outcome)
-            .order_by("-received_at", "-pk")
-            .values_list("pk", flat=True)[settings.TRIGGER_EVENTS_KEPT :]
-        )
-        TriggerEvent.objects.filter(pk__in=list(stale)).delete()
+    add_event(trigger, outcome, reason[:500], run, settings.TRIGGER_EVENTS_KEPT)
 
 
 def refuse(trigger: JobTrigger, status: int, reason: str) -> Received:
@@ -155,10 +141,7 @@ def ignore(trigger: JobTrigger, reason: str) -> Received:
 
 def refuse_unauthorized(trigger: JobTrigger, reason: str) -> Received:
     since = timezone.now() - timedelta(seconds=UNAUTHORIZED_RECORD_SECONDS)
-    recent = trigger.events.filter(
-        outcome=TriggerEvent.Outcome.REFUSED, reason=reason, received_at__gte=since
-    ).exists()
-    if not recent:
+    if not has_recent_event(trigger, TriggerEvent.Outcome.REFUSED, reason, since):
         record(trigger, TriggerEvent.Outcome.REFUSED, reason)
     return Received(401, reason)
 
@@ -174,13 +157,7 @@ def runs_per_hour(trigger: JobTrigger | None) -> int:
 def earlier_run(job: Job, key: str, webhook: dict[str, Any]) -> Run | None:
     """A run for the same event that is active or finished within the window."""
     since = timezone.now() - timedelta(seconds=repeat_window_seconds(webhook))
-    return (
-        job.runs.filter(input_snapshot__repeat_key=key)
-        .filter(Q(status__in=Run.ACTIVE_STATUSES) | Q(finished_at__gte=since))
-        .exclude(QUEUE_FAILED)
-        .order_by("-pk")
-        .first()
-    )
+    return run_for_repeat_key(job, key, since)
 
 
 def repeat_reason(run: Run) -> str:
@@ -211,13 +188,10 @@ def refusal(trigger: JobTrigger) -> Received | None:
 
 def hourly_refusal(trigger: JobTrigger) -> Received | None:
     limit = runs_per_hour(trigger)
-    started = (
-        trigger.job.runs.filter(
-            started_by=RUN_STARTS[TriggerKind(trigger.kind)],
-            created_at__gte=timezone.now() - timedelta(hours=1),
-        )
-        .exclude(QUEUE_FAILED)
-        .count()
+    started = started_run_count(
+        trigger.job,
+        RUN_STARTS[TriggerKind(trigger.kind)],
+        timezone.now() - timedelta(hours=1),
     )
     if started < limit:
         return None

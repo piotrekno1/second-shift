@@ -5,13 +5,15 @@ Signing in changes that time, so each link works once. Links expire after
 SIGN_IN_LINK_SECONDS. Only someone who can read the terminal gets one.
 """
 
-from django.contrib.auth import get_user_model, login
+from django.contrib.auth import login
 from django.contrib.auth.models import AbstractUser
 from django.core import signing
 from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
 from django.urls import reverse
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET
+
+from secondshift.workspaces.dao import active_user
 
 SIGN_IN_LINK_SECONDS = 15 * 60
 SIGN_IN_SALT = "secondshift.core.signin"
@@ -31,7 +33,7 @@ def user_for_token(token: str) -> AbstractUser | None:
         data = signing.loads(token, salt=SIGN_IN_SALT, max_age=SIGN_IN_LINK_SECONDS)
     except signing.BadSignature:
         return None
-    user = get_user_model().objects.filter(pk=data.get("user"), is_active=True).first()
+    user = active_user(data.get("user"))
     if user is None or last_seen(user) != data.get("seen"):
         return None
     return user

@@ -6,6 +6,7 @@ from django.utils import timezone
 
 from secondshift.connections.external import external_access
 from secondshift.connections.models import Connection
+from secondshift.jobs.dao import find_grant
 from secondshift.jobs.models import CapabilityRequest, JobGrant
 from secondshift.jobs.tool_rules import (
     ToolRuleError,
@@ -80,9 +81,7 @@ def decide_grant(
         raise GrantError(422, "Choose a connection before approving the capability.")
     allowed = granted_tools(capability, decision, connection, chosen_tools)
 
-    grant = JobGrant.objects.filter(capability_request=capability).first() or JobGrant(
-        capability_request=capability
-    )
+    grant = find_grant(capability) or JobGrant(capability_request=capability)
     rules = kept_rules(grant.tool_rules if tool_rules is None else tool_rules, allowed)
     if tool_rules is not None and set(tool_rules) - allowed:
         raise GrantError(422, "Rules can only apply to approved tools.")

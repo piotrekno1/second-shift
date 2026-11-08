@@ -11,10 +11,12 @@ from django.utils import timezone
 
 from secondshift.config.constants import GITHUB_BASE_URL
 from secondshift.connections.checks import record_check
+from secondshift.connections.dao import connected_github_sources
 from secondshift.connections.models import Connection
 from secondshift.github import app, credentials, permissions
 from secondshift.github.errors import GitHubError
 from secondshift.github.tokens import inspect_token
+from secondshift.repositories.dao import connection_repositories
 from secondshift.repositories.github_access import (
     GitHubAccess,
     can_check,
@@ -220,11 +222,7 @@ def check_installation(
 
 def check_source(connection: Connection) -> SourceCheck:
     """Check the credential, every added repository, and each feature's access."""
-    repositories = list(
-        Repository.objects.filter(
-            github_connection=connection, removed_at__isnull=True
-        ).order_by("full_name")
-    )
+    repositories = connection_repositories(connection)
     try:
         source = connection_source(connection)
         if isinstance(source, credentials.AppInstallation) and not app.configured():
@@ -264,11 +262,7 @@ def check_due_sources() -> int:
     """Check each GitHub source not checked within a day. Returns how many."""
     due = timezone.now() - CHECK_INTERVAL
     checked = 0
-    for connection in Connection.objects.filter(
-        provider=Connection.Provider.GITHUB,
-        kind=Connection.Kind.SOURCE,
-        status=Connection.Status.CONNECTED,
-    ):
+    for connection in connected_github_sources():
         when = last_checked(connection)
         if not can_check(connection) or (when is not None and when > due):
             continue

@@ -17,7 +17,7 @@ from secondshift.runs.orchestration.workflows import (
     start_runner_session_step,
     stop_runner_session_step,
 )
-from secondshift.workspaces.services import create_workspace
+from secondshift.workspaces.dao import create_workspace
 
 
 class FakeRunnerClient:

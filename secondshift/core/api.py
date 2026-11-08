@@ -4,7 +4,7 @@ from django.utils import timezone
 from ninja import Router
 from ninja.security import django_auth
 
-from secondshift.connections.models import Connection
+from secondshift.connections.dao import connected_count
 from secondshift.core.schemas import (
     FailingJobSchema,
     JobSpendSchema,
@@ -17,10 +17,11 @@ from secondshift.core.workspace_settings import (
     sandbox_label,
 )
 from secondshift.github.app import configured as github_app_configured
+from secondshift.jobs.dao import enabled_job_count
 from secondshift.jobs.execution import execution_status
-from secondshift.jobs.models import Job
+from secondshift.repositories.dao import active_repositories
 from secondshift.repositories.models import Repository
-from secondshift.runs.models import Run, run_workspace_filter
+from secondshift.runs.dao import run_counts_today
 from secondshift.runs.reporting.health import (
     failing_jobs,
     runs_by_day,
@@ -33,8 +34,8 @@ from secondshift.workspaces.access import (
     is_operator,
     permitted_actions,
 )
+from secondshift.workspaces.dao import own_tokens
 from secondshift.workspaces.services import can_create_workspace
-from secondshift.workspaces.tokens import own_tokens
 
 router = Router(auth=django_auth, tags=["core"])
 
@@ -71,28 +72,18 @@ def overview(request: HttpRequest) -> OverviewSchema:
             connected_services=0,
         )
     today = timezone.localdate()
-    active_repositories = Repository.objects.filter(
-        workspace=workspace,
-        removed_at__isnull=True,
-    )
-    runs = Run.objects.filter(run_workspace_filter(workspace.pk))
+    repositories = active_repositories(workspace.pk)
+    counts = run_counts_today(workspace.pk, today)
     week = week_summary(workspace)
     return OverviewSchema(
-        repositories=active_repositories.count(),
-        local_repositories=active_repositories.filter(
+        repositories=repositories.count(),
+        local_repositories=repositories.filter(
             source_type=Repository.SourceType.LOCAL
         ).count(),
-        enabled_jobs=Job.objects.filter(
-            workspace=workspace,
-            repository__removed_at__isnull=True,
-            enabled=True,
-        ).count(),
-        runs_today=runs.filter(created_at__date=today).count(),
-        failed_runs=runs.filter(status=Run.Status.FAILED).count(),
-        connected_services=Connection.objects.filter(
-            workspace=workspace,
-            status=Connection.Status.CONNECTED,
-        ).count(),
+        enabled_jobs=enabled_job_count(workspace.pk),
+        runs_today=counts["today"],
+        failed_runs=counts["failed"],
+        connected_services=connected_count(workspace.pk),
         failing_jobs=[
             FailingJobSchema(**vars(failing)) for failing in failing_jobs(workspace)
         ],

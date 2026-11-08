@@ -22,6 +22,7 @@ from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 
+from secondshift.connections.dao import get_connection, lock_connection, mark_expired
 from secondshift.connections.mcp.base import MCPError, MCPProvider, MCPRequestError
 from secondshift.connections.mcp.providers import mcp_provider
 from secondshift.connections.mcp.transport import MCPTransport
@@ -269,9 +270,7 @@ def inspect_server(provider_key: str, values: dict[str, str]) -> OAuthServer | N
 
 
 def expire(connection: Connection) -> None:
-    Connection.objects.filter(pk=connection.pk).update(
-        status=Connection.Status.EXPIRED, updated_at=timezone.now()
-    )
+    mark_expired(connection.pk)
     connection.status = Connection.Status.EXPIRED
 
 
@@ -305,7 +304,7 @@ def fresh_connection(connection: Connection) -> Connection:
 def refresh_locked(connection: Connection) -> str | None:
     """Refresh under a row lock. Returns why the sign-in can no longer be used."""
     expired = "The {label} sign-in expired. Reconnect it."
-    locked = Connection.objects.select_for_update().get(pk=connection.pk)
+    locked = lock_connection(connection.pk)
     if locked.expires_at and locked.expires_at - REFRESH_MARGIN > timezone.now():
         copy_tokens(locked, connection)
         return None
@@ -324,7 +323,7 @@ def refresh_locked(connection: Connection) -> str | None:
             },
         )
     except OAuthGrantError:
-        latest = Connection.objects.get(pk=connection.pk)
+        latest = get_connection(connection.pk)
         if latest.refresh_token != used_refresh_token:
             copy_tokens(latest, connection)
             return None

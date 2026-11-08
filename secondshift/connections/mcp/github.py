@@ -12,6 +12,7 @@ from secondshift.config.constants import (
     GITHUB_TOKEN_HINT,
     GitHubMCPTool,
 )
+from secondshift.connections.dao import connected_github_sources
 from secondshift.connections.mcp.base import (
     SOURCE_AUTH,
     MCPArgumentError,
@@ -195,12 +196,7 @@ def github_source_token(repository: Repository) -> str:
 
 def github_discovery_token(workspace: Workspace) -> str:
     """Any source connection of the workspace can list GitHub's tools."""
-    for connection in Connection.objects.filter(
-        workspace=workspace,
-        provider=Connection.Provider.GITHUB,
-        kind=Connection.Kind.SOURCE,
-        status=Connection.Status.CONNECTED,
-    ):
+    for connection in connected_github_sources(workspace.pk):
         if not usable_source(connection):
             continue
         try:

@@ -14,7 +14,7 @@ from secondshift.runs.reporting.health import (
     week_summary,
 )
 from secondshift.runs.tests.test_run_queries import make_job, make_workspace
-from secondshift.workspaces.services import workspace_owner
+from secondshift.workspaces.dao import workspace_owner
 
 NOW = datetime(2026, 10, 23, 12, 0, tzinfo=UTC)
 

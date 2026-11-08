@@ -58,8 +58,8 @@ env = Env()
 
 # Real environment wins, then a checkout's .env, then the data folder's .env.
 # A checkout's .env holds development settings. Local mode skips it so it runs
-# the same as an installed copy.
-if ENVIRONMENT != Environment.LOCAL:
+# the same as an installed copy. Tests skip it so they use the defaults.
+if ENVIRONMENT not in {Environment.LOCAL, Environment.TEST}:
     Env.read_env(BASE_DIR / ".env")
 # Everything a single-host install writes: database, run files and runner
 # workspaces. On a single host its .env also holds keys made on first start.

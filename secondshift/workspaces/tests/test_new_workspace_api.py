@@ -6,8 +6,9 @@ from django.contrib.auth.models import AbstractUser
 from django.http import HttpResponse
 from django.test import Client, override_settings
 
+from secondshift.workspaces.dao import create_workspace
 from secondshift.workspaces.models import Workspace
-from secondshift.workspaces.services import OWNED_WORKSPACE_LIMIT, create_workspace
+from secondshift.workspaces.services import OWNED_WORKSPACE_LIMIT
 
 
 def user(name: str, *, staff: bool = False) -> AbstractUser:

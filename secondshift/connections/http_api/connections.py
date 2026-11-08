@@ -6,6 +6,7 @@ from typing import Any
 
 from django.db import IntegrityError, transaction
 
+from secondshift.connections.dao import binding_taken
 from secondshift.connections.http_api.client import (
     AUTH_TYPES,
     BEARER,
@@ -108,7 +109,7 @@ def create_api_connection(
 ) -> Connection:
     if not re.fullmatch(TOKEN_PATTERN, token):
         raise APIError("Enter the credential without spaces.")
-    if Connection.objects.filter(workspace=workspace, binding_key=binding_key).exists():
+    if binding_taken(workspace.pk, binding_key):
         raise ConnectionConflict("This binding already has a connection.")
     # Cheap checks first, before downloading the spec.
     auth_settings = clean_auth(auth, header)

@@ -17,8 +17,8 @@ from secondshift.connections.agents import (
 )
 from secondshift.connections.models import AgentConnection, AgentCredentialCleanup
 from secondshift.runner.protocol import RunnerProtocolError
+from secondshift.workspaces.dao import create_workspace
 from secondshift.workspaces.models import Workspace, WorkspaceMembership
-from secondshift.workspaces.services import create_workspace
 
 TOKEN = "sk-ant-oat01-test-subscription-token"
 IMAGE = "example/ss-agent@sha256:" + "a" * 64

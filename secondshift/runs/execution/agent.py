@@ -9,13 +9,13 @@ from pydantic_ai.durable_exec.dbos import DBOSDurability
 from pydantic_ai.models import Model, ModelResolutionContext
 
 from secondshift.jobs.agent_policy import AgentPolicy
+from secondshift.runs.dao import get_run
 from secondshift.runs.execution.budgets import FinishWithinBudget
 from secondshift.runs.execution.deadlines import check_deadline
 from secondshift.runs.execution.model_gateway import (
     issue_model_gateway_access,
     pydantic_model,
 )
-from secondshift.runs.models import Run
 
 RUN_MODEL_ID = "secondshift-run-model"
 
@@ -48,7 +48,7 @@ async def resolve_run_model(
 
 
 def run_model(run_id: int) -> Model:
-    run = Run.objects.select_related("job").get(pk=run_id)
+    run = get_run(run_id, "job")
     return pydantic_model(issue_model_gateway_access(run))
 
 

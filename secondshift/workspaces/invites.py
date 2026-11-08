@@ -13,11 +13,19 @@ from datetime import timedelta
 
 from django.contrib.auth.models import AbstractBaseUser
 from django.db import transaction
-from django.db.models import QuerySet
 from django.http import HttpRequest
 from django.urls import reverse
 from django.utils import timezone
 
+from secondshift.workspaces.dao import (
+    create_invite_record,
+    create_membership,
+    find_membership,
+    find_usable_invite,
+    get_or_create_workspace,
+    lock_usable_invite,
+    workspace_has_owner,
+)
 from secondshift.workspaces.models import (
     Workspace,
     WorkspaceInvite,
@@ -57,14 +65,6 @@ def invite_path(token: str) -> str:
     return reverse("invite", args=[token])
 
 
-def usable_invites() -> QuerySet[WorkspaceInvite]:
-    return WorkspaceInvite.objects.filter(
-        accepted_at__isnull=True,
-        revoked_at__isnull=True,
-        expires_at__gt=timezone.now(),
-    )
-
-
 def create_invite(
     workspace: Workspace,
     role: str,
@@ -72,29 +72,20 @@ def create_invite(
     note: str = "",
 ) -> NewInvite:
     token = secrets.token_urlsafe(32)
-    invite = WorkspaceInvite.objects.create(
-        workspace=workspace,
-        role=WorkspaceMembership.Role(role),
-        note=note,
-        token_hash=token_hash(token),
-        created_by=created_by,
-        expires_at=timezone.now() + INVITE_LIFETIME,
+    invite = create_invite_record(
+        workspace,
+        WorkspaceMembership.Role(role),
+        note,
+        token_hash(token),
+        created_by,
+        timezone.now() + INVITE_LIFETIME,
     )
     return NewInvite(invite, token)
 
 
 def find_invite(token: str) -> WorkspaceInvite | None:
     """The invite for a token while it can still be accepted."""
-    return (
-        usable_invites()
-        .select_related("workspace", "created_by")
-        .filter(token_hash=token_hash(token))
-        .first()
-    )
-
-
-def pending_invites(workspace: Workspace) -> QuerySet[WorkspaceInvite]:
-    return usable_invites().filter(workspace=workspace)
+    return find_usable_invite(token_hash(token))
 
 
 @transaction.atomic
@@ -103,22 +94,13 @@ def accept_invite(token: str, user: AbstractBaseUser) -> WorkspaceMembership:
 
     Someone who already belongs keeps their role, and the link stays unused.
     """
-    invite = (
-        usable_invites()
-        .select_for_update()
-        .filter(token_hash=token_hash(token))
-        .first()
-    )
+    invite = lock_usable_invite(token_hash(token))
     if invite is None:
         raise InviteError(INVITE_UNUSABLE_MESSAGE)
-    existing = WorkspaceMembership.objects.filter(
-        workspace_id=invite.workspace_id, user_id=user.pk
-    ).first()
+    existing = find_membership(invite.workspace_id, user.pk)
     if existing:
         return existing
-    membership = WorkspaceMembership.objects.create(
-        workspace_id=invite.workspace_id, user=user, role=invite.role
-    )
+    membership = create_membership(invite.workspace_id, user, invite.role)
     invite.accepted_by = user
     invite.accepted_at = timezone.now()
     invite.save(update_fields=["accepted_by", "accepted_at"])
@@ -159,8 +141,8 @@ def invite_first_owner(name: str, slug: str) -> NewInvite:
 
     This is how a server gets its first owner without any account existing.
     """
-    workspace, _ = Workspace.objects.get_or_create(slug=slug, defaults={"name": name})
-    if workspace.memberships.filter(role=WorkspaceMembership.Role.OWNER).exists():
+    workspace = get_or_create_workspace(slug, name)
+    if workspace_has_owner(workspace.pk):
         raise WorkspaceTaken(
             f"{workspace.name} already has an owner. Owners invite people "
             "from the Settings page."

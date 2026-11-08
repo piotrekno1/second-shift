@@ -19,6 +19,7 @@ from pathlib import Path
 from django.conf import settings
 
 from secondshift.config.constants import COMMIT_SHA_PATTERN
+from secondshift.repositories.dao import active_repository_ids
 from secondshift.repositories.github_access import github_access
 from secondshift.repositories.github_sync import fetch_github_commit
 from secondshift.repositories.mirrors import has_commit, locked_mirror
@@ -116,9 +117,7 @@ def prune_source_cache(dry_run: bool = False) -> CachePrune:
     cache folder. Removed repositories lose their mirror and snapshots.
     """
     pruned = CachePrune()
-    active = set(
-        Repository.objects.filter(removed_at__isnull=True).values_list("pk", flat=True)
-    )
+    active = active_repository_ids()
     removed = set()
     for folder in cache_entries(snapshots_root(), suffix=""):
         if int(folder.name) not in active:

@@ -32,8 +32,8 @@ from secondshift.repositories.models import Repository
 from secondshift.runs.execution.external_tools import external_tools
 from secondshift.runs.execution.tool_broker import call_external_tool_step
 from secondshift.runs.models import Run
+from secondshift.workspaces.dao import create_workspace
 from secondshift.workspaces.models import Workspace
-from secondshift.workspaces.services import create_workspace
 
 SPEC_URL = "https://docs.example.com/openapi.json"
 BASE = "https://api.example.com/v1"

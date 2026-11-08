@@ -6,8 +6,8 @@ from django.test import Client, override_settings
 from secondshift.repositories.local import attach_local_repository
 from secondshift.repositories.models import Repository
 from secondshift.repositories.tests.test_local import create_local_repository
+from secondshift.workspaces.dao import workspace_owner
 from secondshift.workspaces.models import Workspace
-from secondshift.workspaces.services import workspace_owner
 
 
 def github_repository(workspace: Workspace) -> Repository:
