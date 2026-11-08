@@ -4,11 +4,11 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 
-from django.db.models import Count, OuterRef, Q, Subquery, Sum
+from django.db.models import Count, OuterRef, Subquery
 from django.db.models.functions import TruncDate
 from django.utils import timezone
 
-from secondshift.gateway.models import ModelUsage
+from secondshift.gateway.dao import spend_per_job, spend_totals
 from secondshift.jobs.models import Job
 from secondshift.runs.models import Run, run_workspace_filter
 from secondshift.runs.reporting.failures import describe_failure
@@ -114,13 +114,7 @@ def week_summary(workspace: Workspace, now: datetime | None = None) -> WeekSumma
     now = now or timezone.now()
     start, previous_start = now - WINDOW, now - 2 * WINDOW
     runs = Run.objects.filter(run_workspace_filter(workspace.pk), created_at__gte=start)
-    usage = ModelUsage.objects.filter(
-        run_workspace_filter(workspace.pk, "run__"), created_at__gte=previous_start
-    )
-    totals = usage.aggregate(
-        spend=Sum("cost_usd", filter=Q(created_at__gte=start)),
-        previous=Sum("cost_usd", filter=Q(created_at__lt=start)),
-    )
+    totals = spend_totals(workspace.pk, start, previous_start)
     return WeekSummary(
         runs=runs.count(),
         previous_runs=Run.objects.filter(
@@ -132,9 +126,7 @@ def week_summary(workspace: Workspace, now: datetime | None = None) -> WeekSumma
         succeeded=runs.filter(status=Run.Status.SUCCEEDED).count(),
         spend_usd=totals["spend"] or Decimal(0),
         previous_spend_usd=totals["previous"] or Decimal(0),
-        spend_partial=usage.filter(
-            created_at__gte=start, cost_usd__isnull=True
-        ).exists(),
+        spend_partial=totals["unpriced"] > 0,
     )
 
 
@@ -173,16 +165,7 @@ def spend_by_job(
 ) -> list[JobSpend]:
     """The jobs that spent the most on models in the last seven days."""
     start = (now or timezone.now()) - WINDOW
-    rows = (
-        ModelUsage.objects.filter(run__job__workspace=workspace, created_at__gte=start)
-        .values("run__job_id")
-        .annotate(
-            spend=Sum("cost_usd"),
-            runs=Count("run_id", distinct=True),
-            unpriced=Count("pk", filter=Q(cost_usd__isnull=True)),
-        )
-        .order_by()
-    )
+    rows = spend_per_job(workspace.pk, start)
     ranked = sorted(rows, key=lambda row: row["spend"] or Decimal(0), reverse=True)
     ranked = ranked[:limit]
     jobs = Job.objects.select_related("repository").in_bulk(

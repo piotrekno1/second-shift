@@ -9,7 +9,8 @@ from pydantic_ai.providers.openai import OpenAIProvider
 
 from secondshift.connections.model_providers import provider_family
 from secondshift.connections.models import Connection
-from secondshift.gateway.tokens import issue_run_token, revoke_run_tokens
+from secondshift.gateway.dao import revoke_run_tokens
+from secondshift.gateway.tokens import issue_run_token
 from secondshift.runs.models import Run
 
 

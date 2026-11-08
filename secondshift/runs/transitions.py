@@ -11,7 +11,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from secondshift.config.constants import RunSandbox
-from secondshift.gateway.tokens import revoke_run_tokens
+from secondshift.gateway.dao import revoke_run_tokens
 from secondshift.runs.models import Run
 
 # The statuses each status may move to. A finished status has no entry.

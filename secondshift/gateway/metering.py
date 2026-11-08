@@ -1,12 +1,11 @@
 """Token usage read from provider responses, normalized across providers."""
 
 import json
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from typing import Any
 
-from django.db.models import F
-
-from secondshift.gateway.models import ModelUsage, RunToken
+from secondshift.gateway.dao import aadd_used_tokens, acreate_model_usage
+from secondshift.gateway.models import RunToken
 from secondshift.gateway.pricing import request_cost
 from secondshift.runner.agent_image.outcomes import budget_count
 
@@ -159,19 +158,13 @@ def apply_openai_event(usage: Usage, event: dict[str, Any]) -> None:
 async def record_usage(
     run_token: RunToken, family: str, model: str, status_code: int, usage: Usage
 ) -> None:
-    await ModelUsage.objects.acreate(
-        run_id=run_token.run_id,
-        connection_id=run_token.connection_id,
-        provider=family,
-        model=model[:200],
-        status_code=status_code,
-        input_tokens=usage.input_tokens,
-        output_tokens=usage.output_tokens,
-        cache_read_tokens=usage.cache_read_tokens,
-        cache_write_tokens=usage.cache_write_tokens,
-        cost_usd=request_cost(run_token.connection, model, usage),
+    await acreate_model_usage(
+        run_token,
+        family,
+        model[:200],
+        status_code,
+        asdict(usage),
+        request_cost(run_token.connection, model, usage),
     )
     if usage.total:
-        await RunToken.objects.filter(pk=run_token.pk).aupdate(
-            used_tokens=F("used_tokens") + usage.budget_tokens
-        )
+        await aadd_used_tokens(run_token, usage.budget_tokens)
