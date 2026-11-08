@@ -2,6 +2,7 @@ from django.db import IntegrityError, transaction
 
 from secondshift.connections.models import Connection
 from secondshift.connections.webhooks import validate_webhook_url, webhook_target_label
+from secondshift.repositories.dao import has_repositories
 from secondshift.workspaces.models import Workspace
 
 
@@ -99,7 +100,7 @@ def revoke_connection(connection: Connection) -> Connection:
 def delete_connection(connection: Connection) -> None:
     if connection.kind == Connection.Kind.IDENTITY:
         raise ConnectionConflict("Sign-in connections are managed by their provider.")
-    if connection.kind == Connection.Kind.SOURCE and connection.repositories.exists():
+    if connection.kind == Connection.Kind.SOURCE and has_repositories(connection):
         raise ConnectionConflict(
             "This installation has repository history. Disconnect it instead."
         )

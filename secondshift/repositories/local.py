@@ -14,6 +14,7 @@ from secondshift.jobs.automatic_grants import approve_waiting
 from secondshift.jobs.manifest import RepositoryManifest, parse_manifest
 from secondshift.jobs.models import CapabilityRequest, JobGrant
 from secondshift.jobs.sync import sync_jobs
+from secondshift.repositories.dao import local_repository, save_local_repository
 from secondshift.repositories.github import github_remote_name
 from secondshift.repositories.models import Repository
 from secondshift.workspaces.models import Workspace
@@ -218,15 +219,13 @@ def attach_local_repository(
         config_error = ""
     except RepositoryConfigError as error:
         manifest, skills, config_error = None, {}, str(error)[:500]
-    previous = Repository.objects.filter(
-        workspace=workspace, local_path=str(location.root)
-    ).first()
+    previous = local_repository(workspace, str(location.root))
     scope_changed = previous is not None and previous.clone_url != location.clone_url
     synced = {"config_sha": location.revision} if manifest is not None else {}
-    repository, _ = Repository.objects.update_or_create(
-        workspace=workspace,
-        local_path=str(location.root),
-        defaults={
+    repository = save_local_repository(
+        workspace,
+        str(location.root),
+        {
             "source_type": Repository.SourceType.LOCAL,
             "full_name": location.repository_name,
             "clone_url": location.clone_url,

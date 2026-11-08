@@ -9,7 +9,7 @@ from secondshift.config.constants import SandboxRuntime
 from secondshift.connections.models import Connection
 from secondshift.github.identity import clone_url
 from secondshift.jobs.models import Job
-from secondshift.repositories.models import Repository
+from secondshift.repositories.dao import create_repository
 from secondshift.runs.models import Run, RunEvent
 from secondshift.workspaces.models import Workspace
 
@@ -85,7 +85,7 @@ def seed_demo_data() -> None:
     }
 
     repositories = {
-        name: Repository.objects.create(
+        name: create_repository(
             workspace=workspace,
             github_connection=connections[Connection.Provider.GITHUB],
             external_id=f"demo-repository-{index}",

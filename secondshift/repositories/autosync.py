@@ -10,12 +10,13 @@ import logging
 from pathlib import Path
 
 from django.conf import settings
-from django.db.models import Q, QuerySet
+from django.db.models import QuerySet
 
 from secondshift.connections.models import Connection
 from secondshift.github import repos
 from secondshift.github.app import configured
 from secondshift.github.errors import GitHubError
+from secondshift.repositories.dao import repositories_to_sync, set_sync_error
 from secondshift.repositories.github_access import can_check, github_access
 from secondshift.repositories.github_check import check_after_failure
 from secondshift.repositories.github_sync import sync_github_repository
@@ -51,17 +52,7 @@ def token_sources() -> QuerySet[Connection]:
 
 
 def repositories_to_check() -> list[Repository]:
-    return list(
-        Repository.objects.filter(
-            Q(source_type=Repository.SourceType.GITHUB)
-            | Q(source_type=Repository.SourceType.LOCAL, local_path__isnull=False)
-            if settings.LOCAL_REPOSITORIES_ENABLED
-            else Q(source_type=Repository.SourceType.GITHUB),
-            Q(enabled=True) | Q(config_sha=""),
-            auto_sync=True,
-            removed_at__isnull=True,
-        ).select_related("workspace", "github_connection")
-    )
+    return repositories_to_sync(settings.LOCAL_REPOSITORIES_ENABLED)
 
 
 def sync_moved_repositories() -> int:
@@ -93,9 +84,7 @@ def sync_moved_repositories() -> int:
         except (LocalRepositoryError, GitHubError) as error:
             # The repository page shows the same problem when opened. Runs
             # keep using the last good sync until it is fixed.
-            Repository.objects.filter(pk=repository.pk).update(
-                last_sync_error=str(error)[:500]
-            )
+            set_sync_error(repository.pk, str(error)[:500])
             logger.warning("could not sync %s: %s", repository.display_name, error)
             if repository.source_type == Repository.SourceType.GITHUB:
                 check_after_failure(repository.github_connection)

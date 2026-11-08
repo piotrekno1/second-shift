@@ -19,6 +19,7 @@ from secondshift.github.errors import GitHubError
 from secondshift.jobs.manifest import TaskManifest
 from secondshift.jobs.planning import build_skill_execution_plan
 from secondshift.jobs.readiness import execution_problems
+from secondshift.repositories.dao import lock_repository
 from secondshift.repositories.local import LocalRepositoryError
 from secondshift.repositories.models import Repository
 from secondshift.repositories.skill_source import SkillSourceError, skill_commit
@@ -143,7 +144,7 @@ def submit_skill(
         raise RunRefused("The submission does not match the selected repository.")
     fingerprint = submission_fingerprint(submission, user)
     with transaction.atomic():
-        repository = Repository.objects.select_for_update().get(pk=repository.pk)
+        repository = lock_repository(repository.pk)
         if existing := admission(repository, submission, fingerprint):
             return existing
     try:
@@ -159,11 +160,7 @@ def submit_skill(
         )
         raise RunRefused(message) from error
     with transaction.atomic():
-        repository = (
-            Repository.objects.select_for_update()
-            .select_related("workspace")
-            .get(pk=repository.pk)
-        )
+        repository = lock_repository(repository.pk, with_workspace=True)
         if existing := admission(repository, submission, fingerprint):
             return existing
         plan = build_skill_execution_plan(

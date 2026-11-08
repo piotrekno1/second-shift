@@ -21,6 +21,7 @@ from secondshift.connections.webhooks import deliver_webhook
 from secondshift.jobs.models import Job
 from secondshift.jobs.readiness import execution_problems
 from secondshift.jobs.scheduling import next_occurrence
+from secondshift.repositories.dao import lock_repository
 from secondshift.repositories.github_access import github_access
 from secondshift.repositories.models import Repository
 from secondshift.repositories.sources import source_snapshot
@@ -88,9 +89,7 @@ def mark_run_started_step(run_id: int) -> bool:
     """Start a queued run. Raises RunNotReadyError before any work is done."""
     run = Run.objects.select_related("task").get(pk=run_id)
     if run.job_id is None:
-        repository = Repository.objects.select_for_update().get(
-            pk=run.task.repository_id
-        )
+        repository = lock_repository(run.task.repository_id)
         run.refresh_from_db()
         if problem := task_admission_problem(run, repository):
             mark_run_terminal(

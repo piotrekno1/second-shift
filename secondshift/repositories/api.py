@@ -11,6 +11,7 @@ from secondshift.github.app import configured
 from secondshift.github.errors import GitHubError
 from secondshift.jobs.scheduling import restart_schedules
 from secondshift.repositories.access import repository_for_request
+from secondshift.repositories.dao import active_repositories
 from secondshift.repositories.github_sync import (
     GitHubRepositoryExistsError,
     attach_github_repository,
@@ -57,10 +58,7 @@ def repositories(request: HttpRequest) -> list[RepositorySchema]:
     workspace = current_workspace(request)
     if not workspace:
         return []
-    queryset = Repository.objects.filter(
-        workspace=workspace,
-        removed_at__isnull=True,
-    ).prefetch_related("jobs")
+    queryset = active_repositories(workspace.pk).prefetch_related("jobs")
     return [serialize_repository(request, item) for item in queryset]
 
 

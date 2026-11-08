@@ -7,7 +7,7 @@ from django.db.models import Exists, OuterRef
 from django.utils import timezone
 
 from secondshift.config.constants import EXECUTE_RUN_WORKFLOW
-from secondshift.repositories.models import Repository
+from secondshift.repositories.dao import lock_repository
 from secondshift.runs.dao import active_runs, active_tasks
 from secondshift.runs.models import RUN_ENQUEUE_FAILED, Run, RunEvent
 from secondshift.runs.orchestration.admission import task_admission_problem
@@ -83,7 +83,7 @@ def enqueue_task(run: Run) -> str:
     The repository lock covers the external handoff and its acknowledgement.
     It serializes submissions, worker retries and queued cancellations.
     """
-    repository = Repository.objects.select_for_update().get(pk=run.task.repository_id)
+    repository = lock_repository(run.task.repository_id)
     tasks = Run.objects.filter(job__isnull=True, task__repository=repository)
     run = tasks.select_related("task").get(pk=run.pk)
     if run.status != Run.Status.QUEUED:

@@ -2,7 +2,7 @@
 
 from django.db import transaction
 
-from secondshift.repositories.models import Repository
+from secondshift.repositories.dao import lock_repository
 from secondshift.runs.models import Run, RunEvent
 from secondshift.runs.services import RunRefused
 from secondshift.runs.transitions import finish_run
@@ -12,7 +12,7 @@ from secondshift.runs.transitions import finish_run
 def cancel_queued_task(run: Run) -> Run:
     if run.job_id is not None:
         raise RunRefused("Only queued ad hoc tasks can be canceled here.")
-    Repository.objects.select_for_update().get(pk=run.task.repository_id)
+    lock_repository(run.task.repository_id)
     run = (
         Run.objects.select_for_update()
         .select_related("task__repository")

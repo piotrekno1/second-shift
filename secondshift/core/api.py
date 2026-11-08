@@ -19,6 +19,7 @@ from secondshift.core.workspace_settings import (
 from secondshift.github.app import configured as github_app_configured
 from secondshift.jobs.execution import execution_status
 from secondshift.jobs.models import Job
+from secondshift.repositories.dao import active_repositories
 from secondshift.repositories.models import Repository
 from secondshift.runs.models import Run, run_workspace_filter
 from secondshift.runs.reporting.health import (
@@ -71,15 +72,12 @@ def overview(request: HttpRequest) -> OverviewSchema:
             connected_services=0,
         )
     today = timezone.localdate()
-    active_repositories = Repository.objects.filter(
-        workspace=workspace,
-        removed_at__isnull=True,
-    )
+    repositories = active_repositories(workspace.pk)
     runs = Run.objects.filter(run_workspace_filter(workspace.pk))
     week = week_summary(workspace)
     return OverviewSchema(
-        repositories=active_repositories.count(),
-        local_repositories=active_repositories.filter(
+        repositories=repositories.count(),
+        local_repositories=repositories.filter(
             source_type=Repository.SourceType.LOCAL
         ).count(),
         enabled_jobs=Job.objects.filter(

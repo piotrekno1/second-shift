@@ -11,6 +11,13 @@ from secondshift.github.errors import GitHubError
 from secondshift.github.git import authenticated_git
 from secondshift.github.identity import clone_url
 from secondshift.jobs.sync import sync_jobs
+from secondshift.repositories.dao import (
+    get_repository_with_connection,
+    lock_or_create_github_repository,
+    lock_repository,
+    restore_repository_fields,
+    set_sync_error,
+)
 from secondshift.repositories.github_access import (
     GitHubAccess,
     connection_access,
@@ -34,9 +41,7 @@ def sync_github_repository(repository: Repository) -> Repository:
     jobs stay as the last good sync left them. The fetch runs outside any database transaction. The mirror's lock keeps
     two syncs of one repository in order, so an older one never saves last.
     """
-    repository = Repository.objects.select_related("github_connection").get(
-        pk=repository.pk
-    )
+    repository = get_repository_with_connection(repository.pk)
     access = github_access(repository)
     token = access.token
     with locked_mirror(repository.pk) as mirror:
@@ -56,14 +61,12 @@ def sync_github_repository(repository: Repository) -> Repository:
             )
         except RepositoryConfigError as error:
             # Keep the last good sync. Runs go on using it.
-            Repository.objects.filter(pk=repository.pk).update(
-                checked_sha=revision, last_sync_error=str(error)[:500]
-            )
+            set_sync_error(repository.pk, str(error)[:500], checked_sha=revision)
             repository.refresh_from_db()
             return repository
         authenticated_git(mirror, token, "update-ref", SYNCED_REF, revision)
         with transaction.atomic():
-            locked = Repository.objects.select_for_update().get(pk=repository.pk)
+            locked = lock_repository(repository.pk)
             locked.config_sha = revision
             locked.checked_sha = revision
             locked.last_sync_error = ""
@@ -171,7 +174,7 @@ def attach_github_repository(
         if previous is None:
             repository.delete()
         else:
-            Repository.objects.filter(pk=repository.pk).update(**previous)
+            restore_repository_fields(repository.pk, previous)
         raise
 
 
@@ -183,9 +186,9 @@ def save_attached_repository(
     metadata: dict,
 ) -> tuple[Repository, dict | None]:
     """The new or restored row, and a restored row's earlier values."""
-    repository, created = Repository.objects.select_for_update().get_or_create(
-        workspace=workspace,
-        full_name=metadata["full_name"],
+    repository, created = lock_or_create_github_repository(
+        workspace,
+        metadata["full_name"],
         defaults={
             "source_type": Repository.SourceType.GITHUB,
             "github_connection": connection,
