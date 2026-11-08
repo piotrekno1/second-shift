@@ -63,7 +63,7 @@ SUBAGENT = build_agent(
 TaskArgument = Annotated[str, Field(min_length=1, max_length=MAX_TASK_CHARS)]
 
 
-def subagents_note(limit: int, backend: str) -> str:
+def subagents_note(limit: int, backend: AgentBackend) -> str:
     """The prompt lines for runs that may start sub-agents."""
     how = (
         f"the Agent tool, with subagent_type {WORKER} and run_in_background "

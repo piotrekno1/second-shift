@@ -149,9 +149,7 @@ def run_prompt(run: Run) -> str:
     backend = plan_backend(run.execution_plan)
     prompt = f"{prompt}\n\n{limits_note(run.execution_plan, backend, run.started_at)}"
     if subagents := subagent_limit(run.execution_plan):
-        prompt = (
-            f"{prompt}\n\n{subagents_note(subagents, plan_backend(run.execution_plan))}"
-        )
+        prompt = f"{prompt}\n\n{subagents_note(subagents, backend)}"
     history = previous_reports(run)
     return f"{prompt}\n\n{history}" if history else prompt
 
