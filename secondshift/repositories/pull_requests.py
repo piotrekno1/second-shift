@@ -26,7 +26,6 @@ from secondshift.repositories.github_sync import fetch_github_commit
 from secondshift.repositories.mirrors import has_commit, locked_mirror
 from secondshift.repositories.models import Repository
 
-MAX_BODY_CHARS = pulls.MAX_BODY_CHARS
 APP_PUSH_HINT = (
     "Changes to workflow files are refused, and so is a branch someone else changed."
 )

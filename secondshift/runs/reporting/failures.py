@@ -116,7 +116,6 @@ STAGE_LABELS: dict[str, str] = {
 }
 MODEL_PROVIDER_PREFIX = "The model provider answered "
 MODEL_PROVIDER_LABEL = "Model provider"
-LEGACY_WORKFLOW_PREFIX = "The durable workflow failed unexpectedly ("
 
 
 @dataclass(frozen=True)
@@ -130,8 +129,7 @@ class FailureView:
 def describe_failure(summary: str) -> FailureView:
     """Split a stored failure summary into a short label and reason.
 
-    Works on summaries written by ``failure_summary`` and on older ones, so
-    existing runs display the same way.
+    Works on summaries written by ``failure_summary``.
     """
     text = " ".join(summary.split())
     for headline in (TIMEOUT_HEADLINE, BUDGET_HEADLINE):
@@ -149,10 +147,6 @@ def describe_failure(summary: str) -> FailureView:
             if detail.startswith(TOOL_RULE_PREFIX):
                 return FailureView(TOOL_RULE_LABEL, detail[len(TOOL_RULE_PREFIX) :])
             return FailureView(STAGE_LABELS[stage], detail)
-    if text.startswith(LEGACY_WORKFLOW_PREFIX) and text.endswith(")."):
-        return FailureView(
-            "Workflow", f"Unexpected {text[len(LEGACY_WORKFLOW_PREFIX) : -2]}."
-        )
     return FailureView("Run", text or "No reason was recorded.")
 
 

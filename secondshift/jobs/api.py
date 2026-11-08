@@ -13,7 +13,7 @@ from secondshift.jobs.limits import LimitError, save_overrides
 from secondshift.jobs.models import JOB_REMOVED, CapabilityRequest
 from secondshift.jobs.needs import capability_needs
 from secondshift.jobs.planning import build_execution_plan
-from secondshift.jobs.readiness import plan_problems
+from secondshift.jobs.readiness import execution_problems
 from secondshift.jobs.scheduling import restart_schedules
 from secondshift.jobs.schemas import (
     CapabilityNeedSchema,
@@ -110,7 +110,7 @@ def set_job_enabled(
             raise HttpError(409, "Enable the repository before enabling this job.")
         plan = build_execution_plan(job)
         if not plan["ready"]:
-            raise HttpError(409, " ".join(plan_problems(job, plan)))
+            raise HttpError(409, " ".join(execution_problems(job.repository, plan)))
     turned_on = payload.enabled and not job.enabled
     job.enabled = payload.enabled
     job.save(update_fields=["enabled", "updated_at"])

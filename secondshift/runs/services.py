@@ -12,7 +12,7 @@ from secondshift.config.constants import RunStart, TaskOrigin
 from secondshift.jobs.dao import lock_job
 from secondshift.jobs.models import JOB_REMOVED, Job
 from secondshift.jobs.planning import build_execution_plan
-from secondshift.jobs.readiness import plan_problems
+from secondshift.jobs.readiness import execution_problems
 from secondshift.runs.artifacts import job_input_snapshot, store_run_payload
 from secondshift.runs.dao import (
     add_event,
@@ -114,7 +114,7 @@ def start_run(
             raise RunInProgress(active)
         execution_plan = build_execution_plan(job)
         if not execution_plan["ready"]:
-            raise RunNotReady(plan_problems(job, execution_plan))
+            raise RunNotReady(execution_problems(job.repository, execution_plan))
         run = create_run(
             job,
             timezone.now(),

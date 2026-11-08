@@ -41,7 +41,6 @@ UNAUTHORIZED_RECORD_SECONDS = 60
 # Secret scanners can match trigger secrets by this prefix.
 SECRET_PREFIX = "sst_"
 
-RUN_STARTS = {TriggerKind.WEBHOOK: RunStart.WEBHOOK}
 ENQUEUE_RETRY_SECONDS = 60
 
 
@@ -70,14 +69,10 @@ def new_secret() -> str:
     return SECRET_PREFIX + secrets.token_urlsafe(32)
 
 
-def declared(job: Job, kind: TriggerKind) -> bool:
-    return kind in job.triggers
-
-
 def set_trigger_enabled(job: Job, kind: TriggerKind, enabled: bool) -> TriggerChange:
     """Turn a trigger on or off. The first time on creates its URL and secret."""
     trigger = job_trigger(job, kind)
-    if enabled and not declared(job, kind):
+    if enabled and kind not in job.triggers:
         raise TriggerError(
             f"The job's configuration does not name a {kind} trigger. "
             f"Add triggers: [{kind}] to the job in .secondshift.yaml."
@@ -177,7 +172,7 @@ def refusal(trigger: JobTrigger) -> Received | None:
         return refuse(trigger, 409, "The job's repository was removed.")
     if job.removed_at is not None:
         return refuse(trigger, 409, JOB_REMOVED)
-    if not declared(job, TriggerKind(trigger.kind)):
+    if trigger.kind not in job.triggers:
         return refuse(
             trigger,
             409,
@@ -190,7 +185,7 @@ def hourly_refusal(trigger: JobTrigger) -> Received | None:
     limit = runs_per_hour(trigger)
     started = started_run_count(
         trigger.job,
-        RUN_STARTS[TriggerKind(trigger.kind)],
+        RunStart.WEBHOOK,
         timezone.now() - timedelta(hours=1),
     )
     if started < limit:
@@ -203,7 +198,7 @@ def hourly_refusal(trigger: JobTrigger) -> Received | None:
 
 def start(trigger: JobTrigger, body: bytes, key: str | None) -> Received:
     try:
-        run = start_run(trigger.job, RUN_STARTS[TriggerKind(trigger.kind)], body, key)
+        run = start_run(trigger.job, RunStart.WEBHOOK, body, key)
     except RunInProgress as error:
         if key is not None and error.run.input_snapshot.get("repeat_key") == key:
             return ignore(trigger, repeat_reason(error.run))

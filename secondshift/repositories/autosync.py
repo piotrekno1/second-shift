@@ -41,14 +41,10 @@ def server_syncs() -> bool:
     )
 
 
-def repositories_to_check() -> list[Repository]:
-    return repositories_to_sync(settings.LOCAL_REPOSITORIES_ENABLED)
-
-
 def sync_moved_repositories() -> int:
     """Sync each repository whose branch has a new commit. Returns how many."""
     synced = 0
-    for repository in repositories_to_check():
+    for repository in repositories_to_sync(settings.LOCAL_REPOSITORIES_ENABLED):
         try:
             if repository.source_type == Repository.SourceType.GITHUB:
                 if not can_check(repository.github_connection):

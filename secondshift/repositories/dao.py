@@ -9,11 +9,6 @@ from secondshift.repositories.models import Repository
 from secondshift.workspaces.models import Workspace
 
 
-def get_repository(repository_id: int) -> Repository:
-    """The repository. Raises Repository.DoesNotExist when there is none."""
-    return Repository.objects.get(pk=repository_id)
-
-
 def get_repository_with_connection(repository_id: int) -> Repository:
     """The repository with its GitHub connection loaded."""
     return Repository.objects.select_related("github_connection").get(pk=repository_id)

@@ -106,7 +106,9 @@ def test_readiness_refusal_creates_no_task(
     monkeypatch.setattr(
         "secondshift.runs.services.build_execution_plan", lambda job: {"ready": False}
     )
-    monkeypatch.setattr("secondshift.runs.services.plan_problems", lambda *args: [])
+    monkeypatch.setattr(
+        "secondshift.runs.services.execution_problems", lambda *args: []
+    )
     with pytest.raises(RunNotReady):
         start_manual_run(job)
     assert not Task.objects.exists()

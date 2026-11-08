@@ -17,8 +17,6 @@ from secondshift.repositories.models import Repository
 from secondshift.runner.protocol import (
     CommandRequest,
     CommandResult,
-    FakeRunnerBackend,
-    RunnerSessionSpec,
 )
 from secondshift.runs.execution.run import WORKSPACE_AGENT, execute_agent_run
 from secondshift.runs.execution.workspace_tools import (
@@ -114,23 +112,7 @@ def test_runner_call_is_stable_bounded_and_contains_no_runtime_configuration(
 
 
 def test_pydantic_agent_calls_the_runner_backed_tool(monkeypatch) -> None:
-    backend = FakeRunnerBackend(
-        lambda spec, request: CommandResult(
-            call_id=request.call_id,
-            exit_code=0,
-            output=f"skill text for run {spec.run_id}",
-        )
-    )
-    session_id = backend.start(
-        RunnerSessionSpec(
-            run_id=9,
-            session_key="0123456789abcdef0123456789abcdef",
-            repository="example/project",
-            commit_sha="a" * 40,
-            image="server-owned:test",
-            source_sha256="d" * 64,
-        )
-    )
+    requests: list[CommandRequest] = []
 
     def execute(
         session_id: str,
@@ -139,10 +121,8 @@ def test_pydantic_agent_calls_the_runner_backed_tool(monkeypatch) -> None:
         cwd: str,
         timeout_seconds: int,
     ) -> CommandResult:
-        return backend.execute(
-            session_id,
-            CommandRequest(call_id, tuple(argv), cwd, timeout_seconds),
-        )
+        requests.append(CommandRequest(call_id, tuple(argv), cwd, timeout_seconds))
+        return CommandResult(call_id=call_id, exit_code=0, output="skill text")
 
     monkeypatch.setattr(
         "secondshift.runs.execution.workspace_tools.execute_runner_command_step",
@@ -158,7 +138,7 @@ def test_pydantic_agent_calls_the_runner_backed_tool(monkeypatch) -> None:
             "Read the skill.",
             deps=WorkspaceToolDeps(
                 run_id=9,
-                session_id=session_id,
+                session_id="session-9",
                 max_output_chars=1_000,
                 deadline=LATER,
             ),
@@ -166,7 +146,7 @@ def test_pydantic_agent_calls_the_runner_backed_tool(monkeypatch) -> None:
         )
 
     assert result.output == "Review complete."
-    assert backend.requests[0].argv == ("cat", "--", "a")
+    assert requests[0].argv == ("cat", "--", "a")
 
 
 @pytest.mark.django_db

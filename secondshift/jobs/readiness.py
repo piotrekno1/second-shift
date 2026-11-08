@@ -39,10 +39,6 @@ def execution_problems(repository: Repository, plan: dict[str, Any]) -> list[str
     return problems
 
 
-def plan_problems(job: Job, plan: dict[str, Any]) -> list[str]:
-    return execution_problems(job.repository, plan)
-
-
 def readiness_problems(job: Job) -> list[str]:
     """Empty when Run now would start the job."""
-    return plan_problems(job, build_execution_plan(job))
+    return execution_problems(job.repository, build_execution_plan(job))

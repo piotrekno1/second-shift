@@ -219,10 +219,6 @@ def test_success_event_does_not_repeat_the_report(db) -> None:
             "The skill run failed: Unexpected KeyError.",
             FailureView("Skill", "Unexpected KeyError."),
         ),
-        (
-            "The durable workflow failed unexpectedly (DBOSMaxStepRetriesExceeded).",
-            FailureView("Workflow", "Unexpected DBOSMaxStepRetriesExceeded."),
-        ),
         ("Timed out", FailureView("Run", "Timed out")),
         ("", FailureView("Run", "No reason was recorded.")),
     ],

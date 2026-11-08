@@ -9,9 +9,9 @@ import tempfile
 from pathlib import Path
 
 from secondshift.config.constants import MAX_CHANGES_BYTES
+from secondshift.github.pulls import MAX_BODY_CHARS
 from secondshift.repositories.models import Repository
 from secondshift.repositories.pull_requests import (
-    MAX_BODY_CHARS,
     DraftPullRequest,
     PublishError,
     publish_pull_request,

@@ -27,7 +27,6 @@ from secondshift.runner.models import RunnerCommand, RunnerSession
 from secondshift.runner.protocol import (
     CommandRequest,
     CommandResult,
-    RunnerBackend,
     RunnerProtocolError,
     RunnerSessionSpec,
 )
@@ -42,7 +41,7 @@ class RunnerConfigurationError(RuntimeError):
     pass
 
 
-class DockerRunnerService(RunnerBackend):
+class DockerRunnerService:
     """Container operations and ORM-backed idempotency for the runner service."""
 
     def verify_configuration(self) -> None:

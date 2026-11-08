@@ -9,7 +9,7 @@ from secondshift.connections.models import Connection
 from secondshift.jobs.grants import GrantError, decide_grant
 from secondshift.jobs.models import CapabilityRequest, Job, JobGrant
 from secondshift.jobs.planning import build_execution_plan
-from secondshift.jobs.sync import sync_manifest
+from secondshift.jobs.tests.disk import sync_manifest
 from secondshift.jobs.tests.test_api_approvals import approval_setup  # noqa: F401
 from secondshift.jobs.tests.test_grants import decide
 from secondshift.jobs.tests.test_planning import create_job

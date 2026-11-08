@@ -105,7 +105,7 @@ def reconnect_agent_connection(
         raise AgentConnectionError("The agent backend cannot change during reconnect.")
     with transaction.atomic():
         # Saving the new login gives it a new key, so runs stop using the old one.
-        cleanup = queue_credential_cleanup(connection)
+        cleanup = queue_cleanup(connection)
         connection = save_agent_connection(
             connection.workspace, owner, backend, display_name, auth, connection
         )
@@ -122,12 +122,8 @@ def disconnect_agent_connection(connection: AgentConnection) -> bool:
         connection.connected = False
         connection.auth_data = ""
         connection.save(update_fields=["connected", "auth_data", "updated_at"])
-        cleanup = queue_credential_cleanup(connection)
+        cleanup = queue_cleanup(connection)
     return remove_cached_credentials(cleanup)
-
-
-def queue_credential_cleanup(connection: AgentConnection) -> AgentCredentialCleanup:
-    return queue_cleanup(connection)
 
 
 def remove_cached_credentials(cleanup: AgentCredentialCleanup) -> bool:

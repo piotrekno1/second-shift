@@ -8,13 +8,12 @@ from django.conf import settings
 from secondshift.runner.protocol import (
     CommandRequest,
     CommandResult,
-    RunnerBackend,
     RunnerProtocolError,
     RunnerSessionSpec,
 )
 
 
-class HttpRunnerClient(RunnerBackend):
+class HttpRunnerClient:
     """Trusted control-plane client for a separately deployed runner."""
 
     def __init__(
