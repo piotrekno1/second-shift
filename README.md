@@ -171,7 +171,7 @@ GitHub App or a personal access token.
 | What | Where it lives during a run | Never reaches |
 | --- | --- | --- |
 | Model provider key | Gateway | Agent loop, sandbox, model |
-| MCP and API credentials | Worker, per broker call | Sandbox, model |
+| MCP and API credentials | Worker or gateway, per broker call | Sandbox, model |
 | GitHub write token | Worker, after the sandbox stops | Sandbox, model |
 | Subscription login | Runner, sealed to its key | Container arguments, environment, logs |
 

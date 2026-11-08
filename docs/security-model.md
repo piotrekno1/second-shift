@@ -40,15 +40,19 @@ A run can use three things. Nothing else is reachable from it.
    the agent's file changes as a patch. The runner compares the workspace
    against a record of the commit kept outside the sandbox, so the agent cannot
    change it.
-2. **The model gateway.** The agent loop reaches the model provider only
-   through the gateway. A run authenticates with its own token, which only
-   works while that run is active. The gateway forwards only a fixed list of
-   provider paths and cuts the run off once its token budget is used.
+2. **The model.** The built-in agent reaches the model provider only through
+   the gateway. A run authenticates with its own token, which only works while
+   that run is active. The gateway forwards only a fixed list of provider paths
+   and cuts the run off once its token budget is used. Claude Code and Codex
+   run in an agent container on the runner instead. It reaches the provider
+   directly with a person's login. See
+   [Agent subscriptions](agent-subscriptions.md).
 3. **The tool broker.** Each MCP or API call is checked against the run's frozen
    execution plan, the job's grant, and the connection's allowed tools.
    Arguments must match the tool's schema and the owner's
-   [tool restrictions](#tool-restrictions). Calls leave from the worker, never
-   from the sandbox, and reach only public HTTPS addresses in production.
+   [tool restrictions](#tool-restrictions). Calls leave from the control
+   plane, never from the sandbox or the agent container, and reach only public
+   HTTPS addresses in production.
 
 Webhook reports are sent after the run by the worker. The model does not choose
 the destination or call the webhook.
@@ -68,17 +72,20 @@ All credentials are encrypted in the database with `SECONDSHIFT_ENCRYPTION_KEY`.
 | Secret | During a run, decrypted by | Never reaches |
 | --- | --- | --- |
 | Model provider key | The gateway service | The agent loop, the sandbox, the model |
-| MCP and API credentials | The worker, inside the broker call | The sandbox, the model, audit events |
+| MCP and API credentials | The worker or gateway, inside the broker call | The sandbox, the model, audit events |
 | OAuth refresh tokens | The worker, when a token expires | The sandbox, the model |
 | Webhook URL | The worker, when delivering | The sandbox, the model |
 | Webhook trigger secret | The web app, to check a request | The sandbox, the model. Shown once |
-| Gateway run token | Held by the agent loop for one run | The sandbox. Only its hash is stored |
+| Gateway run token | Held by the built-in agent for one model call | The sandbox. Only its hash is stored |
+| Subscription login | The control plane, to seal it for the runner. The runner, for its agent container | The sandbox, plans, logs, API responses |
+| Broker run token | Held by the agent container for one run | The sandbox. Only its hash is stored |
 
-The agent loop and the broker run in the same worker process. The model never
-receives MCP or API credentials, but no process boundary separates them from
-the agent loop. The web app, gateway and worker also share the encryption key,
-so a compromise of any of them exposes every stored credential. The runner and
-the sandbox do not have the key.
+The built-in agent and the broker run in the same worker process. The model
+never receives MCP or API credentials, but no process boundary separates them
+from the agent loop. The web app, gateway and worker also share the encryption
+key, so a compromise of any of them exposes every stored credential. The runner
+and the sandbox do not have the key. The runner does keep the CLI files of each
+subscription login that has run on it.
 
 Audit events record the tool name and the connection, never the arguments,
 credentials, or responses.
@@ -185,6 +192,11 @@ the `#alerts` and `#ops` channels.
   that service.
 - **The model provider sees the context.** Repository content sent to the model
   leaves your environment unless you use a local provider.
+- **A subscription agent has internet access.** The agent container can reach
+  any address, not only its provider and the gateway. Its CLI's own shell,
+  file and web tools are switched off, and it holds only its login and a run
+  token. Protect the runner's `agent-auth` directory and its backups as
+  secrets.
 - **The credential sets the reach.** For custom MCP servers and HTTP APIs,
   SecondShift cannot narrow what the credential itself can access. Use the
   narrowest token the service offers.
