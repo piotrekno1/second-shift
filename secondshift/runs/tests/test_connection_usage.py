@@ -10,7 +10,7 @@ from secondshift.runs.models import Run
 from secondshift.runs.reporting.connection_usage import connection_usage
 from secondshift.runs.tests.test_health import NOW, add_run, add_usage
 from secondshift.runs.tests.test_run_queries import make_job, make_workspace
-from secondshift.workspaces.services import workspace_owner
+from secondshift.workspaces.dao import workspace_owner
 
 
 def make_connection(workspace: object, key: str, kind: str) -> Connection:

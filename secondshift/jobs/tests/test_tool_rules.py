@@ -22,8 +22,8 @@ from secondshift.jobs.tool_rules import (
     narrow_schema,
     validate_rules,
 )
+from secondshift.workspaces.dao import workspace_owner
 from secondshift.workspaces.models import Workspace
-from secondshift.workspaces.services import workspace_owner
 
 APPROVED = JobGrant.Status.APPROVED
 

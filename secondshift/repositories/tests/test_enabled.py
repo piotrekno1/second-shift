@@ -7,8 +7,8 @@ from django.utils import timezone
 from secondshift.jobs.models import Job
 from secondshift.repositories.models import Repository
 from secondshift.repositories.schemas import RepositoryValidationSchema
+from secondshift.workspaces.dao import workspace_owner
 from secondshift.workspaces.models import Workspace
-from secondshift.workspaces.services import workspace_owner
 
 
 def valid(repository: Repository) -> RepositoryValidationSchema:

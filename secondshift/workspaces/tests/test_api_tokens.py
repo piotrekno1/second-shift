@@ -13,8 +13,8 @@ from secondshift.workspaces.access import (
     current_workspace,
     require,
 )
+from secondshift.workspaces.dao import create_workspace
 from secondshift.workspaces.models import ApiToken, Workspace, WorkspaceMembership
-from secondshift.workspaces.services import create_workspace
 from secondshift.workspaces.tokens import ApiTokenAuth, create_api_token
 
 Role = WorkspaceMembership.Role

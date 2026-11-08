@@ -10,7 +10,7 @@ from secondshift.jobs.models import Job
 from secondshift.repositories.models import Repository
 from secondshift.runs.models import Run
 from secondshift.runs.orchestration.reconciliation import reconcile_terminal_workflows
-from secondshift.workspaces.services import create_workspace
+from secondshift.workspaces.dao import create_workspace
 
 
 class FakeDBOSClient:

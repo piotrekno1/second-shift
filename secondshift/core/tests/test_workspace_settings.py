@@ -5,8 +5,8 @@ from django.contrib.auth import get_user_model
 from django.test import Client
 
 from secondshift.core.workspace_settings import image_label, setting_groups
+from secondshift.workspaces.dao import create_workspace
 from secondshift.workspaces.models import WorkspaceMembership
-from secondshift.workspaces.services import create_workspace
 
 
 @pytest.mark.django_db

@@ -21,8 +21,8 @@ from secondshift.jobs.execution import choose_execution
 from secondshift.jobs.models import CapabilityRequest, Job, JobGrant
 from secondshift.jobs.planning import build_execution_plan
 from secondshift.repositories.models import Repository
+from secondshift.workspaces.dao import create_workspace, workspace_owner
 from secondshift.workspaces.models import Workspace
-from secondshift.workspaces.services import create_workspace, workspace_owner
 
 TOKEN = "sntryu_test_token"
 OBJECT_SCHEMA = {"type": "object", "properties": {"issueId": {"type": "string"}}}

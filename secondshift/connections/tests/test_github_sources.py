@@ -13,8 +13,8 @@ from secondshift.github import credentials
 from secondshift.github.errors import GitHubError
 from secondshift.github.tokens import TokenOwner
 from secondshift.repositories.github_access import connection_source
+from secondshift.workspaces.dao import create_workspace
 from secondshift.workspaces.models import Workspace, WorkspaceMembership
-from secondshift.workspaces.services import create_workspace
 
 TOKEN = "github_pat_" + "a" * 40
 

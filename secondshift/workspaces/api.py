@@ -25,6 +25,12 @@ from secondshift.workspaces.access import (
     select_workspace,
     user_memberships,
 )
+from secondshift.workspaces.dao import (
+    find_membership,
+    own_tokens,
+    pending_invites,
+    workspace_members,
+)
 from secondshift.workspaces.invites import (
     InviteError,
     create_invite,
@@ -32,7 +38,6 @@ from secondshift.workspaces.invites import (
     invite_path,
     join_pending_invite,
     pending_invite,
-    pending_invites,
     revoke_invite,
 )
 from secondshift.workspaces.models import (
@@ -71,12 +76,7 @@ from secondshift.workspaces.services import (
     members_in_order,
     remove_member,
 )
-from secondshift.workspaces.tokens import (
-    TokenError,
-    create_api_token,
-    own_tokens,
-    revoke_api_token,
-)
+from secondshift.workspaces.tokens import TokenError, create_api_token, revoke_api_token
 
 router = Router(auth=django_auth, tags=["workspaces"])
 
@@ -141,7 +141,7 @@ def show_pending_invite(request: HttpRequest) -> PendingInviteSchema | None:
     invite = pending_invite(request)
     if invite is None:
         return None
-    if invite.workspace.memberships.filter(user_id=request.user.pk).exists():
+    if find_membership(invite.workspace_id, request.user.pk):
         # Nothing to confirm: they already belong.
         forget_invite(request)
         return None
@@ -202,11 +202,7 @@ def membership_for_request(
     request: HttpRequest, membership_id: int
 ) -> WorkspaceMembership:
     workspace = require(request, Action.MANAGE_MEMBERS)
-    return get_object_or_404(
-        WorkspaceMembership.objects.select_related("user"),
-        pk=membership_id,
-        workspace=workspace,
-    )
+    return get_object_or_404(workspace_members(workspace), pk=membership_id)
 
 
 @router.get("/members", response=list[MemberSchema])

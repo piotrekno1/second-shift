@@ -25,8 +25,8 @@ from secondshift.repositories.tests.test_local import (
     create_local_repository,
     run_git,
 )
+from secondshift.workspaces.dao import create_workspace
 from secondshift.workspaces.models import WorkspaceMembership
-from secondshift.workspaces.services import create_workspace
 
 
 @pytest.fixture

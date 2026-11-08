@@ -11,7 +11,7 @@ from secondshift.github.identity import clone_url
 from secondshift.jobs.models import Job
 from secondshift.repositories.dao import create_repository
 from secondshift.runs.models import Run, RunEvent
-from secondshift.workspaces.models import Workspace
+from secondshift.workspaces.dao import get_workspace_by_slug
 
 DEMO_SKILLS = {
     "weekly-infra": """# Weekly infrastructure review
@@ -58,7 +58,7 @@ def command(yes: bool) -> None:
 
 def seed_demo_data() -> None:
     """Load safe, credential-free records for exploring the development UI."""
-    workspace = Workspace.objects.get(slug="secondshift")
+    workspace = get_workspace_by_slug("secondshift")
     now = timezone.now()
 
     connections = {

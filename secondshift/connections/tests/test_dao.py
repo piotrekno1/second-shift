@@ -8,8 +8,8 @@ from secondshift.connections.dao import (
     connections_by_binding,
 )
 from secondshift.connections.models import Connection
+from secondshift.workspaces.dao import create_workspace
 from secondshift.workspaces.models import Workspace
-from secondshift.workspaces.services import create_workspace
 
 
 @pytest.fixture

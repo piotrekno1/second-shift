@@ -14,6 +14,7 @@ from enum import StrEnum
 from django.db.models import QuerySet
 from django.http import HttpRequest
 
+from secondshift.workspaces.dao import memberships_for_user
 from secondshift.workspaces.models import ApiToken, Workspace, WorkspaceMembership
 
 Role = WorkspaceMembership.Role
@@ -105,11 +106,7 @@ def denial_message(action: Action) -> str:
 
 def user_memberships(request: HttpRequest) -> QuerySet[WorkspaceMembership]:
     """The signed-in person's memberships, the first one joined first."""
-    return (
-        WorkspaceMembership.objects.filter(user_id=request.user.pk)
-        .select_related("workspace")
-        .order_by("created_at", "pk")
-    )
+    return memberships_for_user(request.user.pk)
 
 
 def request_token(request: HttpRequest) -> ApiToken | None:

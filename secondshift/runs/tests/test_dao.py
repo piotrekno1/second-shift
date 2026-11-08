@@ -15,7 +15,7 @@ from secondshift.runs.dao import (
     started_run_count,
 )
 from secondshift.runs.models import RUN_ENQUEUE_FAILED, Run, Task
-from secondshift.workspaces.services import create_workspace
+from secondshift.workspaces.dao import create_workspace
 
 
 @pytest.fixture

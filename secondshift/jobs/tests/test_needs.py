@@ -17,8 +17,8 @@ from secondshift.repositories.models import Repository
 from secondshift.runs.models import Run, RunEvent
 from secondshift.runs.orchestration.workflows import notify
 from secondshift.runs.reporting.notifications import notification_targets
+from secondshift.workspaces.dao import create_workspace
 from secondshift.workspaces.models import Workspace
-from secondshift.workspaces.services import create_workspace
 
 
 @pytest.fixture

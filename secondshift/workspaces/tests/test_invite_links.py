@@ -2,6 +2,7 @@ import pytest
 from django.contrib.auth import get_user_model
 from django.test import Client
 
+from secondshift.workspaces.dao import create_workspace
 from secondshift.workspaces.invites import (
     PENDING_INVITE_SESSION_KEY,
     create_invite,
@@ -9,7 +10,6 @@ from secondshift.workspaces.invites import (
     revoke_invite,
 )
 from secondshift.workspaces.models import Workspace, WorkspaceMembership
-from secondshift.workspaces.services import create_workspace
 
 
 @pytest.fixture

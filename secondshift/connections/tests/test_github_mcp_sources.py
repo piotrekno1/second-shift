@@ -20,8 +20,8 @@ from secondshift.connections.models import Connection
 from secondshift.connections.serialization import serialize_connection
 from secondshift.github import app, credentials
 from secondshift.repositories.models import Repository
+from secondshift.workspaces.dao import create_workspace
 from secondshift.workspaces.models import Workspace
-from secondshift.workspaces.services import create_workspace
 
 PAT = "github_pat_" + "a" * 40
 TOOLS = {

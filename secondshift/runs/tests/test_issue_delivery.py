@@ -18,7 +18,7 @@ from secondshift.runs.reporting.notifications import run_report_payload
 from secondshift.runs.services import create_run
 from secondshift.runs.tests.test_publishing import queue  # noqa: F401
 from secondshift.runs.tests.test_workflows import execution_run
-from secondshift.workspaces.services import workspace_owner
+from secondshift.workspaces.dao import workspace_owner
 
 ACCESS = GitHubAccess(42, "current/project", "ghs_token", {})
 

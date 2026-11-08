@@ -9,8 +9,8 @@ from django.test import Client
 from secondshift.connections.models import Connection
 from secondshift.jobs.models import CapabilityRequest, Job, JobGrant
 from secondshift.repositories.models import Repository
+from secondshift.workspaces.dao import create_workspace
 from secondshift.workspaces.models import Workspace, WorkspaceMembership
-from secondshift.workspaces.services import create_workspace
 from secondshift.workspaces.tokens import create_api_token
 
 SERVER_URL = "https://mcp.internal.example.com/mcp"

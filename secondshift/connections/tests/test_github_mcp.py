@@ -25,7 +25,7 @@ from secondshift.connections.mcp.github import (
 from secondshift.connections.mcp.transport import BoundedStream
 from secondshift.connections.models import Connection
 from secondshift.jobs.manifest import load_manifest
-from secondshift.workspaces.services import create_workspace
+from secondshift.workspaces.dao import create_workspace
 
 TOOL_SCHEMAS = {
     "search_pull_requests": {

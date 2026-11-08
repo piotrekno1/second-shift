@@ -15,8 +15,8 @@ from secondshift.repositories.local import (
 from secondshift.repositories.models import Repository
 from secondshift.repositories.serialization import validate_repository
 from secondshift.repositories.sync import SyncError, resync
+from secondshift.workspaces.dao import create_workspace
 from secondshift.workspaces.models import Workspace, WorkspaceMembership
-from secondshift.workspaces.services import create_workspace
 
 
 def run_git(path: Path, *arguments: str) -> None:

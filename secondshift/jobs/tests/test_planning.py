@@ -12,7 +12,7 @@ from secondshift.jobs.models import CapabilityRequest, Job, JobGrant
 from secondshift.jobs.planning import build_execution_plan
 from secondshift.jobs.readiness import readiness_problems
 from secondshift.repositories.models import Repository
-from secondshift.workspaces.services import create_workspace
+from secondshift.workspaces.dao import create_workspace
 
 
 def create_job(db) -> Job:

@@ -22,8 +22,8 @@ from secondshift.jobs.planning import build_execution_plan
 from secondshift.jobs.tests.test_planning import create_job
 from secondshift.runs.execution.budgets import Budget, budget_summary
 from secondshift.runs.models import Run
+from secondshift.workspaces.dao import workspace_owner
 from secondshift.workspaces.models import WorkspaceMembership
-from secondshift.workspaces.services import workspace_owner
 
 
 def test_owners_can_raise_a_long_jobs_limits_without_a_server_change() -> None:

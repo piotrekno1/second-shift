@@ -14,8 +14,8 @@ from secondshift.jobs.manifest import parse_manifest
 from secondshift.jobs.models import CapabilityRequest, JobGrant
 from secondshift.jobs.sync import sync_jobs
 from secondshift.repositories.models import Repository
+from secondshift.workspaces.dao import create_workspace
 from secondshift.workspaces.models import Workspace, WorkspaceMembership
-from secondshift.workspaces.services import create_workspace
 
 COMMIT = "a" * 40
 

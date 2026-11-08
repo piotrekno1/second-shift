@@ -19,8 +19,8 @@ from secondshift.connections.webhooks import (
 )
 from secondshift.jobs.models import CapabilityRequest, Job, JobGrant
 from secondshift.repositories.models import Repository
+from secondshift.workspaces.dao import create_workspace
 from secondshift.workspaces.models import Workspace
-from secondshift.workspaces.services import create_workspace
 
 SECRET_URL = "https://hooks.example.com/services/T000/B000/secret-token"
 

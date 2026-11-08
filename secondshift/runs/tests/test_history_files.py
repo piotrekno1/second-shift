@@ -20,7 +20,7 @@ from secondshift.runs.models import Run
 from secondshift.runs.orchestration import workflows
 from secondshift.runs.services import create_run
 from secondshift.runs.tests.test_workflows import FakeRunnerClient
-from secondshift.workspaces.services import create_workspace
+from secondshift.workspaces.dao import create_workspace
 
 
 @pytest.fixture(autouse=True)

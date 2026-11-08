@@ -17,7 +17,7 @@ from secondshift.jobs.planning import build_execution_plan, build_skill_executio
 from secondshift.jobs.sync import sync_jobs
 from secondshift.repositories.models import Repository
 from secondshift.runs.models import Run, Task
-from secondshift.workspaces.services import create_workspace
+from secondshift.workspaces.dao import create_workspace
 
 COMMIT = "a" * 40
 

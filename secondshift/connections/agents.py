@@ -16,7 +16,8 @@ from secondshift.connections.models import AgentConnection, AgentCredentialClean
 from secondshift.runner.agent_credentials import encrypt_agent_auth
 from secondshift.runner.client import get_runner_client
 from secondshift.runner.protocol import RunnerProtocolError
-from secondshift.workspaces.models import Workspace, WorkspaceMembership
+from secondshift.workspaces.dao import is_owner
+from secondshift.workspaces.models import Workspace
 
 logger = logging.getLogger(__name__)
 
@@ -233,9 +234,5 @@ def usable_agent_connection(connection: AgentConnection, workspace_id: int) -> b
         connection.connected
         and connection.workspace_id == workspace_id
         and connection.backend in (AgentBackend.CLAUDE_CODE, AgentBackend.CODEX)
-        and WorkspaceMembership.objects.filter(
-            workspace_id=workspace_id,
-            user_id=connection.owner_id,
-            role=WorkspaceMembership.Role.OWNER,
-        ).exists()
+        and is_owner(workspace_id, connection.owner_id)
     )

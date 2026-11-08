@@ -6,8 +6,8 @@ from django.contrib.auth.models import AbstractUser
 from django.http import HttpRequest, HttpResponse
 from django.test import Client, RequestFactory, override_settings
 
+from secondshift.workspaces.dao import create_workspace
 from secondshift.workspaces.models import ApiToken, Workspace, WorkspaceMembership
-from secondshift.workspaces.services import create_workspace
 from secondshift.workspaces.tokens import (
     ApiTokenAuth,
     create_api_token,

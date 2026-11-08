@@ -7,7 +7,7 @@ from secondshift.jobs.models import Job
 from secondshift.repositories.models import Repository
 from secondshift.runs.models import Run, RunEvent, Task
 from secondshift.runs.orchestration.workflows import create_scheduled_run_step
-from secondshift.workspaces.services import create_workspace
+from secondshift.workspaces.dao import create_workspace
 
 TICK = datetime(2026, 11, 2, 8, 0, tzinfo=UTC)
 

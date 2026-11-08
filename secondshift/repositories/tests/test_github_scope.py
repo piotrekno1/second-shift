@@ -14,7 +14,7 @@ from secondshift.repositories.local import (
 )
 from secondshift.repositories.models import Repository
 from secondshift.repositories.tests.test_local import create_local_repository
-from secondshift.workspaces.services import create_workspace
+from secondshift.workspaces.dao import create_workspace
 
 
 @pytest.mark.parametrize(

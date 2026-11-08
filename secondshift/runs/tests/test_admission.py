@@ -32,8 +32,8 @@ from secondshift.runs.tests.test_submissions import (
     start,
     submission,
 )
+from secondshift.workspaces.dao import create_workspace
 from secondshift.workspaces.models import WorkspaceMembership
-from secondshift.workspaces.services import create_workspace
 
 owner = owner_fixture
 repository = repository_fixture

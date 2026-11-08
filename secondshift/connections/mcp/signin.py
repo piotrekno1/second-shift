@@ -33,7 +33,8 @@ from secondshift.connections.mcp.providers import mcp_provider
 from secondshift.connections.models import Connection, OAuthAuthorization
 from secondshift.connections.services import ConnectionConflict
 from secondshift.workspaces.access import Action, role_allows
-from secondshift.workspaces.models import Workspace, WorkspaceMembership
+from secondshift.workspaces.dao import find_membership
+from secondshift.workspaces.models import Workspace
 
 logger = logging.getLogger(__name__)
 
@@ -136,9 +137,7 @@ def claim_authorization(user: AbstractBaseUser, state: str) -> OAuthAuthorizatio
     if authorization.created_at < timezone.now() - AUTHORIZATION_TTL:
         raise SignInError("expired", "This sign-in expired. Start again.")
     # The person may have lost their role since they started.
-    membership = WorkspaceMembership.objects.filter(
-        workspace_id=authorization.workspace_id, user_id=user.pk
-    ).first()
+    membership = find_membership(authorization.workspace_id, user.pk)
     if membership is None or not role_allows(
         membership.role, Action.ADD_MCP_CONNECTIONS
     ):

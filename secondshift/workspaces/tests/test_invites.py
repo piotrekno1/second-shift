@@ -5,12 +5,12 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 from django.utils import timezone
 
+from secondshift.workspaces.dao import create_workspace, pending_invites
 from secondshift.workspaces.invites import (
     InviteError,
     accept_invite,
     create_invite,
     find_invite,
-    pending_invites,
     revoke_invite,
     token_hash,
 )
@@ -19,7 +19,6 @@ from secondshift.workspaces.models import (
     WorkspaceInvite,
     WorkspaceMembership,
 )
-from secondshift.workspaces.services import create_workspace
 
 
 def user(name: str) -> AbstractUser:

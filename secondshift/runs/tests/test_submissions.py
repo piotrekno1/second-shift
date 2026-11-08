@@ -53,8 +53,8 @@ from secondshift.runs.retention import prune_runs
 from secondshift.runs.services import RunRefused
 from secondshift.runs.submissions import SkillSubmission, submit_skill
 from secondshift.runs.transitions import start_run
+from secondshift.workspaces.dao import create_workspace
 from secondshift.workspaces.models import WorkspaceMembership
-from secondshift.workspaces.services import create_workspace
 
 pytestmark = pytest.mark.django_db(transaction=True)
 SKILL = ".agents/skills/review/SKILL.md"

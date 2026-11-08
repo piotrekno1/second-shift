@@ -11,7 +11,7 @@ from secondshift.jobs.planning import build_execution_plan
 from secondshift.jobs.scheduling import desired_schedules, next_occurrence
 from secondshift.jobs.sync import sync_jobs, sync_manifest
 from secondshift.repositories.models import Repository
-from secondshift.workspaces.services import create_workspace
+from secondshift.workspaces.dao import create_workspace
 
 
 def write_manifest(path: Path, tools: list[str]) -> None:

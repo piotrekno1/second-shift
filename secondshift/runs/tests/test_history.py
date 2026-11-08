@@ -16,7 +16,7 @@ from secondshift.runs.history import CUT_NOTE, previous_reports
 from secondshift.runs.models import Run
 from secondshift.runs.orchestration.workflows import create_scheduled_run_step
 from secondshift.runs.services import create_run
-from secondshift.workspaces.services import create_workspace
+from secondshift.workspaces.dao import create_workspace
 
 
 @pytest.fixture(autouse=True)

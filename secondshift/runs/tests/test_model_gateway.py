@@ -16,7 +16,7 @@ from secondshift.runs.execution.model_gateway import (
     pydantic_model,
 )
 from secondshift.runs.models import Run
-from secondshift.workspaces.services import create_workspace
+from secondshift.workspaces.dao import create_workspace
 
 PROVIDER_KEY = "sk-ant-provider-secret"
 

@@ -34,8 +34,8 @@ from secondshift.workspaces.access import (
     is_operator,
     permitted_actions,
 )
+from secondshift.workspaces.dao import own_tokens
 from secondshift.workspaces.services import can_create_workspace
-from secondshift.workspaces.tokens import own_tokens
 
 router = Router(auth=django_auth, tags=["core"])
 

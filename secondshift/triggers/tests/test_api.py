@@ -18,8 +18,8 @@ from secondshift.repositories.models import Repository
 from secondshift.runs.models import Run, Task
 from secondshift.triggers.models import JobTrigger, TriggerEvent
 from secondshift.triggers.verification import SIGNATURE_HEADER, TIMESTAMP_HEADER
+from secondshift.workspaces.dao import create_workspace
 from secondshift.workspaces.models import WorkspaceMembership
-from secondshift.workspaces.services import create_workspace
 
 ALERT = {"status": "firing", "alerts": [{"fingerprint": "abc"}]}
 

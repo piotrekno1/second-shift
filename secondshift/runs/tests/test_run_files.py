@@ -11,7 +11,7 @@ from secondshift.runs.execution import run as execution
 from secondshift.runs.execution.run import capture_run_input_step
 from secondshift.runs.models import Run
 from secondshift.runs.tests.test_workflows import execution_run
-from secondshift.workspaces.services import workspace_owner
+from secondshift.workspaces.dao import workspace_owner
 
 SKILL = "# Review\n\nList the files and report.\n"
 

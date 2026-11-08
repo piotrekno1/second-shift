@@ -20,8 +20,8 @@ from secondshift.mcp_server.tools_registry import (
     registry,
 )
 from secondshift.workspaces.access import Action, current_workspace, require
+from secondshift.workspaces.dao import create_workspace
 from secondshift.workspaces.models import Workspace, WorkspaceMembership
-from secondshift.workspaces.services import create_workspace
 from secondshift.workspaces.tokens import create_api_token
 
 PROTOCOL = {"MCP-Protocol-Version": "2025-11-25"}

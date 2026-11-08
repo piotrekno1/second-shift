@@ -12,8 +12,8 @@ from secondshift.jobs.execution import NOTHING_CHOSEN, choose_execution
 from secondshift.jobs.models import JOB_REMOVED, CapabilityRequest, Job, JobGrant
 from secondshift.repositories.models import Repository
 from secondshift.runs.models import Run, Task
+from secondshift.workspaces.dao import create_workspace
 from secondshift.workspaces.models import Workspace, WorkspaceMembership
-from secondshift.workspaces.services import create_workspace
 
 
 @pytest.fixture
