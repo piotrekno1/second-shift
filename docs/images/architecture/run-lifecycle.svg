@@ -1,0 +1,119 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 576" role="img" aria-labelledby="title desc">
+  <title id="title">Run lifecycle</title>
+  <desc id="desc">A run is started by a schedule, Run now, a webhook trigger or a task. It freezes its plan, opens a sandbox, runs the agent, saves outputs, publishes a draft pull request and issues, then notifies. A job with history gives the agent earlier reports and saved files. If the worker restarts, the run resumes after its last finished step, except for a Claude Code or Codex agent step, which fails.</desc>
+  <style>
+    .card { fill: #171717; stroke: #292929; }
+    .box { fill: #1f1f1f; stroke: #343434; }
+    .hi { fill: #2a2117; stroke: #ffb454; stroke-width: 1.5; }
+    .pill { fill: #1f1f1f; stroke: #3a3a3a; }
+    .band { fill: #1c1c1c; stroke: #303030; }
+    .badge { fill: #262626; }
+    .eyebrow { fill: #8a8a8a; font: 600 11px Geist, ui-sans-serif, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; letter-spacing: .09em; }
+    .num { fill: #ffb454; font: 500 12px "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .h { fill: #ededed; font: 600 20px Geist, ui-sans-serif, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; }
+    .t { fill: #ededed; font: 600 15px Geist, ui-sans-serif, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; }
+    .p { fill: #b5b5b5; font: 400 13px Geist, ui-sans-serif, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; }
+    .pt { fill: #d6d6d6; font: 500 13px Geist, ui-sans-serif, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; }
+    .mono { fill: #b5b5b5; font: 400 11.5px "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .accent { fill: #ffb454; }
+    .wire { fill: none; stroke: #5c5c5c; stroke-width: 1.5; }
+    .flow { fill: none; stroke: #ffb454; stroke-width: 1.6; }
+    .head { fill: #5c5c5c; }
+    .headhi { fill: #ffb454; }
+    @media (prefers-color-scheme: light) {
+      .card { fill: #fbfaf8; stroke: #e6e4df; }
+      .box { fill: #ffffff; stroke: #dedbd5; }
+      .hi { fill: #fff6e8; stroke: #c27a1a; }
+      .pill { fill: #ffffff; stroke: #d4d1ca; }
+      .band { fill: #f4f3f0; stroke: #e6e4df; }
+      .badge { fill: #efede8; }
+      .eyebrow { fill: #7a7a7a; }
+      .num, .accent { fill: #9c5700; }
+      .h, .t { fill: #151515; }
+      .p { fill: #4a4a4a; }
+      .pt { fill: #262626; }
+      .mono { fill: #4a4a4a; }
+      .wire { stroke: #a8a49c; }
+      .flow { stroke: #c27a1a; }
+      .head { fill: #a8a49c; }
+      .headhi { fill: #c27a1a; }
+    }
+  </style>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="head" d="M0 0 10 5 0 10z"/></marker>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="headhi" d="M0 0 10 5 0 10z"/></marker>
+  </defs>
+
+  <rect class="card" x="0.5" y="0.5" width="959" height="575" rx="16"/>
+
+  <text class="eyebrow" x="32" y="44">RUN LIFECYCLE</text>
+  <text class="h" x="32" y="72">The steps of a run</text>
+
+  <!-- Starts -->
+  <text class="eyebrow" x="32" y="118">STARTED BY</text>
+  <rect class="pill" x="32" y="130" width="92" height="32" rx="16"/>
+  <text class="pt" x="78" y="151" text-anchor="middle">Schedule</text>
+  <rect class="pill" x="134" y="130" width="92" height="32" rx="16"/>
+  <text class="pt" x="180" y="151" text-anchor="middle">Run now</text>
+  <rect class="pill" x="236" y="130" width="138" height="32" rx="16"/>
+  <text class="pt" x="305" y="151" text-anchor="middle">Webhook trigger</text>
+  <rect class="pill" x="384" y="130" width="196" height="32" rx="16"/>
+  <text class="pt" x="482" y="151" text-anchor="middle">Task from the API or MCP</text>
+  <path class="wire" d="M78 162v14M180 162v14M305 162v14M482 162v14M78 176h404M172 176v20" marker-end="url(#a)"/>
+
+  <!-- History -->
+  <text class="eyebrow" x="648" y="118">WHEN THE JOB KEEPS HISTORY</text>
+  <rect class="pill" x="648" y="130" width="280" height="32" rx="16"/>
+  <text class="pt" x="788" y="151" text-anchor="middle">Earlier reports and saved files</text>
+  <path class="wire" d="M788 162v34" marker-end="url(#a)"/>
+
+  <!-- Row 1 -->
+  <rect class="box" x="32" y="200" width="280" height="112" rx="12"/>
+  <text class="num" x="52" y="230">01</text>
+  <text class="t" x="52" y="254">Freeze the plan</text>
+  <text class="p" x="52" y="280">Skill, commit, tools, limits and agent.</text>
+  <text class="p" x="52" y="299">Later edits don't change it.</text>
+
+  <rect class="box" x="340" y="200" width="280" height="112" rx="12"/>
+  <text class="num" x="360" y="230">02</text>
+  <text class="t" x="360" y="254">Open a sandbox</text>
+  <text class="p" x="360" y="280">A copy of the commit's files,</text>
+  <text class="p" x="360" y="299">with no network.</text>
+
+  <rect class="hi" x="648" y="200" width="280" height="112" rx="12"/>
+  <text class="num" x="668" y="230">03</text>
+  <text class="t" x="668" y="254">Run the agent</text>
+  <text class="p" x="668" y="280">Built-in agent, Claude Code or Codex,</text>
+  <text class="p" x="668" y="299">using only the plan's tools.</text>
+
+  <path class="flow" d="M312 256h24" marker-end="url(#ah)"/>
+  <path class="flow" d="M620 256h24" marker-end="url(#ah)"/>
+  <path class="flow" d="M788 312v24H172v20" marker-end="url(#ah)"/>
+
+  <!-- Row 2 -->
+  <rect class="box" x="32" y="360" width="280" height="112" rx="12"/>
+  <text class="num" x="52" y="390">04</text>
+  <text class="t" x="52" y="414">Save outputs</text>
+  <text class="p" x="52" y="440">The report, /outputs and a patch.</text>
+  <text class="p" x="52" y="459">Then the sandbox is removed.</text>
+
+  <rect class="box" x="340" y="360" width="280" height="112" rx="12"/>
+  <text class="num" x="360" y="390">05</text>
+  <text class="t" x="360" y="414">Publish</text>
+  <text class="p" x="360" y="440">A draft pull request and issues,</text>
+  <text class="p" x="360" y="459">when the manifest asks for them.</text>
+
+  <rect class="box" x="648" y="360" width="280" height="112" rx="12"/>
+  <text class="num" x="668" y="390">06</text>
+  <text class="t" x="668" y="414">Notify</text>
+  <text class="p" x="668" y="440">Slack or a webhook, with links.</text>
+  <text class="p" x="668" y="459">Failed runs notify too.</text>
+
+  <path class="flow" d="M312 416h24" marker-end="url(#ah)"/>
+  <path class="flow" d="M620 416h24" marker-end="url(#ah)"/>
+
+  <!-- Restarts -->
+  <rect class="band" x="32" y="496" width="896" height="48" rx="12"/>
+  <text class="eyebrow" x="52" y="525">IF THE WORKER RESTARTS</text>
+  <text class="p" x="244" y="525">The run resumes after its last finished step. A Claude Code or Codex agent step fails instead.</text>
+</svg>
