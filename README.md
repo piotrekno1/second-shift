@@ -18,6 +18,33 @@ own server in production.
 
 https://github.com/user-attachments/assets/69cbc92f-72f6-45fb-98ad-27b4b1056581
 
+## Quick start
+
+You need [uv](https://docs.astral.sh/uv/getting-started/installation/), Docker,
+and a model API key or a Claude Code or Codex subscription. Start Docker, then
+run:
+
+```bash
+release=https://github.com/piotrekno1/second-shift/releases
+uv tool install --force --python 3.13 \
+  "$release/download/v0.1.0b10/secondshift-0.1.0b10-py3-none-any.whl"
+secondshift up
+```
+
+The first start builds the agent image for subscriptions and takes a few
+minutes. Use `secondshift up --no-agents` to skip it. Your dashboard opens when
+SecondShift is ready.
+
+Try it on this repository. SecondShift reviews its own documentation:
+
+1. Clone it: `git clone https://github.com/piotrekno1/second-shift.git`
+2. In **Repositories**, choose **Add local repository** and select the clone.
+3. In **Models**, add an API key or a Claude Code or Codex subscription.
+4. In **Jobs**, open **Documentation drift** and click **Run now**.
+
+For one-off work, open a repository, click **New task** and write what to do.
+To connect your coding agent, open **Connect your agent** in the account menu.
+
 ## The problem
 
 Your team asks agents for the same work every week. Triage the CI failures.
@@ -129,33 +156,6 @@ repository and adapt.
 | SRE and operations | [Alert triage](examples/alert-triage/README.md), [production errors](examples/production-error-review/README.md), [monitoring coverage](examples/monitoring-coverage-review/README.md), [on-call coverage](examples/on-call-coverage/README.md) |
 | Security and compliance | [Security regression](examples/security-regression/README.md), [quarterly access review](examples/quarterly-access-review/README.md) |
 | Engineering management | [Monday briefing](examples/engineering-briefing/README.md), [release readiness](examples/release-readiness-review/README.md), [ticket reconciliation](examples/ticket-reconciliation/README.md) |
-
-## Quick start
-
-You need [uv](https://docs.astral.sh/uv/getting-started/installation/), Docker,
-and a model API key or a Claude Code or Codex subscription. Start Docker, then
-run:
-
-```bash
-release=https://github.com/piotrekno1/second-shift/releases
-uv tool install --force --python 3.13 \
-  "$release/download/v0.1.0b10/secondshift-0.1.0b10-py3-none-any.whl"
-secondshift up
-```
-
-The first start builds the agent image for subscriptions and takes a few
-minutes. Use `secondshift up --no-agents` to skip it. Your dashboard opens when
-SecondShift is ready.
-
-Try it on this repository. SecondShift reviews its own documentation:
-
-1. Clone it: `git clone https://github.com/piotrekno1/second-shift.git`
-2. In **Repositories**, choose **Add local repository** and select the clone.
-3. In **Models**, add an API key or a Claude Code or Codex subscription.
-4. In **Jobs**, open **Documentation drift** and click **Run now**.
-
-For one-off work, open a repository, click **New task** and write what to do.
-To connect your coding agent, open **Connect your agent** in the account menu.
 
 ## Run it in production
 
