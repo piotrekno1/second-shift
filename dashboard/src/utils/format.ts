@@ -297,9 +297,12 @@ export function runStats(run: RunStatSource, now = Date.now()): RunStat[] {
       : `${formatTokens(run.model_input_tokens)} input`
     const split = `${source}${input} · ${formatTokens(run.model_output_tokens)} output tokens`
     const counting = cached ? '. Cached input counts as a tenth' : ''
+    const amount = budget
+      ? `${formatTokens(counted)} / ${formatTokens(budget)} budget`
+      : `${formatTokens(run.model_tokens)} tok`
     stats.push({
       key: 'tokens',
-      text: (budget ? `${formatTokens(counted)} / ${formatTokens(budget)} budget` : `${formatTokens(run.model_tokens)} tok`) + (agentUsage ? ' reported' : ''),
+      text: agentUsage ? `${amount} reported` : amount,
       title: budget
         ? `${split}. ${counted.toLocaleString('en')} of ${budget.toLocaleString('en')} budget tokens used${counting}`
         : split,

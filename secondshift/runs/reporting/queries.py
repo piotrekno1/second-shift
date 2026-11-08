@@ -94,18 +94,15 @@ def run_page(
     start = (page - 1) * page_size
     page_slice = slice(start, start + page_size)
     newest = ("-created_at", "-pk")
-    if filters.sort == "newest":
-        # Limit the run IDs before joining and aggregating usage for the page.
-        page_ids = runs.order_by(*newest).values("pk")[page_slice]
-        runs = Run.objects.filter(pk__in=Subquery(page_ids))
-
-    with_usage = with_model_usage(
-        runs.select_related("job__repository", "task__repository")
-    )
+    related = ("job__repository", "task__repository")
     if filters.sort == "cost":
-        ordered = with_usage.order_by(
+        # Cost comes from usage, so aggregate every run before taking the page.
+        ordered = with_model_usage(runs.select_related(*related)).order_by(
             F("model_cost_usd").desc(nulls_last=True), *newest
         )[page_slice]
     else:
-        ordered = with_usage.order_by(*newest)
+        # Take the page's run IDs first, then aggregate usage for those runs.
+        page_ids = runs.order_by(*newest).values("pk")[page_slice]
+        page_runs = Run.objects.filter(pk__in=Subquery(page_ids))
+        ordered = with_model_usage(page_runs.select_related(*related)).order_by(*newest)
     return RunPage(list(ordered), count, page, page_size, status_counts)
