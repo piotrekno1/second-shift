@@ -15,6 +15,14 @@ from django.utils import timezone
 from secondshift.config.constants import MAX_SKILL_PREVIEW_CHARS
 from secondshift.connections.dao import bound_connections
 from secondshift.jobs.automatic_grants import automatic_approval
+from secondshift.jobs.dao import (
+    create_capability_requests,
+    create_grants,
+    create_jobs,
+    delete_capability_requests,
+    repository_requests,
+    retire_missing_jobs,
+)
 from secondshift.jobs.manifest import (
     CapabilityManifest,
     JobManifest,
@@ -60,9 +68,7 @@ def sync_jobs(
     jobs = sync_job_rows(repository, manifest, skills or {})
     requests = sync_capability_requests(repository, jobs, manifest)
     sync_grants(repository, requests)
-    repository.jobs.exclude(key__in=manifest.jobs).filter(
-        removed_at__isnull=True
-    ).update(enabled=False, removed_at=timezone.now())
+    retire_missing_jobs(repository, manifest.jobs.keys(), timezone.now())
     repository.last_synced_at = timezone.now()
     repository.save(update_fields=["last_synced_at", "updated_at"])
     return jobs
@@ -133,7 +139,7 @@ def sync_job_rows(
         else:
             save_changes(job, changed)
         jobs.append(job)
-    Job.objects.bulk_create(created)
+    create_jobs(created)
     return jobs
 
 
@@ -160,9 +166,7 @@ def sync_capability_requests(
     repository: Repository, jobs: list[Job], manifest: RepositoryManifest
 ) -> list[SyncedRequest]:
     existing: dict[int, dict[str, CapabilityRequest]] = defaultdict(dict)
-    for request in CapabilityRequest.objects.filter(
-        job__repository=repository
-    ).select_related("grant"):
+    for request in repository_requests(repository):
         existing[request.job_id][request.binding] = request
 
     synced: list[SyncedRequest] = []
@@ -193,9 +197,9 @@ def sync_capability_requests(
         # Bindings the manifest no longer asks for.
         stale += [request.pk for request in current.values()]
 
-    CapabilityRequest.objects.bulk_create(created)
+    create_capability_requests(created)
     if stale:
-        CapabilityRequest.objects.filter(pk__in=stale).delete()
+        delete_capability_requests(stale)
     return synced
 
 
@@ -235,7 +239,7 @@ def sync_grants(repository: Repository, requests: list[SyncedRequest]) -> None:
             created.append(grant)
         else:
             save_changes(grant, changed)
-    JobGrant.objects.bulk_create(created)
+    create_grants(created)
 
 
 def review_fields(grant: JobGrant, synced: SyncedRequest) -> dict[str, object]:

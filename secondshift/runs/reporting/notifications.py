@@ -6,7 +6,8 @@ from urllib.parse import quote, unquote
 from django.conf import settings
 
 from secondshift.connections.models import Connection
-from secondshift.jobs.models import Job, JobGrant
+from secondshift.jobs.dao import approved_notification_targets
+from secondshift.jobs.models import Job
 from secondshift.repositories.models import Repository
 from secondshift.runs.execution.tool_broker import standalone_connection
 from secondshift.runs.models import Run, RunDelivery
@@ -46,16 +47,7 @@ def notification_targets(run: Run) -> list[int]:
             and (connection := standalone_connection(run, capability)) is not None
         )
     # A grant revoked or a connection disconnected after planning stops delivery.
-    return sorted(
-        JobGrant.objects.filter(
-            capability_request__job_id=run.job_id,
-            capability_request__kind="notification",
-            status=JobGrant.Status.APPROVED,
-            connection_id__in=planned,
-            connection__status=Connection.Status.CONNECTED,
-            connection__workspace_id=run.workspace_id,
-        ).values_list("connection_id", flat=True)
-    )
+    return approved_notification_targets(run.job_id, run.workspace_id, planned)
 
 
 def run_report_payload(run: Run) -> dict[str, Any]:

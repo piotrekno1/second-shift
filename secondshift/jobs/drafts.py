@@ -13,6 +13,7 @@ import yaml
 from secondshift.config.constants import MANIFEST_FILE
 from secondshift.connections.dao import connections_by_binding
 from secondshift.connections.models import Connection
+from secondshift.jobs.dao import find_request
 from secondshift.jobs.manifest import JobManifest, ManifestError, parse_manifest
 from secondshift.jobs.models import CapabilityRequest, JobGrant
 from secondshift.jobs.needs import NeedStatus, connection_problem
@@ -69,13 +70,7 @@ def approved_grant(
 ) -> bool:
     if repository is None:
         return False
-    request = (
-        CapabilityRequest.objects.filter(
-            job__repository=repository, job__key=key, binding=binding, kind=kind
-        )
-        .select_related("grant")
-        .first()
-    )
+    request = find_request(repository, key, binding, kind)
     grant = getattr(request, "grant", None) if request else None
     return bool(
         grant

@@ -90,6 +90,8 @@ class Run(models.Model):
 
     # A run in one of these has not finished yet.
     ACTIVE_STATUSES = (Status.QUEUED, Status.RUNNING)
+    # A run in one of these is done and will not change status again.
+    FINISHED_STATUSES = (Status.SUCCEEDED, Status.FAILED, Status.CANCELED)
 
     job = models.ForeignKey(
         Job, on_delete=models.PROTECT, related_name="runs", null=True, blank=True

@@ -7,6 +7,7 @@ from django.conf import settings
 from django.utils import timezone
 
 from secondshift.config.constants import SCHEDULED_JOB_WORKFLOW
+from secondshift.jobs.dao import save_next_runs, schedulable_jobs
 from secondshift.jobs.models import Job
 from secondshift.runs.orchestration.dbos_runtime import new_dbos_client
 
@@ -28,7 +29,7 @@ def restart_schedules(jobs: list[Job]) -> None:
     """
     for job in jobs:
         job.next_run_at = next_occurrence(job) if job.cron else None
-    Job.objects.bulk_update(jobs, ["next_run_at"])
+    save_next_runs(jobs)
 
 
 def schedule_name(job_id: int) -> str:
@@ -48,9 +49,7 @@ def desired_schedules() -> list[dict[str, object]]:
             "queue_name": settings.DBOS_QUEUE_NAME,
             "application_name": settings.DBOS_APPLICATION_NAME,
         }
-        for job in Job.objects.filter(enabled=True, repository__enabled=True)
-        .exclude(cron="")
-        .order_by("pk")
+        for job in schedulable_jobs()
     ]
 
 

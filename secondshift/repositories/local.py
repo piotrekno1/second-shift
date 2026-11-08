@@ -9,10 +9,9 @@ import yaml
 from django.db import transaction
 
 from secondshift.config.constants import GITHUB_BASE_URL, MANIFEST_FILE
-from secondshift.connections.models import Connection
 from secondshift.jobs.automatic_grants import approve_waiting
+from secondshift.jobs.dao import reopen_github_mcp_grants, repository_active_requests
 from secondshift.jobs.manifest import RepositoryManifest, parse_manifest
-from secondshift.jobs.models import CapabilityRequest, JobGrant
 from secondshift.jobs.sync import sync_jobs
 from secondshift.repositories.dao import local_repository, save_local_repository
 from secondshift.repositories.github import github_remote_name
@@ -241,17 +240,8 @@ def attach_local_repository(
     if manifest is not None:
         sync_jobs(repository, manifest, skills)
     if scope_changed:
-        JobGrant.objects.filter(
-            capability_request__job__repository=repository,
-            capability_request__kind=Connection.Kind.MCP,
-            connection__provider=Connection.Provider.GITHUB,
-            status=JobGrant.Status.APPROVED,
-        ).update(
-            status=JobGrant.Status.PENDING,
-            reviewed_by=None,
-            reviewed_at=None,
-        )
-        approve_waiting(CapabilityRequest.objects.filter(job__repository=repository))
+        reopen_github_mcp_grants(repository)
+        approve_waiting(repository_active_requests(repository))
     return repository
 
 

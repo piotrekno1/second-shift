@@ -17,8 +17,8 @@ from secondshift.core.workspace_settings import (
     sandbox_label,
 )
 from secondshift.github.app import configured as github_app_configured
+from secondshift.jobs.dao import enabled_job_count
 from secondshift.jobs.execution import execution_status
-from secondshift.jobs.models import Job
 from secondshift.repositories.dao import active_repositories
 from secondshift.repositories.models import Repository
 from secondshift.runs.models import Run, run_workspace_filter
@@ -80,11 +80,7 @@ def overview(request: HttpRequest) -> OverviewSchema:
         local_repositories=repositories.filter(
             source_type=Repository.SourceType.LOCAL
         ).count(),
-        enabled_jobs=Job.objects.filter(
-            workspace=workspace,
-            repository__removed_at__isnull=True,
-            enabled=True,
-        ).count(),
+        enabled_jobs=enabled_job_count(workspace.pk),
         runs_today=runs.filter(created_at__date=today).count(),
         failed_runs=runs.filter(status=Run.Status.FAILED).count(),
         connected_services=Connection.objects.filter(

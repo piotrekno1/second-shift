@@ -4,12 +4,12 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 
-from django.db.models import Count, OuterRef, Subquery
+from django.db.models import Count
 from django.db.models.functions import TruncDate
 from django.utils import timezone
 
 from secondshift.gateway.dao import spend_per_job, spend_totals
-from secondshift.jobs.models import Job
+from secondshift.jobs.dao import jobs_by_id, jobs_whose_last_run_failed
 from secondshift.runs.models import Run, run_workspace_filter
 from secondshift.runs.reporting.failures import describe_failure
 from secondshift.workspaces.models import Workspace
@@ -73,22 +73,7 @@ def failing_jobs(workspace: Workspace) -> list[FailingJob]:
     looks only at each job's latest outcome, not at failure history. Paused
     jobs still count, marked as paused, since their last run is still broken.
     """
-    latest = Run.objects.filter(job=OuterRef("pk"), status__in=FINISHED).order_by(
-        "-created_at", "-pk"
-    )
-    jobs = (
-        Job.objects.filter(
-            workspace=workspace,
-            repository__removed_at__isnull=True,
-        )
-        .select_related("repository")
-        .annotate(
-            latest_run_id=Subquery(latest.values("pk")[:1]),
-            latest_status=Subquery(latest.values("status")[:1]),
-        )
-        .filter(latest_status=Run.Status.FAILED)
-        .order_by("name")
-    )
+    jobs = jobs_whose_last_run_failed(workspace.pk)
     runs = Run.objects.in_bulk([job.latest_run_id for job in jobs])
     failing: list[FailingJob] = []
     for job in jobs:
@@ -168,9 +153,7 @@ def spend_by_job(
     rows = spend_per_job(workspace.pk, start)
     ranked = sorted(rows, key=lambda row: row["spend"] or Decimal(0), reverse=True)
     ranked = ranked[:limit]
-    jobs = Job.objects.select_related("repository").in_bulk(
-        [row["run__job_id"] for row in ranked]
-    )
+    jobs = jobs_by_id(row["run__job_id"] for row in ranked)
     return [
         JobSpend(
             job_id=row["run__job_id"],

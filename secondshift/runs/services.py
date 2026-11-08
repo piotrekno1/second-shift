@@ -9,6 +9,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from secondshift.config.constants import RunStart, TaskOrigin
+from secondshift.jobs.dao import lock_job
 from secondshift.jobs.models import JOB_REMOVED, Job
 from secondshift.jobs.planning import build_execution_plan
 from secondshift.jobs.readiness import plan_problems
@@ -102,7 +103,7 @@ def start_run(
         raise RunRefused("Enable the repository before running its jobs.")
     with transaction.atomic():
         # Two starts at the same moment wait here, so only one creates a run.
-        Job.objects.select_for_update().filter(pk=job.pk).first()
+        lock_job(job)
         active = latest_active_run(job)
         if active is not None:
             raise RunInProgress(active)
@@ -137,7 +138,7 @@ def create_scheduled_run(job: Job, scheduled_for: datetime) -> Run | None:
     noted on the active run.
     """
     with transaction.atomic():
-        Job.objects.select_for_update().filter(pk=job.pk).first()
+        lock_job(job)
         existing = job.runs.filter(scheduled_for=scheduled_for).first()
         if existing is not None:
             return existing

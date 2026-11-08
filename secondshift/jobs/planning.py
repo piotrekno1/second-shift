@@ -18,6 +18,7 @@ from secondshift.connections.models import Connection
 from secondshift.jobs.agent_policy import AgentPolicy, agent_plan
 from secondshift.jobs.automatic_grants import approves_automatically
 from secondshift.jobs.capabilities import RequestedCapability, manifest_capabilities
+from secondshift.jobs.dao import job_requests_with_grants
 from secondshift.jobs.execution import workspace_execution, workspace_model
 from secondshift.jobs.limits import RunLimit, effective_limits, workspace_value
 from secondshift.jobs.manifest import JobManifest, TaskManifest, manifest_hash
@@ -274,7 +275,7 @@ def compile_execution_plan(
 def build_execution_plan(job: Job) -> dict[str, Any]:
     """Adapt a saved job and its grants without changing existing plan payloads."""
     capabilities = []
-    for request in job.capability_requests.select_related("grant__connection").all():
+    for request in job_requests_with_grants(job):
         grant = getattr(request, "grant", None)
         capabilities.append(
             PlannedCapability(

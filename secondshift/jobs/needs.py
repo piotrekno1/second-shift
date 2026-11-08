@@ -4,6 +4,7 @@ from typing import Literal
 from secondshift.connections.dao import connections_by_binding
 from secondshift.connections.external import EXTERNAL_KINDS, Access, external_access
 from secondshift.connections.models import Connection
+from secondshift.jobs.dao import workspace_requests
 from secondshift.jobs.models import CapabilityRequest, JobGrant
 from secondshift.repositories.models import Repository
 from secondshift.workspaces.models import Workspace
@@ -101,14 +102,7 @@ def need_status(
 
 def capability_needs(workspace: Workspace) -> list[CapabilityNeed]:
     """Group every capability requested by active jobs by its logical binding."""
-    requests = (
-        CapabilityRequest.objects.filter(
-            job__workspace=workspace,
-            job__repository__removed_at__isnull=True,
-        )
-        .select_related("job__repository", "grant")
-        .order_by("binding", "job__name")
-    )
+    requests = workspace_requests(workspace)
     connections = connections_by_binding(workspace.pk)
     grouped: dict[tuple[str, str], list[CapabilityRequest]] = {}
     for request in requests:

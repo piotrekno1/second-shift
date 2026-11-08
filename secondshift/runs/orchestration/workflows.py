@@ -18,7 +18,7 @@ from secondshift.config.constants import (
 )
 from secondshift.connections.models import Connection
 from secondshift.connections.webhooks import deliver_webhook
-from secondshift.jobs.models import Job
+from secondshift.jobs.dao import scheduled_job
 from secondshift.jobs.readiness import execution_problems
 from secondshift.jobs.scheduling import next_occurrence
 from secondshift.repositories.dao import lock_repository
@@ -57,13 +57,8 @@ logger = logging.getLogger(__name__)
 @DBOS.step(name="secondshift.create_scheduled_run")
 def create_scheduled_run_step(scheduled_time: datetime, context: Any) -> int | None:
     job_id = int(context["job_id"])
-    try:
-        job = Job.objects.select_related("repository").get(
-            pk=job_id,
-            enabled=True,
-            repository__enabled=True,
-        )
-    except Job.DoesNotExist:
+    job = scheduled_job(job_id)
+    if job is None:
         logger.info("skipping disabled or deleted scheduled job %s", job_id)
         return None
 

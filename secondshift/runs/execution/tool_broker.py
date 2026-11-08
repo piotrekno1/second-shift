@@ -12,7 +12,7 @@ from secondshift.connections.errors import ExternalToolError, ToolArgumentError
 from secondshift.connections.external import Authorization, external_kind
 from secondshift.connections.mcp.base import CustomMCPToolError
 from secondshift.connections.models import Connection
-from secondshift.jobs.models import JobGrant
+from secondshift.jobs.dao import approved_tool_grant
 from secondshift.jobs.tool_policy import AuthorizedTool, resolve_tool
 from secondshift.jobs.tool_rules import ToolRuleViolation, apply_rules
 from secondshift.runs.models import Run, RunEvent
@@ -55,16 +55,8 @@ def broker_connection(run: Run, name: str) -> Authorization:
             run.repository,
             str(tool.provider_tool),
         )
-    grant = (
-        JobGrant.objects.select_related("connection", "capability_request")
-        .filter(
-            capability_request__job=run.job,
-            capability_request__kind=tool.kind,
-            capability_request__binding=tool.binding,
-            connection_id=capability.get("connection_id"),
-            status=JobGrant.Status.APPROVED,
-        )
-        .first()
+    grant = approved_tool_grant(
+        run.job, tool.kind, tool.binding, capability.get("connection_id")
     )
     if (
         run.status in FINISHED

@@ -5,11 +5,10 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from decimal import Decimal
 
-from django.db.models import Count
 from django.utils import timezone
 
 from secondshift.gateway.dao import usage_by_connection
-from secondshift.jobs.models import JobGrant
+from secondshift.jobs.dao import approved_jobs_per_connection
 from secondshift.runs.models import Run, run_workspace_filter
 from secondshift.workspaces.models import Workspace
 
@@ -34,15 +33,7 @@ def connection_usage(
     workspace: Workspace, now: datetime | None = None
 ) -> dict[int, ConnectionUsage]:
     start = (now or timezone.now()) - WINDOW
-    jobs = {
-        row["connection_id"]: row["jobs"]
-        for row in JobGrant.objects.filter(
-            connection__workspace=workspace, status=JobGrant.Status.APPROVED
-        )
-        .values("connection_id")
-        .annotate(jobs=Count("capability_request__job", distinct=True))
-        .order_by()
-    }
+    jobs = approved_jobs_per_connection(workspace.pk)
     models = usage_by_connection(workspace.pk, start)
     usage: dict[int, ConnectionUsage] = {}
     for connection_id in jobs.keys() | models.keys():

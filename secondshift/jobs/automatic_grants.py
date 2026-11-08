@@ -7,13 +7,17 @@ approved or denied grant is never changed here.
 """
 
 from django.db import transaction
-from django.db.models import QuerySet
 from django.utils import timezone
 
 from secondshift.connections.dao import auto_approved_connections
 from secondshift.connections.external import external_access
 from secondshift.connections.models import Connection
 from secondshift.jobs.capabilities import RequestedCapability
+from secondshift.jobs.dao import (
+    binding_active_requests,
+    create_grants,
+    save_grant_reviews,
+)
 from secondshift.jobs.models import CapabilityRequest, JobGrant
 from secondshift.repositories.models import Repository
 
@@ -52,12 +56,11 @@ def automatic_approval(
     }
 
 
-def approve_waiting(requests: QuerySet[CapabilityRequest]) -> int:
-    """Approve the waiting requests that their connections allow. Returns how many."""
-    requests = requests.filter(job__repository__removed_at__isnull=True).select_related(
-        "grant", "job__repository"
-    )
-    loaded = list(requests)
+def approve_waiting(loaded: list[CapabilityRequest]) -> int:
+    """Approve the waiting requests that their connections allow. Returns how many.
+
+    Each request needs its grant and its job's repository loaded.
+    """
     if not loaded:
         return 0
     connections = {
@@ -87,18 +90,8 @@ def approve_waiting(requests: QuerySet[CapabilityRequest]) -> int:
             updated.append(grant)
         for name, value in {**fields, "updated_at": now}.items():
             setattr(grant, name, value)
-    JobGrant.objects.bulk_create(created)
-    JobGrant.objects.bulk_update(
-        updated,
-        [
-            "connection",
-            "status",
-            "allowed_tools",
-            "reviewed_by",
-            "reviewed_at",
-            "updated_at",
-        ],
-    )
+    create_grants(created)
+    save_grant_reviews(updated)
     return len(created) + len(updated)
 
 
@@ -107,10 +100,7 @@ def approve_waiting_for(connection: Connection) -> int:
     if connection.require_approval or not connection.binding_key:
         return 0
     return approve_waiting(
-        CapabilityRequest.objects.filter(
-            job__workspace_id=connection.workspace_id,
-            binding=connection.binding_key,
-        )
+        binding_active_requests(connection.workspace_id, connection.binding_key)
     )
 
 

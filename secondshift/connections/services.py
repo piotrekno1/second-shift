@@ -2,6 +2,7 @@ from django.db import IntegrityError, transaction
 
 from secondshift.connections.models import Connection
 from secondshift.connections.webhooks import validate_webhook_url, webhook_target_label
+from secondshift.jobs.dao import release_connection_grants
 from secondshift.repositories.dao import has_repositories
 from secondshift.workspaces.models import Workspace
 
@@ -106,11 +107,5 @@ def delete_connection(connection: Connection) -> None:
         )
     # Grants are review records: they return to pending instead of disappearing,
     # so the jobs show up again under "Needed by your jobs".
-    connection.job_grants.update(
-        connection=None,
-        status="pending",
-        allowed_tools=[],
-        reviewed_by=None,
-        reviewed_at=None,
-    )
+    release_connection_grants(connection)
     connection.delete()

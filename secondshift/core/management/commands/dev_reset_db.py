@@ -8,7 +8,7 @@ from django.utils import timezone
 from secondshift.config.constants import SandboxRuntime
 from secondshift.connections.models import Connection
 from secondshift.github.identity import clone_url
-from secondshift.jobs.models import Job
+from secondshift.jobs.dao import create_job
 from secondshift.repositories.dao import create_repository
 from secondshift.runs.models import Run, RunEvent
 from secondshift.workspaces.dao import get_workspace_by_slug
@@ -107,7 +107,7 @@ def seed_demo_data() -> None:
     }
 
     jobs = {
-        key: Job.objects.create(
+        key: create_job(
             workspace=workspace,
             repository=repositories[repository],
             key=key,
