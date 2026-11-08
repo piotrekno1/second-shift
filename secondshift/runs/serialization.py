@@ -79,8 +79,9 @@ def serialize_run(run: Run) -> RunSchema:
             )
         )
         output_tokens = usage.get("output_tokens", 0)
-        tokens = input_tokens + output_tokens if usage else None
         cached_tokens = cache_reads(usage)
+        # The CLI may report no usage at all. Show that as unknown, not zero.
+        tokens = input_tokens + output_tokens if usage else None
         budget_tokens = usage_budget(usage) if usage else None
     return RunSchema(
         id=run.id,

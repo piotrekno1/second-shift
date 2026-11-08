@@ -232,8 +232,8 @@ def compile_execution_plan(
         RunLimit.TOKEN_BUDGET: limits[RunLimit.TOKEN_BUDGET],
         RunLimit.TIMEOUT_SECONDS: limits[RunLimit.TIMEOUT_SECONDS],
     }
-    # Codex cannot start sub-agents yet. Lowering the server maximum applies
-    # before the manifest is synced again.
+    # Backends that cannot start sub-agents get none. Lowering the server
+    # maximum applies before the manifest is synced again.
     agent["subagents"] = (
         min(subagents, settings.RUN_SUBAGENTS_MAX)
         if AgentBackend(selection.backend).starts_subagents
