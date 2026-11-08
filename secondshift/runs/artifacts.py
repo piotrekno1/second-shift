@@ -4,7 +4,6 @@ Full runner output lives in the private ``run_artifacts`` storage, never in
 Postgres or DBOS checkpoints. The database keeps metadata and a short excerpt.
 """
 
-import base64
 import hashlib
 import json
 import tarfile
@@ -12,7 +11,6 @@ from dataclasses import asdict, dataclass
 from datetime import UTC
 from pathlib import Path
 from typing import IO, Any
-from urllib.parse import quote
 
 from django.conf import settings
 from django.core.files.base import ContentFile, File
@@ -34,7 +32,6 @@ from secondshift.runner.collection import (
 )
 from secondshift.runs.models import Run
 
-REDACTED = "[REDACTED]"
 TRUNCATION_MARKER = "\n\n[... {omitted} bytes omitted by SecondShift ...]\n\n"
 
 
@@ -60,44 +57,6 @@ def job_input_snapshot(job: Job) -> dict[str, Any]:
         "skill_path": job.skill_path,
         "config_hash": job.config_hash,
     }
-
-
-def secret_variants(value: str) -> list[str]:
-    """Return the forms a secret commonly takes when echoed by tools."""
-    raw = value.encode()
-    variants = {
-        value,
-        base64.b64encode(raw).decode(),
-        base64.urlsafe_b64encode(raw).decode(),
-        quote(value, safe=""),
-        json.dumps(value)[1:-1],
-    }
-    variants |= {variant.rstrip("=") for variant in variants}
-    # Longest first so a short variant never splits a longer match.
-    return sorted((v for v in variants if v), key=len, reverse=True)
-
-
-def redact(text: str, secrets: dict[str, str]) -> str:
-    for value in secrets.values():
-        if not value:
-            continue
-        for variant in secret_variants(value):
-            text = text.replace(variant, REDACTED)
-    return text
-
-
-def read_bounded(path: Path, max_bytes: int) -> tuple[bytes, int, bool]:
-    """Read at most ``max_bytes``, keeping the head and tail of larger files."""
-    size = path.stat().st_size
-    with path.open("rb") as stream:
-        if size <= max_bytes:
-            return stream.read(), size, False
-        half = max_bytes // 2
-        head = stream.read(half)
-        stream.seek(size - half)
-        tail = stream.read()
-    marker = TRUNCATION_MARKER.format(omitted=size - 2 * half).encode()
-    return head + marker + tail, size, True
 
 
 def run_artifact_prefix(run: Run) -> str:
@@ -249,23 +208,6 @@ def store_run_input(run: Run, text: str) -> StoredOutput:
         path=saved,
         size_bytes=size,
         sha256=hashlib.sha256(raw).hexdigest(),
-        truncated=truncated,
-    )
-
-
-def store_run_output(
-    run: Run, raw_output: Path, secrets: dict[str, str]
-) -> StoredOutput:
-    content, size, truncated = read_bounded(raw_output, settings.RUN_OUTPUT_MAX_BYTES)
-    text = redact(content.decode(errors="replace"), secrets).encode()
-    storage = artifact_storage()
-    path = output_path(run)
-    storage.delete(path)
-    saved = storage.save(path, ContentFile(text))
-    return StoredOutput(
-        path=saved,
-        size_bytes=size,
-        sha256=hashlib.sha256(text).hexdigest(),
         truncated=truncated,
     )
 

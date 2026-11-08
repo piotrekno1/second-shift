@@ -1,8 +1,5 @@
-import base64
-import json
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from urllib.parse import quote
 
 import pytest
 from django.contrib.auth import get_user_model
@@ -12,21 +9,16 @@ from django.utils import timezone
 from secondshift.jobs.models import Job
 from secondshift.repositories.models import Repository
 from secondshift.runs.artifacts import (
-    REDACTED,
     artifact_storage,
     delete_output,
     job_input_snapshot,
     output_path,
-    read_bounded,
     read_output_excerpt,
-    redact,
-    store_run_output,
+    store_run_text,
 )
 from secondshift.runs.models import Run
 from secondshift.runs.retention import prune_runs
 from secondshift.workspaces.dao import create_workspace
-
-SECRET = "hunter2-token+/="
 
 
 @pytest.fixture
@@ -39,7 +31,6 @@ def artifact_root(settings, tmp_path: Path) -> Path:
             "OPTIONS": {"location": root, "base_url": None},
         },
     }
-    settings.RUN_WORK_ROOT = tmp_path / "work"
     return root
 
 
@@ -65,49 +56,19 @@ def make_run(job: Job, **fields) -> Run:
     return Run.objects.create(job=job, scheduled_for=timezone.now(), **fields)
 
 
-@pytest.mark.parametrize(
-    "leaked",
-    [
-        SECRET,
-        base64.b64encode(SECRET.encode()).decode(),
-        base64.urlsafe_b64encode(SECRET.encode()).decode().rstrip("="),
-        quote(SECRET, safe=""),
-        json.dumps(SECRET)[1:-1],
-    ],
-)
-def test_redact_catches_common_encodings(leaked: str) -> None:
-    assert (
-        redact(f"before {leaked} after", {"API_TOKEN": SECRET})
-        == f"before {REDACTED} after"
-    )
-
-
-def test_read_bounded_keeps_head_and_tail(tmp_path: Path) -> None:
-    raw = tmp_path / "raw"
-    raw.write_bytes(b"H" * 50 + b"M" * 900 + b"T" * 50)
-
-    content, size, truncated = read_bounded(raw, max_bytes=100)
-
-    assert (size, truncated) == (1000, True)
-    assert content.startswith(b"H" * 50) and content.endswith(b"T" * 50)
-    assert b"M" not in content
-    assert b"900 bytes omitted" in content
-
-
-def test_store_run_output_redacts_and_records_metadata(
-    artifact_root, job, tmp_path
+def test_stored_report_keeps_head_and_tail_when_too_large(
+    artifact_root, job, settings
 ) -> None:
+    settings.RUN_OUTPUT_MAX_BYTES = 100
     run = make_run(job)
-    raw = tmp_path / "raw"
-    raw.write_text(f"token={SECRET}\ndone\n")
 
-    stored = store_run_output(run, raw, {"API_TOKEN": SECRET})
+    stored = store_run_text(run, "H" * 50 + "M" * 900 + "T" * 50)
 
     saved = artifact_storage().open(stored.path).read().decode()
-    assert SECRET not in saved and REDACTED in saved
-    assert stored.size_bytes == raw.stat().st_size
-    assert not stored.truncated
-    assert read_output_excerpt(stored.path).endswith("done\n")
+    assert (stored.size_bytes, stored.truncated) == (1000, True)
+    assert saved.startswith("H" * 50) and saved.endswith("T" * 50)
+    assert "M" not in saved and "900 bytes omitted" in saved
+    assert read_output_excerpt(stored.path).endswith("T" * 50)
 
 
 def test_job_input_snapshot_freezes_job_config(job) -> None:
@@ -136,9 +97,7 @@ def test_prune_runs_removes_old_finished_runs_everywhere(
     expired = make_run(
         job, status=Run.Status.FAILED, finished_at=old, dbos_workflow_id="wf-old"
     )
-    raw = tmp_path / "raw"
-    raw.write_text("old output")
-    expired.output_path = store_run_output(expired, raw, {}).path
+    expired.output_path = store_run_text(expired, "old output").path
     expired.save()
     recent = make_run(job, status=Run.Status.SUCCEEDED, finished_at=timezone.now())
     running = Run.objects.create(
@@ -176,10 +135,8 @@ def test_deleting_artifacts_removes_emptied_partitions(
     artifact_root, job, tmp_path
 ) -> None:
     kept, removed = make_run(job), make_run(job)
-    raw = tmp_path / "raw"
-    raw.write_text("output")
     for run in (kept, removed):
-        run.output_path = store_run_output(run, raw, {}).path
+        run.output_path = store_run_text(run, "output").path
 
     delete_output(removed.output_path)
 
@@ -189,11 +146,9 @@ def test_deleting_artifacts_removes_emptied_partitions(
     assert list(artifact_root.iterdir()) == []
 
 
-def stored_run(job: Job, tmp_path: Path) -> Run:
+def stored_run(job: Job) -> Run:
     run = make_run(job)
-    raw = tmp_path / f"raw-{run.pk}"
-    raw.write_text("leaked output")
-    run.output_path = store_run_output(run, raw, {}).path
+    run.output_path = store_run_text(run, "leaked output").path
     run.save()
     return run
 
@@ -201,7 +156,7 @@ def stored_run(job: Job, tmp_path: Path) -> Run:
 def test_deleting_a_run_deletes_its_output_after_commit(
     artifact_root, job, tmp_path, django_capture_on_commit_callbacks
 ) -> None:
-    run = stored_run(job, tmp_path)
+    run = stored_run(job)
 
     with django_capture_on_commit_callbacks(execute=False) as callbacks:
         run.delete()
@@ -215,7 +170,7 @@ def test_deleting_a_run_deletes_its_output_after_commit(
 def test_queryset_delete_deletes_each_output(
     artifact_root, job, tmp_path, django_capture_on_commit_callbacks
 ) -> None:
-    paths = [stored_run(job, tmp_path).output_path for _ in range(2)]
+    paths = [stored_run(job).output_path for _ in range(2)]
 
     with django_capture_on_commit_callbacks(execute=True):
         Run.objects.all().delete()
@@ -224,7 +179,7 @@ def test_queryset_delete_deletes_each_output(
 
 
 def test_rolled_back_delete_keeps_output(artifact_root, job, tmp_path) -> None:
-    run = stored_run(job, tmp_path)
+    run = stored_run(job)
     run_id = run.pk
 
     with pytest.raises(RuntimeError), transaction.atomic():

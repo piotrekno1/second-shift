@@ -125,7 +125,7 @@ class Run(models.Model):
     input_snapshot = models.JSONField(default=dict, blank=True)
     # Immutable, redacted record of bindings, tools and policy decisions.
     execution_plan = models.JSONField(default=dict, blank=True)
-    # The full, redacted output is in run_artifacts storage at output_path;
+    # The full report is in run_artifacts storage at output_path;
     # only its metadata and the tail are kept here.
     output_excerpt = models.TextField(blank=True)
     # The rendered input (instructions, prompt and the skill at its commit),
