@@ -16,6 +16,11 @@ from secondshift.connections.agents import (
     reconnect_agent_connection,
     save_agent_connection,
 )
+from secondshift.connections.dao import (
+    workspace_agent_connections,
+    workspace_connections,
+    workspace_secrets,
+)
 from secondshift.connections.github import connect_token_source
 from secondshift.connections.http_api.connections import (
     create_api_connection,
@@ -47,7 +52,7 @@ from secondshift.connections.model_providers import (
     update_model_connection,
     validated_endpoint,
 )
-from secondshift.connections.models import AgentConnection, Connection, Secret
+from secondshift.connections.models import AgentConnection, Connection
 from secondshift.connections.schemas import (
     AgentConnectionInput,
     AgentConnectionSchema,
@@ -116,7 +121,7 @@ def connections(request: HttpRequest) -> list[ConnectionSchema]:
     usage = connection_usage(workspace)
     return [
         serialize_connection(item, usage.get(item.pk, ConnectionUsage()))
-        for item in Connection.objects.filter(workspace=workspace)
+        for item in workspace_connections(workspace.pk)
     ]
 
 
@@ -646,7 +651,7 @@ def secrets(request: HttpRequest) -> list[SecretSchema]:
             description=item.description,
             last_used_at=item.last_used_at,
         )
-        for item in Secret.objects.filter(workspace=workspace).defer("value")
+        for item in workspace_secrets(workspace)
     ]
 
 
@@ -655,9 +660,7 @@ def agent_connections(request: HttpRequest) -> list[AgentConnection]:
     workspace = current_workspace(request)
     if not workspace:
         return []
-    return with_recent_runs(
-        list(AgentConnection.objects.filter(workspace=workspace)), workspace.pk
-    )
+    return with_recent_runs(workspace_agent_connections(workspace), workspace.pk)
 
 
 @router.post("/agent-connections", response=AgentConnectionSchema)

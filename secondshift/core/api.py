@@ -4,7 +4,7 @@ from django.utils import timezone
 from ninja import Router
 from ninja.security import django_auth
 
-from secondshift.connections.models import Connection
+from secondshift.connections.dao import connected_count
 from secondshift.core.schemas import (
     FailingJobSchema,
     JobSpendSchema,
@@ -83,10 +83,7 @@ def overview(request: HttpRequest) -> OverviewSchema:
         enabled_jobs=enabled_job_count(workspace.pk),
         runs_today=runs.filter(created_at__date=today).count(),
         failed_runs=runs.filter(status=Run.Status.FAILED).count(),
-        connected_services=Connection.objects.filter(
-            workspace=workspace,
-            status=Connection.Status.CONNECTED,
-        ).count(),
+        connected_services=connected_count(workspace.pk),
         failing_jobs=[
             FailingJobSchema(**vars(failing)) for failing in failing_jobs(workspace)
         ],

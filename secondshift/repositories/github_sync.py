@@ -4,6 +4,7 @@ from pathlib import Path
 
 from django.db import transaction
 
+from secondshift.connections.dao import connected_github_sources
 from secondshift.connections.models import Connection
 from secondshift.github import credentials, repos
 from secondshift.github.app import configured, installation_repositories
@@ -118,13 +119,7 @@ def available_github_sources(
 ) -> tuple[list[dict[str, object]], list[str]]:
     available = []
     errors = []
-    connections = Connection.objects.filter(
-        workspace=workspace,
-        provider=Connection.Provider.GITHUB,
-        kind=Connection.Kind.SOURCE,
-        status=Connection.Status.CONNECTED,
-    )
-    for connection in connections:
+    for connection in connected_github_sources(workspace.pk):
         if not usable_source(connection) or (
             connection.auth_strategy == Connection.AuthStrategy.MANAGED
             and not configured()

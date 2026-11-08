@@ -8,6 +8,7 @@ from typing import Any
 from dbos import DBOS
 from jsonschema import ValidationError, validate
 
+from secondshift.connections.dao import auto_approved_connection
 from secondshift.connections.errors import ExternalToolError, ToolArgumentError
 from secondshift.connections.external import Authorization, external_kind
 from secondshift.connections.mcp.base import CustomMCPToolError
@@ -165,14 +166,12 @@ def standalone_connection(run: Run, capability: dict[str, Any]) -> Connection | 
         return None
     if not capability.get("authorized"):
         return None
-    connection = Connection.objects.filter(
-        pk=capability.get("connection_id"),
-        workspace_id=run.workspace_id,
-        kind=capability.get("kind"),
-        binding_key=capability.get("binding"),
-        status=Connection.Status.CONNECTED,
-        require_approval=False,
-    ).first()
+    connection = auto_approved_connection(
+        run.workspace_id,
+        capability.get("connection_id"),
+        capability.get("kind"),
+        capability.get("binding"),
+    )
     if connection is None or set(capability.get("effective_tools", [])) - set(
         connection.available_tools
     ):

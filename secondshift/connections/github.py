@@ -1,5 +1,6 @@
 """GitHub source connections: how a workspace reaches its repositories."""
 
+from secondshift.connections.dao import save_github_source
 from secondshift.connections.models import Connection
 from secondshift.github.errors import GitHubError
 from secondshift.github.installations import Installation
@@ -12,17 +13,16 @@ def link_installations(
 ) -> list[Connection]:
     """Add or reconnect one source connection per App installation."""
     return [
-        Connection.objects.update_or_create(
-            workspace=workspace,
-            provider=Connection.Provider.GITHUB,
-            external_account_id=installation.installation_id,
-            defaults={
+        save_github_source(
+            workspace,
+            installation.installation_id,
+            {
                 "kind": Connection.Kind.SOURCE,
                 "auth_strategy": Connection.AuthStrategy.MANAGED,
                 "display_name": f"GitHub · {installation.account}",
                 "status": Connection.Status.CONNECTED,
             },
-        )[0]
+        )
         for installation in installations
     ]
 
@@ -47,11 +47,10 @@ def connect_token_source(
         raise GitHubError(
             f"This token belongs to {owner.login}. Use a token from {expected}."
         )
-    connection, _ = Connection.objects.update_or_create(
-        workspace=workspace,
-        provider=Connection.Provider.GITHUB,
-        external_account_id=account_id,
-        defaults={
+    return save_github_source(
+        workspace,
+        account_id,
+        {
             "kind": Connection.Kind.SOURCE,
             "auth_strategy": Connection.AuthStrategy.API_KEY,
             "display_name": f"GitHub · {owner.login}",
@@ -60,4 +59,3 @@ def connect_token_source(
             "status": Connection.Status.CONNECTED,
         },
     )
-    return connection

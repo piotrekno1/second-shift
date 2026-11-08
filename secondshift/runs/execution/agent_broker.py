@@ -10,6 +10,7 @@ from django.views.decorators.csrf import csrf_exempt
 from pydantic_ai import ModelRetry, RunContext, RunUsage, Tool, ToolFailed
 
 from secondshift.connections.agents import usable_agent_connection
+from secondshift.connections.dao import find_agent_connection
 from secondshift.connections.models import AgentConnection
 from secondshift.runs.artifacts import run_payload
 from secondshift.runs.execution.deadlines import check_deadline, run_deadline
@@ -37,13 +38,13 @@ class MethodNotFound(ValueError):
 
 def run_connection(run: Run) -> AgentConnection:
     plan = run.execution_plan["execution"]
-    connection = AgentConnection.objects.filter(
-        pk=plan["connection_id"],
-        workspace_id=run.workspace_id,
-        owner_id=plan["owner_id"],
-        credential_key=plan["credential_key"],
-        backend=plan["backend"],
-    ).first()
+    connection = find_agent_connection(
+        plan["connection_id"],
+        run.workspace_id,
+        plan["owner_id"],
+        plan["credential_key"],
+        plan["backend"],
+    )
     if connection is None or not usable_agent_connection(connection, run.workspace_id):
         raise AgentAccessError(
             "The agent login is no longer available. Reconnect and start a new run."

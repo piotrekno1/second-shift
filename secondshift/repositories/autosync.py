@@ -10,9 +10,8 @@ import logging
 from pathlib import Path
 
 from django.conf import settings
-from django.db.models import QuerySet
 
-from secondshift.connections.models import Connection
+from secondshift.connections.dao import has_github_token_sources
 from secondshift.github import repos
 from secondshift.github.app import configured
 from secondshift.github.errors import GitHubError
@@ -36,18 +35,9 @@ def server_syncs() -> bool:
         (
             settings.LOCAL_REPOSITORIES_ENABLED
             or configured()
-            or token_sources().exists()
+            or has_github_token_sources()
         )
         and settings.REPOSITORY_SYNC_INTERVAL_SECONDS > 0
-    )
-
-
-def token_sources() -> QuerySet[Connection]:
-    return Connection.objects.filter(
-        provider=Connection.Provider.GITHUB,
-        kind=Connection.Kind.SOURCE,
-        auth_strategy=Connection.AuthStrategy.API_KEY,
-        status=Connection.Status.CONNECTED,
     )
 
 

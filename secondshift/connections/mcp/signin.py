@@ -10,6 +10,12 @@ from django.contrib.auth.models import AbstractBaseUser
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
+from secondshift.connections.dao import (
+    binding_taken,
+    create_authorization,
+    delete_stale_authorizations,
+    lock_unused_authorization,
+)
 from secondshift.connections.mcp.base import MCPError
 from secondshift.connections.mcp.client import (
     connection_target,
@@ -62,12 +68,7 @@ def start_authorization(
     provider = mcp_provider(provider_key)
     if OAUTH not in provider.auth_methods:
         raise MCPError(f"{provider.label} does not support sign-in.")
-    if (
-        connection is None
-        and Connection.objects.filter(
-            workspace=workspace, binding_key=binding_key
-        ).exists()
-    ):
+    if connection is None and binding_taken(workspace.pk, binding_key):
         raise ConnectionConflict("This binding already has a connection.")
     cleaned = provider.clean_settings(values)
     server = async_to_sync(discover)(provider.endpoint(cleaned))
@@ -83,10 +84,8 @@ def start_authorization(
     client_id = async_to_sync(register_client)(server)
     verifier, challenge = pkce_pair()
     state = secrets.token_urlsafe(32)
-    OAuthAuthorization.objects.filter(
-        user=user, created_at__lt=timezone.now() - AUTHORIZATION_TTL
-    ).delete()
-    OAuthAuthorization.objects.create(
+    delete_stale_authorizations(user, timezone.now() - AUTHORIZATION_TTL)
+    create_authorization(
         workspace=workspace,
         user=user,
         connection=connection,
@@ -123,13 +122,7 @@ def start_authorization(
 def claim_authorization(user: AbstractBaseUser, state: str) -> OAuthAuthorization:
     """Single use: a state value works once, for the person who started it."""
     with transaction.atomic():
-        authorization = (
-            # Lock only this row. Postgres cannot lock the optional connection join.
-            OAuthAuthorization.objects.select_for_update(of=("self",))
-            .select_related("connection")
-            .filter(state=state, user=user, used_at__isnull=True)
-            .first()
-        )
+        authorization = lock_unused_authorization(state, user)
         if authorization is None:
             raise SignInError("invalid", "This sign-in is not valid. Start again.")
         authorization.used_at = timezone.now()

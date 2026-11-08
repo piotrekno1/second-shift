@@ -16,7 +16,7 @@ from secondshift.config.constants import (
     SCHEDULED_JOB_WORKFLOW,
     RunSandbox,
 )
-from secondshift.connections.models import Connection
+from secondshift.connections.dao import connection_binding, get_connection
 from secondshift.connections.webhooks import deliver_webhook
 from secondshift.jobs.dao import scheduled_job
 from secondshift.jobs.readiness import execution_problems
@@ -289,7 +289,7 @@ def deliver_run_notification_step(run_id: int, connection_id: int) -> None:
     run = Run.objects.select_related("job__repository", "task__repository").get(
         pk=run_id
     )
-    connection = Connection.objects.get(pk=connection_id)
+    connection = get_connection(connection_id)
     delivery, _ = RunDelivery.objects.get_or_create(
         run=run,
         kind=RunDelivery.Kind.NOTIFICATION,
@@ -332,11 +332,7 @@ def record_delivery(delivery: RunDelivery, status: str, message: str) -> None:
 
 @DBOS.step(name="secondshift.record_notification_failure")
 def record_notification_failure_step(run_id: int, connection_id: int) -> None:
-    binding = (
-        Connection.objects.filter(pk=connection_id)
-        .values_list("binding_key", flat=True)
-        .first()
-    )
+    binding = connection_binding(connection_id)
     # The last attempt's message stays, since it says why delivery failed.
     RunDelivery.objects.filter(
         run_id=run_id,

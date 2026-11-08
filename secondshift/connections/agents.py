@@ -8,10 +8,14 @@ from typing import Any
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.db import transaction
-from django.db.models import F
 from django.utils import timezone
 
 from secondshift.config.constants import AgentBackend, AgentOutcome
+from secondshift.connections.dao import (
+    count_cleanup_attempt,
+    pending_cleanups,
+    queue_cleanup,
+)
 from secondshift.connections.models import AgentConnection, AgentCredentialCleanup
 from secondshift.runner.agent_credentials import encrypt_agent_auth
 from secondshift.runner.client import get_runner_client
@@ -123,11 +127,7 @@ def disconnect_agent_connection(connection: AgentConnection) -> bool:
 
 
 def queue_credential_cleanup(connection: AgentConnection) -> AgentCredentialCleanup:
-    cleanup, _ = AgentCredentialCleanup.objects.get_or_create(
-        credential_key=connection.credential_key,
-        defaults={"connection": connection},
-    )
-    return cleanup
+    return queue_cleanup(connection)
 
 
 def remove_cached_credentials(cleanup: AgentCredentialCleanup) -> bool:
@@ -142,19 +142,14 @@ def remove_cached_credentials(cleanup: AgentCredentialCleanup) -> bool:
     if removed:
         cleanup.delete()
         return True
-    AgentCredentialCleanup.objects.filter(pk=cleanup.pk).update(
-        attempts=F("attempts") + 1, updated_at=timezone.now()
-    )
+    count_cleanup_attempt(cleanup)
     logger.warning("the runner kept agent login %s; will retry", cleanup.pk)
     return False
 
 
 def retry_credential_cleanups() -> int:
     """Remove the cached logins the runner kept earlier. Returns how many."""
-    return sum(
-        remove_cached_credentials(cleanup)
-        for cleanup in AgentCredentialCleanup.objects.order_by("pk")[:100]
-    )
+    return sum(remove_cached_credentials(cleanup) for cleanup in pending_cleanups(100))
 
 
 # What a check's outcome means for the login. Only a finished check and a

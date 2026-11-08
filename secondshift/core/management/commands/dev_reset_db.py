@@ -6,6 +6,7 @@ from django.core.management import call_command
 from django.utils import timezone
 
 from secondshift.config.constants import SandboxRuntime
+from secondshift.connections.dao import create_connection
 from secondshift.connections.models import Connection
 from secondshift.github.identity import clone_url
 from secondshift.jobs.dao import create_job
@@ -62,7 +63,7 @@ def seed_demo_data() -> None:
     now = timezone.now()
 
     connections = {
-        provider: Connection.objects.create(
+        provider: create_connection(
             workspace=workspace,
             provider=provider,
             kind=Connection.Kind.IDENTITY,

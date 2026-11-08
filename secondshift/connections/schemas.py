@@ -4,6 +4,7 @@ from typing import Any, Literal
 from ninja import Schema
 from pydantic import Field, SecretStr
 
+from secondshift.connections.dao import has_pending_cleanup
 from secondshift.connections.models import AgentConnection
 from secondshift.workspaces.access import Action, allows
 
@@ -249,7 +250,7 @@ class AgentConnectionSchema(Schema):
 
     @staticmethod
     def resolve_runner_cleanup_pending(obj: AgentConnection) -> bool:
-        return obj.credential_cleanups.exists()
+        return has_pending_cleanup(obj)
 
     @staticmethod
     def resolve_can_manage(obj: AgentConnection, context: dict[str, Any]) -> bool:

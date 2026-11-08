@@ -1,5 +1,6 @@
 from django import forms
 
+from secondshift.connections.dao import secret_value
 from secondshift.connections.models import Secret
 
 
@@ -19,5 +20,5 @@ class SecretAdminForm(forms.ModelForm):
         if value:
             return value
         if self.instance.pk:
-            return Secret.objects.only("value").get(pk=self.instance.pk).value
+            return secret_value(self.instance.pk)
         raise forms.ValidationError("A secret value is required.")

@@ -7,6 +7,7 @@ from pydantic_ai.models.openai import OpenAIChatModel, OpenAIResponsesModel
 from pydantic_ai.providers.anthropic import AnthropicProvider
 from pydantic_ai.providers.openai import OpenAIProvider
 
+from secondshift.connections.dao import connected_model
 from secondshift.connections.model_providers import provider_family
 from secondshift.connections.models import Connection
 from secondshift.gateway.dao import revoke_run_tokens
@@ -39,17 +40,11 @@ def issue_model_gateway_access(run: Run) -> ModelGatewayAccess:
         raise ModelGatewayConfigurationError(
             "SECONDSHIFT_MODEL_GATEWAY_URL must be set for agent runs."
         )
-    try:
-        connection = Connection.objects.get(
-            pk=model_plan["connection_id"],
-            workspace_id=run.workspace_id,
-            kind=Connection.Kind.MODEL,
-            status=Connection.Status.CONNECTED,
-        )
-    except Connection.DoesNotExist as error:
+    connection = connected_model(run.workspace_id, model_plan["connection_id"])
+    if connection is None:
         raise ModelGatewayConfigurationError(
             "The run's model provider is no longer connected."
-        ) from error
+        )
 
     family = provider_family(connection)
     revoke_run_tokens(run.pk)

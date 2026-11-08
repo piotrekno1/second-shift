@@ -1,5 +1,6 @@
 from django.db import IntegrityError, transaction
 
+from secondshift.connections.dao import binding_taken
 from secondshift.connections.models import Connection
 from secondshift.connections.webhooks import validate_webhook_url, webhook_target_label
 from secondshift.jobs.dao import release_connection_grants
@@ -26,7 +27,7 @@ def create_webhook_connection(
     url: str,
 ) -> Connection:
     url = validate_webhook_url(url)
-    if Connection.objects.filter(workspace=workspace, binding_key=binding_key).exists():
+    if binding_taken(workspace.pk, binding_key):
         raise ConnectionConflict(
             f"A connection for {binding_key} already exists in this workspace."
         )
