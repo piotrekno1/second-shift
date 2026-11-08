@@ -29,7 +29,7 @@ from secondshift.connections.mcp.signin import (
 )
 from secondshift.connections.models import Connection, OAuthAuthorization
 from secondshift.repositories.models import Repository
-from secondshift.workspaces.models import Workspace
+from secondshift.workspaces.models import Workspace, WorkspaceMembership
 from secondshift.workspaces.services import create_workspace
 
 SERVER = "https://mcp.example.com/mcp"
@@ -225,6 +225,23 @@ def test_state_works_once_and_only_for_its_owner(
     with pytest.raises(SignInError) as caught:
         complete_authorization(owner, state, "good-code", "")
     assert caught.value.code == "invalid"
+
+
+@pytest.mark.parametrize("change", ["demote", "remove"])
+def test_sign_in_needs_the_role_when_it_finishes(
+    change: str, fake: FakeServer, workspace: Workspace, owner: Any
+) -> None:
+    state = begin(fake, workspace, owner)
+    membership = WorkspaceMembership.objects.get(workspace=workspace, user=owner)
+    if change == "demote":
+        membership.role = WorkspaceMembership.Role.ADMIN
+        membership.save(update_fields=["role"])
+    else:
+        membership.delete()
+    with pytest.raises(SignInError) as caught:
+        complete_authorization(owner, state, "good-code", "")
+    assert caught.value.code == "invalid"
+    assert not Connection.objects.filter(binding_key="metrics").exists()
 
 
 def test_expired_and_refused_sign_ins(
