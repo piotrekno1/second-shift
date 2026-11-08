@@ -61,5 +61,5 @@ def test_seed_demo_data_creates_credential_free_disabled_jobs(settings: Any) -> 
     assert Job.objects.filter(enabled=True).count() == 0
     assert Run.objects.count() == 4
     assert RunEvent.objects.count() == 4
-    assert Connection.objects.filter(metadata={"demo": True}).count() == 3
+    assert Connection.objects.filter(metadata={"demo": True}).count() == 1
     assert all(connection.access_token == "" for connection in Connection.objects.all())

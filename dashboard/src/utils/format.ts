@@ -134,7 +134,6 @@ const KIND_LABELS: Record<string, string> = {
   mcp: 'MCP',
   api: 'API',
   model: 'Model provider',
-  identity: 'Sign-in',
   source: 'Repository access',
 }
 
@@ -171,8 +170,6 @@ const PROVIDER_LABELS: Record<string, string> = {
   openai_compatible: 'OpenAI-compatible',
   github: 'GitHub',
   sentry: 'Sentry',
-  chatgpt: 'ChatGPT',
-  slack: 'Slack',
   mcp: 'MCP server',
   api: 'HTTP API',
   webhook: 'Webhook',

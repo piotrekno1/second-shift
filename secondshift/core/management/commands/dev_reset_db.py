@@ -63,33 +63,21 @@ def seed_demo_data() -> None:
     workspace = get_workspace_by_slug("secondshift")
     now = timezone.now()
 
-    connections = {
-        provider: create_connection(
-            workspace=workspace,
-            provider=provider,
-            kind=Connection.Kind.IDENTITY,
-            display_name=display_name,
-            external_account_id=f"demo-{provider}",
-            status=Connection.Status.CONNECTED,
-            scopes=scopes,
-            auth_strategy=Connection.AuthStrategy.NONE,
-            metadata={"demo": True},
-        )
-        for provider, display_name, scopes in (
-            (Connection.Provider.GITHUB, "GitHub · demo", ["read:user", "repo"]),
-            (Connection.Provider.CHATGPT, "ChatGPT · demo", ["agent:execute"]),
-            (
-                Connection.Provider.SLACK,
-                "Slack · #engineering",
-                ["chat:write", "channels:read"],
-            ),
-        )
-    }
+    github = create_connection(
+        workspace=workspace,
+        provider=Connection.Provider.GITHUB,
+        kind=Connection.Kind.SOURCE,
+        display_name="GitHub · demo",
+        external_account_id="demo-github",
+        status=Connection.Status.CONNECTED,
+        auth_strategy=Connection.AuthStrategy.MANAGED,
+        metadata={"demo": True},
+    )
 
     repositories = {
         name: create_repository(
             workspace=workspace,
-            github_connection=connections[Connection.Provider.GITHUB],
+            github_connection=github,
             external_id=f"demo-repository-{index}",
             full_name=name,
             clone_url=clone_url(name),

@@ -100,8 +100,6 @@ def revoke_connection(connection: Connection) -> Connection:
 
 @transaction.atomic
 def delete_connection(connection: Connection) -> None:
-    if connection.kind == Connection.Kind.IDENTITY:
-        raise ConnectionConflict("Sign-in connections are managed by their provider.")
     if connection.kind == Connection.Kind.SOURCE and has_repositories(connection):
         raise ConnectionConflict(
             "This installation has repository history. Disconnect it instead."

@@ -83,7 +83,7 @@ def test_plan_contains_only_effective_approved_tools(db) -> None:
         binding_key="observability",
         display_name="Grafana production",
         available_tools=["query_metrics", "delete_dashboard"],
-        credential_reference="vault://grafana/production",
+        access_token="grafana-secret-token",
     )
     JobGrant.objects.create(
         capability_request=request,
@@ -115,7 +115,7 @@ def test_plan_contains_only_effective_approved_tools(db) -> None:
         ],
     }
     assert plan["capabilities"][0]["effective_tools"] == ["query_metrics"]
-    assert "credential_reference" not in str(plan)
+    assert "grafana-secret-token" not in str(plan)
 
 
 def test_plan_fails_closed_when_requested_tool_was_not_discovered(db) -> None:

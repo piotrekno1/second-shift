@@ -227,12 +227,6 @@ class WebhookSampleSchema(Schema):
     summary_max_chars: int
 
 
-class SecretSchema(Schema):
-    name: str
-    description: str
-    last_used_at: datetime | None
-
-
 class AgentConnectionSchema(Schema):
     id: int
     backend: str

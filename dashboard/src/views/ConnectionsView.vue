@@ -81,14 +81,11 @@ const kindIcon: Record<string, string> = {
   notification: 'bell-outline',
   mcp: 'server-network',
   api: 'api',
-  identity: 'account-key-outline',
   source: 'source-repository',
 }
 const providerIcon: Record<Connection['provider'], string> = {
   github: 'github',
   sentry: 'server-network',
-  chatgpt: 'creation-outline',
-  slack: 'slack',
   mcp: 'server-network',
   api: 'api',
   webhook: 'webhook',
@@ -100,12 +97,12 @@ const providerIcon: Record<Connection['provider'], string> = {
 
 // Model providers live on Models. Here are the connections jobs ask for by name.
 const connections = computed(() => app.connections.filter((connection) => connection.kind !== 'model'))
-// GitHub's connections show as one card: repository access, its tools, and sign-in.
+// GitHub's connections show as one card: repository access and its tools.
 // Each stays its own connection underneath. Other providers list as rows.
-const GITHUB_ORDER: Record<string, number> = { source: 0, mcp: 1, identity: 2 }
+const GITHUB_ORDER: Record<string, number> = { source: 0, mcp: 1 }
 const githubConnections = computed(() => connections.value
   .filter((connection) => connection.provider === 'github')
-  .sort((a, b) => (GITHUB_ORDER[a.kind] ?? 3) - (GITHUB_ORDER[b.kind] ?? 3)))
+  .sort((a, b) => (GITHUB_ORDER[a.kind] ?? 2) - (GITHUB_ORDER[b.kind] ?? 2)))
 const connectionGroups = computed(() => [
   { key: 'github', connections: githubConnections.value },
   { key: 'other', connections: connections.value.filter((connection) => connection.provider !== 'github') },
@@ -116,12 +113,10 @@ const githubTools = computed(() => githubConnections.value.find((connection) => 
 const githubSummary = computed(() => {
   const failing = githubSources.value.filter((connection) => connection.last_check?.ok === false).length
   const expired = githubSourceRows.value.filter((connection) => connection.status === 'expired').length
-  const signIns = githubConnections.value.filter((connection) => connection.kind === 'identity').length
   return [
     githubSourceRows.value.length ? countLabel(githubSourceRows.value.length, 'repository connection') : 'No repository access yet',
     expired ? `${expired} with an expired token` : '',
     failing ? `${failing} failing its check` : '',
-    signIns ? countLabel(signIns, 'sign-in') : '',
   ].filter(Boolean).join(' · ')
 })
 const GITHUB_TOOLS_BINDING = 'github'
@@ -436,7 +431,6 @@ onMounted(async () => {
               <strong class="connection-name">{{ group.key === 'github' && connection.auth === 'source' ? 'GitHub job tools' : group.key === 'github' ? connection.display_name.replace(/^GitHub · /, '') : connection.display_name }}</strong>
               <span>{{ kindLabel(connection.kind) }} · {{ connection.kind === 'source' ? sourceAuthLabel(connection.auth) : providerLabel(connection.provider) }}<template v-if="connection.target"> → {{ connection.target }}</template></span>
               <small v-if="connection.provider === 'github' && connection.kind === 'source'">Repository access for {{ connection.display_name.replace(/^GitHub · /, '') }}</small>
-              <small v-if="connection.provider === 'github' && connection.kind === 'identity'">Sign-in only. Does not grant repository access.</small>
               <small v-if="connection.auth === 'source'">Uses each repository's GitHub connection</small>
               <small v-if="connection.kind === 'source' && connection.auth === 'token'" :class="{ expiring: expiresSoon(connection.expires_at), expired: connection.status === 'expired' }">{{ !connection.expires_at ? 'Token does not expire' : connection.status === 'expired' ? `Token expired ${formatDate(connection.expires_at)}. Syncs and runs stop until you replace it.` : `Token expires ${formatDate(connection.expires_at)}` }}</small>
               <small v-if="servedBindings(connection).length" class="served">

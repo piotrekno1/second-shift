@@ -468,8 +468,8 @@ export interface RunQuery {
 
 export interface Connection {
   id: number
-  provider: 'github' | 'sentry' | 'chatgpt' | 'slack' | 'mcp' | 'api' | 'webhook' | ModelProvider
-  kind: 'source' | 'identity' | 'mcp' | 'api' | 'notification' | 'model'
+  provider: 'github' | 'sentry' | 'mcp' | 'api' | 'webhook' | ModelProvider
+  kind: 'source' | 'mcp' | 'api' | 'notification' | 'model'
   binding_key: string
   display_name: string
   status: 'connected' | 'expired' | 'revoked'

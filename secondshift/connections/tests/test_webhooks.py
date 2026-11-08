@@ -377,23 +377,6 @@ def test_deleting_connection_returns_grants_to_pending(
 
 
 @pytest.mark.django_db
-def test_identity_connections_cannot_be_removed(
-    client: Client,
-    owner: tuple[AbstractUser, Workspace],
-) -> None:
-    user, workspace = owner
-    identity = Connection.objects.create(
-        workspace=workspace,
-        provider=Connection.Provider.GITHUB,
-        kind=Connection.Kind.IDENTITY,
-        display_name="octocat",
-    )
-    client.force_login(user)
-
-    assert client.post(f"/api/connections/{identity.pk}/revoke").status_code == 409
-    assert client.delete(f"/api/connections/{identity.pk}").status_code == 409
-
-
 def test_webhook_sample_shows_what_a_run_report_sends(
     client: Client, owner: tuple[AbstractUser, Workspace]
 ) -> None:

@@ -19,7 +19,6 @@ from secondshift.connections.agents import (
 from secondshift.connections.dao import (
     workspace_agent_connections,
     workspace_connections,
-    workspace_secrets,
 )
 from secondshift.connections.github import connect_token_source
 from secondshift.connections.http_api.connections import (
@@ -74,7 +73,6 @@ from secondshift.connections.schemas import (
     MCPSignInStartSchema,
     ModelConnectionCreateSchema,
     ModelConnectionUpdateSchema,
-    SecretSchema,
     WebhookConnectionCreateSchema,
     WebhookConnectionUpdateSchema,
     WebhookSampleSchema,
@@ -556,8 +554,6 @@ def update_model_provider(
 )
 def revoke(request: HttpRequest, connection_id: int) -> ConnectionSchema:
     connection = owned_connection(request, connection_id, Action.DISCONNECT_CONNECTIONS)
-    if connection.kind == Connection.Kind.IDENTITY:
-        raise HttpError(409, "Sign-in connections are managed by their provider.")
     return serialize_connection(revoke_connection(connection))
 
 
@@ -638,21 +634,6 @@ def webhook_sample(request: HttpRequest) -> WebhookSampleSchema:
     return WebhookSampleSchema(
         payload=sample_run_report_payload(), summary_max_chars=SUMMARY_MAX_CHARS
     )
-
-
-@router.get("/secrets", response=list[SecretSchema], auth=django_auth)
-def secrets(request: HttpRequest) -> list[SecretSchema]:
-    workspace = current_workspace(request)
-    if not workspace:
-        return []
-    return [
-        SecretSchema(
-            name=item.name,
-            description=item.description,
-            last_used_at=item.last_used_at,
-        )
-        for item in workspace_secrets(workspace)
-    ]
 
 
 @router.get("/agent-connections", response=list[AgentConnectionSchema])

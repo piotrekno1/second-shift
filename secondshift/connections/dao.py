@@ -1,4 +1,4 @@
-"""Queries and writes on connections, secrets, sign-ins and agent logins."""
+"""Queries and writes on connections, sign-ins and agent logins."""
 
 from collections.abc import Collection
 from datetime import datetime
@@ -13,7 +13,6 @@ from secondshift.connections.models import (
     AgentCredentialCleanup,
     Connection,
     OAuthAuthorization,
-    Secret,
 )
 from secondshift.workspaces.models import Workspace
 
@@ -192,18 +191,6 @@ def auto_approved_connection(
         status=Connection.Status.CONNECTED,
         require_approval=False,
     ).first()
-
-
-# Secrets
-
-
-def workspace_secrets(workspace: Workspace) -> QuerySet[Secret]:
-    """The workspace's secrets, without loading their values."""
-    return Secret.objects.filter(workspace=workspace).defer("value")
-
-
-def secret_value(secret_id: int) -> str:
-    return Secret.objects.only("value").get(pk=secret_id).value
 
 
 # Sign-ins
