@@ -1,0 +1,119 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 600" role="img" aria-labelledby="title desc">
+  <title id="title">Agent backends</title>
+  <desc id="desc">On the control plane, the built-in agent loop runs in the worker and reaches model providers through the model gateway with an API key. On the runner, Claude Code or Codex runs in an agent container, reaches its provider with a subscription login and calls tools through the MCP broker, which is part of the gateway. Both agents use the same run tools, checked against the frozen plan. The tools reach the networkless command sandbox and the approved services.</desc>
+  <style>
+    .card { fill: #171717; stroke: #292929; }
+    .lane { fill: #1b1b1b; stroke: #2e2e2e; }
+    .box { fill: #222222; stroke: #363636; }
+    .hi { fill: #2a2117; stroke: #ffb454; stroke-width: 1.5; }
+    .ext { fill: #1f1f1f; stroke: #4a4a4a; stroke-dasharray: 5 4; }
+    .eyebrow { fill: #8a8a8a; font: 600 11px Geist, ui-sans-serif, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; letter-spacing: .09em; }
+    .h { fill: #ededed; font: 600 20px Geist, ui-sans-serif, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; }
+    .t { fill: #ededed; font: 600 15px Geist, ui-sans-serif, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; }
+    .p { fill: #b5b5b5; font: 400 13px Geist, ui-sans-serif, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; }
+    .lbl { fill: #ffb454; font: 500 11.5px "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .lblw { fill: #9a9a9a; font: 500 11.5px "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .dot { fill: #ffb454; }
+    .wire { fill: none; stroke: #5c5c5c; stroke-width: 1.5; }
+    .flow { fill: none; stroke: #ffb454; stroke-width: 1.6; }
+    .head { fill: #5c5c5c; }
+    .headhi { fill: #ffb454; }
+    @media (prefers-color-scheme: light) {
+      .card { fill: #fbfaf8; stroke: #e6e4df; }
+      .lane { fill: #f4f3f0; stroke: #e6e4df; }
+      .box { fill: #ffffff; stroke: #dedbd5; }
+      .hi { fill: #fff6e8; stroke: #c27a1a; }
+      .ext { fill: #ffffff; stroke: #bdb9b1; }
+      .eyebrow { fill: #7a7a7a; }
+      .h, .t { fill: #151515; }
+      .p { fill: #4a4a4a; }
+      .lbl, .dot { fill: #9c5700; }
+      .lblw { fill: #6b6b6b; }
+      .wire { stroke: #a8a49c; }
+      .flow { stroke: #c27a1a; }
+      .head { fill: #a8a49c; }
+      .headhi { fill: #c27a1a; }
+    }
+  </style>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="head" d="M0 0 10 5 0 10z"/></marker>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="headhi" d="M0 0 10 5 0 10z"/></marker>
+  </defs>
+
+  <rect class="card" x="0.5" y="0.5" width="959" height="599" rx="16"/>
+
+  <text class="eyebrow" x="32" y="44">AGENT BACKENDS</text>
+  <text class="h" x="32" y="72">Where the agent loop runs</text>
+
+  <!-- Model providers -->
+  <rect class="ext" x="300" y="100" width="360" height="56" rx="12"/>
+  <text class="t" x="480" y="124" text-anchor="middle">Model providers</text>
+  <text class="p" x="480" y="144" text-anchor="middle">Anthropic, OpenAI, OpenRouter, compatible APIs</text>
+
+  <!-- Control plane -->
+  <rect class="lane" x="32" y="184" width="576" height="236" rx="14"/>
+  <text class="eyebrow" x="52" y="212">CONTROL PLANE</text>
+
+  <rect class="box" x="52" y="228" width="260" height="64" rx="10"/>
+  <text class="t" x="68" y="255">Model gateway</text>
+  <text class="p" x="68" y="276">Decrypts the key, meters tokens</text>
+
+  <rect class="box" x="328" y="228" width="260" height="64" rx="10"/>
+  <text class="t" x="344" y="255">MCP broker</text>
+  <text class="p" x="344" y="276">Part of the gateway</text>
+
+  <rect class="hi" x="52" y="316" width="260" height="84" rx="10"/>
+  <text class="t" x="68" y="343">Built-in agent</text>
+  <text class="p" x="68" y="366">Runs in the worker. Each model</text>
+  <text class="p" x="68" y="385">call is a checkpoint.</text>
+
+  <rect class="box" x="328" y="316" width="260" height="84" rx="10"/>
+  <text class="t" x="344" y="343">Run tools</text>
+  <text class="p" x="344" y="366">The same code for both agents,</text>
+  <text class="p" x="344" y="385">checked against the frozen plan.</text>
+
+  <!-- Runner -->
+  <rect class="lane" x="632" y="184" width="296" height="236" rx="14"/>
+  <text class="eyebrow" x="652" y="212">RUNNER</text>
+
+  <rect class="hi" x="652" y="228" width="256" height="172" rx="10"/>
+  <text class="t" x="668" y="255">Claude Code or Codex</text>
+  <text class="p" x="668" y="278">In an agent container.</text>
+  <circle class="dot" cx="672" cy="305" r="2.5"/>
+  <text class="p" x="682" y="309">Only the login's files</text>
+  <circle class="dot" cx="672" cy="329" r="2.5"/>
+  <text class="p" x="682" y="333">Its own tools switched off</text>
+  <circle class="dot" cx="672" cy="353" r="2.5"/>
+  <text class="p" x="682" y="357">One step, never resumed</text>
+  <circle class="dot" cx="672" cy="377" r="2.5"/>
+  <text class="p" x="682" y="381">Tools only through the broker</text>
+
+  <!-- Inside the control plane -->
+  <path class="wire" d="M182 294v20" marker-start="url(#a)" marker-end="url(#a)"/>
+  <path class="wire" d="M314 358h12" marker-end="url(#a)"/>
+  <path class="wire" d="M458 294v20" marker-end="url(#a)"/>
+
+  <!-- Runner to the broker -->
+  <path class="wire" d="M650 260h-60" marker-start="url(#a)" marker-end="url(#a)"/>
+  <text class="lblw" x="620" y="252" text-anchor="middle">MCP</text>
+
+  <!-- Model access -->
+  <path class="flow" d="M298 128H182v98" marker-start="url(#ah)" marker-end="url(#ah)"/>
+  <text class="lbl" x="192" y="176">API key</text>
+  <path class="flow" d="M662 128H780v98" marker-start="url(#ah)" marker-end="url(#ah)"/>
+  <text class="lbl" x="790" y="176">subscription login</text>
+
+  <!-- What the tools reach -->
+  <path class="wire" d="M458 402v34" marker-end="url(#a)"/>
+
+  <rect class="lane" x="32" y="440" width="896" height="128" rx="14"/>
+  <text class="eyebrow" x="52" y="468">WHAT THE TOOLS REACH</text>
+
+  <rect class="box" x="52" y="484" width="420" height="64" rx="10"/>
+  <text class="t" x="68" y="511">Command sandbox</text>
+  <text class="p" x="68" y="532">On the runner. No network, holds the commit.</text>
+
+  <rect class="box" x="488" y="484" width="420" height="64" rx="10"/>
+  <text class="t" x="504" y="511">Approved services</text>
+  <text class="p" x="504" y="532">MCP servers and HTTP APIs</text>
+</svg>

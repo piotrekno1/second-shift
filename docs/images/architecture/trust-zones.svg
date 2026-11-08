@@ -1,0 +1,122 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 616" role="img" aria-labelledby="title desc">
+  <title id="title">Where things run</title>
+  <desc id="desc">The control plane holds every secret and talks to GitHub, notification targets, MCP servers and APIs, and model providers. The runner owns Docker. It runs the command sandbox with no network, and for subscription runs an agent container that reaches its provider with the login and SecondShift tools through the gateway.</desc>
+  <style>
+    .card { fill: #171717; stroke: #292929; }
+    .zone { fill: #1b1b1b; stroke: #2e2e2e; }
+    .box { fill: #222222; stroke: #363636; }
+    .hi { fill: #2a2117; stroke: #ffb454; stroke-width: 1.5; }
+    .ext { fill: #1f1f1f; stroke: #4a4a4a; stroke-dasharray: 5 4; }
+    .iso { fill: #1d1d1d; stroke: #8a8a8a; stroke-width: 1.4; stroke-dasharray: 6 4; }
+    .band { fill: #241e16; stroke: #4a3a22; }
+    .eyebrow { fill: #8a8a8a; font: 600 11px Geist, ui-sans-serif, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; letter-spacing: .09em; }
+    .eyehi { fill: #ffb454; font: 600 11px Geist, ui-sans-serif, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; letter-spacing: .09em; }
+    .h { fill: #ededed; font: 600 20px Geist, ui-sans-serif, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; }
+    .t { fill: #ededed; font: 600 15px Geist, ui-sans-serif, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; }
+    .p { fill: #b5b5b5; font: 400 13px Geist, ui-sans-serif, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; }
+    .lbl { fill: #9a9a9a; font: 500 11.5px "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .lblhi { fill: #ffb454; font: 500 11.5px "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .mono { fill: #b5b5b5; font: 400 11.5px "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .wire { fill: none; stroke: #5c5c5c; stroke-width: 1.5; }
+    .flow { fill: none; stroke: #ffb454; stroke-width: 1.6; }
+    .head { fill: #5c5c5c; }
+    .headhi { fill: #ffb454; }
+    @media (prefers-color-scheme: light) {
+      .card { fill: #fbfaf8; stroke: #e6e4df; }
+      .zone { fill: #f4f3f0; stroke: #e6e4df; }
+      .box { fill: #ffffff; stroke: #dedbd5; }
+      .hi { fill: #fff6e8; stroke: #c27a1a; }
+      .ext { fill: #ffffff; stroke: #bdb9b1; }
+      .iso { fill: #ffffff; stroke: #8a857c; }
+      .band { fill: #fff6e8; stroke: #f0dcbc; }
+      .eyebrow { fill: #7a7a7a; }
+      .eyehi, .lblhi { fill: #9c5700; }
+      .h, .t { fill: #151515; }
+      .p, .mono { fill: #4a4a4a; }
+      .lbl { fill: #6b6b6b; }
+      .wire { stroke: #a8a49c; }
+      .flow { stroke: #c27a1a; }
+      .head { fill: #a8a49c; }
+      .headhi { fill: #c27a1a; }
+    }
+  </style>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="head" d="M0 0 10 5 0 10z"/></marker>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="headhi" d="M0 0 10 5 0 10z"/></marker>
+  </defs>
+
+  <rect class="card" x="0.5" y="0.5" width="959" height="615" rx="16"/>
+
+  <text class="eyebrow" x="32" y="44">WHERE THINGS RUN</text>
+  <text class="h" x="32" y="72">What runs on the control plane and the runner</text>
+
+  <!-- Outside services -->
+  <rect class="ext" x="52" y="104" width="200" height="56" rx="12"/>
+  <text class="t" x="152" y="137" text-anchor="middle">GitHub</text>
+  <rect class="ext" x="271" y="104" width="200" height="56" rx="12"/>
+  <text class="t" x="371" y="137" text-anchor="middle">Slack and webhooks</text>
+  <rect class="ext" x="489" y="104" width="200" height="56" rx="12"/>
+  <text class="t" x="589" y="137" text-anchor="middle">MCP servers and APIs</text>
+  <rect class="ext" x="708" y="104" width="200" height="56" rx="12"/>
+  <text class="t" x="808" y="137" text-anchor="middle">Model providers</text>
+
+  <!-- Control plane -->
+  <rect class="zone" x="32" y="244" width="568" height="340" rx="14"/>
+  <text class="eyebrow" x="52" y="272">CONTROL PLANE</text>
+
+  <rect class="box" x="52" y="292" width="168" height="64" rx="10"/>
+  <text class="t" x="68" y="319">Web and API</text>
+  <text class="p" x="68" y="340">Dashboard, REST, MCP</text>
+  <rect class="box" x="232" y="292" width="168" height="64" rx="10"/>
+  <text class="t" x="248" y="319">Worker</text>
+  <text class="p" x="248" y="340">Runs, built-in agent</text>
+  <rect class="box" x="412" y="292" width="168" height="64" rx="10"/>
+  <text class="t" x="428" y="319">Gateway</text>
+  <text class="p" x="428" y="340">Models, MCP broker</text>
+
+  <rect class="box" x="52" y="372" width="528" height="64" rx="10"/>
+  <text class="t" x="68" y="399">Postgres and artifact storage</text>
+  <text class="p" x="68" y="420">Runs, frozen plans, reports, saved files and patches</text>
+
+  <rect class="band" x="52" y="452" width="528" height="112" rx="10"/>
+  <text class="eyehi" x="68" y="478">SECRETS LIVE HERE</text>
+  <text class="p" x="68" y="502">GitHub App key, model keys, MCP and API credentials and</text>
+  <text class="p" x="68" y="522">subscription logins, encrypted at rest. A login reaches only</text>
+  <text class="p" x="68" y="542">its own agent container. No secret reaches the sandbox.</text>
+
+  <!-- Runner -->
+  <rect class="zone" x="648" y="244" width="280" height="340" rx="14"/>
+  <text class="eyebrow" x="668" y="272">RUNNER</text>
+  <text class="lbl" x="908" y="272" text-anchor="end">owns Docker</text>
+
+  <rect class="hi" x="668" y="292" width="240" height="88" rx="10"/>
+  <text class="t" x="684" y="319">Agent container</text>
+  <text class="p" x="684" y="341">Subscription runs only.</text>
+  <text class="p" x="684" y="360">The login's files, nothing else.</text>
+
+  <rect class="iso" x="668" y="400" width="240" height="164" rx="10"/>
+  <text class="t" x="684" y="427">Command sandbox</text>
+  <text class="mono" x="684" y="449">--network=none</text>
+  <text class="p" x="684" y="476">The commit's files,</text>
+  <text class="p" x="684" y="495">/outputs and /history.</text>
+  <text class="p" x="684" y="522">No credentials.</text>
+  <text class="p" x="684" y="541">Removed after the run.</text>
+
+  <!-- Control plane to outside -->
+  <path class="wire" d="M152 162v80" marker-start="url(#a)" marker-end="url(#a)"/>
+  <text class="lbl" x="162" y="206">commits, PRs, issues</text>
+  <path class="wire" d="M371 242v-80" marker-end="url(#a)"/>
+  <text class="lbl" x="381" y="206">results</text>
+  <path class="wire" d="M560 162v80" marker-start="url(#a)" marker-end="url(#a)"/>
+  <text class="lbl" x="550" y="206" text-anchor="end">tool calls</text>
+  <path class="flow" d="M590 242v-42h150v-38" marker-end="url(#ah)"/>
+  <text class="lblhi" x="664" y="192" text-anchor="middle">API key</text>
+
+  <!-- Runner to outside and to the control plane -->
+  <path class="flow" d="M860 290v-128" marker-end="url(#ah)"/>
+  <text class="lblhi" x="852" y="206" text-anchor="end">login</text>
+  <path class="wire" d="M582 324h84" marker-start="url(#a)" marker-end="url(#a)"/>
+  <text class="lbl" x="624" y="316" text-anchor="middle">MCP</text>
+  <path class="wire" d="M582 420h84" marker-end="url(#a)"/>
+  <text class="lbl" x="624" y="412" text-anchor="middle">API</text>
+</svg>

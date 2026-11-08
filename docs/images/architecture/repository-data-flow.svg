@@ -1,0 +1,117 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 704" role="img" aria-labelledby="title desc">
+  <title id="title">Repository data flow</title>
+  <desc id="desc">On sync, the control plane fetches new commits from GitHub into its mirror and reads the manifest at the commit. At run start it builds a snapshot of the commit, asks the runner whether it has it, uploads it if not, and opens a session that unpacks it into a networkless sandbox. At run end it deletes the session, which removes the sandbox and workspace. The GitHub token never leaves the control plane.</desc>
+  <style>
+    .card { fill: #171717; stroke: #292929; }
+    .phase { fill: #1b1b1b; }
+    .head { fill: #222222; stroke: #363636; }
+    .headhi { fill: #2a2117; stroke: #ffb454; stroke-width: 1.5; }
+    .note { fill: #262626; stroke: #3a3a3a; }
+    .life { stroke: #3d3d3d; stroke-width: 1.2; stroke-dasharray: 3 5; }
+    .eyebrow { fill: #8a8a8a; font: 600 11px Geist, ui-sans-serif, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; letter-spacing: .09em; }
+    .h { fill: #ededed; font: 600 20px Geist, ui-sans-serif, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; }
+    .t { fill: #ededed; font: 600 15px Geist, ui-sans-serif, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; }
+    .p { fill: #b5b5b5; font: 400 13px Geist, ui-sans-serif, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; }
+    .pt { fill: #d6d6d6; font: 400 13px Geist, ui-sans-serif, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; }
+    .code { fill: #ffb454; font: 500 12px "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .sub { fill: #8a8a8a; font: 400 11.5px "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .msg { fill: none; stroke: #8a8a8a; stroke-width: 1.4; }
+    .reply { fill: none; stroke: #6a6a6a; stroke-width: 1.3; stroke-dasharray: 4 4; }
+    .x { stroke: #8a8a8a; stroke-width: 2; }
+    .arr { fill: #8a8a8a; }
+    .callout { fill: #241e16; stroke: #4a3a22; }
+    .key { fill: #ffb454; }
+    @media (prefers-color-scheme: light) {
+      .card { fill: #fbfaf8; stroke: #e6e4df; }
+      .phase { fill: #f4f3f0; }
+      .head { fill: #ffffff; stroke: #dedbd5; }
+      .headhi { fill: #fff6e8; stroke: #c27a1a; }
+      .note { fill: #ffffff; stroke: #dedbd5; }
+      .life { stroke: #cfcbc3; }
+      .eyebrow, .sub { fill: #7a7a7a; }
+      .h, .t { fill: #151515; }
+      .p { fill: #4a4a4a; }
+      .pt { fill: #262626; }
+      .code, .key { fill: #9c5700; }
+      .msg { stroke: #8a857c; }
+      .reply { stroke: #a8a49c; }
+      .x { stroke: #8a857c; }
+      .arr { fill: #8a857c; }
+      .callout { fill: #fff6e8; stroke: #f0dcbc; }
+    }
+  </style>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arr" d="M0 0 10 5 0 10z"/></marker>
+  </defs>
+
+  <rect class="card" x="0.5" y="0.5" width="959" height="703" rx="16"/>
+
+  <text class="eyebrow" x="32" y="44">REPOSITORY DATA FLOW</text>
+  <text class="h" x="32" y="72">How a commit reaches the sandbox</text>
+
+  <!-- Phases -->
+  <rect class="phase" x="32" y="160" width="896" height="112" rx="12"/>
+  <text class="eyebrow" x="48" y="182">SYNC</text>
+  <rect class="phase" x="32" y="284" width="896" height="240" rx="12"/>
+  <text class="eyebrow" x="48" y="306">RUN START</text>
+  <rect class="phase" x="32" y="536" width="896" height="80" rx="12"/>
+  <text class="eyebrow" x="48" y="558">RUN END</text>
+
+  <!-- Lifelines -->
+  <line class="life" x1="160" y1="144" x2="160" y2="616"/>
+  <line class="life" x1="400" y1="144" x2="400" y2="616"/>
+  <line class="life" x1="640" y1="144" x2="640" y2="616"/>
+  <line class="life" x1="840" y1="144" x2="840" y2="588"/>
+
+  <rect class="head" x="80" y="96" width="160" height="48" rx="10"/>
+  <text class="t" x="160" y="125" text-anchor="middle">GitHub</text>
+  <rect class="headhi" x="300" y="96" width="200" height="48" rx="10"/>
+  <text class="t" x="400" y="118" text-anchor="middle">Control plane</text>
+  <text class="sub" x="400" y="136" text-anchor="middle">holds the GitHub token</text>
+  <rect class="head" x="550" y="96" width="180" height="48" rx="10"/>
+  <text class="t" x="640" y="118" text-anchor="middle">Runner</text>
+  <text class="sub" x="640" y="136" text-anchor="middle">no credentials</text>
+  <rect class="head" x="760" y="96" width="160" height="48" rx="10"/>
+  <text class="t" x="840" y="118" text-anchor="middle">Sandbox</text>
+  <text class="sub" x="840" y="136" text-anchor="middle">no network</text>
+
+  <!-- Sync -->
+  <path class="msg" d="M400 206H164" marker-end="url(#a)"/>
+  <text class="pt" x="282" y="198" text-anchor="middle">fetch new commits</text>
+  <path class="reply" d="M164 222H396" marker-end="url(#a)"/>
+  <text class="p" x="282" y="240" text-anchor="middle">into the mirror</text>
+  <rect class="note" x="424" y="198" width="304" height="52" rx="8"/>
+  <text class="pt" x="440" y="220">Read .secondshift.yaml and skills</text>
+  <text class="p" x="440" y="239">at the commit, save it as a revision</text>
+
+  <!-- Run start -->
+  <rect class="note" x="248" y="318" width="304" height="34" rx="8"/>
+  <text class="pt" x="400" y="340" text-anchor="middle">Build the commit's snapshot (cached)</text>
+
+  <path class="msg" d="M400 384H636" marker-end="url(#a)"/>
+  <text class="code" x="518" y="376" text-anchor="middle">HEAD /v1/sources/{sha256}</text>
+  <path class="reply" d="M636 398H404" marker-end="url(#a)"/>
+  <text class="p" x="518" y="414" text-anchor="middle">have it? skip the upload</text>
+
+  <path class="msg" d="M400 448H636" marker-end="url(#a)"/>
+  <text class="code" x="518" y="440" text-anchor="middle">PUT /v1/sources/{sha256}</text>
+  <text class="p" x="656" y="444">checks the bytes</text>
+  <text class="p" x="656" y="461">match the name</text>
+
+  <path class="msg" d="M400 500H636" marker-end="url(#a)"/>
+  <text class="code" x="518" y="492" text-anchor="middle">POST /v1/sessions</text>
+  <path class="msg" d="M640 500H836" marker-end="url(#a)"/>
+  <text class="pt" x="740" y="492" text-anchor="middle">unpack, start</text>
+
+  <!-- Run end -->
+  <path class="msg" d="M400 588H636" marker-end="url(#a)"/>
+  <text class="code" x="518" y="580" text-anchor="middle">DELETE /v1/sessions/{id}</text>
+  <path class="msg" d="M640 588H826" marker-end="url(#a)"/>
+  <text class="pt" x="740" y="580" text-anchor="middle">remove</text>
+  <path class="x" d="M832 580l16 16M848 580l-16 16"/>
+
+  <!-- Callout -->
+  <rect class="callout" x="32" y="636" width="896" height="44" rx="10"/>
+  <circle class="key" cx="54" cy="658" r="4"/>
+  <text class="p" x="68" y="663">The GitHub token never leaves the control plane. The runner keeps no repositories and deletes each snapshot once it is unpacked.</text>
+</svg>
