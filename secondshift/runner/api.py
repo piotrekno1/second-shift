@@ -12,7 +12,7 @@ from secondshift.runner.agents import (
     execute_agent,
     remove_agent_credentials,
 )
-from secondshift.runner.models import RunnerSession
+from secondshift.runner.dao import has_sessions
 from secondshift.runner.protocol import (
     CommandRequest,
     RunnerProtocolError,
@@ -57,7 +57,7 @@ def invalid_protocol_input(request: HttpRequest, error: ValueError):
 
 @api.get("/-/health/", auth=None)
 def health(request: HttpRequest) -> dict[str, bool]:
-    RunnerSession.objects.exists()
+    has_sessions()
     return {"ok": True}
 
 
