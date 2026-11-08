@@ -8,16 +8,11 @@ from ninja import Router, Status
 from ninja.errors import HttpError
 from ninja.security import django_auth
 
-from secondshift.jobs.api_limits import limit_error_detail, limit_updates
 from secondshift.jobs.execution import (
     execution_configuration,
     save_execution_preference,
 )
-from secondshift.jobs.limits import LimitError, save_overrides
-from secondshift.jobs.schemas import (
-    ExecutionConfigurationSchema,
-    RunLimitsUpdateSchema,
-)
+from secondshift.jobs.schemas import ExecutionConfigurationSchema
 from secondshift.workspaces.access import (
     Action,
     current_workspace,
@@ -40,6 +35,7 @@ from secondshift.workspaces.invites import (
     pending_invite,
     revoke_invite,
 )
+from secondshift.workspaces.limits import LimitError, save_overrides
 from secondshift.workspaces.models import (
     WorkspaceMembership,
 )
@@ -54,12 +50,14 @@ from secondshift.workspaces.schemas import (
     NewInviteSchema,
     PendingInviteSchema,
     RoleChangeSchema,
+    RunLimitsUpdateSchema,
     WorkspaceChoiceSchema,
     WorkspaceCreateSchema,
     WorkspaceSelectSchema,
     WorkspaceSettingsSchema,
 )
 from secondshift.workspaces.serialization import (
+    limit_error_detail,
     serialize_api_token,
     serialize_choice,
     serialize_invite,
@@ -93,7 +91,7 @@ def set_workspace_limits(
     """Change the workspace's run limits. Runs already created keep theirs."""
     workspace = require(request, Action.CHANGE_RUN_LIMITS)
     try:
-        save_overrides(workspace, limit_updates(payload))
+        save_overrides(workspace, payload.model_dump(exclude_unset=True))
     except LimitError as error:
         raise HttpError(422, limit_error_detail(request, error)) from error
     return serialize_settings(request, workspace)

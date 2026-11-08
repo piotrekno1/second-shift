@@ -3,9 +3,8 @@ from django.db import models
 
 from secondshift.config.constants import MANIFEST_FILE
 from secondshift.connections.models import Connection
-from secondshift.core.models import RunLimitOverrides
 from secondshift.repositories.models import Repository
-from secondshift.workspaces.models import Workspace
+from secondshift.workspaces.models import RunLimitOverrides, Workspace
 
 # Why a job removed from the manifest cannot run or be resumed.
 JOB_REMOVED = f"This job is no longer in {MANIFEST_FILE}. Add it back to run it."

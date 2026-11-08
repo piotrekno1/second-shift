@@ -7,9 +7,7 @@ from ninja.security import django_auth
 from secondshift.connections.models import Connection
 from secondshift.connections.serialization import serialize_connection
 from secondshift.jobs.access import job_for_request
-from secondshift.jobs.api_limits import limit_error_detail, limit_updates
 from secondshift.jobs.grants import GrantError, decide_grant
-from secondshift.jobs.limits import LimitError, save_overrides
 from secondshift.jobs.models import JOB_REMOVED, CapabilityRequest
 from secondshift.jobs.needs import capability_needs
 from secondshift.jobs.planning import build_execution_plan
@@ -22,7 +20,6 @@ from secondshift.jobs.schemas import (
     JobEnabledSchema,
     JobSchema,
     NeedJobSchema,
-    RunLimitsUpdateSchema,
 )
 from secondshift.jobs.serialization import (
     serialize_job,
@@ -35,6 +32,9 @@ from secondshift.workspaces.access import (
     current_workspace,
     require,
 )
+from secondshift.workspaces.limits import LimitError, save_overrides
+from secondshift.workspaces.schemas import RunLimitsUpdateSchema
+from secondshift.workspaces.serialization import limit_error_detail
 
 router = Router(auth=django_auth, tags=["jobs"])
 
@@ -89,7 +89,7 @@ def set_job_limits(
     job = job_for_request(request, job_id)
     require(request, Action.CHANGE_RUN_LIMITS)
     try:
-        save_overrides(job, limit_updates(payload))
+        save_overrides(job, payload.model_dump(exclude_unset=True))
     except LimitError as error:
         raise HttpError(422, limit_error_detail(request, error)) from error
     return serialize_job_detail(job_for_request(request, job_id), True)

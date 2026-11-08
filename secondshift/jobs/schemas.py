@@ -7,6 +7,7 @@ from pydantic import Field
 from secondshift.config.constants import AgentBackend
 from secondshift.connections.schemas import ConnectionSchema
 from secondshift.runs.schemas import RunSchema
+from secondshift.workspaces.schemas import LimitSchema
 
 
 class AccessSchema(Schema):
@@ -126,27 +127,6 @@ class GrantDecisionSchema(Schema):
     allowed_tools: list[str] | None = None
     # Left out keeps the current rules. An empty object removes them all.
     tool_rules: ToolRulesSchema | None = None
-
-
-class LimitSchema(Schema):
-    key: str
-    label: str
-    help: str
-    unit: str
-    value: int
-    override: int | None
-    inherited: int
-    minimum: int
-    maximum: int
-
-
-class RunLimitsUpdateSchema(Schema):
-    """Fields left out stay as they are. Null uses the inherited value."""
-
-    max_turns: int | None = None
-    max_tool_calls: int | None = None
-    token_budget: int | None = None
-    timeout_seconds: int | None = None
 
 
 class OpenIssuesSchema(Schema):

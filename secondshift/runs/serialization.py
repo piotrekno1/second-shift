@@ -1,4 +1,3 @@
-from secondshift.jobs.limits import RunLimit
 from secondshift.jobs.planning import plan_backend
 from secondshift.runner.agent_image.outcomes import cache_reads, usage_budget
 from secondshift.runs.dao import run_events
@@ -26,6 +25,7 @@ from secondshift.runs.schemas import (
     RunSchema,
     RunSkippedFileSchema,
 )
+from secondshift.workspaces.limits import RunLimit
 
 
 def run_limit(run: Run, limit: RunLimit) -> int | None:

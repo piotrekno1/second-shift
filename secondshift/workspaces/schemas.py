@@ -4,7 +4,26 @@ from typing import Literal
 from ninja import Schema
 from pydantic import Field
 
-from secondshift.jobs.schemas import LimitSchema
+
+class LimitSchema(Schema):
+    key: str
+    label: str
+    help: str
+    unit: str
+    value: int
+    override: int | None
+    inherited: int
+    minimum: int
+    maximum: int
+
+
+class RunLimitsUpdateSchema(Schema):
+    """Fields left out stay as they are. Null uses the inherited value."""
+
+    max_turns: int | None = None
+    max_tool_calls: int | None = None
+    token_budget: int | None = None
+    timeout_seconds: int | None = None
 
 
 class SettingValueSchema(Schema):

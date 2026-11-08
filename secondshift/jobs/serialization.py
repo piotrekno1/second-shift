@@ -2,14 +2,13 @@ from secondshift.config.constants import GITHUB_BASE_URL
 from secondshift.connections.dao import connections_by_binding
 from secondshift.connections.external import changing_tools, external_access
 from secondshift.connections.models import Connection
-from secondshift.jobs.api_limits import serialize_limits
 from secondshift.jobs.dao import active_jobs, job_with_last_run, with_last_run
 from secondshift.jobs.execution import (
     ExecutionSelection,
     job_execution,
     workspace_execution,
 )
-from secondshift.jobs.limits import limit_views
+from secondshift.jobs.limits import job_limit_views
 from secondshift.jobs.models import Job
 from secondshift.jobs.schemas import (
     AccessSchema,
@@ -24,6 +23,7 @@ from secondshift.repositories.models import Repository
 from secondshift.runs.dao import newest_job_runs, with_model_usage
 from secondshift.runs.serialization import serialize_run
 from secondshift.workspaces.models import Workspace
+from secondshift.workspaces.serialization import serialize_limits
 
 
 def last_run(job: Job) -> LastRunSchema | None:
@@ -156,7 +156,7 @@ def serialize_job_detail(job: Job, can_edit_limits: bool) -> JobDetailSchema:
         skill_truncated=job.skill_truncated,
         skill_url=skill_url(job),
         recent_runs=[serialize_run(run) for run in recent_runs],
-        limits=serialize_limits(limit_views(job.workspace, job)),
+        limits=serialize_limits(job_limit_views(job)),
         can_edit_limits=can_edit_limits,
     )
 

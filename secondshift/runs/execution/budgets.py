@@ -21,7 +21,8 @@ from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.usage import RunUsage
 
 from secondshift.config.constants import TOKEN_BUDGET_MESSAGE, AgentBackend
-from secondshift.jobs.limits import RunLimit, plan_limit, raise_hint
+from secondshift.jobs.limits import plan_limit
+from secondshift.workspaces.limits import RunLimit, raise_hint
 
 BUDGET_HEADLINE = "Budget used up"
 FINISH_INSTRUCTIONS = (

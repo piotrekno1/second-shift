@@ -20,12 +20,13 @@ from secondshift.jobs.automatic_grants import approves_automatically
 from secondshift.jobs.capabilities import RequestedCapability, manifest_capabilities
 from secondshift.jobs.dao import job_requests_with_grants
 from secondshift.jobs.execution import workspace_execution, workspace_model
-from secondshift.jobs.limits import RunLimit, effective_limits, workspace_value
+from secondshift.jobs.limits import effective_limits
 from secondshift.jobs.manifest import JobManifest, TaskManifest, manifest_hash
 from secondshift.jobs.models import Job, JobGrant
 from secondshift.jobs.tool_policy import authorized_tools
 from secondshift.jobs.tool_rules import ToolRules, broken_rules, kept_rules
 from secondshift.repositories.models import Repository
+from secondshift.workspaces.limits import RunLimit, workspace_limits
 from secondshift.workspaces.models import Workspace
 
 
@@ -352,10 +353,7 @@ def build_skill_execution_plan(
         repository,
         ExecutionDefinition(key, definition.skill or "", manifest_hash(definition)),
         capabilities,
-        {
-            str(limit): workspace_value(repository.workspace, limit)
-            for limit in RunLimit
-        },
+        workspace_limits(repository.workspace),
         commit_sha,
         pull_request,
         subagents=definition.subagents,

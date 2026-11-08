@@ -8,9 +8,10 @@ from django.http import HttpRequest
 from secondshift.connections.models import Connection
 from secondshift.gateway.dao import active_tokens, create_run_token
 from secondshift.gateway.models import RunToken
-from secondshift.jobs.limits import RunLimit, plan_limit
+from secondshift.jobs.limits import plan_limit
 from secondshift.runs.execution.deadlines import run_deadline
 from secondshift.runs.models import Run
+from secondshift.workspaces.limits import RunLimit
 
 TOKEN_PREFIX = "ssrt_"
 

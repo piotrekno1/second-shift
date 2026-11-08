@@ -10,8 +10,9 @@ from datetime import datetime, timedelta
 from django.utils import timezone
 
 from secondshift.core.formatting import duration_label
-from secondshift.jobs.limits import RunLimit, plan_limit, raise_hint
+from secondshift.jobs.limits import plan_limit
 from secondshift.runs.models import Run
+from secondshift.workspaces.limits import RunLimit, raise_hint
 
 TIMEOUT_HEADLINE = "Timed out"
 

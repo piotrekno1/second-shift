@@ -6,13 +6,12 @@ from secondshift.core.workspace_settings import (
     sandbox_label,
     setting_groups,
 )
-from secondshift.jobs.api_limits import serialize_limits
-from secondshift.jobs.limits import limit_views
 from secondshift.workspaces.access import (
     Action,
     allows,
     is_operator,
 )
+from secondshift.workspaces.limits import LimitError, LimitView, workspace_limit_views
 from secondshift.workspaces.models import (
     ApiToken,
     Workspace,
@@ -22,6 +21,7 @@ from secondshift.workspaces.models import (
 from secondshift.workspaces.schemas import (
     ApiTokenSchema,
     InviteSchema,
+    LimitSchema,
     MemberSchema,
     SettingGroupSchema,
     SettingValueSchema,
@@ -53,7 +53,7 @@ def serialize_settings(
             )
             for group in setting_groups()
         ],
-        limits=serialize_limits(limit_views(workspace)) if workspace else [],
+        limits=serialize_limits(workspace_limit_views(workspace)) if workspace else [],
         can_edit_limits=allows(request, Action.CHANGE_RUN_LIMITS),
     )
 
@@ -125,3 +125,14 @@ def serialize_token_workspace(
         current=workspace.pk == current_id,
         can_create_run_tokens=scope_allowed(membership.role, ApiToken.Scope.RUN),
     )
+
+
+def serialize_limits(views: list[LimitView]) -> list[LimitSchema]:
+    return [LimitSchema(**vars(view)) for view in views]
+
+
+def limit_error_detail(request: HttpRequest, error: LimitError) -> str:
+    """Only people who run the server can raise a maximum, so only they get the hint."""
+    if error.ceiling_env and is_operator(request):
+        return f"{error} Set {error.ceiling_env} to allow more."
+    return str(error)
