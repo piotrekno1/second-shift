@@ -1,0 +1,7 @@
+version: 1
+jobs:
+  code-simplifier:
+    name: Code simplifier
+    skill: .agents/skills/code-simplifier/SKILL.md
+    schedule: "0 8 * * 5"
+    timezone: UTC

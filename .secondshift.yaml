@@ -26,6 +26,11 @@ jobs:
     schedule: "0 8 15 * *"
     timezone: UTC
 
+  # No schedule: choose Run now. It reviews the last week of commits.
+  code-simplifier:
+    name: Code simplifier
+    skill: examples/code-simplifier/.agents/skills/code-simplifier/SKILL.md
+
   docs-drift:
     name: Documentation drift
     skill: examples/docs-drift/.agents/skills/docs-drift/SKILL.md
