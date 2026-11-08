@@ -25,7 +25,7 @@ NOTHING_CHOSEN = "Choose a model API key or a subscription to run jobs."
 class ExecutionSelection:
     key: str
     label: str
-    backend: str
+    backend: AgentBackend
     connection: AgentConnection | None = None
     model: Connection | None = None
     problem: str = ""
@@ -94,11 +94,12 @@ def subscription_problem(connection: AgentConnection, workspace: Workspace) -> s
 def subscription_selection(
     connection: AgentConnection, workspace: Workspace
 ) -> ExecutionSelection:
-    product = AgentBackend(connection.backend).name.replace("_", " ").title()
+    backend = AgentBackend(connection.backend)
+    product = backend.name.replace("_", " ").title()
     return ExecutionSelection(
         key=f"{AGENT_PREFIX}{connection.pk}",
         label=f"{product} subscription · {connection.display_name}",
-        backend=connection.backend,
+        backend=backend,
         connection=connection,
         problem=subscription_problem(connection, workspace),
     )
@@ -193,9 +194,7 @@ def execution_status(workspace: Workspace) -> dict[str, Any]:
         "needs_setup": nothing_chosen and not has_anything_to_choose(workspace),
         # The chosen model provider, so the page can open it ready to fix.
         "fix_connection_id": workspace.default_model_connection_id
-        if selected.problem
-        and not nothing_chosen
-        and AgentBackend(selected.backend).uses_model_api
+        if selected.problem and not nothing_chosen and selected.backend.uses_model_api
         else None,
     }
 

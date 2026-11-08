@@ -201,11 +201,7 @@ def compile_execution_plan(
     ]
     ready = all(item["authorized"] for item in capabilities if item["required"])
     selection = workspace_execution(workspace)
-    model = (
-        model_plan(workspace)
-        if AgentBackend(selection.backend).uses_model_api
-        else None
-    )
+    model = model_plan(workspace) if selection.backend.uses_model_api else None
     execution = {
         "backend": selection.backend,
         "label": selection.label,
@@ -236,7 +232,7 @@ def compile_execution_plan(
     # before the manifest is synced again.
     agent["subagents"] = (
         min(subagents, settings.RUN_SUBAGENTS_MAX)
-        if AgentBackend(selection.backend).starts_subagents
+        if selection.backend.starts_subagents
         else 0
     )
     plan = {

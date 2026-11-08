@@ -78,10 +78,10 @@ def private_file(path: Path, text: str) -> None:
     path.chmod(0o600)
 
 
-def budget_count(fresh: int, cache_reads: int) -> int:
+def budget_count(fresh: int, cached: int) -> int:
     """Tokens counted toward a run's budget. Cache reads count as a tenth,
     rounded up."""
-    return fresh + -(-cache_reads // CACHE_READ_DIVISOR)
+    return fresh + (cached + CACHE_READ_DIVISOR - 1) // CACHE_READ_DIVISOR
 
 
 def cache_reads(usage: dict[str, int]) -> int:
