@@ -5,6 +5,7 @@ from pathlib import Path
 from django.db import transaction
 
 from secondshift.connections.dao import connected_github_sources
+from secondshift.connections.github import connection_source, usable_source
 from secondshift.connections.models import Connection
 from secondshift.github import credentials, repos
 from secondshift.github.app import configured, installation_repositories
@@ -22,9 +23,7 @@ from secondshift.repositories.dao import (
 from secondshift.repositories.github_access import (
     GitHubAccess,
     connection_access,
-    connection_source,
     github_access,
-    usable_source,
 )
 from secondshift.repositories.local import (
     RepositoryConfigError,

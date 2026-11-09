@@ -2,6 +2,8 @@
 
 from secondshift.connections.dao import save_github_source
 from secondshift.connections.models import Connection
+from secondshift.github import credentials
+from secondshift.github.app import configured
 from secondshift.github.errors import GitHubError
 from secondshift.github.installations import Installation
 from secondshift.github.tokens import inspect_token
@@ -59,3 +61,36 @@ def connect_token_source(
             "status": Connection.Status.CONNECTED,
         },
     )
+
+
+def usable_source(connection: Connection | None) -> bool:
+    if not (
+        connection
+        and connection.provider == Connection.Provider.GITHUB
+        and connection.kind == Connection.Kind.SOURCE
+        and connection.status == Connection.Status.CONNECTED
+    ):
+        return False
+    if connection.auth_strategy == Connection.AuthStrategy.MANAGED:
+        return True
+    return connection.auth_strategy == Connection.AuthStrategy.API_KEY and bool(
+        connection.access_token
+    )
+
+
+def can_check(connection: Connection | None) -> bool:
+    """App sources need the App on this server. Token sources need only themselves."""
+    return usable_source(connection) and (
+        connection.auth_strategy != Connection.AuthStrategy.MANAGED or configured()
+    )
+
+
+def connection_source(connection: Connection | None) -> credentials.Source:
+    """The credential behind a source connection. Never returned to a client."""
+    if not usable_source(connection):
+        raise GitHubError("The GitHub connection is disconnected.")
+    if connection.auth_strategy == Connection.AuthStrategy.MANAGED:
+        return credentials.AppInstallation(connection.external_account_id)
+    if connection.current_status == Connection.Status.EXPIRED:
+        raise GitHubError("The GitHub token expired. Enter a new one.")
+    return credentials.PersonalToken(connection.access_token)

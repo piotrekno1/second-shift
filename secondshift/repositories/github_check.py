@@ -12,6 +12,7 @@ from django.utils import timezone
 from secondshift.config.constants import GITHUB_BASE_URL
 from secondshift.connections.checks import record_check
 from secondshift.connections.dao import connected_github_sources
+from secondshift.connections.github import can_check, connection_source
 from secondshift.connections.models import Connection
 from secondshift.github import app, credentials, permissions
 from secondshift.github.errors import GitHubError
@@ -19,8 +20,6 @@ from secondshift.github.tokens import inspect_token
 from secondshift.repositories.dao import connection_repositories
 from secondshift.repositories.github_access import (
     GitHubAccess,
-    can_check,
-    connection_source,
     github_access,
 )
 from secondshift.repositories.models import Repository

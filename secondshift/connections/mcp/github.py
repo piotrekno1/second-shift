@@ -13,6 +13,7 @@ from secondshift.config.constants import (
     GitHubMCPTool,
 )
 from secondshift.connections.dao import connected_github_sources
+from secondshift.connections.github import connection_source, usable_source
 from secondshift.connections.mcp.base import (
     SOURCE_AUTH,
     MCPArgumentError,
@@ -24,7 +25,6 @@ from secondshift.connections.models import Connection
 from secondshift.github import credentials
 from secondshift.github.errors import GitHubError
 from secondshift.repositories.github import github_repository_scope
-from secondshift.repositories.github_access import connection_source, usable_source
 from secondshift.repositories.models import Repository
 from secondshift.workspaces.models import Workspace
 
