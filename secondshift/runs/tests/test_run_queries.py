@@ -12,7 +12,7 @@ from secondshift.jobs.models import Job
 from secondshift.jobs.tests.plans import MODEL, stored_plan
 from secondshift.repositories.models import Repository
 from secondshift.runs.dao import create_task
-from secondshift.runs.models import Run
+from secondshift.runs.models import Run, RunFailure
 from secondshift.workspaces.dao import create_workspace, workspace_owner
 from secondshift.workspaces.models import Workspace
 
@@ -210,7 +210,9 @@ def test_run_list_splits_failures_into_label_and_reason(
     client: Client, runs: dict[str, object]
 ) -> None:
     Run.objects.filter(pk=runs["health_failed"].pk).update(  # type: ignore[attr-defined]
-        summary="Couldn't start the sandbox: Runner answered HTTP 500."
+        summary="Couldn't start the sandbox: Runner answered HTTP 500.",
+        failure=RunFailure.SANDBOX,
+        failure_reason="Runner answered HTTP 500.",
     )
     client.force_login(workspace_owner(runs["workspace"]))  # type: ignore[attr-defined]
 

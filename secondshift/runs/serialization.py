@@ -1,12 +1,8 @@
 from secondshift.runner.agent_image.outcomes import cache_reads, usage_budget
 from secondshift.runs.dao import run_events
 from secondshift.runs.deliveries import retryable
-from secondshift.runs.execution.budgets import BUDGET_HEADLINE
-from secondshift.runs.execution.deadlines import TIMEOUT_HEADLINE
-from secondshift.runs.models import Run, RunDelivery
+from secondshift.runs.models import Run, RunDelivery, RunFailure
 from secondshift.runs.reporting.failures import (
-    MODEL_PROVIDER_LABEL,
-    TOOL_RULE_LABEL,
     TOOL_RULE_NEXT_STEP,
     describe_failure,
     model_provider_next_step,
@@ -34,19 +30,19 @@ def run_failure(run: Run) -> RunFailureSchema | None:
         )
     if run.status != Run.Status.FAILED:
         return None
-    view = describe_failure(run.summary)
+    view = describe_failure(run)
     connection_id, next_step = None, ""
-    if view.label == MODEL_PROVIDER_LABEL:
+    if run.failure == RunFailure.MODEL_PROVIDER:
         model = run.plan.model
         connection_id = model.connection_id if model else None
         name = model.connection_name if model else "the model connection"
         next_step = model_provider_next_step(view.reason, name)
-    elif view.label == TOOL_RULE_LABEL:
+    elif run.failure == RunFailure.TOOL_RULE:
         next_step = TOOL_RULE_NEXT_STEP
     return RunFailureSchema(
         label=view.label,
         reason=view.reason,
-        limit=view.label in (BUDGET_HEADLINE, TIMEOUT_HEADLINE),
+        limit=run.failure in (RunFailure.BUDGET, RunFailure.TIMEOUT),
         connection_id=connection_id,
         next_step=next_step,
     )

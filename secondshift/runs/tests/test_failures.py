@@ -10,13 +10,12 @@ from secondshift.github.errors import GitHubError
 from secondshift.jobs.tests.plans import CAPABILITY, MODEL, stored_plan
 from secondshift.jobs.tool_rules import ToolRuleViolation
 from secondshift.runner.protocol import RunnerProtocolError
-from secondshift.runs.models import Run
+from secondshift.runs.migration_helpers import failure_from_summary_v1
+from secondshift.runs.models import Run, RunFailure
 from secondshift.runs.orchestration import workflows
 from secondshift.runs.reporting.failures import (
-    FailureView,
-    describe_failure,
     failure_metadata,
-    failure_summary,
+    stage_failure,
 )
 from secondshift.runs.serialization import run_failure
 from secondshift.runs.tests.test_workflows import execution_run
@@ -38,7 +37,7 @@ def test_summary_names_the_stage_and_the_first_attempts_cause() -> None:
         ]
     )
 
-    assert failure_summary("sandbox", error) == (
+    assert stage_failure(RunFailure.SANDBOX, error).summary == (
         "Couldn't start the sandbox: Runner answered HTTP 500."
     )
     assert failure_metadata("sandbox", error) == {
@@ -49,7 +48,7 @@ def test_summary_names_the_stage_and_the_first_attempts_cause() -> None:
 
 
 def test_summary_hides_messages_it_did_not_write() -> None:
-    summary = failure_summary("skill", KeyError("secret-looking-value"))
+    summary = stage_failure(RunFailure.SKILL, KeyError("secret-looking-value")).summary
 
     assert summary == "The skill run failed: Unexpected KeyError."
 
@@ -57,7 +56,7 @@ def test_summary_hides_messages_it_did_not_write() -> None:
 def test_summary_shows_tool_errors_secondshift_wrote() -> None:
     error = ExternalToolError("Access to this tool is no longer approved.")
 
-    assert failure_summary("skill", error) == (
+    assert stage_failure(RunFailure.SKILL, error).summary == (
         "The skill run failed: Access to this tool is no longer approved."
     )
 
@@ -65,7 +64,7 @@ def test_summary_shows_tool_errors_secondshift_wrote() -> None:
 def test_summary_hides_tool_errors_that_may_quote_the_service() -> None:
     error = MCPRequestError("remote text: secret-looking-value")
 
-    assert failure_summary("skill", error) == (
+    assert stage_failure(RunFailure.SKILL, error).summary == (
         "The skill run failed: Unexpected MCPRequestError."
     )
 
@@ -74,7 +73,13 @@ def test_a_broken_tool_restriction_is_not_blamed_on_the_skill() -> None:
     error = ToolRuleViolation(
         "mcp.slack.post_message: `channel` must be one of the approved values."
     )
-    run = Run(status=Run.Status.FAILED, summary=failure_summary("skill", error))
+    stopped = stage_failure(RunFailure.SKILL, error)
+    run = Run(
+        status=Run.Status.FAILED,
+        summary=stopped.summary,
+        failure=stopped.kind,
+        failure_reason=stopped.reason,
+    )
 
     failure = run_failure(run)
 
@@ -97,15 +102,15 @@ def test_a_broken_tool_restriction_is_not_blamed_on_the_skill() -> None:
 def test_summary_reads_model_provider_errors(body: object, expected: str) -> None:
     error = ModelHTTPError(401, "anthropic/claude-haiku-5.5", body)
 
-    assert failure_summary("skill", error) == (
+    assert stage_failure(RunFailure.SKILL, error).summary == (
         f"The skill run failed: The model provider answered {expected}"
     )
 
 
 def test_summary_is_one_bounded_line() -> None:
-    summary = failure_summary(
-        "checkout", RuntimeError("line one\nline two " + "x" * 500)
-    )
+    summary = stage_failure(
+        RunFailure.CHECKOUT, RuntimeError("line one\nline two " + "x" * 500)
+    ).summary
 
     assert "\n" not in summary
     assert len(summary) < 400
@@ -198,43 +203,62 @@ def test_success_event_does_not_repeat_the_report(db) -> None:
     ]
 
 
+def test_model_provider_and_tool_rule_errors_get_their_own_kind() -> None:
+    provider = stage_failure(
+        RunFailure.SKILL,
+        ModelHTTPError(401, "m", {"message": "User not found."}),
+    )
+    rule = stage_failure(RunFailure.SKILL, ToolRuleViolation("`channel` is fixed."))
+    runner = stage_failure(
+        RunFailure.SANDBOX,
+        RetriesExceeded([RunnerProtocolError("Runner answered HTTP 500.")]),
+    )
+
+    assert (provider.kind, provider.reason) == (
+        RunFailure.MODEL_PROVIDER,
+        "HTTP 401 · User not found.",
+    )
+    assert (rule.kind, rule.reason) == (RunFailure.TOOL_RULE, "`channel` is fixed.")
+    assert (runner.kind, runner.reason) == (
+        RunFailure.SANDBOX,
+        "Runner answered HTTP 500.",
+    )
+
+
 @pytest.mark.parametrize(
     ("summary", "expected"),
     [
         (
             "The skill run failed: The model provider answered HTTP 401: User not found.",
-            FailureView("Model provider", "HTTP 401 · User not found."),
+            ("model_provider", "HTTP 401 · User not found."),
         ),
         (
             "Couldn't start the sandbox: Runner answered HTTP 500.",
-            FailureView("Sandbox", "Runner answered HTTP 500."),
+            ("sandbox", "Runner answered HTTP 500."),
         ),
         (
-            "The skill run failed: Unexpected KeyError.",
-            FailureView("Skill", "Unexpected KeyError."),
+            "Timed out: Stopped after 5 minutes.",
+            ("timeout", "Stopped after 5 minutes."),
         ),
-        ("Timed out", FailureView("Run", "Timed out")),
-        ("", FailureView("Run", "No reason was recorded.")),
+        (
+            "The durable workflow could not be enqueued.",
+            ("not_queued", "The durable workflow could not be enqueued."),
+        ),
+        ("Timed out", ("other", "Timed out")),
     ],
 )
-def test_describe_failure_splits_label_and_reason(
-    summary: str, expected: FailureView
+def test_migration_reads_the_failure_from_an_older_summary(
+    summary: str, expected: tuple[str, str]
 ) -> None:
-    assert describe_failure(summary) == expected
-
-
-def test_describe_failure_reads_what_failure_summary_writes() -> None:
-    error = RetriesExceeded([RunnerProtocolError("Runner answered HTTP 500.")])
-
-    view = describe_failure(failure_summary("sandbox", error))
-
-    assert view == FailureView("Sandbox", "Runner answered HTTP 500.")
+    assert failure_from_summary_v1(summary) == expected
 
 
 def test_checkout_explains_github_access_failure() -> None:
-    assert failure_summary(
-        "checkout", GitHubError("The GitHub installation is disconnected.")
-    ) == ("Couldn't check out the repository: The GitHub installation is disconnected.")
+    assert stage_failure(
+        RunFailure.CHECKOUT, GitHubError("The GitHub installation is disconnected.")
+    ).summary == (
+        "Couldn't check out the repository: The GitHub installation is disconnected."
+    )
 
 
 MODEL_PLAN = stored_plan(
@@ -246,7 +270,7 @@ MODEL_PLAN = stored_plan(
     ("detail", "next_step"),
     [
         (
-            "HTTP 401: API key expired.",
+            "HTTP 401 · API key expired.",
             "The API key for OpenRouter was refused. Update the key, then run again.",
         ),
         ("HTTP 429.", "The provider is limiting requests. Wait, then run again."),
@@ -259,7 +283,8 @@ def test_model_provider_failure_names_the_connection_to_fix(
     run = Run(
         started_by=RunStart.SCHEDULE,
         status=Run.Status.FAILED,
-        summary=f"The skill run failed: The model provider answered {detail}",
+        failure=RunFailure.MODEL_PROVIDER,
+        failure_reason=detail,
         execution_plan=MODEL_PLAN,
     )
 
@@ -274,7 +299,8 @@ def test_other_failures_point_at_no_connection() -> None:
     run = Run(
         started_by=RunStart.SCHEDULE,
         status=Run.Status.FAILED,
-        summary="Couldn't start the sandbox: Runner answered HTTP 500.",
+        failure=RunFailure.SANDBOX,
+        failure_reason="Runner answered HTTP 500.",
         execution_plan=MODEL_PLAN,
     )
 

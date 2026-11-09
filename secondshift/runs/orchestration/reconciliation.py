@@ -5,7 +5,7 @@ from django.conf import settings
 from django.db import transaction
 
 from secondshift.runs.dao import active_workflows, add_event
-from secondshift.runs.models import Run
+from secondshift.runs.models import Run, RunFailure
 from secondshift.runs.orchestration.dbos_runtime import new_dbos_client
 from secondshift.runs.transitions import finish_run
 
@@ -21,8 +21,10 @@ def mark_run_terminal(
     *,
     workflow_status: str,
     metadata: dict[str, object] | None = None,
+    failure: RunFailure = RunFailure.OTHER,
+    reason: str = "",
 ) -> bool:
-    run = finish_run(run_id, status, summary)
+    run = finish_run(run_id, status, summary, failure=failure, reason=reason)
     if run is None:
         return False
     add_event(

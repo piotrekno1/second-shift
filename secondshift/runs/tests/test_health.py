@@ -9,7 +9,7 @@ from secondshift.config.constants import RunStart
 from secondshift.gateway.models import ModelUsage
 from secondshift.jobs.tests.plans import stored_plan
 from secondshift.runs.dao import create_task
-from secondshift.runs.models import Run
+from secondshift.runs.models import Run, RunFailure
 from secondshift.runs.reporting.health import (
     failing_jobs,
     runs_by_day,
@@ -22,7 +22,13 @@ from secondshift.workspaces.dao import workspace_owner
 NOW = datetime(2026, 10, 23, 12, 0, tzinfo=UTC)
 
 
-def add_run(job, status: str, minutes_ago: int, summary: str = "") -> Run:
+def add_run(
+    job,
+    status: str,
+    minutes_ago: int,
+    summary: str = "",
+    failure: RunFailure | str = "",
+) -> Run:
     run = Run.objects.create(
         task=create_task(repository=job.repository),
         started_by=RunStart.SCHEDULE,
@@ -31,6 +37,8 @@ def add_run(job, status: str, minutes_ago: int, summary: str = "") -> Run:
         status=status,
         commit_sha="abc",
         summary=summary,
+        failure=failure,
+        failure_reason=summary,
         scheduled_for=NOW - timedelta(minutes=minutes_ago),
         finished_at=NOW - timedelta(minutes=minutes_ago),
     )
@@ -77,7 +85,8 @@ def test_failing_jobs_look_only_at_each_jobs_latest_finished_run() -> None:
         broken,
         Run.Status.FAILED,
         30,
-        "The skill run failed: The model provider answered HTTP 401: Nope.",
+        "HTTP 401 · Nope.",
+        RunFailure.MODEL_PROVIDER,
     )
     add_run(broken, Run.Status.RUNNING, 1)
     add_run(paused, Run.Status.FAILED, 5, "Timed out")
@@ -133,6 +142,8 @@ def test_overview_reports_failing_jobs_and_weekly_numbers(client: Client) -> Non
         status=Run.Status.FAILED,
         commit_sha="abc",
         summary="Couldn't start the sandbox: Runner answered HTTP 500.",
+        failure=RunFailure.SANDBOX,
+        failure_reason="Runner answered HTTP 500.",
         scheduled_for=datetime.now(UTC),
     )
     client.force_login(workspace_owner(workspace))

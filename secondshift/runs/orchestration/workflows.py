@@ -39,17 +39,22 @@ from secondshift.runs.execution.budgets import Budget, budget_reached_message
 from secondshift.runs.execution.deadlines import (
     run_deadline,
     run_timeout_seconds,
+    timeout_reason,
     timeout_summary,
 )
 from secondshift.runs.execution.run import execute_agent_run
 from secondshift.runs.history import pack_earlier_files
 from secondshift.runs.issue_delivery import open_run_issues
-from secondshift.runs.models import Run, RunDelivery
+from secondshift.runs.models import Run, RunDelivery, RunFailure
 from secondshift.runs.orchestration.admission import task_admission_problem
 from secondshift.runs.orchestration.reconciliation import mark_run_terminal
 from secondshift.runs.publishing import publish_run
 from secondshift.runs.reporting.collection import collection_summary
-from secondshift.runs.reporting.failures import failure_metadata, failure_summary
+from secondshift.runs.reporting.failures import (
+    StageFailure,
+    failure_metadata,
+    stage_failure,
+)
 from secondshift.runs.reporting.notifications import (
     notification_targets,
     run_report_payload,
@@ -232,12 +237,15 @@ def finish_run_step(run_id: int, result: dict[str, Any]) -> None:
             "output_truncated": output["truncated"],
             "output_excerpt": read_output_excerpt(output["path"]),
         }
+    failure = result.get("failure") or {}
     run = finish_run(
         run_id,
         status,
         str(result["summary"]),
         only_from={Run.Status.RUNNING},
         fields=fields,
+        failure=RunFailure(failure.get("kind", RunFailure.OTHER)),
+        reason=str(failure.get("reason", "")),
     )
     if run is None:
         # A replay, or the run was canceled while it ran. Its result stands.
@@ -384,13 +392,17 @@ def retry_notification_workflow(run_id: int, connection_id: int) -> None:
 
 
 @DBOS.step(name="secondshift.fail_run")
-def fail_run_step(run_id: int, summary: str, details: dict[str, object]) -> None:
+def fail_run_step(
+    run_id: int, summary: str, failure: str, reason: str, details: dict[str, object]
+) -> None:
     mark_run_terminal(
         run_id,
         Run.Status.FAILED,
         summary,
         workflow_status="ERROR",
         metadata=details,
+        failure=RunFailure(failure),
+        reason=reason,
     )
 
 
@@ -398,15 +410,15 @@ def execute_run(run_id: int) -> None:
     session_id: str | None = None
     deadline: datetime | None = None
     timeout_seconds = 0
-    stage = "starting"
+    stage = RunFailure.STARTING
     try:
         if not mark_run_started_step(run_id):
             return
-        stage = "checkout"
+        stage = RunFailure.CHECKOUT
         prepare_source_step(run_id)
-        stage = "sandbox"
+        stage = RunFailure.SANDBOX
         session_id = start_runner_session_step(run_id)
-        stage = "skill"
+        stage = RunFailure.SKILL
         run = get_run(run_id, "job")
         record_run_event_step(
             run_id,
@@ -415,7 +427,7 @@ def execute_run(run_id: int) -> None:
         deadline = run_deadline(run)
         timeout_seconds = run_timeout_seconds(run)
         result = execute_agent_run(run, session_id)
-        stage = "finishing"
+        stage = RunFailure.FINISHING
         collect_outputs(run_id, session_id)
         stop_runner_session_step(session_id)
         session_id = None
@@ -427,14 +439,19 @@ def execute_run(run_id: int) -> None:
             except Exception:
                 logger.exception("failed to stop runner session %s", session_id)
         details = failure_metadata(stage, error)
-        if stage == "skill" and deadline is not None and timezone.now() >= deadline:
+        timed_out = deadline is not None and timezone.now() >= deadline
+        if stage == RunFailure.SKILL and timed_out:
             # The skill stopped after its time limit, so the error is the model
             # call or tool call that hit the deadline.
-            summary = timeout_summary(timeout_seconds)
+            failure = StageFailure(
+                RunFailure.TIMEOUT,
+                timeout_reason(timeout_seconds),
+                timeout_summary(timeout_seconds),
+            )
             details["timed_out"] = True
         else:
-            summary = failure_summary(stage, error)
-        fail_run_step(run_id, summary, details)
+            failure = stage_failure(stage, error)
+        fail_run_step(run_id, failure.summary, failure.kind, failure.reason, details)
         # A failed run notifies too, so a scheduled job never fails silently.
         try:
             deliver(run_id)

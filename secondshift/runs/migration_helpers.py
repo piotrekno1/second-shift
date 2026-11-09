@@ -244,3 +244,52 @@ def assign_task_repositories_v1(
     task_model.objects.using(alias).bulk_update(
         changed, ["repository", "fingerprint"], 500
     )
+
+
+# The summaries v0.1.0b10 wrote, by the failure each one names.
+FAILURE_HEADLINES_V1 = {
+    "Timed out": "timeout",
+    "Budget used up": "budget",
+    "The run could not start": "starting",
+    "Couldn't check out the repository": "checkout",
+    "Couldn't start the sandbox": "sandbox",
+    "The skill run failed": "skill",
+    "The run could not be recorded": "finishing",
+}
+STAGES_V1 = {"starting", "checkout", "sandbox", "skill", "finishing"}
+ENQUEUE_FAILED_V1 = "The durable workflow could not be enqueued."
+MODEL_PROVIDER_PREFIX_V1 = "The model provider answered "
+TOOL_RULE_PREFIX_V1 = "Blocked by a tool restriction: "
+
+
+def failure_from_summary_v1(summary: str) -> tuple[str, str]:
+    """The failure kind and reason an older failed run's summary names."""
+    if summary == ENQUEUE_FAILED_V1:
+        return "not_queued", summary
+    text = " ".join(summary.split())
+    for headline, kind in FAILURE_HEADLINES_V1.items():
+        if not text.startswith(f"{headline}: "):
+            continue
+        detail = text[len(headline) + 2 :]
+        if kind in STAGES_V1 and detail.startswith(MODEL_PROVIDER_PREFIX_V1):
+            reason = detail.removeprefix(MODEL_PROVIDER_PREFIX_V1)
+            return "model_provider", reason.replace(": ", " · ", 1)
+        if kind in STAGES_V1 and detail.startswith(TOOL_RULE_PREFIX_V1):
+            return "tool_rule", detail.removeprefix(TOOL_RULE_PREFIX_V1)
+        return kind, detail
+    return "other", summary
+
+
+def record_run_failures_v1(apps: Apps, schema_editor: BaseDatabaseSchemaEditor) -> None:
+    """Record why each earlier failed run failed, from its summary."""
+    run_model = apps.get_model("runs", "Run")
+    runs = run_model.objects.using(schema_editor.connection.alias).filter(
+        status="failed", failure=""
+    )
+    changed = []
+    for run in runs.only("pk", "summary").iterator():
+        run.failure, run.failure_reason = failure_from_summary_v1(run.summary)
+        changed.append(run)
+    run_model.objects.using(schema_editor.connection.alias).bulk_update(
+        changed, ["failure", "failure_reason"], 500
+    )

@@ -22,9 +22,10 @@ from pydantic_ai.usage import RunUsage
 
 from secondshift.config.constants import TOKEN_BUDGET_MESSAGE, AgentBackend
 from secondshift.jobs.plan import ExecutionPlan
+from secondshift.runs.models import RunFailure
 from secondshift.workspaces.limits import RunLimit, raise_hint
 
-BUDGET_HEADLINE = "Budget used up"
+BUDGET_HEADLINE = RunFailure.BUDGET.label
 FINISH_INSTRUCTIONS = (
     "This run has reached its budget, so no tools are available. Write the final "
     "report now from what you have found. Say what you could not check."

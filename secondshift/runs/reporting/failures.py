@@ -1,7 +1,6 @@
 """Turn workflow exceptions into run summaries a person can act on."""
 
 from dataclasses import dataclass
-from typing import Literal
 
 from pydantic_ai.exceptions import ModelHTTPError
 
@@ -9,21 +8,18 @@ from secondshift.connections.errors import ExternalRequestError, ExternalToolErr
 from secondshift.github.errors import GitHubError
 from secondshift.jobs.tool_rules import ToolRuleViolation
 from secondshift.runner.protocol import RunnerProtocolError
-from secondshift.runs.execution.budgets import BUDGET_HEADLINE
-from secondshift.runs.execution.deadlines import TIMEOUT_HEADLINE
-
-RunStage = Literal["starting", "checkout", "sandbox", "skill", "finishing"]
+from secondshift.runs.models import Run, RunFailure
 
 STAGE_FAILURES: dict[str, str] = {
-    "starting": "The run could not start",
-    "checkout": "Couldn't check out the repository",
-    "sandbox": "Couldn't start the sandbox",
-    "skill": "The skill run failed",
-    "finishing": "The run could not be recorded",
+    RunFailure.STARTING: "The run could not start",
+    RunFailure.CHECKOUT: "Couldn't check out the repository",
+    RunFailure.SANDBOX: "Couldn't start the sandbox",
+    RunFailure.SKILL: "The skill run failed",
+    RunFailure.FINISHING: "The run could not be recorded",
 }
 MAX_DETAIL_CHARS = 300
 TOOL_RULE_PREFIX = "Blocked by a tool restriction: "
-TOOL_RULE_LABEL = "Tool restriction"
+MODEL_PROVIDER_PREFIX = "The model provider answered "
 TOOL_RULE_NEXT_STEP = (
     "The model used a tool in a way the job's access review does not allow. "
     "Change the restriction or the skill, then run again."
@@ -92,10 +88,26 @@ def failure_detail(error: BaseException) -> str:
     return f"Unexpected {type(error).__name__}."
 
 
-def failure_summary(stage: str, error: BaseException) -> str:
-    """One line naming the failed stage and the original cause."""
-    headline = STAGE_FAILURES.get(stage, "The run failed")
-    return f"{headline}: {failure_detail(root_error(error))}"
+@dataclass(frozen=True)
+class StageFailure:
+    kind: RunFailure
+    reason: str
+    # One line naming the failed stage and the original cause.
+    summary: str
+
+
+def stage_failure(stage: RunFailure, error: BaseException) -> StageFailure:
+    """What a workflow error at this stage means for the run."""
+    detail = failure_detail(root_error(error))
+    summary = f"{STAGE_FAILURES[stage]}: {detail}"
+    if detail.startswith(MODEL_PROVIDER_PREFIX):
+        # "HTTP 401: User not found." reads better as "HTTP 401 · User not found."
+        reason = detail.removeprefix(MODEL_PROVIDER_PREFIX).replace(": ", " · ", 1)
+        return StageFailure(RunFailure.MODEL_PROVIDER, reason, summary)
+    if detail.startswith(TOOL_RULE_PREFIX):
+        reason = detail.removeprefix(TOOL_RULE_PREFIX)
+        return StageFailure(RunFailure.TOOL_RULE, reason, summary)
+    return StageFailure(stage, detail, summary)
 
 
 def failure_metadata(stage: str, error: BaseException) -> dict[str, object]:
@@ -107,17 +119,6 @@ def failure_metadata(stage: str, error: BaseException) -> dict[str, object]:
     }
 
 
-STAGE_LABELS: dict[str, str] = {
-    "starting": "Start",
-    "checkout": "Checkout",
-    "sandbox": "Sandbox",
-    "skill": "Skill",
-    "finishing": "Recording",
-}
-MODEL_PROVIDER_PREFIX = "The model provider answered "
-MODEL_PROVIDER_LABEL = "Model provider"
-
-
 @dataclass(frozen=True)
 class FailureView:
     """A failure split for compact display: where it happened, and why."""
@@ -126,28 +127,10 @@ class FailureView:
     reason: str
 
 
-def describe_failure(summary: str) -> FailureView:
-    """Split a stored failure summary into a short label and reason.
-
-    Works on summaries written by ``failure_summary``.
-    """
-    text = " ".join(summary.split())
-    for headline in (TIMEOUT_HEADLINE, BUDGET_HEADLINE):
-        if text.startswith(f"{headline}: "):
-            return FailureView(headline, text[len(headline) + 2 :])
-    for stage, headline in STAGE_FAILURES.items():
-        if text.startswith(f"{headline}: "):
-            detail = text[len(headline) + 2 :]
-            if detail.startswith(MODEL_PROVIDER_PREFIX):
-                # "HTTP 401: User not found." reads better as "HTTP 401 · User not found."
-                return FailureView(
-                    MODEL_PROVIDER_LABEL,
-                    detail[len(MODEL_PROVIDER_PREFIX) :].replace(": ", " · ", 1),
-                )
-            if detail.startswith(TOOL_RULE_PREFIX):
-                return FailureView(TOOL_RULE_LABEL, detail[len(TOOL_RULE_PREFIX) :])
-            return FailureView(STAGE_LABELS[stage], detail)
-    return FailureView("Run", text or "No reason was recorded.")
+def describe_failure(run: Run) -> FailureView:
+    kind = RunFailure(run.failure or RunFailure.OTHER)
+    reason = " ".join(run.failure_reason.split())
+    return FailureView(kind.label, reason or "No reason was recorded.")
 
 
 def model_provider_next_step(reason: str, connection_name: str) -> str:

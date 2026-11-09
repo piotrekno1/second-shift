@@ -15,18 +15,18 @@ from secondshift.jobs.models import Job
 from secondshift.jobs.plan import ExecutionPlan
 from secondshift.runner.agent_image.outcomes import CACHE_READ_DIVISOR
 from secondshift.runs.models import (
-    RUN_ENQUEUE_FAILED,
     AgentLease,
     Run,
     RunDelivery,
     RunEvent,
+    RunFailure,
     RunIssue,
     Task,
 )
 
 # Runs the queue could not hand off. They never started, so they do not count
 # as earlier or recent runs.
-ENQUEUE_FAILED = Q(status=Run.Status.FAILED, summary=RUN_ENQUEUE_FAILED)
+ENQUEUE_FAILED = Q(failure=RunFailure.NOT_QUEUED)
 NEWEST_FIRST = ("-created_at", "-pk")
 
 

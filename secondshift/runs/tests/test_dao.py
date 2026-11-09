@@ -16,7 +16,7 @@ from secondshift.runs.dao import (
     run_for_repeat_key,
     started_run_count,
 )
-from secondshift.runs.models import RUN_ENQUEUE_FAILED, Run
+from secondshift.runs.models import Run, RunFailure
 from secondshift.workspaces.dao import create_workspace
 
 
@@ -88,7 +88,7 @@ def test_run_for_repeat_key_skips_old_and_unqueued_runs(job: Job) -> None:
         finished_at=since - timedelta(minutes=1),
     )
     make_run(
-        job, Run.Status.FAILED, input_snapshot=snapshot, summary=RUN_ENQUEUE_FAILED
+        job, Run.Status.FAILED, input_snapshot=snapshot, failure=RunFailure.NOT_QUEUED
     )
     assert run_for_repeat_key(job, "event-1", since) is None
 
@@ -109,7 +109,7 @@ def test_started_run_count_ignores_unqueued_and_other_sources(job: Job) -> None:
         job,
         Run.Status.FAILED,
         started_by=RunStart.WEBHOOK,
-        summary=RUN_ENQUEUE_FAILED,
+        failure=RunFailure.NOT_QUEUED,
     )
     make_run(job, Run.Status.SUCCEEDED, started_by=RunStart.SCHEDULE)
     old = make_run(job, Run.Status.SUCCEEDED, started_by=RunStart.WEBHOOK)

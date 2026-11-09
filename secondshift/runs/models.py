@@ -11,8 +11,24 @@ from secondshift.jobs.models import Job
 from secondshift.jobs.plan import ExecutionPlan
 from secondshift.repositories.models import Repository
 
-# The summary of a run whose durable workflow could not be enqueued.
-RUN_ENQUEUE_FAILED = "The durable workflow could not be enqueued."
+
+class RunFailure(models.TextChoices):
+    """Why a run failed. The label is what pages show beside the reason."""
+
+    # The stage a workflow error stopped the run in.
+    STARTING = "starting", "Start"
+    CHECKOUT = "checkout", "Checkout"
+    SANDBOX = "sandbox", "Sandbox"
+    SKILL = "skill", "Skill"
+    FINISHING = "finishing", "Recording"
+    # A run limit stopped the agent.
+    TIMEOUT = "timeout", "Timed out"
+    BUDGET = "budget", "Budget used up"
+    MODEL_PROVIDER = "model_provider", "Model provider"
+    TOOL_RULE = "tool_rule", "Tool restriction"
+    # The queue never took the run, so it does not count as started.
+    NOT_QUEUED = "not_queued", "Run"
+    OTHER = "other", "Run"
 
 
 class Task(models.Model):
@@ -82,6 +98,8 @@ class Run(models.Model):
     sandbox_runtime = models.CharField(max_length=32, blank=True)
     exit_code = models.IntegerField(null=True, blank=True)
     summary = models.TextField(blank=True)
+    failure = models.CharField(max_length=16, choices=RunFailure.choices, blank=True)
+    failure_reason = models.TextField(blank=True)
     # Inputs beyond the plan: an ad hoc task's definition and input, a
     # trigger's payload and repeat key, and the earlier runs it reads.
     input_snapshot = models.JSONField(default=dict, blank=True)

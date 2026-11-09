@@ -23,7 +23,7 @@ from secondshift.runs.execution.run import (
     execute_agent_run,
 )
 from secondshift.runs.execution.workspace_tools import WorkspaceToolDeps
-from secondshift.runs.models import Run, RunEvent
+from secondshift.runs.models import Run, RunEvent, RunFailure
 from secondshift.runs.orchestration import workflows
 from secondshift.runs.reporting.failures import describe_failure
 from secondshift.runs.tests.test_execution import LATER
@@ -237,7 +237,7 @@ def test_an_exhausted_run_fails_with_its_partial_report_and_notifies(
 
     run.refresh_from_db()
     assert run.status == Run.Status.FAILED
-    view = describe_failure(run.summary)
+    view = describe_failure(run)
     assert view.label == "Budget used up"
     assert view.reason.startswith("Stopped at 24 model requests")
     assert "Half the checks ran." in run.output_excerpt
@@ -315,6 +315,6 @@ def test_a_timed_out_run_keeps_a_partial_report(
     result = run_with(model, run)
 
     assert result["succeeded"] is False
-    assert describe_failure(result["summary"]).label == "Timed out"
+    assert result["failure"]["kind"] == RunFailure.TIMEOUT
     assert result["details"] == {"timed_out": True, "partial_report": True}
     assert "Checked the CI config." in stored_report(result)

@@ -15,9 +15,9 @@ from secondshift.jobs.models import Job
 from secondshift.jobs.planning import build_execution_plan
 from secondshift.jobs.tests.test_planning import create_job
 from secondshift.runs.dao import create_task
-from secondshift.runs.execution.budgets import Budget, budget_summary
+from secondshift.runs.execution.budgets import Budget, budget_reason, budget_summary
 from secondshift.runs.execution.model_gateway import issue_run_token
-from secondshift.runs.models import Run
+from secondshift.runs.models import Run, RunFailure
 from secondshift.workspaces.dao import workspace_owner
 from secondshift.workspaces.limits import (
     LIMIT_SPECS,
@@ -261,6 +261,8 @@ def test_a_run_stopped_by_a_limit_says_so(client: Client, job: Job) -> None:
         scheduled_for=timezone.now(),
         status=Run.Status.FAILED,
         summary=budget_summary(Budget.TOKENS, 2_000_000),
+        failure=RunFailure.BUDGET,
+        failure_reason=budget_reason(Budget.TOKENS, 2_000_000),
         execution_plan=build_execution_plan(job).stored(),
     )
     client.force_login(workspace_owner(job.workspace))

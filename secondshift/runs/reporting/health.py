@@ -82,7 +82,7 @@ def failing_jobs(workspace: Workspace) -> list[FailingJob]:
     failing: list[FailingJob] = []
     for job in jobs:
         run = runs[job.latest_run_id]
-        view = describe_failure(run.summary)
+        view = describe_failure(run)
         failing.append(
             FailingJob(
                 job_id=job.pk,

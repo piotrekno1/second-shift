@@ -15,13 +15,15 @@ from secondshift.runs.dao import (
     repository_task_run,
     waiting_tasks,
 )
-from secondshift.runs.models import RUN_ENQUEUE_FAILED, Run
+from secondshift.runs.models import Run, RunFailure
 from secondshift.runs.orchestration.admission import task_admission_problem
 from secondshift.runs.orchestration.dbos_runtime import new_dbos_client
 from secondshift.runs.orchestration.reconciliation import mark_run_terminal
 from secondshift.runs.transitions import finish_run
 
 logger = logging.getLogger(__name__)
+
+RUN_ENQUEUE_FAILED = "The durable workflow could not be enqueued."
 
 
 class RunEnqueueFailed(Exception):
@@ -40,7 +42,11 @@ def enqueue_run(run: Run) -> str:
     except Exception as error:
         add_event(run.pk, RUN_ENQUEUE_FAILED, level="error")
         failed = finish_run(
-            run.pk, Run.Status.FAILED, RUN_ENQUEUE_FAILED, only_from={Run.Status.QUEUED}
+            run.pk,
+            Run.Status.FAILED,
+            RUN_ENQUEUE_FAILED,
+            only_from={Run.Status.QUEUED},
+            failure=RunFailure.NOT_QUEUED,
         )
         if failed is not None:
             raise RunEnqueueFailed(failed) from error

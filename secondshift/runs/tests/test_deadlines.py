@@ -124,7 +124,7 @@ def test_a_run_past_its_limit_is_marked_timed_out(
 
     run.refresh_from_db()
     assert run.status == Run.Status.FAILED
-    assert describe_failure(run.summary).label == "Timed out"
+    assert describe_failure(run).label == "Timed out"
     assert "Stopped after 15 minutes" in run.summary
     assert fake_stages == [f"run-{run.pk}"]
     event = RunEvent.objects.filter(run=run, level="error").get()
@@ -148,5 +148,5 @@ def test_a_failure_within_the_limit_keeps_its_cause(
         workflows.execute_run(run.pk)
 
     run.refresh_from_db()
-    assert describe_failure(run.summary).label == "Skill"
+    assert describe_failure(run).label == "Skill"
     assert "empty report" in run.summary

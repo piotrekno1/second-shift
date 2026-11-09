@@ -27,6 +27,7 @@ from secondshift.runs.dao import add_event, get_run, update_run
 from secondshift.runs.execution.agent import AgentLimits, build_agent
 from secondshift.runs.execution.budgets import (
     Budget,
+    budget_reason,
     budget_summary,
     exhausted_budget,
     is_token_budget_refusal,
@@ -38,6 +39,7 @@ from secondshift.runs.execution.cli_agent import execute_cli_step
 from secondshift.runs.execution.deadlines import (
     run_deadline,
     run_timeout_seconds,
+    timeout_reason,
     timeout_summary,
 )
 from secondshift.runs.execution.external_tools import external_tools
@@ -50,7 +52,7 @@ from secondshift.runs.execution.workspace_tools import (
     workspace_tools,
 )
 from secondshift.runs.history import previous_reports
-from secondshift.runs.models import Run
+from secondshift.runs.models import Run, RunFailure
 from secondshift.runs.reporting.failures import root_error
 from secondshift.workspaces.limits import RunLimit
 
@@ -297,9 +299,11 @@ def execute_agent_run(run: Run, session_id: str) -> dict[str, Any]:
         except Exception as error:
             # Retries wrap the error, so the deadline itself tells a timeout.
             if timezone.now() >= deps.deadline:
+                seconds = run_timeout_seconds(run)
                 return stopped_result(
                     run,
-                    timeout_summary(run_timeout_seconds(run)),
+                    timeout_summary(seconds),
+                    {"kind": RunFailure.TIMEOUT, "reason": timeout_reason(seconds)},
                     {"timed_out": True},
                     messages,
                 )
@@ -336,13 +340,18 @@ def budget_result(
     return stopped_result(
         run,
         budget_summary(budget, limit),
+        {"kind": RunFailure.BUDGET, "reason": budget_reason(budget, limit)},
         {"budget_exhausted": str(budget)},
         messages,
     )
 
 
 def stopped_result(
-    run: Run, summary: str, details: dict[str, Any], messages: list[ModelMessage]
+    run: Run,
+    summary: str,
+    failure: dict[str, str],
+    details: dict[str, Any],
+    messages: list[ModelMessage],
 ) -> dict[str, Any]:
     """A failed result that keeps whatever the agent produced before a limit."""
     report = partial_report(messages)
@@ -350,6 +359,7 @@ def stopped_result(
         "exit_code": 1,
         "output": store_run_text(run, report).as_dict() if report else None,
         "summary": summary,
+        "failure": failure,
         "succeeded": False,
         "details": {**details, "partial_report": bool(report)},
     }
