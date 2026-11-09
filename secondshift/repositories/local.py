@@ -144,6 +144,13 @@ def save_local_location(
     previous = local_repository(workspace, str(location.root))
     origin_changed = previous is not None and previous.clone_url != location.clone_url
     synced = {"config_sha": location.revision} if config_read else {}
+    # Only a new or a removed repository is switched on. A resync keeps the
+    # owner's choice, as GitHub syncs do.
+    added = (
+        {"enabled": True, "removed_at": None}
+        if previous is None or previous.removed_at is not None
+        else {}
+    )
     repository = save_local_repository(
         workspace,
         str(location.root),
@@ -155,8 +162,7 @@ def save_local_location(
             "config_path": MANIFEST_FILE,
             "checked_sha": location.revision,
             "last_sync_error": config_error,
-            "enabled": True,
-            "removed_at": None,
+            **added,
             **synced,
         },
     )

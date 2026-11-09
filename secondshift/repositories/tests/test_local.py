@@ -109,6 +109,21 @@ def test_a_repository_follows_its_branch_not_the_checkout(
     assert resynced.jobs.get().name == "Review"
 
 
+def test_a_resync_keeps_a_disabled_repository_disabled(
+    workspace: Workspace, tmp_path: Path
+) -> None:
+    root = tmp_path / "project"
+    create_local_repository(root)
+    repository = attach_local_repository(workspace, str(root))
+    repository.enabled = False
+    repository.save(update_fields=["enabled"])
+
+    resync(repository)
+
+    repository.refresh_from_db()
+    assert repository.enabled is False
+
+
 def test_a_skill_cannot_be_a_link(workspace: Workspace, tmp_path: Path) -> None:
     root = tmp_path / "project"
     skill = create_local_repository(root)
