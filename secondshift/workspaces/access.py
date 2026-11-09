@@ -169,11 +169,13 @@ def require(request: HttpRequest, action: Action) -> Workspace:
     return membership.workspace
 
 
-def select_workspace(request: HttpRequest, workspace_id: int) -> Workspace | None:
+def select_workspace(
+    request: HttpRequest, workspace_id: int
+) -> WorkspaceMembership | None:
     """Work in another of the person's workspaces. None when not a member."""
     membership = membership_in(request.user.pk, workspace_id)
     if membership is None:
         return None
     request.session[CURRENT_WORKSPACE_SESSION_KEY] = workspace_id
     setattr(request, MEMBERSHIP_ATTRIBUTE, membership)
-    return membership.workspace
+    return membership

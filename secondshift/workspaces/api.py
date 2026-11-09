@@ -107,8 +107,8 @@ def new_workspace(
         raise HttpError(403, str(error)) from error
     except WorkspaceCreationError as error:
         raise HttpError(400, str(error)) from error
-    select_workspace(request, workspace.pk)
-    membership = user_memberships(request).get(workspace=workspace)
+    membership = select_workspace(request, workspace.pk)
+    assert membership is not None
     return serialize_choice(membership, workspace.pk)
 
 
@@ -117,11 +117,10 @@ def choose_workspace(
     request: HttpRequest, payload: WorkspaceSelectSchema
 ) -> WorkspaceChoiceSchema:
     """Work in another workspace for the rest of this session."""
-    workspace = select_workspace(request, payload.workspace_id)
-    if workspace is None:
+    membership = select_workspace(request, payload.workspace_id)
+    if membership is None:
         raise HttpError(404, "Not found")
-    membership = user_memberships(request).get(workspace=workspace)
-    return serialize_choice(membership, workspace.pk)
+    return serialize_choice(membership, membership.workspace_id)
 
 
 @router.get("/invites/pending", response=PendingInviteSchema | None)
