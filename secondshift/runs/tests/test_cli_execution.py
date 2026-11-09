@@ -24,7 +24,7 @@ from secondshift.runner.agent_credentials import (
 from secondshift.runs.dao import with_model_usage
 from secondshift.runs.execution import cli_agent
 from secondshift.runs.execution.cli_agent import execute_cli_step
-from secondshift.runs.models import AgentLease, Run, RunEvent
+from secondshift.runs.models import AgentLease, Run, RunEvent, RunFailure
 from secondshift.runs.serialization import serialize_run, serialize_run_detail
 
 agent_login = agent_login_fixture
@@ -122,6 +122,31 @@ def test_cli_run_explains_a_stopped_sandbox_without_blaming_the_login(
     assert result["succeeded"] is False
     assert result["summary"].startswith("The agent's sandbox stopped")
     assert "login" not in result["summary"]
+
+
+@pytest.mark.parametrize(
+    ("reason", "failure", "headline"),
+    [
+        ("timed_out", RunFailure.TIMEOUT, "Timed out: Stopped after"),
+        ("token_budget_exhausted", RunFailure.BUDGET, "Budget used up: Stopped at"),
+        ("turn_budget_exhausted", RunFailure.BUDGET, "Budget used up: Stopped at"),
+        ("quota_exhausted", RunFailure.MODEL_PROVIDER, "Subscription usage"),
+    ],
+)
+def test_cli_run_records_the_same_failure_as_the_built_in_agent(
+    agent_run: tuple[Run, User],
+    monkeypatch: pytest.MonkeyPatch,
+    reason: str,
+    failure: RunFailure,
+    headline: str,
+) -> None:
+    run, _ = agent_run
+    fake_runner(monkeypatch, {"reason": reason})
+
+    result = execute_cli_step(run.pk, "run-1", "Read the skill")
+
+    assert result["failure"] == failure
+    assert result["summary"].startswith(headline)
 
 
 def test_cli_run_explains_a_login_lost_before_start(

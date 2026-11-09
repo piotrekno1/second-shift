@@ -281,9 +281,9 @@ def test_agent_mcp_report_and_webhook_payload_flow(
     )
     with WORKSPACE_AGENT.override(model=model):
         result = execute_agent_run(planned_run, "offline-sandbox")
-    assert result["succeeded"]
+    assert result.succeeded
     assert planned_run.events.filter(message__startswith="Tool completed").exists()
-    with storages["run_artifacts"].open(result["output"]["path"]) as artifact:
+    with storages["run_artifacts"].open(result.output.path) as artifact:
         assert b"What shipped" in artifact.read()
     webhook = Connection.objects.create(
         workspace=planned_run.job.workspace,
@@ -308,7 +308,7 @@ def test_agent_mcp_report_and_webhook_payload_flow(
             "connection_id": webhook.pk,
         }
     )
-    planned_run.summary = result["summary"]
+    planned_run.summary = result.summary
     planned_run.status = "succeeded"
     planned_run.save()
     planned_run = Run.objects.get(pk=planned_run.pk)

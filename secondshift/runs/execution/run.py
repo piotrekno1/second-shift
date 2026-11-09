@@ -10,9 +10,6 @@ from pydantic_ai.exceptions import UsageLimitExceeded
 from pydantic_ai.messages import ModelMessage
 from pydantic_ai.toolsets import FunctionToolset
 
-from secondshift.config.constants import (
-    SUMMARY_MAX_CHARS,
-)
 from secondshift.jobs.models import CapabilityRequest
 from secondshift.jobs.plan import ExecutionPlan
 from secondshift.runner.client import get_runner_client
@@ -21,14 +18,12 @@ from secondshift.runs.artifacts import (
     read_text,
     run_payload,
     store_run_input,
-    store_run_text,
 )
 from secondshift.runs.dao import add_event, get_run, update_run
 from secondshift.runs.execution.agent import AgentLimits, build_agent
 from secondshift.runs.execution.budgets import (
     Budget,
-    budget_reason,
-    budget_summary,
+    budget_failure,
     exhausted_budget,
     is_token_budget_refusal,
     limits_note,
@@ -36,15 +31,11 @@ from secondshift.runs.execution.budgets import (
     reached_budget,
 )
 from secondshift.runs.execution.cli_agent import execute_cli_step
-from secondshift.runs.execution.deadlines import (
-    run_deadline,
-    run_timeout_seconds,
-    timeout_reason,
-    timeout_summary,
-)
+from secondshift.runs.execution.deadlines import run_deadline, timeout_failure
 from secondshift.runs.execution.external_tools import external_tools
 from secondshift.runs.execution.issues import issue_limit, issue_tool, issues_note
 from secondshift.runs.execution.payload import payload_note, payload_tool
+from secondshift.runs.execution.result import AgentResult
 from secondshift.runs.execution.subagents import subagent_tool, subagents_note
 from secondshift.runs.execution.workspace_tools import (
     WorkspaceToolDeps,
@@ -52,7 +43,7 @@ from secondshift.runs.execution.workspace_tools import (
     workspace_tools,
 )
 from secondshift.runs.history import previous_reports
-from secondshift.runs.models import Run, RunFailure
+from secondshift.runs.models import Run
 from secondshift.runs.reporting.failures import root_error
 from secondshift.workspaces.limits import RunLimit
 
@@ -256,13 +247,15 @@ def capture_run_input_step(run_id: int, session_id: str) -> None:
         )
 
 
-def execute_agent_run(run: Run, session_id: str) -> dict[str, Any]:
+def execute_agent_run(run: Run, session_id: str) -> AgentResult:
     """Run the durable model loop against one already-created sandbox session."""
     plan = run.plan
     if not plan.execution.backend.uses_model_api:
         capture_run_input_step(run.pk, session_id)
-        return execute_cli_step(
-            run.pk, session_id, SYSTEM_INSTRUCTIONS + "\n\n" + run_prompt(run)
+        return AgentResult.model_validate(
+            execute_cli_step(
+                run.pk, session_id, SYSTEM_INSTRUCTIONS + "\n\n" + run_prompt(run)
+            )
         )
     limits = AgentLimits(
         max_turns=plan.agent.limits.max_turns,
@@ -299,13 +292,11 @@ def execute_agent_run(run: Run, session_id: str) -> dict[str, Any]:
         except Exception as error:
             # Retries wrap the error, so the deadline itself tells a timeout.
             if timezone.now() >= deps.deadline:
-                seconds = run_timeout_seconds(run)
-                return stopped_result(
+                return AgentResult.stopped(
                     run,
-                    timeout_summary(seconds),
-                    {"kind": RunFailure.TIMEOUT, "reason": timeout_reason(seconds)},
+                    timeout_failure(run),
+                    partial_report(messages),
                     {"timed_out": True},
-                    messages,
                 )
             if not is_token_budget_refusal(root_error(error)):
                 raise
@@ -318,48 +309,18 @@ def execute_agent_run(run: Run, session_id: str) -> dict[str, Any]:
     report = str(result.output).strip()
     if not report:
         raise RuntimeError("The agent returned an empty report.")
-    stored = store_run_text(run, report)
-    summary = report[:SUMMARY_MAX_CHARS]
-    if len(report) > SUMMARY_MAX_CHARS:
-        summary += "\n[... full report stored as a run artifact ...]"
     details: dict[str, Any] = {}
     if reached := reached_budget(result.usage, limits.max_turns, limits.max_tool_calls):
         details["budget_reached"] = str(reached)
-    return {
-        "exit_code": 0,
-        "output": stored.as_dict(),
-        "summary": summary,
-        "succeeded": True,
-        "details": details,
-    }
+    return AgentResult.success(run, report, details)
 
 
 def budget_result(
     run: Run, budget: Budget, limit: int, messages: list[ModelMessage]
-) -> dict[str, Any]:
-    return stopped_result(
+) -> AgentResult:
+    return AgentResult.stopped(
         run,
-        budget_summary(budget, limit),
-        {"kind": RunFailure.BUDGET, "reason": budget_reason(budget, limit)},
+        budget_failure(budget, limit),
+        partial_report(messages),
         {"budget_exhausted": str(budget)},
-        messages,
     )
-
-
-def stopped_result(
-    run: Run,
-    summary: str,
-    failure: dict[str, str],
-    details: dict[str, Any],
-    messages: list[ModelMessage],
-) -> dict[str, Any]:
-    """A failed result that keeps whatever the agent produced before a limit."""
-    report = partial_report(messages)
-    return {
-        "exit_code": 1,
-        "output": store_run_text(run, report).as_dict() if report else None,
-        "summary": summary,
-        "failure": failure,
-        "succeeded": False,
-        "details": {**details, "partial_report": bool(report)},
-    }

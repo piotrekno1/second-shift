@@ -37,12 +37,8 @@ from secondshift.runs.dao import (
     update_run,
 )
 from secondshift.runs.execution.budgets import Budget, budget_reached_message
-from secondshift.runs.execution.deadlines import (
-    run_deadline,
-    run_timeout_seconds,
-    timeout_reason,
-    timeout_summary,
-)
+from secondshift.runs.execution.deadlines import run_deadline, timeout_failure
+from secondshift.runs.execution.result import AgentResult
 from secondshift.runs.execution.run import execute_agent_run
 from secondshift.runs.history import pack_earlier_files
 from secondshift.runs.issue_delivery import open_run_issues
@@ -227,46 +223,45 @@ def stop_runner_session_step(session_id: str) -> None:
 
 @DBOS.step(name="secondshift.finish_run")
 @transaction.atomic
-def finish_run_step(run_id: int, result: dict[str, Any]) -> None:
-    status = Run.Status.SUCCEEDED if result["succeeded"] else Run.Status.FAILED
-    fields: dict[str, object] = {"exit_code": result["exit_code"]}
-    if output := result.get("output"):
+def finish_run_step(run_id: int, stored: dict[str, Any]) -> None:
+    result = AgentResult.model_validate(stored)
+    status = Run.Status.SUCCEEDED if result.succeeded else Run.Status.FAILED
+    fields: dict[str, object] = {"exit_code": result.exit_code}
+    if output := result.output:
         fields |= {
-            "output_path": output["path"],
-            "output_size_bytes": output["size_bytes"],
-            "output_sha256": output["sha256"],
-            "output_truncated": output["truncated"],
-            "output_excerpt": read_output_excerpt(output["path"]),
+            "output_path": output.path,
+            "output_size_bytes": output.size_bytes,
+            "output_sha256": output.sha256,
+            "output_truncated": output.truncated,
+            "output_excerpt": read_output_excerpt(output.path),
         }
-    failure = result.get("failure") or {}
     run = finish_run(
         run_id,
         status,
-        str(result["summary"]),
+        result.summary,
         only_from={Run.Status.RUNNING},
         fields=fields,
-        failure=RunFailure(failure.get("kind", RunFailure.OTHER)),
-        reason=str(failure.get("reason", "")),
+        failure=result.failure,
+        reason=result.reason,
     )
     if run is None:
         # A replay, or the run was canceled while it ran. Its result stands.
         logger.info("run %s had already finished", run_id)
         return
-    details = result.get("details") or {}
-    if reached := details.get("budget_reached"):
+    if reached := result.details.get("budget_reached"):
         add_event(
             run.pk,
             budget_reached_message(Budget(reached)),
             level="warning",
-            metadata=details,
+            metadata=result.details,
         )
     add_event(
         run.pk,
         "Run succeeded. The report is stored as the run's output."
-        if result["succeeded"]
-        else str(result["summary"]),
-        level="info" if result["succeeded"] else "error",
-        metadata=details,
+        if result.succeeded
+        else result.summary,
+        level="info" if result.succeeded else "error",
+        metadata=result.details,
     )
 
 
@@ -400,7 +395,7 @@ def fail_run_step(
 def execute_run(run_id: int) -> None:
     session_id: str | None = None
     deadline: datetime | None = None
-    timeout_seconds = 0
+    timeout: StageFailure | None = None
     stage = RunFailure.STARTING
     try:
         if not mark_run_started_step(run_id):
@@ -416,13 +411,13 @@ def execute_run(run_id: int) -> None:
             f"Running {run.plan.job.skill_path or 'the submitted task'}.",
         )
         deadline = run_deadline(run)
-        timeout_seconds = run_timeout_seconds(run)
+        timeout = timeout_failure(run)
         result = execute_agent_run(run, session_id)
         stage = RunFailure.FINISHING
         collect_outputs(run_id, session_id)
         stop_runner_session_step(session_id)
         session_id = None
-        finish_run_step(run_id, result)
+        finish_run_step(run_id, result.model_dump(mode="json"))
     except Exception as error:
         if session_id is not None:
             try:
@@ -431,14 +426,10 @@ def execute_run(run_id: int) -> None:
                 logger.exception("failed to stop runner session %s", session_id)
         details = failure_metadata(stage, error)
         timed_out = deadline is not None and timezone.now() >= deadline
-        if stage == RunFailure.SKILL and timed_out:
+        if stage == RunFailure.SKILL and timeout is not None and timed_out:
             # The skill stopped after its time limit, so the error is the model
             # call or tool call that hit the deadline.
-            failure = StageFailure(
-                RunFailure.TIMEOUT,
-                timeout_reason(timeout_seconds),
-                timeout_summary(timeout_seconds),
-            )
+            failure = timeout
             details["timed_out"] = True
         else:
             failure = stage_failure(stage, error)

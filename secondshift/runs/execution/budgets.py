@@ -23,6 +23,7 @@ from pydantic_ai.usage import RunUsage
 from secondshift.config.constants import TOKEN_BUDGET_MESSAGE, AgentBackend
 from secondshift.jobs.plan import ExecutionPlan
 from secondshift.runs.models import RunFailure
+from secondshift.runs.reporting.failures import StageFailure
 from secondshift.workspaces.limits import RunLimit, raise_hint
 
 BUDGET_HEADLINE = RunFailure.BUDGET.label
@@ -125,8 +126,9 @@ def budget_reached_message(budget: Budget) -> str:
     )
 
 
-def budget_summary(budget: Budget, limit: int) -> str:
-    return f"{BUDGET_HEADLINE}: {budget_reason(budget, limit)}"
+def budget_failure(budget: Budget, limit: int) -> StageFailure:
+    reason = budget_reason(budget, limit)
+    return StageFailure(RunFailure.BUDGET, reason, f"{BUDGET_HEADLINE}: {reason}")
 
 
 def partial_report(messages: Sequence[ModelMessage]) -> str:

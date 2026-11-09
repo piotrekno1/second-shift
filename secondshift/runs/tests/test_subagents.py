@@ -99,7 +99,7 @@ def test_a_subagent_starts_fresh_and_reports_back(budget_run) -> None:  # noqa: 
 
     result = execute(run, parent, child)
 
-    assert result["succeeded"] is True
+    assert result.succeeded is True
     assert TOOL_NAME in seen["parent_tools"]
     # One level only, and none of the run's own prompt.
     assert TOOL_NAME not in seen["child_tools"]
@@ -138,11 +138,11 @@ def test_subagents_share_the_runs_tool_call_budget(budget_run) -> None:  # noqa:
 
     result = execute(run, parent, child)
 
-    assert result["succeeded"] is True
+    assert result.succeeded is True
     # After the sub-agent's read, the budget is spent for both of them.
     assert child_tools[0] and child_tools[1] == []
     assert parent_tools[1] == []
-    assert result["details"]["budget_reached"] == "tool_calls"
+    assert result.details["budget_reached"] == "tool_calls"
 
 
 @pytest.mark.django_db(transaction=True)
@@ -190,7 +190,7 @@ def test_the_run_keeps_a_request_for_its_own_report(budget_run) -> None:  # noqa
 
     result = execute(run, parent, child)
 
-    assert result["succeeded"] is True
+    assert result.succeeded is True
     assert "too little of its budget" in answers[0]
     assert subagent_events(run) == []
 

@@ -214,13 +214,13 @@ def test_execute_agent_run_stores_report_and_uses_native_limits(
 
     result = execute_agent_run(run, "run-1")
 
-    assert result["succeeded"] is True
-    assert result["summary"] == "Repository health is good."
+    assert result.succeeded is True
+    assert result.summary == "Repository health is good."
     assert captured["usage_limits"].request_limit == 8
     assert captured["usage_limits"].tool_calls_limit == 20
     assert job.skill_path in captured["prompt"]
     assert captured["deps"].allowed_tools == LOCAL_TOOLS
-    with storages["run_artifacts"].open(result["output"]["path"]) as stored:
+    with storages["run_artifacts"].open(result.output.path) as stored:
         assert stored.read().decode() == "Repository health is good."
 
     run.execution_plan["capabilities"] = [

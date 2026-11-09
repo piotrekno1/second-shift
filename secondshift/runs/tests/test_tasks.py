@@ -12,6 +12,7 @@ from secondshift.jobs.models import Job
 from secondshift.jobs.plan import ExecutionPlan
 from secondshift.jobs.tests.plans import stored_plan
 from secondshift.repositories.models import Repository
+from secondshift.runs.inputs import Payload
 from secondshift.runs.models import Run, Task
 from secondshift.runs.retention import prune_runs
 from secondshift.runs.services import (
@@ -62,7 +63,9 @@ def test_a_manual_run_records_who_assigned_it(job: Job) -> None:
 def test_a_webhook_run_has_no_submitter_and_keeps_its_repeat_key(job: Job) -> None:
     with patch(
         "secondshift.runs.services.store_run_payload",
-        return_value={"path": "payload.json", "size_bytes": 2},
+        return_value=Payload(
+            path="payload.json", size_bytes=2, kept_bytes=2, truncated=False
+        ),
     ):
         run = start_run(job, RunStart.WEBHOOK, b"{}", "event-1")
 

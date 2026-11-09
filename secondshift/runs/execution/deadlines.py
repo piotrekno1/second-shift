@@ -11,6 +11,7 @@ from django.utils import timezone
 
 from secondshift.config.formatting import duration_label
 from secondshift.runs.models import Run, RunFailure
+from secondshift.runs.reporting.failures import StageFailure
 from secondshift.workspaces.limits import RunLimit, raise_hint
 
 TIMEOUT_HEADLINE = RunFailure.TIMEOUT.label
@@ -41,5 +42,6 @@ def timeout_reason(seconds: int) -> str:
     )
 
 
-def timeout_summary(seconds: int) -> str:
-    return f"{TIMEOUT_HEADLINE}: {timeout_reason(seconds)}"
+def timeout_failure(run: Run) -> StageFailure:
+    reason = timeout_reason(run_timeout_seconds(run))
+    return StageFailure(RunFailure.TIMEOUT, reason, f"{TIMEOUT_HEADLINE}: {reason}")

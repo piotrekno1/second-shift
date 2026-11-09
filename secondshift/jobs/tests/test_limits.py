@@ -15,7 +15,7 @@ from secondshift.jobs.models import Job
 from secondshift.jobs.planning import build_execution_plan
 from secondshift.jobs.tests.test_planning import create_job
 from secondshift.runs.dao import create_task
-from secondshift.runs.execution.budgets import Budget, budget_reason, budget_summary
+from secondshift.runs.execution.budgets import Budget, budget_failure, budget_reason
 from secondshift.runs.execution.model_gateway import issue_run_token
 from secondshift.runs.models import Run, RunFailure
 from secondshift.workspaces.dao import workspace_owner
@@ -260,7 +260,7 @@ def test_a_run_stopped_by_a_limit_says_so(client: Client, job: Job) -> None:
         commit_sha="abc",
         scheduled_for=timezone.now(),
         status=Run.Status.FAILED,
-        summary=budget_summary(Budget.TOKENS, 2_000_000),
+        summary=budget_failure(Budget.TOKENS, 2_000_000).summary,
         failure=RunFailure.BUDGET,
         failure_reason=budget_reason(Budget.TOKENS, 2_000_000),
         execution_plan=build_execution_plan(job).stored(),
@@ -276,7 +276,7 @@ def test_a_run_stopped_by_a_limit_says_so(client: Client, job: Job) -> None:
 
 
 def test_a_limit_at_the_maximum_points_to_the_server(ceilings: Any) -> None:
-    summary = budget_summary(Budget.TOOL_CALLS, 64)
+    summary = budget_failure(Budget.TOOL_CALLS, 64).summary
 
     assert summary.endswith(
         "That is the server maximum. Whoever runs this server can raise it."

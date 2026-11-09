@@ -27,7 +27,7 @@ from secondshift.runs.tests.test_subagents import (
 @DBOS.workflow(name="secondshift.test_subagent_replay")
 def agent_run_workflow(run_id: int) -> str:
     run = Run.objects.select_related("job").get(pk=run_id)
-    return str(execute_agent_run(run, f"run-{run_id}")["summary"])
+    return str(execute_agent_run(run, f"run-{run_id}").summary)
 
 
 class CountingRunner:
