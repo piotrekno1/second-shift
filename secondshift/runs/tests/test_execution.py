@@ -188,8 +188,8 @@ def test_execute_agent_run_stores_report_and_uses_native_limits(
         job=job,
         commit_sha="a" * 40,
         scheduled_for=timezone.now(),
-        input_snapshot={"skill_path": job.skill_path},
         execution_plan=stored_plan(
+            job={"key": job.key, "skill_path": job.skill_path},
             agent={
                 "tools": list(LOCAL_TOOLS),
                 "limits": {

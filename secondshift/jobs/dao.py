@@ -211,22 +211,6 @@ def approved_tool_grant(
     )
 
 
-def approved_notification_targets(
-    job_id: int, workspace_id: int, connection_ids: Collection[int]
-) -> list[int]:
-    """Of these connections, the ones still approved and connected for the job."""
-    return sorted(
-        JobGrant.objects.filter(
-            capability_request__job_id=job_id,
-            capability_request__kind=CapabilityRequest.Kind.NOTIFICATION,
-            status=JobGrant.Status.APPROVED,
-            connection_id__in=connection_ids,
-            connection__status=Connection.Status.CONNECTED,
-            connection__workspace_id=workspace_id,
-        ).values_list("connection_id", flat=True)
-    )
-
-
 def approved_jobs_per_connection(workspace_id: int) -> dict[int, int]:
     """How many jobs each of the workspace's connections is approved for."""
     return {

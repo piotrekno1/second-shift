@@ -179,14 +179,8 @@ def serialize_run_detail(run: Run) -> RunDetailSchema:
     return RunDetailSchema(
         **serialize_run(run).model_dump(),
         submission_input=str(run.input_snapshot.get("submission_input", "")),
-        job_key=str(
-            run.input_snapshot.get("job_key")
-            or (run.job.key if run.job is not None else "")
-        ),
-        skill_path=str(
-            run.input_snapshot.get("skill_path")
-            or (run.job.skill_path if run.job is not None else "")
-        ),
+        job_key=run.job_key,
+        skill_path=run.plan.job.skill_path,
         created_at=run.created_at,
         exit_code=run.exit_code,
         model_provider=model.connection_name if model else None,

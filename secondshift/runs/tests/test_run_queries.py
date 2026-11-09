@@ -147,9 +147,9 @@ def test_run_detail_includes_events_output_and_frozen_inputs(
     client: Client, runs: dict[str, object]
 ) -> None:
     run = runs["health_failed"]
-    run.input_snapshot = {"job_key": "frozen-key", "skill_path": "frozen/SKILL.md"}  # type: ignore[attr-defined]
     run.execution_plan = stored_plan(  # type: ignore[attr-defined]
-        model=MODEL | {"connection_name": "OpenRouter", "default_model": "m-1"}
+        job={"key": "frozen-key", "skill_path": "frozen/SKILL.md"},
+        model=MODEL | {"connection_name": "OpenRouter", "default_model": "m-1"},
     )
     run.output_excerpt = "report tail"  # type: ignore[attr-defined]
     run.save()  # type: ignore[attr-defined]

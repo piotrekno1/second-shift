@@ -5,6 +5,7 @@ from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.test import Client
 
+from secondshift.jobs.tests.plans import stored_plan
 from secondshift.runner.protocol import CommandRequest, CommandResult
 from secondshift.runs.artifacts import artifact_storage, store_run_input, store_run_text
 from secondshift.runs.execution import run as execution
@@ -14,6 +15,7 @@ from secondshift.runs.tests.test_workflows import execution_run
 from secondshift.workspaces.dao import workspace_owner
 
 SKILL = "# Review\n\nList the files and report.\n"
+SKILL_PATH = "skills/SKILL.md"
 
 
 @pytest.fixture(params=["filesystem", "memory"])
@@ -45,10 +47,6 @@ class FakeRunner:
 
 def stored_run(db: object) -> Run:
     run = execution_run(db)
-    run.input_snapshot = {
-        "job_key": "review",
-        "skill_path": ".agents/skills/review/SKILL.md",
-    }
     input_file = store_run_input(run, "# Input\n\nSkill text")
     output_file = store_run_text(run, "**Review report**\n\nAll good.")
     run.input_path, run.input_size_bytes = input_file.path, input_file.size_bytes
@@ -114,8 +112,9 @@ def test_capture_stores_the_skill_read_from_the_sandbox(
     storage: str, db, monkeypatch
 ) -> None:
     run = execution_run(db)
-    run.input_snapshot = {"job_key": "review", "skill_path": "skills/SKILL.md"}
-    run.save(update_fields=["input_snapshot"])
+    run.execution_plan = stored_plan(job={"key": "review", "skill_path": SKILL_PATH})
+    run.save(update_fields=["execution_plan"])
+    run = Run.objects.get(pk=run.pk)
     runner = FakeRunner(
         CommandResult(call_id="c", exit_code=0, timed_out=False, output=SKILL)
     )
@@ -125,10 +124,10 @@ def test_capture_stores_the_skill_read_from_the_sandbox(
 
     run.refresh_from_db()
     text = artifact_storage().open(run.input_path).read().decode()
-    assert runner.requests[0].argv == ("cat", "--", "skills/SKILL.md")
-    assert "## Skill: `skills/SKILL.md`" in text
+    assert runner.requests[0].argv == ("cat", "--", SKILL_PATH)
+    assert f"## Skill: `{SKILL_PATH}`" in text
     assert SKILL.strip() in text
-    assert execution.task_prompt("skills/SKILL.md") in text
+    assert execution.task_prompt(SKILL_PATH) in text
     assert run.input_size_bytes == len(text.encode())
     assert not run.events.filter(level="warning").exists()
 
@@ -138,8 +137,9 @@ def test_capture_still_stores_input_when_the_skill_is_unreadable(
     storage: str, db, monkeypatch
 ) -> None:
     run = execution_run(db)
-    run.input_snapshot = {"job_key": "review", "skill_path": "skills/SKILL.md"}
-    run.save(update_fields=["input_snapshot"])
+    run.execution_plan = stored_plan(job={"key": "review", "skill_path": SKILL_PATH})
+    run.save(update_fields=["execution_plan"])
+    run = Run.objects.get(pk=run.pk)
     runner = FakeRunner(RuntimeError("runner down"))
     monkeypatch.setattr(execution, "get_runner_client", lambda: runner)
 

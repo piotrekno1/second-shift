@@ -82,7 +82,8 @@ class Run(models.Model):
     sandbox_runtime = models.CharField(max_length=32, blank=True)
     exit_code = models.IntegerField(null=True, blank=True)
     summary = models.TextField(blank=True)
-    # What the run was asked to do, frozen at creation (see job_input_snapshot).
+    # Inputs beyond the plan: an ad hoc task's definition and input, a
+    # trigger's payload and repeat key, and the earlier runs it reads.
     input_snapshot = models.JSONField(default=dict, blank=True)
     # The frozen jobs.plan.ExecutionPlan. Read it through `plan`.
     execution_plan = models.JSONField()
@@ -139,6 +140,11 @@ class Run(models.Model):
     @property
     def workspace_id(self) -> int:
         return self.task.repository.workspace_id
+
+    @property
+    def job_key(self) -> str:
+        """The job's key, or "" for an ad hoc task."""
+        return self.plan.job.key if self.job_id is not None else ""
 
     @property
     def display_name(self) -> str:

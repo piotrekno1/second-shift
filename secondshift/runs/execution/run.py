@@ -134,7 +134,7 @@ def run_prompt(run: Run) -> str:
     """The first user message: the task, the reporting time, the trigger
     payload, missing optional bindings and any history."""
     prompt = (
-        task_prompt(str(run.input_snapshot.get("skill_path") or ""))
+        task_prompt(run.plan.job.skill_path)
         + f"\nReporting time (UTC): {reporting_time(run)}"
     )
     if submission_input := run.input_snapshot.get("submission_input"):
@@ -158,16 +158,12 @@ def run_prompt(run: Run) -> str:
 
 def render_run_input(run: Run, skill: CommandResult | None) -> str:
     """Markdown showing exactly what the agent was given for this run."""
-    skill_path = str(run.input_snapshot.get("skill_path") or "")
+    skill_path = run.plan.job.skill_path
     if skill is not None and skill.exit_code == 0 and not skill.timed_out:
         skill_text = skill.output
     else:
         skill_text = "_SecondShift could not read this file from the sandbox._"
-    assignment = (
-        f"Job `{run.input_snapshot['job_key']}`"
-        if run.input_snapshot.get("job_key")
-        else f"Task `{run.input_snapshot.get('name', 'Repository task')}`"
-    )
+    assignment = f"Job `{run.job_key}`" if run.job_key else f"Task `{run.display_name}`"
     return "\n".join(
         [
             f"# Input for run #{run.pk}",
@@ -230,7 +226,7 @@ def capture_run_input_step(run_id: int, session_id: str) -> None:
     """Store the rendered input. The skill is read from the sandbox, so it is
     the same commit the agent sees. Failing here never fails the run."""
     run = get_run(run_id, "job")
-    skill_path = str(run.input_snapshot.get("skill_path") or "")
+    skill_path = run.plan.job.skill_path
     skill: CommandResult | None = None
     if skill_path:
         try:

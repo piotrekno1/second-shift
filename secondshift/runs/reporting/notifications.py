@@ -7,7 +7,6 @@ from django.conf import settings
 
 from secondshift.config.constants import AgentBackend, RunStart
 from secondshift.connections.models import Connection
-from secondshift.jobs.dao import approved_notification_targets
 from secondshift.jobs.models import Job
 from secondshift.jobs.plan import (
     AgentPlan,
@@ -20,7 +19,7 @@ from secondshift.jobs.plan import (
 )
 from secondshift.repositories.models import Repository
 from secondshift.runs.dao import opened_issues, run_delivery
-from secondshift.runs.execution.tool_broker import standalone_connection
+from secondshift.runs.execution.consent import approved_connection
 from secondshift.runs.models import Run, RunDelivery, Task
 from secondshift.runs.reporting.collection import plural
 
@@ -41,24 +40,12 @@ OUTPUT_LINK = re.compile(r"\[([^\]\n]+)\]\(/outputs/([^)\s]+)\)")
 
 def notification_targets(run: Run) -> list[int]:
     """Connections authorized when the run was planned and still approved now."""
-    planned = {
-        item.connection_id
-        for item in run.plan.capabilities
-        if item.kind == Connection.Kind.NOTIFICATION
-        and item.authorized
-        and item.connection_id
-    }
-    if not planned:
-        return []
-    if run.job_id is None:
-        return sorted(
-            connection.pk
-            for capability in run.plan.capabilities
-            if capability.kind == Connection.Kind.NOTIFICATION
-            and (connection := standalone_connection(run, capability)) is not None
-        )
-    # A grant revoked or a connection disconnected after planning stops delivery.
-    return approved_notification_targets(run.job_id, run.workspace_id, planned)
+    return sorted(
+        connection.pk
+        for capability in run.plan.capabilities
+        if capability.kind == Connection.Kind.NOTIFICATION
+        and (connection := approved_connection(run, capability)) is not None
+    )
 
 
 def run_report_payload(run: Run) -> dict[str, Any]:
@@ -77,7 +64,7 @@ def run_report_payload(run: Run) -> dict[str, Any]:
             "url": run_url,
         },
         "job": {
-            "key": run.job.key if run.job is not None else "",
+            "key": run.job_key,
             "name": run.display_name,
         },
         "repository": {"full_name": run.repository.full_name},

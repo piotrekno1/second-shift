@@ -12,7 +12,7 @@ from secondshift.jobs.models import JOB_REMOVED, Job
 from secondshift.jobs.plan import ExecutionPlan
 from secondshift.jobs.planning import build_execution_plan
 from secondshift.jobs.readiness import execution_problems
-from secondshift.runs.artifacts import job_input_snapshot, store_run_payload
+from secondshift.runs.artifacts import store_run_payload
 from secondshift.runs.dao import (
     add_event,
     create_run_record,
@@ -54,8 +54,7 @@ def create_run(
     defaults = {
         "started_by": started_by,
         "commit_sha": job.repository.config_sha,
-        "input_snapshot": job_input_snapshot(job)
-        | {"history_run_ids": previous_run_ids(job)},
+        "input_snapshot": {"history_run_ids": previous_run_ids(job)},
         "execution_plan": (
             build_execution_plan(job) if execution_plan is None else execution_plan
         ).stored(),

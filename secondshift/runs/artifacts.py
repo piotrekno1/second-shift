@@ -21,7 +21,6 @@ from secondshift.config.constants import (
     MAX_OUTPUT_BYTES,
     MAX_OUTPUT_FILES,
 )
-from secondshift.jobs.models import Job
 from secondshift.runner.collection import (
     CHANGES_NAME,
     MANIFEST_NAME,
@@ -48,15 +47,6 @@ class StoredOutput:
 
 def artifact_storage() -> Storage:
     return storages["run_artifacts"]
-
-
-def job_input_snapshot(job: Job) -> dict[str, Any]:
-    """Freeze what a run was asked to do, since the job may change later."""
-    return {
-        "job_key": job.key,
-        "skill_path": job.skill_path,
-        "config_hash": job.config_hash,
-    }
 
 
 def run_artifact_prefix(run: Run) -> str:

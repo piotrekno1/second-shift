@@ -13,7 +13,6 @@ from secondshift.repositories.models import Repository
 from secondshift.runs.artifacts import (
     artifact_storage,
     delete_output,
-    job_input_snapshot,
     output_path,
     read_output_excerpt,
     store_run_text,
@@ -79,15 +78,6 @@ def test_stored_report_keeps_head_and_tail_when_too_large(
     assert saved.startswith("H" * 50) and saved.endswith("T" * 50)
     assert "M" not in saved and "900 bytes omitted" in saved
     assert read_output_excerpt(stored.path).endswith("T" * 50)
-
-
-def test_job_input_snapshot_freezes_job_config(job) -> None:
-    snapshot = job_input_snapshot(job)
-    job.skill_path = ".agents/skills/later/SKILL.md"
-
-    assert snapshot["skill_path"] == ".agents/skills/review/SKILL.md"
-    assert snapshot["config_hash"] == "abc"
-    assert "secret_names" not in snapshot
 
 
 class FakeDBOSClient:
