@@ -174,7 +174,7 @@ def serialize_run_detail(run: Run) -> RunDetailSchema:
     outputs = run.collected or RunOutputs()
     return RunDetailSchema(
         **serialize_run(run).model_dump(),
-        submission_input=str(run.input_snapshot.get("submission_input", "")),
+        submission_input=run.inputs.submission_input,
         job_key=run.job_key,
         skill_path=run.plan.job.skill_path,
         created_at=run.created_at,

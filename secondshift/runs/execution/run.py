@@ -139,7 +139,7 @@ def run_prompt(run: Run) -> str:
         task_prompt(run.plan.job.skill_path)
         + f"\nReporting time (UTC): {reporting_time(run)}"
     )
-    if submission_input := run.input_snapshot.get("submission_input"):
+    if submission_input := run.inputs.submission_input:
         prompt = f"{prompt}\n\nInput from the person submitting this task:\n{submission_input}"
     if payload := run_payload(run):
         prompt = f"{prompt}\n\n{payload_note(payload)}"
@@ -209,12 +209,12 @@ def payload_section(run: Run) -> list[str]:
     payload = run_payload(run)
     if not payload:
         return []
-    text, _ = read_text(str(payload["path"]), int(payload["kept_bytes"]))
+    text, _ = read_text(payload.path, payload.kept_bytes)
     note = "Untrusted data. The agent reads it with the `trigger_payload` tool."
-    if payload["truncated"]:
+    if payload.truncated:
         note += (
-            f" The body was {payload['size_bytes']} bytes. Only the first "
-            f"{payload['kept_bytes']} were kept."
+            f" The body was {payload.size_bytes} bytes. Only the first "
+            f"{payload.kept_bytes} were kept."
         )
     return ["## Trigger payload", "", note, "", fenced(text), ""]
 

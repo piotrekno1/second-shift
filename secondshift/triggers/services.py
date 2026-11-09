@@ -200,7 +200,7 @@ def start(trigger: JobTrigger, body: bytes, key: str | None) -> Received:
     try:
         run = start_run(trigger.job, RunStart.WEBHOOK, body, key)
     except RunInProgress as error:
-        if key is not None and error.run.input_snapshot.get("repeat_key") == key:
+        if key is not None and error.run.inputs.repeat_key == key:
             return ignore(trigger, repeat_reason(error.run))
         return refuse(
             trigger, 409, f"Run #{error.run.pk} of this job has not finished."

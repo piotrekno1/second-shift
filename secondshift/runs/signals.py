@@ -14,11 +14,11 @@ def delete_run_output(sender: type[Run], instance: Run, **kwargs: object) -> Non
     # stored input, output, payload and collected files. Wait for the commit so a rolled-back
     # delete keeps the file. A storage failure is logged rather than failing an
     # already-committed delete.
-    payload = run_payload(instance) or {}
+    payload = run_payload(instance)
     for path in (
         instance.output_path,
         instance.input_path,
-        payload.get("path"),
+        payload.path if payload else "",
         *run_output_paths(instance),
     ):
         if path:

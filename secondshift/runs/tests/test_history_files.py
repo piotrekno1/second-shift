@@ -95,7 +95,7 @@ def test_packs_the_history_runs_files_by_run(repository, tmp_path: Path) -> None
         f"{newest.pk}/a/b.csv": b"x",
         f"{middle.pk}/ledger.json": b"{}",
     }
-    assert packed.record == {
+    assert packed.files.model_dump(mode="json") == {
         "files": [
             {"path": f"/history/{newest.pk}/findings.json", "size_bytes": 2},
             {"path": f"/history/{newest.pk}/a/b.csv", "size_bytes": 1},
@@ -130,7 +130,7 @@ def test_newest_files_fill_the_size_limit_first(
 
     assert packed is not None
     assert list(members(tmp_path / "history.tar.gz")) == [f"{newest.pk}/new.txt"]
-    assert packed.record["left_out"] == 1
+    assert packed.files.left_out == 1
 
 
 def test_a_removed_or_unsafe_file_is_skipped(repository, tmp_path: Path) -> None:
@@ -168,6 +168,7 @@ def test_the_prompt_lists_the_packed_files(repository) -> None:
     run = create_run(job, timezone.now())
     assert "/history" not in run_prompt(run)
 
+    del run.inputs
     run.input_snapshot["history_files"] = {
         "files": [{"path": f"/history/{earlier.pk}/findings.json", "size_bytes": 2}],
         "left_out": 3,

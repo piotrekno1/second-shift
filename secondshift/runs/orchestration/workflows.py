@@ -162,8 +162,8 @@ def start_runner_session_step(run_id: int) -> str:
         history = pack_earlier_files(run, archive)
         if history is not None:
             client.upload_source(history.sha256, archive)
-            run.input_snapshot["history_files"] = history.record
-            update_run(run.pk, input_snapshot=run.input_snapshot)
+            inputs = run.inputs.model_copy(update={"history_files": history.files})
+            update_run(run.pk, input_snapshot=inputs.stored())
     session_id = client.start(
         RunnerSessionSpec(
             run_id=run.pk,
@@ -413,7 +413,7 @@ def execute_run(run_id: int) -> None:
         run = get_run(run_id, "job")
         record_run_event_step(
             run_id,
-            f"Running {run.input_snapshot.get('skill_path') or 'the submitted task'}.",
+            f"Running {run.plan.job.skill_path or 'the submitted task'}.",
         )
         deadline = run_deadline(run)
         timeout_seconds = run_timeout_seconds(run)

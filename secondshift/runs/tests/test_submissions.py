@@ -503,7 +503,6 @@ def test_written_task_needs_no_skill_file_and_keeps_original_instructions(
         repository, owner, definition={"name": "Review setup"}, input=instructions
     )
     assert run.commit_sha == git(root, "rev-parse", "HEAD")
-    assert run.input_snapshot["skill_path"] is None
     assert run.execution_plan["job"]["skill_path"] == ""
     assert run.execution_plan["ready"] is True
     assert instructions in run_prompt(run)
@@ -544,7 +543,6 @@ def test_http_and_mcp_accept_written_tasks(repository: Repository, owner: User) 
     )
     assert response.status_code == 200, response.content
     first = Run.objects.get()
-    assert first.input_snapshot["skill_path"] is None
     detail = client.get(f"/api/runs/{first.pk}").json()
     assert (
         detail["skill_path"] == ""

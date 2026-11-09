@@ -21,6 +21,7 @@ from secondshift.runs.dao import (
     latest_active_run,
 )
 from secondshift.runs.history import previous_run_ids
+from secondshift.runs.inputs import RunInput
 from secondshift.runs.issue_delivery import record_pending_issues
 from secondshift.runs.models import Run
 from secondshift.runs.orchestration.dispatch import enqueue_run
@@ -54,7 +55,9 @@ def create_run(
     defaults = {
         "started_by": started_by,
         "commit_sha": job.repository.config_sha,
-        "input_snapshot": {"history_run_ids": previous_run_ids(job)},
+        "input_snapshot": RunInput(
+            history_run_ids=tuple(previous_run_ids(job))
+        ).stored(),
         "execution_plan": (
             build_execution_plan(job) if execution_plan is None else execution_plan
         ).stored(),
@@ -110,12 +113,14 @@ def start_run(
             execution_plan=execution_plan,
             submitted_by=submitted_by,
         )
-        if payload is not None:
-            run.input_snapshot["payload"] = store_run_payload(run, payload)
-        if repeat_key is not None:
-            run.input_snapshot["repeat_key"] = repeat_key
         if payload is not None or repeat_key is not None:
+            stored = store_run_payload(run, payload) if payload is not None else None
+            inputs = run.inputs.model_copy(
+                update={"payload": stored, "repeat_key": repeat_key}
+            )
+            run.input_snapshot = inputs.stored()
             run.save(update_fields=["input_snapshot"])
+            del run.inputs
     enqueue_run(run)
     return run
 

@@ -30,6 +30,7 @@ from secondshift.runs.dao import (
     find_submitted_task,
     first_attempt,
 )
+from secondshift.runs.inputs import RunInput
 from secondshift.runs.models import Run
 from secondshift.runs.orchestration.dispatch import enqueue_run
 from secondshift.runs.publishing import record_pending_pull_request
@@ -169,14 +170,12 @@ def submit_skill(
         )
         if not plan.ready:
             raise RunNotReady(execution_problems(repository, plan))
-        snapshot = {
-            "name": submission.definition.name,
-            "skill_path": submission.definition.skill,
-            "config_hash": plan.job.config_hash,
-            "definition": submission.definition.model_dump(mode="json"),
-            "submission_input": submission.input,
-            "requested_revision": submission.revision,
-        }
+        snapshot = RunInput(
+            name=submission.definition.name,
+            definition=submission.definition.model_dump(mode="json"),
+            submission_input=submission.input,
+            requested_revision=submission.revision,
+        ).stored()
         scheduled_for: datetime = submission.not_before or timezone.now()
         task = create_task(
             repository=repository,

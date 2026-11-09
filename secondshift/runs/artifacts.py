@@ -29,6 +29,7 @@ from secondshift.runner.collection import (
     HashingReader,
     safe_output_name,
 )
+from secondshift.runs.inputs import Payload
 from secondshift.runs.models import Run
 from secondshift.runs.outputs import Changes, RunOutputs, SavedFile, SkippedFile
 
@@ -154,7 +155,7 @@ def run_output_paths(run: Run) -> list[str]:
     return run.collected.stored_paths() if run.collected else []
 
 
-def store_run_payload(run: Run, body: bytes) -> dict[str, Any]:
+def store_run_payload(run: Run, body: bytes) -> Payload:
     """Keep the request body that started a run, cut to TRIGGER_PAYLOAD_MAX_BYTES.
 
     Returns what the run's input snapshot records about it.
@@ -164,17 +165,16 @@ def store_run_payload(run: Run, body: bytes) -> dict[str, Any]:
     path = payload_path(run)
     storage.delete(path)
     saved = storage.save(path, ContentFile(kept))
-    return {
-        "path": saved,
-        "size_bytes": len(body),
-        "kept_bytes": len(kept),
-        "truncated": len(kept) < len(body),
-    }
+    return Payload(
+        path=saved,
+        size_bytes=len(body),
+        kept_bytes=len(kept),
+        truncated=len(kept) < len(body),
+    )
 
 
-def run_payload(run: Run) -> dict[str, Any] | None:
-    """What the input snapshot records about the run's payload, if it has one."""
-    return run.input_snapshot.get("payload")
+def run_payload(run: Run) -> Payload | None:
+    return run.inputs.payload
 
 
 def store_run_input(run: Run, text: str) -> StoredOutput:

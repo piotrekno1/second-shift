@@ -227,7 +227,9 @@ def test_payload_tool_reads_only_the_leased_runs_payload(
         },
     }
     run, lease, _ = leased_run
-    run.input_snapshot["payload"] = store_run_payload(run, b"only this run")
+    run.input_snapshot["payload"] = store_run_payload(
+        run, b"only this run"
+    ).model_dump()
     run.save(update_fields=["input_snapshot"])
     result = tool_result(lease, "trigger_payload", {})
     assert json.loads(result["content"][0]["text"])["body"] == "only this run"

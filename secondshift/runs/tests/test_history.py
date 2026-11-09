@@ -94,7 +94,7 @@ def test_renamed_job_starts_without_history(repository) -> None:
 
     run = create_run(make_job(repository, key="weekly-review"), timezone.now())
 
-    assert run.input_snapshot["history_run_ids"] == []
+    assert run.inputs.history_run_ids == ()
 
 
 def test_without_history_the_prompt_is_unchanged(repository) -> None:
@@ -103,7 +103,7 @@ def test_without_history_the_prompt_is_unchanged(repository) -> None:
 
     run = create_run(job, timezone.now())
 
-    assert run.input_snapshot["history_run_ids"] == []
+    assert run.inputs.history_run_ids == ()
     assert "<previous-report" not in run_prompt(run)
 
 

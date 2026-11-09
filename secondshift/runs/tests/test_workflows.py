@@ -204,8 +204,12 @@ def test_a_failed_run_still_notifies(
     def fail(run: Run, session_id: str) -> None:
         raise RuntimeError("The agent returned an empty report.")
 
+    events: list[str] = []
     monkeypatch.setattr(workflows, "execute_agent_run", fail)
     monkeypatch.setattr(workflows, "notify", notified.append)
+    monkeypatch.setattr(
+        workflows, "record_run_event_step", lambda run_id, text: events.append(text)
+    )
 
     with pytest.raises(RuntimeError):
         workflows.execute_run(run.pk)
@@ -213,6 +217,8 @@ def test_a_failed_run_still_notifies(
     run.refresh_from_db()
     assert run.status == Run.Status.FAILED
     assert notified == [run.pk]
+    # The timeline names the skill the run was given.
+    assert events == ["Running SKILL.md."]
 
 
 @pytest.mark.django_db
