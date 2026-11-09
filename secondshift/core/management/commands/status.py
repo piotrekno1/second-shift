@@ -38,6 +38,9 @@ def command() -> None:
 def is_alive(pid: int) -> bool:
     try:
         os.kill(pid, 0)
-    except (ProcessLookupError, PermissionError):
+    except ProcessLookupError:
         return False
+    except PermissionError:
+        # The process exists but belongs to another user.
+        return True
     return True

@@ -7,6 +7,7 @@ from django.core.management import call_command
 from django.test import Client
 from django.utils import timezone
 
+from secondshift.core import local_output
 from secondshift.core.management.commands.up import is_loopback
 from secondshift.core.signin import SIGN_IN_LINK_SECONDS, sign_in_url
 from secondshift.workspaces.owners import (
@@ -91,6 +92,21 @@ def test_login_command_prints_a_working_link(
 
     link = capsys.readouterr().out.strip().splitlines()[-1]
     assert client.get(link.removeprefix(BASE_URL)).status_code == 302
+
+
+@pytest.mark.django_db
+def test_login_links_to_where_secondshift_up_serves(
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    ensure_owner()
+    monkeypatch.setattr(
+        local_output, "load_state", lambda: {"url": "http://127.0.0.1:9000"}
+    )
+
+    call_command("login")
+
+    link = capsys.readouterr().out.strip().splitlines()[-1]
+    assert link.startswith("http://127.0.0.1:9000/")
 
 
 @pytest.mark.django_db
