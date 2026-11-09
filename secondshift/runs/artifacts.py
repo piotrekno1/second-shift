@@ -30,6 +30,7 @@ from secondshift.runner.collection import (
     safe_output_name,
 )
 from secondshift.runs.models import Run
+from secondshift.runs.outputs import Changes, RunOutputs, SavedFile, SkippedFile
 
 TRUNCATION_MARKER = "\n\n[... {omitted} bytes omitted by SecondShift ...]\n\n"
 
@@ -85,7 +86,7 @@ def saved_file_path(run: Run, name: str) -> str:
     return f"{run_artifact_prefix(run)}/{OUTPUTS_DIR}/{name}"
 
 
-def store_collection(run: Run, archive_path: Path) -> dict[str, Any]:
+def store_collection(run: Run, archive_path: Path) -> RunOutputs:
     """Keep what the runner collected, and return what Run.outputs records.
 
     The archive comes from the trusted runner, but the agent chose its file
@@ -93,7 +94,7 @@ def store_collection(run: Run, archive_path: Path) -> dict[str, Any]:
     within the same limits the runner applies.
     """
     stored_changes: dict[str, Any] = {}
-    files: list[dict[str, Any]] = []
+    files: list[SavedFile] = []
     manifest: dict[str, Any] = {}
     total = 0
     with tarfile.open(archive_path, mode="r:gz") as archive:
@@ -116,31 +117,27 @@ def store_collection(run: Run, archive_path: Path) -> dict[str, Any]:
                 or total > MAX_OUTPUT_BYTES
             ):
                 raise CollectionError("The collected files are not valid.")
-            files.append(
-                {
-                    "name": name,
-                    **store_stream(saved_file_path(run, name), stream, member.size),
-                }
-            )
+            stored = store_stream(saved_file_path(run, name), stream, member.size)
+            files.append(SavedFile(name=name, **stored))
     changes = manifest.get("changes") or {}
-    return {
-        "changes": {
-            "file_count": int(changes.get("file_count", 0)),
-            "files": [str(item) for item in changes.get("files", [])][
+    return RunOutputs(
+        changes=Changes(
+            file_count=int(changes.get("file_count", 0)),
+            files=tuple(str(item) for item in changes.get("files", []))[
                 :MAX_LISTED_CHANGES
             ],
-            "too_large": bool(changes.get("too_large")),
+            too_large=bool(changes.get("too_large")),
             **stored_changes,
-        },
-        "files": files,
-        "skipped": [
-            {
-                "name": str(item.get("name", ""))[:255],
-                "reason": str(item.get("reason", ""))[:200],
-            }
+        ),
+        files=tuple(files),
+        skipped=tuple(
+            SkippedFile(
+                name=str(item.get("name", ""))[:255],
+                reason=str(item.get("reason", ""))[:200],
+            )
             for item in manifest.get("skipped", [])[:MAX_OUTPUT_FILES]
-        ],
-    }
+        ),
+    )
 
 
 def store_stream(path: str, stream: IO[bytes], size: int) -> dict[str, Any]:
@@ -154,10 +151,7 @@ def store_stream(path: str, stream: IO[bytes], size: int) -> dict[str, Any]:
 
 def run_output_paths(run: Run) -> list[str]:
     """Every stored file the sandbox left behind, for deletion with the run."""
-    outputs = run.outputs or {}
-    paths = [item.get("path", "") for item in outputs.get("files", [])]
-    paths.append((outputs.get("changes") or {}).get("path", ""))
-    return [path for path in paths if path]
+    return run.collected.stored_paths() if run.collected else []
 
 
 def store_run_payload(run: Run, body: bytes) -> dict[str, Any]:

@@ -2,6 +2,7 @@ from secondshift.runner.agent_image.outcomes import cache_reads, usage_budget
 from secondshift.runs.dao import run_events
 from secondshift.runs.deliveries import retryable
 from secondshift.runs.models import Run, RunDelivery, RunFailure
+from secondshift.runs.outputs import RunOutputs
 from secondshift.runs.reporting.failures import (
     TOOL_RULE_NEXT_STEP,
     describe_failure,
@@ -150,28 +151,27 @@ def serialize_delivery(delivery: RunDelivery) -> RunDeliverySchema:
 
 
 def run_changes(run: Run) -> RunChangesSchema | None:
-    changes = (run.outputs or {}).get("changes") or {}
-    if not changes.get("file_count"):
+    changes = run.collected.changes if run.collected else None
+    if changes is None or not changes.file_count:
         return None
     return RunChangesSchema(
-        file_count=changes["file_count"],
-        files=changes.get("files", []),
-        too_large=bool(changes.get("too_large")),
-        available=bool(changes.get("path")),
-        size_bytes=changes.get("size_bytes"),
+        file_count=changes.file_count,
+        files=list(changes.files),
+        too_large=changes.too_large,
+        available=bool(changes.path),
+        size_bytes=changes.size_bytes,
     )
 
 
 def saved_file_path(run: Run, name: str) -> str:
     """The stored path of one saved file, found by its exact name."""
-    for item in (run.outputs or {}).get("files", []):
-        if item.get("name") == name:
-            return str(item["path"])
-    return ""
+    saved = run.collected.saved_file(name) if run.collected else None
+    return saved.path if saved else ""
 
 
 def serialize_run_detail(run: Run) -> RunDetailSchema:
     model = run.plan.model
+    outputs = run.collected or RunOutputs()
     return RunDetailSchema(
         **serialize_run(run).model_dump(),
         submission_input=str(run.input_snapshot.get("submission_input", "")),
@@ -206,11 +206,11 @@ def serialize_run_detail(run: Run) -> RunDetailSchema:
         ],
         changes=run_changes(run),
         saved_files=[
-            RunSavedFileSchema(name=item["name"], size_bytes=item["size_bytes"])
-            for item in (run.outputs or {}).get("files", [])
+            RunSavedFileSchema(name=item.name, size_bytes=item.size_bytes)
+            for item in outputs.files
         ],
         skipped_files=[
-            RunSkippedFileSchema(**item)
-            for item in (run.outputs or {}).get("skipped", [])
+            RunSkippedFileSchema(name=item.name, reason=item.reason)
+            for item in outputs.skipped
         ],
     )

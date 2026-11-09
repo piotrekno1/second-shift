@@ -144,7 +144,7 @@ def run_changes_patch(
 ) -> FileResponse:
     """The agent's file changes as a patch, always served as plain text."""
     run = run_for_request(request, run_id)
-    path = ((run.outputs or {}).get("changes") or {}).get("path")
+    path = run.collected.changes.path if run.collected else ""
     if not path:
         raise Http404
     return stored_file_response(

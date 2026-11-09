@@ -108,16 +108,15 @@ def earlier_files(run: Run) -> tuple[list[EarlierFile], int]:
     for run_id in run_ids:
         if run_id not in earlier:
             continue
-        for item in (earlier[run_id].outputs or {}).get("files", []):
-            name = str(item.get("name", ""))
-            size = int(item.get("size_bytes", 0))
-            if not item.get("path") or not safe_output_name(name):
+        collected = earlier[run_id].collected
+        for item in collected.files if collected else ():
+            if not item.path or not safe_output_name(item.name):
                 continue
-            if total + size > MAX_HISTORY_FILES_BYTES:
+            if total + item.size_bytes > MAX_HISTORY_FILES_BYTES:
                 left_out += 1
                 continue
-            total += size
-            kept.append(EarlierFile(run_id, name, str(item["path"]), size))
+            total += item.size_bytes
+            kept.append(EarlierFile(run_id, item.name, item.path, item.size_bytes))
     return kept, left_out
 
 

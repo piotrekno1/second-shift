@@ -54,15 +54,15 @@ def skip_reason(run: Run, repository: Repository) -> str:
         return "An owner has not allowed pull requests for this repository."
     if run.status != Run.Status.SUCCEEDED:
         return "The run did not succeed."
-    if not run.outputs:
+    if run.collected is None:
         return "The run's changes could not be collected."
-    changes = run.outputs.get("changes") or {}
-    if changes.get("too_large"):
+    changes = run.collected.changes
+    if changes.too_large:
         return (
             f"The changes were larger than {MAX_CHANGES_BYTES // 2**20} MiB, "
             "so they were not kept."
         )
-    if not changes.get("path"):
+    if not changes.path:
         return "The agent made no changes."
     return ""
 
@@ -105,7 +105,7 @@ def publish_run(run_id: int) -> None:
     try:
         with tempfile.TemporaryDirectory(prefix="secondshift-patch-") as folder:
             patch = Path(folder) / "changes.patch"
-            with artifact_storage().open(run.outputs["changes"]["path"], "rb") as src:
+            with artifact_storage().open(run.collected.changes.path, "rb") as src:
                 patch.write_bytes(src.read())
             opened = publish_pull_request(
                 run.repository, run.commit_sha, patch, draft_for(run)
@@ -120,7 +120,7 @@ def publish_run(run_id: int) -> None:
         )
         return
     delivery.external_url = opened.url
-    count = run.outputs["changes"]["file_count"]
+    count = run.collected.changes.file_count
     finish_delivery(
         delivery,
         RunDelivery.Status.DELIVERED,

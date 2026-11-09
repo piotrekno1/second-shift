@@ -10,6 +10,7 @@ from secondshift.connections.models import Connection
 from secondshift.jobs.models import Job
 from secondshift.jobs.plan import ExecutionPlan
 from secondshift.repositories.models import Repository
+from secondshift.runs.outputs import RunOutputs
 
 
 class RunFailure(models.TextChoices):
@@ -150,6 +151,11 @@ class Run(models.Model):
     @property
     def repository(self) -> Repository:
         return self.task.repository
+
+    @cached_property
+    def collected(self) -> RunOutputs | None:
+        """What the sandbox left behind, or None when nothing was collected."""
+        return RunOutputs.model_validate(self.outputs) if self.outputs else None
 
     @cached_property
     def plan(self) -> ExecutionPlan:

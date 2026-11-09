@@ -138,7 +138,11 @@ def test_a_removed_or_unsafe_file_is_skipped(repository, tmp_path: Path) -> None
     earlier = run_with_files(job, {"kept.txt": b"k", "gone.txt": b"g"})
     artifact_storage().delete(earlier.outputs["files"][1]["path"])
     earlier.outputs["files"].append(
-        {"name": "../escape", "path": earlier.outputs["files"][0]["path"]}
+        {
+            "name": "../escape",
+            "path": earlier.outputs["files"][0]["path"],
+            "size_bytes": 1,
+        }
     )
     earlier.save(update_fields=["outputs"])
     run = create_run(job, timezone.now())

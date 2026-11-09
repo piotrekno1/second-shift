@@ -193,7 +193,7 @@ def collect_outputs_step(run_id: int, session_id: str) -> None:
         archive = Path(folder) / "collection.tar.gz"
         get_runner_client().collect(session_id, archive)
         outputs = store_collection(run, archive)
-    update_run(run_id, outputs=outputs)
+    update_run(run_id, outputs=outputs.stored())
     if message := collection_summary(outputs):
         add_event(run_id, message)
 
