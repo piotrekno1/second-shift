@@ -93,7 +93,6 @@ from secondshift.connections.serialization import (
 from secondshift.connections.services import (
     ConnectionConflict,
     create_webhook_connection,
-    delete_connection,
     revoke_connection,
     update_webhook_connection,
 )
@@ -104,6 +103,7 @@ from secondshift.connections.webhooks import (
 )
 from secondshift.github.errors import GitHubError
 from secondshift.jobs.automatic_grants import approve_waiting_for, set_require_approval
+from secondshift.jobs.grants import delete_connection
 from secondshift.repositories.github_check import check_source
 from secondshift.runs.reporting.connection_usage import (
     ConnectionUsage,

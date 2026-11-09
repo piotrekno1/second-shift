@@ -6,7 +6,8 @@ from django.utils import timezone
 
 from secondshift.connections.external import external_access
 from secondshift.connections.models import Connection
-from secondshift.jobs.dao import find_grant
+from secondshift.connections.services import ConnectionConflict
+from secondshift.jobs.dao import find_grant, release_connection_grants
 from secondshift.jobs.models import CapabilityRequest, JobGrant
 from secondshift.jobs.tool_rules import (
     ToolRuleError,
@@ -14,6 +15,7 @@ from secondshift.jobs.tool_rules import (
     kept_rules,
     validate_rules,
 )
+from secondshift.repositories.dao import has_repositories
 from secondshift.repositories.github import repository_ref
 
 
@@ -100,3 +102,15 @@ def decide_grant(
     grant.full_clean()
     grant.save()
     return grant
+
+
+@transaction.atomic
+def delete_connection(connection: Connection) -> None:
+    if connection.kind == Connection.Kind.SOURCE and has_repositories(connection):
+        raise ConnectionConflict(
+            "This installation has repository history. Disconnect it instead."
+        )
+    # Grants are review records: they return to pending instead of disappearing,
+    # so the jobs show up again under "Needed by your jobs".
+    release_connection_grants(connection)
+    connection.delete()
