@@ -13,6 +13,7 @@ from secondshift.connections.tests.test_agent_connections import (
 from secondshift.jobs.models import Job
 from secondshift.jobs.planning import build_execution_plan
 from secondshift.repositories.models import Repository
+from secondshift.runs.dao import create_run_record
 from secondshift.runs.models import Run
 from secondshift.runs.orchestration.workflows import (
     RunNotReadyError,
@@ -56,13 +57,15 @@ def job(agent_login: tuple[Workspace, AgentConnection, User]) -> Job:
     )
 
 
-def finished_run(job: Job, hours_ago: float = 1) -> Run:
-    run = Run.objects.create(
+def finished_run(job: Job, hours_ago: float = 1, ready: bool = True) -> Run:
+    plan = build_execution_plan(job)
+    plan["ready"] = ready
+    run = create_run_record(
         job=job,
         commit_sha="a" * 40,
         scheduled_for=timezone.now(),
         status=Run.Status.SUCCEEDED,
-        execution_plan=build_execution_plan(job),
+        execution_plan=plan,
     )
     created = timezone.now() - timedelta(hours=hours_ago)
     Run.objects.filter(pk=run.pk).update(created_at=created)
@@ -102,9 +105,7 @@ def test_runs_older_than_a_day_do_not_count(job: Job) -> None:
 def test_refused_runs_do_not_count(job: Job) -> None:
     login = job.workspace.default_agent_connection
     set_cap(login, 1)
-    refused = finished_run(job)
-    refused.execution_plan["ready"] = False
-    refused.save(update_fields=["execution_plan"])
+    finished_run(job, ready=False)
     assert start_manual_run(job).execution_plan["ready"] is True
 
 

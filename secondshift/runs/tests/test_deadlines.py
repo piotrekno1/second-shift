@@ -7,10 +7,10 @@ import pytest
 from django.utils import timezone
 
 from secondshift.config.formatting import duration_label
+from secondshift.connections.execution import choose_execution
 from secondshift.connections.models import Connection
 from secondshift.gateway.models import RunToken
 from secondshift.gateway.tokens import issue_run_token
-from secondshift.jobs.execution import choose_execution
 from secondshift.runs.execution import agent
 from secondshift.runs.execution.agent import RUN_MODEL_ID
 from secondshift.runs.execution.deadlines import RunTimedOut, run_deadline

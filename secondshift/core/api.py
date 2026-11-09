@@ -5,6 +5,7 @@ from ninja import Router
 from ninja.security import django_auth
 
 from secondshift.connections.dao import connected_count
+from secondshift.connections.execution import execution_status
 from secondshift.core.schemas import (
     FailingJobSchema,
     JobSpendSchema,
@@ -14,7 +15,6 @@ from secondshift.core.schemas import (
 )
 from secondshift.github.app import configured as github_app_configured
 from secondshift.jobs.dao import enabled_job_count
-from secondshift.jobs.execution import execution_status
 from secondshift.repositories.dao import active_repositories
 from secondshift.repositories.models import Repository
 from secondshift.runs.dao import run_counts_today

@@ -10,6 +10,7 @@ from django.test import Client
 from django.utils import timezone
 
 from secondshift.connections.errors import ExternalToolError
+from secondshift.connections.execution import choose_execution
 from secondshift.connections.external import external_access
 from secondshift.connections.http_api.client import APIRequest, build_request, send
 from secondshift.connections.http_api.connections import (
@@ -24,7 +25,6 @@ from secondshift.connections.http_api.spec import (
     read_spec,
 )
 from secondshift.connections.models import Connection
-from secondshift.jobs.execution import choose_execution
 from secondshift.jobs.models import CapabilityRequest, Job, JobGrant
 from secondshift.jobs.planning import build_execution_plan
 from secondshift.jobs.serialization import serialize_job

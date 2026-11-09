@@ -14,6 +14,7 @@ from pydantic_ai.models.test import TestModel
 
 from secondshift.config.constants import GITHUB_MCP_URL
 from secondshift.connections.errors import ExternalToolError
+from secondshift.connections.execution import choose_execution
 from secondshift.connections.mcp.base import MCPError, MCPRequestError
 from secondshift.connections.models import Connection
 from secondshift.connections.tests.test_github_mcp import (
@@ -22,7 +23,6 @@ from secondshift.connections.tests.test_github_mcp import (
 )
 from secondshift.connections.tests.test_github_mcp import mcp_http as imported_mcp_http
 from secondshift.connections.webhooks import deliver_webhook
-from secondshift.jobs.execution import choose_execution
 from secondshift.jobs.manifest import load_manifest
 from secondshift.jobs.models import CapabilityRequest, Job, JobGrant
 from secondshift.jobs.planning import build_execution_plan

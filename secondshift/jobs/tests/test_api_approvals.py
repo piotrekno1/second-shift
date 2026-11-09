@@ -7,8 +7,8 @@ from django.contrib.auth.models import AbstractUser
 from django.test import Client
 from django.utils import timezone
 
+from secondshift.connections.execution import NOTHING_CHOSEN, choose_execution
 from secondshift.connections.models import Connection
-from secondshift.jobs.execution import NOTHING_CHOSEN, choose_execution
 from secondshift.jobs.models import JOB_REMOVED, CapabilityRequest, Job, JobGrant
 from secondshift.repositories.models import Repository
 from secondshift.runs.models import Run, Task

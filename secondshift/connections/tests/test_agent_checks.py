@@ -8,6 +8,7 @@ from django.test import Client
 
 from secondshift.connections import agents as agent_logins
 from secondshift.connections.agents import save_agent_connection
+from secondshift.connections.execution import choose_execution, workspace_execution
 from secondshift.connections.models import AgentConnection
 from secondshift.connections.tests.test_agent_connections import (
     TOKEN,
@@ -15,7 +16,6 @@ from secondshift.connections.tests.test_agent_connections import (
 from secondshift.connections.tests.test_agent_connections import (
     agent_login as agent_login_fixture,
 )
-from secondshift.jobs.execution import choose_execution, workspace_execution
 from secondshift.runner.agent_credentials import provisioning_public_key
 from secondshift.runner.protocol import RunnerProtocolError
 from secondshift.workspaces.models import Workspace, WorkspaceMembership

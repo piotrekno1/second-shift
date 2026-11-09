@@ -14,6 +14,7 @@ from django.test import Client
 from django.urls import Resolver404, resolve
 from django.utils import timezone
 
+from secondshift.connections.execution import choose_execution
 from secondshift.connections.models import Connection
 from secondshift.connections.outbound import PinnedNetworkBackend, PinnedTransport
 from secondshift.gateway.metering import (
@@ -27,7 +28,6 @@ from secondshift.gateway.pricing import request_cost
 from secondshift.gateway.proxy import upstream_client
 from secondshift.gateway.tokens import GatewayUnavailable, authenticate, issue_run_token
 from secondshift.gateway.views import model_gateway
-from secondshift.jobs.execution import choose_execution
 from secondshift.jobs.models import Job
 from secondshift.repositories.models import Repository
 from secondshift.runs.models import Run

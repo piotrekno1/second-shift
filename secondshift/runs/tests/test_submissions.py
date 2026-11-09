@@ -19,10 +19,10 @@ from pydantic import ValidationError
 
 from secondshift.config.constants import TaskOrigin
 from secondshift.connections.errors import ExternalToolError
+from secondshift.connections.execution import choose_execution
 from secondshift.connections.models import AgentConnection, Connection
 from secondshift.gateway.models import ModelUsage
 from secondshift.gateway.tokens import aauthenticate, authenticate, issue_run_token
-from secondshift.jobs.execution import choose_execution
 from secondshift.jobs.manifest import JobManifest
 from secondshift.jobs.models import Job
 from secondshift.mcp_server.tests.test_job_tools import call, error_text, token

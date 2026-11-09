@@ -1,18 +1,10 @@
-from typing import Any
-
 from django.conf import settings
-from django.core.exceptions import ValidationError
 from django.http import HttpRequest
 from django.shortcuts import get_object_or_404
 from ninja import Router, Status
 from ninja.errors import HttpError
 from ninja.security import django_auth
 
-from secondshift.jobs.execution import (
-    execution_configuration,
-    save_execution_preference,
-)
-from secondshift.jobs.schemas import ExecutionConfigurationSchema
 from secondshift.workspaces.access import (
     Action,
     current_workspace,
@@ -42,7 +34,6 @@ from secondshift.workspaces.models import (
 from secondshift.workspaces.schemas import (
     ApiTokenCreateSchema,
     ApiTokenListSchema,
-    ExecutionPreferenceSchema,
     InviteCreateSchema,
     InviteSchema,
     MemberSchema,
@@ -275,23 +266,3 @@ def new_api_token(
 def revoke_token(request: HttpRequest, token_id: int) -> Status[None]:
     revoke_api_token(get_object_or_404(own_tokens(request.user), pk=token_id))
     return Status(204, None)
-
-
-@router.get("/settings/agent", response=ExecutionConfigurationSchema)
-def default_agent(request: HttpRequest) -> dict[str, Any]:
-    workspace = current_workspace(request)
-    if workspace is None:
-        raise HttpError(404, "Choose a workspace first.")
-    return execution_configuration(workspace, request.user)
-
-
-@router.post("/settings/agent", response=ExecutionConfigurationSchema)
-def set_default_agent(
-    request: HttpRequest, payload: ExecutionPreferenceSchema
-) -> dict[str, Any]:
-    workspace = require(request, Action.REVIEW_CAPABILITIES)
-    try:
-        save_execution_preference(workspace, payload.key, request.user)
-    except ValidationError as error:
-        raise HttpError(422, error.messages[0]) from None
-    return execution_configuration(workspace, request.user)

@@ -1,13 +1,12 @@
 from secondshift.config.constants import GITHUB_BASE_URL
 from secondshift.connections.dao import connections_by_binding
+from secondshift.connections.execution import (
+    ExecutionSelection,
+    workspace_execution,
+)
 from secondshift.connections.external import changing_tools, external_access
 from secondshift.connections.models import Connection
 from secondshift.jobs.dao import active_jobs, job_with_last_run, with_last_run
-from secondshift.jobs.execution import (
-    ExecutionSelection,
-    job_execution,
-    workspace_execution,
-)
 from secondshift.jobs.limits import job_limit_views
 from secondshift.jobs.models import Job
 from secondshift.jobs.schemas import (
@@ -97,7 +96,7 @@ def serialize_job(
                 ),
             )
         )
-    execution = execution or job_execution(job)
+    execution = execution or workspace_execution(job.workspace)
     return JobSchema(
         id=job.id,
         execution_backend=execution.backend,

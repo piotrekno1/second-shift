@@ -161,32 +161,3 @@ class JobDetailSchema(JobSchema):
     recent_runs: list[RunSchema]
     limits: list[LimitSchema]
     can_edit_limits: bool
-
-
-class ExecutionChoiceSchema(Schema):
-    key: str
-    label: str
-    disabled: bool = False
-    # Why this choice cannot run jobs, or empty when it can.
-    problem: str = ""
-
-
-class ExecutionStatusSchema(Schema):
-    label: str
-    backend: str
-    problem: str
-    # False until an owner picks a model provider or a login.
-    chosen: bool
-    # Nothing to choose yet: no model provider and no login saved.
-    needs_setup: bool
-    fix_connection_id: int | None
-
-
-class ExecutionConfigurationSchema(Schema):
-    enabled: bool
-    choices: list[ExecutionChoiceSchema]
-    selected: str
-    label: str
-    backend: str
-    ready: bool
-    problem: str

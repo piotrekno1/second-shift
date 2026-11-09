@@ -1,11 +1,12 @@
 """Queries and writes on connections, sign-ins and agent logins."""
 
+from collections import Counter
 from collections.abc import Collection
 from datetime import datetime
 from typing import Any
 
 from django.contrib.auth.models import AbstractBaseUser
-from django.db.models import Exists, F, OuterRef, QuerySet
+from django.db.models import Count, Exists, F, OuterRef, Q, QuerySet
 from django.utils import timezone
 
 from secondshift.connections.models import (
@@ -272,3 +273,14 @@ def pending_cleanups(limit: int) -> list[AgentCredentialCleanup]:
 
 def has_pending_cleanup(connection: AgentConnection) -> bool:
     return connection.credential_cleanups.exists()
+
+
+def login_run_counts(workspace_id: int, since: datetime) -> Counter[int]:
+    """Runs per agent login of the workspace since then."""
+    return Counter(
+        dict(
+            AgentConnection.objects.filter(workspace_id=workspace_id)
+            .annotate(recent=Count("runs", filter=Q(runs__created_at__gte=since)))
+            .values_list("pk", "recent")
+        )
+    )

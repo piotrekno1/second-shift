@@ -125,6 +125,14 @@ class Run(models.Model):
     input_snapshot = models.JSONField(default=dict, blank=True)
     # Immutable, redacted record of bindings, tools and policy decisions.
     execution_plan = models.JSONField(default=dict, blank=True)
+    # The agent login the plan chose. Its runs per day count against its cap.
+    agent_connection = models.ForeignKey(
+        "connections.AgentConnection",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="runs",
+    )
     # The full report is in run_artifacts storage at output_path;
     # only its metadata and the tail are kept here.
     output_excerpt = models.TextField(blank=True)

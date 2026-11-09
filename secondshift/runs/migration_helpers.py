@@ -31,3 +31,24 @@ def backfill_tasks_v1(apps: Apps, schema_editor: BaseDatabaseSchemaEditor) -> No
         for run, task in zip(runs, tasks, strict=True):
             run.task_id = task.pk
         run_model.objects.using(alias).bulk_update(runs, ["task"])
+
+
+def backfill_agent_connections_v1(
+    apps: Apps, schema_editor: BaseDatabaseSchemaEditor
+) -> None:
+    """Record the agent login each ready plan chose, so its cap counts it."""
+    run_model = apps.get_model("runs", "Run")
+    login_model = apps.get_model("connections", "AgentConnection")
+    alias = schema_editor.connection.alias
+    logins = set(login_model.objects.using(alias).values_list("pk", flat=True))
+    runs = run_model.objects.using(alias).filter(
+        execution_plan__ready=True,
+        execution_plan__execution__connection_id__isnull=False,
+    )
+    changed = []
+    for run in runs.iterator():
+        login = run.execution_plan["execution"]["connection_id"]
+        if login in logins:
+            run.agent_connection_id = login
+            changed.append(run)
+    run_model.objects.using(alias).bulk_update(changed, ["agent_connection"], 500)

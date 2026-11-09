@@ -81,9 +81,7 @@ def save_agent_connection(
         raise AgentConnectionError("Only the login's owner can reconnect it.")
     if connection.backend != backend:
         raise AgentConnectionError("The agent backend cannot change during reconnect.")
-    connection.display_name = (
-        display_name.strip() or AgentBackend(backend).name.replace("_", " ").title()
-    )
+    connection.display_name = display_name.strip() or product_name(backend)
     connection.auth_data = cleaned
     connection.credential_key = uuid.uuid4()
     connection.connected = True

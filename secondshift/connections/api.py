@@ -1,3 +1,4 @@
+from typing import Any
 from urllib.parse import urlencode
 
 from django.conf import settings
@@ -19,6 +20,12 @@ from secondshift.connections.agents import (
 from secondshift.connections.dao import (
     workspace_agent_connections,
     workspace_connections,
+)
+from secondshift.connections.execution import (
+    apply_model_default,
+    execution_configuration,
+    save_execution_preference,
+    use_when_nothing_runs,
 )
 from secondshift.connections.github import connect_token_source
 from secondshift.connections.http_api.connections import (
@@ -62,6 +69,8 @@ from secondshift.connections.schemas import (
     APISpecSummarySchema,
     ConnectionSchema,
     ConnectionTestSchema,
+    ExecutionConfigurationSchema,
+    ExecutionPreferenceSchema,
     GitHubTokenConnectSchema,
     MCPConnectionCreateSchema,
     MCPConnectionUpdateSchema,
@@ -95,7 +104,6 @@ from secondshift.connections.webhooks import (
 )
 from secondshift.github.errors import GitHubError
 from secondshift.jobs.automatic_grants import approve_waiting_for, set_require_approval
-from secondshift.jobs.execution import apply_model_default, use_when_nothing_runs
 from secondshift.repositories.github_check import check_source
 from secondshift.runs.reporting.connection_usage import (
     ConnectionUsage,
@@ -722,3 +730,23 @@ def disconnect_agent(request: HttpRequest, connection_id: int) -> Status[None]:
     # A cached copy the runner keeps is removed by the worker.
     disconnect_agent_connection(connection)
     return Status(204, None)
+
+
+@router.get("/settings/agent", response=ExecutionConfigurationSchema)
+def default_agent(request: HttpRequest) -> dict[str, Any]:
+    workspace = current_workspace(request)
+    if workspace is None:
+        raise HttpError(404, "Choose a workspace first.")
+    return execution_configuration(workspace, request.user)
+
+
+@router.post("/settings/agent", response=ExecutionConfigurationSchema)
+def set_default_agent(
+    request: HttpRequest, payload: ExecutionPreferenceSchema
+) -> dict[str, Any]:
+    workspace = require(request, Action.REVIEW_CAPABILITIES)
+    try:
+        save_execution_preference(workspace, payload.key, request.user)
+    except ValidationError as error:
+        raise HttpError(422, error.messages[0]) from None
+    return execution_configuration(workspace, request.user)

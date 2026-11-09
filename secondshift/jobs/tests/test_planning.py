@@ -4,9 +4,9 @@ import pytest
 from django.contrib.auth import get_user_model
 
 from secondshift.config.constants import AgentBackend
+from secondshift.connections.execution import choose_execution
 from secondshift.connections.models import Connection
 from secondshift.jobs import planning
-from secondshift.jobs.execution import choose_execution
 from secondshift.jobs.manifest import TaskManifest
 from secondshift.jobs.models import CapabilityRequest, Job, JobGrant
 from secondshift.jobs.planning import build_execution_plan

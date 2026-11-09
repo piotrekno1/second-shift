@@ -7,6 +7,7 @@ from django.contrib.auth import get_user_model
 from django.test import Client
 
 from secondshift.config.constants import SENTRY_MCP_URL
+from secondshift.connections.execution import choose_execution
 from secondshift.connections.external import external_access
 from secondshift.connections.mcp.base import MCPError
 from secondshift.connections.mcp.client import (
@@ -17,7 +18,6 @@ from secondshift.connections.mcp.client import (
 from secondshift.connections.mcp.sentry import SENTRY_MCP, scoped_sentry_arguments
 from secondshift.connections.models import Connection
 from secondshift.connections.services import revoke_connection
-from secondshift.jobs.execution import choose_execution
 from secondshift.jobs.models import CapabilityRequest, Job, JobGrant
 from secondshift.jobs.planning import build_execution_plan
 from secondshift.repositories.models import Repository

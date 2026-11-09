@@ -12,6 +12,7 @@ from secondshift.config.constants import (
     AgentBackend,
 )
 from secondshift.connections.dao import connection_for_binding, connections_by_binding
+from secondshift.connections.execution import workspace_execution, workspace_model
 from secondshift.connections.external import EXTERNAL_KINDS
 from secondshift.connections.model_providers import provider_family
 from secondshift.connections.models import Connection
@@ -19,7 +20,6 @@ from secondshift.jobs.agent_policy import AgentPolicy, agent_plan
 from secondshift.jobs.automatic_grants import approves_automatically
 from secondshift.jobs.capabilities import RequestedCapability, manifest_capabilities
 from secondshift.jobs.dao import job_requests_with_grants
-from secondshift.jobs.execution import workspace_execution, workspace_model
 from secondshift.jobs.limits import effective_limits
 from secondshift.jobs.manifest import JobManifest, TaskManifest, manifest_hash
 from secondshift.jobs.models import Job, JobGrant

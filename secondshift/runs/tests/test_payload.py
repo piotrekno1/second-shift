@@ -8,8 +8,8 @@ from pydantic_ai import RunContext, RunUsage
 from pydantic_ai.models.test import TestModel
 
 from secondshift.config.constants import RunStart
+from secondshift.connections.execution import choose_execution
 from secondshift.connections.models import Connection
-from secondshift.jobs.execution import choose_execution
 from secondshift.jobs.models import Job
 from secondshift.repositories.models import Repository
 from secondshift.runs.artifacts import artifact_storage, run_payload

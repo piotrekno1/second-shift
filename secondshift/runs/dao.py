@@ -1,6 +1,5 @@
 """Queries and writes on runs, tasks, run events, deliveries, issues and leases."""
 
-from collections import Counter
 from collections.abc import Collection, Iterable
 from datetime import date, datetime
 from typing import Any
@@ -51,6 +50,12 @@ def lock_run_in(run_id: int, statuses: Collection[str]) -> Run | None:
 
 
 def create_run_record(**fields: Any) -> Run:
+    """A run counts against its agent login only when its plan was ready."""
+    plan = fields.get("execution_plan") or {}
+    if plan.get("ready"):
+        fields["agent_connection_id"] = (plan.get("execution") or {}).get(
+            "connection_id"
+        )
     return Run.objects.create(**fields)
 
 
@@ -264,18 +269,6 @@ def delete_runs(runs: list[Run]) -> None:
 
 
 # Reporting
-
-
-def login_run_counts(workspace_id: int, since: datetime) -> Counter[int]:
-    """Runs per agent login since then. Only runs whose plan was ready count."""
-    return Counter(
-        Run.objects.filter(
-            run_workspace_filter(workspace_id),
-            created_at__gte=since,
-            execution_plan__ready=True,
-            execution_plan__execution__connection_id__isnull=False,
-        ).values_list("execution_plan__execution__connection_id", flat=True)
-    )
 
 
 def run_counts(workspace_id: int, start: datetime, previous_start: datetime) -> dict:

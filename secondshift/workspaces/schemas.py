@@ -147,7 +147,3 @@ class ApiTokenCreateSchema(Schema):
 class NewApiTokenSchema(ApiTokenSchema):
     # Shown once, right after creating it. It cannot be looked up later.
     token: str
-
-
-class ExecutionPreferenceSchema(Schema):
-    key: str = Field(max_length=100)

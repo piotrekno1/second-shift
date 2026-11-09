@@ -3,9 +3,9 @@ from django.contrib.auth import get_user_model
 from pydantic_ai.models.anthropic import AnthropicModel
 from pydantic_ai.models.openai import OpenAIChatModel, OpenAIResponsesModel
 
+from secondshift.connections.execution import choose_execution
 from secondshift.connections.models import Connection
 from secondshift.gateway.tokens import authenticate
-from secondshift.jobs.execution import choose_execution
 from secondshift.jobs.models import Job
 from secondshift.jobs.planning import build_execution_plan
 from secondshift.repositories.models import Repository

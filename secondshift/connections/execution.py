@@ -1,28 +1,36 @@
-"""Resolve workspace execution and freeze it into each new run plan."""
+"""What runs a workspace's jobs: one model key or one agent login."""
 
+from collections import Counter
 from dataclasses import dataclass
+from datetime import timedelta
 from typing import Any
 
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
+from django.utils import timezone
 
 from secondshift.config.constants import AgentBackend
-from secondshift.connections.agents import sign_in_refused, usable_agent_connection
+from secondshift.connections.agents import (
+    product_name,
+    sign_in_refused,
+    usable_agent_connection,
+)
 from secondshift.connections.dao import (
     connected_logins,
     has_models_or_logins,
+    login_run_counts,
     usable_models,
 )
 from secondshift.connections.models import AgentConnection, Connection
-from secondshift.jobs.models import Job
-from secondshift.runs.reporting.connection_usage import agent_login_runs
 from secondshift.workspaces.models import Workspace
 
 # Choice keys name one model key or one login, for example "model:3" or "agent:7".
 MODEL_PREFIX = "model:"
 AGENT_PREFIX = "agent:"
 NOTHING_CHOSEN = "Choose a model API key or a subscription to run jobs."
+# A login's runs per day count over this rolling window.
+RUN_CAP_WINDOW = timedelta(hours=24)
 
 
 @dataclass(frozen=True)
@@ -39,6 +47,11 @@ class ExecutionSelection:
         return not self.problem and (
             self.connection is not None or self.model is not None
         )
+
+
+def recent_login_runs(workspace_id: int) -> Counter[int]:
+    """Runs per agent login in the cap window. Only ready plans used a login."""
+    return login_run_counts(workspace_id, timezone.now() - RUN_CAP_WINDOW)
 
 
 def cli_enabled() -> bool:
@@ -87,7 +100,7 @@ def subscription_problem(connection: AgentConnection, workspace: Workspace) -> s
     if not usable_agent_connection(connection, workspace.pk):
         return f"The agent login {connection.display_name} belongs to someone who is no longer a workspace owner."
     cap = connection.max_runs_per_day
-    if cap is not None and agent_login_runs(workspace.pk)[connection.pk] >= cap:
+    if cap is not None and recent_login_runs(workspace.pk)[connection.pk] >= cap:
         return (
             f"The agent login {connection.display_name} reached its limit of "
             f"{cap} runs in 24 hours. Raise its limit or wait."
@@ -99,7 +112,7 @@ def subscription_selection(
     connection: AgentConnection, workspace: Workspace
 ) -> ExecutionSelection:
     backend = AgentBackend(connection.backend)
-    product = backend.name.replace("_", " ").title()
+    product = product_name(backend)
     return ExecutionSelection(
         key=f"{AGENT_PREFIX}{connection.pk}",
         label=f"{product} subscription · {connection.display_name}",
@@ -121,10 +134,6 @@ def workspace_execution(workspace: Workspace) -> ExecutionSelection:
         backend=AgentBackend.PYDANTIC,
         problem=NOTHING_CHOSEN,
     )
-
-
-def job_execution(job: Job) -> ExecutionSelection:
-    return workspace_execution(job.workspace)
 
 
 def execution_choices(workspace: Workspace, user: User) -> list[ExecutionSelection]:
@@ -169,11 +178,6 @@ def execution_configuration(workspace: Workspace, user: User) -> dict[str, Any]:
     }
 
 
-def has_anything_to_choose(workspace: Workspace) -> bool:
-    """Whether a model provider or a login is saved. One query for both."""
-    return has_models_or_logins(workspace.pk)
-
-
 def execution_status(workspace: Workspace) -> dict[str, Any]:
     """What runs the jobs, why runs would fail, and where to fix it."""
     selected = workspace_execution(workspace)
@@ -183,7 +187,7 @@ def execution_status(workspace: Workspace) -> dict[str, Any]:
         "backend": selected.backend,
         "problem": selected.problem,
         "chosen": not nothing_chosen,
-        "needs_setup": nothing_chosen and not has_anything_to_choose(workspace),
+        "needs_setup": nothing_chosen and not has_models_or_logins(workspace.pk),
         # The chosen model provider, so the page can open it ready to fix.
         "fix_connection_id": workspace.default_model_connection_id
         if selected.problem and not nothing_chosen and selected.backend.uses_model_api
