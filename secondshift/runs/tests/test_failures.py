@@ -244,6 +244,10 @@ def test_model_provider_and_tool_rule_errors_get_their_own_kind() -> None:
             "The durable workflow could not be enqueued.",
             ("not_queued", "The durable workflow could not be enqueued."),
         ),
+        (
+            "The durable workflow failed unexpectedly (KeyError).",
+            ("other", "Unexpected KeyError."),
+        ),
         ("Timed out", ("other", "Timed out")),
     ],
 )

@@ -260,6 +260,7 @@ STAGES_V1 = {"starting", "checkout", "sandbox", "skill", "finishing"}
 ENQUEUE_FAILED_V1 = "The durable workflow could not be enqueued."
 MODEL_PROVIDER_PREFIX_V1 = "The model provider answered "
 TOOL_RULE_PREFIX_V1 = "Blocked by a tool restriction: "
+WORKFLOW_PREFIX_V1 = "The durable workflow failed unexpectedly ("
 
 
 def failure_from_summary_v1(summary: str) -> tuple[str, str]:
@@ -267,6 +268,8 @@ def failure_from_summary_v1(summary: str) -> tuple[str, str]:
     if summary == ENQUEUE_FAILED_V1:
         return "not_queued", summary
     text = " ".join(summary.split())
+    if text.startswith(WORKFLOW_PREFIX_V1) and text.endswith(")."):
+        return "other", f"Unexpected {text[len(WORKFLOW_PREFIX_V1) : -2]}."
     for headline, kind in FAILURE_HEADLINES_V1.items():
         if not text.startswith(f"{headline}: "):
             continue
