@@ -26,6 +26,7 @@ from secondshift.connections.http_api.spec import (
     read_spec,
 )
 from secondshift.connections.models import Connection
+from secondshift.connections.services import connection_target
 from secondshift.jobs.models import CapabilityRequest, Job, JobGrant
 from secondshift.jobs.planning import build_execution_plan
 from secondshift.jobs.serialization import serialize_job
@@ -307,7 +308,7 @@ def test_connect_selects_get_operations_and_stores_no_secret_in_metadata(
     assert connection.kind == Connection.Kind.API
     assert connection.display_name == "Billing"
     assert connection.endpoint_url == BASE
-    assert connection.metadata["target"] == "api.example.com"
+    assert connection_target(connection) == "api.example.com"
     assert connection.available_tools == ["get_charges_chargeId", "listCharges", "tree"]
     assert set(connection.metadata["offered_tools"]) >= {"createCharge", "deleteCharge"}
     assert TOKEN not in json.dumps(connection.metadata)

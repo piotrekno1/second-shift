@@ -11,11 +11,8 @@ class ConnectionConflict(ValueError):
 
 
 def connection_target(connection: Connection) -> str:
-    if connection.provider == Connection.Provider.WEBHOOK or (
-        connection.kind in {Connection.Kind.MODEL, Connection.Kind.MCP}
-    ):
-        return str(connection.metadata.get("target", ""))
-    return ""
+    """The host a connection reaches, as saved when it was set up."""
+    return str(connection.metadata.get("target", ""))
 
 
 def create_webhook_connection(
