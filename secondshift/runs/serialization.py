@@ -36,7 +36,7 @@ def run_failure(run: Run) -> RunFailureSchema | None:
     if run.failure == RunFailure.MODEL_PROVIDER:
         model = run.plan.model
         connection_id = model.connection_id if model else None
-        name = model.connection_name if model else "the model connection"
+        name = (model.connection_name if model else "") or "the model connection"
         next_step = model_provider_next_step(view.reason, name)
     elif run.failure == RunFailure.TOOL_RULE:
         next_step = TOOL_RULE_NEXT_STEP
@@ -86,7 +86,7 @@ def serialize_run(run: Run) -> RunSchema:
         summary=run.summary,
         plan_ready=run.plan.ready,
         commit_sha=run.commit_sha,
-        model=run.plan.model.default_model if run.plan.model else None,
+        model=(run.plan.model.default_model if run.plan.model else "") or None,
         # Agent CLIs do not report model calls, so a turn count would read 0.
         max_turns=run.plan.limit(RunLimit.MAX_TURNS) if api else None,
         token_budget=run.plan.limit(RunLimit.TOKEN_BUDGET),
