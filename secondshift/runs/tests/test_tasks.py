@@ -146,9 +146,9 @@ def test_retention_keeps_task_until_its_last_attempt_expires(job: Job) -> None:
 
 
 @pytest.mark.django_db(transaction=True)
-def test_migration_gives_every_run_a_task_in_its_repository(job: Job) -> None:
-    before = [("runs", "0019_task_fingerprint")]
-    after = [("runs", "0020_assign_task_repositories")]
+def test_upgrading_from_the_last_release_keeps_every_run(job: Job) -> None:
+    before = [("runs", "0012_alter_rundelivery_status")]
+    after = [("runs", "0013_release_0_1_0b11")]
     executor = MigrationExecutor(connection)
     executor.migrate(before)
     try:
@@ -156,21 +156,20 @@ def test_migration_gives_every_run_a_task_in_its_repository(job: Job) -> None:
         old_run = old_apps.get_model("runs", "Run")
         old_task = old_apps.get_model("runs", "Task")
         now = timezone.now()
-        fields = {
-            "started_by": RunStart.SCHEDULE,
-            "commit_sha": "a" * 40,
-            "execution_plan": stored_plan(),
-        }
+        fields = {"commit_sha": "a" * 40, "execution_plan": stored_plan()}
         without_task = old_run.objects.create(
-            job_id=job.pk, scheduled_for=now, **fields
+            job_id=job.pk, started_by="schedule", scheduled_for=now, **fields
         )
         job_task = old_task.objects.create(
             job_id=job.pk, commit_sha="a" * 40, scheduled_for=now
         )
-        old_run.objects.create(
+        not_queued = old_run.objects.create(
             job_id=job.pk,
             task=job_task,
+            started_by="manual",
             scheduled_for=now + timedelta(seconds=1),
+            status="failed",
+            summary="The durable workflow could not be enqueued.",
             **fields,
         )
         submitted = old_task.objects.create(
@@ -186,7 +185,6 @@ def test_migration_gives_every_run_a_task_in_its_repository(job: Job) -> None:
         task_model = apps.get_model("runs", "Task")
         run_model = apps.get_model("runs", "Run")
 
-        assert not run_model.objects.filter(task__isnull=True).exists()
         assert run_model.objects.get(pk=without_task.pk).task.repository_id == (
             job.repository_id
         )
@@ -194,6 +192,7 @@ def test_migration_gives_every_run_a_task_in_its_repository(job: Job) -> None:
             job.repository_id
         )
         assert task_model.objects.get(pk=submitted.pk).fingerprint == "f" * 64
+        assert run_model.objects.get(pk=not_queued.pk).failure == "not_queued"
     finally:
         executor = MigrationExecutor(connection)
         executor.migrate(executor.loader.graph.leaf_nodes())
