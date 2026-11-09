@@ -2,8 +2,13 @@
 const github = 'https://github.com/piotrekno1/second-shift';
 const site = 'https://second-shift.app/';
 const shareImage = new URL(shareImageAsset.src, site).href;
-const title = 'SecondShift: stop prompting agents for the same work';
-const description = 'Define recurring agent work once in Git. SecondShift runs it for the whole team in a sandbox without your keys. Open source and self-hosted.';
+const headline = 'Give agents the';
+const headlineAccent = 'busywork.';
+const title = `SecondShift | ${headline} ${headlineAccent}`;
+const description = 'Define agent tasks in Git. SecondShift runs them in a sandbox with approved tools and delivers results to Slack, your coding agent, or GitHub. Open source and self-hosted.';
+const quickstart = '/docs/quickstart/';
+const quickstartLabel = 'Try it locally →';
+const deployment = '/docs/production-deployment/';
 import demoPoster from '../assets/official-audit-walkthrough.jpg';
 import demoCaptions from '../assets/official-audit-walkthrough.vtt?url&no-inline';
 import shareImageAsset from '../assets/og.png';
@@ -104,23 +109,20 @@ const stackRows = [
       main { padding: 0 0 56px; }
       .hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); align-items: center; gap: clamp(30px, 5vw, 64px); padding: 30px 0 36px; }
       .hero-copy { min-width: 0; }
-      .label { margin: 0 0 25px; color: #ffb454; font: 11px 'Geist Mono', ui-monospace, monospace; letter-spacing: .06em; }
-      h1 { max-width: 570px; margin: 0; font-size: clamp(42px, 4.2vw, 60px); font-weight: 500; line-height: 1.02; letter-spacing: -.07em; }
-      .hero-wordmark { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; font-size: clamp(25px, 2.4vw, 32px); font-weight: 600; letter-spacing: -.035em; }
+      h1 { max-width: 570px; margin: 0; font-size: clamp(42px, 4.2vw, 60px); font-weight: 500; line-height: 1.02; letter-spacing: -.07em; text-wrap: balance; }
+      .hero-wordmark { display: flex; align-items: center; gap: 10px; margin: 0 0 18px; font-size: clamp(25px, 2.4vw, 32px); font-weight: 600; letter-spacing: -.035em; }
       .hero-wordmark img { width: 34px; height: 34px; flex: none; }
-      .hero-statement { display: block; }
-      h1 em { color: #ffb454; font-style: normal; }
+      .hero-accent { color: #ffb454; }
       .lead { max-width: 470px; margin: 18px 0 0; color: #b5b5b5; font-size: 16px; line-height: 1.6; }
       .actions { margin-top: 22px; display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
       .secondary-action { font-size: 13px; color: #ededed; }
       .secondary-action:hover { color: #ffb454; }
       .workflow { padding: 28px 0; border-top: 1px solid #303030; }
-      .workflow h2 { margin: 0 0 8px; font-size: 25px; font-weight: 500; letter-spacing: -.035em; }
+      .workflow h2 { margin: 0 0 18px; font-size: 25px; font-weight: 500; letter-spacing: -.035em; }
       .workflow h3 { margin: 16px 0 10px; font-size: 23px; font-weight: 500; }
       .workflow p { margin: 0 0 12px; color: #b5b5b5; font-size: 14px; line-height: 1.65; }
-      .workflow a, .setup-strip a { color: #ffb454; font-size: 13px; }
-      .workflow a:hover, .setup-strip a:hover { text-decoration: underline; }
-      .workflow-intro { margin-bottom: 20px !important; }
+      .workflow a { color: #ffb454; font-size: 13px; }
+      .workflow a:hover { text-decoration: underline; }
       .workflow-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); list-style: none; padding: 0; margin: 0; gap: 30px; }
       .workflow-steps li { position: relative; min-width: 0; padding: 12px 0 4px; border-top: 1px solid #45413a; display: flex; flex-direction: column; }
       .step-top { display: flex; align-items: center; gap: 10px; }
@@ -133,11 +135,9 @@ const stackRows = [
         .workflow-steps { grid-template-columns: 1fr; gap: 18px; }
         .workflow h2 { font-size: 23px; }
       }
-      .setup-strip { display: flex; flex-wrap: wrap; gap: 8px 28px; padding: 18px 0; border-top: 1px solid #303030; color: #b5b5b5; font-size: 13px; line-height: 1.6; }
-      .setup-strip p { margin: 0; }
-      .setup-strip strong { color: #ededed; font-weight: 500; }
       .button { display: inline-flex; align-items: center; min-height: 44px; padding: 0 17px; border-radius: 8px; background: #ededed; color: #0d0d0d; font-size: 13px; font-weight: 600; }
       .button:hover { background: #fff; }
+      a:focus-visible { outline: 2px solid #ffb454; outline-offset: 4px; }
       .stack-strip { display: flex; align-items: center; gap: 22px; min-width: 0; padding: 0 0 14px; }
       .stack-intro { flex: none; color: #ffb454; font: 11px 'Geist Mono', ui-monospace, monospace; white-space: nowrap; }
       .stack-window { height: 42px; flex: 1; min-width: 0; overflow: hidden; }
@@ -169,10 +169,14 @@ const stackRows = [
         .stack-window { height: auto; }
         .stack-track { animation: none; }
         .stack-row[aria-hidden="true"] { display: none; }
-        .first-screen { display: block; }
       }
-      .showcase { min-width: 0; transform: rotate(1deg); }
-      .showcase video { display: block; width: 100%; aspect-ratio: 16 / 9; border: 1px solid #373737; border-radius: 4px; background: #0d0d0d; object-fit: contain; box-shadow: 18px 20px 0 #222; }
+      .showcase { min-width: 0; margin: 0; }
+      .showcase video { display: block; width: 100%; aspect-ratio: 16 / 9; border: 1px solid #373737; border-radius: 4px; background: #0d0d0d; object-fit: contain; box-shadow: 12px 12px 0 #222; }
+      .showcase figcaption { display: grid; gap: 3px; margin-top: 22px; color: #b5b5b5; font-size: 14px; line-height: 1.5; }
+      .showcase figcaption strong { color: #ededed; font-weight: 600; }
+      .closing { padding-top: 24px; border-top: 1px solid #303030; }
+      .closing h2 { margin: 0; font-size: 25px; font-weight: 500; letter-spacing: -.035em; }
+      .closing .actions { margin-top: 12px; }
       .example { padding: 24px 0 32px; border-top: 1px solid #303030; }
       .example-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 24px; margin-bottom: 16px; }
       .example h2 { margin: 0; font-size: 25px; font-weight: 500; letter-spacing: -.045em; }
@@ -194,13 +198,13 @@ const stackRows = [
       }
       @media (max-width: 700px) {
         .shell { width: calc(100% - 36px); }
-        .hero { grid-template-columns: 1fr; gap: 26px; padding: 24px 0 32px; }
+        .hero { grid-template-columns: 1fr; gap: 26px; padding: 24px 0 28px; }
         h1 { font-size: clamp(38px, 9vw, 48px); }
         .hero-wordmark { font-size: 24px; margin-bottom: 14px; }
         .hero-wordmark img { width: 28px; height: 28px; }
         .lead { margin-top: 16px; }
-        .showcase { transform: none; }
         .showcase video { box-shadow: 6px 7px 0 #222; }
+        .showcase figcaption { margin-top: 14px; }
         .stack-strip { gap: 8px; }
         .stack-row { gap: 8px; padding: 0 4px; }
         .stack-kind { width: 51px; font-size: 11px; }
@@ -224,21 +228,27 @@ const stackRows = [
         <nav><a class="docs-link" href="/docs/overview/">Docs</a><a class="star-link" href={github} target="_blank" rel="noopener noreferrer" aria-label="Star SecondShift on GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2.5 2.9 6 6.6 1-4.8 4.7 1.1 6.7-5.8-3.1-5.8 3.1 1.1-6.7-4.8-4.7 6.6-1z"/></svg><span>Star</span><span class="star-count" id="star-count" hidden></span></a></nav>
       </header>
       <main>
-        <div class="first-screen">
         <div class="hero">
           <div class="hero-copy">
-            <h1><span class="hero-wordmark"><img src="/secondshift-mark.svg" alt="" />SecondShift</span><span class="hero-statement">runs the agent work you keep <em>asking for.</em></span></h1>
-            <p class="lead">Define it once in Git. SecondShift runs it for the whole team, in a sandbox without your keys. Results arrive in Slack, your coding agent, or directly as issues and pull requests.</p>
-            <div class="actions"><a class="button" href="/docs/quickstart/">Try it locally →</a><a class="secondary-action" href="/docs/production-deployment/">Deploy for your team →</a></div>
+            <p class="hero-wordmark"><img src="/secondshift-mark.svg" alt="" />SecondShift</p>
+            <h1>{headline} <span class="hero-accent">{headlineAccent}</span></h1>
+            <p class="lead">Define your team’s agent tasks in Git. Run them on demand, on a schedule, or when an alert fires.</p>
+            <div class="actions">
+              <a class="button" href={quickstart}>{quickstartLabel}</a>
+              <a class="secondary-action" href={deployment}>Deploy for your team →</a>
+            </div>
           </div>
-          <div class="showcase">
-            <video controls playsinline preload="metadata" poster={demoPoster.src} aria-label="SecondShift walkthrough showing manual and scheduled audits, a GitHub issue, and a nightly draft pull request">
+          <figure class="showcase">
+            <video controls playsinline preload="metadata" poster={demoPoster.src} aria-describedby="demo-caption" aria-labelledby="demo-title">
               <source src="https://github.com/user-attachments/assets/69cbc92f-72f6-45fb-98ad-27b4b1056581" type="video/mp4" />
               <track kind="captions" src={demoCaptions} srclang="en" label="English" />
               <a href="https://github.com/user-attachments/assets/69cbc92f-72f6-45fb-98ad-27b4b1056581">Watch the product demo</a>
             </video>
-          </div>
-        </div>
+            <figcaption>
+              <strong id="demo-title">Security audit walkthrough</strong>
+              <span id="demo-caption">Follow a scheduled audit from a verified finding to a GitHub issue and a draft pull request.</span>
+            </figcaption>
+          </figure>
         </div>
         <div class="stack-strip" aria-label="Services that work with SecondShift">
           <span class="stack-intro">Works with</span>
@@ -267,9 +277,8 @@ const stackRows = [
           </div>
         </div>
         <section class="workflow" aria-labelledby="workflow-title">
-          <h2 id="workflow-title">Turn your skills into your team’s heartbeat.</h2>
-          <p class="workflow-intro">Run the checks, reviews, and tasks that keep your team running.</p>
-          <ol class="workflow-steps" aria-label="How a skill becomes a job">
+          <h2 id="workflow-title">How a skill becomes a job</h2>
+          <ol class="workflow-steps" role="list">
             <li>
               <div class="step-top"><span class="step-number">01</span><span class="step-label">Developers</span></div>
               <h3>Write a skill.</h3>
@@ -290,10 +299,6 @@ const stackRows = [
             </li>
           </ol>
         </section>
-        <div class="setup-strip" aria-label="Deployment options">
-          <p><strong>For yourself:</strong> run locally and manage your own skills. <a href="/docs/quickstart/">Try it locally →</a></p>
-          <p><strong>For your team:</strong> share a server, approvals, and run history. <a href="/docs/production-deployment/">Deploy →</a></p>
-        </div>
         <section class="example" aria-labelledby="example-title">
           <div class="example-heading">
             <h2 id="example-title">Simplest example</h2>
@@ -330,6 +335,13 @@ Do not modify files.</code></pre>
             </div>
           </div>
           <p class="example-caption">Runs every Monday at 08:00 UTC, reads last week’s report, and posts the result to Slack.</p>
+        </section>
+        <section class="closing" aria-labelledby="closing-title">
+          <h2 id="closing-title">Try running your first skill</h2>
+          <div class="actions">
+            <a class="button" href={quickstart}>{quickstartLabel}</a>
+            <a class="secondary-action" href={deployment}>Deploy for your team →</a>
+          </div>
         </section>
       </main>
     </div>
