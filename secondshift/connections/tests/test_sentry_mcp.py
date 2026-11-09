@@ -79,7 +79,7 @@ def sentry_http(monkeypatch) -> list[httpx.Request]:
         )
 
     monkeypatch.setattr(
-        "secondshift.connections.mcp.client.MCPTransport",
+        "secondshift.connections.outbound.BoundedTransport",
         lambda: httpx.MockTransport(handle),
     )
     return requests
@@ -325,7 +325,7 @@ def test_failed_check_leaves_saved_connection_alone(
 ) -> None:
     connection = connect(workspace)
     monkeypatch.setattr(
-        "secondshift.connections.mcp.client.MCPTransport",
+        "secondshift.connections.outbound.BoundedTransport",
         lambda: httpx.MockTransport(lambda request: httpx.Response(401)),
     )
     with pytest.raises(MCPError, match="request failed"):

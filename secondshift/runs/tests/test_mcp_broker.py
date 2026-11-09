@@ -146,7 +146,7 @@ def test_custom_mcp_failure_reaches_model_as_bounded_untrusted_data(
     prefix = reason.ljust(495, ".")
     remote = prefix + token + "discard this tail"
     monkeypatch.setattr(
-        "secondshift.connections.mcp.client.MCPTransport",
+        "secondshift.connections.outbound.BoundedTransport",
         lambda: tool_error_transport(remote),
     )
     tool = next(

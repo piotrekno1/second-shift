@@ -1,6 +1,6 @@
 import ipaddress
 import socket
-from collections.abc import Iterable
+from collections.abc import AsyncIterator, Iterable
 from urllib.parse import urlsplit
 
 import anyio
@@ -256,3 +256,62 @@ class PinnedSyncTransport(httpx.HTTPTransport):
             keepalive_expiry=limits.keepalive_expiry,
             network_backend=PinnedSyncNetworkBackend(),
         )
+
+
+# The most a response from a configured service may send.
+RESPONSE_MAX_BYTES = 2 * 1024 * 1024
+
+
+class OutboundResponseError(Exception):
+    """A response SecondShift will not read."""
+
+
+class BoundedStream(httpx.AsyncByteStream):
+    def __init__(self, inner: httpx.AsyncByteStream) -> None:
+        self.inner = inner
+
+    async def __aiter__(self) -> AsyncIterator[bytes]:
+        size = 0
+        async for chunk in self.inner:
+            size += len(chunk)
+            if size > RESPONSE_MAX_BYTES:
+                raise OutboundResponseError("The response exceeded the size limit.")
+            yield chunk
+
+    async def aclose(self) -> None:
+        await self.inner.aclose()
+
+
+class BoundedTransport(PinnedTransport):
+    """A pinned transport that refuses compressed and oversized responses."""
+
+    async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
+        response = await super().handle_async_request(request)
+        if response.headers.get("content-encoding", "identity") != "identity":
+            await response.aclose()
+            raise OutboundResponseError("Compressed responses are not supported.")
+        response.stream = BoundedStream(response.stream)
+        return response
+
+
+def outbound_client(headers: dict[str, str]) -> httpx.AsyncClient:
+    """A client for a service a person configured. It connects only to vetted
+    addresses, ignores proxy settings, follows no redirects and reads at most
+    RESPONSE_MAX_BYTES."""
+    return httpx.AsyncClient(
+        transport=BoundedTransport(),
+        headers={**headers, "Accept-Encoding": "identity"},
+        timeout=settings.OUTBOUND_TIMEOUT_SECONDS,
+        follow_redirects=False,
+        trust_env=False,
+    )
+
+
+def outbound_sync_client() -> httpx.Client:
+    """The blocking client for a configured service, pinned the same way."""
+    return httpx.Client(
+        transport=PinnedSyncTransport(),
+        timeout=settings.OUTBOUND_TIMEOUT_SECONDS,
+        follow_redirects=False,
+        trust_env=False,
+    )

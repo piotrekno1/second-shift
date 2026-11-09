@@ -12,7 +12,6 @@ from typing import Any
 from urllib.parse import urljoin, urlsplit
 
 import anyio
-import httpx
 import yaml
 from asgiref.sync import async_to_sync
 from django.conf import settings
@@ -24,8 +23,11 @@ from secondshift.connections.errors import (
     ExternalToolError,
     ToolArgumentError,
 )
-from secondshift.connections.mcp.transport import MCPTransport
-from secondshift.connections.outbound import OutboundUrlError, validate_outbound_url
+from secondshift.connections.outbound import (
+    OutboundUrlError,
+    outbound_client,
+    validate_outbound_url,
+)
 
 SPEC_MAX_BYTES = 5 * 1024 * 1024
 MAX_OPERATIONS = 500
@@ -124,15 +126,8 @@ def parse_document(text: str) -> dict[str, Any]:
 async def fetch_text(url: str) -> str:
     try:
         with anyio.fail_after(settings.OUTBOUND_TIMEOUT_SECONDS):
-            async with httpx.AsyncClient(
-                transport=MCPTransport(),
-                headers={
-                    "Accept": "application/json, application/yaml, text/yaml, */*",
-                    "Accept-Encoding": "identity",
-                },
-                timeout=settings.OUTBOUND_TIMEOUT_SECONDS,
-                follow_redirects=False,
-                trust_env=False,
+            async with outbound_client(
+                {"Accept": "application/json, application/yaml, text/yaml, */*"}
             ) as client:
                 response = await client.get(url)
                 body = await response.aread()

@@ -5,7 +5,11 @@ import httpcore
 import pytest
 
 from secondshift.connections.outbound import (
+    BoundedTransport,
     OutboundUrlError,
+    PinnedSyncTransport,
+    outbound_client,
+    outbound_sync_client,
     validate_outbound_url,
     vetted_addresses,
 )
@@ -85,3 +89,14 @@ def test_messages_keep_url_in_capitals(settings: Any) -> None:
 
     with pytest.raises(OutboundUrlError, match=r"^Base URLs must use HTTPS"):
         validate_outbound_url("http://example.com", "base URL")
+
+
+def test_clients_for_configured_services_are_pinned_and_follow_no_redirects() -> None:
+    async_client = outbound_client({"Accept": "application/json"})
+    sync_client = outbound_sync_client()
+
+    assert isinstance(async_client._transport, BoundedTransport)
+    assert isinstance(sync_client._transport, PinnedSyncTransport)
+    assert async_client.follow_redirects is False
+    assert sync_client.follow_redirects is False
+    assert async_client.headers["Accept-Encoding"] == "identity"

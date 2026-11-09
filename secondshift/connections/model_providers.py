@@ -14,6 +14,7 @@ from secondshift.connections.models import Connection
 from secondshift.connections.outbound import (
     OutboundUrlError,
     host_label,
+    outbound_sync_client,
     validate_outbound_url,
 )
 from secondshift.workspaces.models import Workspace
@@ -171,6 +172,7 @@ def list_anthropic_models(connection: Connection) -> list[str]:
         base_url=base_url(connection),
         max_retries=0,
         timeout=settings.OUTBOUND_TIMEOUT_SECONDS,
+        http_client=outbound_sync_client(),
     )
     return [model.id for model in client.models.list()]
 
@@ -180,12 +182,8 @@ def list_openai_models(connection: Connection) -> list[str]:
     headers = {"Accept": "application/json"}
     if connection.access_token:
         headers["Authorization"] = f"Bearer {connection.access_token}"
-    response = httpx.get(
-        url,
-        headers=headers,
-        timeout=settings.OUTBOUND_TIMEOUT_SECONDS,
-        follow_redirects=False,
-    )
+    with outbound_sync_client() as client:
+        response = client.get(url, headers=headers)
     if response.status_code in {401, 403}:
         raise ModelProviderError("The provider rejected the API key.")
     if response.status_code != 200:
@@ -244,6 +242,7 @@ def call_anthropic(connection: Connection, model: str) -> str | None:
         base_url=base_url(connection),
         max_retries=0,
         timeout=settings.OUTBOUND_TIMEOUT_SECONDS,
+        http_client=outbound_sync_client(),
     )
     try:
         client.messages.create(
@@ -276,13 +275,8 @@ def call_openai_family(connection: Connection, model: str) -> str | None:
     headers = {"Accept": "application/json", "Content-Type": "application/json"}
     if connection.access_token:
         headers["Authorization"] = f"Bearer {connection.access_token}"
-    response = httpx.post(
-        url,
-        json=body,
-        headers=headers,
-        timeout=settings.OUTBOUND_TIMEOUT_SECONDS,
-        follow_redirects=False,
-    )
+    with outbound_sync_client() as client:
+        response = client.post(url, json=body, headers=headers)
     if response.status_code == 200:
         return None
     return call_failure(response.status_code, model, provider_message(response))

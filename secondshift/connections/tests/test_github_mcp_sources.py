@@ -75,7 +75,7 @@ def mcp_tokens(monkeypatch: pytest.MonkeyPatch) -> list[str]:
         )
 
     monkeypatch.setattr(
-        "secondshift.connections.mcp.client.MCPTransport",
+        "secondshift.connections.outbound.BoundedTransport",
         lambda: httpx.MockTransport(handle),
     )
     return tokens

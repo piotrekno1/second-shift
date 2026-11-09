@@ -161,11 +161,10 @@ def fake(monkeypatch) -> FakeAPI:
         ],
     )
     api = FakeAPI()
-    for module in ("spec", "client"):
-        monkeypatch.setattr(
-            f"secondshift.connections.http_api.{module}.MCPTransport",
-            lambda: httpx.MockTransport(api.handle),
-        )
+    monkeypatch.setattr(
+        "secondshift.connections.outbound.BoundedTransport",
+        lambda: httpx.MockTransport(api.handle),
+    )
     return api
 
 

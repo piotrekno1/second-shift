@@ -6,7 +6,6 @@ from datetime import timedelta
 from typing import Any
 
 import anyio
-import httpx
 from asgiref.sync import async_to_sync
 from django.conf import settings
 from django.db import IntegrityError, transaction
@@ -26,12 +25,12 @@ from secondshift.connections.mcp.base import (
 from secondshift.connections.mcp.oauth import fresh_connection
 from secondshift.connections.mcp.providers import connection_settings, mcp_provider
 from secondshift.connections.mcp.schemas import validate_tool_schema
-from secondshift.connections.mcp.transport import (
-    MCP_RESPONSE_MAX_BYTES,
-    MCPTransport,
-)
 from secondshift.connections.models import Connection
-from secondshift.connections.outbound import host_label
+from secondshift.connections.outbound import (
+    RESPONSE_MAX_BYTES,
+    host_label,
+    outbound_client,
+)
 from secondshift.connections.services import ConnectionConflict
 from secondshift.workspaces.models import Workspace
 
@@ -85,16 +84,11 @@ async def mcp_request(
     try:
         with anyio.fail_after(settings.OUTBOUND_TIMEOUT_SECONDS):
             async with (
-                httpx.AsyncClient(
-                    transport=MCPTransport(),
-                    headers={
+                outbound_client(
+                    {
                         **provider.headers,
-                        "Authorization": (f"{provider.auth_scheme} {secret}"),
-                        "Accept-Encoding": "identity",
-                    },
-                    timeout=settings.OUTBOUND_TIMEOUT_SECONDS,
-                    follow_redirects=False,
-                    trust_env=False,
+                        "Authorization": f"{provider.auth_scheme} {secret}",
+                    }
                 ) as client,
                 streamable_http_client(connection.endpoint_url, http_client=client) as (
                     reader,
@@ -133,7 +127,7 @@ async def mcp_request(
                 raise CustomMCPToolError(message, reason[:MCP_ERROR_REASON_MAX_CHARS])
         raise MCPRequestError(message)
     encoded = json.dumps(payload)
-    if len(encoded.encode()) > MCP_RESPONSE_MAX_BYTES:
+    if len(encoded.encode()) > RESPONSE_MAX_BYTES:
         raise MCPError("The MCP result exceeded the size limit.")
     return json.loads(encoded.replace(secret, "[redacted]"))
 

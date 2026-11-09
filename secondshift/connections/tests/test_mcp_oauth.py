@@ -153,11 +153,10 @@ class FakeServer:
 @pytest.fixture
 def fake(monkeypatch) -> FakeServer:
     server = FakeServer()
-    for module in ("oauth", "client"):
-        monkeypatch.setattr(
-            f"secondshift.connections.mcp.{module}.MCPTransport",
-            lambda: httpx.MockTransport(server.handle),
-        )
+    monkeypatch.setattr(
+        "secondshift.connections.outbound.BoundedTransport",
+        lambda: httpx.MockTransport(server.handle),
+    )
     return server
 
 
