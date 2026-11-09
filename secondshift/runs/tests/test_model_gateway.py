@@ -10,6 +10,7 @@ from secondshift.gateway.tokens import authenticate
 from secondshift.jobs.models import Job
 from secondshift.jobs.planning import build_execution_plan
 from secondshift.repositories.models import Repository
+from secondshift.runs.dao import create_task
 from secondshift.runs.execution.model_gateway import (
     ModelGatewayAccess,
     ModelGatewayConfigurationError,
@@ -50,6 +51,7 @@ def model_run(db, settings) -> Run:
     )
     choose_execution(model.workspace, model=model)
     return Run.objects.create(
+        task=create_task(repository=job.repository),
         started_by=RunStart.SCHEDULE,
         job=job,
         status=Run.Status.RUNNING,

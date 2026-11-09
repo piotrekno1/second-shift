@@ -12,7 +12,7 @@ from secondshift.github.identity import clone_url
 from secondshift.jobs.dao import create_job
 from secondshift.jobs.planning import build_execution_plan
 from secondshift.repositories.dao import create_repository
-from secondshift.runs.dao import add_event, create_run_record
+from secondshift.runs.dao import add_event, create_run_record, create_task
 from secondshift.runs.models import Run
 from secondshift.workspaces.dao import get_workspace_by_slug
 
@@ -181,6 +181,7 @@ def seed_demo_data() -> None:
     ):
         finished_at = now - timedelta(days=days_ago)
         run = create_run_record(
+            task=create_task(repository=jobs[job_key].repository),
             started_by=RunStart.SCHEDULE,
             execution_plan=build_execution_plan(jobs[job_key]).stored(),
             job=jobs[job_key],

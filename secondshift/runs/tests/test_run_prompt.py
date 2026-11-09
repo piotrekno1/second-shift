@@ -9,6 +9,7 @@ from secondshift.jobs.models import Job
 from secondshift.jobs.tests.plans import CAPABILITY, stored_plan
 from secondshift.repositories.models import Repository
 from secondshift.runner.protocol import CommandResult
+from secondshift.runs.dao import create_task
 from secondshift.runs.execution.run import render_run_input, run_prompt
 from secondshift.runs.models import Run
 from secondshift.workspaces.dao import create_workspace
@@ -53,6 +54,7 @@ def make_run(db):
 
     def make(capabilities: list[dict[str, object]]) -> Run:
         return Run.objects.create(
+            task=create_task(repository=job.repository),
             started_by=RunStart.SCHEDULE,
             job=job,
             scheduled_for=timezone.now(),

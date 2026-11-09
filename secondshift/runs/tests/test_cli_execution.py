@@ -200,7 +200,7 @@ def test_cli_usage_in_run_responses(
     RunEvent.objects.create(run=run, message="Later event")
     with django_assert_num_queries(1):
         response = serialize_run(
-            with_model_usage(Run.objects.select_related("job__repository")).get(
+            with_model_usage(Run.objects.select_related("job", "task__repository")).get(
                 pk=run.pk
             )
         )

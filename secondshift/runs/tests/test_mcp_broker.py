@@ -29,6 +29,7 @@ from secondshift.jobs.planning import build_execution_plan
 from secondshift.jobs.tests.plans import CAPABILITY
 from secondshift.jobs.tool_policy import ToolPolicyError
 from secondshift.repositories.models import Repository
+from secondshift.runs.dao import create_task
 from secondshift.runs.execution.external_tools import external_tools
 from secondshift.runs.execution.run import WORKSPACE_AGENT, execute_agent_run
 from secondshift.runs.execution.tool_broker import call_external_tool_step
@@ -101,6 +102,7 @@ def planned_run() -> Run:
         allowed_tools=list(TOOL_SCHEMAS),
     )
     return Run.objects.create(
+        task=create_task(repository=job.repository),
         started_by=RunStart.SCHEDULE,
         job=job,
         status="running",
@@ -391,6 +393,7 @@ def test_one_connection_is_reused_with_independent_job_scopes(
         allowed_tools=list(TOOL_SCHEMAS),
     )
     other_run = Run.objects.create(
+        task=create_task(repository=job.repository),
         started_by=RunStart.SCHEDULE,
         job=job,
         status="running",

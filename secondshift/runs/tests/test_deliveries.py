@@ -23,6 +23,7 @@ from secondshift.jobs.tests.test_needs import (
 )
 from secondshift.repositories.models import Repository
 from secondshift.runs import deliveries
+from secondshift.runs.dao import create_task
 from secondshift.runs.models import Run, RunDelivery
 from secondshift.runs.orchestration import workflows
 from secondshift.workspaces.models import Workspace, WorkspaceMembership
@@ -43,6 +44,7 @@ def approved_run(settings: Any, setup: Setup) -> tuple[Run, Connection, JobGrant
         reviewed_by=user,
     )
     run = Run.objects.create(
+        task=create_task(repository=job.repository),
         started_by=RunStart.SCHEDULE,
         job=job,
         status=Run.Status.SUCCEEDED,

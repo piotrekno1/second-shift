@@ -11,6 +11,7 @@ from secondshift.gateway.models import ModelUsage
 from secondshift.jobs.models import Job
 from secondshift.jobs.tests.plans import MODEL, stored_plan
 from secondshift.repositories.models import Repository
+from secondshift.runs.dao import create_task
 from secondshift.runs.models import Run
 from secondshift.workspaces.dao import create_workspace, workspace_owner
 from secondshift.workspaces.models import Workspace
@@ -38,6 +39,7 @@ def make_job(workspace: Workspace, repository: str, key: str) -> Job:
 
 def make_run(job: Job, status: str, summary: str = "", day: int = 1) -> Run:
     return Run.objects.create(
+        task=create_task(repository=job.repository),
         started_by=RunStart.SCHEDULE,
         execution_plan=stored_plan(),
         job=job,

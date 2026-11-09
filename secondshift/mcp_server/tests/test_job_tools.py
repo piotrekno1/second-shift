@@ -15,6 +15,7 @@ from secondshift.jobs.repository_sync import SyncError
 from secondshift.jobs.tests.plans import stored_plan
 from secondshift.repositories.models import Repository
 from secondshift.runs.artifacts import store_run_text
+from secondshift.runs.dao import create_task
 from secondshift.runs.models import Run, Task
 from secondshift.workspaces.dao import create_workspace
 from secondshift.workspaces.models import Workspace, WorkspaceMembership
@@ -198,6 +199,7 @@ def test_runs_and_reports_can_be_read_and_reports_are_marked_untrusted(
     owner: AbstractUser, job: Job, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     run = Run.objects.create(
+        task=create_task(repository=job.repository),
         started_by=RunStart.SCHEDULE,
         execution_plan=stored_plan(),
         job=job,
@@ -227,6 +229,7 @@ def test_a_run_without_a_report_returns_an_empty_one(
     owner: AbstractUser, job: Job
 ) -> None:
     run = Run.objects.create(
+        task=create_task(repository=job.repository),
         started_by=RunStart.SCHEDULE,
         execution_plan=stored_plan(),
         job=job,

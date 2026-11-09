@@ -11,11 +11,12 @@ from secondshift.repositories.models import Repository
 from secondshift.runs.dao import (
     active_runs,
     active_tasks,
+    create_task,
     latest_active_run,
     run_for_repeat_key,
     started_run_count,
 )
-from secondshift.runs.models import RUN_ENQUEUE_FAILED, Run, Task
+from secondshift.runs.models import RUN_ENQUEUE_FAILED, Run
 from secondshift.workspaces.dao import create_workspace
 
 
@@ -38,6 +39,9 @@ def job(db: object) -> Job:
 
 
 def make_run(job: Job | None, status: str, **fields: object) -> Run:
+    if "task" not in fields:
+        fields["task"] = create_task(repository=job.repository)
+    fields.setdefault("started_by", RunStart.SCHEDULE)
     return Run.objects.create(
         job=job,
         status=status,
@@ -66,9 +70,7 @@ def test_latest_active_run_is_the_newest_unfinished_one(job: Job) -> None:
 
 
 def test_active_tasks_are_unfinished_ad_hoc_runs_in_the_repository(job: Job) -> None:
-    task = Task.objects.create(
-        repository=job.repository, commit_sha="abc", scheduled_for=timezone.now()
-    )
+    task = create_task(repository=job.repository)
     ad_hoc = make_run(None, Run.Status.QUEUED, task=task)
     make_run(None, Run.Status.SUCCEEDED, task=task)
     make_run(job, Run.Status.QUEUED)

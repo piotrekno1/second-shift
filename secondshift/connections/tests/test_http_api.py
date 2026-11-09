@@ -31,6 +31,7 @@ from secondshift.jobs.planning import build_execution_plan
 from secondshift.jobs.serialization import serialize_job
 from secondshift.repositories.github import repository_ref
 from secondshift.repositories.models import Repository
+from secondshift.runs.dao import create_task
 from secondshift.runs.execution.external_tools import external_tools
 from secondshift.runs.execution.tool_broker import call_external_tool_step
 from secondshift.runs.models import Run
@@ -423,6 +424,7 @@ def api_run(fake: FakeAPI, workspace: Workspace) -> Run:
         allowed_tools=["listCharges"],
     )
     return Run.objects.create(
+        task=create_task(repository=job.repository),
         started_by=RunStart.SCHEDULE,
         job=job,
         status="running",

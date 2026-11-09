@@ -14,6 +14,7 @@ from secondshift.jobs.manifest import RepositoryManifest
 from secondshift.jobs.models import Job
 from secondshift.jobs.planning import build_execution_plan
 from secondshift.jobs.tests.test_planning import create_job
+from secondshift.runs.dao import create_task
 from secondshift.runs.execution.budgets import Budget, budget_summary
 from secondshift.runs.execution.model_gateway import issue_run_token
 from secondshift.runs.models import Run
@@ -233,6 +234,7 @@ def test_the_gateway_token_uses_the_frozen_budget(job: Job) -> None:
     job.token_budget = 7_000_000
     job.save()
     run = Run.objects.create(
+        task=create_task(repository=job.repository),
         started_by=RunStart.SCHEDULE,
         job=job,
         commit_sha="abc",
@@ -252,6 +254,7 @@ def test_the_gateway_token_uses_the_frozen_budget(job: Job) -> None:
 @pytest.mark.django_db
 def test_a_run_stopped_by_a_limit_says_so(client: Client, job: Job) -> None:
     run = Run.objects.create(
+        task=create_task(repository=job.repository),
         started_by=RunStart.SCHEDULE,
         job=job,
         commit_sha="abc",

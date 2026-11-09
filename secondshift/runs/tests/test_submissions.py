@@ -10,7 +10,7 @@ import pytest
 from asgiref.sync import async_to_sync
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import User
-from django.db import IntegrityError, transaction
+from django.db import IntegrityError
 from django.test import Client
 from django.utils import timezone
 from pydantic import ValidationError
@@ -138,14 +138,13 @@ def test_accepts_pins_and_replays_without_touching_jobs(
     assert first.started is True and second.started is False
     assert first.run.pk == second.run.pk
     assert queued == [first.run.pk]
-    assert first.run.job_id is None and first.run.task.job_id is None
+    assert first.run.job_id is None
     assert first.run.task.repository == repository
     assert first.run.task.submitted_by == owner
     assert first.run.started_by == RunStart.MANUAL
-    assert first.run.commit_sha == first.run.task.commit_sha == pinned
+    assert first.run.commit_sha == pinned
     assert first.run.execution_plan["repository"]["config_sha"] == pinned
     assert "useful report" in committed_file(root, pinned, SKILL)
-    assert first.run.input_snapshot == first.run.task.input_snapshot
     assert "installation instructions" in run_prompt(first.run)
     assert Task.objects.count() == Run.objects.count() == 1
     assert not Job.objects.exists()
@@ -377,12 +376,6 @@ def test_history_cannot_cross_ad_hoc_tasks(repository: Repository, owner: User) 
     second = start(repository, owner, idempotency_key="next")
     second.input_snapshot["history_run_ids"] = [first.pk]
     assert previous_reports(second) == ""
-
-
-def test_task_source_constraints(repository: Repository, owner: User) -> None:
-    run = start(repository, owner)
-    with pytest.raises(IntegrityError), transaction.atomic():
-        Task.objects.create(commit_sha=run.commit_sha, scheduled_for=timezone.now())
 
 
 def test_external_tools_and_notifications_recheck_consent(

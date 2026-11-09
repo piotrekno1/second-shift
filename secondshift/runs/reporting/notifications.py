@@ -5,7 +5,7 @@ from urllib.parse import quote, unquote
 
 from django.conf import settings
 
-from secondshift.config.constants import AgentBackend
+from secondshift.config.constants import AgentBackend, RunStart
 from secondshift.connections.models import Connection
 from secondshift.jobs.dao import approved_notification_targets
 from secondshift.jobs.models import Job
@@ -21,7 +21,7 @@ from secondshift.jobs.plan import (
 from secondshift.repositories.models import Repository
 from secondshift.runs.dao import opened_issues, run_delivery
 from secondshift.runs.execution.tool_broker import standalone_connection
-from secondshift.runs.models import Run, RunDelivery
+from secondshift.runs.models import Run, RunDelivery, Task
 from secondshift.runs.reporting.collection import plural
 
 STATUS_LABELS = {
@@ -254,6 +254,8 @@ def sample_run_report_payload() -> dict[str, Any]:
     run = Run(
         pk=128,
         job=job,
+        task=Task(repository=repository),
+        started_by=RunStart.SCHEDULE,
         status=Run.Status.SUCCEEDED,
         summary="Found 2 stale setup steps in README.md. Details are in the report.",
         commit_sha="8f3c9d2" * 5 + "8f3c9",

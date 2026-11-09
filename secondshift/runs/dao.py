@@ -22,7 +22,6 @@ from secondshift.runs.models import (
     RunEvent,
     RunIssue,
     Task,
-    run_workspace_filter,
 )
 
 # Runs the queue could not hand off. They never started, so they do not count
@@ -120,14 +119,14 @@ def find_workspace_run(workspace_id: int | None, run_id: int) -> Run | None:
         with_model_usage(
             Run.objects.select_related("job__repository", "task__repository")
         )
-        .filter(run_workspace_filter(workspace_id), pk=run_id)
+        .filter(task__repository__workspace_id=workspace_id, pk=run_id)
         .first()
     )
 
 
 def workspace_runs(workspace_id: int | None) -> QuerySet[Run]:
     """The workspace's job runs and ad hoc tasks."""
-    return Run.objects.filter(run_workspace_filter(workspace_id))
+    return Run.objects.filter(task__repository__workspace_id=workspace_id)
 
 
 def runs_by_id(run_ids: Iterable[int]) -> dict[int, Run]:
@@ -320,7 +319,6 @@ def search_runs(runs: QuerySet[Run], q: str) -> QuerySet[Run]:
     match = (
         Q(job__name__icontains=q)
         | Q(job__key__icontains=q)
-        | Q(job__repository__full_name__icontains=q)
         | Q(task__repository__full_name__icontains=q)
         | Q(input_snapshot__name__icontains=q)
         | Q(summary__icontains=q)
@@ -352,10 +350,7 @@ def run_listing(
     if job_id is not None:
         runs = runs.filter(job_id=job_id)
     if repository_id is not None:
-        runs = runs.filter(
-            Q(job__repository_id=repository_id)
-            | Q(job__isnull=True, task__repository_id=repository_id)
-        )
+        runs = runs.filter(task__repository_id=repository_id)
     if since is not None:
         runs = runs.filter(created_at__gte=since)
     runs = search_runs(runs, q)
@@ -371,7 +366,7 @@ def run_listing(
     page = min(page, last_page)
     start = (page - 1) * page_size
     page_slice = slice(start, start + page_size)
-    related = ("job__repository", "task__repository")
+    related = ("job", "task__repository")
     if by_cost:
         # Cost comes from usage, so aggregate every run before taking the page.
         ordered = with_model_usage(runs.select_related(*related)).order_by(
@@ -403,10 +398,6 @@ def find_submitted_task(repository_id: int, submission_key: str) -> Task | None:
 
 def first_attempt(task: Task) -> Run | None:
     return task.runs.order_by("created_at", "pk").first()
-
-
-def update_task_snapshot(task_id: int, snapshot: dict[str, Any]) -> None:
-    Task.objects.filter(pk=task_id).update(input_snapshot=snapshot)
 
 
 # Run events

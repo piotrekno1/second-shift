@@ -1,4 +1,3 @@
-from copy import deepcopy
 from datetime import timedelta
 from unittest.mock import patch
 
@@ -51,40 +50,25 @@ def job(db: object, monkeypatch: pytest.MonkeyPatch) -> Job:
     )
 
 
-def test_task_freezes_assignment_independently_of_job_and_attempt(job: Job) -> None:
+def test_a_manual_run_records_who_assigned_it(job: Job) -> None:
     owner = get_user_model().objects.get(username="task-owner")
     run = start_manual_run(job, submitted_by=owner)
-    task = Task.objects.get(pk=run.task_id)
-    snapshot = deepcopy(run.input_snapshot)
 
-    assert task.job == job
-    assert task.submitted_by == owner
     assert run.started_by == RunStart.MANUAL
-    assert task.scheduled_for == run.scheduled_for
-    job.skill_path = "changed/SKILL.md"
-    job.save()
-    job.repository.config_sha = "new-commit"
-    job.repository.save()
-    run.input_snapshot["attempt-only"] = True
-    run.save()
-
-    task.refresh_from_db()
-    assert task.input_snapshot == snapshot
-    assert task.commit_sha == "original-commit"
+    assert run.task.repository == job.repository
+    assert run.task.submitted_by == owner
 
 
-def test_webhook_assignment_includes_payload_and_repeat_key(job: Job) -> None:
+def test_a_webhook_run_has_no_submitter_and_keeps_its_repeat_key(job: Job) -> None:
     with patch(
         "secondshift.runs.services.store_run_payload",
         return_value={"path": "payload.json", "size_bytes": 2},
     ):
         run = start_run(job, RunStart.WEBHOOK, b"{}", "event-1")
 
-    task = Task.objects.get(pk=run.task_id)
     assert run.started_by == RunStart.WEBHOOK
-    assert task.submitted_by is None
-    assert task.input_snapshot == run.input_snapshot
-    assert task.input_snapshot["repeat_key"] == "event-1"
+    assert run.task.submitted_by is None
+    assert run.input_snapshot["repeat_key"] == "event-1"
 
 
 def test_active_run_refusal_creates_no_task(job: Job) -> None:
@@ -162,53 +146,54 @@ def test_retention_keeps_task_until_its_last_attempt_expires(job: Job) -> None:
 
 
 @pytest.mark.django_db(transaction=True)
-def test_migration_backfills_recorded_inputs_without_reading_current_jobs(
-    job: Job,
-) -> None:
-    before = [("runs", "0003_agentlease")]
-    after = [("runs", "0005_backfill_tasks")]
+def test_migration_gives_every_run_a_task_in_its_repository(job: Job) -> None:
+    before = [("runs", "0019_task_fingerprint")]
+    after = [("runs", "0020_assign_task_repositories")]
     executor = MigrationExecutor(connection)
     executor.migrate(before)
     try:
         old_apps = executor.loader.project_state(before).apps
         old_run = old_apps.get_model("runs", "Run")
-        created = timezone.now() - timedelta(days=45)
-        snapshot = {"skill_path": "old/SKILL.md", "payload": {"path": "old/body"}}
-        historical = [
-            old_run.objects.create(
-                job_id=job.pk,
-                started_by=origin,
-                commit_sha="historical-commit",
-                input_snapshot=snapshot,
-                execution_plan={"historical": True},
-                scheduled_for=created + timedelta(seconds=index),
-            )
-            for index, origin in enumerate(["", "manual", "webhook", "schedule"])
-        ]
-        old_run.objects.all().update(created_at=created)
+        old_task = old_apps.get_model("runs", "Task")
+        now = timezone.now()
+        fields = {
+            "started_by": RunStart.SCHEDULE,
+            "commit_sha": "a" * 40,
+            "execution_plan": stored_plan(),
+        }
+        without_task = old_run.objects.create(
+            job_id=job.pk, scheduled_for=now, **fields
+        )
+        job_task = old_task.objects.create(
+            job_id=job.pk, commit_sha="a" * 40, scheduled_for=now
+        )
+        old_run.objects.create(
+            job_id=job.pk,
+            task=job_task,
+            scheduled_for=now + timedelta(seconds=1),
+            **fields,
+        )
+        submitted = old_task.objects.create(
+            repository_id=job.repository_id,
+            submission_key="key",
+            commit_sha="a" * 40,
+            scheduled_for=now,
+            input_snapshot={"submission_fingerprint": "f" * 64},
+        )
         executor = MigrationExecutor(connection)
         executor.migrate(after)
         apps = executor.loader.project_state(after).apps
-        migrated_run = apps.get_model("runs", "Run")
         task_model = apps.get_model("runs", "Task")
+        run_model = apps.get_model("runs", "Run")
 
-        assert task_model.objects.count() == len(historical)
-        for old in historical:
-            run = migrated_run.objects.get(pk=old.pk)
-            task = run.task
-            assert task.job_id == old.job_id
-            assert task.origin == old.started_by
-            assert task.submitted_by_id is None
-            assert task.commit_sha == run.commit_sha == "historical-commit"
-            assert task.input_snapshot == run.input_snapshot == snapshot
-            assert task.created_at == created
-            assert task.scheduled_for == old.scheduled_for
-            assert run.execution_plan == {"historical": True}
-
-        # Reapplying the data operation must not duplicate assignments.
-        MigrationExecutor(connection).migrate([("runs", "0004_task_assignment")])
-        MigrationExecutor(connection).migrate(after)
-        assert task_model.objects.count() == len(historical)
+        assert not run_model.objects.filter(task__isnull=True).exists()
+        assert run_model.objects.get(pk=without_task.pk).task.repository_id == (
+            job.repository_id
+        )
+        assert task_model.objects.get(pk=job_task.pk).repository_id == (
+            job.repository_id
+        )
+        assert task_model.objects.get(pk=submitted.pk).fingerprint == "f" * 64
     finally:
         executor = MigrationExecutor(connection)
         executor.migrate(executor.loader.graph.leaf_nodes())

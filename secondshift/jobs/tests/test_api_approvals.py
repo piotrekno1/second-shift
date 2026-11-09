@@ -13,6 +13,7 @@ from secondshift.connections.models import Connection
 from secondshift.jobs.models import JOB_REMOVED, CapabilityRequest, Job, JobGrant
 from secondshift.jobs.tests.plans import stored_plan
 from secondshift.repositories.models import Repository
+from secondshift.runs.dao import create_task
 from secondshift.runs.models import Run, Task
 from secondshift.workspaces.dao import create_workspace
 from secondshift.workspaces.models import Workspace, WorkspaceMembership
@@ -142,6 +143,7 @@ def test_owner_can_approve_required_capability_and_enable_job(
     assert enabled.json()["enabled"] is True
 
     run = Run.objects.create(
+        task=create_task(repository=job.repository),
         started_by=RunStart.SCHEDULE,
         job=job,
         commit_sha=job.repository.config_sha,

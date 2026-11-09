@@ -20,6 +20,7 @@ from secondshift.runner.protocol import (
     CommandRequest,
     CommandResult,
 )
+from secondshift.runs.dao import create_task
 from secondshift.runs.execution.run import WORKSPACE_AGENT, execute_agent_run
 from secondshift.runs.execution.workspace_tools import (
     WorkspaceToolDeps,
@@ -182,6 +183,7 @@ def test_execute_agent_run_stores_report_and_uses_native_limits(
         config_hash="hash",
     )
     run = Run.objects.create(
+        task=create_task(repository=job.repository),
         started_by=RunStart.SCHEDULE,
         job=job,
         commit_sha="a" * 40,

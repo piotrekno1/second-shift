@@ -31,6 +31,7 @@ from secondshift.jobs.models import Job
 from secondshift.jobs.planning import build_execution_plan
 from secondshift.jobs.serialization import serialize_workspace_jobs
 from secondshift.repositories.models import Repository
+from secondshift.runs.dao import create_task
 from secondshift.runs.models import Run
 from secondshift.workspaces.models import Workspace, WorkspaceMembership
 
@@ -64,6 +65,7 @@ def agent_run(
         config_hash="abc",
     )
     run = Run.objects.create(
+        task=create_task(repository=job.repository),
         started_by=RunStart.SCHEDULE,
         job=job,
         commit_sha="a" * 40,

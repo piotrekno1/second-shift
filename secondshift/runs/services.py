@@ -1,6 +1,5 @@
 """Create runs from job policy, whether started by cron, by hand or by a trigger."""
 
-from copy import deepcopy
 from datetime import datetime
 
 from django.contrib.auth.models import User
@@ -20,7 +19,6 @@ from secondshift.runs.dao import (
     create_task,
     job_run_for_slot,
     latest_active_run,
-    update_task_snapshot,
 )
 from secondshift.runs.history import previous_run_ids
 from secondshift.runs.issue_delivery import record_pending_issues
@@ -62,13 +60,7 @@ def create_run(
             build_execution_plan(job) if execution_plan is None else execution_plan
         ).stored(),
     }
-    task = create_task(
-        job=job,
-        submitted_by=submitted_by,
-        commit_sha=defaults["commit_sha"],
-        input_snapshot=deepcopy(defaults["input_snapshot"]),
-        scheduled_for=scheduled_for,
-    )
+    task = create_task(repository=job.repository, submitted_by=submitted_by)
     run = create_run_record(job=job, task=task, scheduled_for=scheduled_for, **defaults)
     record_pending_pull_request(run)
     record_pending_issues(run)
@@ -125,7 +117,6 @@ def start_run(
             run.input_snapshot["repeat_key"] = repeat_key
         if payload is not None or repeat_key is not None:
             run.save(update_fields=["input_snapshot"])
-            update_task_snapshot(run.task_id, deepcopy(run.input_snapshot))
     enqueue_run(run)
     return run
 

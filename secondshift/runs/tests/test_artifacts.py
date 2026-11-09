@@ -18,6 +18,7 @@ from secondshift.runs.artifacts import (
     read_output_excerpt,
     store_run_text,
 )
+from secondshift.runs.dao import create_task
 from secondshift.runs.models import Run
 from secondshift.runs.retention import prune_runs
 from secondshift.workspaces.dao import create_workspace
@@ -56,7 +57,12 @@ def job(db) -> Job:
 
 def make_run(job: Job, **fields) -> Run:
     return Run.objects.create(
-        job=job, scheduled_for=timezone.now(), execution_plan=stored_plan(), **fields
+        task=create_task(repository=job.repository),
+        started_by=RunStart.SCHEDULE,
+        job=job,
+        scheduled_for=timezone.now(),
+        execution_plan=stored_plan(),
+        **fields,
     )
 
 
@@ -105,6 +111,7 @@ def test_prune_runs_removes_old_finished_runs_everywhere(
     expired.save()
     recent = make_run(job, status=Run.Status.SUCCEEDED, finished_at=timezone.now())
     running = Run.objects.create(
+        task=create_task(repository=job.repository),
         started_by=RunStart.SCHEDULE,
         execution_plan=stored_plan(),
         job=job,

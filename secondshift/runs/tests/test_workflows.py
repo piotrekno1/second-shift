@@ -12,6 +12,7 @@ from secondshift.jobs.tests.plans import stored_plan
 from secondshift.repositories.models import Repository
 from secondshift.repositories.sources import SourceSnapshot
 from secondshift.runner.protocol import RunnerSessionSpec
+from secondshift.runs.dao import create_task
 from secondshift.runs.models import Run, RunEvent
 from secondshift.runs.orchestration import workflows
 from secondshift.runs.orchestration.workflows import (
@@ -57,6 +58,7 @@ def execution_run(db) -> Run:
         config_hash="hash",
     )
     return Run.objects.create(
+        task=create_task(repository=job.repository),
         started_by=RunStart.SCHEDULE,
         job=job,
         commit_sha="a" * 40,

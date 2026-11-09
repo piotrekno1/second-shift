@@ -32,6 +32,7 @@ from secondshift.gateway.views import model_gateway
 from secondshift.jobs.models import Job
 from secondshift.jobs.tests.plans import stored_plan
 from secondshift.repositories.models import Repository
+from secondshift.runs.dao import create_task
 from secondshift.runs.execution.model_gateway import issue_run_token
 from secondshift.runs.models import Run
 from secondshift.runs.orchestration.reconciliation import mark_run_terminal
@@ -82,6 +83,7 @@ def make_run(workspace: Workspace, status: str = Run.Status.RUNNING) -> Run:
         config_hash="hash",
     )
     return Run.objects.create(
+        task=create_task(repository=job.repository),
         started_by=RunStart.SCHEDULE,
         execution_plan=stored_plan(),
         job=job,

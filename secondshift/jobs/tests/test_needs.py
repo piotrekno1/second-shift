@@ -15,6 +15,7 @@ from secondshift.jobs.models import CapabilityRequest, Job, JobGrant
 from secondshift.jobs.needs import capability_needs
 from secondshift.jobs.planning import build_execution_plan
 from secondshift.repositories.models import Repository
+from secondshift.runs.dao import create_task
 from secondshift.runs.models import Run, RunEvent
 from secondshift.runs.orchestration.workflows import notify
 from secondshift.runs.reporting.notifications import notification_targets
@@ -165,6 +166,7 @@ def test_finished_run_notifies_only_still_approved_webhooks(
         reviewed_by=user,
     )
     run = Run.objects.create(
+        task=create_task(repository=job.repository),
         started_by=RunStart.SCHEDULE,
         job=job,
         status=Run.Status.FAILED,

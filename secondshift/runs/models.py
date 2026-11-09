@@ -16,25 +16,20 @@ RUN_ENQUEUE_FAILED = "The durable workflow could not be enqueued."
 
 
 class Task(models.Model):
-    """One assignment; runs retain the inputs and policy of each attempt.
+    """One assignment in a repository. Each run of it is an attempt.
 
-    Job-backed assignments retain their existing source relationship. Ad hoc
-    assignments own a repository directly. Inputs are frozen at submission.
+    A job run and an ad hoc task each get one. Ad hoc tasks also keep how
+    they were submitted, so a repeated submission finds its first run.
     """
 
-    job = models.ForeignKey(
-        Job, on_delete=models.CASCADE, related_name="tasks", null=True, blank=True
-    )
+    # Runs protect their task, so only a task without attempts goes with it.
     repository = models.ForeignKey(
-        Repository,
-        on_delete=models.PROTECT,
-        related_name="tasks",
-        null=True,
-        blank=True,
+        Repository, on_delete=models.CASCADE, related_name="tasks"
     )
-    submission_key = models.CharField(
-        max_length=120, blank=True, default="", db_default=""
-    )
+    # The client's idempotency key for an ad hoc task. Empty for job runs.
+    submission_key = models.CharField(max_length=120, blank=True, default="")
+    # What was submitted with the key. Another submission may not reuse it.
+    fingerprint = models.CharField(max_length=64, blank=True, default="")
     submitted_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -42,39 +37,17 @@ class Task(models.Model):
         null=True,
         blank=True,
     )
-    commit_sha = models.CharField(max_length=64)
-    input_snapshot = models.JSONField(default=dict, blank=True)
-    scheduled_for = models.DateTimeField()
     created_at = models.DateTimeField(default=timezone.now, editable=False)
 
     class Meta:
         ordering = ["-created_at"]
         constraints = [
-            models.CheckConstraint(
-                condition=(
-                    models.Q(job__isnull=False, repository__isnull=True)
-                    | models.Q(job__isnull=True, repository__isnull=False)
-                ),
-                name="task_has_one_source",
-            ),
             models.UniqueConstraint(
                 fields=["repository", "submission_key"],
                 condition=~models.Q(submission_key=""),
                 name="unique_repository_submission",
             ),
         ]
-
-
-def run_workspace_filter(workspace_id: int | None, prefix: str = "") -> models.Q:
-    """Include ad hoc runs without changing the ownership of legacy job runs."""
-    if workspace_id is None:
-        return models.Q(**{f"{prefix}pk__in": []})
-    return models.Q(**{f"{prefix}job__workspace_id": workspace_id}) | models.Q(
-        **{
-            f"{prefix}job__isnull": True,
-            f"{prefix}task__repository__workspace_id": workspace_id,
-        }
-    )
 
 
 class Run(models.Model):
@@ -93,13 +66,7 @@ class Run(models.Model):
     job = models.ForeignKey(
         Job, on_delete=models.PROTECT, related_name="runs", null=True, blank=True
     )
-    task = models.ForeignKey(
-        Task,
-        on_delete=models.PROTECT,
-        related_name="runs",
-        null=True,
-        blank=True,
-    )
+    task = models.ForeignKey(Task, on_delete=models.PROTECT, related_name="runs")
     status = models.CharField(
         max_length=16,
         choices=Status.choices,
@@ -155,10 +122,6 @@ class Run(models.Model):
             )
         ]
         constraints = [
-            models.CheckConstraint(
-                condition=models.Q(job__isnull=False) | models.Q(task__isnull=False),
-                name="run_has_source",
-            ),
             models.UniqueConstraint(
                 fields=["job", "scheduled_for"],
                 name="unique_job_scheduled_run",
@@ -167,11 +130,7 @@ class Run(models.Model):
 
     @property
     def repository(self) -> Repository:
-        if self.job is not None:
-            return self.job.repository
-        if self.task_id is not None and self.task.repository_id is not None:
-            return self.task.repository
-        raise ValueError("The run has no repository source.")
+        return self.task.repository
 
     @cached_property
     def plan(self) -> ExecutionPlan:
@@ -179,11 +138,7 @@ class Run(models.Model):
 
     @property
     def workspace_id(self) -> int:
-        return (
-            self.job.workspace_id
-            if self.job is not None
-            else self.repository.workspace_id
-        )
+        return self.task.repository.workspace_id
 
     @property
     def display_name(self) -> str:

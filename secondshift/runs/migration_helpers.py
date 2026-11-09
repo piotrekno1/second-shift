@@ -211,3 +211,36 @@ def record_run_starts_v1(apps: Apps, schema_editor: BaseDatabaseSchemaEditor) ->
     runs = run_model.objects.using(alias)
     runs.filter(task__origin="mcp").update(started_by="mcp")
     runs.filter(started_by="").update(started_by="schedule")
+
+
+def assign_task_repositories_v1(
+    apps: Apps, schema_editor: BaseDatabaseSchemaEditor
+) -> None:
+    """Give every run a task, and every task its repository and fingerprint."""
+    run_model = apps.get_model("runs", "Run")
+    task_model = apps.get_model("runs", "Task")
+    alias = schema_editor.connection.alias
+    for run in (
+        run_model.objects.using(alias)
+        .filter(task__isnull=True)
+        .select_related("job")
+        .iterator()
+    ):
+        run.task = task_model.objects.using(alias).create(
+            job_id=run.job_id,
+            repository_id=run.job.repository_id,
+            commit_sha=run.commit_sha,
+            scheduled_for=run.scheduled_for,
+            created_at=run.created_at,
+        )
+        run.save(update_fields=["task"])
+    tasks = task_model.objects.using(alias).select_related("job")
+    changed = []
+    for task in tasks.iterator():
+        if task.repository_id is None:
+            task.repository_id = task.job.repository_id
+        task.fingerprint = str(task.input_snapshot.get("submission_fingerprint", ""))
+        changed.append(task)
+    task_model.objects.using(alias).bulk_update(
+        changed, ["repository", "fingerprint"], 500
+    )

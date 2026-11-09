@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 
+from django.db.models import Q
 from django.utils import timezone
 
 from secondshift.gateway.dao import spend_per_job, spend_totals
@@ -14,7 +15,7 @@ from secondshift.runs.dao import (
     run_counts,
     runs_by_id,
 )
-from secondshift.runs.models import Run, run_workspace_filter
+from secondshift.runs.models import Run
 from secondshift.runs.reporting.failures import describe_failure
 from secondshift.workspaces.models import Workspace
 
@@ -103,7 +104,7 @@ def week_summary(workspace: Workspace, now: datetime | None = None) -> WeekSumma
     start, previous_start = now - WINDOW, now - 2 * WINDOW
     runs = run_counts(workspace.pk, start, previous_start)
     totals = spend_totals(
-        run_workspace_filter(workspace.pk, "run__"), start, previous_start
+        Q(run__task__repository__workspace_id=workspace.pk), start, previous_start
     )
     return WeekSummary(
         runs=runs["runs"],

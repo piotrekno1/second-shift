@@ -39,7 +39,6 @@ def test_tick_creates_a_run(job: Job) -> None:
     run = Run.objects.get(pk=tick(job))
 
     assert (run.started_by, run.scheduled_for) == ("schedule", TICK)
-    assert run.task.scheduled_for == TICK
     assert run.task.submitted_by is None
 
 

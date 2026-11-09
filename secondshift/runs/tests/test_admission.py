@@ -18,6 +18,7 @@ from secondshift.jobs.models import Job
 from secondshift.jobs.tests.plans import stored_plan
 from secondshift.mcp_server.tests.test_job_tools import call, token
 from secondshift.repositories.models import Repository
+from secondshift.runs.dao import create_task
 from secondshift.runs.models import Run, RunEvent, Task
 from secondshift.runs.orchestration import dbos_runtime, dispatch, workflows
 from secondshift.runs.queue import cancel_queued_task
@@ -71,7 +72,7 @@ def test_future_task_does_not_block_ready_work(
     future = timezone.now() + timedelta(hours=8)
     delayed = start(repository, owner, not_before=future)
     ready = start(repository, owner, idempotency_key="ready")
-    assert delayed.scheduled_for == delayed.task.scheduled_for == future
+    assert delayed.scheduled_for == future
     assert client_queue.enqueue.call_args.args[1] == ready.pk
     Run.objects.filter(pk=ready.pk).update(status=Run.Status.SUCCEEDED)
     assert dispatch.dispatch_waiting_tasks() == 0
@@ -272,6 +273,7 @@ def test_cancel_is_workspace_scoped_and_rejects_saved_job_runs(
         config_hash="hash",
     )
     legacy = Run.objects.create(
+        task=create_task(repository=job.repository),
         started_by=RunStart.SCHEDULE,
         execution_plan=stored_plan(),
         job=job,

@@ -14,7 +14,7 @@ from secondshift.connections.tests.test_agent_connections import (
 from secondshift.jobs.models import Job
 from secondshift.jobs.planning import build_execution_plan
 from secondshift.repositories.models import Repository
-from secondshift.runs.dao import create_run_record
+from secondshift.runs.dao import create_run_record, create_task
 from secondshift.runs.models import Run
 from secondshift.runs.orchestration.workflows import (
     RunNotReadyError,
@@ -62,6 +62,7 @@ def finished_run(job: Job, hours_ago: float = 1, ready: bool = True) -> Run:
     plan = build_execution_plan(job).stored()
     plan["ready"] = ready
     run = create_run_record(
+        task=create_task(repository=job.repository),
         started_by=RunStart.SCHEDULE,
         job=job,
         commit_sha="a" * 40,

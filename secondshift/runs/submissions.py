@@ -3,7 +3,6 @@
 import hashlib
 import json
 import re
-from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Self
@@ -97,7 +96,7 @@ def admission(
         raise RunRefused("Enable the repository before submitting a task.")
     task = find_submitted_task(repository.pk, submission.idempotency_key)
     if task is not None:
-        if task.input_snapshot.get("submission_fingerprint") != fingerprint:
+        if task.fingerprint != fingerprint:
             raise RunRefused(
                 "This idempotency key was already used for a different submission."
             )
@@ -177,16 +176,13 @@ def submit_skill(
             "definition": submission.definition.model_dump(mode="json"),
             "submission_input": submission.input,
             "requested_revision": submission.revision,
-            "submission_fingerprint": fingerprint,
         }
         scheduled_for: datetime = submission.not_before or timezone.now()
         task = create_task(
             repository=repository,
             submission_key=submission.idempotency_key,
+            fingerprint=fingerprint,
             submitted_by=user,
-            commit_sha=commit,
-            input_snapshot=deepcopy(snapshot),
-            scheduled_for=scheduled_for,
         )
         run = create_run_record(
             task=task,
