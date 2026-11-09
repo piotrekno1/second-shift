@@ -61,7 +61,7 @@ def serialize_connection(
         is_default=connection.kind == Connection.Kind.MODEL
         and connection.workspace.default_model_connection_id == connection.pk,
         available_models=list(connection.metadata.get("available_models", [])),
-        last_check=connection.metadata.get("last_check"),
+        last_check=connection.last_check,
         settings=connection_settings_view(connection),
         auth=connection_auth(connection),
         scopes=list(connection.scopes)

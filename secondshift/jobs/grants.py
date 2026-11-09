@@ -90,7 +90,7 @@ def decide_grant(
         raise GrantError(422, "Rules can only apply to approved tools.")
     if rules and connection is not None:
         try:
-            validate_rules(rules, connection.metadata.get("tools", {}), sorted(allowed))
+            validate_rules(rules, connection.tool_definitions, sorted(allowed))
         except ToolRuleError as error:
             raise GrantError(422, str(error)) from error
     grant.connection = connection

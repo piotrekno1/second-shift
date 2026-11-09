@@ -59,7 +59,7 @@ def catalog_tool(name: str, definition: dict[str, Any], changing: bool) -> Catal
 
 
 def catalog_binding(connection: Connection) -> CatalogBinding:
-    definitions = connection.metadata.get("tools") or {}
+    definitions = connection.tool_definitions
     offered = connection.metadata.get("offered_tools") or {}
     allowed = sorted(connection.available_tools)
     changing = set(changing_tools(connection, allowed))

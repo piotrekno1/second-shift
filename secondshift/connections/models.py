@@ -1,4 +1,5 @@
 import uuid
+from typing import Any
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -101,6 +102,20 @@ class Connection(models.Model):
     def __str__(self) -> str:
         binding = f" [{self.binding_key}]" if self.binding_key else ""
         return f"{self.get_provider_display()}: {self.display_name}{binding}"
+
+    @property
+    def tool_definitions(self) -> dict[str, Any]:
+        """Each offered tool's definition, by provider tool name."""
+        return self.metadata.get("tools") or {}
+
+    @property
+    def last_check(self) -> dict[str, Any] | None:
+        """The latest check or delivery result. See checks.record_check."""
+        return self.metadata.get("last_check")
+
+    @property
+    def failed_last_check(self) -> bool:
+        return (self.last_check or {}).get("ok") is False
 
     @property
     def token_expired(self) -> bool:

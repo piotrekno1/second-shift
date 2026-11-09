@@ -64,7 +64,7 @@ def model_problem(model: Connection) -> str:
         return f"The model provider {model.display_name} is disconnected. Reconnect it."
     if not model.default_model.strip():
         return f"The model provider {model.display_name} has no model selected."
-    if (model.metadata.get("last_check") or {}).get("ok") is False:
+    if model.failed_last_check:
         return f"The model provider {model.display_name} failed its last check."
     return ""
 

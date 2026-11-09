@@ -42,7 +42,7 @@ def last_run(job: Job) -> LastRunSchema | None:
 
 
 def tool_inputs(connection: Connection, tools: list[str]) -> dict[str, ToolInputSchema]:
-    definitions = connection.metadata.get("tools", {})
+    definitions = connection.tool_definitions
     inputs = {}
     for tool in tools:
         schema = (definitions.get(tool) or {}).get("inputSchema") or {}

@@ -69,7 +69,7 @@ class ExternalKind(Protocol):
 
 
 def frozen_tools(connection: Connection, tools: set[str]) -> dict[str, Any]:
-    definitions = connection.metadata.get("tools", {})
+    definitions = connection.tool_definitions
     return {name: definitions.get(name) for name in sorted(tools)}
 
 
@@ -77,7 +77,7 @@ def frozen_definition(
     connection: Connection, frozen: dict[str, Any], tool: str, noun: str
 ) -> dict[str, Any]:
     definition = frozen.get("tools", {}).get(tool)
-    if not definition or definition != connection.metadata.get("tools", {}).get(tool):
+    if not definition or definition != connection.tool_definitions.get(tool):
         raise ExternalToolError(f"The {noun} definition changed. Start a new run.")
     return definition
 

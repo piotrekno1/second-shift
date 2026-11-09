@@ -135,7 +135,7 @@ def connection_reasons(
 
 def rules_broken(grant: CapabilityApproval, connection: Connection) -> bool:
     """The connection's schemas changed under the owner's rules. Fail closed."""
-    definitions = connection.metadata.get("tools", {})
+    definitions = connection.tool_definitions
     return bool(grant.tool_rules and broken_rules(grant.tool_rules, definitions))
 
 
