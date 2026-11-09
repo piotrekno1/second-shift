@@ -4,6 +4,7 @@ import djclick as click
 from botocore.exceptions import ClientError
 from django.conf import settings
 
+from secondshift.config.constants import ArtifactStorage
 from secondshift.runs.artifacts import artifact_storage
 from secondshift.workspaces.owners import ensure_owner
 
@@ -16,7 +17,7 @@ def command() -> None:
     email = os.environ.get("DEV_ADMIN_EMAIL", "admin@secondshift.local")
     password = os.environ.get("DEV_ADMIN_PASSWORD", "secondshift")
     ensure_owner(email, password)
-    if settings.ARTIFACT_STORAGE == "s3":
+    if settings.ARTIFACT_STORAGE == ArtifactStorage.S3:
         ensure_artifact_bucket()
     click.echo(f"Development workspace ready for {email}")
 

@@ -1,11 +1,5 @@
 from django.http import HttpRequest
 
-from secondshift.core.workspace_settings import (
-    SettingValue,
-    environment_label,
-    sandbox_label,
-    setting_groups,
-)
 from secondshift.workspaces.access import (
     Action,
     allows,
@@ -28,6 +22,12 @@ from secondshift.workspaces.schemas import (
     TokenWorkspaceSchema,
     WorkspaceChoiceSchema,
     WorkspaceSettingsSchema,
+)
+from secondshift.workspaces.server_settings import (
+    SettingValue,
+    environment_label,
+    sandbox_label,
+    setting_groups,
 )
 from secondshift.workspaces.tokens import scope_allowed
 

@@ -70,7 +70,7 @@ def runner_env(parent: dict[str, str]) -> dict[str, str]:
         or name == "SECONDSHIFT_DATA_DIR"
     }
     env[SETTINGS_MODULE_VAR] = RUNNER_SETTINGS
-    env["SECONDSHIFT_RUNNER_RUNTIME"] = SandboxRuntime.DOCKER
+    env[AppEnv.RUNNER_RUNTIME] = SandboxRuntime.DOCKER
     return env
 
 

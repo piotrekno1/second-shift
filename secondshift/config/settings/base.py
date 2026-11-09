@@ -32,6 +32,7 @@ from secondshift.config.constants import (
     LOCAL_GATEWAY_URL,
     SERVICE_VAR,
     AppEnv,
+    ArtifactStorage,
     Environment,
     SandboxRuntime,
     Service,
@@ -229,9 +230,9 @@ STATICFILES_DIRS = [
 # Private run output, never served over HTTP. "filesystem" needs a persistent
 # volume at SECONDSHIFT_ARTIFACT_ROOT in production, "s3" works with any
 # S3-compatible service (AWS, R2, Hetzner, RustFS locally).
-ARTIFACT_STORAGE = env.str("SECONDSHIFT_ARTIFACT_STORAGE", default="filesystem")
+ARTIFACT_STORAGE = env.str(AppEnv.ARTIFACT_STORAGE, default=ArtifactStorage.FILESYSTEM)
 ARTIFACT_STORAGES = {
-    "filesystem": {
+    ArtifactStorage.FILESYSTEM: {
         "BACKEND": "django.core.files.storage.FileSystemStorage",
         "OPTIONS": {
             "location": env.path(
@@ -240,7 +241,7 @@ ARTIFACT_STORAGES = {
             "base_url": None,
         },
     },
-    "s3": {
+    ArtifactStorage.S3: {
         "BACKEND": "storages.backends.s3.S3Storage",
         "OPTIONS": {
             "bucket_name": env.str("SECONDSHIFT_ARTIFACT_BUCKET", default=""),
@@ -436,9 +437,7 @@ if RUN_TIMEOUT_SECONDS_CEILING < RUN_TIMEOUT_SECONDS:
         "SECONDSHIFT_RUN_TIMEOUT_SECONDS_CEILING cannot be below "
         "SECONDSHIFT_RUN_TIMEOUT_SECONDS"
     )
-RUN_OUTPUT_MAX_BYTES = env.int(
-    "SECONDSHIFT_RUN_OUTPUT_MAX_BYTES", default=5 * 1024 * 1024
-)
+RUN_OUTPUT_MAX_BYTES = env.int(AppEnv.RUN_OUTPUT_MAX_BYTES, default=5 * 1024 * 1024)
 RUN_OUTPUT_EXCERPT_BYTES = 16 * 1024
 # The most earlier reports a job can ask for with `history` in its manifest.
 JOB_HISTORY_MAX = env.int("SECONDSHIFT_JOB_HISTORY_MAX", default=5)
@@ -461,11 +460,11 @@ RUN_HISTORY_MAX_CHARS = env.int("SECONDSHIFT_RUN_HISTORY_MAX_CHARS", default=65_
 if RUN_HISTORY_MAX_CHARS < 1:
     raise ImproperlyConfigured("SECONDSHIFT_RUN_HISTORY_MAX_CHARS must be positive")
 # Finished runs, their output and DBOS records are deleted after this. 0 keeps them.
-RUN_RETENTION_DAYS = env.int("SECONDSHIFT_RUN_RETENTION_DAYS", default=90)
+RUN_RETENTION_DAYS = env.int(AppEnv.RUN_RETENTION_DAYS, default=90)
 # How often the worker syncs local repositories whose branch has new commits.
 # 0 turns automatic sync off.
 REPOSITORY_SYNC_INTERVAL_SECONDS = env.int(
-    "SECONDSHIFT_REPOSITORY_SYNC_INTERVAL_SECONDS", default=300
+    AppEnv.REPOSITORY_SYNC_INTERVAL_SECONDS, default=300
 )
 
 # --- Outbound calls and model gateway ----------------------------------------

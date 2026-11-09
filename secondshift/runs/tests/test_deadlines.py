@@ -6,8 +6,8 @@ from typing import Any
 import pytest
 from django.utils import timezone
 
+from secondshift.config.formatting import duration_label
 from secondshift.connections.models import Connection
-from secondshift.core.formatting import duration_label
 from secondshift.gateway.models import RunToken
 from secondshift.gateway.tokens import issue_run_token
 from secondshift.jobs.execution import choose_execution

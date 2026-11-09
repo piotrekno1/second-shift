@@ -1,5 +1,11 @@
 # ruff: noqa: F403, F405
-from secondshift.config.constants import AppEnv, Environment, SandboxRuntime, Service
+from secondshift.config.constants import (
+    AppEnv,
+    ArtifactStorage,
+    Environment,
+    SandboxRuntime,
+    Service,
+)
 from secondshift.config.settings.base import *
 
 if ENVIRONMENT != Environment.PRODUCTION:
@@ -49,8 +55,8 @@ if SERVICE in {Service.WEB, Service.WORKER}:
     if not valid_origin:
         errors.append(f"{AppEnv.PUBLIC_URL} must be the public HTTPS address")
     if (
-        ARTIFACT_STORAGE == "s3"
-        and not ARTIFACT_STORAGES["s3"]["OPTIONS"]["bucket_name"]
+        ARTIFACT_STORAGE == ArtifactStorage.S3
+        and not ARTIFACT_STORAGES[ArtifactStorage.S3]["OPTIONS"]["bucket_name"]
     ):
         errors.append("SECONDSHIFT_ARTIFACT_BUCKET must be set for s3 storage")
     if RUNNER_RUNTIME != SandboxRuntime.GVISOR:

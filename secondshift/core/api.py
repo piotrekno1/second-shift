@@ -12,10 +12,6 @@ from secondshift.core.schemas import (
     RunDaySchema,
     UserSchema,
 )
-from secondshift.core.workspace_settings import (
-    environment_label,
-    sandbox_label,
-)
 from secondshift.github.app import configured as github_app_configured
 from secondshift.jobs.dao import enabled_job_count
 from secondshift.jobs.execution import execution_status
@@ -35,6 +31,10 @@ from secondshift.workspaces.access import (
     permitted_actions,
 )
 from secondshift.workspaces.dao import own_tokens
+from secondshift.workspaces.server_settings import (
+    environment_label,
+    sandbox_label,
+)
 from secondshift.workspaces.services import can_create_workspace
 
 router = Router(auth=django_auth, tags=["core"])
