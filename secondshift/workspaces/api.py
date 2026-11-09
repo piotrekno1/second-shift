@@ -158,9 +158,6 @@ def dismiss_pending_invite(request: HttpRequest) -> Status[None]:
     return Status(204, None)
 
 
-# type: ignore[attr-defined]
-
-
 @router.get("/invites", response=list[InviteSchema])
 def invites(request: HttpRequest) -> list[InviteSchema]:
     """Invites in the current workspace that can still be accepted."""
