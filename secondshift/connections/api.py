@@ -18,6 +18,8 @@ from secondshift.connections.agents import (
     save_agent_connection,
 )
 from secondshift.connections.dao import (
+    github_token_sources,
+    own_agent_connections,
     workspace_agent_connections,
     workspace_connections,
 )
@@ -174,12 +176,7 @@ def connect_github_token(
     replacing = None
     if payload.connection_id is not None:
         replacing = get_object_or_404(
-            Connection,
-            pk=payload.connection_id,
-            workspace=workspace,
-            provider=Connection.Provider.GITHUB,
-            kind=Connection.Kind.SOURCE,
-            auth_strategy=Connection.AuthStrategy.API_KEY,
+            github_token_sources(workspace.pk), pk=payload.connection_id
         )
     try:
         connection = connect_token_source(workspace, payload.token, replacing)
@@ -334,10 +331,8 @@ def start_mcp_sign_in(
     workspace = require(request, Action.ADD_MCP_CONNECTIONS)
     connection = (
         get_object_or_404(
-            Connection,
+            workspace_connections(workspace.pk, Connection.Kind.MCP),
             pk=payload.connection_id,
-            workspace=workspace,
-            kind=Connection.Kind.MCP,
         )
         if payload.connection_id
         else None
@@ -427,7 +422,7 @@ def owned_connection(
     request: HttpRequest, connection_id: int, action: Action
 ) -> Connection:
     workspace = require(request, action)
-    return get_object_or_404(Connection, pk=connection_id, workspace=workspace)
+    return get_object_or_404(workspace_connections(workspace.pk), pk=connection_id)
 
 
 @router.post(
@@ -677,7 +672,7 @@ def reconnect_agent(
 ) -> AgentConnection:
     workspace = require(request, Action.EDIT_CONNECTIONS)
     connection = get_object_or_404(
-        AgentConnection, pk=connection_id, workspace=workspace, owner=request.user
+        own_agent_connections(workspace, request.user), pk=connection_id
     )
     try:
         return reconnect_agent_connection(
@@ -696,7 +691,7 @@ def check_agent(request: HttpRequest, connection_id: int) -> AgentConnection:
     """Only the login's owner checks it. The check uses their plan's allowance."""
     workspace = require(request, Action.TEST_CONNECTIONS)
     connection = get_object_or_404(
-        AgentConnection, pk=connection_id, workspace=workspace, owner=request.user
+        own_agent_connections(workspace, request.user), pk=connection_id
     )
     try:
         check_agent_connection(connection)
@@ -714,7 +709,7 @@ def set_agent_run_limit(
     """Only the login's owner sets its cap. It is their subscription."""
     workspace = require(request, Action.EDIT_CONNECTIONS)
     connection = get_object_or_404(
-        AgentConnection, pk=connection_id, workspace=workspace, owner=request.user
+        own_agent_connections(workspace, request.user), pk=connection_id
     )
     connection.max_runs_per_day = payload.max_runs_per_day
     connection.save(update_fields=["max_runs_per_day", "updated_at"])
@@ -725,7 +720,7 @@ def set_agent_run_limit(
 def disconnect_agent(request: HttpRequest, connection_id: int) -> Status[None]:
     workspace = require(request, Action.DISCONNECT_CONNECTIONS)
     connection = get_object_or_404(
-        AgentConnection, pk=connection_id, workspace=workspace, owner=request.user
+        own_agent_connections(workspace, request.user), pk=connection_id
     )
     # A cached copy the runner keeps is removed by the worker.
     disconnect_agent_connection(connection)

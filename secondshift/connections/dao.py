@@ -82,8 +82,21 @@ def connection_binding(connection_id: int) -> str | None:
     )
 
 
-def workspace_connections(workspace_id: int) -> QuerySet[Connection]:
-    return Connection.objects.filter(workspace_id=workspace_id)
+def workspace_connections(
+    workspace_id: int, kind: str | None = None
+) -> QuerySet[Connection]:
+    connections = Connection.objects.filter(workspace_id=workspace_id)
+    return connections if kind is None else connections.filter(kind=kind)
+
+
+def github_token_sources(workspace_id: int) -> QuerySet[Connection]:
+    """The workspace's GitHub sources that use a personal access token."""
+    return Connection.objects.filter(
+        workspace_id=workspace_id,
+        provider=Connection.Provider.GITHUB,
+        kind=Connection.Kind.SOURCE,
+        auth_strategy=Connection.AuthStrategy.API_KEY,
+    )
 
 
 def connected_count(workspace_id: int) -> int:
@@ -223,6 +236,12 @@ def lock_unused_authorization(
 
 def workspace_agent_connections(workspace: Workspace) -> list[AgentConnection]:
     return list(AgentConnection.objects.filter(workspace=workspace))
+
+
+def own_agent_connections(
+    workspace: Workspace, user: AbstractBaseUser
+) -> QuerySet[AgentConnection]:
+    return AgentConnection.objects.filter(workspace=workspace, owner=user)
 
 
 def connected_logins(

@@ -7,7 +7,7 @@ from datetime import datetime
 from django.http import HttpRequest
 
 from secondshift.connections.models import Connection
-from secondshift.gateway.dao import active_tokens, create_run_token
+from secondshift.gateway.dao import aactive_token, active_token, create_run_token
 from secondshift.gateway.models import RunToken
 
 TOKEN_PREFIX = "ssrt_"
@@ -50,13 +50,13 @@ def same_workspace(run_token: RunToken | None) -> RunToken | None:
 def authenticate(token: str) -> RunToken | None:
     if not token.startswith(TOKEN_PREFIX):
         return None
-    return same_workspace(active_tokens(token_digest(token)).first())
+    return same_workspace(active_token(token_digest(token)))
 
 
 async def aauthenticate(token: str) -> RunToken | None:
     if not token.startswith(TOKEN_PREFIX):
         return None
-    return same_workspace(await active_tokens(token_digest(token)).afirst())
+    return same_workspace(await aactive_token(token_digest(token)))
 
 
 def request_token(request: HttpRequest) -> str:

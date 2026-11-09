@@ -4,11 +4,12 @@ from ninja import Router
 from ninja.errors import HttpError
 from ninja.security import django_auth
 
-from secondshift.connections.models import Connection
+from secondshift.connections.dao import workspace_connections
 from secondshift.connections.serialization import serialize_connection
 from secondshift.jobs.access import job_for_request
+from secondshift.jobs.dao import job_requests
 from secondshift.jobs.grants import GrantError, decide_grant
-from secondshift.jobs.models import JOB_REMOVED, CapabilityRequest
+from secondshift.jobs.models import JOB_REMOVED
 from secondshift.jobs.needs import capability_needs
 from secondshift.jobs.planning import build_execution_plan
 from secondshift.jobs.readiness import execution_problems
@@ -128,12 +129,12 @@ def review_job_capability(
 ) -> JobSchema:
     job = job_for_request(request, job_id)
     require(request, Action.REVIEW_CAPABILITIES)
-    capability = get_object_or_404(CapabilityRequest, pk=capability_id, job=job)
+    capability = get_object_or_404(job_requests(job), pk=capability_id)
     connection = (
         None
         if payload.connection_id is None
         else get_object_or_404(
-            Connection, pk=payload.connection_id, workspace=job.workspace
+            workspace_connections(job.workspace_id), pk=payload.connection_id
         )
     )
     try:

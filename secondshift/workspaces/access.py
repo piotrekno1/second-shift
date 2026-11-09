@@ -14,7 +14,11 @@ from enum import StrEnum
 from django.db.models import QuerySet
 from django.http import HttpRequest
 
-from secondshift.workspaces.dao import memberships_for_user
+from secondshift.workspaces.dao import (
+    first_membership,
+    membership_in,
+    memberships_for_user,
+)
 from secondshift.workspaces.models import ApiToken, Workspace, WorkspaceMembership
 
 Role = WorkspaceMembership.Role
@@ -120,16 +124,13 @@ def current_membership(request: HttpRequest) -> WorkspaceMembership | None:
     token = request_token(request)
     if token is not None:
         # A token works only in its own workspace, whatever the session says.
-        membership = (
-            user_memberships(request).filter(workspace_id=token.workspace_id).first()
-        )
+        membership = membership_in(request.user.pk, token.workspace_id)
     elif request.user.is_authenticated:
-        memberships = user_memberships(request)
         chosen = request.session.get(CURRENT_WORKSPACE_SESSION_KEY)
         if chosen is not None:
-            membership = memberships.filter(workspace_id=chosen).first()
+            membership = membership_in(request.user.pk, chosen)
         # A workspace the person has left falls back to their first one.
-        membership = membership or memberships.first()
+        membership = membership or first_membership(request.user.pk)
     setattr(request, MEMBERSHIP_ATTRIBUTE, membership)
     return membership
 
@@ -170,7 +171,7 @@ def require(request: HttpRequest, action: Action) -> Workspace:
 
 def select_workspace(request: HttpRequest, workspace_id: int) -> Workspace | None:
     """Work in another of the person's workspaces. None when not a member."""
-    membership = user_memberships(request).filter(workspace_id=workspace_id).first()
+    membership = membership_in(request.user.pk, workspace_id)
     if membership is None:
         return None
     request.session[CURRENT_WORKSPACE_SESSION_KEY] = workspace_id

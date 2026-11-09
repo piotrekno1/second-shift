@@ -1,7 +1,8 @@
 """Model queries live in each app's dao.py.
 
-Other modules call the dao helpers. They never use a model manager, and they
-never query through a reverse relation. Reading a relation with `.all()` is
+Other modules call the dao helpers. They never use a model manager, never
+pass a model to get_object_or_404, never refine a dao queryset, and never
+query through a reverse relation. Reading a relation with `.all()` is
 fine, since it uses prefetched rows.
 """
 
@@ -48,6 +49,31 @@ QUERY_METHODS = {
 }
 
 
+SHORTCUTS = {"get_object_or_404", "get_list_or_404"}
+# Called on what a function returned, these refine a dao queryset outside the dao.
+CHAINED_METHODS = {
+    "afirst",
+    "aggregate",
+    "annotate",
+    "exclude",
+    "filter",
+    "first",
+    "order_by",
+    "prefetch_related",
+    "select_related",
+    "values_list",
+}
+
+
+def model_names() -> set[str]:
+    return {
+        model.__name__
+        for config in apps.get_app_configs()
+        if config.name.startswith("secondshift.")
+        for model in config.get_models()
+    }
+
+
 def reverse_accessors() -> set[str]:
     """The names of every reverse relation on the project's models."""
     return {
@@ -83,20 +109,44 @@ def queries_relation(node: ast.AST, accessors: set[str]) -> bool:
     )
 
 
-def queries(tree: ast.AST, accessors: set[str]) -> list[int]:
+def looks_up_model(node: ast.AST, models: set[str]) -> bool:
+    return (
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id in SHORTCUTS
+        and bool(node.args)
+        and isinstance(node.args[0], ast.Name)
+        and node.args[0].id in models
+    )
+
+
+def refines_a_query(node: ast.AST) -> bool:
+    return (
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr in CHAINED_METHODS
+        and isinstance(node.func.value, ast.Call)
+    )
+
+
+def queries(tree: ast.AST, accessors: set[str], models: set[str]) -> list[int]:
     return sorted(
         node.lineno
         for node in ast.walk(tree)
-        if uses_manager(node) or queries_relation(node, accessors)
+        if uses_manager(node)
+        or queries_relation(node, accessors)
+        or looks_up_model(node, models)
+        or refines_a_query(node)
     )
 
 
 def test_model_queries_live_in_dao_modules(db: object) -> None:
     accessors = reverse_accessors()
+    models = model_names()
     found = [
         f"{path.relative_to(PACKAGE)}:{line}"
         for path in modules()
-        for line in queries(ast.parse(path.read_text()), accessors)
+        for line in queries(ast.parse(path.read_text()), accessors, models)
     ]
     assert found == []
 
@@ -107,5 +157,8 @@ def test_the_check_finds_manager_and_reverse_relation_queries() -> None:
         "job.runs.filter(status='queued')\n"
         "job.runs.all()\n"
         "manifest.jobs.values()\n"
+        "get_object_or_404(Run, pk=1)\n"
+        "get_object_or_404(workspace_runs(1), pk=1)\n"
+        "workspace_runs(1).filter(status='queued')\n"
     )
-    assert queries(tree, {"runs", "jobs"}) == [1, 2]
+    assert queries(tree, {"runs", "jobs"}, {"Run"}) == [1, 2, 5, 7]

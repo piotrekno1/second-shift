@@ -6,7 +6,7 @@ from ninja import Query, Router, Status
 from ninja.errors import HttpError
 from ninja.security import django_auth
 
-from secondshift.connections.models import Connection
+from secondshift.connections.dao import connected_github_sources
 from secondshift.github.app import configured
 from secondshift.github.errors import GitHubError
 from secondshift.jobs.dao import disable_repository_jobs, enabled_repository_jobs
@@ -18,7 +18,7 @@ from secondshift.jobs.repository_sync import (
 )
 from secondshift.jobs.scheduling import restart_schedules
 from secondshift.repositories.access import repository_for_request
-from secondshift.repositories.dao import active_repositories
+from secondshift.repositories.dao import active_repositories_with_jobs
 from secondshift.repositories.github_sync import (
     GitHubRepositoryExistsError,
     available_github_sources,
@@ -62,7 +62,7 @@ def repositories(request: HttpRequest) -> list[RepositorySchema]:
     workspace = current_workspace(request)
     if not workspace:
         return []
-    queryset = active_repositories(workspace.pk).prefetch_related("jobs")
+    queryset = active_repositories_with_jobs(workspace.pk)
     return [serialize_repository(request, item) for item in queryset]
 
 
@@ -126,12 +126,7 @@ def github_branches(
 ) -> list[str]:
     workspace = require(request, Action.ADD_GITHUB_REPOSITORIES)
     connection = get_object_or_404(
-        Connection,
-        pk=connection_id,
-        workspace=workspace,
-        provider=Connection.Provider.GITHUB,
-        kind=Connection.Kind.SOURCE,
-        status=Connection.Status.CONNECTED,
+        connected_github_sources(workspace.pk), pk=connection_id
     )
     try:
         return repository_branches(connection, repository_id)
@@ -145,12 +140,7 @@ def create_github_repository(
 ) -> RepositorySchema:
     workspace = require(request, Action.ADD_GITHUB_REPOSITORIES)
     connection = get_object_or_404(
-        Connection,
-        pk=payload.connection_id,
-        workspace=workspace,
-        provider=Connection.Provider.GITHUB,
-        kind=Connection.Kind.SOURCE,
-        status=Connection.Status.CONNECTED,
+        connected_github_sources(workspace.pk), pk=payload.connection_id
     )
     try:
         repository = attach_github_repository(

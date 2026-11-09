@@ -30,6 +30,10 @@ def active_repositories(workspace_id: int) -> QuerySet[Repository]:
     return Repository.objects.filter(workspace_id=workspace_id, removed_at__isnull=True)
 
 
+def active_repositories_with_jobs(workspace_id: int) -> QuerySet[Repository]:
+    return active_repositories(workspace_id).prefetch_related("jobs")
+
+
 def active_repository_ids() -> set[int]:
     """Every repository that was not removed, in any workspace."""
     return set(

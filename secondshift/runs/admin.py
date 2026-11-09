@@ -1,10 +1,10 @@
 from django.contrib import admin
 from django.http import FileResponse, Http404, HttpRequest
-from django.shortcuts import get_object_or_404
 from django.urls import URLPattern, URLResolver, path, reverse
 from django.utils.html import format_html
 
 from secondshift.runs.artifacts import artifact_storage
+from secondshift.runs.dao import get_run
 from secondshift.runs.models import Run, RunEvent
 
 
@@ -68,7 +68,10 @@ class RunAdmin(admin.ModelAdmin):
         return format_html('<a href="{}">Download output.log</a>', url)
 
     def output_view(self, request: HttpRequest, run_id: int) -> FileResponse:
-        run = get_object_or_404(Run, pk=run_id)
+        try:
+            run = get_run(run_id)
+        except Run.DoesNotExist:
+            raise Http404 from None
         if not self.has_view_permission(request, run) or not run.output_path:
             raise Http404
         return FileResponse(

@@ -132,6 +132,10 @@ def repository_requests(repository: Repository) -> QuerySet[CapabilityRequest]:
     )
 
 
+def job_requests(job: Job) -> QuerySet[CapabilityRequest]:
+    return CapabilityRequest.objects.filter(job=job)
+
+
 def job_requests_with_grants(job: Job) -> QuerySet[CapabilityRequest]:
     """The job's requests with their grants and granted connections."""
     return job.capability_requests.select_related("grant__connection")

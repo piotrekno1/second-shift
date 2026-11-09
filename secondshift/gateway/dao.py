@@ -51,6 +51,14 @@ def active_tokens(token_hash: str) -> QuerySet[RunToken]:
     )
 
 
+def active_token(token_hash: str) -> RunToken | None:
+    return active_tokens(token_hash).first()
+
+
+async def aactive_token(token_hash: str) -> RunToken | None:
+    return await active_tokens(token_hash).afirst()
+
+
 async def acreate_model_usage(
     run_token: RunToken,
     provider: str,

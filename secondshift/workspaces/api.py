@@ -166,7 +166,7 @@ def dismiss_pending_invite(request: HttpRequest) -> Status[None]:
 def invites(request: HttpRequest) -> list[InviteSchema]:
     """Invites in the current workspace that can still be accepted."""
     workspace = require(request, Action.INVITE_PEOPLE)
-    queryset = pending_invites(workspace).select_related("created_by")
+    queryset = pending_invites(workspace)
     return [serialize_invite(invite) for invite in queryset]
 
 

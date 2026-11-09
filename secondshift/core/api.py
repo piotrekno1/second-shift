@@ -30,7 +30,7 @@ from secondshift.workspaces.access import (
     is_operator,
     permitted_actions,
 )
-from secondshift.workspaces.dao import own_tokens
+from secondshift.workspaces.dao import has_own_token
 from secondshift.workspaces.server_settings import (
     environment_label,
     sandbox_label,
@@ -100,5 +100,5 @@ def overview(request: HttpRequest) -> OverviewSchema:
         ],
         run_days=[RunDaySchema(**vars(day)) for day in runs_by_day(workspace)],
         execution=execution_status(workspace),
-        has_agent_token=own_tokens(request.user).filter(workspace=workspace).exists(),
+        has_agent_token=has_own_token(request.user, workspace),
     )

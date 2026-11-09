@@ -110,6 +110,14 @@ def active_member_role(workspace_id: int, user_id: int | None) -> str | None:
     )
 
 
+def membership_in(user_id: int, workspace_id: int) -> WorkspaceMembership | None:
+    return memberships_for_user(user_id).filter(workspace_id=workspace_id).first()
+
+
+def first_membership(user_id: int) -> WorkspaceMembership | None:
+    return memberships_for_user(user_id).first()
+
+
 def memberships_for_user(user_id: int) -> QuerySet[WorkspaceMembership]:
     """The person's memberships with their workspaces, the first one joined first."""
     return (
@@ -173,7 +181,8 @@ def usable_invites() -> QuerySet[WorkspaceInvite]:
 
 
 def pending_invites(workspace: Workspace) -> QuerySet[WorkspaceInvite]:
-    return usable_invites().filter(workspace=workspace)
+    """Invites that can still be accepted, with who sent them."""
+    return usable_invites().filter(workspace=workspace).select_related("created_by")
 
 
 def find_usable_invite(token_hash: str) -> WorkspaceInvite | None:
@@ -217,6 +226,10 @@ def usable_tokens() -> QuerySet[ApiToken]:
     return ApiToken.objects.filter(
         revoked_at__isnull=True, expires_at__gt=timezone.now()
     )
+
+
+def has_own_token(user: AbstractBaseUser, workspace: Workspace) -> bool:
+    return own_tokens(user).filter(workspace=workspace).exists()
 
 
 def own_tokens(user: AbstractBaseUser) -> QuerySet[ApiToken]:
