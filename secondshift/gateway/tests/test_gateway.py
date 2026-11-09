@@ -26,10 +26,11 @@ from secondshift.gateway.metering import (
 from secondshift.gateway.models import ModelUsage, RunToken
 from secondshift.gateway.pricing import request_cost
 from secondshift.gateway.proxy import upstream_client
-from secondshift.gateway.tokens import GatewayUnavailable, authenticate, issue_run_token
+from secondshift.gateway.tokens import GatewayUnavailable, authenticate
 from secondshift.gateway.views import model_gateway
 from secondshift.jobs.models import Job
 from secondshift.repositories.models import Repository
+from secondshift.runs.execution.model_gateway import issue_run_token
 from secondshift.runs.models import Run
 from secondshift.runs.orchestration.reconciliation import mark_run_terminal
 from secondshift.workspaces.dao import create_workspace, workspace_owner

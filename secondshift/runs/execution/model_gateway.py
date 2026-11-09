@@ -11,12 +11,26 @@ from secondshift.connections.dao import connected_model
 from secondshift.connections.model_providers import provider_family
 from secondshift.connections.models import Connection
 from secondshift.gateway.dao import revoke_run_tokens
-from secondshift.gateway.tokens import issue_run_token
+from secondshift.gateway.tokens import issue_token
+from secondshift.jobs.limits import plan_limit
+from secondshift.runs.execution.deadlines import run_deadline
 from secondshift.runs.models import Run
+from secondshift.workspaces.limits import RunLimit
 
 
 class ModelGatewayConfigurationError(RuntimeError):
     pass
+
+
+def issue_run_token(run: Run, connection: Connection) -> str:
+    """A gateway token that ends with the run's time limit and token budget."""
+    return issue_token(
+        run.pk,
+        run.workspace_id,
+        connection,
+        expires_at=run_deadline(run),
+        budget_tokens=plan_limit(run.execution_plan, RunLimit.TOKEN_BUDGET),
+    )
 
 
 @dataclass(frozen=True)

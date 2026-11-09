@@ -1,13 +1,12 @@
 from django.db import models
 
 from secondshift.connections.models import Connection
-from secondshift.runs.models import Run
 
 
 class RunToken(models.Model):
     """A per-run credential for the model gateway. Only its SHA-256 is stored."""
 
-    run = models.ForeignKey(Run, on_delete=models.CASCADE, related_name="tokens")
+    run = models.ForeignKey("runs.Run", on_delete=models.CASCADE, related_name="tokens")
     connection = models.ForeignKey(
         Connection,
         on_delete=models.CASCADE,
@@ -30,7 +29,9 @@ class RunToken(models.Model):
 class ModelUsage(models.Model):
     """One gateway request: what was called and what it cost in tokens."""
 
-    run = models.ForeignKey(Run, on_delete=models.CASCADE, related_name="model_usage")
+    run = models.ForeignKey(
+        "runs.Run", on_delete=models.CASCADE, related_name="model_usage"
+    )
     connection = models.ForeignKey(
         Connection,
         on_delete=models.SET_NULL,

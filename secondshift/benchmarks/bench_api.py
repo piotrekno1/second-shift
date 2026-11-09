@@ -18,9 +18,10 @@ from secondshift.benchmarks.seed import (
     seed_runs,
 )
 from secondshift.connections.models import Connection
-from secondshift.gateway.tokens import authenticate, issue_run_token
+from secondshift.gateway.tokens import authenticate
 from secondshift.jobs.models import Job
 from secondshift.mcp_server.api import throttle
+from secondshift.runs.execution.model_gateway import issue_run_token
 from secondshift.runs.models import Run
 from secondshift.workspaces.models import Workspace, WorkspaceMembership
 from secondshift.workspaces.tokens import create_api_token

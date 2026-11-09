@@ -14,7 +14,7 @@ from secondshift.runs.dao import (
     run_counts,
     runs_by_id,
 )
-from secondshift.runs.models import Run
+from secondshift.runs.models import Run, run_workspace_filter
 from secondshift.runs.reporting.failures import describe_failure
 from secondshift.workspaces.models import Workspace
 
@@ -102,7 +102,9 @@ def week_summary(workspace: Workspace, now: datetime | None = None) -> WeekSumma
     now = now or timezone.now()
     start, previous_start = now - WINDOW, now - 2 * WINDOW
     runs = run_counts(workspace.pk, start, previous_start)
-    totals = spend_totals(workspace.pk, start, previous_start)
+    totals = spend_totals(
+        run_workspace_filter(workspace.pk, "run__"), start, previous_start
+    )
     return WeekSummary(
         runs=runs["runs"],
         previous_runs=runs["previous"],

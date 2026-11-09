@@ -8,13 +8,13 @@ from pydantic import ValidationError
 
 from secondshift.connections.models import Connection
 from secondshift.gateway.models import RunToken
-from secondshift.gateway.tokens import issue_run_token
 from secondshift.jobs.limits import effective_limits
 from secondshift.jobs.manifest import RepositoryManifest
 from secondshift.jobs.models import Job
 from secondshift.jobs.planning import build_execution_plan
 from secondshift.jobs.tests.test_planning import create_job
 from secondshift.runs.execution.budgets import Budget, budget_summary
+from secondshift.runs.execution.model_gateway import issue_run_token
 from secondshift.runs.models import Run
 from secondshift.workspaces.dao import workspace_owner
 from secondshift.workspaces.limits import (

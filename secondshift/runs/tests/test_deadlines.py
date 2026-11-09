@@ -10,10 +10,10 @@ from secondshift.config.formatting import duration_label
 from secondshift.connections.execution import choose_execution
 from secondshift.connections.models import Connection
 from secondshift.gateway.models import RunToken
-from secondshift.gateway.tokens import issue_run_token
 from secondshift.runs.execution import agent
 from secondshift.runs.execution.agent import RUN_MODEL_ID
 from secondshift.runs.execution.deadlines import RunTimedOut, run_deadline
+from secondshift.runs.execution.model_gateway import issue_run_token
 from secondshift.runs.execution.workspace_tools import WorkspaceToolDeps, run_command
 from secondshift.runs.models import Run, RunEvent
 from secondshift.runs.orchestration import workflows
