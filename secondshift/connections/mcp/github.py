@@ -12,6 +12,7 @@ from secondshift.config.constants import (
     GITHUB_TOKEN_HINT,
     GitHubMCPTool,
 )
+from secondshift.connections.access import AccessReason
 from secondshift.connections.dao import connected_github_sources
 from secondshift.connections.github import connection_source, usable_source
 from secondshift.connections.mcp.base import (
@@ -227,7 +228,7 @@ GITHUB_MCP = MCPProvider(
     scope=github_scope,
     describe_scope=describe_github_scope,
     scope_label="repository",
-    missing_scope_reason="github_repository_unknown",
+    missing_scope_reason=AccessReason.GITHUB_REPOSITORY_UNKNOWN,
     missing_scope_message=(
         "This job has no GitHub repository identity. For a local checkout, "
         "configure a GitHub origin and resync it."

@@ -1,8 +1,9 @@
 from dataclasses import dataclass, field
 from typing import Literal
 
+from secondshift.connections.access import Access
 from secondshift.connections.dao import connections_by_binding
-from secondshift.connections.external import EXTERNAL_KINDS, Access, external_access
+from secondshift.connections.external import EXTERNAL_KINDS, external_access
 from secondshift.connections.models import Connection
 from secondshift.jobs.dao import workspace_requests
 from secondshift.jobs.models import CapabilityRequest, JobGrant

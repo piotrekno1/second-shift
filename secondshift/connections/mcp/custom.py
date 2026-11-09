@@ -2,6 +2,7 @@
 
 from typing import Any
 
+from secondshift.connections.access import AccessReason
 from secondshift.connections.mcp.base import (
     MCPError,
     MCPProvider,
@@ -59,7 +60,7 @@ CUSTOM_MCP = MCPProvider(
     describe_scope=describe_custom_scope,
     access_verb="use",
     scope_label="server",
-    missing_scope_reason="mcp_server_unknown",
+    missing_scope_reason=AccessReason.MCP_SERVER_UNKNOWN,
     missing_scope_message="This MCP connection has no server URL.",
     settings=(
         MCPSetting(

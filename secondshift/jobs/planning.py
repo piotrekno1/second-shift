@@ -28,6 +28,7 @@ from secondshift.jobs.plan import (
     Missing,
     ModelPlan,
     PlanLimits,
+    PlanReason,
     PullRequestPlan,
     RepositoryPlan,
     RunnerPlan,
@@ -78,6 +79,21 @@ class ExecutionDefinition:
     config_hash: str
 
 
+GRANT_REASONS = {
+    JobGrant.Status.PENDING: PlanReason.GRANT_PENDING,
+    JobGrant.Status.DENIED: PlanReason.GRANT_DENIED,
+}
+CONNECTION_REASONS = {
+    Connection.Status.EXPIRED: PlanReason.CONNECTION_EXPIRED,
+    Connection.Status.REVOKED: PlanReason.CONNECTION_REVOKED,
+}
+WAITING_REASONS = {
+    PlanReason.NO_GRANT,
+    PlanReason.GRANT_PENDING,
+    PlanReason.TOOLS_NOT_GRANTED,
+}
+
+
 def blocking_reasons(
     workspace: Workspace,
     request: RequestedCapability,
@@ -88,17 +104,17 @@ def blocking_reasons(
     requested = set(request.requested_tools)
     reasons: list[str] = []
     if not grant:
-        reasons.append("no_grant")
+        reasons.append(PlanReason.NO_GRANT)
     elif grant.status != JobGrant.Status.APPROVED:
-        reasons.append(f"grant_{grant.status}")
+        reasons.append(GRANT_REASONS[grant.status])
     if connection:
         reasons.extend(connection_reasons(workspace, request, connection))
     if grant and grant.status == JobGrant.Status.APPROVED and connection is None:
-        reasons.append("connection_missing")
+        reasons.append(PlanReason.CONNECTION_MISSING)
     if grant and requested - set(grant.allowed_tools):
-        reasons.append("tools_not_granted")
+        reasons.append(PlanReason.TOOLS_NOT_GRANTED)
     if connection and requested - set(connection.available_tools):
-        reasons.append("tools_unavailable")
+        reasons.append(PlanReason.TOOLS_UNAVAILABLE)
     return reasons
 
 
@@ -107,13 +123,13 @@ def connection_reasons(
 ) -> list[str]:
     reasons = []
     if connection.current_status != Connection.Status.CONNECTED:
-        reasons.append(f"connection_{connection.current_status}")
+        reasons.append(CONNECTION_REASONS[connection.current_status])
     if connection.workspace_id != workspace.pk:
-        reasons.append("connection_workspace_mismatch")
+        reasons.append(PlanReason.CONNECTION_WORKSPACE_MISMATCH)
     if connection.kind != request.kind:
-        reasons.append("connection_kind_mismatch")
+        reasons.append(PlanReason.CONNECTION_KIND_MISMATCH)
     if connection.binding_key != request.binding:
-        reasons.append("connection_binding_mismatch")
+        reasons.append(PlanReason.CONNECTION_BINDING_MISMATCH)
     return reasons
 
 
@@ -136,7 +152,7 @@ def missing_reason(
     )
     if connection is None or connection.status != Connection.Status.CONNECTED:
         return Missing.NOT_CONNECTED
-    if {"no_grant", "grant_pending", "tools_not_granted"} & set(reasons):
+    if WAITING_REASONS & set(reasons):
         return Missing.WAITING_FOR_APPROVAL
     return Missing.UNAVAILABLE
 
@@ -154,7 +170,7 @@ def capability_plan(
     effective = requested & allowed & available
     reasons = blocking_reasons(workspace, request, grant, connection)
     if grant and connection and rules_broken(grant, connection):
-        reasons.append("tool_rules_broken")
+        reasons.append(PlanReason.TOOL_RULES_BROKEN)
 
     adapter = EXTERNAL_KINDS.get(request.kind)
     access = (

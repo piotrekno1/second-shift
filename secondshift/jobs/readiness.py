@@ -1,23 +1,26 @@
 """Why a job cannot run yet, in plain words."""
 
 from secondshift.jobs.models import Job
-from secondshift.jobs.plan import ExecutionPlan
+from secondshift.jobs.plan import ExecutionPlan, PlanReason
 from secondshift.jobs.planning import build_execution_plan
 from secondshift.repositories.models import Repository
 
+MISMATCH = "is approved for a connection that does not match"
 REASON_TEXT = {
-    "no_grant": "waits for an owner's approval",
-    "grant_pending": "waits for an owner's approval",
-    "grant_denied": "was denied by an owner",
-    "connection_missing": "has no approved connection",
-    "connection_expired": "uses a connection whose sign-in expired",
-    "connection_revoked": "uses a connection that was disconnected",
-    "connection_workspace_mismatch": "is approved for a connection that does not match",
-    "connection_kind_mismatch": "is approved for a connection that does not match",
-    "connection_binding_mismatch": "is approved for a connection that does not match",
-    "tools_not_granted": "requests tools the owner did not approve",
-    "tools_unavailable": "requests tools the connection does not offer",
-    "tool_rules_broken": "has tool restrictions that no longer fit the connection",
+    PlanReason.NO_GRANT: "waits for an owner's approval",
+    PlanReason.GRANT_PENDING: "waits for an owner's approval",
+    PlanReason.GRANT_DENIED: "was denied by an owner",
+    PlanReason.CONNECTION_MISSING: "has no approved connection",
+    PlanReason.CONNECTION_EXPIRED: "uses a connection whose sign-in expired",
+    PlanReason.CONNECTION_REVOKED: "uses a connection that was disconnected",
+    PlanReason.CONNECTION_WORKSPACE_MISMATCH: MISMATCH,
+    PlanReason.CONNECTION_KIND_MISMATCH: MISMATCH,
+    PlanReason.CONNECTION_BINDING_MISMATCH: MISMATCH,
+    PlanReason.TOOLS_NOT_GRANTED: "requests tools the owner did not approve",
+    PlanReason.TOOLS_UNAVAILABLE: "requests tools the connection does not offer",
+    PlanReason.TOOL_RULES_BROKEN: (
+        "has tool restrictions that no longer fit the connection"
+    ),
 }
 OTHER_REASON = "cannot reach what the job needs through its connection"
 

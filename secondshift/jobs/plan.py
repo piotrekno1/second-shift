@@ -26,6 +26,23 @@ class Missing(StrEnum):
     UNAVAILABLE = "not available"
 
 
+class PlanReason(StrEnum):
+    """Why a capability is not authorized. Connections add AccessReason codes."""
+
+    NO_GRANT = "no_grant"
+    GRANT_PENDING = "grant_pending"
+    GRANT_DENIED = "grant_denied"
+    CONNECTION_MISSING = "connection_missing"
+    CONNECTION_EXPIRED = "connection_expired"
+    CONNECTION_REVOKED = "connection_revoked"
+    CONNECTION_WORKSPACE_MISMATCH = "connection_workspace_mismatch"
+    CONNECTION_KIND_MISMATCH = "connection_kind_mismatch"
+    CONNECTION_BINDING_MISMATCH = "connection_binding_mismatch"
+    TOOLS_NOT_GRANTED = "tools_not_granted"
+    TOOLS_UNAVAILABLE = "tools_unavailable"
+    TOOL_RULES_BROKEN = "tool_rules_broken"
+
+
 class ExecutionChoice(Frozen):
     """The agent backend the workspace chose, and the login a CLI agent uses."""
 
@@ -106,6 +123,7 @@ class CapabilityPlan(Frozen):
     connection_name: str | None
     effective_tools: tuple[str, ...]
     authorized: bool
+    # PlanReason and AccessReason codes. Older runs may hold retired ones.
     reasons: tuple[str, ...]
     missing: Missing | None = None
     # The approved scope and tool definitions of an external tool.

@@ -3,6 +3,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
+from secondshift.connections.access import AccessReason
 from secondshift.connections.errors import (
     ExternalRequestError,
     ExternalToolError,
@@ -73,7 +74,7 @@ class MCPProvider:
     describe_scope: Callable[[str], str]
     access_verb: str = "read"
     scope_label: str = "scope"
-    missing_scope_reason: str = "mcp_scope_unknown"
+    missing_scope_reason: AccessReason = AccessReason.MCP_SCOPE_UNKNOWN
     missing_scope_message: str = "This job has no scope for this provider."
     settings: tuple[MCPSetting, ...] = ()
     # Appended to endpoint_url, built only from validated settings.

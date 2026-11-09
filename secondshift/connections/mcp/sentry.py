@@ -8,6 +8,7 @@ from secondshift.config.constants import (
     SENTRY_SLUG_PATTERN,
     SentryMCPTool,
 )
+from secondshift.connections.access import AccessReason
 from secondshift.connections.mcp.base import (
     MCPArgumentError,
     MCPError,
@@ -102,7 +103,7 @@ SENTRY_MCP = MCPProvider(
     scope_arguments=scoped_sentry_arguments,
     describe_scope=describe_sentry_scope,
     scope_label="Sentry scope",
-    missing_scope_reason="sentry_organization_unknown",
+    missing_scope_reason=AccessReason.SENTRY_ORGANIZATION_UNKNOWN,
     missing_scope_message="This Sentry connection has no organization.",
     settings=(
         MCPSetting(

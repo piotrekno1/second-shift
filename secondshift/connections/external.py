@@ -10,6 +10,7 @@ from typing import Any, Protocol
 
 from asgiref.sync import async_to_sync
 
+from secondshift.connections.access import Access, AccessReason
 from secondshift.connections.errors import ExternalToolError
 from secondshift.connections.http_api.client import (
     build_request,
@@ -30,17 +31,6 @@ from secondshift.connections.mcp.providers import (
 from secondshift.connections.models import Connection
 from secondshift.connections.outbound import host_label
 from secondshift.connections.repository_ref import RepositoryRef
-
-
-@dataclass(frozen=True)
-class Access:
-    """What a job could reach through a connection, in plain words."""
-
-    ok: bool
-    scope: str | None
-    text: str
-    # The plan's reason code when the job cannot use the connection.
-    reason: str = ""
 
 
 @dataclass(frozen=True)
@@ -100,7 +90,7 @@ class MCPKind:
                 False,
                 None,
                 "This MCP provider is not supported.",
-                "mcp_provider_unsupported",
+                AccessReason.MCP_PROVIDER_UNSUPPORTED,
             )
         scope = provider.scope(connection_settings(connection), repository)
         if not scope:
@@ -112,7 +102,10 @@ class MCPKind:
             )
         if borrows_source(connection) and not provider.source_reachable(repository):
             return Access(
-                False, None, provider.missing_source_message, "mcp_source_missing"
+                False,
+                None,
+                provider.missing_source_message,
+                AccessReason.MCP_SOURCE_MISSING,
             )
         return Access(
             True,
@@ -183,7 +176,7 @@ class APIKind:
                 False,
                 None,
                 "This API connection has no base URL.",
-                "api_base_url_unknown",
+                AccessReason.API_BASE_URL_UNKNOWN,
             )
         host = host_label(base_url)
         return Access(
