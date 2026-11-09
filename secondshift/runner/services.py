@@ -37,6 +37,36 @@ TRUNCATION_MARKER = b"\n[... command output truncated by SecondShift ...]\n"
 HISTORY_DIR = "history"
 
 
+def sandbox_name(session_id: str) -> str:
+    return f"secondshift-{session_id}"
+
+
+def agent_name(session_id: str) -> str:
+    return f"secondshift-agent-{session_id}"
+
+
+def sandbox_flags() -> list[str]:
+    """The runtime, hardening, limits and user every sandbox container gets.
+
+    Callers add only their own mounts, network and temporary files.
+    """
+    flags = []
+    if settings.RUNNER_RUNTIME != SandboxRuntime.DOCKER:
+        flags += ["--runtime", settings.RUNNER_RUNTIME]
+    return [
+        *flags,
+        "--read-only",
+        "--cap-drop=ALL",
+        "--security-opt=no-new-privileges:true",
+        f"--pids-limit={settings.RUNNER_PIDS_LIMIT}",
+        f"--memory={settings.RUNNER_MEMORY}",
+        # Docker otherwise lets the sandbox swap as much again as its memory.
+        f"--memory-swap={settings.RUNNER_MEMORY}",
+        f"--cpus={settings.RUNNER_CPUS}",
+        f"--user={settings.RUNNER_SANDBOX_UID}:{settings.RUNNER_SANDBOX_GID}",
+    ]
+
+
 class RunnerConfigurationError(RuntimeError):
     pass
 
@@ -90,7 +120,7 @@ class DockerRunnerService:
                 "The requested image is not enabled by this runner."
             )
         session_id = spec.session_id
-        container_name = f"secondshift-{session_id}"
+        container_name = sandbox_name(session_id)
         session_root = (settings.RUNNER_WORK_ROOT / "sessions" / session_id).resolve()
         self.require_owned_path(session_root)
         workspace = session_root / "workspace"
@@ -250,7 +280,7 @@ class DockerRunnerService:
         workspace = Path(session.workspace_path)
         session_root = workspace.parent.resolve()
         self.require_owned_path(session_root)
-        self.remove_container(f"secondshift-agent-{session_id}")
+        self.remove_container(agent_name(session_id))
         self.run_command(["docker", "kill", session.container_name])
         if self.container_running(session.container_name):
             raise RunnerProtocolError("The runner could not stop the sandbox.")
@@ -265,7 +295,7 @@ class DockerRunnerService:
             session.save(update_fields=("status", "updated_at"))
             container_name = session.container_name
             workspace = Path(session.workspace_path)
-        self.remove_container(f"secondshift-agent-{session_id}")
+        self.remove_container(agent_name(session_id))
         self.remove_container(container_name)
         self.remove_workspace(workspace.parent)
 
@@ -322,18 +352,12 @@ class DockerRunnerService:
     def create_command(
         spec: RunnerSessionSpec, container_name: str, workspace: Path
     ) -> list[str]:
-        command = ["docker", "create", "--name", container_name]
-        if settings.RUNNER_RUNTIME != SandboxRuntime.DOCKER:
-            command += ["--runtime", settings.RUNNER_RUNTIME]
-        command += [
-            "--read-only",
-            "--cap-drop=ALL",
-            "--security-opt=no-new-privileges:true",
-            f"--pids-limit={settings.RUNNER_PIDS_LIMIT}",
-            f"--memory={settings.RUNNER_MEMORY}",
-            # Docker otherwise lets the sandbox swap as much again as its memory.
-            f"--memory-swap={settings.RUNNER_MEMORY}",
-            f"--cpus={settings.RUNNER_CPUS}",
+        return [
+            "docker",
+            "create",
+            "--name",
+            container_name,
+            *sandbox_flags(),
             "--network=none",
             "--tmpfs=/tmp:rw,noexec,nosuid,size=256m",
             # Bind mounts are writable by default; Docker rejects a bare "rw" field.
@@ -345,7 +369,6 @@ class DockerRunnerService:
             f"--mount=type=bind,src={workspace.parent / HISTORY_DIR},"
             f"dst={SANDBOX_HISTORY_DIR},readonly",
             "--workdir=/workspace",
-            f"--user={settings.RUNNER_SANDBOX_UID}:{settings.RUNNER_SANDBOX_GID}",
             "--env=HOME=/tmp",
             # Skills that run Python must not leave bytecode in the repository.
             "--env=PYTHONDONTWRITEBYTECODE=1",
@@ -353,7 +376,6 @@ class DockerRunnerService:
             "sleep",
             "infinity",
         ]
-        return command
 
     @staticmethod
     def prepare_workspace_permissions(workspace: Path) -> None:

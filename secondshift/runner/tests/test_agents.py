@@ -22,6 +22,7 @@ from secondshift.runner.agent_protocol import AgentCheckInput, AgentInput
 from secondshift.runner.agents import agent_command, require_agent_configuration
 from secondshift.runner.models import RunnerSession
 from secondshift.runner.protocol import RunnerProtocolError
+from secondshift.runner.services import DockerRunnerService, sandbox_flags
 
 TOKEN = "sk-ant-oat01-test-subscription-token"
 IMAGE = "example/ss-agent@sha256:" + "a" * 64
@@ -580,3 +581,22 @@ def test_a_stopped_agent_container_is_not_blamed_on_the_login(
     result = agents.run_agent_container("agent", ["docker"], {}, 10)
 
     assert result.reason == reason
+
+
+def test_agent_and_command_sandboxes_get_the_same_hardening(
+    settings: Any, tmp_path: Path
+) -> None:
+    settings.AGENT_IMAGE = IMAGE
+    settings.RUNNER_RUNTIME = "runsc"
+    agent = agent_command("run-1", tmp_path / "auth", IMAGE)
+    sandbox = DockerRunnerService.create_command(
+        Mock(image="secondshift-runner:test"), "secondshift-run-1", tmp_path / "ws"
+    )
+
+    hardening = sandbox_flags()
+    assert f"--user={settings.RUNNER_SANDBOX_UID}:{settings.RUNNER_SANDBOX_GID}" in (
+        hardening
+    )
+    for command in (agent, sandbox):
+        start = command.index(hardening[0])
+        assert command[start : start + len(hardening)] == hardening
