@@ -14,6 +14,7 @@ from secondshift.jobs.tool_rules import (
     kept_rules,
     validate_rules,
 )
+from secondshift.repositories.github import repository_ref
 
 
 class GrantError(Exception):
@@ -36,7 +37,7 @@ def check_connection(
         raise GrantError(409, "The selected connection is not connected.")
     if not approving:
         return
-    access = external_access(connection, capability.job.repository)
+    access = external_access(connection, repository_ref(capability.job.repository))
     if access and not access.ok:
         raise GrantError(409, access.text)
 

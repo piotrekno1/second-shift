@@ -20,6 +20,7 @@ from secondshift.connections.models import Connection
 from secondshift.connections.services import revoke_connection
 from secondshift.jobs.models import CapabilityRequest, Job, JobGrant
 from secondshift.jobs.planning import build_execution_plan
+from secondshift.repositories.github import repository_ref
 from secondshift.repositories.models import Repository
 from secondshift.workspaces.dao import create_workspace, workspace_owner
 from secondshift.workspaces.models import Workspace
@@ -267,7 +268,7 @@ def test_access_text_and_frozen_plan_follow_the_connection(
         allowed_tools=["get_sentry_resource"],
     )
 
-    access = external_access(connection, repository)
+    access = external_access(connection, repository_ref(repository))
     assert access.ok
     assert access.text == "Allow these tools to read all Sentry projects in acme."
     plan = build_execution_plan(job)
@@ -276,7 +277,7 @@ def test_access_text_and_frozen_plan_follow_the_connection(
     assert plan["capabilities"][0]["external"]["scope"] == "acme"
 
     connection.metadata = {**connection.metadata, "settings": {}}
-    assert not external_access(connection, repository).ok
+    assert not external_access(connection, repository_ref(repository)).ok
     connection.save()
     plan = build_execution_plan(job)
     assert plan["capabilities"][0]["reasons"] == ["sentry_organization_unknown"]

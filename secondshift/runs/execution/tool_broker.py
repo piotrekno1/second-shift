@@ -16,6 +16,7 @@ from secondshift.connections.models import Connection
 from secondshift.jobs.dao import approved_tool_grant
 from secondshift.jobs.tool_policy import AuthorizedTool, resolve_tool
 from secondshift.jobs.tool_rules import ToolRuleViolation, apply_rules
+from secondshift.repositories.github import repository_ref
 from secondshift.runs.dao import add_event, get_run
 from secondshift.runs.models import Run
 
@@ -52,7 +53,7 @@ def broker_connection(run: Run, name: str) -> Authorization:
         return adapter.authorize(
             connection,
             capability.get("external", {}),
-            run.repository,
+            repository_ref(run.repository),
             str(tool.provider_tool),
         )
     grant = approved_tool_grant(
@@ -73,7 +74,7 @@ def broker_connection(run: Run, name: str) -> Authorization:
     return adapter.authorize(
         grant.connection,
         capability.get("external", {}),
-        run.repository,
+        repository_ref(run.repository),
         str(tool.provider_tool),
     )
 

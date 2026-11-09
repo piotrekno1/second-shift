@@ -29,7 +29,7 @@ from secondshift.connections.mcp.providers import (
 )
 from secondshift.connections.models import Connection
 from secondshift.connections.outbound import host_label
-from secondshift.repositories.models import Repository
+from secondshift.connections.repository_ref import RepositoryRef
 
 
 @dataclass(frozen=True)
@@ -55,11 +55,11 @@ class Authorization:
     name_prefix: str
     scope_label: str
     # The run's repository. Connections that borrow its source need it.
-    repository: Repository | None = None
+    repository: RepositoryRef | None = None
 
 
 class ExternalKind(Protocol):
-    def access(self, connection: Connection, repository: Repository) -> Access: ...
+    def access(self, connection: Connection, repository: RepositoryRef) -> Access: ...
 
     def freeze(
         self, connection: Connection, scope: str, tools: set[str]
@@ -69,7 +69,7 @@ class ExternalKind(Protocol):
         self,
         connection: Connection,
         frozen: dict[str, Any],
-        repository: Repository,
+        repository: RepositoryRef,
         tool: str,
     ) -> Authorization: ...
 
@@ -93,7 +93,7 @@ def frozen_definition(
 
 
 class MCPKind:
-    def access(self, connection: Connection, repository: Repository) -> Access:
+    def access(self, connection: Connection, repository: RepositoryRef) -> Access:
         provider = MCP_PROVIDERS.get(connection.provider)
         if provider is None:
             return Access(
@@ -135,7 +135,7 @@ class MCPKind:
         self,
         connection: Connection,
         frozen: dict[str, Any],
-        repository: Repository,
+        repository: RepositoryRef,
         tool: str,
     ) -> Authorization:
         # Signed-in connections renew their token here, before the checks below.
@@ -175,7 +175,7 @@ class MCPKind:
 
 
 class APIKind:
-    def access(self, connection: Connection, repository: Repository) -> Access:
+    def access(self, connection: Connection, repository: RepositoryRef) -> Access:
         del repository
         base_url = connection.metadata.get("base_url")
         if not base_url:
@@ -205,7 +205,7 @@ class APIKind:
         self,
         connection: Connection,
         frozen: dict[str, Any],
-        repository: Repository,
+        repository: RepositoryRef,
         tool: str,
     ) -> Authorization:
         del repository
@@ -243,7 +243,7 @@ def external_kind(kind: str) -> ExternalKind:
         raise ExternalToolError("This external tool is not supported.") from None
 
 
-def external_access(connection: Connection, repository: Repository) -> Access | None:
+def external_access(connection: Connection, repository: RepositoryRef) -> Access | None:
     """None for connections that are not external tools, such as webhooks."""
     adapter = EXTERNAL_KINDS.get(connection.kind)
     return adapter.access(connection, repository) if adapter else None

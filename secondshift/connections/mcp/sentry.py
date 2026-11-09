@@ -16,7 +16,7 @@ from secondshift.connections.mcp.base import (
     MCPSettings,
 )
 from secondshift.connections.models import Connection
-from secondshift.repositories.models import Repository
+from secondshift.connections.repository_ref import RepositoryRef
 
 ORGANIZATION = "organization"
 PROJECT = "project"
@@ -29,7 +29,7 @@ SENTRY_QUERY_MAX_CHARS = 256
 SENTRY_RESOURCE_TYPES = {"issue", "event", "trace"}
 
 
-def sentry_scope(settings: MCPSettings, repository: Repository) -> str | None:
+def sentry_scope(settings: MCPSettings, repository: RepositoryRef) -> str | None:
     """The owner chose the reach when connecting. Every job shares it."""
     del repository
     organization = settings.get(ORGANIZATION)

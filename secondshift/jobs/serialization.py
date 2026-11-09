@@ -18,6 +18,7 @@ from secondshift.jobs.schemas import (
     OpenIssuesSchema,
     ToolInputSchema,
 )
+from secondshift.repositories.github import repository_ref
 from secondshift.repositories.models import Repository
 from secondshift.runs.dao import (
     job_with_last_run,
@@ -81,7 +82,11 @@ def serialize_job(
                     AccessSchema(**vars(access))
                     if connection
                     and connection.kind == capability.kind
-                    and (access := external_access(connection, job.repository))
+                    and (
+                        access := external_access(
+                            connection, repository_ref(job.repository)
+                        )
+                    )
                     else None
                 ),
                 tool_rules=grant.tool_rules if grant else {},

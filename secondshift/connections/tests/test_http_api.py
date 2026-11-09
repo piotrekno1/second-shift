@@ -28,6 +28,7 @@ from secondshift.connections.models import Connection
 from secondshift.jobs.models import CapabilityRequest, Job, JobGrant
 from secondshift.jobs.planning import build_execution_plan
 from secondshift.jobs.serialization import serialize_job
+from secondshift.repositories.github import repository_ref
 from secondshift.repositories.models import Repository
 from secondshift.runs.execution.external_tools import external_tools
 from secondshift.runs.execution.tool_broker import call_external_tool_step
@@ -436,7 +437,8 @@ def test_job_calls_an_approved_operation(fake: FakeAPI, api_run: Run) -> None:
     assert capability["external"]["base_url"] == BASE
     assert capability["external"]["scope"] == "api.example.com"
     access = external_access(
-        Connection.objects.get(binding_key="billing"), api_run.job.repository
+        Connection.objects.get(binding_key="billing"),
+        repository_ref(api_run.job.repository),
     )
     assert access and access.text == (
         "Allow these operations to use anything the credential can reach on api.example.com."

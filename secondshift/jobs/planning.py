@@ -25,6 +25,7 @@ from secondshift.jobs.manifest import JobManifest, TaskManifest, manifest_hash
 from secondshift.jobs.models import Job, JobGrant
 from secondshift.jobs.tool_policy import authorized_tools
 from secondshift.jobs.tool_rules import ToolRules, broken_rules, kept_rules
+from secondshift.repositories.github import repository_ref
 from secondshift.repositories.models import Repository
 from secondshift.workspaces.limits import RunLimit, workspace_limits
 from secondshift.workspaces.models import Workspace
@@ -157,7 +158,7 @@ def capability_plan(
 
     adapter = EXTERNAL_KINDS.get(request.kind)
     access = (
-        adapter.access(connection, repository)
+        adapter.access(connection, repository_ref(repository))
         if adapter and connection and connection.kind == request.kind
         else None
     )

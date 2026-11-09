@@ -32,7 +32,7 @@ from secondshift.connections.mcp.signin import (
 )
 from secondshift.connections.migration_helpers import record_requested_scopes_v1
 from secondshift.connections.models import Connection, OAuthAuthorization
-from secondshift.repositories.models import Repository
+from secondshift.connections.repository_ref import RepositoryRef
 from secondshift.workspaces.dao import create_workspace
 from secondshift.workspaces.models import Workspace, WorkspaceMembership
 
@@ -211,7 +211,7 @@ def test_full_sign_in_flow(fake: FakeServer, workspace: Workspace, owner: Any) -
         "delete_dashboard",
     }
     assert fake.mcp_auth[-1] == "Bearer at-1"
-    repository = Repository.objects.create(workspace=workspace, full_name="a/b")
+    repository = RepositoryRef(workspace.pk, "a/b")
     assert external_access(connection, repository).text == (
         "Allow these tools to use anything the credential can reach on mcp.example.com."
     )

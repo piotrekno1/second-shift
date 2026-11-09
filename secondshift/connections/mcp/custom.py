@@ -14,7 +14,7 @@ from secondshift.connections.outbound import (
     host_label,
     validate_outbound_url,
 )
-from secondshift.repositories.models import Repository
+from secondshift.connections.repository_ref import RepositoryRef
 
 URL = "url"
 # Connection.endpoint_url is a URLField with Django's default limit.
@@ -31,7 +31,7 @@ def custom_server_url(value: str) -> str:
         raise MCPError(str(error)) from None
 
 
-def custom_scope(settings: MCPSettings, repository: Repository) -> str | None:
+def custom_scope(settings: MCPSettings, repository: RepositoryRef) -> str | None:
     del repository
     url = settings.get(URL)
     return host_label(url) if url else None
