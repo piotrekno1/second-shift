@@ -14,8 +14,8 @@ from secondshift.github.issues import open_issue, open_issue_titled
 from secondshift.repositories.github_access import github_access
 from secondshift.repositories.models import Repository
 from secondshift.runs.dao import (
-    add_event,
     create_delivery,
+    finish_delivery,
     get_run,
     has_proposed_issues,
     opened_issues,
@@ -75,7 +75,7 @@ def open_run_issues(run_id: int) -> None:
         return
     repository = run.repository
     if reason := skip_reason(run, repository):
-        finish(delivery, RunDelivery.Status.SKIPPED, reason)
+        finish_delivery(delivery, RunDelivery.Status.SKIPPED, reason)
         return
     delivery.attempts += 1
     try:
@@ -87,7 +87,7 @@ def open_run_issues(run_id: int) -> None:
             == Connection.AuthStrategy.API_KEY
         )
         # Token errors already say what to fix, such as an expired token.
-        finish(
+        finish_delivery(
             delivery,
             RunDelivery.Status.FAILED,
             str(error) if with_token else APP_WRITE_HINT,
@@ -111,17 +111,19 @@ def open_run_issues(run_id: int) -> None:
             issue.save(update_fields=["number", "url", "already_open"])
     except GitHubError as error:
         # These messages never contain the token.
-        finish(delivery, RunDelivery.Status.FAILED, f"{done(run)}{error}".strip())
+        finish_delivery(
+            delivery, RunDelivery.Status.FAILED, f"{done(run)}{error}".strip()
+        )
         return
     except Exception:
         logger.exception("opening issues for run %s failed", run_id)
-        finish(
+        finish_delivery(
             delivery,
             RunDelivery.Status.FAILED,
             f"{done(run)}Opening issues failed unexpectedly.".strip(),
         )
         return
-    finish(delivery, RunDelivery.Status.DELIVERED, done(run).strip())
+    finish_delivery(delivery, RunDelivery.Status.DELIVERED, done(run).strip())
 
 
 def done(run: Run) -> str:
@@ -136,15 +138,3 @@ def done(run: Run) -> str:
         verb = "was" if already == 1 else "were"
         parts.append(f"{plural(already, 'issue')} {verb} already open.")
     return " ".join(parts) + " " if parts else ""
-
-
-def finish(delivery: RunDelivery, status: str, message: str) -> None:
-    delivery.status = status
-    delivery.message = message
-    delivery.save(update_fields=["status", "message", "attempts", "updated_at"])
-    add_event(
-        delivery.run_id,
-        f"Issues: {message}",
-        level="warning" if status == RunDelivery.Status.FAILED else "info",
-        metadata={"delivery_id": delivery.pk},
-    )

@@ -31,6 +31,7 @@ from secondshift.runs.artifacts import read_output_excerpt, store_collection
 from secondshift.runs.dao import (
     add_event,
     fail_notification_delivery,
+    finish_delivery,
     get_run,
     notification_delivery,
     update_run,
@@ -293,32 +294,22 @@ def deliver_run_notification_step(run_id: int, connection_id: int) -> None:
     # A grant revoked or a connection disconnected since planning stops delivery,
     # including when a failed delivery is retried later.
     if connection_id not in notification_targets(run):
-        record_delivery(delivery, RunDelivery.Status.SKIPPED, "No longer approved.")
+        finish_delivery(
+            delivery, RunDelivery.Status.SKIPPED, "No longer approved.", announce=False
+        )
         return
     result = deliver_webhook(connection, run_report_payload(run))
     delivery.attempts += 1
     delivery.status_code = result.status_code
     if result.retryable:
-        record_delivery(delivery, RunDelivery.Status.RETRYING, result.message)
+        finish_delivery(
+            delivery, RunDelivery.Status.RETRYING, result.message, announce=False
+        )
         raise RetryableDeliveryError(result.message)
-    record_delivery(
+    finish_delivery(
         delivery,
         RunDelivery.Status.DELIVERED if result.ok else RunDelivery.Status.FAILED,
         result.message,
-    )
-    add_event(
-        run.pk,
-        f"Notification to {connection.binding_key}: {result.message}",
-        level="info" if result.ok else "warning",
-        metadata={"connection_id": connection_id, "status_code": result.status_code},
-    )
-
-
-def record_delivery(delivery: RunDelivery, status: str, message: str) -> None:
-    delivery.status = status
-    delivery.message = message
-    delivery.save(
-        update_fields=["status", "message", "attempts", "status_code", "updated_at"]
     )
 
 

@@ -480,6 +480,36 @@ def notification_delivery(run: Run, connection: Connection) -> RunDelivery:
     return delivery
 
 
+def finish_delivery(
+    delivery: RunDelivery, status: str, message: str, *, announce: bool = True
+) -> None:
+    """Save the delivery's outcome, and say it in the run's events."""
+    delivery.status = status
+    delivery.message = message
+    delivery.save(
+        update_fields=[
+            "status",
+            "message",
+            "attempts",
+            "status_code",
+            "external_url",
+            "updated_at",
+        ]
+    )
+    if announce:
+        add_event(
+            delivery.run_id,
+            f"{delivery.event_name}: {message}",
+            level="warning" if status == RunDelivery.Status.FAILED else "info",
+            metadata={
+                "delivery_id": delivery.pk,
+                "connection_id": delivery.connection_id,
+                "status_code": delivery.status_code,
+                "url": delivery.external_url,
+            },
+        )
+
+
 def fail_notification_delivery(run_id: int, connection_id: int, now: datetime) -> None:
     """Mark the notification failed, unless it was delivered."""
     RunDelivery.objects.filter(

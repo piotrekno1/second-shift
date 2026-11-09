@@ -232,6 +232,13 @@ class RunDelivery(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    @property
+    def event_name(self) -> str:
+        """How the run's events name this delivery."""
+        if self.kind == self.Kind.NOTIFICATION:
+            return f"Notification to {self.target}"
+        return self.get_kind_display()
+
     class Meta:
         ordering = ["created_at", "pk"]
         constraints = [

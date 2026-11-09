@@ -17,7 +17,12 @@ from secondshift.repositories.pull_requests import (
     publish_pull_request,
 )
 from secondshift.runs.artifacts import artifact_storage, read_text
-from secondshift.runs.dao import add_event, create_delivery, get_run, run_delivery
+from secondshift.runs.dao import (
+    create_delivery,
+    finish_delivery,
+    get_run,
+    run_delivery,
+)
 from secondshift.runs.models import Run, RunDelivery
 from secondshift.runs.reporting.collection import plural
 
@@ -94,7 +99,7 @@ def publish_run(run_id: int) -> None:
     if delivery is None or delivery.status == RunDelivery.Status.DELIVERED:
         return
     if reason := skip_reason(run, run.repository):
-        finish(delivery, RunDelivery.Status.SKIPPED, reason)
+        finish_delivery(delivery, RunDelivery.Status.SKIPPED, reason)
         return
     delivery.attempts += 1
     try:
@@ -106,30 +111,18 @@ def publish_run(run_id: int) -> None:
                 run.repository, run.commit_sha, patch, draft_for(run)
             )
     except PublishError as error:
-        finish(delivery, RunDelivery.Status.FAILED, str(error))
+        finish_delivery(delivery, RunDelivery.Status.FAILED, str(error))
         return
     except Exception:
         logger.exception("publishing run %s failed", run_id)
-        finish(delivery, RunDelivery.Status.FAILED, "Publishing failed unexpectedly.")
+        finish_delivery(
+            delivery, RunDelivery.Status.FAILED, "Publishing failed unexpectedly."
+        )
         return
     delivery.external_url = opened.url
     count = run.outputs["changes"]["file_count"]
-    finish(
+    finish_delivery(
         delivery,
         RunDelivery.Status.DELIVERED,
         f"Opened draft #{opened.number} with changes to {plural(count, 'file')}.",
-    )
-
-
-def finish(delivery: RunDelivery, status: str, message: str) -> None:
-    delivery.status = status
-    delivery.message = message
-    delivery.save(
-        update_fields=["status", "message", "attempts", "external_url", "updated_at"]
-    )
-    add_event(
-        delivery.run_id,
-        f"Pull request: {message}",
-        level="warning" if status == RunDelivery.Status.FAILED else "info",
-        metadata={"delivery_id": delivery.pk, "url": delivery.external_url},
     )
