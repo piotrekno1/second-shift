@@ -38,7 +38,7 @@ def enqueue_run(run: Run) -> str:
     if run.job_id is None:
         return enqueue_task(run)
     try:
-        return enqueue_workflow(run)
+        workflow_id = queue_workflow(run)
     except Exception as error:
         add_event(run.pk, RUN_ENQUEUE_FAILED, level="error")
         failed = finish_run(
@@ -51,10 +51,11 @@ def enqueue_run(run: Run) -> str:
         if failed is not None:
             raise RunEnqueueFailed(failed) from error
         raise
+    return record_workflow(run, workflow_id)
 
 
-def enqueue_workflow(run: Run) -> str:
-    """Queue the run's workflow and record its ID. Raises when DBOS refuses."""
+def queue_workflow(run: Run) -> str:
+    """Hand the run to DBOS. Raises when DBOS refuses."""
     workflow_id = f"secondshift-run-{run.pk}"
     options: EnqueueOptions = {
         "workflow_name": EXECUTE_RUN_WORKFLOW,
@@ -70,6 +71,10 @@ def enqueue_workflow(run: Run) -> str:
             client.destroy()
         except Exception:
             logger.warning("Could not close execution queue client for run %s", run.pk)
+    return workflow_id
+
+
+def record_workflow(run: Run, workflow_id: str) -> str:
     run.dbos_workflow_id = workflow_id
     run.save(update_fields=["dbos_workflow_id"])
     return workflow_id
@@ -101,7 +106,7 @@ def enqueue_task(run: Run) -> str:
     if first is None or first.pk != run.pk:
         return ""
     try:
-        return enqueue_workflow(run)
+        return record_workflow(run, queue_workflow(run))
     except Exception:
         # The Run is the durable outbox. Retry with the same workflow ID,
         # including after a crash between DBOS accepting and our save.

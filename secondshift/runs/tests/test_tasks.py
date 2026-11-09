@@ -1,9 +1,9 @@
 from datetime import timedelta
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import pytest
 from django.contrib.auth import get_user_model
-from django.db import IntegrityError, connection
+from django.db import DatabaseError, IntegrityError, connection
 from django.db.migrations.executor import MigrationExecutor
 from django.utils import timezone
 
@@ -13,7 +13,8 @@ from secondshift.jobs.plan import ExecutionPlan
 from secondshift.jobs.tests.plans import stored_plan
 from secondshift.repositories.models import Repository
 from secondshift.runs.inputs import Payload
-from secondshift.runs.models import Run, Task
+from secondshift.runs.models import Run, RunFailure, Task
+from secondshift.runs.orchestration import dispatch
 from secondshift.runs.retention import prune_runs
 from secondshift.runs.services import (
     RunInProgress,
@@ -199,3 +200,41 @@ def test_upgrading_from_the_last_release_keeps_every_run(job: Job) -> None:
     finally:
         executor = MigrationExecutor(connection)
         executor.migrate(executor.loader.graph.leaf_nodes())
+
+
+def test_a_job_run_the_queue_refuses_is_marked_failed(
+    job: Job, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run = create_run(job, timezone.now())
+    client = Mock()
+    client.enqueue.side_effect = ConnectionError("queue is down")
+    monkeypatch.setattr(dispatch, "new_dbos_client", lambda: client)
+
+    with pytest.raises(dispatch.RunEnqueueFailed):
+        dispatch.enqueue_run(run)
+
+    run.refresh_from_db()
+    assert run.status == Run.Status.FAILED
+    assert run.failure == RunFailure.NOT_QUEUED
+
+
+def test_a_job_run_the_queue_accepted_stays_queued_when_saving_fails(
+    job: Job, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run = create_run(job, timezone.now())
+    client = Mock()
+    client.enqueue.return_value.get_workflow_id.return_value = "workflow-1"
+    monkeypatch.setattr(dispatch, "new_dbos_client", lambda: client)
+    save = Run.save
+
+    def save_fails_for_the_workflow_id(self: Run, **kwargs: object) -> None:
+        if kwargs.get("update_fields") == ["dbos_workflow_id"]:
+            raise DatabaseError("database went away")
+        save(self, **kwargs)
+
+    monkeypatch.setattr(Run, "save", save_fails_for_the_workflow_id)
+
+    with pytest.raises(DatabaseError):
+        dispatch.enqueue_run(run)
+
+    assert Run.objects.get(pk=run.pk).status == Run.Status.QUEUED
