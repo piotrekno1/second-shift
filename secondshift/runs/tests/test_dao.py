@@ -6,6 +6,7 @@ from django.utils import timezone
 
 from secondshift.config.constants import RunStart
 from secondshift.jobs.models import Job
+from secondshift.jobs.tests.plans import stored_plan
 from secondshift.repositories.models import Repository
 from secondshift.runs.dao import (
     active_runs,
@@ -38,7 +39,11 @@ def job(db: object) -> Job:
 
 def make_run(job: Job | None, status: str, **fields: object) -> Run:
     return Run.objects.create(
-        job=job, status=status, scheduled_for=timezone.now(), **fields
+        job=job,
+        status=status,
+        scheduled_for=timezone.now(),
+        execution_plan=stored_plan(),
+        **fields,
     )
 
 

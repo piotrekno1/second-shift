@@ -13,9 +13,8 @@ from pydantic_ai.toolsets import FunctionToolset
 from secondshift.config.constants import (
     SUMMARY_MAX_CHARS,
 )
-from secondshift.jobs.limits import plan_limit
 from secondshift.jobs.models import CapabilityRequest
-from secondshift.jobs.planning import plan_backend
+from secondshift.jobs.plan import ExecutionPlan
 from secondshift.runner.client import get_runner_client
 from secondshift.runner.protocol import CommandRequest, CommandResult
 from secondshift.runs.artifacts import (
@@ -84,18 +83,18 @@ def task_prompt(skill_path: str) -> str:
     return f"Read {skill_path} with workspace_read_file, then execute that skill."
 
 
-def missing_bindings(plan: dict[str, Any]) -> str:
+def missing_bindings(plan: ExecutionPlan) -> str:
     """Optional bindings the job asked for but this run does not have.
 
     Only the binding name and a short reason. Never connection details.
     """
     lines = [
-        f"- `{capability['binding']}`: {capability['missing']}"
-        for capability in plan.get("capabilities", [])
-        if capability["kind"] != CapabilityRequest.Kind.NOTIFICATION
-        and not capability["required"]
-        and not capability["authorized"]
-        and capability.get("missing")
+        f"- `{capability.binding}`: {capability.missing}"
+        for capability in plan.capabilities
+        if capability.kind != CapabilityRequest.Kind.NOTIFICATION
+        and not capability.required
+        and not capability.authorized
+        and capability.missing
     ]
     if not lines:
         return ""
@@ -114,11 +113,11 @@ pull request description, so say what changed and why, which checks you ran and
 their results, and anything left unresolved."""
 
 
-def subagent_limit(plan: dict[str, Any]) -> int:
+def subagent_limit(plan: ExecutionPlan) -> int:
     """How many sub-agents the run may start."""
-    if not plan_backend(plan).starts_subagents:
+    if not plan.execution.backend.starts_subagents:
         return 0
-    return int(plan.get("agent", {}).get("subagents", 0))
+    return plan.agent.subagents
 
 
 def reporting_time(run: Run) -> str:
@@ -142,15 +141,16 @@ def run_prompt(run: Run) -> str:
         prompt = f"{prompt}\n\nInput from the person submitting this task:\n{submission_input}"
     if payload := run_payload(run):
         prompt = f"{prompt}\n\n{payload_note(payload)}"
-    if missing := missing_bindings(run.execution_plan):
+    plan = run.plan
+    if missing := missing_bindings(plan):
         prompt = f"{prompt}\n\n{missing}"
-    if run.execution_plan.get("pull_request"):
+    if plan.pull_request:
         prompt = f"{prompt}\n\n{PULL_REQUEST_NOTE}"
-    if limit := issue_limit(run.execution_plan):
+    if limit := issue_limit(plan):
         prompt = f"{prompt}\n\n{issues_note(limit)}"
-    backend = plan_backend(run.execution_plan)
-    prompt = f"{prompt}\n\n{limits_note(run.execution_plan, backend, run.started_at)}"
-    if subagents := subagent_limit(run.execution_plan):
+    backend = plan.execution.backend
+    prompt = f"{prompt}\n\n{limits_note(plan, backend, run.started_at)}"
+    if subagents := subagent_limit(plan):
         prompt = f"{prompt}\n\n{subagents_note(subagents, backend)}"
     history = previous_reports(run)
     return f"{prompt}\n\n{history}" if history else prompt
@@ -260,17 +260,16 @@ def capture_run_input_step(run_id: int, session_id: str) -> None:
 
 def execute_agent_run(run: Run, session_id: str) -> dict[str, Any]:
     """Run the durable model loop against one already-created sandbox session."""
-    plan = run.execution_plan
-    if not plan_backend(plan).uses_model_api:
+    plan = run.plan
+    if not plan.execution.backend.uses_model_api:
         capture_run_input_step(run.pk, session_id)
         return execute_cli_step(
             run.pk, session_id, SYSTEM_INSTRUCTIONS + "\n\n" + run_prompt(run)
         )
-    limit_values = plan["agent"]["limits"]
     limits = AgentLimits(
-        max_turns=int(limit_values["max_turns"]),
-        max_tool_calls=int(limit_values["max_tool_calls"]),
-        max_tool_result_chars=int(limit_values["max_tool_result_chars"]),
+        max_turns=plan.agent.limits.max_turns,
+        max_tool_calls=plan.agent.limits.max_tool_calls,
+        max_tool_result_chars=plan.agent.limits.max_tool_result_chars,
     )
     external = external_tools(run)
     deps = WorkspaceToolDeps(
@@ -278,7 +277,7 @@ def execute_agent_run(run: Run, session_id: str) -> dict[str, Any]:
         session_id=session_id,
         max_output_chars=limits.max_tool_result_chars,
         deadline=run_deadline(run),
-        allowed_tools=tuple(plan["agent"]["tools"]),
+        allowed_tools=plan.agent.tools,
         payload=run_payload(run),
         issue_limit=issue_limit(plan),
         subagent_limit=subagent_limit(plan),
@@ -313,7 +312,7 @@ def execute_agent_run(run: Run, session_id: str) -> dict[str, Any]:
             return budget_result(
                 run,
                 Budget.TOKENS,
-                plan_limit(plan, RunLimit.TOKEN_BUDGET),
+                plan.limit(RunLimit.TOKEN_BUDGET),
                 messages,
             )
     report = str(result.output).strip()

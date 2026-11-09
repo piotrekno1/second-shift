@@ -26,6 +26,7 @@ from secondshift.connections.webhooks import deliver_webhook
 from secondshift.jobs.manifest import load_manifest
 from secondshift.jobs.models import CapabilityRequest, Job, JobGrant
 from secondshift.jobs.planning import build_execution_plan
+from secondshift.jobs.tests.plans import CAPABILITY
 from secondshift.jobs.tool_policy import ToolPolicyError
 from secondshift.repositories.models import Repository
 from secondshift.runs.execution.external_tools import external_tools
@@ -105,7 +106,7 @@ def planned_run() -> Run:
         scheduled_for=timezone.now(),
         commit_sha="a" * 40,
         input_snapshot={"skill_path": job.skill_path},
-        execution_plan=build_execution_plan(job),
+        execution_plan=build_execution_plan(job).stored(),
     )
 
 
@@ -135,7 +136,7 @@ def test_custom_mcp_failure_reaches_model_as_bounded_untrusted_data(
     connection.access_token = token
     connection.metadata["settings"] = {"url": endpoint}
     connection.save()
-    planned_run.execution_plan = build_execution_plan(planned_run.job)
+    planned_run.execution_plan = build_execution_plan(planned_run.job).stored()
     planned_run.save()
 
     reason = f"time range exceeds 24h (token {token})"
@@ -296,10 +297,18 @@ def test_agent_mcp_report_and_webhook_payload_flow(
         capability_request=request, connection=webhook, status="approved"
     )
     planned_run.execution_plan["capabilities"].append(
-        {"kind": "notification", "authorized": True, "connection_id": webhook.pk}
+        CAPABILITY
+        | {
+            "kind": "notification",
+            "binding": "engineering-reports",
+            "authorized": True,
+            "connection_id": webhook.pk,
+        }
     )
     planned_run.summary = result["summary"]
     planned_run.status = "succeeded"
+    planned_run.save()
+    planned_run = Run.objects.get(pk=planned_run.pk)
     assert notification_targets(planned_run) == [webhook.pk]
     assert "PR #1" in run_report_payload(planned_run)["text"]
 
@@ -385,7 +394,7 @@ def test_one_connection_is_reused_with_independent_job_scopes(
         status="running",
         commit_sha="b" * 40,
         scheduled_for=timezone.now(),
-        execution_plan=build_execution_plan(job),
+        execution_plan=build_execution_plan(job).stored(),
     )
     call_external_tool_step(planned_run.pk, NAME, {"query": "is:merged"}, "first")
     call_external_tool_step(other_run.pk, NAME, {"query": "is:merged"}, "second")
@@ -410,7 +419,7 @@ def test_local_job_without_github_origin_is_not_ready(planned_run) -> None:
     repository.source_type = "local"
     repository.clone_url = ""
     repository.save()
-    plan = build_execution_plan(planned_run.job)
+    plan = build_execution_plan(planned_run.job).stored()
     assert not plan["ready"]
     assert "github_repository_unknown" in plan["capabilities"][0]["reasons"]
 
@@ -481,7 +490,7 @@ def set_rules(run: Run, rules: dict) -> None:
     grant = JobGrant.objects.get(capability_request__job=run.job)
     grant.tool_rules = rules
     grant.save()
-    run.execution_plan = build_execution_plan(run.job)
+    run.execution_plan = build_execution_plan(run.job).stored()
     run.save()
 
 

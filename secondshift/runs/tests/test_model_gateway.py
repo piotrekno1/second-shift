@@ -53,7 +53,7 @@ def model_run(db, settings) -> Run:
         status=Run.Status.RUNNING,
         commit_sha="abc",
         scheduled_for="2026-10-01T00:00:00Z",
-        execution_plan=build_execution_plan(job),
+        execution_plan=build_execution_plan(job).stored(),
     )
 
 

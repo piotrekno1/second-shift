@@ -9,6 +9,8 @@ from django.utils import timezone
 from pydantic_ai import ModelRetry
 
 from secondshift.jobs.models import Job
+from secondshift.jobs.plan import ExecutionPlan
+from secondshift.jobs.tests.plans import stored_plan
 from secondshift.repositories.models import Repository
 from secondshift.repositories.sources import SourceSnapshot
 from secondshift.runs import history
@@ -179,11 +181,9 @@ def test_the_session_mounts_the_packed_files(repository, monkeypatch) -> None:
     run = create_run(
         job,
         timezone.now(),
-        execution_plan={
-            "ready": True,
-            "repository": {"full_name": "example/project", "config_sha": "a" * 40},
-            "runner": {"image": "server-owned:test", "network_policy": "none"},
-        },
+        execution_plan=ExecutionPlan.model_validate(
+            stored_plan(runner={"image": "server-owned:test"})
+        ),
     )
     client = FakeRunnerClient()
     monkeypatch.setattr(workflows, "get_runner_client", lambda: client)

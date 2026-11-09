@@ -6,7 +6,7 @@ import re
 from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Self
+from typing import Self
 
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -17,6 +17,7 @@ from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validato
 from secondshift.config.constants import COMMIT_SHA_PATTERN, RunStart, TaskOrigin
 from secondshift.github.errors import GitHubError
 from secondshift.jobs.manifest import TaskManifest
+from secondshift.jobs.plan import PullRequestPlan
 from secondshift.jobs.planning import build_skill_execution_plan
 from secondshift.jobs.readiness import execution_problems
 from secondshift.repositories.dao import lock_repository
@@ -114,7 +115,7 @@ def admission(
 
 def pull_request_plan(
     repository: Repository, submission: SkillSubmission
-) -> dict[str, Any] | None:
+) -> PullRequestPlan | None:
     """The draft's base is the requested branch, else the followed one."""
     if not submission.pull_request:
         return None
@@ -125,10 +126,10 @@ def pull_request_plan(
         raise RunRefused("This repository does not allow tasks to open pull requests.")
     revision = submission.revision
     is_branch = revision and not re.fullmatch(COMMIT_SHA_PATTERN, revision)
-    return {
-        "base": revision if is_branch else repository.default_branch,
-        "run_ci": repository.pull_request_ci,
-    }
+    return PullRequestPlan(
+        base=revision if is_branch else repository.default_branch,
+        run_ci=repository.pull_request_ci,
+    )
 
 
 def submit_skill(
@@ -167,12 +168,12 @@ def submit_skill(
             commit_sha=commit,
             pull_request=pull_request_plan(repository, submission),
         )
-        if not plan["ready"]:
+        if not plan.ready:
             raise RunNotReady(execution_problems(repository, plan))
         snapshot = {
             "name": submission.definition.name,
             "skill_path": submission.definition.skill,
-            "config_hash": plan["job"]["config_hash"],
+            "config_hash": plan.job.config_hash,
             "definition": submission.definition.model_dump(mode="json"),
             "submission_input": submission.input,
             "requested_revision": submission.revision,
@@ -193,7 +194,7 @@ def submit_skill(
             started_by=RunStart.MANUAL,
             commit_sha=commit,
             input_snapshot=snapshot,
-            execution_plan=plan,
+            execution_plan=plan.stored(),
             scheduled_for=scheduled_for,
         )
         record_pending_pull_request(run)

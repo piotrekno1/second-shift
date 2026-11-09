@@ -5,6 +5,7 @@ from django.contrib.auth import get_user_model
 from django.utils import timezone
 
 from secondshift.jobs.models import Job
+from secondshift.jobs.tests.plans import CAPABILITY, stored_plan
 from secondshift.repositories.models import Repository
 from secondshift.runner.protocol import CommandResult
 from secondshift.runs.execution.run import render_run_input, run_prompt
@@ -20,7 +21,7 @@ def capability(
     missing: str | None = "not connected",
     kind: str = "mcp",
 ) -> dict[str, object]:
-    item: dict[str, object] = {
+    item: dict[str, object] = CAPABILITY | {
         "binding": binding,
         "kind": kind,
         "required": required,
@@ -55,7 +56,7 @@ def make_run(db):
             scheduled_for=timezone.now(),
             commit_sha="a" * 40,
             input_snapshot={"skill_path": job.skill_path, "job_key": job.key},
-            execution_plan={"capabilities": capabilities},
+            execution_plan=stored_plan(capabilities=capabilities),
         )
 
     return make
@@ -116,12 +117,12 @@ def test_reporting_time_has_whole_seconds_in_utc(make_run) -> None:
 )
 def test_the_prompt_states_the_runs_limits(make_run, backend, expected) -> None:
     run = make_run([])
-    run.execution_plan = {
-        "execution": {"backend": backend},
-        "agent": {
+    run.execution_plan = stored_plan(
+        execution={"backend": backend},
+        agent={
             "limits": {"timeout_seconds": 2700, "max_tool_calls": 300, "max_turns": 80}
         },
-    }
+    )
     run.started_at = datetime.datetime(2026, 11, 7, 21, 18, 16, tzinfo=datetime.UTC)
 
     prompt = run_prompt(run)

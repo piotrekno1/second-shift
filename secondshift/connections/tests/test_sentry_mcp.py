@@ -271,7 +271,7 @@ def test_access_text_and_frozen_plan_follow_the_connection(
     access = external_access(connection, repository_ref(repository))
     assert access.ok
     assert access.text == "Allow these tools to read all Sentry projects in acme."
-    plan = build_execution_plan(job)
+    plan = build_execution_plan(job).stored()
     assert plan["ready"] is True
     assert plan["capabilities"][0]["external"]["provider"] == "sentry"
     assert plan["capabilities"][0]["external"]["scope"] == "acme"
@@ -279,7 +279,7 @@ def test_access_text_and_frozen_plan_follow_the_connection(
     connection.metadata = {**connection.metadata, "settings": {}}
     assert not external_access(connection, repository_ref(repository)).ok
     connection.save()
-    plan = build_execution_plan(job)
+    plan = build_execution_plan(job).stored()
     assert plan["capabilities"][0]["reasons"] == ["sentry_organization_unknown"]
 
 

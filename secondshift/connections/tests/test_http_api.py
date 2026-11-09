@@ -427,7 +427,7 @@ def api_run(fake: FakeAPI, workspace: Workspace) -> Run:
         scheduled_for=timezone.now(),
         commit_sha="a" * 40,
         input_snapshot={"skill_path": job.skill_path},
-        execution_plan=build_execution_plan(job),
+        execution_plan=build_execution_plan(job).stored(),
     )
 
 

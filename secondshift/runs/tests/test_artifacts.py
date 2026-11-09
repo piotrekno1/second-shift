@@ -7,6 +7,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from secondshift.jobs.models import Job
+from secondshift.jobs.tests.plans import stored_plan
 from secondshift.repositories.models import Repository
 from secondshift.runs.artifacts import (
     artifact_storage,
@@ -53,7 +54,9 @@ def job(db) -> Job:
 
 
 def make_run(job: Job, **fields) -> Run:
-    return Run.objects.create(job=job, scheduled_for=timezone.now(), **fields)
+    return Run.objects.create(
+        job=job, scheduled_for=timezone.now(), execution_plan=stored_plan(), **fields
+    )
 
 
 def test_stored_report_keeps_head_and_tail_when_too_large(
@@ -101,6 +104,7 @@ def test_prune_runs_removes_old_finished_runs_everywhere(
     expired.save()
     recent = make_run(job, status=Run.Status.SUCCEEDED, finished_at=timezone.now())
     running = Run.objects.create(
+        execution_plan=stored_plan(),
         job=job,
         scheduled_for=old,
         status=Run.Status.RUNNING,

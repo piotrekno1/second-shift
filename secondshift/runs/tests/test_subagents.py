@@ -209,13 +209,14 @@ def test_without_subagents_the_tool_and_note_are_hidden(budget_run) -> None:  # 
     assert TOOL_NAME not in seen[0]
     assert TOOL_NAME not in run_prompt(run)
     run.execution_plan["agent"]["subagents"] = 2
-    assert "up to 2 sub-agents" in run_prompt(run)
+    run.save(update_fields=["execution_plan"])
+    assert "up to 2 sub-agents" in run_prompt(Run.objects.get(pk=run.pk))
 
 
 @pytest.mark.django_db(transaction=True)
 def test_a_codex_run_starts_no_subagents(budget_run) -> None:  # noqa: F811
     run = delegating_run(budget_run, subagents=2)
-    run.execution_plan["execution"] = {"backend": AgentBackend.CODEX}
+    run.execution_plan["execution"]["backend"] = AgentBackend.CODEX
 
     assert "sub-agents" not in run_prompt(run)
 
@@ -223,7 +224,7 @@ def test_a_codex_run_starts_no_subagents(budget_run) -> None:  # noqa: F811
 @pytest.mark.django_db(transaction=True)
 def test_a_claude_code_run_is_told_how_to_start_the_worker(budget_run) -> None:  # noqa: F811
     run = delegating_run(budget_run, subagents=2)
-    run.execution_plan["execution"] = {"backend": AgentBackend.CLAUDE_CODE}
+    run.execution_plan["execution"]["backend"] = AgentBackend.CLAUDE_CODE
 
     prompt = run_prompt(run)
     assert "up to 2 sub-agents with the Agent tool" in prompt

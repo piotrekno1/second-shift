@@ -10,6 +10,7 @@ from secondshift.config.formatting import duration_label
 from secondshift.connections.execution import choose_execution
 from secondshift.connections.models import Connection
 from secondshift.gateway.models import RunToken
+from secondshift.jobs.tests.plans import stored_plan
 from secondshift.runs.execution import agent
 from secondshift.runs.execution.agent import RUN_MODEL_ID
 from secondshift.runs.execution.deadlines import RunTimedOut, run_deadline
@@ -28,7 +29,9 @@ def test_deadline_counts_from_the_start(settings: Any) -> None:
     settings.RUN_TIMEOUT_SECONDS = 900
     started = timezone.now() - timedelta(hours=1)
 
-    assert run_deadline(Run(started_at=started)) == started + timedelta(minutes=15)
+    run = Run(started_at=started, execution_plan=stored_plan())
+
+    assert run_deadline(run) == started + timedelta(minutes=15)
 
 
 def test_the_deadline_uses_the_limit_frozen_into_the_plan(settings: Any) -> None:
@@ -36,7 +39,7 @@ def test_the_deadline_uses_the_limit_frozen_into_the_plan(settings: Any) -> None
     started = timezone.now()
     run = Run(
         started_at=started,
-        execution_plan={"agent": {"limits": {"timeout_seconds": 3600}}},
+        execution_plan=stored_plan(agent={"limits": {"timeout_seconds": 3600}}),
     )
 
     assert run_deadline(run) == started + timedelta(hours=1)
@@ -128,8 +131,9 @@ def test_a_run_past_its_limit_is_marked_timed_out(
 def test_a_failure_within_the_limit_keeps_its_cause(
     db: object, settings: Any, monkeypatch: pytest.MonkeyPatch, fake_stages: list[str]
 ) -> None:
-    settings.RUN_TIMEOUT_SECONDS = 4 * 3600
     run = execution_run(db)
+    run.execution_plan["agent"]["limits"]["timeout_seconds"] = 4 * 3600
+    run.save(update_fields=["execution_plan"])
 
     def fail(run: Run, session_id: str) -> None:
         raise RuntimeError("The agent returned an empty report.")

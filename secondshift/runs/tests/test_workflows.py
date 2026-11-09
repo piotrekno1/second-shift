@@ -4,9 +4,11 @@ from pathlib import Path
 import pytest
 from django.contrib.auth import get_user_model
 from django.utils import timezone
+from pydantic import ValidationError
 
 from secondshift.config.constants import RunSandbox
 from secondshift.jobs.models import Job
+from secondshift.jobs.tests.plans import stored_plan
 from secondshift.repositories.models import Repository
 from secondshift.repositories.sources import SourceSnapshot
 from secondshift.runner.protocol import RunnerSessionSpec
@@ -58,17 +60,10 @@ def execution_run(db) -> Run:
         job=job,
         commit_sha="a" * 40,
         scheduled_for=timezone.now(),
-        execution_plan={
-            "ready": True,
-            "repository": {
-                "full_name": "frozen/project",
-                "config_sha": "a" * 40,
-            },
-            "runner": {
-                "image": "server-owned:test",
-                "network_policy": "none",
-            },
-        },
+        execution_plan=stored_plan(
+            repository={"full_name": "frozen/project"},
+            runner={"image": "server-owned:test"},
+        ),
     )
 
 
@@ -134,7 +129,7 @@ def test_runner_session_rejects_a_networked_plan(db, monkeypatch) -> None:
         "secondshift.runs.orchestration.workflows.get_runner_client", lambda: client
     )
 
-    with pytest.raises(RuntimeError, match="offline sandbox"):
+    with pytest.raises(ValidationError, match="network_policy"):
         start_runner_session_step(run.pk)
 
     assert client.started == []

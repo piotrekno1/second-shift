@@ -10,7 +10,6 @@ from datetime import datetime, timedelta
 from django.utils import timezone
 
 from secondshift.config.formatting import duration_label
-from secondshift.jobs.limits import plan_limit
 from secondshift.runs.models import Run
 from secondshift.workspaces.limits import RunLimit, raise_hint
 
@@ -22,7 +21,7 @@ class RunTimedOut(RuntimeError):
 
 
 def run_timeout_seconds(run: Run) -> int:
-    return plan_limit(run.execution_plan, RunLimit.TIMEOUT_SECONDS)
+    return run.plan.limit(RunLimit.TIMEOUT_SECONDS)
 
 
 def run_deadline(run: Run) -> datetime:

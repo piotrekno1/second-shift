@@ -169,7 +169,7 @@ def test_finished_run_notifies_only_still_approved_webhooks(
         commit_sha="abc123",
         scheduled_for=datetime(2026, 10, 1, tzinfo=UTC),
         summary="No isolated runner service is connected.",
-        execution_plan=build_execution_plan(job),
+        execution_plan=build_execution_plan(job).stored(),
     )
     sent: list[dict[str, Any]] = []
 

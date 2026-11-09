@@ -7,6 +7,7 @@ from django.contrib.auth import get_user_model
 from django.utils import timezone
 
 from secondshift.jobs.models import Job
+from secondshift.jobs.tests.plans import stored_plan
 from secondshift.repositories.models import Repository
 from secondshift.runs.models import Run
 from secondshift.runs.orchestration.reconciliation import reconcile_terminal_workflows
@@ -48,6 +49,7 @@ def create_run(*, status: str, workflow_id: str) -> Run:
         enabled=True,
     )
     return Run.objects.create(
+        execution_plan=stored_plan(),
         job=job,
         status=status,
         commit_sha="abc123",

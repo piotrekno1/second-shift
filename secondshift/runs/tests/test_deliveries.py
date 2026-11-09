@@ -48,7 +48,7 @@ def approved_run(settings: Any, setup: Setup) -> tuple[Run, Connection, JobGrant
         commit_sha="abc123",
         scheduled_for=datetime(2026, 10, 1, tzinfo=UTC),
         summary="All good.",
-        execution_plan=build_execution_plan(job),
+        execution_plan=build_execution_plan(job).stored(),
     )
     return run, connection, grant
 

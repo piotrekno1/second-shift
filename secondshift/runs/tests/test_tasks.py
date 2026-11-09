@@ -10,6 +10,8 @@ from django.utils import timezone
 
 from secondshift.config.constants import RunStart, TaskOrigin
 from secondshift.jobs.models import Job
+from secondshift.jobs.plan import ExecutionPlan
+from secondshift.jobs.tests.plans import stored_plan
 from secondshift.repositories.models import Repository
 from secondshift.runs.models import Run, Task
 from secondshift.runs.retention import prune_runs
@@ -36,7 +38,8 @@ def job(db: object, monkeypatch: pytest.MonkeyPatch) -> Job:
     )
     monkeypatch.setattr("secondshift.runs.services.enqueue_run", lambda run: None)
     monkeypatch.setattr(
-        "secondshift.runs.services.build_execution_plan", lambda job: {"ready": True}
+        "secondshift.runs.services.build_execution_plan",
+        lambda job: ExecutionPlan.model_validate(stored_plan()),
     )
     return Job.objects.create(
         workspace=workspace,
@@ -104,7 +107,8 @@ def test_readiness_refusal_creates_no_task(
     job: Job, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(
-        "secondshift.runs.services.build_execution_plan", lambda job: {"ready": False}
+        "secondshift.runs.services.build_execution_plan",
+        lambda job: ExecutionPlan.model_validate(stored_plan(ready=False)),
     )
     monkeypatch.setattr(
         "secondshift.runs.services.execution_problems", lambda *args: []
@@ -141,7 +145,10 @@ def test_retention_keeps_task_until_its_last_attempt_expires(job: Job) -> None:
         status=Run.Status.SUCCEEDED, finished_at=timezone.now() - timedelta(days=89)
     )
     second = Run.objects.create(
-        job=job, task_id=first.task_id, scheduled_for=timezone.now()
+        execution_plan=stored_plan(),
+        job=job,
+        task_id=first.task_id,
+        scheduled_for=timezone.now(),
     )
 
     assert prune_runs(days=30) == 1

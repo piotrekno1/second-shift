@@ -11,6 +11,7 @@ from secondshift.connections.execution import choose_execution
 from secondshift.connections.models import Connection
 from secondshift.jobs.models import CapabilityRequest, Job
 from secondshift.jobs.repository_sync import SyncError
+from secondshift.jobs.tests.plans import stored_plan
 from secondshift.repositories.models import Repository
 from secondshift.runs.artifacts import store_run_text
 from secondshift.runs.models import Run, Task
@@ -196,6 +197,7 @@ def test_runs_and_reports_can_be_read_and_reports_are_marked_untrusted(
     owner: AbstractUser, job: Job, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     run = Run.objects.create(
+        execution_plan=stored_plan(),
         job=job,
         scheduled_for=timezone.now(),
         status=Run.Status.SUCCEEDED,
@@ -222,7 +224,9 @@ def test_runs_and_reports_can_be_read_and_reports_are_marked_untrusted(
 def test_a_run_without_a_report_returns_an_empty_one(
     owner: AbstractUser, job: Job
 ) -> None:
-    run = Run.objects.create(job=job, scheduled_for=timezone.now())
+    run = Run.objects.create(
+        execution_plan=stored_plan(), job=job, scheduled_for=timezone.now()
+    )
 
     report = call(token(owner, "read"), "get_run_report", run_id=run.pk)
 

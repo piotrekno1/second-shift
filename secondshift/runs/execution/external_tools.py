@@ -33,7 +33,7 @@ def model_tool_name(prefix: str, provider_tool: str, name: str) -> str:
 
 def external_tools(run: Run) -> tuple[Tool[WorkspaceToolDeps], ...]:
     tools = []
-    for tool in authorized_tools(run.execution_plan):
+    for tool in authorized_tools(run.plan):
         if tool.is_local:
             continue
         authorization = broker_connection(run, tool.name)

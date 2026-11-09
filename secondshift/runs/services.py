@@ -2,7 +2,6 @@
 
 from copy import deepcopy
 from datetime import datetime
-from typing import Any
 
 from django.contrib.auth.models import User
 from django.db import transaction
@@ -11,6 +10,7 @@ from django.utils import timezone
 from secondshift.config.constants import RunStart, TaskOrigin
 from secondshift.jobs.dao import lock_job
 from secondshift.jobs.models import JOB_REMOVED, Job
+from secondshift.jobs.plan import ExecutionPlan
 from secondshift.jobs.planning import build_execution_plan
 from secondshift.jobs.readiness import execution_problems
 from secondshift.runs.artifacts import job_input_snapshot, store_run_payload
@@ -49,7 +49,7 @@ def create_run(
     scheduled_for: datetime,
     *,
     started_by: RunStart = RunStart.SCHEDULE,
-    execution_plan: dict[str, Any] | None = None,
+    execution_plan: ExecutionPlan | None = None,
     submitted_by: User | None = None,
     origin: TaskOrigin | None = None,
 ) -> Run:
@@ -61,7 +61,7 @@ def create_run(
         | {"history_run_ids": previous_run_ids(job)},
         "execution_plan": (
             build_execution_plan(job) if execution_plan is None else execution_plan
-        ),
+        ).stored(),
     }
     task = create_task(
         job=job,
@@ -113,7 +113,7 @@ def start_run(
         if active is not None:
             raise RunInProgress(active)
         execution_plan = build_execution_plan(job)
-        if not execution_plan["ready"]:
+        if not execution_plan.ready:
             raise RunNotReady(execution_problems(job.repository, execution_plan))
         run = create_run(
             job,

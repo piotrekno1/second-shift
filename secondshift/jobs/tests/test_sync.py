@@ -376,7 +376,7 @@ jobs:
     )
 
     job = Job.objects.get(pk=sync_manifest(repository, path)[0].pk)
-    plan = build_execution_plan(job)
+    plan = build_execution_plan(job).stored()
 
     assert job.open_pull_request is True
     assert plan["pull_request"] == {"base": "main", "run_ci": False}
@@ -385,7 +385,7 @@ jobs:
     path.write_text(path.read_text().replace("\n    open_pull_request: true", ""))
     job = Job.objects.get(pk=sync_manifest(repository, path)[0].pk)
     assert job.open_pull_request is False
-    assert build_execution_plan(job)["pull_request"] is None
+    assert build_execution_plan(job).stored()["pull_request"] is None
 
 
 def test_a_job_can_ask_to_open_issues(db, tmp_path: Path) -> None:
@@ -407,7 +407,7 @@ jobs:
     )
 
     job = Job.objects.get(pk=sync_manifest(repository, path)[0].pk)
-    plan = build_execution_plan(job)
+    plan = build_execution_plan(job).stored()
 
     assert job.open_issues == {"max": MAX_RUN_ISSUES, "labels": []}
     assert plan["issues"] == {"max": MAX_RUN_ISSUES, "labels": []}
@@ -417,4 +417,4 @@ jobs:
     path.write_text(path.read_text().replace("\n    open_issues: true", ""))
     job = Job.objects.get(pk=sync_manifest(repository, path)[0].pk)
     assert job.open_issues is None
-    assert build_execution_plan(job)["issues"] is None
+    assert build_execution_plan(job).stored()["issues"] is None

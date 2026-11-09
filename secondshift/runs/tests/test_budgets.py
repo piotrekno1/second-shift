@@ -13,6 +13,7 @@ from pydantic_ai.models.function import AgentInfo, FunctionModel
 from pydantic_ai.toolsets import FunctionToolset
 
 from secondshift.config.constants import TOKEN_BUDGET_MESSAGE
+from secondshift.jobs.tests.plans import stored_plan
 from secondshift.jobs.tool_policy import LOCAL_TOOLS
 from secondshift.runner.protocol import CommandResult
 from secondshift.runs.execution.budgets import FINISH_INSTRUCTIONS, PARTIAL_REPORT_NOTE
@@ -63,15 +64,17 @@ def budget_run(
         run = execution_run(db)
         run.started_at = timezone.now()
         run.input_snapshot = {"skill_path": ".agents/skills/review/SKILL.md"}
-        run.execution_plan["agent"] = {
-            "tools": list(LOCAL_TOOLS),
-            "limits": {
-                "max_turns": max_turns,
-                "max_tool_calls": max_tool_calls,
-                "max_tool_result_chars": 1_000,
-                "token_budget": token_budget,
+        run.execution_plan = stored_plan(
+            agent={
+                "tools": list(LOCAL_TOOLS),
+                "limits": {
+                    "max_turns": max_turns,
+                    "max_tool_calls": max_tool_calls,
+                    "max_tool_result_chars": 1_000,
+                    "token_budget": token_budget,
+                },
             },
-        }
+        )
         run.save()
         return run
 

@@ -8,7 +8,7 @@ wrote so far as a partial report. So does a run that times out.
 
 import datetime
 from collections import Counter
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any
@@ -21,7 +21,7 @@ from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.usage import RunUsage
 
 from secondshift.config.constants import TOKEN_BUDGET_MESSAGE, AgentBackend
-from secondshift.jobs.limits import plan_limit
+from secondshift.jobs.plan import ExecutionPlan
 from secondshift.workspaces.limits import RunLimit, raise_hint
 
 BUDGET_HEADLINE = "Budget used up"
@@ -152,16 +152,16 @@ def partial_report(messages: Sequence[ModelMessage]) -> str:
 
 
 def limits_note(
-    plan: Mapping[str, Any], backend: AgentBackend, started_at: datetime.datetime | None
+    plan: ExecutionPlan, backend: AgentBackend, started_at: datetime.datetime | None
 ) -> str:
     """The prompt lines that tell the agent how much room the run has."""
-    minutes = plan_limit(plan, RunLimit.TIMEOUT_SECONDS) // 60
+    minutes = plan.limit(RunLimit.TIMEOUT_SECONDS) // 60
     limits = [
         f"{minutes} minutes",
-        f"{plan_limit(plan, RunLimit.MAX_TOOL_CALLS):,} tool calls",
+        f"{plan.limit(RunLimit.MAX_TOOL_CALLS):,} tool calls",
     ]
     if backend.limits_model_calls:
-        limits.append(f"{plan_limit(plan, RunLimit.MAX_TURNS):,} model calls")
+        limits.append(f"{plan.limit(RunLimit.MAX_TURNS):,} model calls")
     start = ""
     if started_at is not None:
         start = started_at.astimezone(datetime.UTC).strftime(

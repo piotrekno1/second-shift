@@ -1,4 +1,5 @@
 import uuid
+from functools import cached_property
 
 from django.conf import settings
 from django.db import models
@@ -7,6 +8,7 @@ from django.utils import timezone
 from secondshift.config.constants import RunStart, TaskOrigin
 from secondshift.connections.models import Connection
 from secondshift.jobs.models import Job
+from secondshift.jobs.plan import ExecutionPlan
 from secondshift.repositories.models import Repository
 
 # The summary of a run whose durable workflow could not be enqueued.
@@ -123,8 +125,8 @@ class Run(models.Model):
     summary = models.TextField(blank=True)
     # What the run was asked to do, frozen at creation (see job_input_snapshot).
     input_snapshot = models.JSONField(default=dict, blank=True)
-    # Immutable, redacted record of bindings, tools and policy decisions.
-    execution_plan = models.JSONField(default=dict, blank=True)
+    # The frozen jobs.plan.ExecutionPlan. Read it through `plan`.
+    execution_plan = models.JSONField()
     # The agent login the plan chose. Its runs per day count against its cap.
     agent_connection = models.ForeignKey(
         "connections.AgentConnection",
@@ -178,6 +180,10 @@ class Run(models.Model):
         if self.task_id is not None and self.task.repository_id is not None:
             return self.task.repository
         raise ValueError("The run has no repository source.")
+
+    @cached_property
+    def plan(self) -> ExecutionPlan:
+        return ExecutionPlan.model_validate(self.execution_plan)
 
     @property
     def workspace_id(self) -> int:

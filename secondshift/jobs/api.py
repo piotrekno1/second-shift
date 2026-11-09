@@ -109,7 +109,7 @@ def set_job_enabled(
         if not job.repository.enabled:
             raise HttpError(409, "Enable the repository before enabling this job.")
         plan = build_execution_plan(job)
-        if not plan["ready"]:
+        if not plan.ready:
             raise HttpError(409, " ".join(execution_problems(job.repository, plan)))
     turned_on = payload.enabled and not job.enabled
     job.enabled = payload.enabled

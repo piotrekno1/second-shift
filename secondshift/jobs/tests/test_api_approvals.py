@@ -10,6 +10,7 @@ from django.utils import timezone
 from secondshift.connections.execution import NOTHING_CHOSEN, choose_execution
 from secondshift.connections.models import Connection
 from secondshift.jobs.models import JOB_REMOVED, CapabilityRequest, Job, JobGrant
+from secondshift.jobs.tests.plans import stored_plan
 from secondshift.repositories.models import Repository
 from secondshift.runs.models import Run, Task
 from secondshift.workspaces.dao import create_workspace
@@ -143,7 +144,7 @@ def test_owner_can_approve_required_capability_and_enable_job(
         job=job,
         commit_sha=job.repository.config_sha,
         scheduled_for=timezone.now(),
-        execution_plan={"ready": True},
+        execution_plan=stored_plan(),
     )
     detail = client.get(f"/api/jobs/{job.pk}")
     runs = client.get("/api/runs")

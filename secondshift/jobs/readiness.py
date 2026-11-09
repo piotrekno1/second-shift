@@ -1,8 +1,7 @@
 """Why a job cannot run yet, in plain words."""
 
-from typing import Any
-
 from secondshift.jobs.models import Job
+from secondshift.jobs.plan import ExecutionPlan
 from secondshift.jobs.planning import build_execution_plan
 from secondshift.repositories.models import Repository
 
@@ -23,19 +22,19 @@ REASON_TEXT = {
 OTHER_REASON = "cannot reach what the job needs through its connection"
 
 
-def execution_problems(repository: Repository, plan: dict[str, Any]) -> list[str]:
+def execution_problems(repository: Repository, plan: ExecutionPlan) -> list[str]:
     problems = []
     if not repository.enabled:
         problems.append("The repository is disabled.")
-    if not plan["execution"]["ready"]:
-        problems.append(plan["execution"]["problem"])
-    for capability in plan["capabilities"]:
-        if not capability["required"] or capability["authorized"]:
+    if not plan.execution.ready:
+        problems.append(plan.execution.problem)
+    for capability in plan.capabilities:
+        if not capability.required or capability.authorized:
             continue
         texts = dict.fromkeys(
-            REASON_TEXT.get(reason, OTHER_REASON) for reason in capability["reasons"]
+            REASON_TEXT.get(reason, OTHER_REASON) for reason in capability.reasons
         )
-        problems.append(f"{capability['binding']} {' and '.join(texts)}.")
+        problems.append(f"{capability.binding} {' and '.join(texts)}.")
     return problems
 
 

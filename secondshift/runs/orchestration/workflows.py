@@ -100,8 +100,8 @@ def mark_run_started_step(run_id: int) -> bool:
     if run.status == Run.Status.RUNNING and run.dbos_workflow_id == DBOS.workflow_id:
         # The application commit may precede DBOS persisting this step's result.
         return True
-    plan = run.execution_plan
-    if run.status == Run.Status.QUEUED and not plan.get("ready", False):
+    plan = run.plan
+    if run.status == Run.Status.QUEUED and not plan.ready:
         # A scheduled tick creates the run even when the job lost its access.
         problems = execution_problems(run.repository, plan)
         raise RunNotReadyError(
@@ -145,12 +145,8 @@ def prepare_source_step(run_id: int) -> None:
 )
 def start_runner_session_step(run_id: int) -> str:
     run = get_run(run_id, "job__repository", "task__repository")
-    plan = run.execution_plan
-    runner_plan = plan.get("runner", {})
-    if runner_plan.get("network_policy") != "none":
-        raise RuntimeError("The execution plan does not require an offline sandbox.")
-    repository_plan = plan.get("repository", {})
-    if repository_plan.get("config_sha") != run.commit_sha:
+    plan = run.plan
+    if plan.repository.config_sha != run.commit_sha:
         raise RuntimeError("The run commit does not match its execution plan.")
     snapshot = source_snapshot(run.repository, run.commit_sha)
     client = get_runner_client()
@@ -166,11 +162,11 @@ def start_runner_session_step(run_id: int) -> str:
         RunnerSessionSpec(
             run_id=run.pk,
             session_key=run.runner_session_key.hex,
-            repository=str(repository_plan["full_name"]),
+            repository=plan.repository.full_name,
             commit_sha=run.commit_sha,
-            image=str(runner_plan["image"]),
+            image=plan.runner.image,
             source_sha256=snapshot.sha256,
-            collect_changes=bool(runner_plan.get("collect_changes", False)),
+            collect_changes=plan.runner.collect_changes,
             history_sha256=history.sha256 if history is not None else "",
         )
     )

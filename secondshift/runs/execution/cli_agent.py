@@ -101,7 +101,7 @@ def execute_cli_step(run_id: int, session_id: str, prompt: str) -> dict[str, Any
         raise RuntimeError("The run reached its time limit.")
     token = secrets.token_urlsafe(40)
     lease = create_lease(run, hashlib.sha256(token.encode()).hexdigest(), session_id)
-    limits = run.execution_plan["agent"]["limits"]
+    limits = run.plan.agent.limits
     try:
         client = get_runner_client()
         provisioning = client.response_payload(
@@ -120,10 +120,10 @@ def execute_cli_step(run_id: int, session_id: str, prompt: str) -> dict[str, Any
                 "auth": encrypted_auth,
                 "broker_token": token,
                 "prompt": prompt,
-                "max_turns": limits["max_turns"],
-                "token_budget": limits["token_budget"],
+                "max_turns": limits.max_turns,
+                "token_budget": limits.token_budget,
                 "timeout_seconds": remaining,
-                "subagents": run.execution_plan["agent"].get("subagents", 0),
+                "subagents": run.plan.agent.subagents,
             },
         )
         result = client.response_payload(response)

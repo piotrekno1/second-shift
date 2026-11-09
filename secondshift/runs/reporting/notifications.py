@@ -5,9 +5,19 @@ from urllib.parse import quote, unquote
 
 from django.conf import settings
 
+from secondshift.config.constants import AgentBackend
 from secondshift.connections.models import Connection
 from secondshift.jobs.dao import approved_notification_targets
 from secondshift.jobs.models import Job
+from secondshift.jobs.plan import (
+    AgentPlan,
+    ExecutionChoice,
+    ExecutionPlan,
+    JobPlan,
+    PlanLimits,
+    RepositoryPlan,
+    RunnerPlan,
+)
 from secondshift.repositories.models import Repository
 from secondshift.runs.dao import opened_issues, run_delivery
 from secondshift.runs.execution.tool_broker import standalone_connection
@@ -32,19 +42,19 @@ OUTPUT_LINK = re.compile(r"\[([^\]\n]+)\]\(/outputs/([^)\s]+)\)")
 def notification_targets(run: Run) -> list[int]:
     """Connections authorized when the run was planned and still approved now."""
     planned = {
-        item["connection_id"]
-        for item in run.execution_plan.get("capabilities", [])
-        if item.get("kind") == "notification"
-        and item.get("authorized")
-        and item.get("connection_id")
+        item.connection_id
+        for item in run.plan.capabilities
+        if item.kind == Connection.Kind.NOTIFICATION
+        and item.authorized
+        and item.connection_id
     }
     if not planned:
         return []
     if run.job_id is None:
         return sorted(
             connection.pk
-            for capability in run.execution_plan.get("capabilities", [])
-            if capability.get("kind") == Connection.Kind.NOTIFICATION
+            for capability in run.plan.capabilities
+            if capability.kind == Connection.Kind.NOTIFICATION
             and (connection := standalone_connection(run, capability)) is not None
         )
     # A grant revoked or a connection disconnected after planning stops delivery.
@@ -85,7 +95,7 @@ def run_report_payload(run: Run) -> dict[str, Any]:
 
 
 def pull_request_link(run: Run) -> dict[str, str] | None:
-    if not (run.execution_plan or {}).get("pull_request"):
+    if not run.plan.pull_request:
         return None
     delivery = run_delivery(run, RunDelivery.Kind.PULL_REQUEST, delivered=True)
     return {"url": delivery.external_url} if delivery else None
@@ -93,7 +103,7 @@ def pull_request_link(run: Run) -> dict[str, str] | None:
 
 def pull_request_line(run: Run) -> str:
     """The draft's link, or why there is none, for runs that asked for one."""
-    if not (run.execution_plan or {}).get("pull_request"):
+    if not run.plan.pull_request:
         return ""
     delivery = run_delivery(run, RunDelivery.Kind.PULL_REQUEST)
     if delivery is None:
@@ -108,7 +118,7 @@ def pull_request_line(run: Run) -> str:
 
 
 def has_issues(run: Run) -> bool:
-    return bool((run.execution_plan or {}).get("issues"))
+    return run.plan.issues is not None
 
 
 def issue_links(run: Run) -> list[dict[str, Any]] | None:
@@ -204,6 +214,35 @@ def run_report_text(run: Run, run_url: str) -> str:
     return "\n\n".join(lines)
 
 
+def sample_plan(job: Job, commit_sha: str) -> ExecutionPlan:
+    """A plan that opens nothing, for the sample run."""
+    return ExecutionPlan(
+        execution=ExecutionChoice(
+            backend=AgentBackend.PYDANTIC, label="", ready=True, problem=""
+        ),
+        ready=True,
+        agent=AgentPlan(
+            limits=PlanLimits(
+                max_turns=1,
+                max_tool_calls=1,
+                max_tool_result_chars=1,
+                token_budget=1,
+                timeout_seconds=1,
+            ),
+            tools=(),
+        ),
+        job=JobPlan(key=job.key, skill_path="", config_hash=""),
+        repository=RepositoryPlan(
+            full_name=job.repository.full_name, config_sha=commit_sha
+        ),
+        runner=RunnerPlan(image="", network_policy="none", collect_changes=False),
+        pull_request=None,
+        issues=None,
+        model=None,
+        capabilities=(),
+    )
+
+
 def sample_run_report_payload() -> dict[str, Any]:
     """What a webhook receives after a run, built from made-up records.
 
@@ -221,5 +260,6 @@ def sample_run_report_payload() -> dict[str, Any]:
         scheduled_for=finished_at - timedelta(minutes=4),
         finished_at=finished_at,
         outputs={"files": [{"name": "stale-steps.csv", "size_bytes": 182}]},
+        execution_plan=sample_plan(job, "8f3c9d2" * 5 + "8f3c9").stored(),
     )
     return run_report_payload(run)

@@ -1,5 +1,7 @@
 import pytest
 
+from secondshift.jobs.plan import ExecutionPlan
+from secondshift.jobs.tests.plans import CAPABILITY, stored_plan
 from secondshift.jobs.tool_policy import (
     LOCAL_TOOLS,
     ToolPolicyError,
@@ -9,8 +11,12 @@ from secondshift.jobs.tool_policy import (
 )
 
 
-def plan(*capabilities: dict[str, object], ready: bool = True) -> dict[str, object]:
-    return {"ready": ready, "capabilities": list(capabilities)}
+def plan(*capabilities: dict[str, object], ready: bool = True) -> ExecutionPlan:
+    return ExecutionPlan.model_validate(
+        stored_plan(
+            ready=ready, capabilities=[CAPABILITY | item for item in capabilities]
+        )
+    )
 
 
 def test_policy_includes_local_and_only_effective_external_tools() -> None:

@@ -6,6 +6,7 @@ from pydantic_ai.exceptions import ModelHTTPError
 from secondshift.connections.errors import ExternalToolError
 from secondshift.connections.mcp.base import MCPRequestError
 from secondshift.github.errors import GitHubError
+from secondshift.jobs.tests.plans import CAPABILITY, MODEL, stored_plan
 from secondshift.jobs.tool_rules import ToolRuleViolation
 from secondshift.runner.protocol import RunnerProtocolError
 from secondshift.runs.models import Run
@@ -147,18 +148,10 @@ def test_a_run_that_lost_its_access_fails_before_any_work(db, monkeypatch) -> No
     run = execution_run(db)
     run.job.repository.enabled = True
     run.job.repository.save(update_fields=["enabled"])
-    run.execution_plan = {
-        "ready": False,
-        "execution": {"ready": True},
-        "capabilities": [
-            {
-                "binding": "observability",
-                "required": True,
-                "authorized": False,
-                "reasons": ["grant_denied"],
-            }
-        ],
-    }
+    run.execution_plan = stored_plan(
+        ready=False,
+        capabilities=[CAPABILITY | {"reasons": ["grant_denied"]}],
+    )
     run.save(update_fields=["execution_plan"])
     prepared: list[int] = []
     delivered: list[int] = []
@@ -243,7 +236,9 @@ def test_checkout_explains_github_access_failure() -> None:
     ) == ("Couldn't check out the repository: The GitHub installation is disconnected.")
 
 
-MODEL_PLAN = {"model": {"connection_id": 2, "connection_name": "OpenRouter"}}
+MODEL_PLAN = stored_plan(
+    model=MODEL | {"connection_id": 2, "connection_name": "OpenRouter"}
+)
 
 
 @pytest.mark.parametrize(

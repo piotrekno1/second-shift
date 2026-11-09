@@ -58,7 +58,7 @@ def job(agent_login: tuple[Workspace, AgentConnection, User]) -> Job:
 
 
 def finished_run(job: Job, hours_ago: float = 1, ready: bool = True) -> Run:
-    plan = build_execution_plan(job)
+    plan = build_execution_plan(job).stored()
     plan["ready"] = ready
     run = create_run_record(
         job=job,

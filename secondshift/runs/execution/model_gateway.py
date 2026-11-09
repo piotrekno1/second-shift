@@ -12,7 +12,6 @@ from secondshift.connections.model_providers import provider_family
 from secondshift.connections.models import Connection
 from secondshift.gateway.dao import revoke_run_tokens
 from secondshift.gateway.tokens import issue_token
-from secondshift.jobs.limits import plan_limit
 from secondshift.runs.execution.deadlines import run_deadline
 from secondshift.runs.models import Run
 from secondshift.workspaces.limits import RunLimit
@@ -29,7 +28,7 @@ def issue_run_token(run: Run, connection: Connection) -> str:
         run.workspace_id,
         connection,
         expires_at=run_deadline(run),
-        budget_tokens=plan_limit(run.execution_plan, RunLimit.TOKEN_BUDGET),
+        budget_tokens=run.plan.limit(RunLimit.TOKEN_BUDGET),
     )
 
 
@@ -46,7 +45,7 @@ class ModelGatewayAccess:
 
 def issue_model_gateway_access(run: Run) -> ModelGatewayAccess:
     """Issue access to the plan's provider through the internal model gateway."""
-    model_plan = run.execution_plan.get("model")
+    model_plan = run.plan.model
     if not model_plan:
         raise ModelGatewayConfigurationError("This run has no model provider.")
     gateway_url = settings.MODEL_GATEWAY_URL.rstrip("/")
@@ -54,7 +53,7 @@ def issue_model_gateway_access(run: Run) -> ModelGatewayAccess:
         raise ModelGatewayConfigurationError(
             "SECONDSHIFT_MODEL_GATEWAY_URL must be set for agent runs."
         )
-    connection = connected_model(run.workspace_id, model_plan["connection_id"])
+    connection = connected_model(run.workspace_id, model_plan.connection_id)
     if connection is None:
         raise ModelGatewayConfigurationError(
             "The run's model provider is no longer connected."
@@ -67,7 +66,7 @@ def issue_model_gateway_access(run: Run) -> ModelGatewayAccess:
     return ModelGatewayAccess(
         family=family,
         provider=connection.provider,
-        model=str(model_plan.get("default_model", "")),
+        model=model_plan.default_model,
         base_url=f"{gateway_url}/gateway/{path}",
         token=token,
     )

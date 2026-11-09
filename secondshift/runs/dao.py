@@ -12,6 +12,7 @@ from secondshift.config.constants import AgentBackend
 from secondshift.connections.models import Connection
 from secondshift.jobs.dao import active_jobs
 from secondshift.jobs.models import Job
+from secondshift.jobs.plan import ExecutionPlan
 from secondshift.runner.agent_image.outcomes import CACHE_READ_DIVISOR
 from secondshift.runs.models import (
     RUN_ENQUEUE_FAILED,
@@ -52,11 +53,11 @@ def lock_run_in(run_id: int, statuses: Collection[str]) -> Run | None:
 
 def create_run_record(**fields: Any) -> Run:
     """A run counts against its agent login only when its plan was ready."""
-    plan = fields.get("execution_plan") or {}
-    if plan.get("ready"):
-        fields["agent_connection_id"] = (plan.get("execution") or {}).get(
-            "connection_id"
-        )
+    plan = fields.get("execution_plan")
+    if plan:
+        typed = ExecutionPlan.model_validate(plan)
+        if typed.ready:
+            fields["agent_connection_id"] = typed.execution.connection_id
     return Run.objects.create(**fields)
 
 

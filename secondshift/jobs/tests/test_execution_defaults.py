@@ -69,7 +69,7 @@ def agent_run(
         scheduled_for=timezone.now(),
         started_at=timezone.now(),
         status=Run.Status.RUNNING,
-        execution_plan=build_execution_plan(job),
+        execution_plan=build_execution_plan(job).stored(),
     )
     return run, owner
 
@@ -142,7 +142,7 @@ def test_working_api_default_keeps_existing_behavior(
     job = model_workspace(run)
     model = use_model(run)
     assert workspace_execution(job.workspace).model == model
-    assert build_execution_plan(job)["model"]["connection_id"] == model.pk
+    assert build_execution_plan(job).stored()["model"]["connection_id"] == model.pk
 
 
 def test_connections_changing_never_switch_what_runs_jobs(
@@ -172,7 +172,7 @@ def test_workspace_default_is_inherited_and_frozen_in_run_plan(
     job = model_workspace(run)
     model = add_model(run)
     save_execution_preference(job.workspace, f"agent:{connection.pk}", owner)
-    plan = build_execution_plan(job)
+    plan = build_execution_plan(job).stored()
     assert plan["execution"]["connection_id"] == connection.pk
     assert plan["model"] is None
     save_execution_preference(job.workspace, f"model:{model.pk}", owner)
@@ -190,7 +190,7 @@ def test_disconnected_explicit_default_never_falls_back_to_api(
     save_execution_preference(job.workspace, f"agent:{connection.pk}", owner)
     AgentConnection.objects.filter(pk=connection.pk).update(connected=False)
     fresh = Job.objects.get(pk=job.pk)
-    plan = build_execution_plan(fresh)
+    plan = build_execution_plan(fresh).stored()
     assert plan["ready"] is False
     assert plan["model"] is None
     assert plan["execution"]["backend"] == "claude_code"
@@ -333,7 +333,7 @@ def test_existing_jobs_keep_model_backend_and_no_subscription_requirement(
     run, _ = agent_run
     job = model_workspace(run)
     use_model(run)
-    plan = build_execution_plan(job)
+    plan = build_execution_plan(job).stored()
     assert plan["execution"]["backend"] == "pydantic"
     assert plan["ready"] is True
     assert plan["model"]["connection_name"] == "Workspace API"

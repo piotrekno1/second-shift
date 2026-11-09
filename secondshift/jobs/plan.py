@@ -1,0 +1,141 @@
+"""The execution plan frozen into each run.
+
+The planner builds it once from server-owned policy. Runs, brokers and pages
+read it through these types. It never holds credentials.
+"""
+
+from enum import StrEnum
+from typing import Any, Literal
+
+from pydantic import BaseModel, ConfigDict
+
+from secondshift.config.constants import AgentBackend
+from secondshift.workspaces.limits import RunLimit
+
+
+class Frozen(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+
+class Missing(StrEnum):
+    """Why a run does not have a binding, in words safe to show the model."""
+
+    NOT_CONNECTED = "not connected"
+    WAITING_FOR_APPROVAL = "waiting for approval"
+    DENIED = "denied"
+    UNAVAILABLE = "not available"
+
+
+class ExecutionChoice(Frozen):
+    """The agent backend the workspace chose, and the login a CLI agent uses."""
+
+    backend: AgentBackend
+    label: str
+    ready: bool
+    problem: str
+    connection_id: int | None = None
+    credential_key: str | None = None
+    owner_id: int | None = None
+
+
+class PlanLimits(Frozen):
+    max_turns: int
+    max_tool_calls: int
+    max_tool_result_chars: int
+    token_budget: int
+    timeout_seconds: int
+
+    def value(self, limit: RunLimit) -> int:
+        return int(getattr(self, limit))
+
+
+class AgentPlan(Frozen):
+    limits: PlanLimits
+    # The only tool names the agent may call.
+    tools: tuple[str, ...]
+    subagents: int = 0
+
+
+class JobPlan(Frozen):
+    key: str
+    skill_path: str
+    config_hash: str
+
+
+class RepositoryPlan(Frozen):
+    full_name: str
+    config_sha: str
+
+
+class RunnerPlan(Frozen):
+    image: str
+    network_policy: Literal["none"]
+    # Only runs that publish the agent's changes need them recorded.
+    collect_changes: bool
+
+
+class PullRequestPlan(Frozen):
+    """The draft pull request's base branch and CI choice."""
+
+    base: str
+    run_ci: bool
+
+
+class IssuesPlan(Frozen):
+    """How many issues the agent may propose, and the labels each gets."""
+
+    max: int
+    labels: tuple[str, ...]
+
+
+class ModelPlan(Frozen):
+    connection_id: int
+    connection_name: str
+    provider: str
+    family: str
+    default_model: str
+    allowed_models: tuple[str, ...]
+
+
+class CapabilityPlan(Frozen):
+    binding: str
+    kind: str
+    required: bool
+    requested_tools: tuple[str, ...]
+    connection_id: int | None
+    connection_name: str | None
+    effective_tools: tuple[str, ...]
+    authorized: bool
+    reasons: tuple[str, ...]
+    missing: Missing | None = None
+    # The approved scope and tool definitions of an external tool.
+    external: dict[str, Any] | None = None
+    # Copied in so a rule changed mid-run does not affect the run.
+    tool_rules: dict[str, dict[str, Any]] = {}
+
+
+class ExecutionPlan(Frozen):
+    execution: ExecutionChoice
+    ready: bool
+    agent: AgentPlan
+    job: JobPlan
+    repository: RepositoryPlan
+    runner: RunnerPlan
+    pull_request: PullRequestPlan | None
+    issues: IssuesPlan | None
+    model: ModelPlan | None
+    capabilities: tuple[CapabilityPlan, ...]
+
+    def limit(self, limit: RunLimit) -> int:
+        return self.agent.limits.value(limit)
+
+    def capability(self, kind: str, binding: str) -> CapabilityPlan:
+        return next(
+            item
+            for item in self.capabilities
+            if item.kind == kind and item.binding == binding
+        )
+
+    def stored(self) -> dict[str, Any]:
+        """The JSON saved on the run."""
+        return self.model_dump(mode="json")

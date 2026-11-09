@@ -103,7 +103,7 @@ def test_the_plan_freezes_every_limit(job: Job) -> None:
     job.timeout_seconds = 1800
     job.save()
 
-    limits = build_execution_plan(job)["agent"]["limits"]
+    limits = build_execution_plan(job).stored()["agent"]["limits"]
 
     assert limits["token_budget"] == 3_000_000
     assert limits["timeout_seconds"] == 1800
@@ -236,7 +236,7 @@ def test_the_gateway_token_uses_the_frozen_budget(job: Job) -> None:
         commit_sha="abc",
         scheduled_for=timezone.now(),
         started_at=timezone.now(),
-        execution_plan=build_execution_plan(job),
+        execution_plan=build_execution_plan(job).stored(),
     )
     job.token_budget = None
     job.save()
@@ -255,7 +255,7 @@ def test_a_run_stopped_by_a_limit_says_so(client: Client, job: Job) -> None:
         scheduled_for=timezone.now(),
         status=Run.Status.FAILED,
         summary=budget_summary(Budget.TOKENS, 2_000_000),
-        execution_plan=build_execution_plan(job),
+        execution_plan=build_execution_plan(job).stored(),
     )
     client.force_login(workspace_owner(job.workspace))
 

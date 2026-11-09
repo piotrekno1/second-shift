@@ -14,6 +14,7 @@ from django.utils import timezone
 from pydantic import ValidationError
 
 from secondshift.jobs.models import Job
+from secondshift.jobs.tests.plans import stored_plan
 from secondshift.mcp_server.tests.test_job_tools import call, token
 from secondshift.repositories.models import Repository
 from secondshift.runs.models import Run, RunEvent, Task
@@ -270,7 +271,10 @@ def test_cancel_is_workspace_scoped_and_rejects_saved_job_runs(
         config_hash="hash",
     )
     legacy = Run.objects.create(
-        job=job, commit_sha="a" * 40, scheduled_for=timezone.now()
+        execution_plan=stored_plan(),
+        job=job,
+        commit_sha="a" * 40,
+        scheduled_for=timezone.now(),
     )
     client.force_login(owner)
     assert client.post(f"/api/runs/{legacy.pk}/cancel").status_code == 409

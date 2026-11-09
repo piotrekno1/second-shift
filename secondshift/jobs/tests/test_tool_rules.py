@@ -221,7 +221,7 @@ def decide_with_rules(capability: CapabilityRequest, rules: dict) -> JobGrant:
 def test_rules_are_frozen_into_the_plan(capability: CapabilityRequest) -> None:
     decide_with_rules(capability, RULES)
 
-    plan = build_execution_plan(capability.job)
+    plan = build_execution_plan(capability.job).stored()
 
     assert plan["ready"] is True
     assert plan["capabilities"][0]["tool_rules"] == RULES
@@ -235,11 +235,11 @@ def test_schema_drift_blocks_the_job(capability: CapabilityRequest) -> None:
     }
     connection.save()
 
-    plan = build_execution_plan(capability.job)
+    plan = build_execution_plan(capability.job).stored()
 
     assert plan["ready"] is False
     assert "tool_rules_broken" in plan["capabilities"][0]["reasons"]
-    assert "tool_rules" not in plan["capabilities"][0]
+    assert plan["capabilities"][0]["tool_rules"] == {}
 
 
 def test_sync_keeps_rules_for_tools_still_requested(db, tmp_path: Path) -> None:

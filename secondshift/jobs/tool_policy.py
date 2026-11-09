@@ -1,5 +1,7 @@
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any
+
+from secondshift.jobs.plan import CapabilityPlan, ExecutionPlan
 
 LOCAL_TOOLS = (
     "workspace.list_files",
@@ -35,27 +37,28 @@ def external_tool_name(kind: str, binding: str, provider_tool: str) -> str:
     return f"{kind}.{binding}.{provider_tool}"
 
 
-def authorized_tools(execution_plan: dict[str, Any]) -> tuple[AuthorizedTool, ...]:
+def plan_tools(
+    ready: bool, capabilities: Sequence[CapabilityPlan]
+) -> tuple[AuthorizedTool, ...]:
     """Compile the only tool names that an agent may request for this run."""
     tools = [
         AuthorizedTool(name=name, kind="workspace", binding=None, provider_tool=None)
         for name in LOCAL_TOOLS
     ]
-    if not execution_plan.get("ready", False):
+    if not ready:
         return tuple(tools)
 
-    for capability in execution_plan.get("capabilities", []):
-        kind = str(capability.get("kind", ""))
-        if not capability.get("authorized") or kind not in EXTERNAL_KINDS:
+    for capability in capabilities:
+        if not capability.authorized or capability.kind not in EXTERNAL_KINDS:
             continue
-        binding = str(capability.get("binding", ""))
-        for provider_tool in capability.get("effective_tools", []):
-            provider_tool = str(provider_tool)
+        for provider_tool in capability.effective_tools:
             tools.append(
                 AuthorizedTool(
-                    name=external_tool_name(kind, binding, provider_tool),
-                    kind=kind,
-                    binding=binding,
+                    name=external_tool_name(
+                        capability.kind, capability.binding, provider_tool
+                    ),
+                    kind=capability.kind,
+                    binding=capability.binding,
                     provider_tool=provider_tool,
                 )
             )
@@ -66,9 +69,13 @@ def authorized_tools(execution_plan: dict[str, Any]) -> tuple[AuthorizedTool, ..
     return tuple(by_name[name] for name in sorted(by_name))
 
 
-def resolve_tool(execution_plan: dict[str, Any], name: str) -> AuthorizedTool:
+def authorized_tools(plan: ExecutionPlan) -> tuple[AuthorizedTool, ...]:
+    return plan_tools(plan.ready, plan.capabilities)
+
+
+def resolve_tool(plan: ExecutionPlan, name: str) -> AuthorizedTool:
     """Resolve a model-supplied name only through the frozen run policy."""
-    matches = {tool.name: tool for tool in authorized_tools(execution_plan)}
+    matches = {tool.name: tool for tool in authorized_tools(plan)}
     try:
         return matches[name]
     except KeyError as error:

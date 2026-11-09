@@ -12,6 +12,7 @@ from pydantic_ai import ModelRetry, RunContext, RunUsage
 from pydantic_ai.models.test import TestModel
 
 from secondshift.jobs.models import Job
+from secondshift.jobs.tests.plans import CAPABILITY, stored_plan
 from secondshift.jobs.tool_policy import LOCAL_TOOLS
 from secondshift.repositories.models import Repository
 from secondshift.runner.protocol import (
@@ -184,9 +185,8 @@ def test_execute_agent_run_stores_report_and_uses_native_limits(
         commit_sha="a" * 40,
         scheduled_for=timezone.now(),
         input_snapshot={"skill_path": job.skill_path},
-        execution_plan={
-            "ready": True,
-            "agent": {
+        execution_plan=stored_plan(
+            agent={
                 "tools": list(LOCAL_TOOLS),
                 "limits": {
                     "max_turns": 8,
@@ -194,7 +194,7 @@ def test_execute_agent_run_stores_report_and_uses_native_limits(
                     "max_tool_result_chars": 1_000,
                 },
             },
-        },
+        ),
     )
     captured: dict[str, Any] = {}
 
@@ -220,12 +220,8 @@ def test_execute_agent_run_stores_report_and_uses_native_limits(
         assert stored.read().decode() == "Repository health is good."
 
     run.execution_plan["capabilities"] = [
-        {
-            "kind": "mcp",
-            "binding": "observability",
-            "authorized": True,
-            "effective_tools": ["query_metrics"],
-        }
+        CAPABILITY | {"authorized": True, "effective_tools": ["query_metrics"]}
     ]
+    run.save(update_fields=["execution_plan"])
     with pytest.raises(ValueError, match="no longer approved"):
-        execute_agent_run(run, "run-1")
+        execute_agent_run(Run.objects.get(pk=run.pk), "run-1")

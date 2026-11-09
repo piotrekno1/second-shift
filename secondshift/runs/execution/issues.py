@@ -12,6 +12,7 @@ from pydantic_ai import ModelRetry, RunContext, Tool
 from pydantic_ai.tools import ToolDefinition
 
 from secondshift.github.issues import MAX_TITLE_CHARS, same_title
+from secondshift.jobs.plan import ExecutionPlan
 from secondshift.runs.dao import (
     create_issue_proposal,
     proposed_issue,
@@ -88,12 +89,11 @@ def issue_tool() -> Tool[WorkspaceToolDeps]:
     return Tool(propose_issue, name=TOOL_NAME, prepare=only_with_issues)
 
 
-def issue_labels(plan: dict[str, Any]) -> list[str]:
+def issue_labels(plan: ExecutionPlan) -> list[str]:
     """The labels the repository puts on every issue. The agent cannot add any."""
-    return list((plan.get("issues") or {}).get("labels", []))
+    return list(plan.issues.labels) if plan.issues else []
 
 
-def issue_limit(plan: dict[str, Any]) -> int:
+def issue_limit(plan: ExecutionPlan) -> int:
     """How many issues the plan lets the agent propose. Zero means none."""
-    issues = plan.get("issues") or {}
-    return int(issues.get("max", 0))
+    return plan.issues.max if plan.issues else 0

@@ -29,6 +29,7 @@ from secondshift.gateway.proxy import upstream_client
 from secondshift.gateway.tokens import GatewayUnavailable, authenticate
 from secondshift.gateway.views import model_gateway
 from secondshift.jobs.models import Job
+from secondshift.jobs.tests.plans import stored_plan
 from secondshift.repositories.models import Repository
 from secondshift.runs.execution.model_gateway import issue_run_token
 from secondshift.runs.models import Run
@@ -80,6 +81,7 @@ def make_run(workspace: Workspace, status: str = Run.Status.RUNNING) -> Run:
         config_hash="hash",
     )
     return Run.objects.create(
+        execution_plan=stored_plan(),
         job=job,
         status=status,
         commit_sha="abc",

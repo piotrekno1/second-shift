@@ -36,7 +36,7 @@ APP_WRITE_HINT = (
 
 def record_pending_issues(run: Run) -> None:
     """Shown as pending from the start, and kept if opening fails."""
-    if issue_limit(run.execution_plan):
+    if issue_limit(run.plan):
         create_delivery(
             run, RunDelivery.Kind.ISSUES, f"Issues in {run.repository.full_name}"
         )
@@ -103,7 +103,7 @@ def open_run_issues(run_id: int) -> None:
                     access.full_name,
                     issue.title,
                     issue_body(run, issue),
-                    issue_labels(run.execution_plan),
+                    issue_labels(run.plan),
                 )
             else:
                 issue.already_open = True

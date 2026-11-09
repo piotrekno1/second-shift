@@ -28,12 +28,12 @@ SKIP_CI = "[skip ci]"
 
 def record_pending_pull_request(run: Run) -> None:
     """Shown as pending from the start, and kept if publishing fails."""
-    plan = run.execution_plan.get("pull_request")
+    plan = run.plan.pull_request
     if plan:
         create_delivery(
             run,
             RunDelivery.Kind.PULL_REQUEST,
-            f"{run.repository.full_name} into {plan['base']}",
+            f"{run.repository.full_name} into {plan.base}",
         )
 
 
@@ -65,19 +65,21 @@ def skip_reason(run: Run, repository: Repository) -> str:
 def draft_for(run: Run) -> DraftPullRequest:
     if run.finished_at is None:
         raise PublishError("The run has not finished.")
-    plan = run.execution_plan["pull_request"]
+    plan = run.plan.pull_request
+    if plan is None:
+        raise PublishError("The run did not ask for a pull request.")
     title = run.display_name[:200]
     report = ""
     if run.output_path:
         report, _ = read_text(run.output_path, MAX_BODY_CHARS)
     footer = f"Opened by SecondShift from run #{run.pk} at {run.commit_sha[:12]}."
     message = f"{title}\n\nSecondShift run #{run.pk}."
-    if not plan.get("run_ci"):
+    if not plan.run_ci:
         # CI waits for a person, because the patch has not been reviewed yet.
         message = f"{message}\n\n{SKIP_CI}"
     return DraftPullRequest(
         branch=f"secondshift/run-{run.pk}",
-        base=plan["base"],
+        base=plan.base,
         title=title,
         body=f"{report.strip() or run.summary}\n\n---\n\n{footer}",
         message=message,
