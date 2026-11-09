@@ -1,8 +1,11 @@
 from django.contrib.auth import get_user_model
 
 from secondshift.jobs.models import Job
-from secondshift.jobs.scheduling import schedule_name, synchronize_schedules
 from secondshift.repositories.models import Repository
+from secondshift.runs.orchestration.schedules import (
+    schedule_name,
+    synchronize_schedules,
+)
 from secondshift.workspaces.dao import create_workspace
 
 
@@ -52,7 +55,7 @@ def test_synchronize_schedules_applies_enabled_jobs_and_removes_orphans(
     )
     client = FakeDBOSClient()
     monkeypatch.setattr(
-        "secondshift.jobs.scheduling.new_dbos_client",
+        "secondshift.runs.orchestration.schedules.new_dbos_client",
         lambda: client,
     )
 

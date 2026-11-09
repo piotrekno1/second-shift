@@ -4,13 +4,11 @@ from collections.abc import Collection, Iterable
 from datetime import datetime
 from typing import Any
 
-from django.db.models import Count, OuterRef, QuerySet, Subquery
-from django.db.models.functions import Coalesce
+from django.db.models import Count, QuerySet
 
 from secondshift.connections.models import Connection
 from secondshift.jobs.models import CapabilityRequest, Job, JobGrant
 from secondshift.repositories.models import Repository
-from secondshift.runs.models import Run
 from secondshift.workspaces.models import Workspace
 
 # Fields a grant review changes. Bulk updates save only these.
@@ -66,41 +64,6 @@ def find_active_job(workspace: Workspace | None, job_id: int) -> Job | None:
 def jobs_by_id(job_ids: Iterable[int]) -> dict[int, Job]:
     """The jobs with these ids, with their repositories."""
     return Job.objects.select_related("repository").in_bulk(list(job_ids))
-
-
-def with_last_run(jobs: QuerySet[Job]) -> QuerySet[Job]:
-    """Annotate each job with its newest run, so a list needs no query per job."""
-    newest = Run.objects.filter(job=OuterRef("pk")).order_by("-created_at", "-pk")
-    return jobs.annotate(
-        last_run_id=Subquery(newest.values("pk")[:1]),
-        last_run_status=Subquery(newest.values("status")[:1]),
-        last_run_at=Subquery(
-            newest.annotate(at=Coalesce("finished_at", "created_at")).values("at")[:1]
-        ),
-    )
-
-
-def job_with_last_run(job_id: int) -> Job:
-    return with_last_run(Job.objects.filter(pk=job_id)).get()
-
-
-def jobs_whose_last_run_failed(workspace_id: int) -> list[Job]:
-    """Active jobs whose newest finished run failed, by name.
-
-    Each job gets `latest_run_id`.
-    """
-    latest = Run.objects.filter(
-        job=OuterRef("pk"), status__in=Run.FINISHED_STATUSES
-    ).order_by("-created_at", "-pk")
-    return list(
-        active_jobs(workspace_id)
-        .annotate(
-            latest_run_id=Subquery(latest.values("pk")[:1]),
-            latest_status=Subquery(latest.values("status")[:1]),
-        )
-        .filter(latest_status=Run.Status.FAILED)
-        .order_by("name")
-    )
 
 
 def schedulable_jobs() -> QuerySet[Job]:

@@ -8,10 +8,11 @@ from secondshift.connections.models import Connection
 from secondshift.jobs.manifest import parse_manifest
 from secondshift.jobs.models import CapabilityRequest, Job, JobGrant
 from secondshift.jobs.planning import build_execution_plan
-from secondshift.jobs.scheduling import desired_schedules, next_occurrence
+from secondshift.jobs.scheduling import next_occurrence
 from secondshift.jobs.sync import sync_jobs
 from secondshift.jobs.tests.disk import sync_manifest
 from secondshift.repositories.models import Repository
+from secondshift.runs.orchestration.schedules import desired_schedules
 from secondshift.workspaces.dao import create_workspace
 
 

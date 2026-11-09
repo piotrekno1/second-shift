@@ -6,7 +6,7 @@ from secondshift.connections.execution import (
 )
 from secondshift.connections.external import changing_tools, external_access
 from secondshift.connections.models import Connection
-from secondshift.jobs.dao import active_jobs, job_with_last_run, with_last_run
+from secondshift.jobs.dao import active_jobs
 from secondshift.jobs.limits import job_limit_views
 from secondshift.jobs.models import Job
 from secondshift.jobs.schemas import (
@@ -19,7 +19,12 @@ from secondshift.jobs.schemas import (
     ToolInputSchema,
 )
 from secondshift.repositories.models import Repository
-from secondshift.runs.dao import newest_job_runs, with_model_usage
+from secondshift.runs.dao import (
+    job_with_last_run,
+    newest_job_runs,
+    with_last_run,
+    with_model_usage,
+)
 from secondshift.runs.serialization import serialize_run
 from secondshift.workspaces.models import Workspace
 from secondshift.workspaces.serialization import serialize_limits

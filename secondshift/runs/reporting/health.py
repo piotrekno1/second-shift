@@ -7,8 +7,13 @@ from decimal import Decimal
 from django.utils import timezone
 
 from secondshift.gateway.dao import spend_per_job, spend_totals
-from secondshift.jobs.dao import jobs_by_id, jobs_whose_last_run_failed
-from secondshift.runs.dao import finished_runs_per_day, run_counts, runs_by_id
+from secondshift.jobs.dao import jobs_by_id
+from secondshift.runs.dao import (
+    finished_runs_per_day,
+    jobs_whose_last_run_failed,
+    run_counts,
+    runs_by_id,
+)
 from secondshift.runs.models import Run
 from secondshift.runs.reporting.failures import describe_failure
 from secondshift.workspaces.models import Workspace

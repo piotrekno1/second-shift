@@ -6,10 +6,11 @@ from typing import Any
 
 from django.db import transaction
 from django.db.models import Count, Exists, F, OuterRef, Q, QuerySet, Subquery, Sum
-from django.db.models.functions import TruncDate
+from django.db.models.functions import Coalesce, TruncDate
 
 from secondshift.config.constants import AgentBackend
 from secondshift.connections.models import Connection
+from secondshift.jobs.dao import active_jobs
 from secondshift.jobs.models import Job
 from secondshift.runner.agent_image.outcomes import CACHE_READ_DIVISOR
 from secondshift.runs.models import (
@@ -555,3 +556,38 @@ def lock_lease(lease_id: int) -> AgentLease:
 
 def active_lease(token_hash: str) -> AgentLease | None:
     return AgentLease.objects.filter(token_hash=token_hash, active=True).first()
+
+
+def with_last_run(jobs: QuerySet[Job]) -> QuerySet[Job]:
+    """Annotate each job with its newest run, so a list needs no query per job."""
+    newest = Run.objects.filter(job=OuterRef("pk")).order_by("-created_at", "-pk")
+    return jobs.annotate(
+        last_run_id=Subquery(newest.values("pk")[:1]),
+        last_run_status=Subquery(newest.values("status")[:1]),
+        last_run_at=Subquery(
+            newest.annotate(at=Coalesce("finished_at", "created_at")).values("at")[:1]
+        ),
+    )
+
+
+def job_with_last_run(job_id: int) -> Job:
+    return with_last_run(Job.objects.filter(pk=job_id)).get()
+
+
+def jobs_whose_last_run_failed(workspace_id: int) -> list[Job]:
+    """Active jobs whose newest finished run failed, by name.
+
+    Each job gets `latest_run_id`.
+    """
+    latest = Run.objects.filter(
+        job=OuterRef("pk"), status__in=Run.FINISHED_STATUSES
+    ).order_by("-created_at", "-pk")
+    return list(
+        active_jobs(workspace_id)
+        .annotate(
+            latest_run_id=Subquery(latest.values("pk")[:1]),
+            latest_status=Subquery(latest.values("status")[:1]),
+        )
+        .filter(latest_status=Run.Status.FAILED)
+        .order_by("name")
+    )
