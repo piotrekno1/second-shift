@@ -8,6 +8,7 @@ from django.utils import timezone
 
 from secondshift.config.constants import RunStart
 from secondshift.connections.models import AgentConnection
+from secondshift.connections.tests.test_agent_connections import TOKEN, runner_cleanup
 from secondshift.connections.tests.test_agent_connections import (
     agent_login as agent_login_fixture,
 )
@@ -188,3 +189,24 @@ def test_only_the_login_owner_sets_its_cap(
     assert response.status_code == 404
     login.refresh_from_db()
     assert login.max_runs_per_day is None
+
+
+def test_a_reconnected_login_still_shows_its_recent_runs(
+    job: Job,
+    agent_login: tuple[Workspace, AgentConnection, User],
+    client: Client,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _, login, owner = agent_login
+    runner_cleanup(monkeypatch)
+    finished_run(job)
+    client.force_login(owner)
+
+    response = client.post(
+        f"/api/agent-connections/{login.pk}",
+        {"backend": login.backend, "auth": TOKEN},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 200
+    assert response.json()["recent_runs"] == 1

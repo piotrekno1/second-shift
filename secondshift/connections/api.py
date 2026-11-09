@@ -702,7 +702,7 @@ def check_agent(request: HttpRequest, connection_id: int) -> AgentConnection:
         check_agent_connection(connection)
     except AgentConnectionError as error:
         raise HttpError(409, str(error)) from None
-    return with_recent_runs([connection], workspace.pk)[0]
+    return connection
 
 
 @router.post(
@@ -718,7 +718,7 @@ def set_agent_run_limit(
     )
     connection.max_runs_per_day = payload.max_runs_per_day
     connection.save(update_fields=["max_runs_per_day", "updated_at"])
-    return with_recent_runs([connection], workspace.pk)[0]
+    return connection
 
 
 @router.delete("/agent-connections/{connection_id}", response={204: None})

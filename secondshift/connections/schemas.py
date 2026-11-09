@@ -5,6 +5,7 @@ from ninja import Schema
 from pydantic import Field, SecretStr
 
 from secondshift.connections.dao import has_pending_cleanup
+from secondshift.connections.execution import recent_login_runs
 from secondshift.connections.models import AgentConnection
 from secondshift.workspaces.access import Action, allows
 
@@ -241,6 +242,14 @@ class AgentConnectionSchema(Schema):
     last_check: dict[str, Any] | None = None
     # The runner still holds a cached copy of an earlier login.
     runner_cleanup_pending: bool = False
+
+    @staticmethod
+    def resolve_recent_runs(obj: AgentConnection) -> int:
+        # A list counts every login at once and attaches the counts.
+        counted = getattr(obj, "recent_runs", None)
+        if counted is None:
+            counted = recent_login_runs(obj.workspace_id)[obj.pk]
+        return counted
 
     @staticmethod
     def resolve_runner_cleanup_pending(obj: AgentConnection) -> bool:
