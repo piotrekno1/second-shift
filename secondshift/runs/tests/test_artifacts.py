@@ -6,6 +6,7 @@ from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.utils import timezone
 
+from secondshift.config.constants import RunStart
 from secondshift.jobs.models import Job
 from secondshift.jobs.tests.plans import stored_plan
 from secondshift.repositories.models import Repository
@@ -104,6 +105,7 @@ def test_prune_runs_removes_old_finished_runs_everywhere(
     expired.save()
     recent = make_run(job, status=Run.Status.SUCCEEDED, finished_at=timezone.now())
     running = Run.objects.create(
+        started_by=RunStart.SCHEDULE,
         execution_plan=stored_plan(),
         job=job,
         scheduled_for=old,

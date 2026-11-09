@@ -3,6 +3,7 @@ from django.contrib.auth import get_user_model
 from pydantic_ai.models.anthropic import AnthropicModel
 from pydantic_ai.models.openai import OpenAIChatModel, OpenAIResponsesModel
 
+from secondshift.config.constants import RunStart
 from secondshift.connections.execution import choose_execution
 from secondshift.connections.models import Connection
 from secondshift.gateway.tokens import authenticate
@@ -49,6 +50,7 @@ def model_run(db, settings) -> Run:
     )
     choose_execution(model.workspace, model=model)
     return Run.objects.create(
+        started_by=RunStart.SCHEDULE,
         job=job,
         status=Run.Status.RUNNING,
         commit_sha="abc",

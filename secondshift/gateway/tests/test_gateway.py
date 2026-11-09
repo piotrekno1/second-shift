@@ -14,6 +14,7 @@ from django.test import Client
 from django.urls import Resolver404, resolve
 from django.utils import timezone
 
+from secondshift.config.constants import RunStart
 from secondshift.connections.execution import choose_execution
 from secondshift.connections.models import Connection
 from secondshift.connections.outbound import PinnedNetworkBackend, PinnedTransport
@@ -81,6 +82,7 @@ def make_run(workspace: Workspace, status: str = Run.Status.RUNNING) -> Run:
         config_hash="hash",
     )
     return Run.objects.create(
+        started_by=RunStart.SCHEDULE,
         execution_plan=stored_plan(),
         job=job,
         status=status,

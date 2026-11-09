@@ -5,7 +5,7 @@ from django.conf import settings
 from django.core.management import call_command
 from django.utils import timezone
 
-from secondshift.config.constants import SandboxRuntime
+from secondshift.config.constants import RunStart, SandboxRuntime
 from secondshift.connections.dao import create_connection
 from secondshift.connections.models import Connection
 from secondshift.github.identity import clone_url
@@ -181,6 +181,7 @@ def seed_demo_data() -> None:
     ):
         finished_at = now - timedelta(days=days_ago)
         run = create_run_record(
+            started_by=RunStart.SCHEDULE,
             execution_plan=build_execution_plan(jobs[job_key]).stored(),
             job=jobs[job_key],
             status=status,

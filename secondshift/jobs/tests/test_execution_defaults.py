@@ -12,7 +12,7 @@ from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 
 from secondshift.config.api import api
-from secondshift.config.constants import AgentBackend
+from secondshift.config.constants import AgentBackend, RunStart
 from secondshift.connections.execution import (
     NOTHING_CHOSEN,
     choose_execution,
@@ -64,6 +64,7 @@ def agent_run(
         config_hash="abc",
     )
     run = Run.objects.create(
+        started_by=RunStart.SCHEDULE,
         job=job,
         commit_sha="a" * 40,
         scheduled_for=timezone.now(),

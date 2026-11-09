@@ -7,7 +7,7 @@ from django.contrib.auth.models import User
 from django.db import transaction
 from django.utils import timezone
 
-from secondshift.config.constants import RunStart, TaskOrigin
+from secondshift.config.constants import RunStart
 from secondshift.jobs.dao import lock_job
 from secondshift.jobs.models import JOB_REMOVED, Job
 from secondshift.jobs.plan import ExecutionPlan
@@ -51,7 +51,6 @@ def create_run(
     started_by: RunStart = RunStart.SCHEDULE,
     execution_plan: ExecutionPlan | None = None,
     submitted_by: User | None = None,
-    origin: TaskOrigin | None = None,
 ) -> Run:
     """Create an assignment and its first attempt in the same transaction."""
     defaults = {
@@ -65,7 +64,6 @@ def create_run(
     }
     task = create_task(
         job=job,
-        origin=origin if origin is not None else TaskOrigin(started_by),
         submitted_by=submitted_by,
         commit_sha=defaults["commit_sha"],
         input_snapshot=deepcopy(defaults["input_snapshot"]),
@@ -92,7 +90,6 @@ def start_run(
     repeat_key: str | None = None,
     *,
     submitted_by: User | None = None,
-    origin: TaskOrigin | None = None,
 ) -> Run:
     """Start a job now. Refuses while another run of the job has not finished.
 
@@ -121,7 +118,6 @@ def start_run(
             started_by=started_by,
             execution_plan=execution_plan,
             submitted_by=submitted_by,
-            origin=origin,
         )
         if payload is not None:
             run.input_snapshot["payload"] = store_run_payload(run, payload)
@@ -160,7 +156,7 @@ def start_manual_run(
     job: Job,
     *,
     submitted_by: User | None = None,
-    origin: TaskOrigin = TaskOrigin.MANUAL,
+    started_by: RunStart = RunStart.MANUAL,
 ) -> Run:
-    """Run now."""
-    return start_run(job, RunStart.MANUAL, submitted_by=submitted_by, origin=origin)
+    """Run now, from the dashboard or an MCP client."""
+    return start_run(job, started_by, submitted_by=submitted_by)

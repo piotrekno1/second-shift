@@ -2,7 +2,7 @@
 
 from thin_mcp import ToolContext, ToolExecutionError
 
-from secondshift.config.constants import TaskOrigin
+from secondshift.config.constants import RunStart
 from secondshift.mcp_server.schemas import RunArguments, RunResult
 from secondshift.mcp_server.tools_registry import call_request, register_tool
 from secondshift.repositories.access import repository_for_request
@@ -39,7 +39,7 @@ def submit_task(
     require(request, Action.RUN_JOBS)
     repository = repository_for_request(request, arguments.repository_id)
     try:
-        result = submit_skill(repository, arguments, request.user, TaskOrigin.MCP)
+        result = submit_skill(repository, arguments, request.user, RunStart.MCP)
     except RunRefused as error:
         raise ToolExecutionError(str(error)) from error
     return TaskSubmissionSchema(

@@ -8,6 +8,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 from django.test import Client
 
+from secondshift.config.constants import RunStart
 from secondshift.connections import webhooks
 from secondshift.connections.models import Connection
 from secondshift.jobs.models import CapabilityRequest, Job, JobGrant
@@ -164,6 +165,7 @@ def test_finished_run_notifies_only_still_approved_webhooks(
         reviewed_by=user,
     )
     run = Run.objects.create(
+        started_by=RunStart.SCHEDULE,
         job=job,
         status=Run.Status.FAILED,
         commit_sha="abc123",

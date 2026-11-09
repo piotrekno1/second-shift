@@ -4,6 +4,7 @@ import pytest
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 
+from secondshift.config.constants import RunStart
 from secondshift.jobs.models import Job
 from secondshift.jobs.tests.plans import CAPABILITY, stored_plan
 from secondshift.repositories.models import Repository
@@ -52,6 +53,7 @@ def make_run(db):
 
     def make(capabilities: list[dict[str, object]]) -> Run:
         return Run.objects.create(
+            started_by=RunStart.SCHEDULE,
             job=job,
             scheduled_for=timezone.now(),
             commit_sha="a" * 40,

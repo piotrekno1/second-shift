@@ -7,6 +7,7 @@ from django.contrib.auth.models import AbstractUser
 from django.test import Client
 from django.utils import timezone
 
+from secondshift.config.constants import RunStart
 from secondshift.connections.execution import choose_execution
 from secondshift.connections.models import Connection
 from secondshift.jobs.models import CapabilityRequest, Job
@@ -172,7 +173,7 @@ def test_run_job_starts_once_and_then_returns_the_active_run(
     assert first["started"] is True
     assert queued == [first["run_id"]]
     task = Task.objects.get()
-    assert task.origin == "mcp"
+    assert Run.objects.get(pk=first["run_id"]).started_by == "mcp"
     assert task.submitted_by_id == owner.pk
     assert Run.objects.get(pk=first["run_id"]).task_id == task.pk
     assert second == {
@@ -197,6 +198,7 @@ def test_runs_and_reports_can_be_read_and_reports_are_marked_untrusted(
     owner: AbstractUser, job: Job, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     run = Run.objects.create(
+        started_by=RunStart.SCHEDULE,
         execution_plan=stored_plan(),
         job=job,
         scheduled_for=timezone.now(),
@@ -225,7 +227,10 @@ def test_a_run_without_a_report_returns_an_empty_one(
     owner: AbstractUser, job: Job
 ) -> None:
     run = Run.objects.create(
-        execution_plan=stored_plan(), job=job, scheduled_for=timezone.now()
+        started_by=RunStart.SCHEDULE,
+        execution_plan=stored_plan(),
+        job=job,
+        scheduled_for=timezone.now(),
     )
 
     report = call(token(owner, "read"), "get_run_report", run_id=run.pk)

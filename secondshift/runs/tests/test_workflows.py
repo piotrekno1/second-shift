@@ -6,7 +6,7 @@ from django.contrib.auth import get_user_model
 from django.utils import timezone
 from pydantic import ValidationError
 
-from secondshift.config.constants import RunSandbox
+from secondshift.config.constants import RunSandbox, RunStart
 from secondshift.jobs.models import Job
 from secondshift.jobs.tests.plans import stored_plan
 from secondshift.repositories.models import Repository
@@ -57,6 +57,7 @@ def execution_run(db) -> Run:
         config_hash="hash",
     )
     return Run.objects.create(
+        started_by=RunStart.SCHEDULE,
         job=job,
         commit_sha="a" * 40,
         scheduled_for=timezone.now(),

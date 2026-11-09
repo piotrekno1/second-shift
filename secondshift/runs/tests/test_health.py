@@ -5,6 +5,7 @@ import pytest
 from django.test import Client
 from django.utils import timezone
 
+from secondshift.config.constants import RunStart
 from secondshift.gateway.models import ModelUsage
 from secondshift.jobs.tests.plans import stored_plan
 from secondshift.runs.models import Run
@@ -22,6 +23,7 @@ NOW = datetime(2026, 10, 23, 12, 0, tzinfo=UTC)
 
 def add_run(job, status: str, minutes_ago: int, summary: str = "") -> Run:
     run = Run.objects.create(
+        started_by=RunStart.SCHEDULE,
         execution_plan=stored_plan(),
         job=job,
         status=status,
@@ -122,6 +124,7 @@ def test_overview_reports_failing_jobs_and_weekly_numbers(client: Client) -> Non
     job.enabled = True
     job.save(update_fields=["enabled"])
     run = Run.objects.create(
+        started_by=RunStart.SCHEDULE,
         execution_plan=stored_plan(),
         job=job,
         status=Run.Status.FAILED,

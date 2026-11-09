@@ -14,7 +14,7 @@ from django.db import transaction
 from django.utils import timezone
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
 
-from secondshift.config.constants import COMMIT_SHA_PATTERN, RunStart, TaskOrigin
+from secondshift.config.constants import COMMIT_SHA_PATTERN, RunStart
 from secondshift.github.errors import GitHubError
 from secondshift.jobs.manifest import TaskManifest
 from secondshift.jobs.plan import PullRequestPlan
@@ -136,7 +136,7 @@ def submit_skill(
     repository: Repository,
     submission: SkillSubmission,
     user: User,
-    origin: TaskOrigin,
+    started_by: RunStart,
 ) -> SubmissionResult:
     if repository.pk != submission.repository_id:
         raise RunRefused("The submission does not match the selected repository.")
@@ -183,7 +183,6 @@ def submit_skill(
         task = create_task(
             repository=repository,
             submission_key=submission.idempotency_key,
-            origin=origin,
             submitted_by=user,
             commit_sha=commit,
             input_snapshot=deepcopy(snapshot),
@@ -191,7 +190,7 @@ def submit_skill(
         )
         run = create_run_record(
             task=task,
-            started_by=RunStart.MANUAL,
+            started_by=started_by,
             commit_sha=commit,
             input_snapshot=snapshot,
             execution_plan=plan.stored(),

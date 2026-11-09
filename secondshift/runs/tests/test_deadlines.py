@@ -6,6 +6,7 @@ from typing import Any
 import pytest
 from django.utils import timezone
 
+from secondshift.config.constants import RunStart
 from secondshift.config.formatting import duration_label
 from secondshift.connections.execution import choose_execution
 from secondshift.connections.models import Connection
@@ -29,7 +30,9 @@ def test_deadline_counts_from_the_start(settings: Any) -> None:
     settings.RUN_TIMEOUT_SECONDS = 900
     started = timezone.now() - timedelta(hours=1)
 
-    run = Run(started_at=started, execution_plan=stored_plan())
+    run = Run(
+        started_by=RunStart.SCHEDULE, started_at=started, execution_plan=stored_plan()
+    )
 
     assert run_deadline(run) == started + timedelta(minutes=15)
 
@@ -38,6 +41,7 @@ def test_the_deadline_uses_the_limit_frozen_into_the_plan(settings: Any) -> None
     settings.RUN_TIMEOUT_SECONDS = 900
     started = timezone.now()
     run = Run(
+        started_by=RunStart.SCHEDULE,
         started_at=started,
         execution_plan=stored_plan(agent={"limits": {"timeout_seconds": 3600}}),
     )

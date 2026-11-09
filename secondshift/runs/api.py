@@ -5,7 +5,7 @@ from ninja import Query, Router, Status
 from ninja.errors import HttpError
 from ninja.security import django_auth
 
-from secondshift.config.constants import TaskOrigin
+from secondshift.config.constants import RunStart
 from secondshift.jobs.access import job_for_request
 from secondshift.repositories.access import repository_for_request
 from secondshift.runs.access import run_for_request
@@ -190,7 +190,7 @@ def submit_task(
     require(request, Action.RUN_JOBS)
     repository = repository_for_request(request, payload.repository_id)
     try:
-        result = submit_skill(repository, payload, request.user, TaskOrigin.MANUAL)
+        result = submit_skill(repository, payload, request.user, RunStart.MANUAL)
     except RunInProgress as error:
         return Status(409, RunInProgressSchema(detail=str(error), run_id=error.run.pk))
     except RunRefused as error:

@@ -2,6 +2,7 @@ import pytest
 from django.test import Client
 from django.utils import timezone
 
+from secondshift.config.constants import RunStart
 from secondshift.jobs.tests.plans import stored_plan
 from secondshift.runs.models import Run
 from secondshift.runs.tests.test_run_queries import make_job, make_workspace
@@ -14,6 +15,7 @@ def test_jobs_list_shows_each_jobs_newest_run(client: Client) -> None:
     ran = make_job(workspace, "acme/api", "ran")
     make_job(workspace, "acme/api", "never")
     Run.objects.create(
+        started_by=RunStart.SCHEDULE,
         execution_plan=stored_plan(),
         job=ran,
         status=Run.Status.FAILED,
@@ -21,6 +23,7 @@ def test_jobs_list_shows_each_jobs_newest_run(client: Client) -> None:
         scheduled_for=timezone.now(),
     )
     newest = Run.objects.create(
+        started_by=RunStart.SCHEDULE,
         execution_plan=stored_plan(),
         job=ran,
         status=Run.Status.RUNNING,

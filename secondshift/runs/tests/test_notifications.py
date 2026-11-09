@@ -3,6 +3,7 @@ from typing import Any
 
 import pytest
 
+from secondshift.config.constants import RunStart
 from secondshift.jobs.models import Job
 from secondshift.jobs.tests.plans import stored_plan
 from secondshift.repositories.models import Repository
@@ -18,6 +19,7 @@ def finished_run(status: str, summary: str) -> Run:
         repository=repository,
     )
     return Run(
+        started_by=RunStart.SCHEDULE,
         pk=2,
         job=job,
         status=status,

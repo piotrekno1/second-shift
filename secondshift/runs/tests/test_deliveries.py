@@ -10,7 +10,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 from django.test import Client
 
-from secondshift.config.constants import RETRY_NOTIFICATION_WORKFLOW
+from secondshift.config.constants import RETRY_NOTIFICATION_WORKFLOW, RunStart
 from secondshift.connections import webhooks
 from secondshift.connections.models import Connection
 from secondshift.jobs.models import JobGrant
@@ -43,6 +43,7 @@ def approved_run(settings: Any, setup: Setup) -> tuple[Run, Connection, JobGrant
         reviewed_by=user,
     )
     run = Run.objects.create(
+        started_by=RunStart.SCHEDULE,
         job=job,
         status=Run.Status.SUCCEEDED,
         commit_sha="abc123",

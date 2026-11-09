@@ -7,6 +7,7 @@ from django.contrib.auth.models import AbstractUser
 from django.test import Client
 from django.utils import timezone
 
+from secondshift.config.constants import RunStart
 from secondshift.connections.execution import NOTHING_CHOSEN, choose_execution
 from secondshift.connections.models import Connection
 from secondshift.jobs.models import JOB_REMOVED, CapabilityRequest, Job, JobGrant
@@ -141,6 +142,7 @@ def test_owner_can_approve_required_capability_and_enable_job(
     assert enabled.json()["enabled"] is True
 
     run = Run.objects.create(
+        started_by=RunStart.SCHEDULE,
         job=job,
         commit_sha=job.repository.config_sha,
         scheduled_for=timezone.now(),
@@ -323,7 +325,6 @@ def test_run_now_works_while_the_schedule_is_off(
     assert queued == [response.json()["id"]]
     assert response.json()["started_by"] == "manual"
     task = Task.objects.get()
-    assert task.origin == "manual"
     assert task.submitted_by_id == user.pk
     assert Run.objects.get(pk=response.json()["id"]).task_id == task.pk
 

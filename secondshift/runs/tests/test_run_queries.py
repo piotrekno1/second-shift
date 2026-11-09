@@ -6,6 +6,7 @@ from django.contrib.auth import get_user_model
 from django.test import Client
 from django.utils import timezone
 
+from secondshift.config.constants import RunStart
 from secondshift.gateway.models import ModelUsage
 from secondshift.jobs.models import Job
 from secondshift.jobs.tests.plans import MODEL, stored_plan
@@ -37,6 +38,7 @@ def make_job(workspace: Workspace, repository: str, key: str) -> Job:
 
 def make_run(job: Job, status: str, summary: str = "", day: int = 1) -> Run:
     return Run.objects.create(
+        started_by=RunStart.SCHEDULE,
         execution_plan=stored_plan(),
         job=job,
         status=status,

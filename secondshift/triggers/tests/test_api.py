@@ -401,7 +401,7 @@ def test_repeat_of_a_running_event_is_ignored(
     other = send(client, path_of(change), secret, {**FIRING, "groupKey": "b"})
     assert other.status_code == 409
     task = Task.objects.get()
-    assert task.origin == "webhook"
+    assert task.runs.get().started_by == "webhook"
     assert task.submitted_by is None
     assert Run.objects.get(pk=first["run_id"]).task_id == task.pk
 

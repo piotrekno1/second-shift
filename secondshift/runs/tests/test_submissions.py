@@ -11,13 +11,11 @@ from asgiref.sync import async_to_sync
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import User
 from django.db import IntegrityError, transaction
-from django.db import connection as database
-from django.db.migrations.executor import MigrationExecutor
 from django.test import Client
 from django.utils import timezone
 from pydantic import ValidationError
 
-from secondshift.config.constants import TaskOrigin
+from secondshift.config.constants import RunStart
 from secondshift.connections.errors import ExternalToolError
 from secondshift.connections.execution import choose_execution
 from secondshift.connections.models import AgentConnection, Connection
@@ -123,19 +121,19 @@ def submission(repository: Repository, **fields: Any) -> SkillSubmission:
 
 def start(repository: Repository, owner: User, **fields: Any) -> Run:
     return submit_skill(
-        repository, submission(repository, **fields), owner, TaskOrigin.MANUAL
+        repository, submission(repository, **fields), owner, RunStart.MANUAL
     ).run
 
 
 def test_accepts_pins_and_replays_without_touching_jobs(
     repository: Repository, owner: User, queued: list[int]
 ) -> None:
-    first = submit_skill(repository, submission(repository), owner, TaskOrigin.MANUAL)
+    first = submit_skill(repository, submission(repository), owner, RunStart.MANUAL)
     root = Path(repository.local_path)
     pinned = git(root, "rev-parse", "HEAD")
     (root / SKILL).write_text("# Changed skill")
     git(root, "commit", "-am", "Change skill")
-    second = submit_skill(repository, submission(repository), owner, TaskOrigin.MANUAL)
+    second = submit_skill(repository, submission(repository), owner, RunStart.MANUAL)
 
     assert first.started is True and second.started is False
     assert first.run.pk == second.run.pk
@@ -143,7 +141,7 @@ def test_accepts_pins_and_replays_without_touching_jobs(
     assert first.run.job_id is None and first.run.task.job_id is None
     assert first.run.task.repository == repository
     assert first.run.task.submitted_by == owner
-    assert first.run.task.origin == TaskOrigin.MANUAL
+    assert first.run.started_by == RunStart.MANUAL
     assert first.run.commit_sha == first.run.task.commit_sha == pinned
     assert first.run.execution_plan["repository"]["config_sha"] == pinned
     assert "useful report" in committed_file(root, pinned, SKILL)
@@ -285,7 +283,8 @@ def test_mcp_run_scope_and_origin(repository: Repository, owner: User) -> None:
     first = call(secret, "submit_task", **submission(repository).model_dump())
     assert not first.get("isError"), first
     task = Task.objects.get()
-    assert task.origin == TaskOrigin.MCP and task.submitted_by == owner
+    assert task.runs.get().started_by == RunStart.MCP
+    assert task.submitted_by == owner
     replay = call(secret, "submit_task", **submission(repository).model_dump())
     assert not replay.get("isError")
     assert Task.objects.count() == Run.objects.count() == 1
@@ -496,39 +495,6 @@ def test_http_submission_refuses_policy_overrides(
         == 422
     )
     assert not Task.objects.exists()
-
-
-def test_pre_submission_models_can_still_create_job_tasks(
-    repository: Repository, owner: User
-) -> None:
-    job = Job.objects.create(
-        workspace=repository.workspace,
-        repository=repository,
-        key="legacy",
-        name="Legacy",
-        skill_path=SKILL,
-        config_hash="legacy-config",
-    )
-    apps = (
-        MigrationExecutor(database)
-        .loader.project_state([("runs", "0005_backfill_tasks")])
-        .apps
-    )
-    legacy_task = apps.get_model("runs", "Task").objects.create(
-        job_id=job.pk,
-        submitted_by_id=owner.pk,
-        origin="manual",
-        commit_sha="a" * 40,
-        scheduled_for=timezone.now(),
-    )
-    legacy_run = apps.get_model("runs", "Run").objects.create(
-        job_id=job.pk,
-        task_id=legacy_task.pk,
-        commit_sha="a" * 40,
-        scheduled_for=timezone.now(),
-    )
-    assert Task.objects.get(pk=legacy_task.pk).submission_key == ""
-    assert Run.objects.get(pk=legacy_run.pk).repository == repository
 
 
 def test_written_task_needs_no_skill_file_and_keeps_original_instructions(

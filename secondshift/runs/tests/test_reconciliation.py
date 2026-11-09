@@ -6,6 +6,7 @@ from dbos import DBOSClient
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 
+from secondshift.config.constants import RunStart
 from secondshift.jobs.models import Job
 from secondshift.jobs.tests.plans import stored_plan
 from secondshift.repositories.models import Repository
@@ -49,6 +50,7 @@ def create_run(*, status: str, workflow_id: str) -> Run:
         enabled=True,
     )
     return Run.objects.create(
+        started_by=RunStart.SCHEDULE,
         execution_plan=stored_plan(),
         job=job,
         status=status,

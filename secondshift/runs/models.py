@@ -5,7 +5,7 @@ from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
-from secondshift.config.constants import RunStart, TaskOrigin
+from secondshift.config.constants import RunStart
 from secondshift.connections.models import Connection
 from secondshift.jobs.models import Job
 from secondshift.jobs.plan import ExecutionPlan
@@ -34,11 +34,6 @@ class Task(models.Model):
     )
     submission_key = models.CharField(
         max_length=120, blank=True, default="", db_default=""
-    )
-    origin = models.CharField(
-        max_length=16,
-        choices=[(item.value, item.value.title()) for item in TaskOrigin],
-        blank=True,
     )
     submitted_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -112,11 +107,8 @@ class Run(models.Model):
     )
     commit_sha = models.CharField(max_length=64)
     scheduled_for = models.DateTimeField()
-    # Blank for runs created before this was recorded.
     started_by = models.CharField(
-        max_length=16,
-        choices=[(item.value, item.value.title()) for item in RunStart],
-        blank=True,
+        max_length=16, choices=[(item.value, item.value.title()) for item in RunStart]
     )
     started_at = models.DateTimeField(null=True, blank=True)
     finished_at = models.DateTimeField(null=True, blank=True)

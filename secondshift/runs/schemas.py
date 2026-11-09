@@ -4,6 +4,7 @@ from typing import Literal
 from ninja import Schema
 from pydantic import Field
 
+from secondshift.config.constants import RunStart
 from secondshift.runs.models import Run
 from secondshift.runs.reporting.queries import Period, RunSort
 
@@ -27,7 +28,7 @@ class RunSchema(Schema):
     status: str
     scheduled_for: datetime
     # schedule, manual or webhook. Blank for older runs.
-    started_by: str = ""
+    started_by: RunStart
     started_at: datetime | None = None
     finished_at: datetime | None
     summary: str

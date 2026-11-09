@@ -3,6 +3,7 @@ from types import SimpleNamespace
 import pytest
 from pydantic_ai.exceptions import ModelHTTPError
 
+from secondshift.config.constants import RunStart
 from secondshift.connections.errors import ExternalToolError
 from secondshift.connections.mcp.base import MCPRequestError
 from secondshift.github.errors import GitHubError
@@ -256,6 +257,7 @@ def test_model_provider_failure_names_the_connection_to_fix(
     detail: str, next_step: str
 ) -> None:
     run = Run(
+        started_by=RunStart.SCHEDULE,
         status=Run.Status.FAILED,
         summary=f"The skill run failed: The model provider answered {detail}",
         execution_plan=MODEL_PLAN,
@@ -270,6 +272,7 @@ def test_model_provider_failure_names_the_connection_to_fix(
 
 def test_other_failures_point_at_no_connection() -> None:
     run = Run(
+        started_by=RunStart.SCHEDULE,
         status=Run.Status.FAILED,
         summary="Couldn't start the sandbox: Runner answered HTTP 500.",
         execution_plan=MODEL_PLAN,

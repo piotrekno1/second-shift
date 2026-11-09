@@ -13,6 +13,7 @@ from django.test import Client
 from django.utils import timezone
 from pydantic import ValidationError
 
+from secondshift.config.constants import RunStart
 from secondshift.jobs.models import Job
 from secondshift.jobs.tests.plans import stored_plan
 from secondshift.mcp_server.tests.test_job_tools import call, token
@@ -271,6 +272,7 @@ def test_cancel_is_workspace_scoped_and_rejects_saved_job_runs(
         config_hash="hash",
     )
     legacy = Run.objects.create(
+        started_by=RunStart.SCHEDULE,
         execution_plan=stored_plan(),
         job=job,
         commit_sha="a" * 40,

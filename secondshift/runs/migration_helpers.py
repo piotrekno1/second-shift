@@ -198,3 +198,16 @@ def normalize_execution_plans_v1(
             run.execution_plan = normalized
             changed.append(run)
     run_model.objects.using(alias).bulk_update(changed, ["execution_plan"], 500)
+
+
+def record_run_starts_v1(apps: Apps, schema_editor: BaseDatabaseSchemaEditor) -> None:
+    """Keep what started each run on the run, before tasks drop their origin.
+
+    MCP starts were recorded as manual runs with an MCP task. Runs from
+    before starts were recorded count as scheduled.
+    """
+    run_model = apps.get_model("runs", "Run")
+    alias = schema_editor.connection.alias
+    runs = run_model.objects.using(alias)
+    runs.filter(task__origin="mcp").update(started_by="mcp")
+    runs.filter(started_by="").update(started_by="schedule")

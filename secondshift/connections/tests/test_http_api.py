@@ -9,6 +9,7 @@ from django.contrib.auth import get_user_model
 from django.test import Client
 from django.utils import timezone
 
+from secondshift.config.constants import RunStart
 from secondshift.connections.errors import ExternalToolError
 from secondshift.connections.execution import choose_execution
 from secondshift.connections.external import external_access
@@ -422,6 +423,7 @@ def api_run(fake: FakeAPI, workspace: Workspace) -> Run:
         allowed_tools=["listCharges"],
     )
     return Run.objects.create(
+        started_by=RunStart.SCHEDULE,
         job=job,
         status="running",
         scheduled_for=timezone.now(),

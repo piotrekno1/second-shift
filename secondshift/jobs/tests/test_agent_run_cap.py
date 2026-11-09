@@ -6,6 +6,7 @@ from django.contrib.auth.models import User
 from django.test import Client
 from django.utils import timezone
 
+from secondshift.config.constants import RunStart
 from secondshift.connections.models import AgentConnection
 from secondshift.connections.tests.test_agent_connections import (
     agent_login as agent_login_fixture,
@@ -61,6 +62,7 @@ def finished_run(job: Job, hours_ago: float = 1, ready: bool = True) -> Run:
     plan = build_execution_plan(job).stored()
     plan["ready"] = ready
     run = create_run_record(
+        started_by=RunStart.SCHEDULE,
         job=job,
         commit_sha="a" * 40,
         scheduled_for=timezone.now(),

@@ -12,7 +12,7 @@ from pydantic_ai import Agent, ModelRetry, ToolFailed, capture_run_messages
 from pydantic_ai.messages import ModelRequest, ToolReturnPart
 from pydantic_ai.models.test import TestModel
 
-from secondshift.config.constants import GITHUB_MCP_URL
+from secondshift.config.constants import GITHUB_MCP_URL, RunStart
 from secondshift.connections.errors import ExternalToolError
 from secondshift.connections.execution import choose_execution
 from secondshift.connections.mcp.base import MCPError, MCPRequestError
@@ -101,6 +101,7 @@ def planned_run() -> Run:
         allowed_tools=list(TOOL_SCHEMAS),
     )
     return Run.objects.create(
+        started_by=RunStart.SCHEDULE,
         job=job,
         status="running",
         scheduled_for=timezone.now(),
@@ -390,6 +391,7 @@ def test_one_connection_is_reused_with_independent_job_scopes(
         allowed_tools=list(TOOL_SCHEMAS),
     )
     other_run = Run.objects.create(
+        started_by=RunStart.SCHEDULE,
         job=job,
         status="running",
         commit_sha="b" * 40,

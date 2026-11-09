@@ -11,6 +11,7 @@ from django.utils import timezone
 from pydantic_ai import ModelRetry, RunContext, RunUsage
 from pydantic_ai.models.test import TestModel
 
+from secondshift.config.constants import RunStart
 from secondshift.jobs.models import Job
 from secondshift.jobs.tests.plans import CAPABILITY, stored_plan
 from secondshift.jobs.tool_policy import LOCAL_TOOLS
@@ -181,6 +182,7 @@ def test_execute_agent_run_stores_report_and_uses_native_limits(
         config_hash="hash",
     )
     run = Run.objects.create(
+        started_by=RunStart.SCHEDULE,
         job=job,
         commit_sha="a" * 40,
         scheduled_for=timezone.now(),

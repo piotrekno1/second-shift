@@ -6,6 +6,7 @@ from django.test import Client
 from django.utils import timezone
 from pydantic import ValidationError
 
+from secondshift.config.constants import RunStart
 from secondshift.connections.models import Connection
 from secondshift.gateway.models import RunToken
 from secondshift.jobs.limits import effective_limits
@@ -232,6 +233,7 @@ def test_the_gateway_token_uses_the_frozen_budget(job: Job) -> None:
     job.token_budget = 7_000_000
     job.save()
     run = Run.objects.create(
+        started_by=RunStart.SCHEDULE,
         job=job,
         commit_sha="abc",
         scheduled_for=timezone.now(),
@@ -250,6 +252,7 @@ def test_the_gateway_token_uses_the_frozen_budget(job: Job) -> None:
 @pytest.mark.django_db
 def test_a_run_stopped_by_a_limit_says_so(client: Client, job: Job) -> None:
     run = Run.objects.create(
+        started_by=RunStart.SCHEDULE,
         job=job,
         commit_sha="abc",
         scheduled_for=timezone.now(),

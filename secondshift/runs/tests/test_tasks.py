@@ -8,7 +8,7 @@ from django.db import IntegrityError, connection
 from django.db.migrations.executor import MigrationExecutor
 from django.utils import timezone
 
-from secondshift.config.constants import RunStart, TaskOrigin
+from secondshift.config.constants import RunStart
 from secondshift.jobs.models import Job
 from secondshift.jobs.plan import ExecutionPlan
 from secondshift.jobs.tests.plans import stored_plan
@@ -59,7 +59,7 @@ def test_task_freezes_assignment_independently_of_job_and_attempt(job: Job) -> N
 
     assert task.job == job
     assert task.submitted_by == owner
-    assert task.origin == TaskOrigin.MANUAL
+    assert run.started_by == RunStart.MANUAL
     assert task.scheduled_for == run.scheduled_for
     job.skill_path = "changed/SKILL.md"
     job.save()
@@ -81,7 +81,7 @@ def test_webhook_assignment_includes_payload_and_repeat_key(job: Job) -> None:
         run = start_run(job, RunStart.WEBHOOK, b"{}", "event-1")
 
     task = Task.objects.get(pk=run.task_id)
-    assert task.origin == TaskOrigin.WEBHOOK
+    assert run.started_by == RunStart.WEBHOOK
     assert task.submitted_by is None
     assert task.input_snapshot == run.input_snapshot
     assert task.input_snapshot["repeat_key"] == "event-1"
@@ -145,6 +145,7 @@ def test_retention_keeps_task_until_its_last_attempt_expires(job: Job) -> None:
         status=Run.Status.SUCCEEDED, finished_at=timezone.now() - timedelta(days=89)
     )
     second = Run.objects.create(
+        started_by=RunStart.SCHEDULE,
         execution_plan=stored_plan(),
         job=job,
         task_id=first.task_id,

@@ -128,14 +128,6 @@ class RunStart(StrEnum):
     SCHEDULE = "schedule"
     MANUAL = "manual"
     WEBHOOK = "webhook"
-
-
-class TaskOrigin(StrEnum):
-    """Where an assignment entered SecondShift, independent of run behavior."""
-
-    SCHEDULE = "schedule"
-    MANUAL = "manual"
-    WEBHOOK = "webhook"
     MCP = "mcp"
 
 

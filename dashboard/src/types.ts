@@ -651,7 +651,7 @@ export interface ApiTokenList {
 }
 
 export type TriggerKind = 'webhook'
-export type RunStart = 'schedule' | 'manual' | 'webhook' | ''
+export type RunStart = 'schedule' | 'manual' | 'webhook' | 'mcp'
 
 export interface TriggerEvent {
   id: number
