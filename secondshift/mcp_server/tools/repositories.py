@@ -2,11 +2,11 @@
 
 from thin_mcp import ToolContext, ToolExecutionError
 
+from secondshift.jobs.repository_sync import SyncError, resync
 from secondshift.mcp_server.schemas import RepositoryArguments, RepositorySyncResult
 from secondshift.mcp_server.tools_registry import call_request, register_tool
 from secondshift.repositories.access import repository_for_request
 from secondshift.repositories.serialization import serialize_repository_detail
-from secondshift.repositories.sync import SyncError, resync
 from secondshift.workspaces.access import Action, require
 
 

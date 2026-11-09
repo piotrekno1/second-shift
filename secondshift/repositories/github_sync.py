@@ -1,8 +1,9 @@
 """Fetch GitHub source into the control plane's mirror. Tokens never leave it."""
 
+from collections.abc import Iterator
+from contextlib import contextmanager
+from dataclasses import dataclass
 from pathlib import Path
-
-from django.db import transaction
 
 from secondshift.connections.dao import connected_github_sources
 from secondshift.connections.github import connection_source, usable_source
@@ -12,75 +13,66 @@ from secondshift.github.app import configured, installation_repositories
 from secondshift.github.errors import GitHubError
 from secondshift.github.git import authenticated_git
 from secondshift.github.identity import clone_url
-from secondshift.jobs.sync import sync_jobs
 from secondshift.repositories.dao import (
-    get_repository_with_connection,
     lock_or_create_github_repository,
     lock_repository,
-    restore_repository_fields,
-    set_sync_error,
 )
 from secondshift.repositories.github_access import (
     GitHubAccess,
     connection_access,
     github_access,
 )
-from secondshift.repositories.local import (
-    RepositoryConfigError,
-    read_committed_config,
-)
 from secondshift.repositories.mirrors import SYNCED_REF, locked_mirror
 from secondshift.repositories.models import Repository
 from secondshift.workspaces.models import Workspace
 
 
-def sync_github_repository(repository: Repository) -> Repository:
-    """Fetch the branch into the mirror and sync jobs from its newest commit.
+@dataclass(frozen=True)
+class FetchedBranch:
+    """The branch's newest commit, fetched into the mirror."""
 
-    A missing or invalid configuration is saved in last_sync_error, and the
-    jobs stay as the last good sync left them. The fetch runs outside any database transaction. The mirror's lock keeps
-    two syncs of one repository in order, so an older one never saves last.
+    mirror: Path
+    revision: str
+    token: str
+
+    def mark_synced(self) -> None:
+        """Keep this commit's objects in the mirror."""
+        authenticated_git(
+            self.mirror, self.token, "update-ref", SYNCED_REF, self.revision
+        )
+
+
+@contextmanager
+def fetched_branch(repository: Repository) -> Iterator[FetchedBranch]:
+    """Fetch the branch and hold the mirror's lock until the caller is done.
+
+    The fetch runs outside any database transaction.
     """
-    repository = get_repository_with_connection(repository.pk)
     access = github_access(repository)
-    token = access.token
     with locked_mirror(repository.pk) as mirror:
         authenticated_git(
             mirror,
-            token,
+            access.token,
             "fetch",
             "--no-tags",
             "--",
             access.clone_url,
             f"refs/heads/{repository.default_branch}",
         )
-        revision = authenticated_git(mirror, token, "rev-parse", "FETCH_HEAD")
-        try:
-            manifest, skills = read_committed_config(
-                mirror, revision, repository.default_branch
-            )
-        except RepositoryConfigError as error:
-            # Keep the last good sync. Runs go on using it.
-            set_sync_error(repository.pk, str(error)[:500], checked_sha=revision)
-            repository.refresh_from_db()
-            return repository
-        authenticated_git(mirror, token, "update-ref", SYNCED_REF, revision)
-        with transaction.atomic():
-            locked = lock_repository(repository.pk)
-            locked.config_sha = revision
-            locked.checked_sha = revision
-            locked.last_sync_error = ""
-            locked.save(
-                update_fields=[
-                    "config_sha",
-                    "checked_sha",
-                    "last_sync_error",
-                    "updated_at",
-                ]
-            )
-            sync_jobs(locked, manifest, skills)
-    repository.refresh_from_db()
-    return repository
+        revision = authenticated_git(mirror, access.token, "rev-parse", "FETCH_HEAD")
+        yield FetchedBranch(mirror, revision, access.token)
+
+
+def record_synced_revision(repository_id: int, revision: str) -> Repository:
+    """Save a good sync of this commit. Call inside a transaction."""
+    locked = lock_repository(repository_id)
+    locked.config_sha = revision
+    locked.checked_sha = revision
+    locked.last_sync_error = ""
+    locked.save(
+        update_fields=["config_sha", "checked_sha", "last_sync_error", "updated_at"]
+    )
+    return locked
 
 
 def fetch_github_commit(access: GitHubAccess, commit_sha: str, mirror: Path) -> None:
@@ -147,29 +139,6 @@ RESTORED_FIELDS = (
     "github_connection",
     "default_branch",
 )
-
-
-def attach_github_repository(
-    workspace: Workspace, connection: Connection, repository_id: int, branch: str
-) -> Repository:
-    """Add a repository, or restore a removed one, then sync it.
-
-    The row is saved first in a short transaction, so the GitHub fetch never
-    holds a database lock. If the first sync fails, the row is put back.
-    """
-    metadata = connection_access(connection, repository_id).metadata
-    with transaction.atomic():
-        repository, previous = save_attached_repository(
-            workspace, connection, repository_id, branch, metadata
-        )
-    try:
-        return sync_github_repository(repository)
-    except Exception:
-        if previous is None:
-            repository.delete()
-        else:
-            restore_repository_fields(repository.pk, previous)
-        raise
 
 
 def save_attached_repository(

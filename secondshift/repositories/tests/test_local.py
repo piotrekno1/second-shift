@@ -7,14 +7,13 @@ import pytest
 from django.contrib.auth import get_user_model
 from django.test import override_settings
 
+from secondshift.jobs.repository_sync import SyncError, attach_local_repository, resync
 from secondshift.repositories.local import (
     LocalRepositoryError,
-    attach_local_repository,
     local_directories,
 )
 from secondshift.repositories.models import Repository
 from secondshift.repositories.serialization import validate_repository
-from secondshift.repositories.sync import SyncError, resync
 from secondshift.workspaces.dao import create_workspace
 from secondshift.workspaces.models import Workspace, WorkspaceMembership
 

@@ -2,13 +2,15 @@ from django.http import HttpRequest
 
 from secondshift.github import repos
 from secondshift.github.errors import GitHubError
+from secondshift.jobs.autosync import server_syncs
 from secondshift.jobs.dao import repository_jobs_with_grants
-from secondshift.repositories.autosync import server_syncs
+from secondshift.jobs.repository_sync import (
+    RepositoryConfigError,
+    inspect_local_repository,
+)
 from secondshift.repositories.github_access import github_access
 from secondshift.repositories.local import (
     LocalRepositoryError,
-    RepositoryConfigError,
-    inspect_local_repository,
 )
 from secondshift.repositories.models import Repository
 from secondshift.repositories.schemas import (

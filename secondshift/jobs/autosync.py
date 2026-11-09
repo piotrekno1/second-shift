@@ -16,13 +16,15 @@ from secondshift.connections.github import can_check
 from secondshift.github import repos
 from secondshift.github.app import configured
 from secondshift.github.errors import GitHubError
+from secondshift.jobs.repository_sync import (
+    attach_local_repository,
+    sync_github_repository,
+)
 from secondshift.repositories.dao import repositories_to_sync, set_sync_error
 from secondshift.repositories.github_access import github_access
 from secondshift.repositories.github_check import check_after_failure
-from secondshift.repositories.github_sync import sync_github_repository
 from secondshift.repositories.local import (
     LocalRepositoryError,
-    attach_local_repository,
     branch_revision,
 )
 from secondshift.repositories.models import Repository

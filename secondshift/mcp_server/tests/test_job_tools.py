@@ -10,8 +10,8 @@ from django.utils import timezone
 from secondshift.connections.execution import choose_execution
 from secondshift.connections.models import Connection
 from secondshift.jobs.models import CapabilityRequest, Job
+from secondshift.jobs.repository_sync import SyncError
 from secondshift.repositories.models import Repository
-from secondshift.repositories.sync import SyncError
 from secondshift.runs.artifacts import store_run_text
 from secondshift.runs.models import Run, Task
 from secondshift.workspaces.dao import create_workspace

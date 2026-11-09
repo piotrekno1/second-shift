@@ -14,7 +14,8 @@ from django.utils import timezone
 from secondshift.connections.models import Connection
 from secondshift.github import repos, rest
 from secondshift.github.errors import GitHubError
-from secondshift.repositories import autosync, github_sync
+from secondshift.jobs import autosync, repository_sync
+from secondshift.repositories import github_sync
 from secondshift.repositories.github_access import github_access
 from secondshift.repositories.github_views import STATE_KEY
 from secondshift.repositories.mirrors import SYNCED_REF, mirror_path
@@ -187,7 +188,7 @@ def test_sync_fetches_into_the_mirror_before_advancing_jobs(
 
     monkeypatch.setattr(github_sync, "authenticated_git", local_fetch)
     settings.SOURCE_CACHE_ROOT = tmp_path / "sources"
-    synced = github_sync.sync_github_repository(repository)
+    synced = repository_sync.sync_github_repository(repository)
     assert synced.config_sha
     assert synced.last_synced_at
     assert synced.jobs.get().key == "review"
@@ -197,14 +198,14 @@ def test_sync_fetches_into_the_mirror_before_advancing_jobs(
     assert "github-secret" not in (mirror / "config").read_text()
 
     run_git(source, "commit", "--allow-empty", "-m", "new commit")
-    synced = github_sync.sync_github_repository(synced)
+    synced = repository_sync.sync_github_repository(synced)
     assert synced_ref(mirror) == synced.config_sha
 
     old_revision = synced.config_sha
     run_git(source, "commit", "--allow-empty", "-m", "unreachable commit")
     reachable = False
     with pytest.raises(GitHubError):
-        github_sync.sync_github_repository(synced)
+        repository_sync.sync_github_repository(synced)
     synced.refresh_from_db()
     assert synced.config_sha == old_revision
 
@@ -244,7 +245,7 @@ def test_import_without_a_manifest_keeps_the_repository(
     run_git(source, "commit", "--allow-empty", "-m", "Start")
     fetch_from_local_source(monkeypatch, source, settings, tmp_path)
 
-    repository = github_sync.attach_github_repository(
+    repository = repository_sync.attach_github_repository(
         workspace, source_connection, 7, ""
     )
 
@@ -277,7 +278,7 @@ def test_autosync_picks_up_the_first_manifest_of_a_disabled_repository(
         full_name="owner/project",
         external_id="7",
     )
-    github_sync.sync_github_repository(repository)
+    repository_sync.sync_github_repository(repository)
     monkeypatch.setattr(
         repos,
         "branch_head",
@@ -311,7 +312,7 @@ def test_revoked_connection_blocks_sync(workspace: Any, source_connection: Any) 
         external_id="7",
     )
     with pytest.raises(GitHubError, match="disconnected"):
-        github_sync.sync_github_repository(repository)
+        repository_sync.sync_github_repository(repository)
 
 
 def test_failed_poll_is_visible_and_retains_last_revision(
@@ -452,9 +453,9 @@ def test_adding_a_repository_syncs_outside_a_transaction(
         depths.append(len(connection.atomic_blocks))
         return repository
 
-    monkeypatch.setattr(github_sync, "sync_github_repository", sync)
+    monkeypatch.setattr(repository_sync, "sync_github_repository", sync)
 
-    github_sync.attach_github_repository(workspace, source_connection, 7, "")
+    repository_sync.attach_github_repository(workspace, source_connection, 7, "")
 
     assert depths == [outer]
 
@@ -465,10 +466,10 @@ def test_a_failed_first_sync_removes_the_new_repository(
     def fail(repository: Repository) -> Repository:
         raise GitHubError("Could not fetch the GitHub repository and branch.")
 
-    monkeypatch.setattr(github_sync, "sync_github_repository", fail)
+    monkeypatch.setattr(repository_sync, "sync_github_repository", fail)
 
     with pytest.raises(GitHubError):
-        github_sync.attach_github_repository(workspace, source_connection, 7, "")
+        repository_sync.attach_github_repository(workspace, source_connection, 7, "")
 
     assert not Repository.objects.filter(full_name="owner/project").exists()
 
@@ -489,10 +490,10 @@ def test_a_failed_sync_leaves_a_readded_repository_removed(
     def fail(repository: Repository) -> Repository:
         raise GitHubError("Could not fetch the GitHub repository and branch.")
 
-    monkeypatch.setattr(github_sync, "sync_github_repository", fail)
+    monkeypatch.setattr(repository_sync, "sync_github_repository", fail)
 
     with pytest.raises(GitHubError):
-        github_sync.attach_github_repository(workspace, source_connection, 7, "dev")
+        repository_sync.attach_github_repository(workspace, source_connection, 7, "dev")
 
     repository.refresh_from_db()
     assert repository.removed_at == removed_at
@@ -605,7 +606,7 @@ def test_a_repository_imported_with_a_token_syncs_with_it(
     monkeypatch.setattr(github_sync, "authenticated_git", local_fetch)
     settings.SOURCE_CACHE_ROOT = tmp_path / "sources"
 
-    repository = github_sync.attach_github_repository(
+    repository = repository_sync.attach_github_repository(
         workspace, token_connection, 7, ""
     )
 

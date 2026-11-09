@@ -10,18 +10,22 @@ from secondshift.connections.models import Connection
 from secondshift.github.app import configured
 from secondshift.github.errors import GitHubError
 from secondshift.jobs.dao import disable_repository_jobs, enabled_repository_jobs
+from secondshift.jobs.repository_sync import (
+    SyncError,
+    attach_github_repository,
+    attach_local_repository,
+    resync,
+)
 from secondshift.jobs.scheduling import restart_schedules
 from secondshift.repositories.access import repository_for_request
 from secondshift.repositories.dao import active_repositories
 from secondshift.repositories.github_sync import (
     GitHubRepositoryExistsError,
-    attach_github_repository,
     available_github_sources,
     repository_branches,
 )
 from secondshift.repositories.local import (
     LocalRepositoryError,
-    attach_local_repository,
     local_directories,
 )
 from secondshift.repositories.models import Repository
@@ -44,7 +48,6 @@ from secondshift.repositories.serialization import (
     serialize_repository_detail,
     validate_repository,
 )
-from secondshift.repositories.sync import SyncError, resync
 from secondshift.workspaces.access import (
     Action,
     current_workspace,
