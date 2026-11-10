@@ -107,7 +107,7 @@ def set_job_enabled(
             raise HttpError(409, JOB_REMOVED)
         if not job.cron:
             raise HttpError(409, "This job has no schedule. Use Run now to run it.")
-        if not job.repository.enabled:
+        if not job.repository.accepts_runs:
             raise HttpError(409, "Enable the repository before enabling this job.")
         plan = build_execution_plan(job)
         if not plan.ready:

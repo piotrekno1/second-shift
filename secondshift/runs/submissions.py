@@ -93,7 +93,7 @@ def admission(
     repository: Repository, submission: SkillSubmission, fingerprint: str
 ) -> SubmissionResult | None:
     """Called with the repository row locked, before and after source access."""
-    if not repository.enabled or repository.removed_at is not None:
+    if not repository.accepts_runs:
         raise RunRefused("Enable the repository before submitting a task.")
     task = find_submitted_task(repository.pk, submission.idempotency_key)
     if task is not None:

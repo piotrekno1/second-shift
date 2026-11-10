@@ -74,6 +74,10 @@ class Repository(models.Model):
         return self.display_name
 
     @property
+    def accepts_runs(self) -> bool:
+        return self.enabled and self.removed_at is None
+
+    @property
     def display_name(self) -> str:
         if self.source_type == self.SourceType.LOCAL and self.local_path:
             return Path(self.local_path).name

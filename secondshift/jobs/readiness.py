@@ -27,7 +27,7 @@ OTHER_REASON = "cannot reach what the job needs through its connection"
 
 def execution_problems(repository: Repository, plan: ExecutionPlan) -> list[str]:
     problems = []
-    if not repository.enabled:
+    if not repository.accepts_runs:
         problems.append("The repository is disabled.")
     if not plan.execution.ready:
         problems.append(plan.execution.problem)

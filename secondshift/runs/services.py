@@ -95,7 +95,7 @@ def start_run(
     # Starting now does not need the schedule. It still needs the repository.
     if job.removed_at is not None:
         raise RunRefused(JOB_REMOVED)
-    if not job.repository.enabled:
+    if not job.repository.accepts_runs:
         raise RunRefused("Enable the repository before running its jobs.")
     with transaction.atomic():
         # Two starts at the same moment wait here, so only one creates a run.
