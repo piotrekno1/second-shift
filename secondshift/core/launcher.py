@@ -81,10 +81,10 @@ def public_url(host: str, port: int) -> str:
 
 def web_address(host: str, port: int, parent: dict[str, str]) -> tuple[str, int]:
     """Use an explicit HTTP bind for the local web process."""
-    if bind := parent.get("SECONDSHIFT_HTTP_BIND"):
+    if bind := parent.get(AppEnv.HTTP_BIND):
         endpoint = urlsplit(f"http://{bind}")
         if not endpoint.hostname or endpoint.port is None:
-            raise ValueError("SECONDSHIFT_HTTP_BIND must contain a host and port")
+            raise ValueError(f"{AppEnv.HTTP_BIND} must contain a host and port")
         return endpoint.hostname, endpoint.port
     return host, port
 
@@ -141,14 +141,14 @@ def services(
         environment = {
             **environment,
             SERVICE_VAR: service,
-            "SECONDSHIFT_HTTP_BIND": ",".join(f"{a}:{http_port}" for a in addresses),
-            "SECONDSHIFT_HTTP_LOG_LEVEL": "warning",
-            "SECONDSHIFT_HTTP_ACCESS_LOG": "",
+            AppEnv.HTTP_BIND: ",".join(f"{a}:{http_port}" for a in addresses),
+            AppEnv.HTTP_LOG_LEVEL: "warning",
+            AppEnv.HTTP_ACCESS_LOG: "",
         }
         if service in {Service.GATEWAY, Service.RUNNER}:
-            environment["SECONDSHIFT_HTTP_PROCESSES"] = "1"
+            environment[AppEnv.HTTP_PROCESSES] = "1"
         if service == Service.GATEWAY:
-            environment["SECONDSHIFT_HTTP_GRACEFUL_TIMEOUT_SECONDS"] = "600"
+            environment[AppEnv.HTTP_GRACEFUL_TIMEOUT_SECONDS] = "600"
         return Process(
             service,
             [python, "-m", "gunicorn", "--config", GUNICORN_CONFIG],

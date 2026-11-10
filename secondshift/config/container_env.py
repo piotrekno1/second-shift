@@ -53,7 +53,7 @@ def generate_environment(hostname: str, directory: Path) -> None:
             **public,
             AppEnv.RUNNER_SERVICE_URL: "http://secondshift-runner:8002",
             AppEnv.RUNNER_SERVICE_TOKEN: token,
-            "SECONDSHIFT_HTTP_TIMEOUT_SECONDS": "300",
+            AppEnv.HTTP_TIMEOUT_SECONDS: "300",
         },
         Service.GATEWAY: {
             **common,
@@ -61,8 +61,8 @@ def generate_environment(hostname: str, directory: Path) -> None:
             AppEnv.RUNNER_SERVICE_URL: "http://secondshift-runner:8002",
             AppEnv.RUNNER_SERVICE_TOKEN: token,
             AppEnv.ALLOWED_HOSTS: "secondshift-gateway",
-            "SECONDSHIFT_HTTP_BIND": "0.0.0.0:8001",
-            "SECONDSHIFT_HTTP_GRACEFUL_TIMEOUT_SECONDS": "600",
+            AppEnv.HTTP_BIND: "0.0.0.0:8001",
+            AppEnv.HTTP_GRACEFUL_TIMEOUT_SECONDS: "600",
         },
         Service.WORKER: {
             **common,
@@ -72,9 +72,9 @@ def generate_environment(hostname: str, directory: Path) -> None:
             AppEnv.MODEL_GATEWAY_URL: "http://secondshift-gateway:8001",
         },
         Service.RUNNER: {
-            "SECONDSHIFT_HTTP_BIND": "0.0.0.0:8002",
-            "SECONDSHIFT_HTTP_PROCESSES": "1",
-            "SECONDSHIFT_HTTP_TIMEOUT_SECONDS": "180",
+            AppEnv.HTTP_BIND: "0.0.0.0:8002",
+            AppEnv.HTTP_PROCESSES: "1",
+            AppEnv.HTTP_TIMEOUT_SECONDS: "180",
             AppEnv.RUNNER_ALLOWED_HOSTS: "secondshift-runner",
             AppEnv.RUNNER_SERVICE_TOKEN: token,
             AppEnv.RUNNER_RUNTIME: SandboxRuntime.GVISOR,
