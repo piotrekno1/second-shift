@@ -59,3 +59,8 @@ def has_recent_event(
     return trigger.events.filter(
         outcome=outcome, reason=reason, received_at__gte=since
     ).exists()
+
+
+def recent_events(trigger: JobTrigger, limit: int) -> list[TriggerEvent]:
+    """The trigger's newest requests, newest first."""
+    return list(trigger.events.all()[:limit])

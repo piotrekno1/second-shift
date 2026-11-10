@@ -47,6 +47,15 @@ def active_jobs(
     return jobs
 
 
+def active_jobs_with_grants(
+    workspace_id: int, repository_id: int | None = None, enabled: bool | None = None
+) -> QuerySet[Job]:
+    """active_jobs with each capability request's grant and connection."""
+    return active_jobs(workspace_id, repository_id, enabled).prefetch_related(
+        "capability_requests__grant__connection"
+    )
+
+
 def enabled_job_count(workspace_id: int) -> int:
     return active_jobs(workspace_id, enabled=True).count()
 

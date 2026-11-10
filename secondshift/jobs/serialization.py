@@ -6,7 +6,7 @@ from secondshift.connections.execution import (
 )
 from secondshift.connections.external import changing_tools, external_access
 from secondshift.connections.models import Connection
-from secondshift.jobs.dao import active_jobs
+from secondshift.jobs.dao import active_jobs_with_grants
 from secondshift.jobs.limits import job_limit_views
 from secondshift.jobs.models import Job
 from secondshift.jobs.schemas import (
@@ -174,11 +174,8 @@ def serialize_job_detail(job: Job, can_edit_limits: bool) -> JobDetailSchema:
 
 def serialize_workspace_jobs(workspace: Workspace) -> list[JobSchema]:
     """Every job in the workspace whose repository was not removed."""
-    queryset = with_last_run(active_jobs(workspace.pk))
+    queryset = with_last_run(active_jobs_with_grants(workspace.pk))
     connections = connections_by_binding(workspace.pk)
     # Every job runs on the workspace default, so resolve it once.
     execution = workspace_execution(workspace)
-    return [
-        serialize_job(item, connections, execution)
-        for item in queryset.prefetch_related("capability_requests__grant__connection")
-    ]
+    return [serialize_job(item, connections, execution) for item in queryset]

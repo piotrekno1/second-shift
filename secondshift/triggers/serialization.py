@@ -3,6 +3,7 @@ from django.conf import settings
 from secondshift.config.constants import TriggerKind
 from secondshift.jobs.manifest import WebhookManifest
 from secondshift.jobs.models import Job
+from secondshift.triggers.dao import recent_events
 from secondshift.triggers.models import JobTrigger
 from secondshift.triggers.schemas import (
     TriggerChangeSchema,
@@ -28,7 +29,7 @@ def grouped_events(trigger: JobTrigger) -> list[TriggerEventSchema]:
     """
     groups: list[TriggerEventSchema] = []
     folded: dict[tuple[str, str], TriggerEventSchema] = {}
-    for event in trigger.events.all()[: settings.TRIGGER_EVENTS_KEPT * 3]:
+    for event in recent_events(trigger, settings.TRIGGER_EVENTS_KEPT * 3):
         key = (event.outcome, event.reason)
         if event.run_id is None and key in folded:
             folded[key].count += 1
