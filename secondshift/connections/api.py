@@ -40,12 +40,11 @@ from secondshift.connections.http_api.spec import APIError
 from secondshift.connections.mcp.base import MCPError
 from secondshift.connections.mcp.client import (
     create_mcp_connection,
-    discover_tools,
-    select_tools,
+    recheck_mcp_connection,
     update_mcp_connection,
 )
 from secondshift.connections.mcp.oauth import inspect_server, requested_scopes
-from secondshift.connections.mcp.providers import MCP_PROVIDERS, mcp_provider
+from secondshift.connections.mcp.providers import MCP_PROVIDERS
 from secondshift.connections.mcp.signin import (
     SignInError,
     complete_authorization,
@@ -347,9 +346,7 @@ def start_mcp_sign_in(
             connection.provider if connection else payload.provider,
             payload.binding_key,
             payload.display_name,
-            dict(connection.metadata.get("settings", {}))
-            if connection
-            else payload.settings,
+            connection.settings if connection else payload.settings,
             requested_scopes(connection) if connection else payload.scopes,
             connection,
             payload.require_approval,
@@ -579,23 +576,10 @@ def test_connection(request: HttpRequest, connection_id: int) -> ConnectionTestS
     connection = owned_connection(request, connection_id, Action.TEST_CONNECTIONS)
     if connection.kind == Connection.Kind.MCP:
         try:
-            provider = mcp_provider(connection.provider)
-            tools = discover_tools(connection)
-            kept = [name for name in connection.available_tools if name in tools]
-            select_tools(
-                connection,
-                provider,
-                tools,
-                kept if provider.owner_selects_tools else None,
-            )
+            message = recheck_mcp_connection(connection)
         except MCPError as error:
             return ConnectionTestSchema(ok=False, status_code=None, message=str(error))
-        connection.save(update_fields=["available_tools", "metadata", "updated_at"])
-        return ConnectionTestSchema(
-            ok=True,
-            status_code=None,
-            message=f"Discovered {len(tools)} supported {provider.label} tools.",
-        )
+        return ConnectionTestSchema(ok=True, status_code=None, message=message)
     if connection.kind == Connection.Kind.API:
         try:
             message = recheck_api_connection(connection)

@@ -109,6 +109,11 @@ class Connection(models.Model):
         return self.metadata.get("tools") or {}
 
     @property
+    def settings(self) -> dict[str, str]:
+        """Owner-chosen settings, such as an MCP scope. Never a credential."""
+        return dict(self.metadata.get("settings", {}))
+
+    @property
     def offered_tools(self) -> dict[str, Any]:
         """Every tool the server offers, when the owner chooses among them."""
         return self.metadata.get("offered_tools") or {}

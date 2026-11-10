@@ -25,7 +25,6 @@ from secondshift.connections.mcp.client import (
 from secondshift.connections.mcp.oauth import fresh_connection
 from secondshift.connections.mcp.providers import (
     MCP_PROVIDERS,
-    connection_settings,
     mcp_provider,
 )
 from secondshift.connections.models import Connection
@@ -92,7 +91,7 @@ class MCPKind:
                 "This MCP provider is not supported.",
                 AccessReason.MCP_PROVIDER_UNSUPPORTED,
             )
-        scope = provider.scope(connection_settings(connection), repository)
+        scope = provider.scope(connection.settings, repository)
         if not scope:
             return Access(
                 False,
@@ -137,8 +136,7 @@ class MCPKind:
         if (
             frozen.get("provider") != provider.key
             or not frozen.get("scope")
-            or frozen["scope"]
-            != provider.scope(connection_settings(connection), repository)
+            or frozen["scope"] != provider.scope(connection.settings, repository)
         ):
             raise ExternalToolError(
                 f"The job {provider.scope_label} scope changed. Start a new run."

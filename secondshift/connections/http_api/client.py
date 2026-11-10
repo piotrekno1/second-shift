@@ -119,7 +119,7 @@ def validate_api_connection(connection: Connection) -> None:
 async def send(connection: Connection, request: APIRequest) -> dict[str, Any]:
     """Status and body. No token, exception text, or redirect target leaks."""
     headers = {
-        **auth_header(connection.metadata.get("settings", {}), connection.access_token),
+        **auth_header(connection.settings, connection.access_token),
         "Accept": "application/json, text/plain;q=0.5",
     }
     try:

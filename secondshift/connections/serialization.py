@@ -16,10 +16,10 @@ from secondshift.runs.reporting.connection_usage import ConnectionUsage
 def connection_settings_view(connection: Connection) -> dict[str, str]:
     """Owner-chosen settings that are safe to show. Never a credential."""
     if connection.kind == Connection.Kind.MCP:
-        return dict(connection.metadata.get("settings", {}))
+        return connection.settings
     if connection.kind == Connection.Kind.API:
         return {
-            **connection.metadata.get("settings", {}),
+            **connection.settings,
             "base_url": connection.endpoint_url,
             "spec_url": connection.metadata.get("spec_url", ""),
         }

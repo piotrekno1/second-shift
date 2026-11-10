@@ -23,7 +23,7 @@ from secondshift.connections.mcp.base import (
     MCPSettings,
 )
 from secondshift.connections.mcp.oauth import fresh_connection
-from secondshift.connections.mcp.providers import connection_settings, mcp_provider
+from secondshift.connections.mcp.providers import mcp_provider
 from secondshift.connections.mcp.schemas import validate_tool_schema
 from secondshift.connections.models import Connection
 from secondshift.connections.outbound import (
@@ -52,7 +52,7 @@ def validate_mcp_connection(connection: Connection) -> MCPProvider:
     if (
         connection.kind != Connection.Kind.MCP
         or connection.endpoint_url
-        != provider.endpoint(provider.clean_settings(connection_settings(connection)))
+        != provider.endpoint(provider.clean_settings(connection.settings))
         or connection.auth_strategy
         not in {AUTH_STRATEGIES[method] for method in provider.auth_methods}
         or connection.status != Connection.Status.CONNECTED
@@ -228,7 +228,7 @@ def select_tools(
     tools: dict[str, Any],
     selected: list[str] | None = None,
 ) -> None:
-    """Built-in providers use every allowlisted tool. Custom servers let the owner choose."""
+    """Built-in providers use every allowed tool. Custom servers let the owner choose."""
     try:
         store_tools(
             connection, tools, selected, owner_selects=provider.owner_selects_tools
@@ -319,7 +319,7 @@ def update_mcp_connection(
     provider = mcp_provider(connection.provider)
     if tools is not None and not provider.owner_selects_tools:
         raise MCPError(f"{provider.label} tools are fixed by SecondShift.")
-    current = connection_settings(connection)
+    current = connection.settings
     apply_credentials(connection, provider, token, settings, current)
     cleaned = provider.clean_settings(current if settings is None else settings)
     if display_name is not None:
@@ -339,3 +339,15 @@ def update_mcp_connection(
     connection.full_clean()
     connection.save()
     return connection
+
+
+def recheck_mcp_connection(connection: Connection) -> str:
+    """List the server's tools again and keep the chosen ones it still offers."""
+    provider = mcp_provider(connection.provider)
+    tools = discover_tools(connection)
+    kept = [name for name in connection.available_tools if name in tools]
+    select_tools(
+        connection, provider, tools, kept if provider.owner_selects_tools else None
+    )
+    connection.save(update_fields=["available_tools", "metadata", "updated_at"])
+    return f"Discovered {len(tools)} supported {provider.label} tools."
