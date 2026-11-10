@@ -1,5 +1,6 @@
 import pytest
 from django.contrib.auth import get_user_model
+from django.db import connection as database
 
 from secondshift.connections.dao import (
     auto_approved_connections,
@@ -65,3 +66,23 @@ def test_auto_approved_connections_need_no_review(workspace: Workspace) -> None:
     assert list(auto_approved_connections({workspace.pk}, {"github", "sentry"})) == [
         open_connection
     ]
+
+
+def test_connection_secrets_are_stored_encrypted(workspace: Workspace) -> None:
+    secrets = {
+        "access_token": "ghp_access-secret",
+        "refresh_token": "refresh-secret",
+        "delivery_url": "https://hooks.example/T000/secret-path",
+    }
+    saved = make_connection(workspace, "github", **secrets)
+
+    loaded = Connection.objects.get(pk=saved.pk)
+    assert {name: getattr(loaded, name) for name in secrets} == secrets
+    with database.cursor() as cursor:
+        cursor.execute(
+            "SELECT access_token, refresh_token, delivery_url "
+            "FROM connections_connection WHERE id = %s",
+            [saved.pk],
+        )
+        stored = " ".join(cursor.fetchone())
+    assert not [value for value in secrets.values() if value in stored]

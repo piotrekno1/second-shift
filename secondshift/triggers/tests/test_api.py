@@ -8,6 +8,7 @@ from unittest.mock import Mock
 import pytest
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
+from django.db import connection as database
 from django.test import Client
 from django.utils import timezone
 
@@ -104,6 +105,9 @@ def test_turning_a_trigger_on_shows_its_secret_once(
     assert listed[0]["enabled"] is True
     assert listed[0]["url"] == change["trigger"]["url"]  # type: ignore[index]
     assert secret not in json.dumps(listed)
+    with database.cursor() as cursor:
+        cursor.execute("SELECT secret FROM triggers_jobtrigger")
+        assert secret not in cursor.fetchone()[0]
     # The URL holds a random id, not the job's.
     assert path_of(change) == f"/api/triggers/{JobTrigger.objects.get().public_id}"
 
