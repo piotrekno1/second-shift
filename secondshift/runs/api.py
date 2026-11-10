@@ -183,16 +183,12 @@ def run_job(
     return serialize_run(run)
 
 
-@router.post("/tasks", response={200: TaskSubmissionSchema, 409: RunInProgressSchema})
-def submit_task(
-    request: HttpRequest, payload: SkillSubmission
-) -> TaskSubmissionSchema | Status[RunInProgressSchema]:
+@router.post("/tasks", response=TaskSubmissionSchema)
+def submit_task(request: HttpRequest, payload: SkillSubmission) -> TaskSubmissionSchema:
     require(request, Action.RUN_JOBS)
     repository = repository_for_request(request, payload.repository_id)
     try:
         result = submit_skill(repository, payload, request.user, RunStart.MANUAL)
-    except RunInProgress as error:
-        return Status(409, RunInProgressSchema(detail=str(error), run_id=error.run.pk))
     except RunRefused as error:
         raise HttpError(409, str(error)) from error
     return TaskSubmissionSchema(
