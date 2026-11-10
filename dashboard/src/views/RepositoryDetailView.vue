@@ -8,6 +8,7 @@ import Menu from 'primevue/menu'
 import PageHeader from '../components/PageHeader.vue'
 import StatusPill from '../components/StatusPill.vue'
 import { errorMessage } from '../services/api'
+import { waitingCapabilities } from '../utils/readiness'
 import { setJobEnabled } from '../services/jobs'
 import {
   checkRepository,
@@ -45,9 +46,7 @@ const detailedJobs = computed(() => {
   return app.jobs.filter((job) => jobIds.has(job.id))
 })
 const requiredReviews = computed(() => detailedJobs.value.flatMap((job) =>
-  job.capabilities
-    .filter((capability) => capability.required && capability.grant_status !== 'approved')
-    .map((capability) => ({ job, capability })),
+  waitingCapabilities(job).map((capability) => ({ job, capability })),
 ))
 const optionalSetups = computed(() => detailedJobs.value.flatMap((job) =>
   job.capabilities

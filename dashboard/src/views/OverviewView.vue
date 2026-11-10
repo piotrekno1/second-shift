@@ -14,7 +14,7 @@ import { useLiveRefresh } from '../composables/useLiveRefresh'
 import { isRunActive } from '../services/runs'
 import { useAppStore } from '../stores/app'
 import { agentCardDismissed, dismissAgentCard } from '../utils/agentSetup'
-import { setupSteps } from '../utils/readiness'
+import { setupSteps, waitingCapabilities } from '../utils/readiness'
 import { Action } from '../utils/permissions'
 import {
   accessLabel, countLabel, formatCost, formatDate, formatRelative, formatScheduled, healthHeadline, runsTrend, spendTrend, utcTitle, weekRange,
@@ -26,9 +26,7 @@ const app = useAppStore()
 // scheduled runs and job changes can happen in other tabs.
 const runActive = (): boolean => app.runs.some((run) => isRunActive(run.status))
 useLiveRefresh(() => (runActive() ? app.refreshRuns() : app.refresh()), runActive)
-const approvalJobs = computed(() => app.jobs.filter((job) =>
-  job.capabilities.some((capability) => capability.required && capability.grant_status !== 'approved'),
-))
+const approvalJobs = computed(() => app.jobs.filter((job) => waitingCapabilities(job).length))
 // Approving cannot start before the binding has a connection, so that comes first.
 const missingConnection = computed(() => app.needs.find((need) => need.required && need.status === 'missing') ?? null)
 // While nothing can run jobs every run fails, so fixing that is the one next step.
@@ -161,7 +159,7 @@ const passRate = computed(() => {
           :to="{ path: '/jobs', query: { review: String(job.id) } }"
           class="approval-row"
         >
-          <div><strong>{{ job.name }}</strong><span>{{ job.repository }} · needs <code>{{ job.capabilities.filter((capability) => capability.required && capability.grant_status !== 'approved').map((capability) => capability.binding).join(', ') }}</code></span></div>
+          <div><strong>{{ job.name }}</strong><span>{{ job.repository }} · needs <code>{{ waitingCapabilities(job).map((capability) => capability.binding).join(', ') }}</code></span></div>
           <StatusPill :status="job.grant_status" :label="accessLabel(job.grant_status)" />
           <AppIcon name="chevron-right" />
         </RouterLink>
