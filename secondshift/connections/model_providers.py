@@ -9,6 +9,7 @@ import httpx
 from django.conf import settings
 from django.db import transaction
 
+from secondshift.config.constants import ModelFamily
 from secondshift.connections.checks import record_check
 from secondshift.connections.models import Connection
 from secondshift.connections.outbound import (
@@ -21,17 +22,35 @@ from secondshift.workspaces.models import Workspace
 
 logger = logging.getLogger(__name__)
 
-PROVIDERS = {
-    Connection.Provider.ANTHROPIC,
-    Connection.Provider.OPENAI,
-    Connection.Provider.OPENROUTER,
-    Connection.Provider.OPENAI_COMPATIBLE,
-}
-# Anthropic base URLs exclude /v1 (SDK convention); OpenAI-family ones include it.
-DEFAULT_BASE_URLS = {
-    Connection.Provider.ANTHROPIC: "https://api.anthropic.com",
-    Connection.Provider.OPENAI: "https://api.openai.com/v1",
-    Connection.Provider.OPENROUTER: "https://openrouter.ai/api/v1",
+
+@dataclass(frozen=True)
+class ModelProvider:
+    family: ModelFamily
+    # Empty when the owner gives the URL. Such providers may also skip the key.
+    # Anthropic base URLs exclude /v1, as its SDK expects. OpenAI ones include it.
+    default_base_url: str = ""
+    # Serves other vendors' models. Runs use Chat Completions, since not every
+    # router offers Responses, and prices are looked up by the router's URL.
+    router: bool = False
+
+    @property
+    def custom_endpoint(self) -> bool:
+        return not self.default_base_url
+
+
+MODEL_PROVIDERS = {
+    Connection.Provider.ANTHROPIC: ModelProvider(
+        ModelFamily.ANTHROPIC, "https://api.anthropic.com"
+    ),
+    Connection.Provider.OPENAI: ModelProvider(
+        ModelFamily.OPENAI, "https://api.openai.com/v1"
+    ),
+    Connection.Provider.OPENROUTER: ModelProvider(
+        ModelFamily.OPENAI, "https://openrouter.ai/api/v1", router=True
+    ),
+    Connection.Provider.OPENAI_COMPATIBLE: ModelProvider(
+        ModelFamily.OPENAI, router=True
+    ),
 }
 
 
@@ -46,18 +65,36 @@ class ModelProviderCheck:
     models: list[str]
 
 
-def provider_family(connection: Connection) -> str:
-    return (
-        "anthropic"
-        if connection.provider == Connection.Provider.ANTHROPIC
-        else "openai"
-    )
+def model_provider(provider: str) -> ModelProvider:
+    try:
+        return MODEL_PROVIDERS[Connection.Provider(provider)]
+    except (KeyError, ValueError) as error:
+        raise ModelProviderError(
+            "Choose Anthropic, OpenAI, OpenRouter or an OpenAI-compatible provider."
+        ) from error
+
+
+def provider_family(connection: Connection) -> ModelFamily:
+    return model_provider(connection.provider).family
 
 
 def base_url(connection: Connection) -> str:
-    return (
-        connection.endpoint_url or DEFAULT_BASE_URLS.get(connection.provider, "")
-    ).rstrip("/")
+    default = model_provider(connection.provider).default_base_url
+    return (connection.endpoint_url or default).rstrip("/")
+
+
+def api_root(connection: Connection) -> str:
+    """The URL that model API paths such as `messages` are relative to."""
+    if provider_family(connection) == ModelFamily.ANTHROPIC:
+        return f"{base_url(connection)}/v1"
+    return base_url(connection)
+
+
+def checked_api_key(provider: str, api_key: str) -> str:
+    api_key = api_key.strip()
+    if not api_key and not model_provider(provider).custom_endpoint:
+        raise ModelProviderError("Enter an API key.")
+    return api_key
 
 
 def clean_models(values: list[str]) -> list[str]:
@@ -68,7 +105,7 @@ def clean_models(values: list[str]) -> list[str]:
 
 
 def validated_endpoint(provider: str, endpoint_url: str) -> str:
-    if provider != Connection.Provider.OPENAI_COMPATIBLE:
+    if not model_provider(provider).custom_endpoint:
         # First-party providers always use their official endpoint.
         return ""
     if not endpoint_url.strip():
@@ -89,13 +126,7 @@ def create_model_connection(
     allowed_models: list[str] | None = None,
     default_model: str = "",
 ) -> Connection:
-    if provider not in PROVIDERS:
-        raise ModelProviderError(
-            "Choose Anthropic, OpenAI, OpenRouter or an OpenAI-compatible provider."
-        )
-    api_key = api_key.strip()
-    if not api_key and provider != Connection.Provider.OPENAI_COMPATIBLE:
-        raise ModelProviderError("Enter an API key.")
+    api_key = checked_api_key(provider, api_key)
     connection = Connection(
         workspace=workspace,
         provider=provider,
@@ -256,7 +287,7 @@ def call_anthropic(connection: Connection, model: str) -> str | None:
 
 
 def call_openai_family(connection: Connection, model: str) -> str | None:
-    if connection.provider == Connection.Provider.OPENAI:
+    if not model_provider(connection.provider).router:
         # Runs use the Responses API for OpenAI itself.
         path = "responses"
         body: dict[str, Any] = {
@@ -289,7 +320,7 @@ def try_model_call(connection: Connection) -> str | None:
     account without access, say), so a real call is the only reliable check.
     """
     model = connection.default_model
-    if provider_family(connection) == "anthropic":
+    if provider_family(connection) == ModelFamily.ANTHROPIC:
         return call_anthropic(connection, model)
     return call_openai_family(connection, model)
 
@@ -355,7 +386,7 @@ def run_model_check(connection: Connection) -> ModelProviderCheck:
 def fetch_models(connection: Connection) -> list[str]:
     """The provider's models, saved on the connection."""
     try:
-        if provider_family(connection) == "anthropic":
+        if provider_family(connection) == ModelFamily.ANTHROPIC:
             models = list_anthropic_models(connection)
         else:
             models = list_openai_models(connection)

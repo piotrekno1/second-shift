@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 import genai_prices
 
-from secondshift.connections.model_providers import base_url
+from secondshift.connections.model_providers import base_url, model_provider
 from secondshift.connections.models import Connection
 
 if TYPE_CHECKING:
@@ -28,11 +28,7 @@ def request_cost(connection: Connection, model: str, usage: "Usage") -> Decimal 
         cache_read_tokens=usage.cache_read_tokens,
         cache_write_tokens=usage.cache_write_tokens,
     )
-    if connection.provider in {
-        Connection.Provider.OPENAI_COMPATIBLE,
-        Connection.Provider.OPENROUTER,
-    }:
-        # Routers like OpenRouter are recognized by their API URL.
+    if model_provider(connection.provider).router:
         lookup: dict[str, str] = {"provider_api_url": base_url(connection)}
     else:
         lookup = {"provider_id": connection.provider}

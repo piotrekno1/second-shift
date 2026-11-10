@@ -7,8 +7,9 @@ from pydantic_ai.models.openai import OpenAIChatModel, OpenAIResponsesModel
 from pydantic_ai.providers.anthropic import AnthropicProvider
 from pydantic_ai.providers.openai import OpenAIProvider
 
+from secondshift.config.constants import ModelFamily
 from secondshift.connections.dao import connected_model
-from secondshift.connections.model_providers import provider_family
+from secondshift.connections.model_providers import model_provider, provider_family
 from secondshift.connections.models import Connection
 from secondshift.gateway.dao import revoke_run_tokens
 from secondshift.gateway.tokens import issue_token
@@ -36,7 +37,7 @@ def issue_run_token(run: Run, connection: Connection) -> str:
 class ModelGatewayAccess:
     """Run-scoped access used by the orchestrator, never by command sandboxes."""
 
-    family: str
+    family: ModelFamily
     provider: str
     model: str
     base_url: str
@@ -62,7 +63,8 @@ def issue_model_gateway_access(run: Run) -> ModelGatewayAccess:
     family = provider_family(connection)
     revoke_run_tokens(run.pk)
     token = issue_run_token(run, connection)
-    path = "anthropic" if family == "anthropic" else "openai/v1"
+    # The Anthropic SDK adds /v1 itself.
+    path = family if family == ModelFamily.ANTHROPIC else f"{family}/v1"
     return ModelGatewayAccess(
         family=family,
         provider=connection.provider,
@@ -74,7 +76,7 @@ def issue_model_gateway_access(run: Run) -> ModelGatewayAccess:
 
 def pydantic_model(access: ModelGatewayAccess) -> Model:
     """Build a Pydantic AI model that can reach only SecondShift's gateway."""
-    if access.family == "anthropic":
+    if access.family == ModelFamily.ANTHROPIC:
         return AnthropicModel(
             access.model,
             provider=AnthropicProvider(
@@ -83,10 +85,6 @@ def pydantic_model(access: ModelGatewayAccess) -> Model:
             ),
         )
     provider = OpenAIProvider(api_key=access.token, base_url=access.base_url)
-    if access.provider in {
-        Connection.Provider.OPENAI_COMPATIBLE,
-        Connection.Provider.OPENROUTER,
-    }:
-        # Responses is not universally implemented by compatible providers.
+    if model_provider(access.provider).router:
         return OpenAIChatModel(access.model, provider=provider)
     return OpenAIResponsesModel(access.model, provider=provider)

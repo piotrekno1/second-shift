@@ -55,6 +55,7 @@ from secondshift.connections.model_providers import (
     CheckFailed,
     ModelProviderError,
     check_model_connection,
+    checked_api_key,
     create_model_connection,
     fetch_models,
     update_model_connection,
@@ -454,16 +455,11 @@ def discover_model_provider_models(
     request: HttpRequest, payload: ModelConnectionCreateSchema
 ) -> list[str]:
     require(request, Action.ADD_MODEL_PROVIDERS)
-    if (
-        not payload.api_key.strip()
-        and payload.provider != Connection.Provider.OPENAI_COMPATIBLE
-    ):
-        raise HttpError(422, "Enter an API key.")
     try:
         connection = Connection(
             provider=payload.provider,
             endpoint_url=validated_endpoint(payload.provider, payload.base_url),
-            access_token=payload.api_key.strip(),
+            access_token=checked_api_key(payload.provider, payload.api_key),
         )
         return fetch_models(connection)
     except (ModelProviderError, CheckFailed) as error:

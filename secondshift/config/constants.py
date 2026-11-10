@@ -122,6 +122,13 @@ class TriggerKind(StrEnum):
     WEBHOOK = "webhook"
 
 
+class ModelFamily(StrEnum):
+    """The API shape a model provider speaks. Names the gateway's URL path."""
+
+    ANTHROPIC = "anthropic"
+    OPENAI = "openai"
+
+
 class RunStart(StrEnum):
     """What started a run."""
 
