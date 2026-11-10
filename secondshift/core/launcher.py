@@ -47,6 +47,8 @@ RUNNER_ENV_NAMES = {
     AppEnv.AGENT_IMAGE,
     AppEnv.AGENT_NETWORK,
     AppEnv.AGENT_BROKER_URL,
+    AppEnv.AGENT_RESOLV_CONF,
+    AppEnv.DATA_DIR,
 }
 RUNNER_ENV_PREFIXES = ("DOCKER_", "SECONDSHIFT_RUNNER_")
 STOP_SECONDS = 15
@@ -65,9 +67,7 @@ def runner_env(parent: dict[str, str]) -> dict[str, str]:
     env = {
         name: value
         for name, value in parent.items()
-        if name in RUNNER_ENV_NAMES
-        or name.startswith(RUNNER_ENV_PREFIXES)
-        or name == "SECONDSHIFT_DATA_DIR"
+        if name in RUNNER_ENV_NAMES or name.startswith(RUNNER_ENV_PREFIXES)
     }
     env[SETTINGS_MODULE_VAR] = RUNNER_SETTINGS
     env[AppEnv.RUNNER_RUNTIME] = SandboxRuntime.DOCKER

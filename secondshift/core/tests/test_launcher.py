@@ -1,3 +1,4 @@
+import re
 import sys
 import time
 from pathlib import Path
@@ -7,6 +8,7 @@ import pytest
 from django.core.management import call_command
 from django.test import override_settings
 
+from secondshift.config.constants import AppEnv
 from secondshift.core import launcher
 
 PARENT = {
@@ -186,3 +188,17 @@ def test_agent_host_opens_only_the_gateway_and_only_privately() -> None:
     for public in ("0.0.0.0", "8.8.8.8"):
         with pytest.raises(ValueError, match="private"):
             binds(public)
+
+
+def test_every_setting_the_runner_reads_reaches_it() -> None:
+    source = (
+        Path(launcher.__file__).parent.parent / "config/settings/runner.py"
+    ).read_text()
+    read = {AppEnv[name] for name in re.findall(r"AppEnv\.(\w+)", source)}
+    parent = {**PARENT, **dict.fromkeys(read, "set")}
+    runner = next(
+        service
+        for service in launcher.services("127.0.0.1", 8000, parent)
+        if service.name == "runner"
+    )
+    assert read - runner.env.keys() == set()
