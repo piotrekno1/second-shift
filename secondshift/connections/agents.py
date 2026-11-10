@@ -8,6 +8,7 @@ from django.conf import settings
 from django.contrib.auth.models import User
 from django.db import transaction
 from django.utils import timezone
+from pydantic import ValidationError
 
 from secondshift.config.constants import AgentBackend
 from secondshift.connections.dao import (
@@ -187,7 +188,7 @@ def check_agent_connection(connection: AgentConnection) -> AgentConnection:
                 auth=client.encrypted_auth(connection.auth_data),
             )
         )
-    except RunnerProtocolError:
+    except (RunnerProtocolError, ValidationError):
         raise AgentConnectionError(
             "The runner could not check the login now. It may be running a job "
             "with it. Try again in a moment."

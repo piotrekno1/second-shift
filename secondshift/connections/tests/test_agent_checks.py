@@ -122,3 +122,19 @@ def test_only_the_owner_checks_a_login(
     WorkspaceMembership.objects.create(workspace=workspace, user=admin, role="admin")
     assert check(client, admin, login).status_code == 403
     assert sent == []
+
+
+def test_a_login_too_large_for_the_runner_is_refused_cleanly(
+    agent_login: tuple[Workspace, AgentConnection, User],
+    client: Client,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _, login, owner = agent_login
+    login.auth_data = "x" * 70000
+    login.save()
+    sent = fake_runner(
+        monkeypatch, {"reason": "completed", "report": "OK", "succeeded": True}
+    )
+    response = check(client, owner, login)
+    assert response.status_code == 409
+    assert not [request for request in sent if request["path"] == "/v1/agent-checks"]

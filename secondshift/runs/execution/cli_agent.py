@@ -6,6 +6,7 @@ from typing import Any
 
 from dbos import DBOS
 from django.utils import timezone
+from pydantic import ValidationError
 
 from secondshift.connections.agents import AgentConnectionError, check_agent_connection
 from secondshift.connections.models import AgentConnection
@@ -120,9 +121,8 @@ def execute_cli_step(run_id: int, session_id: str, prompt: str) -> dict[str, Any
     limits = run.plan.agent.limits
     try:
         client = get_runner_client()
-        result = client.run_agent(
-            session_id,
-            AgentInput(
+        try:
+            agent_input = AgentInput(
                 backend=connection.backend,
                 credential_key=connection.credential_key.hex,
                 auth=client.encrypted_auth(connection.auth_data),
@@ -132,8 +132,13 @@ def execute_cli_step(run_id: int, session_id: str, prompt: str) -> dict[str, Any
                 token_budget=limits.token_budget,
                 timeout_seconds=remaining,
                 subagents=run.plan.agent.subagents,
-            ),
-        )
+            )
+        except ValidationError:
+            # The message would repeat the prompt, so it is not shown.
+            raise RuntimeError(
+                "The agent's input is larger than the runner accepts."
+            ) from None
+        result = client.run_agent(session_id, agent_input)
     finally:
         end_lease(lease.pk)
     report = result.report.strip()
