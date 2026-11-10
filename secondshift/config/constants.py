@@ -30,10 +30,14 @@ LOCAL_AGENT_TAG = "secondshift-agent:local"
 LOCAL_GATEWAY_URL = "http://127.0.0.1:8001"
 
 
+# The gateway's MCP endpoint for subscription agents. Deploy files spell it out too.
+AGENT_BROKER_PATH = "gateway/agent/mcp"
+
+
 def local_agent_broker_url(gateway_url: str) -> str:
     """The gateway's agent broker, as agent containers on this host reach it."""
     port = urlsplit(gateway_url).port or 80
-    return f"http://{HOST_ALIAS}:{port}/gateway/agent/mcp"
+    return f"http://{HOST_ALIAS}:{port}/{AGENT_BROKER_PATH}"
 
 
 class ArtifactStorage(StrEnum):
