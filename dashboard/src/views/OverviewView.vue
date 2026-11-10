@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import AppIcon from '../components/AppIcon.vue'
+import FailureLabel from '../components/FailureLabel.vue'
 import Button from 'primevue/button'
 import { computed, ref, watch } from 'vue'
 import { useAgentConnectionStore } from '../stores/agentConnection'
@@ -141,7 +142,7 @@ const passRate = computed(() => {
       <div class="approval-list">
         <RouterLink v-for="job in failing" :key="job.job_id" :to="`/runs/${job.run_id}`" class="attention-row">
           <div class="activity-main"><strong>{{ job.job }}</strong><span>{{ job.repository }} · run #{{ job.run_id }}<template v-if="job.paused"> · paused</template></span></div>
-          <div class="run-failure"><span class="failure-label"><AppIcon name="alert-circle-outline" />{{ job.label }}</span><span class="failure-reason">{{ job.reason }}</span></div>
+          <div class="run-failure"><FailureLabel :label="job.label" /><span class="failure-reason">{{ job.reason }}</span></div>
           <span class="activity-time" :title="`${formatDate(job.failed_at)} · ${utcTitle(job.failed_at)}`">{{ formatRelative(job.failed_at) }}</span>
           <AppIcon name="chevron-right" class="row-chevron" />
         </RouterLink>
