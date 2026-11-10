@@ -10,10 +10,12 @@ from django.contrib.auth.models import AbstractUser
 from django.db import connection
 from django.test.utils import CaptureQueriesContext
 
+from secondshift.config.constants import RunStart
 from secondshift.gateway.models import ModelUsage
 from secondshift.jobs.models import Job
+from secondshift.jobs.tests.plans import stored_plan
 from secondshift.repositories.models import Repository
-from secondshift.runs.models import Run
+from secondshift.runs.models import Run, Task
 from secondshift.workspaces.dao import create_workspace, workspace_owner
 from secondshift.workspaces.models import Workspace
 
@@ -73,16 +75,23 @@ def seed_runs(workspace: Workspace) -> list[Job]:
         for index in range(JOBS)
     )
     start = datetime(2026, 1, 1, tzinfo=UTC)
+    slots = [(job, index) for job in jobs for index in range(RUNS_PER_JOB)]
+    tasks = Task.objects.bulk_create(
+        Task(repository_id=job.repository_id) for job, _ in slots
+    )
+    plan = stored_plan()
     runs = Run.objects.bulk_create(
         Run(
             job=job,
+            task=task,
+            execution_plan=plan,
+            started_by=RunStart.SCHEDULE,
             status=STATUSES[index % len(STATUSES)],
             commit_sha="a" * 40,
             summary=f"Run {index} of {job.name}: checked 12 pull requests.",
             scheduled_for=start + timedelta(hours=index),
         )
-        for job in jobs
-        for index in range(RUNS_PER_JOB)
+        for (job, index), task in zip(slots, tasks, strict=True)
     )
     spread_over_days(runs)
     ModelUsage.objects.bulk_create(
