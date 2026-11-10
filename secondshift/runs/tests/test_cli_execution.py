@@ -19,12 +19,12 @@ from secondshift.jobs.tests.test_execution_defaults import (
 )
 from secondshift.runner.agent_credentials import (
     decrypt_agent_auth,
-    provisioning_public_key,
 )
+from secondshift.runner.tests.fakes import agent_runner
 from secondshift.runs.dao import with_model_usage
 from secondshift.runs.execution import cli_agent
 from secondshift.runs.execution.cli_agent import execute_cli_step
-from secondshift.runs.models import AgentLease, Run, RunEvent
+from secondshift.runs.models import AgentLease, Run, RunEvent, RunFailure
 from secondshift.runs.serialization import serialize_run, serialize_run_detail
 
 agent_login = agent_login_fixture
@@ -42,23 +42,9 @@ def memory_artifacts(settings: Any, tmp_path: Path) -> None:
 
 
 def fake_runner(
-    monkeypatch: pytest.MonkeyPatch, result: dict[str, Any]
+    monkeypatch: pytest.MonkeyPatch, result: dict[str, Any] | Exception
 ) -> list[dict[str, Any]]:
-    """Answer the provisioning key and agent requests, and record the bodies."""
-    sent: list[dict[str, Any]] = []
-    runner = Mock()
-
-    def send(method: str, path: str, **kwargs: Any) -> str:
-        sent.append({"method": method, "path": path, **kwargs})
-        return path
-
-    def payload(path: str) -> dict[str, Any]:
-        if path == "/v1/agent-provisioning-key":
-            return {"public_key": provisioning_public_key()}
-        return result
-
-    runner.send.side_effect = send
-    runner.response_payload.side_effect = payload
+    runner, sent = agent_runner(result)
     monkeypatch.setattr(cli_agent, "get_runner_client", lambda: runner)
     return sent
 
@@ -122,6 +108,31 @@ def test_cli_run_explains_a_stopped_sandbox_without_blaming_the_login(
     assert result["succeeded"] is False
     assert result["summary"].startswith("The agent's sandbox stopped")
     assert "login" not in result["summary"]
+
+
+@pytest.mark.parametrize(
+    ("reason", "failure", "headline"),
+    [
+        ("timed_out", RunFailure.TIMEOUT, "Timed out: Stopped after"),
+        ("token_budget_exhausted", RunFailure.BUDGET, "Budget used up: Stopped at"),
+        ("turn_budget_exhausted", RunFailure.BUDGET, "Budget used up: Stopped at"),
+        ("quota_exhausted", RunFailure.MODEL_PROVIDER, "Subscription usage"),
+    ],
+)
+def test_cli_run_records_the_same_failure_as_the_built_in_agent(
+    agent_run: tuple[Run, User],
+    monkeypatch: pytest.MonkeyPatch,
+    reason: str,
+    failure: RunFailure,
+    headline: str,
+) -> None:
+    run, _ = agent_run
+    fake_runner(monkeypatch, {"reason": reason})
+
+    result = execute_cli_step(run.pk, "run-1", "Read the skill")
+
+    assert result["failure"] == failure
+    assert result["summary"].startswith(headline)
 
 
 def test_cli_run_explains_a_login_lost_before_start(
@@ -200,7 +211,7 @@ def test_cli_usage_in_run_responses(
     RunEvent.objects.create(run=run, message="Later event")
     with django_assert_num_queries(1):
         response = serialize_run(
-            with_model_usage(Run.objects.select_related("job__repository")).get(
+            with_model_usage(Run.objects.select_related("job", "task__repository")).get(
                 pk=run.pk
             )
         )

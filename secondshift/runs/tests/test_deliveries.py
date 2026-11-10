@@ -10,7 +10,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 from django.test import Client
 
-from secondshift.config.constants import RETRY_NOTIFICATION_WORKFLOW
+from secondshift.config.constants import RETRY_NOTIFICATION_WORKFLOW, RunStart
 from secondshift.connections import webhooks
 from secondshift.connections.models import Connection
 from secondshift.jobs.models import JobGrant
@@ -23,6 +23,7 @@ from secondshift.jobs.tests.test_needs import (
 )
 from secondshift.repositories.models import Repository
 from secondshift.runs import deliveries
+from secondshift.runs.dao import create_task
 from secondshift.runs.models import Run, RunDelivery
 from secondshift.runs.orchestration import workflows
 from secondshift.workspaces.models import Workspace, WorkspaceMembership
@@ -43,12 +44,14 @@ def approved_run(settings: Any, setup: Setup) -> tuple[Run, Connection, JobGrant
         reviewed_by=user,
     )
     run = Run.objects.create(
+        task=create_task(repository=job.repository),
+        started_by=RunStart.SCHEDULE,
         job=job,
         status=Run.Status.SUCCEEDED,
         commit_sha="abc123",
         scheduled_for=datetime(2026, 10, 1, tzinfo=UTC),
         summary="All good.",
-        execution_plan=build_execution_plan(job),
+        execution_plan=build_execution_plan(job).stored(),
     )
     return run, connection, grant
 
@@ -182,7 +185,7 @@ def test_retrying_sends_the_stored_report_again(
     delivery.refresh_from_db()
     assert delivery.status == RunDelivery.Status.DELIVERED
     assert receiver.sent == [run.pk, run.pk]
-    # The agent did not run again; the run's outcome is unchanged.
+    # The agent did not run again. The run's outcome is unchanged.
     run.refresh_from_db()
     assert run.status == Run.Status.SUCCEEDED
 

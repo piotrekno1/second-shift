@@ -1,10 +1,10 @@
-import type { ConnectionUsage, Run, RunLimitItem } from '../types'
+import type { Connection, ConnectionUsage, Run, RunLimitItem } from '../types'
 
 // Dates read in English like the rest of the UI, always with their timezone.
 const LOCALE = 'en-GB'
 
 /** The viewer's timezone, e.g. "Europe/Warsaw". */
-export function viewerTimeZone(): string {
+function viewerTimeZone(): string {
   return Intl.DateTimeFormat().resolvedOptions().timeZone
 }
 
@@ -125,8 +125,6 @@ const STATUS_LABELS: Record<string, string> = {
   removed: 'Removed from manifest',
   // Same words the Connections page uses for a binding with no connection.
   unconfigured: 'Not connected',
-  'policy-ready': 'Policy ready',
-  'policy-blocked': 'Policy blocked',
 }
 
 const KIND_LABELS: Record<string, string> = {
@@ -134,7 +132,6 @@ const KIND_LABELS: Record<string, string> = {
   mcp: 'MCP',
   api: 'API',
   model: 'Model provider',
-  identity: 'Sign-in',
   source: 'Repository access',
 }
 
@@ -171,8 +168,6 @@ const PROVIDER_LABELS: Record<string, string> = {
   openai_compatible: 'OpenAI-compatible',
   github: 'GitHub',
   sentry: 'Sentry',
-  chatgpt: 'ChatGPT',
-  slack: 'Slack',
   mcp: 'MCP server',
   api: 'HTTP API',
   webhook: 'Webhook',
@@ -199,28 +194,9 @@ export function titleFromSlug(slug: string): string {
     .join(' ')
 }
 
-export function formatModelUsage(tokens: number, costUsd: number | null, partial = false): string {
-  if (!tokens) return ''
-  const count = new Intl.NumberFormat(undefined, { notation: 'compact', maximumFractionDigits: 1 }).format(tokens)
-  if (costUsd === null) return `${count} tokens`
-  const cost = new Intl.NumberFormat(undefined, {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: costUsd < 1 ? 4 : 2,
-  }).format(costUsd)
-  return `${count} tokens · ${partial ? 'at least ' : ''}${cost}`
-}
-
 export function formatDuration(start: string | null, end: string | null, now = Date.now()): string {
   if (!start) return 'Not started'
-  const elapsed = Math.max(0, Math.round(((end ? Date.parse(end) : now) - Date.parse(start)) / 1000))
-  const hours = Math.floor(elapsed / 3600)
-  const minutes = Math.floor((elapsed % 3600) / 60)
-  const seconds = elapsed % 60
-  if (hours) return `${hours}h ${minutes}m`
-  if (minutes) return `${minutes}m ${seconds}s`
-  return `${seconds}s`
+  return formatSeconds(Math.max(0, ((end ? Date.parse(end) : now) - Date.parse(start)) / 1000))
 }
 
 /** "11:59:41", for timelines whose heading names the zone. */
@@ -239,18 +215,6 @@ export function formatBytes(bytes: number | null): string {
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`
-}
-
-/** A one-line plain-text preview of a Markdown summary, for lists. */
-export function plainSummary(text: string): string {
-  return text
-    .replace(/```[\s\S]*?```/g, ' ')
-    .replace(/`([^`]*)`/g, '$1')
-    .replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1')
-    .replace(/^\s{0,3}(#{1,6}|>|[-*+]|\d+\.)\s+/gm, '')
-    .replace(/(\*\*|__|\*|_|~~)(\S(?:.*?\S)?)\1/g, '$2')
-    .replace(/\s+/g, ' ')
-    .trim()
 }
 
 export function formatTokens(tokens: number): string {
@@ -331,7 +295,6 @@ export function runStats(run: RunStatSource, now = Date.now()): RunStat[] {
   return stats
 }
 
-/** Greeting for the viewer's local hour. */
 /** The seven days the overview numbers cover, ending today: "21–27 Oct". */
 export function weekRange(now: Date): string {
   const start = new Date(now)
@@ -356,13 +319,9 @@ export interface JobOutcomes {
   chronological: Run[]
 }
 
-function seconds(run: Pick<Run, 'started_at' | 'finished_at'>): number | null {
+export function runSeconds(run: Pick<Run, 'started_at' | 'finished_at'>): number | null {
   if (!run.started_at || !run.finished_at) return null
   return Math.max(0, (Date.parse(run.finished_at) - Date.parse(run.started_at)) / 1000)
-}
-
-export function runSeconds(run: Pick<Run, 'started_at' | 'finished_at'>): number | null {
-  return seconds(run)
 }
 
 /** Headline numbers for a job from its recent runs (newest first, as the API sends them). */
@@ -372,7 +331,7 @@ export function jobOutcomes(runs: Run[]): JobOutcomes {
   const succeeded = successful.length
   // Duration and cost describe a real run of the skill, so failed runs
   // (often stopped in seconds) would only distort them.
-  const durations = successful.map(seconds).filter((value): value is number => value !== null).sort((a, b) => a - b)
+  const durations = successful.map(runSeconds).filter((value): value is number => value !== null).sort((a, b) => a - b)
   const middle = Math.floor(durations.length / 2)
   const median = durations.length === 0
     ? null
@@ -412,7 +371,6 @@ export function formatLimit(unit: RunLimitItem['unit'], value: number): string {
   return value.toLocaleString('en')
 }
 
-/** Week-over-week spend, e.g. "↑ 40% vs previous week". */
 /** A week against the one before. `delta` is empty when there is nothing to compare. */
 export interface Trend {
   delta: string
@@ -483,11 +441,16 @@ export function finishedBinding(value: string): string {
 }
 
 /** A token expiring within this many days gets a warning. */
-export const TOKEN_WARNING_DAYS = 14
+const TOKEN_WARNING_DAYS = 14
 
 /** How a repository source reaches GitHub. */
 export function sourceAuthLabel(auth: string | undefined): string {
   return auth === 'token' ? 'Personal token' : 'GitHub App'
+}
+
+/** Revoked or expired: saving needs a new secret, and the button says Reconnect. */
+export function needsReconnect(connection: Pick<Connection, 'status'> | null | undefined): boolean {
+  return Boolean(connection) && connection?.status !== 'connected'
 }
 
 export function expiresSoon(expiresAt: string | null, now: number = Date.now()): boolean {

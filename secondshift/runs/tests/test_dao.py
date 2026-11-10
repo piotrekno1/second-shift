@@ -6,15 +6,17 @@ from django.utils import timezone
 
 from secondshift.config.constants import RunStart
 from secondshift.jobs.models import Job
+from secondshift.jobs.tests.plans import stored_plan
 from secondshift.repositories.models import Repository
 from secondshift.runs.dao import (
     active_runs,
     active_tasks,
+    create_task,
     latest_active_run,
     run_for_repeat_key,
     started_run_count,
 )
-from secondshift.runs.models import RUN_ENQUEUE_FAILED, Run, Task
+from secondshift.runs.models import Run, RunFailure
 from secondshift.workspaces.dao import create_workspace
 
 
@@ -37,8 +39,15 @@ def job(db: object) -> Job:
 
 
 def make_run(job: Job | None, status: str, **fields: object) -> Run:
+    if "task" not in fields:
+        fields["task"] = create_task(repository=job.repository)
+    fields.setdefault("started_by", RunStart.SCHEDULE)
     return Run.objects.create(
-        job=job, status=status, scheduled_for=timezone.now(), **fields
+        job=job,
+        status=status,
+        scheduled_for=timezone.now(),
+        execution_plan=stored_plan(),
+        **fields,
     )
 
 
@@ -61,9 +70,7 @@ def test_latest_active_run_is_the_newest_unfinished_one(job: Job) -> None:
 
 
 def test_active_tasks_are_unfinished_ad_hoc_runs_in_the_repository(job: Job) -> None:
-    task = Task.objects.create(
-        repository=job.repository, commit_sha="abc", scheduled_for=timezone.now()
-    )
+    task = create_task(repository=job.repository)
     ad_hoc = make_run(None, Run.Status.QUEUED, task=task)
     make_run(None, Run.Status.SUCCEEDED, task=task)
     make_run(job, Run.Status.QUEUED)
@@ -81,7 +88,7 @@ def test_run_for_repeat_key_skips_old_and_unqueued_runs(job: Job) -> None:
         finished_at=since - timedelta(minutes=1),
     )
     make_run(
-        job, Run.Status.FAILED, input_snapshot=snapshot, summary=RUN_ENQUEUE_FAILED
+        job, Run.Status.FAILED, input_snapshot=snapshot, failure=RunFailure.NOT_QUEUED
     )
     assert run_for_repeat_key(job, "event-1", since) is None
 
@@ -102,7 +109,7 @@ def test_started_run_count_ignores_unqueued_and_other_sources(job: Job) -> None:
         job,
         Run.Status.FAILED,
         started_by=RunStart.WEBHOOK,
-        summary=RUN_ENQUEUE_FAILED,
+        failure=RunFailure.NOT_QUEUED,
     )
     make_run(job, Run.Status.SUCCEEDED, started_by=RunStart.SCHEDULE)
     old = make_run(job, Run.Status.SUCCEEDED, started_by=RunStart.WEBHOOK)

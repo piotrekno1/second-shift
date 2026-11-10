@@ -8,15 +8,14 @@ from typing import Any
 from dbos import DBOS
 from jsonschema import ValidationError, validate
 
-from secondshift.connections.dao import auto_approved_connection
 from secondshift.connections.errors import ExternalToolError, ToolArgumentError
 from secondshift.connections.external import Authorization, external_kind
 from secondshift.connections.mcp.base import CustomMCPToolError
-from secondshift.connections.models import Connection
-from secondshift.jobs.dao import approved_tool_grant
 from secondshift.jobs.tool_policy import AuthorizedTool, resolve_tool
 from secondshift.jobs.tool_rules import ToolRuleViolation, apply_rules
+from secondshift.repositories.github import repository_ref
 from secondshift.runs.dao import add_event, get_run
+from secondshift.runs.execution.consent import approved_connection
 from secondshift.runs.models import Run
 
 
@@ -28,52 +27,22 @@ class ExternalToolFailure:
 
 def frozen_rules(run: Run, tool: AuthorizedTool) -> dict[str, Any]:
     """The owner's rules for this tool, as copied into the run's plan."""
-    capability = next(
-        item
-        for item in run.execution_plan["capabilities"]
-        if item["kind"] == tool.kind and item["binding"] == tool.binding
-    )
-    return capability.get("tool_rules", {}).get(str(tool.provider_tool), {})
+    capability = run.plan.capability(tool.kind, str(tool.binding))
+    return capability.tool_rules.get(str(tool.provider_tool), {})
 
 
 def broker_connection(run: Run, name: str) -> Authorization:
     """Check the grant and the connection against the run's frozen plan."""
-    tool = resolve_tool(run.execution_plan, name)
+    tool = resolve_tool(run.plan, name)
     adapter = external_kind(tool.kind)
-    capability = next(
-        item
-        for item in run.execution_plan["capabilities"]
-        if item["kind"] == tool.kind and item["binding"] == tool.binding
-    )
-    if run.job_id is None:
-        connection = standalone_connection(run, capability)
-        if connection is None:
-            raise ExternalToolError("Access to this tool is no longer approved.")
-        return adapter.authorize(
-            connection,
-            capability.get("external", {}),
-            run.repository,
-            str(tool.provider_tool),
-        )
-    grant = approved_tool_grant(
-        run.job, tool.kind, tool.binding, capability.get("connection_id")
-    )
-    if (
-        run.status in Run.FINISHED_STATUSES
-        or not grant
-        or not grant.connection
-        or grant.connection.kind != tool.kind
-        or grant.connection.workspace_id != run.workspace_id
-        or grant.connection.binding_key != tool.binding
-        or tool.provider_tool not in grant.allowed_tools
-        or tool.provider_tool not in grant.capability_request.requested_tools
-        or tool.provider_tool not in grant.connection.available_tools
-    ):
+    capability = run.plan.capability(tool.kind, str(tool.binding))
+    connection = approved_connection(run, capability, str(tool.provider_tool))
+    if connection is None:
         raise ExternalToolError("Access to this tool is no longer approved.")
     return adapter.authorize(
-        grant.connection,
-        capability.get("external", {}),
-        run.repository,
+        connection,
+        capability.external or {},
+        repository_ref(run.repository),
         str(tool.provider_tool),
     )
 
@@ -93,7 +62,7 @@ def call_external_tool_step(
 ) -> dict[str, Any] | ExternalToolFailure:
     run = get_run(run_id, "job__repository", "task__repository")
     authorization = broker_connection(run, name)
-    tool = resolve_tool(run.execution_plan, name)
+    tool = resolve_tool(run.plan, name)
     # Owner rules first. The provider's own scope rules run last, inside call,
     # so a restriction can never loosen them.
     try:
@@ -147,30 +116,8 @@ def call_external_tool_step(
             "result_bytes": len(json.dumps(result).encode()),
         },
     )
-    limit = int(run.execution_plan["agent"]["limits"]["max_tool_result_chars"])
+    limit = run.plan.agent.limits.max_tool_result_chars
     text = json.dumps(result)
     if len(text) > limit:
         return {"output": text[:limit], "output_truncated": True}
     return result
-
-
-def standalone_connection(run: Run, capability: dict[str, Any]) -> Connection | None:
-    """Recheck automatic consent; a frozen plan never bypasses disconnection."""
-    if (
-        run.status in Run.FINISHED_STATUSES
-        and capability.get("kind") != Connection.Kind.NOTIFICATION
-    ):
-        return None
-    if not capability.get("authorized"):
-        return None
-    connection = auto_approved_connection(
-        run.workspace_id,
-        capability.get("connection_id"),
-        capability.get("kind"),
-        capability.get("binding"),
-    )
-    if connection is None or set(capability.get("effective_tools", [])) - set(
-        connection.available_tools
-    ):
-        return None
-    return connection

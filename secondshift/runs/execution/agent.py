@@ -8,7 +8,6 @@ from pydantic_ai.capabilities import ResolveModelId
 from pydantic_ai.durable_exec.dbos import DBOSDurability
 from pydantic_ai.models import Model, ModelResolutionContext
 
-from secondshift.jobs.agent_policy import AgentPolicy
 from secondshift.runs.dao import get_run
 from secondshift.runs.execution.budgets import FinishWithinBudget
 from secondshift.runs.execution.deadlines import check_deadline
@@ -21,7 +20,19 @@ RUN_MODEL_ID = "secondshift-run-model"
 
 
 @dataclass(frozen=True)
-class AgentLimits(AgentPolicy):
+class AgentLimits:
+    max_turns: int
+    max_tool_calls: int
+    max_tool_result_chars: int = 65_536
+
+    def __post_init__(self) -> None:
+        if self.max_turns < 1:
+            raise ValueError("max_turns must be positive")
+        if self.max_tool_calls < 0:
+            raise ValueError("max_tool_calls cannot be negative")
+        if self.max_tool_result_chars < 1:
+            raise ValueError("max_tool_result_chars must be positive")
+
     def usage_limits(self) -> UsageLimits:
         """Translate server policy to Pydantic AI's native run limits."""
         return UsageLimits(

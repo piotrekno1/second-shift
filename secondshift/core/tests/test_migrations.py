@@ -48,7 +48,6 @@ def test_fresh_database_uses_current_app_tables_and_content_types() -> None:
     tables = set(connection.introspection.table_names())
     assert {
         "connections_connection",
-        "connections_secret",
         "connections_oauthauthorization",
         "jobs_job",
         "jobs_capabilityrequest",

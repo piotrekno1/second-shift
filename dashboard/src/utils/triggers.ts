@@ -4,11 +4,11 @@ const STARTED_BY: Record<RunStart, string> = {
   schedule: 'Schedule',
   manual: 'Run now',
   webhook: 'Webhook',
-  '': 'Not recorded',
+  mcp: 'MCP client',
 }
 
-export function startedByLabel(startedBy: RunStart | undefined): string {
-  return STARTED_BY[startedBy ?? ''] ?? STARTED_BY['']
+export function startedByLabel(startedBy: RunStart): string {
+  return STARTED_BY[startedBy]
 }
 
 /** One line on the trigger's state, for the panel heading. */

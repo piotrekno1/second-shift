@@ -6,13 +6,13 @@ from typing import Any
 
 from dbos import DBOS
 from django.utils import timezone
+from pydantic import ValidationError
 
-from secondshift.config.constants import SUMMARY_MAX_CHARS, AgentOutcome
 from secondshift.connections.agents import AgentConnectionError, check_agent_connection
 from secondshift.connections.models import AgentConnection
-from secondshift.runner.agent_credentials import encrypt_agent_auth
+from secondshift.runner.agent_image.outcomes import AgentOutcome
+from secondshift.runner.agent_protocol import AgentInput
 from secondshift.runner.client import get_runner_client
-from secondshift.runs.artifacts import store_run_text
 from secondshift.runs.dao import (
     add_event,
     create_lease,
@@ -21,18 +21,23 @@ from secondshift.runs.dao import (
     run_has_lease,
 )
 from secondshift.runs.execution.agent_broker import AgentAccessError, run_connection
-from secondshift.runs.execution.deadlines import run_deadline
+from secondshift.runs.execution.budgets import Budget, budget_failure
+from secondshift.runs.execution.deadlines import run_deadline, timeout_failure
+from secondshift.runs.execution.result import AgentResult
 from secondshift.runs.execution.subagents import FINISHED, finish
-from secondshift.runs.models import Run
+from secondshift.runs.models import Run, RunFailure
+from secondshift.runs.reporting.failures import StageFailure
 
 FAILURE_SUMMARIES = {
     AgentOutcome.QUOTA_EXHAUSTED: "Subscription usage exhausted. Wait for your provider's allowance to reset, then start a new run.",
     AgentOutcome.RECONNECT_REQUIRED: "Agent sign-in expired. Reconnect the subscription on Models, then start a new run.",
-    AgentOutcome.TIMED_OUT: "The agent reached this run's time limit.",
-    AgentOutcome.TOKEN_BUDGET_EXHAUSTED: "The agent reported usage at or above this run's token budget.",
-    AgentOutcome.TURN_BUDGET_EXHAUSTED: "The agent reached this run's maximum turns.",
     AgentOutcome.SUBAGENT_REFUSED: "The agent ran a sub-agent this run does not allow, so it was stopped.",
     AgentOutcome.AGENT_STOPPED: "The agent's sandbox stopped before it finished, for example because it ran out of memory or was stopped. Start a new run.",
+}
+FAILURE_KINDS = {
+    AgentOutcome.QUOTA_EXHAUSTED: RunFailure.MODEL_PROVIDER,
+    AgentOutcome.RECONNECT_REQUIRED: RunFailure.MODEL_PROVIDER,
+    AgentOutcome.AGENT_STOPPED: RunFailure.SANDBOX,
 }
 DEFAULT_FAILURE = "The agent could not finish. Check its login and subscription usage before starting a new run."
 
@@ -62,6 +67,19 @@ def confirm_sign_in(run: Run, connection: AgentConnection) -> str:
         return AgentOutcome.QUOTA_EXHAUSTED
     # Refused, or a check that did not finish and so proves nothing.
     return AgentOutcome.RECONNECT_REQUIRED
+
+
+def outcome_failure(run: Run, outcome: str) -> StageFailure:
+    """The same failure the built-in agent records for the same stop."""
+    if outcome == AgentOutcome.TIMED_OUT:
+        return timeout_failure(run)
+    limits = run.plan.agent.limits
+    if outcome == AgentOutcome.TOKEN_BUDGET_EXHAUSTED:
+        return budget_failure(Budget.TOKENS, limits.token_budget)
+    if outcome == AgentOutcome.TURN_BUDGET_EXHAUSTED:
+        return budget_failure(Budget.REQUESTS, limits.max_turns)
+    summary = FAILURE_SUMMARIES.get(outcome, DEFAULT_FAILURE)
+    return StageFailure(FAILURE_KINDS.get(outcome, RunFailure.SKILL), summary, summary)
 
 
 def record_subagents(run: Run, subagents: list[dict[str, int]]) -> None:
@@ -100,60 +118,50 @@ def execute_cli_step(run_id: int, session_id: str, prompt: str) -> dict[str, Any
         raise RuntimeError("The run reached its time limit.")
     token = secrets.token_urlsafe(40)
     lease = create_lease(run, hashlib.sha256(token.encode()).hexdigest(), session_id)
-    limits = run.execution_plan["agent"]["limits"]
+    limits = run.plan.agent.limits
     try:
         client = get_runner_client()
-        provisioning = client.response_payload(
-            client.send("GET", "/v1/agent-provisioning-key")
-        )
-        encrypted_auth = encrypt_agent_auth(
-            str(provisioning["public_key"]), connection.auth_data
-        )
-        response = client.send(
-            "POST",
-            f"/v1/sessions/{session_id}/agent",
-            timeout=remaining + 30,
-            json={
-                "backend": connection.backend,
-                "credential_key": connection.credential_key.hex,
-                "auth": encrypted_auth,
-                "broker_token": token,
-                "prompt": prompt,
-                "max_turns": limits["max_turns"],
-                "token_budget": limits["token_budget"],
-                "timeout_seconds": remaining,
-                "subagents": run.execution_plan["agent"].get("subagents", 0),
-            },
-        )
-        result = client.response_payload(response)
+        try:
+            agent_input = AgentInput(
+                backend=connection.backend,
+                credential_key=connection.credential_key.hex,
+                auth=client.encrypted_auth(connection.auth_data),
+                broker_token=token,
+                prompt=prompt,
+                max_turns=limits.max_turns,
+                token_budget=limits.token_budget,
+                timeout_seconds=remaining,
+                subagents=run.plan.agent.subagents,
+            )
+        except ValidationError:
+            # The message would repeat the prompt, so it is not shown.
+            raise RuntimeError(
+                "The agent's input is larger than the runner accepts."
+            ) from None
+        result = client.run_agent(session_id, agent_input)
     finally:
         end_lease(lease.pk)
-    report = str(result.get("report", "")).strip()
-    succeeded = bool(result.get("succeeded")) and bool(report)
-    reason = str(result.get("reason", AgentOutcome.AGENT_FAILED))
+    report = result.report.strip()
+    succeeded = result.succeeded and bool(report)
+    reason = result.reason
     if reason == AgentOutcome.RECONNECT_REQUIRED:
         reason = confirm_sign_in(run, connection)
-    record_subagents(run, result.get("subagents", []))
+    record_subagents(run, result.subagents)
     add_event(
         run.pk,
         "Agent execution finished.",
         metadata={
             "backend": connection.backend,
             "reason": reason,
-            "versions": result.get("versions", {}),
-            "usage": result.get("usage", {}),
+            "versions": result.versions,
+            "usage": result.usage,
         },
     )
-    return {
-        "exit_code": 0 if succeeded else 1,
-        "succeeded": succeeded,
-        "output": store_run_text(run, report).as_dict() if succeeded else None,
-        "summary": report[:SUMMARY_MAX_CHARS]
-        if succeeded
-        else FAILURE_SUMMARIES.get(reason, DEFAULT_FAILURE),
-        "details": {
-            "backend": connection.backend,
-            "reason": reason,
-            "usage": result.get("usage", {}),
-        },
-    }
+    details = {"backend": connection.backend, "reason": reason, "usage": result.usage}
+    if succeeded:
+        agent_result = AgentResult.success(run, report, details)
+    else:
+        agent_result = AgentResult.stopped(
+            run, outcome_failure(run, reason), details=details
+        )
+    return agent_result.model_dump(mode="json")

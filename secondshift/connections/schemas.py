@@ -5,6 +5,7 @@ from ninja import Schema
 from pydantic import Field, SecretStr
 
 from secondshift.connections.dao import has_pending_cleanup
+from secondshift.connections.execution import recent_login_runs
 from secondshift.connections.models import AgentConnection
 from secondshift.workspaces.access import Action, allows
 
@@ -227,12 +228,6 @@ class WebhookSampleSchema(Schema):
     summary_max_chars: int
 
 
-class SecretSchema(Schema):
-    name: str
-    description: str
-    last_used_at: datetime | None
-
-
 class AgentConnectionSchema(Schema):
     id: int
     backend: str
@@ -247,6 +242,14 @@ class AgentConnectionSchema(Schema):
     last_check: dict[str, Any] | None = None
     # The runner still holds a cached copy of an earlier login.
     runner_cleanup_pending: bool = False
+
+    @staticmethod
+    def resolve_recent_runs(obj: AgentConnection) -> int:
+        # A list counts every login at once and attaches the counts.
+        counted = getattr(obj, "recent_runs", None)
+        if counted is None:
+            counted = recent_login_runs(obj.workspace_id)[obj.pk]
+        return counted
 
     @staticmethod
     def resolve_runner_cleanup_pending(obj: AgentConnection) -> bool:
@@ -269,3 +272,36 @@ class AgentConnectionInput(Schema):
     backend: str
     display_name: str = Field(default="", max_length=200)
     auth: SecretStr = Field(max_length=32000)
+
+
+class ExecutionChoiceSchema(Schema):
+    key: str
+    label: str
+    disabled: bool = False
+    # Why this choice cannot run jobs, or empty when it can.
+    problem: str = ""
+
+
+class ExecutionStatusSchema(Schema):
+    label: str
+    backend: str
+    problem: str
+    # False until an owner picks a model provider or a login.
+    chosen: bool
+    # Nothing to choose yet: no model provider and no login saved.
+    needs_setup: bool
+    fix_connection_id: int | None
+
+
+class ExecutionConfigurationSchema(Schema):
+    enabled: bool
+    choices: list[ExecutionChoiceSchema]
+    selected: str
+    label: str
+    backend: str
+    ready: bool
+    problem: str
+
+
+class ExecutionPreferenceSchema(Schema):
+    key: str = Field(max_length=100)

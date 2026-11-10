@@ -11,15 +11,16 @@ from django.utils import timezone
 from pydantic_ai import ModelRetry, RunContext, RunUsage
 from pydantic_ai.models.test import TestModel
 
+from secondshift.config.constants import RunStart
 from secondshift.jobs.models import Job
+from secondshift.jobs.tests.plans import CAPABILITY, stored_plan
 from secondshift.jobs.tool_policy import LOCAL_TOOLS
 from secondshift.repositories.models import Repository
 from secondshift.runner.protocol import (
     CommandRequest,
     CommandResult,
-    FakeRunnerBackend,
-    RunnerSessionSpec,
 )
+from secondshift.runs.dao import create_task
 from secondshift.runs.execution.run import WORKSPACE_AGENT, execute_agent_run
 from secondshift.runs.execution.workspace_tools import (
     WorkspaceToolDeps,
@@ -114,23 +115,7 @@ def test_runner_call_is_stable_bounded_and_contains_no_runtime_configuration(
 
 
 def test_pydantic_agent_calls_the_runner_backed_tool(monkeypatch) -> None:
-    backend = FakeRunnerBackend(
-        lambda spec, request: CommandResult(
-            call_id=request.call_id,
-            exit_code=0,
-            output=f"skill text for run {spec.run_id}",
-        )
-    )
-    session_id = backend.start(
-        RunnerSessionSpec(
-            run_id=9,
-            session_key="0123456789abcdef0123456789abcdef",
-            repository="example/project",
-            commit_sha="a" * 40,
-            image="server-owned:test",
-            source_sha256="d" * 64,
-        )
-    )
+    requests: list[CommandRequest] = []
 
     def execute(
         session_id: str,
@@ -139,10 +124,8 @@ def test_pydantic_agent_calls_the_runner_backed_tool(monkeypatch) -> None:
         cwd: str,
         timeout_seconds: int,
     ) -> CommandResult:
-        return backend.execute(
-            session_id,
-            CommandRequest(call_id, tuple(argv), cwd, timeout_seconds),
-        )
+        requests.append(CommandRequest(call_id, tuple(argv), cwd, timeout_seconds))
+        return CommandResult(call_id=call_id, exit_code=0, output="skill text")
 
     monkeypatch.setattr(
         "secondshift.runs.execution.workspace_tools.execute_runner_command_step",
@@ -158,7 +141,7 @@ def test_pydantic_agent_calls_the_runner_backed_tool(monkeypatch) -> None:
             "Read the skill.",
             deps=WorkspaceToolDeps(
                 run_id=9,
-                session_id=session_id,
+                session_id="session-9",
                 max_output_chars=1_000,
                 deadline=LATER,
             ),
@@ -166,7 +149,7 @@ def test_pydantic_agent_calls_the_runner_backed_tool(monkeypatch) -> None:
         )
 
     assert result.output == "Review complete."
-    assert backend.requests[0].argv == ("cat", "--", "a")
+    assert requests[0].argv == ("cat", "--", "a")
 
 
 @pytest.mark.django_db
@@ -182,7 +165,6 @@ def test_execute_agent_run_stores_report_and_uses_native_limits(
             "OPTIONS": {"location": tmp_path / "artifacts", "base_url": None},
         },
     }
-    storages._storages.clear()
     user = get_user_model().objects.create_user(username="owner")
     workspace = create_workspace(name="Test", slug="test", owner=user)
     repository = Repository.objects.create(
@@ -200,13 +182,14 @@ def test_execute_agent_run_stores_report_and_uses_native_limits(
         config_hash="hash",
     )
     run = Run.objects.create(
+        task=create_task(repository=job.repository),
+        started_by=RunStart.SCHEDULE,
         job=job,
         commit_sha="a" * 40,
         scheduled_for=timezone.now(),
-        input_snapshot={"skill_path": job.skill_path},
-        execution_plan={
-            "ready": True,
-            "agent": {
+        execution_plan=stored_plan(
+            job={"key": job.key, "skill_path": job.skill_path},
+            agent={
                 "tools": list(LOCAL_TOOLS),
                 "limits": {
                     "max_turns": 8,
@@ -214,7 +197,7 @@ def test_execute_agent_run_stores_report_and_uses_native_limits(
                     "max_tool_result_chars": 1_000,
                 },
             },
-        },
+        ),
     )
     captured: dict[str, Any] = {}
 
@@ -230,22 +213,18 @@ def test_execute_agent_run_stores_report_and_uses_native_limits(
 
     result = execute_agent_run(run, "run-1")
 
-    assert result["succeeded"] is True
-    assert result["summary"] == "Repository health is good."
+    assert result.succeeded is True
+    assert result.summary == "Repository health is good."
     assert captured["usage_limits"].request_limit == 8
     assert captured["usage_limits"].tool_calls_limit == 20
     assert job.skill_path in captured["prompt"]
     assert captured["deps"].allowed_tools == LOCAL_TOOLS
-    with storages["run_artifacts"].open(result["output"]["path"]) as stored:
+    with storages["run_artifacts"].open(result.output.path) as stored:
         assert stored.read().decode() == "Repository health is good."
 
     run.execution_plan["capabilities"] = [
-        {
-            "kind": "mcp",
-            "binding": "observability",
-            "authorized": True,
-            "effective_tools": ["query_metrics"],
-        }
+        CAPABILITY | {"authorized": True, "effective_tools": ["query_metrics"]}
     ]
+    run.save(update_fields=["execution_plan"])
     with pytest.raises(ValueError, match="no longer approved"):
-        execute_agent_run(run, "run-1")
+        execute_agent_run(Run.objects.get(pk=run.pk), "run-1")

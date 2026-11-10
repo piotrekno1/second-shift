@@ -1,11 +1,11 @@
 """The control plane sends only fixed agent choices, never Docker options."""
 
-from typing import Any, Literal
+from typing import Literal
 
 from ninja import Schema
 from pydantic import ConfigDict, Field, SecretStr
 
-from secondshift.config.constants import AgentOutcome
+from secondshift.runner.agent_image.outcomes import AgentOutcome
 
 
 class AgentInput(Schema):
@@ -39,6 +39,3 @@ class AgentOutput(Schema):
     # Each sub-agent's model requests and tool calls, in the order they started.
     subagents: list[dict[str, int]] = Field(default_factory=list, max_length=100)
     versions: dict[str, str] = Field(default_factory=dict)
-
-    def as_dict(self) -> dict[str, Any]:
-        return self.model_dump()

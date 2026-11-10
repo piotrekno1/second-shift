@@ -1,30 +1,29 @@
 """Create runs from job policy, whether started by cron, by hand or by a trigger."""
 
-from copy import deepcopy
 from datetime import datetime
-from typing import Any
 
 from django.contrib.auth.models import User
 from django.db import transaction
 from django.utils import timezone
 
-from secondshift.config.constants import RunStart, TaskOrigin
+from secondshift.config.constants import RunStart
 from secondshift.jobs.dao import lock_job
 from secondshift.jobs.models import JOB_REMOVED, Job
+from secondshift.jobs.plan import ExecutionPlan
 from secondshift.jobs.planning import build_execution_plan
-from secondshift.jobs.readiness import plan_problems
-from secondshift.runs.artifacts import job_input_snapshot, store_run_payload
+from secondshift.jobs.readiness import execution_problems
+from secondshift.runs.artifacts import store_run_payload
 from secondshift.runs.dao import (
     add_event,
     create_run_record,
     create_task,
     job_run_for_slot,
     latest_active_run,
-    update_task_snapshot,
 )
 from secondshift.runs.history import previous_run_ids
+from secondshift.runs.inputs import RunInput
 from secondshift.runs.issue_delivery import record_pending_issues
-from secondshift.runs.models import Run
+from secondshift.runs.models import Run, Task
 from secondshift.runs.orchestration.dispatch import enqueue_run
 from secondshift.runs.publishing import record_pending_pull_request
 
@@ -43,38 +42,50 @@ class RunInProgress(RunRefused):
         self.run = run
 
 
+def create_attempt(
+    task: Task,
+    plan: ExecutionPlan,
+    inputs: RunInput,
+    *,
+    started_by: RunStart,
+    commit_sha: str,
+    scheduled_for: datetime,
+    job: Job | None = None,
+) -> Run:
+    """One run of the task, with the deliveries its plan promises shown as pending."""
+    run = create_run_record(
+        job=job,
+        task=task,
+        started_by=started_by,
+        commit_sha=commit_sha,
+        input_snapshot=inputs.stored(),
+        execution_plan=plan.stored(),
+        scheduled_for=scheduled_for,
+    )
+    record_pending_pull_request(run)
+    record_pending_issues(run)
+    return run
+
+
 @transaction.atomic
 def create_run(
     job: Job,
     scheduled_for: datetime,
     *,
     started_by: RunStart = RunStart.SCHEDULE,
-    execution_plan: dict[str, Any] | None = None,
+    execution_plan: ExecutionPlan | None = None,
     submitted_by: User | None = None,
-    origin: TaskOrigin | None = None,
 ) -> Run:
     """Create an assignment and its first attempt in the same transaction."""
-    defaults = {
-        "started_by": started_by,
-        "commit_sha": job.repository.config_sha,
-        "input_snapshot": job_input_snapshot(job)
-        | {"history_run_ids": previous_run_ids(job)},
-        "execution_plan": (
-            build_execution_plan(job) if execution_plan is None else execution_plan
-        ),
-    }
-    task = create_task(
+    return create_attempt(
+        create_task(repository=job.repository, submitted_by=submitted_by),
+        build_execution_plan(job) if execution_plan is None else execution_plan,
+        RunInput(history_run_ids=tuple(previous_run_ids(job))),
         job=job,
-        origin=origin if origin is not None else TaskOrigin(started_by),
-        submitted_by=submitted_by,
-        commit_sha=defaults["commit_sha"],
-        input_snapshot=deepcopy(defaults["input_snapshot"]),
+        started_by=started_by,
+        commit_sha=job.repository.config_sha,
         scheduled_for=scheduled_for,
     )
-    run = create_run_record(job=job, task=task, scheduled_for=scheduled_for, **defaults)
-    record_pending_pull_request(run)
-    record_pending_issues(run)
-    return run
 
 
 class RunNotReady(RunRefused):
@@ -92,7 +103,6 @@ def start_run(
     repeat_key: str | None = None,
     *,
     submitted_by: User | None = None,
-    origin: TaskOrigin | None = None,
 ) -> Run:
     """Start a job now. Refuses while another run of the job has not finished.
 
@@ -104,7 +114,7 @@ def start_run(
     # Starting now does not need the schedule. It still needs the repository.
     if job.removed_at is not None:
         raise RunRefused(JOB_REMOVED)
-    if not job.repository.enabled:
+    if not job.repository.accepts_runs:
         raise RunRefused("Enable the repository before running its jobs.")
     with transaction.atomic():
         # Two starts at the same moment wait here, so only one creates a run.
@@ -113,23 +123,23 @@ def start_run(
         if active is not None:
             raise RunInProgress(active)
         execution_plan = build_execution_plan(job)
-        if not execution_plan["ready"]:
-            raise RunNotReady(plan_problems(job, execution_plan))
+        if not execution_plan.ready:
+            raise RunNotReady(execution_problems(job.repository, execution_plan))
         run = create_run(
             job,
             timezone.now(),
             started_by=started_by,
             execution_plan=execution_plan,
             submitted_by=submitted_by,
-            origin=origin,
         )
-        if payload is not None:
-            run.input_snapshot["payload"] = store_run_payload(run, payload)
-        if repeat_key is not None:
-            run.input_snapshot["repeat_key"] = repeat_key
         if payload is not None or repeat_key is not None:
+            stored = store_run_payload(run, payload) if payload is not None else None
+            inputs = run.inputs.model_copy(
+                update={"payload": stored, "repeat_key": repeat_key}
+            )
+            run.input_snapshot = inputs.stored()
             run.save(update_fields=["input_snapshot"])
-            update_task_snapshot(run.task_id, deepcopy(run.input_snapshot))
+            del run.inputs
     enqueue_run(run)
     return run
 
@@ -160,7 +170,7 @@ def start_manual_run(
     job: Job,
     *,
     submitted_by: User | None = None,
-    origin: TaskOrigin = TaskOrigin.MANUAL,
+    started_by: RunStart = RunStart.MANUAL,
 ) -> Run:
-    """Run now."""
-    return start_run(job, RunStart.MANUAL, submitted_by=submitted_by, origin=origin)
+    """Run now, from the dashboard or an MCP client."""
+    return start_run(job, started_by, submitted_by=submitted_by)

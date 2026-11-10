@@ -37,14 +37,14 @@ export function isDeliveryInProgress(delivery: RunDelivery): boolean {
   return delivery.status === 'pending' || delivery.status === 'retrying'
 }
 
-export interface RunStart {
+export interface RunNowResult {
   id: number
   /** False when the job already had a run in progress, so no new one was made. */
   started: boolean
 }
 
 /** Run now. While the job has an unfinished run, that run is returned instead. */
-export async function startJobRun(jobId: number): Promise<RunStart> {
+export async function startJobRun(jobId: number): Promise<RunNowResult> {
   try {
     const run = await apiPost<Run>(`/jobs/${jobId}/run`)
     return { id: run.id, started: true }

@@ -4,12 +4,15 @@ from pathlib import Path
 import pytest
 from django.contrib.auth import get_user_model
 from django.utils import timezone
+from pydantic import ValidationError
 
-from secondshift.config.constants import RunSandbox
+from secondshift.config.constants import RunSandbox, RunStart
 from secondshift.jobs.models import Job
+from secondshift.jobs.tests.plans import stored_plan
 from secondshift.repositories.models import Repository
 from secondshift.repositories.sources import SourceSnapshot
 from secondshift.runner.protocol import RunnerSessionSpec
+from secondshift.runs.dao import create_task
 from secondshift.runs.models import Run, RunEvent
 from secondshift.runs.orchestration import workflows
 from secondshift.runs.orchestration.workflows import (
@@ -55,20 +58,15 @@ def execution_run(db) -> Run:
         config_hash="hash",
     )
     return Run.objects.create(
+        task=create_task(repository=job.repository),
+        started_by=RunStart.SCHEDULE,
         job=job,
         commit_sha="a" * 40,
         scheduled_for=timezone.now(),
-        execution_plan={
-            "ready": True,
-            "repository": {
-                "full_name": "frozen/project",
-                "config_sha": "a" * 40,
-            },
-            "runner": {
-                "image": "server-owned:test",
-                "network_policy": "none",
-            },
-        },
+        execution_plan=stored_plan(
+            repository={"full_name": "frozen/project"},
+            runner={"image": "server-owned:test"},
+        ),
     )
 
 
@@ -134,7 +132,7 @@ def test_runner_session_rejects_a_networked_plan(db, monkeypatch) -> None:
         "secondshift.runs.orchestration.workflows.get_runner_client", lambda: client
     )
 
-    with pytest.raises(RuntimeError, match="offline sandbox"):
+    with pytest.raises(ValidationError, match="network_policy"):
         start_runner_session_step(run.pk)
 
     assert client.started == []
@@ -206,8 +204,12 @@ def test_a_failed_run_still_notifies(
     def fail(run: Run, session_id: str) -> None:
         raise RuntimeError("The agent returned an empty report.")
 
+    events: list[str] = []
     monkeypatch.setattr(workflows, "execute_agent_run", fail)
     monkeypatch.setattr(workflows, "notify", notified.append)
+    monkeypatch.setattr(
+        workflows, "record_run_event_step", lambda run_id, text: events.append(text)
+    )
 
     with pytest.raises(RuntimeError):
         workflows.execute_run(run.pk)
@@ -215,6 +217,8 @@ def test_a_failed_run_still_notifies(
     run.refresh_from_db()
     assert run.status == Run.Status.FAILED
     assert notified == [run.pk]
+    # The timeline names the skill the run was given.
+    assert events == ["Running SKILL.md."]
 
 
 @pytest.mark.django_db

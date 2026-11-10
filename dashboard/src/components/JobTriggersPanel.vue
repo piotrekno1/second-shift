@@ -8,6 +8,7 @@ import { fetchJobTriggers, rotateTriggerSecret, setTriggerEnabled, setTriggerRun
 import type { JobTrigger, TriggerChange } from '../types'
 import { formatDate, formatRelative } from '../utils/format'
 import { authorizationHeader, eventOutcome, parseRunsPerHour, triggerRules, triggerState } from '../utils/triggers'
+import { errorMessage } from '../services/api'
 
 const props = defineProps<{ jobId: number, canManage: boolean }>()
 
@@ -23,16 +24,12 @@ const confirmingRotate = ref(false)
 // The runs-per-hour field, by trigger kind. Empty means the server default.
 const capDrafts = ref<Record<string, string>>({})
 
-function message(failure: unknown): string {
-  return failure instanceof Error ? failure.message : 'Something went wrong'
-}
-
 async function load(): Promise<void> {
   try {
     triggers.value = await fetchJobTriggers(props.jobId)
     loaded.value = true
   } catch (failure) {
-    error.value = message(failure)
+    error.value = errorMessage(failure)
   }
 }
 
@@ -75,7 +72,7 @@ async function saveCap(trigger: JobTrigger): Promise<void> {
   try {
     replace(await setTriggerRunsPerHour(props.jobId, trigger.kind, capParsed(trigger).value))
   } catch (failure) {
-    error.value = message(failure)
+    error.value = errorMessage(failure)
   } finally {
     busy.value = null
   }
@@ -87,7 +84,7 @@ async function toggle(trigger: JobTrigger): Promise<void> {
   try {
     apply(await setTriggerEnabled(props.jobId, trigger.kind, !trigger.enabled))
   } catch (failure) {
-    error.value = message(failure)
+    error.value = errorMessage(failure)
   } finally {
     busy.value = null
   }
@@ -99,7 +96,7 @@ async function rotate(trigger: JobTrigger): Promise<void> {
   try {
     apply(await rotateTriggerSecret(props.jobId, trigger.kind))
   } catch (failure) {
-    error.value = message(failure)
+    error.value = errorMessage(failure)
   } finally {
     busy.value = null
     confirmingRotate.value = false

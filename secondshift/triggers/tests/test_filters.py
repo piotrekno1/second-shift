@@ -1,11 +1,11 @@
 import pytest
 
+from secondshift.jobs.manifest import WebhookManifest
 from secondshift.triggers.filters import (
     MISSING,
     field_value,
     parse_body,
     repeat_key,
-    repeat_window_seconds,
     skip_reason,
 )
 
@@ -52,5 +52,5 @@ def test_body_that_is_not_json_matches_nothing() -> None:
 
 
 def test_repeat_window_defaults_to_an_hour() -> None:
-    assert repeat_window_seconds({}) == 3600
-    assert repeat_window_seconds({"repeat_window": "30m"}) == 1800
+    assert WebhookManifest(repeat_key="id").window == "1h"
+    assert WebhookManifest(repeat_key="id", repeat_window="30m").window == "30m"

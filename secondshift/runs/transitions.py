@@ -13,7 +13,7 @@ from django.utils import timezone
 from secondshift.config.constants import RunSandbox
 from secondshift.gateway.dao import revoke_run_tokens
 from secondshift.runs.dao import lock_run_in
-from secondshift.runs.models import Run
+from secondshift.runs.models import Run, RunFailure
 
 # The statuses each status may move to. A finished status has no entry.
 NEXT_STATUSES: dict[str, frozenset[str]] = {
@@ -34,7 +34,7 @@ def can_move(current: str, new: str) -> bool:
     return new in NEXT_STATUSES.get(current, frozenset())
 
 
-def start_run(run_id: int, workflow_id: str) -> bool:
+def mark_running(run_id: int, workflow_id: str) -> bool:
     """Move a queued run to running. False when the run is not queued."""
     # Status writes stay in this module, so it is the only place they happen.
     return bool(
@@ -55,11 +55,14 @@ def finish_run(
     *,
     only_from: Collection[str] = Run.ACTIVE_STATUSES,
     fields: Mapping[str, object] | None = None,
+    failure: RunFailure = RunFailure.OTHER,
+    reason: str = "",
 ) -> Run | None:
     """Give a run its final status, summary and finish time, and revoke its tokens.
 
     Returns None and changes nothing when the run is not in `only_from`,
     usually because it already finished. `fields` are saved with the status.
+    A failed run also records why. The reason defaults to the summary.
     """
     if status in Run.ACTIVE_STATUSES:
         raise TransitionRefused(f"{status} is not a final status.")
@@ -69,6 +72,8 @@ def finish_run(
     if not can_move(run.status, status):
         raise TransitionRefused(f"A {run.status} run cannot become {status}.")
     extra = dict(fields or {})
+    if status == Run.Status.FAILED:
+        extra |= {"failure": failure, "failure_reason": reason or summary}
     run.status = status
     run.summary = summary
     run.finished_at = timezone.now()

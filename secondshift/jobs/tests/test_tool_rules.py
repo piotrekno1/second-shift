@@ -9,7 +9,7 @@ from secondshift.connections.models import Connection
 from secondshift.jobs.grants import GrantError, decide_grant
 from secondshift.jobs.models import CapabilityRequest, Job, JobGrant
 from secondshift.jobs.planning import build_execution_plan
-from secondshift.jobs.sync import sync_manifest
+from secondshift.jobs.tests.disk import sync_manifest
 from secondshift.jobs.tests.test_api_approvals import approval_setup  # noqa: F401
 from secondshift.jobs.tests.test_grants import decide
 from secondshift.jobs.tests.test_planning import create_job
@@ -221,7 +221,7 @@ def decide_with_rules(capability: CapabilityRequest, rules: dict) -> JobGrant:
 def test_rules_are_frozen_into_the_plan(capability: CapabilityRequest) -> None:
     decide_with_rules(capability, RULES)
 
-    plan = build_execution_plan(capability.job)
+    plan = build_execution_plan(capability.job).stored()
 
     assert plan["ready"] is True
     assert plan["capabilities"][0]["tool_rules"] == RULES
@@ -235,11 +235,11 @@ def test_schema_drift_blocks_the_job(capability: CapabilityRequest) -> None:
     }
     connection.save()
 
-    plan = build_execution_plan(capability.job)
+    plan = build_execution_plan(capability.job).stored()
 
     assert plan["ready"] is False
     assert "tool_rules_broken" in plan["capabilities"][0]["reasons"]
-    assert "tool_rules" not in plan["capabilities"][0]
+    assert plan["capabilities"][0]["tool_rules"] == {}
 
 
 def test_sync_keeps_rules_for_tools_still_requested(db, tmp_path: Path) -> None:

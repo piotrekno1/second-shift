@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import AppIcon from '../components/AppIcon.vue'
+import FailureLabel from '../components/FailureLabel.vue'
 import { computed, nextTick, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Button from 'primevue/button'
@@ -16,6 +17,7 @@ import { renderMarkdown } from '../utils/markdown'
 import { runOutputLink } from '../utils/runOutputLink'
 import { runWarning } from '../utils/readiness'
 import { startedByLabel } from '../utils/triggers'
+import { errorMessage } from '../services/api'
 
 const POLL_MS = 2000
 
@@ -57,7 +59,7 @@ const inputFile = computed(() => run.value?.files.find((file) => file.name === '
 const outputFile = computed(() => run.value?.files.find((file) => file.name === 'output') ?? null)
 const excerptOnly = computed(() => Boolean(run.value?.output_size_bytes && run.value.output_size_bytes > run.value.output_excerpt.length))
 const hasFiles = computed(() => Boolean(run.value && (run.value.changes || run.value.saved_files.length || run.value.skipped_files.length)))
-// Steps matter while a run is in progress or after it fails; on success they are routine.
+// Steps matter while a run is in progress or after it fails. On success they are routine.
 const timelineOpen = computed(() => run.value?.status !== 'succeeded')
 const activeNote = computed(() => {
   if (run.value?.status !== 'queued') return 'Running now · this page updates live'
@@ -73,7 +75,7 @@ async function cancel(): Promise<void> {
     await load()
     await app.refreshRuns()
   } catch (cause) {
-    error.value = cause instanceof Error ? cause.message : 'Unable to cancel this task'
+    error.value = errorMessage(cause, 'Unable to cancel this task')
   } finally {
     canceling.value = false
   }
@@ -86,7 +88,7 @@ async function retry(delivery: RunDelivery): Promise<void> {
     await retryDelivery(run.value.id, delivery.id)
     await load()
   } catch (cause) {
-    error.value = cause instanceof Error ? cause.message : 'Unable to retry this delivery'
+    error.value = errorMessage(cause, 'Unable to retry this delivery')
   } finally {
     retrying.value = null
   }
@@ -111,7 +113,7 @@ async function load(): Promise<void> {
     error.value = null
   } catch (loadError) {
     if (serial !== requestSerial) return
-    error.value = loadError instanceof Error ? loadError.message : 'Unable to load run'
+    error.value = errorMessage(loadError, 'Unable to load run')
   } finally {
     if (serial === requestSerial) loading.value = false
   }
@@ -138,7 +140,7 @@ async function runAgain(): Promise<void> {
     const started = await startJobRun(run.value.job_id)
     await router.push(`/runs/${started.id}`)
   } catch (runError) {
-    error.value = runError instanceof Error ? runError.message : 'Unable to start a new run'
+    error.value = errorMessage(runError, 'Unable to start a new run')
   } finally {
     rerunning.value = false
   }
@@ -179,7 +181,7 @@ onUnmounted(stopPolling)
           <code class="run-stat-quiet" :title="run.commit_sha">{{ run.commit_sha.slice(0, 7) }}</code>
         </div>
         <p v-if="run.failure" class="run-headline run-failure-headline">
-          <span class="failure-label"><AppIcon :name="run.status === 'canceled' ? 'cancel' : 'alert-circle-outline'" />{{ run.failure.label }}</span>
+          <FailureLabel :label="run.failure.label" :canceled="run.status === 'canceled'" />
           <span>{{ run.failure.reason }}</span>
           <RouterLink v-if="run.failure.limit && run.job_id !== null" :to="{ path: `/jobs/${run.job_id}`, hash: '#limits' }" class="detail-link">Change this job's limits <AppIcon name="arrow-right" /></RouterLink>
         </p>
@@ -274,7 +276,7 @@ onUnmounted(stopPolling)
             <div><dt>Repository</dt><dd><RouterLink :to="`/repositories/${run.repository_id}`" class="detail-link">{{ run.repository }}</RouterLink></dd></div>
             <div><dt>Instructions</dt><dd><code v-if="run.skill_path">{{ run.skill_path }}</code><span v-else>Written task</span></dd></div>
             <div><dt>Agent</dt><dd>{{ run.execution_agent ?? run.model_provider ?? 'None' }}</dd></div>
-            <div><dt>Started by</dt><dd>{{ run.job_id === null ? 'Manual task' : startedByLabel(run.started_by) }}</dd></div>
+            <div><dt>Started by</dt><dd>{{ run.job_id === null && run.started_by === 'manual' ? 'Manual task' : startedByLabel(run.started_by) }}</dd></div>
             <div v-if="run.job_id === null"><dt>Not before</dt><dd :title="utcTitle(run.scheduled_for)">{{ formatDate(run.scheduled_for) }}</dd></div>
             <div><dt>Queued</dt><dd :title="utcTitle(run.created_at)">{{ formatDate(run.created_at) }}</dd></div>
             <div><dt>Started</dt><dd :title="utcTitle(run.started_at)">{{ formatDate(run.started_at) }}</dd></div>

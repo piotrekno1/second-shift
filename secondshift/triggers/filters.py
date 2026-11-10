@@ -8,10 +8,6 @@ import hashlib
 import json
 from typing import Any
 
-from secondshift.jobs.manifest import duration_seconds
-
-# Used when a job sets repeat_key without repeat_window.
-REPEAT_WINDOW_DEFAULT = "1h"
 MISSING = object()
 
 
@@ -50,7 +46,3 @@ def repeat_key(data: Any, path: str | None) -> str | None:
         return None
     canonical = json.dumps(value, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(f"{path}={canonical}".encode()).hexdigest()
-
-
-def repeat_window_seconds(settings: dict[str, Any]) -> int:
-    return duration_seconds(settings.get("repeat_window") or REPEAT_WINDOW_DEFAULT)

@@ -6,13 +6,16 @@ from django.contrib.auth.models import User
 from django.test import Client
 from django.utils import timezone
 
+from secondshift.config.constants import RunStart
 from secondshift.connections.models import AgentConnection
+from secondshift.connections.tests.test_agent_connections import TOKEN, runner_cleanup
 from secondshift.connections.tests.test_agent_connections import (
     agent_login as agent_login_fixture,
 )
 from secondshift.jobs.models import Job
 from secondshift.jobs.planning import build_execution_plan
 from secondshift.repositories.models import Repository
+from secondshift.runs.dao import create_run_record, create_task
 from secondshift.runs.models import Run
 from secondshift.runs.orchestration.workflows import (
     RunNotReadyError,
@@ -56,13 +59,17 @@ def job(agent_login: tuple[Workspace, AgentConnection, User]) -> Job:
     )
 
 
-def finished_run(job: Job, hours_ago: float = 1) -> Run:
-    run = Run.objects.create(
+def finished_run(job: Job, hours_ago: float = 1, ready: bool = True) -> Run:
+    plan = build_execution_plan(job).stored()
+    plan["ready"] = ready
+    run = create_run_record(
+        task=create_task(repository=job.repository),
+        started_by=RunStart.SCHEDULE,
         job=job,
         commit_sha="a" * 40,
         scheduled_for=timezone.now(),
         status=Run.Status.SUCCEEDED,
-        execution_plan=build_execution_plan(job),
+        execution_plan=plan,
     )
     created = timezone.now() - timedelta(hours=hours_ago)
     Run.objects.filter(pk=run.pk).update(created_at=created)
@@ -102,9 +109,7 @@ def test_runs_older_than_a_day_do_not_count(job: Job) -> None:
 def test_refused_runs_do_not_count(job: Job) -> None:
     login = job.workspace.default_agent_connection
     set_cap(login, 1)
-    refused = finished_run(job)
-    refused.execution_plan["ready"] = False
-    refused.save(update_fields=["execution_plan"])
+    finished_run(job, ready=False)
     assert start_manual_run(job).execution_plan["ready"] is True
 
 
@@ -184,3 +189,24 @@ def test_only_the_login_owner_sets_its_cap(
     assert response.status_code == 404
     login.refresh_from_db()
     assert login.max_runs_per_day is None
+
+
+def test_a_reconnected_login_still_shows_its_recent_runs(
+    job: Job,
+    agent_login: tuple[Workspace, AgentConnection, User],
+    client: Client,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _, login, owner = agent_login
+    runner_cleanup(monkeypatch)
+    finished_run(job)
+    client.force_login(owner)
+
+    response = client.post(
+        f"/api/agent-connections/{login.pk}",
+        {"backend": login.backend, "auth": TOKEN},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 200
+    assert response.json()["recent_runs"] == 1

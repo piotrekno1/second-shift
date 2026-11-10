@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import AppIcon from './AppIcon.vue'
+import FailureLabel from './FailureLabel.vue'
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import StatusPill from './StatusPill.vue'
@@ -41,7 +42,7 @@ function openRun(event: Event): void {
         <span v-for="stat in stats" :key="stat.key" class="run-stat" :class="{ warn: stat.warn }" :title="stat.title">{{ stat.text }}</span>
       </div>
       <div v-if="run.failure" class="run-failure" :class="run.status" :title="run.summary">
-        <span class="failure-label"><AppIcon :name="run.status === 'canceled' ? 'cancel' : 'alert-circle-outline'" />{{ run.failure.label }}</span>
+        <FailureLabel :label="run.failure.label" :canceled="run.status === 'canceled'" />
         <span class="failure-reason">{{ run.failure.reason }}</span>
       </div>
       <small v-else-if="run.model || run.commit_sha" class="run-meta">

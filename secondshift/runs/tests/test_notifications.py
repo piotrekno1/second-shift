@@ -3,9 +3,11 @@ from typing import Any
 
 import pytest
 
+from secondshift.config.constants import RunStart
 from secondshift.jobs.models import Job
+from secondshift.jobs.tests.plans import stored_plan
 from secondshift.repositories.models import Repository
-from secondshift.runs.models import Run
+from secondshift.runs.models import Run, Task
 from secondshift.runs.reporting.notifications import run_report_payload
 
 
@@ -17,13 +19,16 @@ def finished_run(status: str, summary: str) -> Run:
         repository=repository,
     )
     return Run(
+        started_by=RunStart.SCHEDULE,
         pk=2,
         job=job,
+        task=Task(repository=repository),
         status=status,
         summary=summary,
         commit_sha="a" * 40,
         scheduled_for=datetime(2026, 10, 25, tzinfo=UTC),
         finished_at=None,
+        execution_plan=stored_plan(),
     )
 
 

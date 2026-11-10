@@ -7,14 +7,13 @@ import pytest
 from django.contrib.auth import get_user_model
 from django.test import override_settings
 
+from secondshift.jobs.repository_sync import SyncError, attach_local_repository, resync
 from secondshift.repositories.local import (
     LocalRepositoryError,
-    attach_local_repository,
     local_directories,
 )
 from secondshift.repositories.models import Repository
 from secondshift.repositories.serialization import validate_repository
-from secondshift.repositories.sync import SyncError, resync
 from secondshift.workspaces.dao import create_workspace
 from secondshift.workspaces.models import Workspace, WorkspaceMembership
 
@@ -108,6 +107,21 @@ def test_a_repository_follows_its_branch_not_the_checkout(
     assert resynced.pk == repository.pk
     assert resynced.default_branch == "main"
     assert resynced.jobs.get().name == "Review"
+
+
+def test_a_resync_keeps_a_disabled_repository_disabled(
+    workspace: Workspace, tmp_path: Path
+) -> None:
+    root = tmp_path / "project"
+    create_local_repository(root)
+    repository = attach_local_repository(workspace, str(root))
+    repository.enabled = False
+    repository.save(update_fields=["enabled"])
+
+    resync(repository)
+
+    repository.refresh_from_db()
+    assert repository.enabled is False
 
 
 def test_a_skill_cannot_be_a_link(workspace: Workspace, tmp_path: Path) -> None:

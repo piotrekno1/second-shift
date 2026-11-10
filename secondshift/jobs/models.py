@@ -3,9 +3,9 @@ from django.db import models
 
 from secondshift.config.constants import MANIFEST_FILE
 from secondshift.connections.models import Connection
-from secondshift.core.models import RunLimitOverrides
+from secondshift.jobs.manifest import OpenIssuesManifest, WebhookManifest
 from secondshift.repositories.models import Repository
-from secondshift.workspaces.models import Workspace
+from secondshift.workspaces.models import RunLimitOverrides, Workspace
 
 # Why a job removed from the manifest cannot run or be resumed.
 JOB_REMOVED = f"This job is no longer in {MANIFEST_FILE}. Add it back to run it."
@@ -65,6 +65,16 @@ class Job(RunLimitOverrides):
 
     def __str__(self) -> str:
         return f"{self.repository}: {self.name}"
+
+    @property
+    def webhook_settings(self) -> WebhookManifest | None:
+        return WebhookManifest.model_validate(self.webhook) if self.webhook else None
+
+    @property
+    def issue_settings(self) -> OpenIssuesManifest | None:
+        if not self.open_issues:
+            return None
+        return OpenIssuesManifest.model_validate(self.open_issues)
 
     def capability_grant_status(self) -> str:
         """Summarize the required grants already loaded for this job."""

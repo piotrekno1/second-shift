@@ -5,16 +5,17 @@ from typing import Any
 import httpx
 from django.conf import settings
 
+from secondshift.runner.agent_credentials import encrypt_agent_auth
+from secondshift.runner.agent_protocol import AgentCheckInput, AgentInput, AgentOutput
 from secondshift.runner.protocol import (
     CommandRequest,
     CommandResult,
-    RunnerBackend,
     RunnerProtocolError,
     RunnerSessionSpec,
 )
 
 
-class HttpRunnerClient(RunnerBackend):
+class HttpRunnerClient:
     """Trusted control-plane client for a separately deployed runner."""
 
     def __init__(
@@ -105,6 +106,35 @@ class HttpRunnerClient(RunnerBackend):
             raise RunnerProtocolError(
                 "The runner service could not be reached."
             ) from error
+
+    def encrypted_auth(self, auth: str) -> str:
+        """An agent login, encrypted so that only the runner can read it."""
+        key = self.response_payload(self.send("GET", "/v1/agent-provisioning-key"))
+        return encrypt_agent_auth(str(key["public_key"]), auth)
+
+    def run_agent(self, session_id: str, request: AgentInput) -> AgentOutput:
+        response = self.send(
+            "POST",
+            f"/v1/sessions/{session_id}/agent",
+            timeout=request.timeout_seconds + 30,
+            json=request.model_dump(mode="json")
+            | {
+                "auth": request.auth.get_secret_value(),
+                "broker_token": request.broker_token.get_secret_value(),
+            },
+        )
+        return AgentOutput.model_validate(self.response_payload(response))
+
+    def check_agent(self, request: AgentCheckInput) -> AgentOutput:
+        response = self.send(
+            "POST",
+            "/v1/agent-checks",
+            # The runner stops the CLI after its own limit. This covers startup.
+            timeout=28,
+            json=request.model_dump(mode="json")
+            | {"auth": request.auth.get_secret_value()},
+        )
+        return AgentOutput.model_validate(self.response_payload(response))
 
     def stop(self, session_id: str) -> None:
         response = self.send("DELETE", f"/v1/sessions/{session_id}")

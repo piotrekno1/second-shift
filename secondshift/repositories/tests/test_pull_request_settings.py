@@ -3,7 +3,7 @@ from pathlib import Path
 from django.contrib.auth import get_user_model
 from django.test import Client, override_settings
 
-from secondshift.repositories.local import attach_local_repository
+from secondshift.jobs.repository_sync import attach_local_repository
 from secondshift.repositories.models import Repository
 from secondshift.repositories.tests.test_local import create_local_repository
 from secondshift.workspaces.dao import workspace_owner

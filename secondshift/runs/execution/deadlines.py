@@ -9,11 +9,12 @@ from datetime import datetime, timedelta
 
 from django.utils import timezone
 
-from secondshift.core.formatting import duration_label
-from secondshift.jobs.limits import RunLimit, plan_limit, raise_hint
-from secondshift.runs.models import Run
+from secondshift.config.formatting import duration_label
+from secondshift.runs.models import Run, RunFailure
+from secondshift.runs.reporting.failures import StageFailure
+from secondshift.workspaces.limits import RunLimit, raise_hint
 
-TIMEOUT_HEADLINE = "Timed out"
+TIMEOUT_HEADLINE = RunFailure.TIMEOUT.label
 
 
 class RunTimedOut(RuntimeError):
@@ -21,7 +22,7 @@ class RunTimedOut(RuntimeError):
 
 
 def run_timeout_seconds(run: Run) -> int:
-    return plan_limit(run.execution_plan, RunLimit.TIMEOUT_SECONDS)
+    return run.plan.limit(RunLimit.TIMEOUT_SECONDS)
 
 
 def run_deadline(run: Run) -> datetime:
@@ -41,5 +42,6 @@ def timeout_reason(seconds: int) -> str:
     )
 
 
-def timeout_summary(seconds: int) -> str:
-    return f"{TIMEOUT_HEADLINE}: {timeout_reason(seconds)}"
+def timeout_failure(run: Run) -> StageFailure:
+    reason = timeout_reason(run_timeout_seconds(run))
+    return StageFailure(RunFailure.TIMEOUT, reason, f"{TIMEOUT_HEADLINE}: {reason}")

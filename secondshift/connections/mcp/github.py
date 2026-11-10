@@ -12,7 +12,9 @@ from secondshift.config.constants import (
     GITHUB_TOKEN_HINT,
     GitHubMCPTool,
 )
+from secondshift.connections.access import AccessReason
 from secondshift.connections.dao import connected_github_sources
+from secondshift.connections.github import connection_source, usable_source
 from secondshift.connections.mcp.base import (
     SOURCE_AUTH,
     MCPArgumentError,
@@ -21,11 +23,9 @@ from secondshift.connections.mcp.base import (
     MCPSettings,
 )
 from secondshift.connections.models import Connection
+from secondshift.connections.repository_ref import RepositoryRef
 from secondshift.github import credentials
 from secondshift.github.errors import GitHubError
-from secondshift.repositories.github import github_repository_scope
-from secondshift.repositories.github_access import connection_source, usable_source
-from secondshift.repositories.models import Repository
 from secondshift.workspaces.models import Workspace
 
 # Search text is written by the model. A short limit keeps it a search.
@@ -157,36 +157,36 @@ def github_tool_error(tool: str, text: str) -> str | None:
     )
 
 
-def github_scope(settings: MCPSettings, repository: Repository) -> str | None:
+def github_scope(settings: MCPSettings, repository: RepositoryRef) -> str | None:
     """A job reads only its own repository, whatever the token can reach."""
     del settings
-    return github_repository_scope(repository)
+    return repository.github_name
 
 
 # What the tools read. An App token asks only for those the installation has.
 GITHUB_TOOL_PERMISSIONS = ("contents", "pull_requests", "actions", "statuses")
 
 
-def github_source_reachable(repository: Repository) -> bool:
-    connection = repository.github_connection
+def github_source_reachable(repository: RepositoryRef) -> bool:
+    connection = repository.source
     return (
-        repository.source_type == Repository.SourceType.GITHUB
+        repository.github_id is not None
         and usable_source(connection)
         and connection.workspace_id == repository.workspace_id
     )
 
 
-def github_source_token(repository: Repository) -> str:
+def github_source_token(repository: RepositoryRef) -> str:
     """A read token for this repository only, from the source it was added with."""
-    connection = repository.github_connection
-    if repository.source_type != Repository.SourceType.GITHUB or connection is None:
+    connection = repository.source
+    if repository.github_id is None or connection is None:
         raise MCPError(GITHUB_MISSING_SOURCE)
     if connection.workspace_id != repository.workspace_id:
         raise MCPError("The repository's GitHub connection is disconnected.")
     try:
         return credentials.read_token_for(
             connection_source(connection),
-            int(repository.external_id),
+            repository.github_id,
             GITHUB_TOOL_PERMISSIONS,
         )
     except GitHubError as error:
@@ -228,7 +228,7 @@ GITHUB_MCP = MCPProvider(
     scope=github_scope,
     describe_scope=describe_github_scope,
     scope_label="repository",
-    missing_scope_reason="github_repository_unknown",
+    missing_scope_reason=AccessReason.GITHUB_REPOSITORY_UNKNOWN,
     missing_scope_message=(
         "This job has no GitHub repository identity. For a local checkout, "
         "configure a GitHub origin and resync it."

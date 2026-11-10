@@ -8,11 +8,11 @@ from django.test import Client
 from django.utils import timezone
 
 from secondshift.connections import github
+from secondshift.connections.github import connection_source
 from secondshift.connections.models import Connection
 from secondshift.github import credentials
 from secondshift.github.errors import GitHubError
 from secondshift.github.tokens import TokenOwner
-from secondshift.repositories.github_access import connection_source
 from secondshift.workspaces.dao import create_workspace
 from secondshift.workspaces.models import Workspace, WorkspaceMembership
 

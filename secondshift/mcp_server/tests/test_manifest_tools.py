@@ -88,8 +88,8 @@ def workspace(owner: AbstractUser) -> Workspace:
         display_name="Billing",
         status=Connection.Status.CONNECTED,
         available_tools=["listCharges"],
+        endpoint_url=API_URL,
         metadata={
-            "base_url": API_URL,
             "tools": operations,
             "offered_tools": operations,
         },

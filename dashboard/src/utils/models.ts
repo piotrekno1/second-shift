@@ -1,12 +1,12 @@
-import type { AgentConfiguration, AgentConnection } from '../services/agents'
-import type { Connection } from '../types'
+import type { AgentConfiguration, AgentConnection, Connection } from '../types'
 import { runUsageLabel } from './agents'
 import { providerLabel } from './format'
 
-/** One thing that can run jobs: a model provider or a subscription login. */
 /** The check outcome that means the login must be connected again. */
 export const SIGN_IN_REFUSED = 'reconnect_required'
+const DISCONNECTED = 'Disconnected. Reconnect it to use it.'
 
+/** One thing that can run jobs: a model provider or a subscription login. */
 export interface ModelRow {
   /** The choice key the server uses, like "model:3" or "agent:7". */
   key: string
@@ -56,7 +56,7 @@ export function modelRows(connections: Connection[], logins: AgentConnection[], 
     const key = `model:${connection.id}`
     const choice = choices.get(key)
     const problem = failedCheck(connection.status === 'connected', connection.last_check)
-      || choice?.problem || (connection.status === 'connected' ? '' : 'Disconnected. Reconnect it to use it.')
+      || choice?.problem || (connection.status === 'connected' ? '' : DISCONNECTED)
     rows.push({ key, name: connection.display_name, provider: connection.provider, summary: modelSummary(connection), chosen: key === selected, choosable: Boolean(choice && !choice.disabled), problem, lastCheck: connection.last_check, connection })
   }
   for (const login of logins) {
@@ -64,7 +64,7 @@ export function modelRows(connections: Connection[], logins: AgentConnection[], 
     const choice = choices.get(key)
     const problem = failedCheck(login.connected, login.last_check)
       || choice?.problem
-      || (!login.connected ? 'Disconnected. Reconnect it to use it.' : '')
+      || (!login.connected ? DISCONNECTED : '')
       || (login.can_manage ? '' : 'Only the person who saved this login can choose it.')
     rows.push({
       key,

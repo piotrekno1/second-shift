@@ -5,13 +5,8 @@ from typing import Any
 from django.db.models import Q, QuerySet
 
 from secondshift.connections.models import Connection
-from secondshift.repositories.models import Repository
+from secondshift.repositories.models import SYNC_ERROR_MAX_CHARS, Repository
 from secondshift.workspaces.models import Workspace
-
-
-def get_repository(repository_id: int) -> Repository:
-    """The repository. Raises Repository.DoesNotExist when there is none."""
-    return Repository.objects.get(pk=repository_id)
 
 
 def get_repository_with_connection(repository_id: int) -> Repository:
@@ -33,6 +28,10 @@ def lock_repository(repository_id: int, with_workspace: bool = False) -> Reposit
 def active_repositories(workspace_id: int) -> QuerySet[Repository]:
     """The workspace's repositories that were not removed."""
     return Repository.objects.filter(workspace_id=workspace_id, removed_at__isnull=True)
+
+
+def active_repositories_with_jobs(workspace_id: int) -> QuerySet[Repository]:
+    return active_repositories(workspace_id).prefetch_related("jobs")
 
 
 def active_repository_ids() -> set[int]:
@@ -76,7 +75,7 @@ def repositories_to_sync(include_local: bool) -> list[Repository]:
 
 def set_sync_error(repository_id: int, error: str, checked_sha: str = "") -> None:
     """Record a failed sync. The last good sync stays in place."""
-    fields: dict[str, str] = {"last_sync_error": error}
+    fields: dict[str, str] = {"last_sync_error": error[:SYNC_ERROR_MAX_CHARS]}
     if checked_sha:
         fields["checked_sha"] = checked_sha
     Repository.objects.filter(pk=repository_id).update(**fields)

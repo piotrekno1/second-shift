@@ -11,8 +11,7 @@ function trigger(fields: Partial<JobTrigger>): JobTrigger {
 test('names what started a run', () => {
   assert.equal(startedByLabel('webhook'), 'Webhook')
   assert.equal(startedByLabel('manual'), 'Run now')
-  assert.equal(startedByLabel(''), 'Not recorded')
-  assert.equal(startedByLabel(undefined), 'Not recorded')
+  assert.equal(startedByLabel('mcp'), 'MCP client')
 })
 
 test('describes each trigger state', () => {

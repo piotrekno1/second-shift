@@ -7,6 +7,7 @@ import Select from 'primevue/select'
 import { createInvite, fetchInvites, revokeInvite } from '../services/invites'
 import type { Invite, NewInvite } from '../types'
 import { formatRelative, statusLabel } from '../utils/format'
+import { errorMessage } from '../services/api'
 
 const roleOptions = [
   { label: 'Member · can view', value: 'member' },
@@ -28,15 +29,11 @@ const NOTE_LIMIT = 160
 // An error about the last try goes once the note or role is changed.
 watch([note, role], () => { error.value = null })
 
-function message(failure: unknown): string {
-  return failure instanceof Error ? failure.message : 'Something went wrong'
-}
-
 async function load(): Promise<void> {
   try {
     invites.value = await fetchInvites()
   } catch (failure) {
-    error.value = message(failure)
+    error.value = errorMessage(failure)
   }
 }
 
@@ -54,7 +51,7 @@ async function create(): Promise<void> {
     note.value = ''
     await load()
   } catch (failure) {
-    error.value = message(failure)
+    error.value = errorMessage(failure)
   } finally {
     busy.value = false
   }
@@ -75,7 +72,7 @@ async function revoke(invite: Invite): Promise<void> {
     if (created.value?.id === invite.id) created.value = null
     invites.value = invites.value.filter((item) => item.id !== invite.id)
   } catch (failure) {
-    error.value = message(failure)
+    error.value = errorMessage(failure)
   } finally {
     revoking.value = null
     confirming.value = null

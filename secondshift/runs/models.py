@@ -1,43 +1,53 @@
 import uuid
+from functools import cached_property
 
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
-from secondshift.config.constants import RunStart, TaskOrigin
+from secondshift.config.constants import RunStart
 from secondshift.connections.models import Connection
 from secondshift.jobs.models import Job
+from secondshift.jobs.plan import ExecutionPlan
 from secondshift.repositories.models import Repository
+from secondshift.runs.inputs import RunInput
+from secondshift.runs.outputs import RunOutputs
 
-# The summary of a run whose durable workflow could not be enqueued.
-RUN_ENQUEUE_FAILED = "The durable workflow could not be enqueued."
+
+class RunFailure(models.TextChoices):
+    """Why a run failed. The label is what pages show beside the reason."""
+
+    # The stage a workflow error stopped the run in.
+    STARTING = "starting", "Start"
+    CHECKOUT = "checkout", "Checkout"
+    SANDBOX = "sandbox", "Sandbox"
+    SKILL = "skill", "Skill"
+    FINISHING = "finishing", "Recording"
+    # A run limit stopped the agent.
+    TIMEOUT = "timeout", "Timed out"
+    BUDGET = "budget", "Budget used up"
+    MODEL_PROVIDER = "model_provider", "Model provider"
+    TOOL_RULE = "tool_rule", "Tool restriction"
+    # The queue never took the run, so it does not count as started.
+    NOT_QUEUED = "not_queued", "Run"
+    OTHER = "other", "Run"
 
 
 class Task(models.Model):
-    """One assignment; runs retain the inputs and policy of each attempt.
+    """One assignment in a repository. Each run of it is an attempt.
 
-    Job-backed assignments retain their existing source relationship. Ad hoc
-    assignments own a repository directly. Inputs are frozen at submission.
+    A job run and an ad hoc task each get one. Ad hoc tasks also keep how
+    they were submitted, so a repeated submission finds its first run.
     """
 
-    job = models.ForeignKey(
-        Job, on_delete=models.CASCADE, related_name="tasks", null=True, blank=True
-    )
+    # Runs protect their task, so only a task without attempts goes with it.
     repository = models.ForeignKey(
-        Repository,
-        on_delete=models.PROTECT,
-        related_name="tasks",
-        null=True,
-        blank=True,
+        Repository, on_delete=models.CASCADE, related_name="tasks"
     )
-    submission_key = models.CharField(
-        max_length=120, blank=True, default="", db_default=""
-    )
-    origin = models.CharField(
-        max_length=16,
-        choices=[(item.value, item.value.title()) for item in TaskOrigin],
-        blank=True,
-    )
+    # The client's idempotency key for an ad hoc task. Empty for job runs.
+    submission_key = models.CharField(max_length=120, blank=True, default="")
+    # What was submitted with the key. Another submission may not reuse it.
+    fingerprint = models.CharField(max_length=64, blank=True, default="")
     submitted_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -45,39 +55,17 @@ class Task(models.Model):
         null=True,
         blank=True,
     )
-    commit_sha = models.CharField(max_length=64)
-    input_snapshot = models.JSONField(default=dict, blank=True)
-    scheduled_for = models.DateTimeField()
     created_at = models.DateTimeField(default=timezone.now, editable=False)
 
     class Meta:
         ordering = ["-created_at"]
         constraints = [
-            models.CheckConstraint(
-                condition=(
-                    models.Q(job__isnull=False, repository__isnull=True)
-                    | models.Q(job__isnull=True, repository__isnull=False)
-                ),
-                name="task_has_one_source",
-            ),
             models.UniqueConstraint(
                 fields=["repository", "submission_key"],
                 condition=~models.Q(submission_key=""),
                 name="unique_repository_submission",
             ),
         ]
-
-
-def run_workspace_filter(workspace_id: int | None, prefix: str = "") -> models.Q:
-    """Include ad hoc runs without changing the ownership of legacy job runs."""
-    if workspace_id is None:
-        return models.Q(**{f"{prefix}pk__in": []})
-    return models.Q(**{f"{prefix}job__workspace_id": workspace_id}) | models.Q(
-        **{
-            f"{prefix}job__isnull": True,
-            f"{prefix}task__repository__workspace_id": workspace_id,
-        }
-    )
 
 
 class Run(models.Model):
@@ -96,13 +84,7 @@ class Run(models.Model):
     job = models.ForeignKey(
         Job, on_delete=models.PROTECT, related_name="runs", null=True, blank=True
     )
-    task = models.ForeignKey(
-        Task,
-        on_delete=models.PROTECT,
-        related_name="runs",
-        null=True,
-        blank=True,
-    )
+    task = models.ForeignKey(Task, on_delete=models.PROTECT, related_name="runs")
     status = models.CharField(
         max_length=16,
         choices=Status.choices,
@@ -110,23 +92,31 @@ class Run(models.Model):
     )
     commit_sha = models.CharField(max_length=64)
     scheduled_for = models.DateTimeField()
-    # Blank for runs created before this was recorded.
     started_by = models.CharField(
-        max_length=16,
-        choices=[(item.value, item.value.title()) for item in RunStart],
-        blank=True,
+        max_length=16, choices=[(item.value, item.value.title()) for item in RunStart]
     )
     started_at = models.DateTimeField(null=True, blank=True)
     finished_at = models.DateTimeField(null=True, blank=True)
     sandbox_runtime = models.CharField(max_length=32, blank=True)
     exit_code = models.IntegerField(null=True, blank=True)
     summary = models.TextField(blank=True)
-    # What the run was asked to do, frozen at creation (see job_input_snapshot).
+    failure = models.CharField(max_length=16, choices=RunFailure.choices, blank=True)
+    failure_reason = models.TextField(blank=True)
+    # Inputs beyond the plan: an ad hoc task's definition and input, a
+    # trigger's payload and repeat key, and the earlier runs it reads.
     input_snapshot = models.JSONField(default=dict, blank=True)
-    # Immutable, redacted record of bindings, tools and policy decisions.
-    execution_plan = models.JSONField(default=dict, blank=True)
-    # The full, redacted output is in run_artifacts storage at output_path;
-    # only its metadata and the tail are kept here.
+    # The frozen jobs.plan.ExecutionPlan. Read it through `plan`.
+    execution_plan = models.JSONField()
+    # The agent login the plan chose. Its runs per day count against its cap.
+    agent_connection = models.ForeignKey(
+        "connections.AgentConnection",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="runs",
+    )
+    # The full report is in run_artifacts storage at output_path. Only its
+    # metadata and the tail are kept here.
     output_excerpt = models.TextField(blank=True)
     # The rendered input (instructions, prompt and the skill at its commit),
     # stored next to the output in run_artifacts.
@@ -153,10 +143,6 @@ class Run(models.Model):
             )
         ]
         constraints = [
-            models.CheckConstraint(
-                condition=models.Q(job__isnull=False) | models.Q(task__isnull=False),
-                name="run_has_source",
-            ),
             models.UniqueConstraint(
                 fields=["job", "scheduled_for"],
                 name="unique_job_scheduled_run",
@@ -165,26 +151,36 @@ class Run(models.Model):
 
     @property
     def repository(self) -> Repository:
-        if self.job is not None:
-            return self.job.repository
-        if self.task_id is not None and self.task.repository_id is not None:
-            return self.task.repository
-        raise ValueError("The run has no repository source.")
+        return self.task.repository
+
+    @cached_property
+    def inputs(self) -> RunInput:
+        return RunInput.model_validate(self.input_snapshot)
+
+    @cached_property
+    def collected(self) -> RunOutputs | None:
+        """What the sandbox left behind, or None when nothing was collected."""
+        return RunOutputs.model_validate(self.outputs) if self.outputs else None
+
+    @cached_property
+    def plan(self) -> ExecutionPlan:
+        return ExecutionPlan.model_validate(self.execution_plan)
 
     @property
     def workspace_id(self) -> int:
-        return (
-            self.job.workspace_id
-            if self.job is not None
-            else self.repository.workspace_id
-        )
+        return self.task.repository.workspace_id
+
+    @property
+    def job_key(self) -> str:
+        """The job's key, or "" for an ad hoc task."""
+        return self.plan.job.key if self.job_id is not None else ""
 
     @property
     def display_name(self) -> str:
         return (
             self.job.name
             if self.job is not None
-            else str(self.input_snapshot.get("name", "Ad hoc skill"))
+            else self.inputs.name or "Ad hoc skill"
         )
 
     def __str__(self) -> str:
@@ -246,6 +242,13 @@ class RunDelivery(models.Model):
     external_url = models.URLField(max_length=500, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    @property
+    def event_name(self) -> str:
+        """How the run's events name this delivery."""
+        if self.kind == self.Kind.NOTIFICATION:
+            return f"Notification to {self.target}"
+        return self.get_kind_display()
 
     class Meta:
         ordering = ["created_at", "pk"]

@@ -1,5 +1,14 @@
 import { apiDelete, apiGet, apiPost } from './api'
-import type { CapabilityNeed, Connection, ConnectionTest, Job, MCPProviderInfo, MCPServerInfo, ModelProvider, WebhookSample } from '../types'
+import type { APISpecSummary, CapabilityNeed, Connection, ConnectionTest, Job, MCPProviderInfo, MCPServerInfo, ModelProvider, WebhookSample } from '../types'
+
+export function fetchConnections(): Promise<Connection[]> {
+  return apiGet<Connection[]>('/connections')
+}
+
+/** What the workspace's jobs ask for, by binding. */
+export function fetchCapabilityNeeds(): Promise<CapabilityNeed[]> {
+  return apiGet<CapabilityNeed[]>('/capability-needs')
+}
 
 export interface WebhookInput {
   binding_key: string
@@ -94,13 +103,6 @@ export function fetchMCPProviders(): Promise<MCPProviderInfo[]> {
 
 export function createMCPConnection(input: { provider: string, binding_key: string, display_name: string, token: string, settings: Record<string, string>, require_approval: boolean, auth?: 'token' | 'source' }): Promise<Connection> {
   return apiPost<Connection>('/connections/mcp', input)
-}
-
-export interface APISpecSummary {
-  title: string
-  servers: string[]
-  operations: number
-  read_only: number
 }
 
 export interface APISpecInput {

@@ -1,11 +1,13 @@
 from dataclasses import dataclass, field
 from typing import Literal
 
+from secondshift.connections.access import Access
 from secondshift.connections.dao import connections_by_binding
-from secondshift.connections.external import EXTERNAL_KINDS, Access, external_access
+from secondshift.connections.external import EXTERNAL_KINDS, external_access
 from secondshift.connections.models import Connection
 from secondshift.jobs.dao import workspace_requests
 from secondshift.jobs.models import CapabilityRequest, JobGrant
+from secondshift.repositories.github import repository_ref
 from secondshift.repositories.models import Repository
 from secondshift.workspaces.models import Workspace
 
@@ -63,7 +65,7 @@ def connection_problem(
         )
     if kind in EXTERNAL_KINDS:
         for repository in repositories:
-            access = external_access(connection, repository)
+            access = external_access(connection, repository_ref(repository))
             if access and not access.ok:
                 return "unavailable", access.text
     missing_tools = requested_tools - set(connection.available_tools)
@@ -128,7 +130,9 @@ def capability_needs(workspace: Workspace) -> list[CapabilityNeed]:
                         job_name=item.job.name,
                         repository=item.job.repository.display_name,
                         access=(
-                            external_access(connection, item.job.repository)
+                            external_access(
+                                connection, repository_ref(item.job.repository)
+                            )
                             if connection and connection.kind == kind
                             else None
                         ),

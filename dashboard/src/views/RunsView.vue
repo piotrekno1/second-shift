@@ -78,7 +78,7 @@ function clearFilters(): void {
 }
 
 watch(query, () => void load(), { immediate: true, deep: true })
-// Active runs update in place; the store drops responses that arrive out of order.
+// Active runs update in place. The store drops responses that arrive out of order.
 useLiveRefresh(load, () => Boolean(counts.value.queued || counts.value.running))
 </script>
 

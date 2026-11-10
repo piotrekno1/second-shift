@@ -3,12 +3,13 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
+from secondshift.connections.access import AccessReason
 from secondshift.connections.errors import (
     ExternalRequestError,
     ExternalToolError,
     ToolArgumentError,
 )
-from secondshift.repositories.models import Repository
+from secondshift.connections.repository_ref import RepositoryRef
 from secondshift.workspaces.models import Workspace
 
 MCPSettings = dict[str, str]
@@ -66,14 +67,14 @@ class MCPProvider:
     # Only these tools are discovered, approved, and called.
     tools: tuple[str, ...]
     # What a job may touch, such as "owner/repo". None means it cannot run.
-    scope: Callable[[MCPSettings, Repository], str | None]
+    scope: Callable[[MCPSettings, RepositoryRef], str | None]
     # Forces model arguments into the approved scope, or raises MCPError.
     scope_arguments: Callable[[str, str, dict[str, Any]], dict[str, Any]]
     # Completes "Allow these tools to read ...".
     describe_scope: Callable[[str], str]
     access_verb: str = "read"
     scope_label: str = "scope"
-    missing_scope_reason: str = "mcp_scope_unknown"
+    missing_scope_reason: AccessReason = AccessReason.MCP_SCOPE_UNKNOWN
     missing_scope_message: str = "This job has no scope for this provider."
     settings: tuple[MCPSetting, ...] = ()
     # Appended to endpoint_url, built only from validated settings.
@@ -98,11 +99,11 @@ class MCPProvider:
     # SOURCE_AUTH for the token of the repository's source connection.
     auth_methods: tuple[str, ...] = ("token",)
     # SOURCE_AUTH only. A token for one repository, minted when a tool is called.
-    source_token: Callable[[Repository], str] | None = None
+    source_token: Callable[[RepositoryRef], str] | None = None
     # SOURCE_AUTH only. A token for listing tools when the connection is saved.
     discovery_token: Callable[[Workspace], str] | None = None
     # SOURCE_AUTH only. Whether a repository has a source this can borrow.
-    source_reachable: Callable[[Repository], bool] = lambda repository: False
+    source_reachable: Callable[[RepositoryRef], bool] = lambda repository: False
     missing_source_message: str = "This repository has no source connection."
     token_pattern: str = r"\S+"
     token_hint: str = "Enter a token without whitespace."

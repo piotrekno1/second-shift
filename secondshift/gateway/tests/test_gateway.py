@@ -4,7 +4,6 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import Any
 
-import httpcore
 import httpx
 import pytest
 from asgiref.sync import async_to_sync
@@ -14,8 +13,10 @@ from django.test import Client
 from django.urls import Resolver404, resolve
 from django.utils import timezone
 
+from secondshift.config.constants import RunStart
+from secondshift.connections.execution import choose_execution
 from secondshift.connections.models import Connection
-from secondshift.connections.outbound import PinnedNetworkBackend, PinnedTransport
+from secondshift.connections.tests.test_outbound import refuse_private_answers
 from secondshift.gateway.metering import (
     MAX_SSE_LINE_BYTES,
     StreamMeter,
@@ -25,13 +26,18 @@ from secondshift.gateway.metering import (
 from secondshift.gateway.models import ModelUsage, RunToken
 from secondshift.gateway.pricing import request_cost
 from secondshift.gateway.proxy import upstream_client
-from secondshift.gateway.tokens import GatewayUnavailable, authenticate, issue_run_token
+from secondshift.gateway.tokens import GatewayUnavailable, authenticate
 from secondshift.gateway.views import model_gateway
-from secondshift.jobs.execution import choose_execution
 from secondshift.jobs.models import Job
+from secondshift.jobs.tests.plans import stored_plan
 from secondshift.repositories.models import Repository
+from secondshift.runs.dao import create_task
+from secondshift.runs.execution.model_gateway import issue_run_token
 from secondshift.runs.models import Run
-from secondshift.runs.orchestration.reconciliation import mark_run_terminal
+from secondshift.runs.orchestration.reconciliation import (
+    WorkflowStatus,
+    mark_run_terminal,
+)
 from secondshift.workspaces.dao import create_workspace, workspace_owner
 from secondshift.workspaces.models import Workspace
 
@@ -79,6 +85,9 @@ def make_run(workspace: Workspace, status: str = Run.Status.RUNNING) -> Run:
         config_hash="hash",
     )
     return Run.objects.create(
+        task=create_task(repository=job.repository),
+        started_by=RunStart.SCHEDULE,
+        execution_plan=stored_plan(),
         job=job,
         status=status,
         commit_sha="abc",
@@ -146,7 +155,9 @@ def test_tokens_are_hashed_and_die_with_the_run(workspace: Workspace) -> None:
     assert token not in stored.token_hash
     assert authenticate(token) is not None
 
-    mark_run_terminal(run.pk, Run.Status.FAILED, "stopped", workflow_status="ERROR")
+    mark_run_terminal(
+        run.pk, Run.Status.FAILED, "stopped", workflow_status=WorkflowStatus.ERROR
+    )
     assert authenticate(token) is None
 
 
@@ -222,6 +233,9 @@ def test_gateway_enforces_auth_paths_models_and_budget(
     other_path = post(
         client, "/gateway/anthropic/v1/files", message, **{"x-api-key": token}
     )
+    other_api = post(
+        client, "/gateway/gemini/v1/messages", message, **{"x-api-key": token}
+    )
     other_model = post(
         client,
         "/gateway/anthropic/v1/messages",
@@ -237,6 +251,7 @@ def test_gateway_enforces_auth_paths_models_and_budget(
     assert unauthenticated.json()["error"]["type"] == "authentication_error"
     assert wrong_family.status_code == 404
     assert other_path.status_code == 404
+    assert other_api.status_code == 404
     assert other_model.status_code == 403
     assert over_budget.status_code == 429
     # The provider SDK must not retry a run that has used its budget.
@@ -470,67 +485,20 @@ def test_cost_is_priced_per_provider_and_summed_per_run(
     assert (listed["model_input_tokens"], listed["model_output_tokens"]) == (2_000, 200)
 
 
-def test_upstream_client_pins_addresses_and_never_follows_redirects() -> None:
-    async def build() -> httpx.AsyncClient:
-        return upstream_client()
-
-    client = async_to_sync(build)()
-    assert client.follow_redirects is False
-    assert isinstance(client._transport, PinnedTransport)
-
-
-@pytest.mark.parametrize(
-    "addresses", [["10.0.0.5"], ["93.184.215.14", "127.0.0.1"], ["::1"]]
-)
-def test_pinned_backend_refuses_private_answers(
-    settings: Any, monkeypatch: pytest.MonkeyPatch, addresses: list[str]
-) -> None:
-    settings.OUTBOUND_ALLOW_LOCAL = False
-
-    async def fake_getaddrinfo(host: str, port: int, **_: Any) -> list[Any]:
-        return [(None, None, None, "", (address, port)) for address in addresses]
-
-    connected: list[str] = []
-
-    async def fake_connect(self: Any, host: str, port: int, **_: Any) -> None:
-        connected.append(host)
-
-    monkeypatch.setattr(
-        "secondshift.connections.outbound.anyio.getaddrinfo", fake_getaddrinfo
-    )
-    monkeypatch.setattr(httpcore.AnyIOBackend, "connect_tcp", fake_connect)
-
-    with pytest.raises(httpcore.ConnectError):
-        async_to_sync(PinnedNetworkBackend().connect_tcp)("rebound.example", 443)
-    assert connected == []
-
-
-def test_pinned_backend_connects_to_the_vetted_address(
+def test_upstream_client_refuses_a_private_answer_and_follows_no_redirects(
     settings: Any, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     settings.OUTBOUND_ALLOW_LOCAL = False
-    answers = iter([["93.184.215.14"], ["127.0.0.1"]])
+    connected = refuse_private_answers(monkeypatch)
 
-    async def fake_getaddrinfo(host: str, port: int, **_: Any) -> list[Any]:
-        return [(None, None, None, "", (address, port)) for address in next(answers)]
+    async def send() -> httpx.AsyncClient:
+        client = upstream_client()
+        with pytest.raises(httpx.ConnectError):
+            await client.get("https://rebound.example/v1/messages")
+        return client
 
-    connected: list[str] = []
-
-    async def fake_connect(self: Any, host: str, port: int, **_: Any) -> str:
-        connected.append(host)
-        return "stream"
-
-    monkeypatch.setattr(
-        "secondshift.connections.outbound.anyio.getaddrinfo", fake_getaddrinfo
-    )
-    monkeypatch.setattr(httpcore.AnyIOBackend, "connect_tcp", fake_connect)
-    backend = PinnedNetworkBackend()
-
-    assert async_to_sync(backend.connect_tcp)("api.example", 443) == "stream"
-    # A later answer that rebinds to a private address is refused.
-    with pytest.raises(httpcore.ConnectError):
-        async_to_sync(backend.connect_tcp)("api.example", 443)
-    assert connected == ["93.184.215.14"]
+    assert async_to_sync(send)().follow_redirects is False
+    assert connected == []
 
 
 @pytest.mark.urls("secondshift.config.urls")

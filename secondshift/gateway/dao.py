@@ -9,11 +9,10 @@ from django.utils import timezone
 
 from secondshift.connections.models import Connection
 from secondshift.gateway.models import ModelUsage, RunToken
-from secondshift.runs.models import Run, run_workspace_filter
 
 
 def create_run_token(
-    run: Run,
+    run_id: int,
     connection: Connection,
     token_hash: str,
     expires_at: datetime,
@@ -21,7 +20,7 @@ def create_run_token(
 ) -> RunToken:
     """Store a run's gateway token by its hash."""
     return RunToken.objects.create(
-        run=run,
+        run_id=run_id,
         connection=connection,
         token_hash=token_hash,
         expires_at=expires_at,
@@ -37,17 +36,27 @@ def revoke_run_tokens(run_id: int) -> int:
 
 
 def active_tokens(token_hash: str) -> QuerySet[RunToken]:
-    """Live tokens with this hash, for an active run and a connected model."""
+    """Live tokens with this hash, for a connected model.
+
+    A run's tokens are revoked when it finishes, in the same transaction.
+    """
     return RunToken.objects.select_related(
         "connection", "run__job", "run__task__repository"
     ).filter(
         token_hash=token_hash,
         revoked_at__isnull=True,
         expires_at__gt=timezone.now(),
-        run__status__in=Run.ACTIVE_STATUSES,
         connection__status=Connection.Status.CONNECTED,
         connection__kind=Connection.Kind.MODEL,
     )
+
+
+def active_token(token_hash: str) -> RunToken | None:
+    return active_tokens(token_hash).first()
+
+
+async def aactive_token(token_hash: str) -> RunToken | None:
+    return await active_tokens(token_hash).afirst()
 
 
 async def acreate_model_usage(
@@ -100,13 +109,12 @@ def usage_by_connection(
     }
 
 
-def spend_totals(
-    workspace_id: int, start: datetime, previous_start: datetime
-) -> dict[str, Any]:
-    """Spend since `start`, spend in the window before it, and unpriced requests."""
-    return ModelUsage.objects.filter(
-        run_workspace_filter(workspace_id, "run__"), created_at__gte=previous_start
-    ).aggregate(
+def spend_totals(runs: Q, start: datetime, previous_start: datetime) -> dict[str, Any]:
+    """Spend since `start`, spend in the window before it, and unpriced requests.
+
+    `runs` picks the usage by its run, with lookups that start at `run__`.
+    """
+    return ModelUsage.objects.filter(runs, created_at__gte=previous_start).aggregate(
         spend=Sum("cost_usd", filter=Q(created_at__gte=start)),
         previous=Sum("cost_usd", filter=Q(created_at__lt=start)),
         unpriced=Count("pk", filter=Q(created_at__gte=start, cost_usd__isnull=True)),

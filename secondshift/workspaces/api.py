@@ -1,23 +1,10 @@
-from typing import Any
-
 from django.conf import settings
-from django.core.exceptions import ValidationError
 from django.http import HttpRequest
 from django.shortcuts import get_object_or_404
 from ninja import Router, Status
 from ninja.errors import HttpError
 from ninja.security import django_auth
 
-from secondshift.jobs.api_limits import limit_error_detail, limit_updates
-from secondshift.jobs.execution import (
-    execution_configuration,
-    save_execution_preference,
-)
-from secondshift.jobs.limits import LimitError, save_overrides
-from secondshift.jobs.schemas import (
-    ExecutionConfigurationSchema,
-    RunLimitsUpdateSchema,
-)
 from secondshift.workspaces.access import (
     Action,
     current_workspace,
@@ -40,13 +27,13 @@ from secondshift.workspaces.invites import (
     pending_invite,
     revoke_invite,
 )
+from secondshift.workspaces.limits import LimitError, save_overrides
 from secondshift.workspaces.models import (
     WorkspaceMembership,
 )
 from secondshift.workspaces.schemas import (
     ApiTokenCreateSchema,
     ApiTokenListSchema,
-    ExecutionPreferenceSchema,
     InviteCreateSchema,
     InviteSchema,
     MemberSchema,
@@ -54,12 +41,14 @@ from secondshift.workspaces.schemas import (
     NewInviteSchema,
     PendingInviteSchema,
     RoleChangeSchema,
+    RunLimitsUpdateSchema,
     WorkspaceChoiceSchema,
     WorkspaceCreateSchema,
     WorkspaceSelectSchema,
     WorkspaceSettingsSchema,
 )
 from secondshift.workspaces.serialization import (
+    limit_error_detail,
     serialize_api_token,
     serialize_choice,
     serialize_invite,
@@ -93,7 +82,7 @@ def set_workspace_limits(
     """Change the workspace's run limits. Runs already created keep theirs."""
     workspace = require(request, Action.CHANGE_RUN_LIMITS)
     try:
-        save_overrides(workspace, limit_updates(payload))
+        save_overrides(workspace, payload.model_dump(exclude_unset=True))
     except LimitError as error:
         raise HttpError(422, limit_error_detail(request, error)) from error
     return serialize_settings(request, workspace)
@@ -118,8 +107,8 @@ def new_workspace(
         raise HttpError(403, str(error)) from error
     except WorkspaceCreationError as error:
         raise HttpError(400, str(error)) from error
-    select_workspace(request, workspace.pk)
-    membership = user_memberships(request).get(workspace=workspace)
+    membership = select_workspace(request, workspace.pk)
+    assert membership is not None
     return serialize_choice(membership, workspace.pk)
 
 
@@ -128,11 +117,10 @@ def choose_workspace(
     request: HttpRequest, payload: WorkspaceSelectSchema
 ) -> WorkspaceChoiceSchema:
     """Work in another workspace for the rest of this session."""
-    workspace = select_workspace(request, payload.workspace_id)
-    if workspace is None:
+    membership = select_workspace(request, payload.workspace_id)
+    if membership is None:
         raise HttpError(404, "Not found")
-    membership = user_memberships(request).get(workspace=workspace)
-    return serialize_choice(membership, workspace.pk)
+    return serialize_choice(membership, membership.workspace_id)
 
 
 @router.get("/invites/pending", response=PendingInviteSchema | None)
@@ -170,14 +158,11 @@ def dismiss_pending_invite(request: HttpRequest) -> Status[None]:
     return Status(204, None)
 
 
-# type: ignore[attr-defined]
-
-
 @router.get("/invites", response=list[InviteSchema])
 def invites(request: HttpRequest) -> list[InviteSchema]:
     """Invites in the current workspace that can still be accepted."""
     workspace = require(request, Action.INVITE_PEOPLE)
-    queryset = pending_invites(workspace).select_related("created_by")
+    queryset = pending_invites(workspace)
     return [serialize_invite(invite) for invite in queryset]
 
 
@@ -277,23 +262,3 @@ def new_api_token(
 def revoke_token(request: HttpRequest, token_id: int) -> Status[None]:
     revoke_api_token(get_object_or_404(own_tokens(request.user), pk=token_id))
     return Status(204, None)
-
-
-@router.get("/settings/agent", response=ExecutionConfigurationSchema)
-def default_agent(request: HttpRequest) -> dict[str, Any]:
-    workspace = current_workspace(request)
-    if workspace is None:
-        raise HttpError(404, "Choose a workspace first.")
-    return execution_configuration(workspace, request.user)
-
-
-@router.post("/settings/agent", response=ExecutionConfigurationSchema)
-def set_default_agent(
-    request: HttpRequest, payload: ExecutionPreferenceSchema
-) -> dict[str, Any]:
-    workspace = require(request, Action.REVIEW_CAPABILITIES)
-    try:
-        save_execution_preference(workspace, payload.key, request.user)
-    except ValidationError as error:
-        raise HttpError(422, error.messages[0]) from None
-    return execution_configuration(workspace, request.user)

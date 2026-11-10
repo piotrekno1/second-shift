@@ -8,12 +8,12 @@ import time
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import Any
 
 from django.conf import settings
 from django.utils import timezone
 
 from secondshift.config.constants import RunStart, TriggerKind
+from secondshift.jobs.manifest import WebhookManifest, duration_seconds
 from secondshift.jobs.models import JOB_REMOVED, Job
 from secondshift.runs.dao import run_for_repeat_key, started_run_count
 from secondshift.runs.models import Run
@@ -28,7 +28,6 @@ from secondshift.triggers.dao import (
 from secondshift.triggers.filters import (
     parse_body,
     repeat_key,
-    repeat_window_seconds,
     skip_reason,
 )
 from secondshift.triggers.models import JobTrigger, TriggerEvent
@@ -41,7 +40,6 @@ UNAUTHORIZED_RECORD_SECONDS = 60
 # Secret scanners can match trigger secrets by this prefix.
 SECRET_PREFIX = "sst_"
 
-RUN_STARTS = {TriggerKind.WEBHOOK: RunStart.WEBHOOK}
 ENQUEUE_RETRY_SECONDS = 60
 
 
@@ -70,14 +68,10 @@ def new_secret() -> str:
     return SECRET_PREFIX + secrets.token_urlsafe(32)
 
 
-def declared(job: Job, kind: TriggerKind) -> bool:
-    return kind in job.triggers
-
-
 def set_trigger_enabled(job: Job, kind: TriggerKind, enabled: bool) -> TriggerChange:
     """Turn a trigger on or off. The first time on creates its URL and secret."""
     trigger = job_trigger(job, kind)
-    if enabled and not declared(job, kind):
+    if enabled and kind not in job.triggers:
         raise TriggerError(
             f"The job's configuration does not name a {kind} trigger. "
             f"Add triggers: [{kind}] to the job in .secondshift.yaml."
@@ -154,9 +148,9 @@ def runs_per_hour(trigger: JobTrigger | None) -> int:
     return min(chosen, settings.TRIGGER_MAX_RUNS_PER_HOUR_CEILING)
 
 
-def earlier_run(job: Job, key: str, webhook: dict[str, Any]) -> Run | None:
+def earlier_run(job: Job, key: str, webhook: WebhookManifest) -> Run | None:
     """A run for the same event that is active or finished within the window."""
-    since = timezone.now() - timedelta(seconds=repeat_window_seconds(webhook))
+    since = timezone.now() - timedelta(seconds=duration_seconds(webhook.window))
     return run_for_repeat_key(job, key, since)
 
 
@@ -177,7 +171,7 @@ def refusal(trigger: JobTrigger) -> Received | None:
         return refuse(trigger, 409, "The job's repository was removed.")
     if job.removed_at is not None:
         return refuse(trigger, 409, JOB_REMOVED)
-    if not declared(job, TriggerKind(trigger.kind)):
+    if trigger.kind not in job.triggers:
         return refuse(
             trigger,
             409,
@@ -190,7 +184,7 @@ def hourly_refusal(trigger: JobTrigger) -> Received | None:
     limit = runs_per_hour(trigger)
     started = started_run_count(
         trigger.job,
-        RUN_STARTS[TriggerKind(trigger.kind)],
+        RunStart.WEBHOOK,
         timezone.now() - timedelta(hours=1),
     )
     if started < limit:
@@ -203,9 +197,9 @@ def hourly_refusal(trigger: JobTrigger) -> Received | None:
 
 def start(trigger: JobTrigger, body: bytes, key: str | None) -> Received:
     try:
-        run = start_run(trigger.job, RUN_STARTS[TriggerKind(trigger.kind)], body, key)
+        run = start_run(trigger.job, RunStart.WEBHOOK, body, key)
     except RunInProgress as error:
-        if key is not None and error.run.input_snapshot.get("repeat_key") == key:
+        if key is not None and error.run.inputs.repeat_key == key:
             return ignore(trigger, repeat_reason(error.run))
         return refuse(
             trigger, 409, f"Run #{error.run.pk} of this job has not finished."
@@ -239,11 +233,12 @@ def receive(trigger: JobTrigger, headers: Mapping[str, str], body: bytes) -> Rec
         return refuse_unauthorized(trigger, verdict.reason)
     if refused := refusal(trigger):
         return refused
-    webhook = trigger.job.webhook or {}
-    data = parse_body(body) if webhook else None
-    if reason := skip_reason(data, webhook.get("skip_when") or {}):
+    declared = trigger.job.webhook_settings
+    data = parse_body(body) if declared else None
+    webhook = declared or WebhookManifest()
+    if reason := skip_reason(data, webhook.skip_when):
         return ignore(trigger, reason)
-    key = repeat_key(data, webhook.get("repeat_key"))
+    key = repeat_key(data, webhook.repeat_key)
     if key is not None and (earlier := earlier_run(trigger.job, key, webhook)):
         return ignore(trigger, repeat_reason(earlier))
     if refused := hourly_refusal(trigger):

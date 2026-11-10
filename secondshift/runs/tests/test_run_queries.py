@@ -6,10 +6,13 @@ from django.contrib.auth import get_user_model
 from django.test import Client
 from django.utils import timezone
 
+from secondshift.config.constants import RunStart
 from secondshift.gateway.models import ModelUsage
 from secondshift.jobs.models import Job
+from secondshift.jobs.tests.plans import MODEL, stored_plan
 from secondshift.repositories.models import Repository
-from secondshift.runs.models import Run
+from secondshift.runs.dao import create_task
+from secondshift.runs.models import Run, RunFailure
 from secondshift.workspaces.dao import create_workspace, workspace_owner
 from secondshift.workspaces.models import Workspace
 
@@ -36,6 +39,9 @@ def make_job(workspace: Workspace, repository: str, key: str) -> Job:
 
 def make_run(job: Job, status: str, summary: str = "", day: int = 1) -> Run:
     return Run.objects.create(
+        task=create_task(repository=job.repository),
+        started_by=RunStart.SCHEDULE,
+        execution_plan=stored_plan(),
         job=job,
         status=status,
         commit_sha="abc",
@@ -141,10 +147,10 @@ def test_run_detail_includes_events_output_and_frozen_inputs(
     client: Client, runs: dict[str, object]
 ) -> None:
     run = runs["health_failed"]
-    run.input_snapshot = {"job_key": "frozen-key", "skill_path": "frozen/SKILL.md"}  # type: ignore[attr-defined]
-    run.execution_plan = {  # type: ignore[attr-defined]
-        "model": {"connection_name": "OpenRouter", "default_model": "m-1"}
-    }
+    run.execution_plan = stored_plan(  # type: ignore[attr-defined]
+        job={"key": "frozen-key", "skill_path": "frozen/SKILL.md"},
+        model=MODEL | {"connection_name": "OpenRouter", "default_model": "m-1"},
+    )
     run.output_excerpt = "report tail"  # type: ignore[attr-defined]
     run.save()  # type: ignore[attr-defined]
     run.events.create(message="Run started.")  # type: ignore[attr-defined]
@@ -183,10 +189,9 @@ def test_run_list_includes_stats_from_the_frozen_plan(
 ) -> None:
     run = runs["health_ok"]
     run.started_at = datetime(2026, 10, 2, 9, 0, 0, tzinfo=UTC)  # type: ignore[attr-defined]
-    run.execution_plan = {  # type: ignore[attr-defined]
-        "agent": {"limits": {"max_turns": 12}},
-        "model": {"default_model": "m-1"},
-    }
+    run.execution_plan = stored_plan(  # type: ignore[attr-defined]
+        agent={"limits": {"max_turns": 12}}, model=MODEL | {"default_model": "m-1"}
+    )
     run.save()  # type: ignore[attr-defined]
     client.force_login(workspace_owner(runs["workspace"]))  # type: ignore[attr-defined]
 
@@ -197,7 +202,7 @@ def test_run_list_includes_stats_from_the_frozen_plan(
     assert item["started_at"].startswith("2026-10-02T09:00:00")
     assert (item["model"], item["max_turns"], item["commit_sha"]) == ("m-1", 12, "abc")
     assert (item["model_requests"], item["model_input_tokens"]) == (0, 0)
-    assert (bare["model"], bare["max_turns"]) == (None, None)
+    assert bare["model"] is None
 
 
 @pytest.mark.django_db
@@ -205,7 +210,9 @@ def test_run_list_splits_failures_into_label_and_reason(
     client: Client, runs: dict[str, object]
 ) -> None:
     Run.objects.filter(pk=runs["health_failed"].pk).update(  # type: ignore[attr-defined]
-        summary="Couldn't start the sandbox: Runner answered HTTP 500."
+        summary="Couldn't start the sandbox: Runner answered HTTP 500.",
+        failure=RunFailure.SANDBOX,
+        failure_reason="Runner answered HTTP 500.",
     )
     client.force_login(workspace_owner(runs["workspace"]))  # type: ignore[attr-defined]
 
@@ -265,7 +272,7 @@ def test_runs_filter_by_period_and_sort_by_cost(
 
     assert old.pk not in ids(week) and old.pk in ids(month)  # type: ignore[attr-defined]
     assert week.json()["status_counts"].get("failed") is None
-    # Priced runs first, most expensive first; unpriced runs after them.
+    # Priced runs first, most expensive first. Unpriced runs after them.
     assert [item["id"] for item in by_cost[:3]] == [
         runs["triage_ok"].pk,  # type: ignore[attr-defined]
         runs["health_ok"].pk,  # type: ignore[attr-defined]

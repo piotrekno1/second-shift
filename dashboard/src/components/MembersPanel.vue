@@ -5,6 +5,7 @@ import Select from 'primevue/select'
 import { changeMemberRole, fetchMembers, removeMember } from '../services/members'
 import type { Member } from '../types'
 import { statusLabel } from '../utils/format'
+import { errorMessage } from '../services/api'
 
 const props = defineProps<{ canManage: boolean }>()
 
@@ -13,15 +14,11 @@ const members = ref<Member[]>([])
 const confirming = ref<number | null>(null)
 const error = ref<string | null>(null)
 
-function message(failure: unknown): string {
-  return failure instanceof Error ? failure.message : 'Something went wrong'
-}
-
 async function load(): Promise<void> {
   try {
     members.value = await fetchMembers()
   } catch (failure) {
-    error.value = message(failure)
+    error.value = errorMessage(failure)
   }
 }
 
@@ -33,7 +30,7 @@ async function setRole(member: Member, role: string): Promise<void> {
     if (member.you) window.location.reload()
     else await load()
   } catch (failure) {
-    error.value = message(failure)
+    error.value = errorMessage(failure)
     await load()
   }
 }
@@ -47,7 +44,7 @@ async function remove(member: Member): Promise<void> {
     else await load()
   } catch (failure) {
     confirming.value = null
-    error.value = message(failure)
+    error.value = errorMessage(failure)
   }
 }
 

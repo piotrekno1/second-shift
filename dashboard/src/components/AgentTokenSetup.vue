@@ -10,6 +10,7 @@ import { createApiToken, fetchApiTokens } from '../services/apiTokens'
 import type { ApiTokenScope, NewApiToken, TokenWorkspace } from '../types'
 import { defaultExpiry, expiryOptions } from '../utils/apiTokens'
 import { formatRelative } from '../utils/format'
+import { errorMessage } from '../services/api'
 
 const emit = defineEmits<{ busy: [value: boolean] }>()
 
@@ -48,10 +49,6 @@ watch(workspace, (value) => {
 // An error about the last try goes once the form is changed.
 watch([name, workspaceId, scope, days], () => { error.value = null })
 
-function message(failure: unknown): string {
-  return failure instanceof Error ? failure.message : 'Something went wrong'
-}
-
 async function load(): Promise<void> {
   error.value = null
   try {
@@ -64,7 +61,7 @@ async function load(): Promise<void> {
     }
     loaded.value = true
   } catch (failure) {
-    error.value = message(failure)
+    error.value = errorMessage(failure)
   }
 }
 
@@ -87,7 +84,7 @@ async function create(): Promise<void> {
     })
     name.value = ''
   } catch (failure) {
-    error.value = message(failure)
+    error.value = errorMessage(failure)
   } finally {
     busy.value = false
     emit('busy', false)

@@ -6,9 +6,9 @@ uses that token for every call and git command it makes.
 
 from dataclasses import dataclass
 
+from secondshift.connections.github import connection_source
 from secondshift.connections.models import Connection
 from secondshift.github import credentials, repos
-from secondshift.github.app import configured
 from secondshift.github.errors import GitHubError
 from secondshift.github.identity import clone_url
 from secondshift.repositories.models import Repository
@@ -26,39 +26,6 @@ class GitHubAccess:
     @property
     def clone_url(self) -> str:
         return clone_url(self.full_name)
-
-
-def usable_source(connection: Connection | None) -> bool:
-    if not (
-        connection
-        and connection.provider == Connection.Provider.GITHUB
-        and connection.kind == Connection.Kind.SOURCE
-        and connection.status == Connection.Status.CONNECTED
-    ):
-        return False
-    if connection.auth_strategy == Connection.AuthStrategy.MANAGED:
-        return True
-    return connection.auth_strategy == Connection.AuthStrategy.API_KEY and bool(
-        connection.access_token
-    )
-
-
-def can_check(connection: Connection | None) -> bool:
-    """App sources need the App on this server. Token sources need only themselves."""
-    return usable_source(connection) and (
-        connection.auth_strategy != Connection.AuthStrategy.MANAGED or configured()
-    )
-
-
-def connection_source(connection: Connection | None) -> credentials.Source:
-    """The credential behind a source connection. Never returned to a client."""
-    if not usable_source(connection):
-        raise GitHubError("The GitHub connection is disconnected.")
-    if connection.auth_strategy == Connection.AuthStrategy.MANAGED:
-        return credentials.AppInstallation(connection.external_account_id)
-    if connection.current_status == Connection.Status.EXPIRED:
-        raise GitHubError("The GitHub token expired. Enter a new one.")
-    return credentials.PersonalToken(connection.access_token)
 
 
 def connection_access(

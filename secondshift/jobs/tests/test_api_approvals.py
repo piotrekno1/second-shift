@@ -7,10 +7,13 @@ from django.contrib.auth.models import AbstractUser
 from django.test import Client
 from django.utils import timezone
 
+from secondshift.config.constants import RunStart
+from secondshift.connections.execution import NOTHING_CHOSEN, choose_execution
 from secondshift.connections.models import Connection
-from secondshift.jobs.execution import NOTHING_CHOSEN, choose_execution
 from secondshift.jobs.models import JOB_REMOVED, CapabilityRequest, Job, JobGrant
+from secondshift.jobs.tests.plans import stored_plan
 from secondshift.repositories.models import Repository
+from secondshift.runs.dao import create_task
 from secondshift.runs.models import Run, Task
 from secondshift.workspaces.dao import create_workspace
 from secondshift.workspaces.models import Workspace, WorkspaceMembership
@@ -140,10 +143,12 @@ def test_owner_can_approve_required_capability_and_enable_job(
     assert enabled.json()["enabled"] is True
 
     run = Run.objects.create(
+        task=create_task(repository=job.repository),
+        started_by=RunStart.SCHEDULE,
         job=job,
         commit_sha=job.repository.config_sha,
         scheduled_for=timezone.now(),
-        execution_plan={"ready": True},
+        execution_plan=stored_plan(),
     )
     detail = client.get(f"/api/jobs/{job.pk}")
     runs = client.get("/api/runs")
@@ -322,7 +327,6 @@ def test_run_now_works_while_the_schedule_is_off(
     assert queued == [response.json()["id"]]
     assert response.json()["started_by"] == "manual"
     task = Task.objects.get()
-    assert task.origin == "manual"
     assert task.submitted_by_id == user.pk
     assert Run.objects.get(pk=response.json()["id"]).task_id == task.pk
 

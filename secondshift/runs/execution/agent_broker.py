@@ -38,13 +38,13 @@ class MethodNotFound(ValueError):
 
 
 def run_connection(run: Run) -> AgentConnection:
-    plan = run.execution_plan["execution"]
+    plan = run.plan.execution
     connection = find_agent_connection(
-        plan["connection_id"],
+        plan.connection_id,
         run.workspace_id,
-        plan["owner_id"],
-        plan["credential_key"],
-        plan["backend"],
+        plan.owner_id,
+        plan.credential_key,
+        plan.backend,
     )
     if connection is None or not usable_agent_connection(connection, run.workspace_id):
         raise AgentAccessError(
@@ -63,12 +63,12 @@ def lease_run(lease: AgentLease) -> Run:
 
 
 def broker_tools(run: Run) -> dict[str, Tool[WorkspaceToolDeps]]:
-    allowed = set(run.execution_plan["agent"]["tools"])
+    allowed = set(run.plan.agent.tools)
     local = {MODEL_TOOL_NAMES[name] for name in allowed if name in MODEL_TOOL_NAMES}
     tools = [tool for tool in workspace_tools() if tool.name in local]
     if run_payload(run):
         tools.append(payload_tool())
-    if issue_limit(run.execution_plan):
+    if issue_limit(run.plan):
         tools.append(issue_tool())
     return {tool.name: tool for tool in (*tools, *external_tools(run))}
 
@@ -79,9 +79,7 @@ def tool_result(
     with transaction.atomic():
         lease = lock_lease(lease.pk)
         run = lease_run(lease)
-        if lease.tool_calls >= int(
-            run.execution_plan["agent"]["limits"]["max_tool_calls"]
-        ):
+        if lease.tool_calls >= run.plan.agent.limits.max_tool_calls:
             raise AgentAccessError("This run has used its tool call budget.")
         # Resolve and validate before counting the call.
         tool = broker_tools(run).get(name)
@@ -96,13 +94,11 @@ def tool_result(
     deps = WorkspaceToolDeps(
         run_id=run.pk,
         session_id=lease.session_id,
-        max_output_chars=int(
-            run.execution_plan["agent"]["limits"]["max_tool_result_chars"]
-        ),
+        max_output_chars=run.plan.agent.limits.max_tool_result_chars,
         deadline=run_deadline(run),
-        allowed_tools=tuple(run.execution_plan["agent"]["tools"]),
+        allowed_tools=run.plan.agent.tools,
         payload=run_payload(run),
-        issue_limit=issue_limit(run.execution_plan),
+        issue_limit=issue_limit(run.plan),
     )
     context = RunContext(deps=deps, model=None, usage=RunUsage(), tool_call_id=call_id)
     try:

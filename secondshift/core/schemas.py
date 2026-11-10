@@ -2,7 +2,7 @@ from datetime import date, datetime
 
 from ninja import Schema
 
-from secondshift.jobs.schemas import ExecutionStatusSchema
+from secondshift.connections.schemas import ExecutionStatusSchema
 
 
 class UserSchema(Schema):

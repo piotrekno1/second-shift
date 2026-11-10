@@ -6,12 +6,12 @@ from django.contrib.auth import get_user_model
 from secondshift.connections.models import Connection
 from secondshift.github.identity import github_remote_name
 from secondshift.jobs.models import JobGrant
-from secondshift.repositories.github import github_repository_scope
-from secondshift.repositories.local import (
+from secondshift.jobs.repository_sync import (
     attach_local_repository,
-    git,
     inspect_local_repository,
 )
+from secondshift.repositories.github import github_repository_scope
+from secondshift.repositories.local import git
 from secondshift.repositories.models import Repository
 from secondshift.repositories.tests.test_local import create_local_repository
 from secondshift.workspaces.dao import create_workspace

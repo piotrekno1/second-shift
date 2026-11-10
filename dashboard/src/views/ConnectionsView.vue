@@ -16,7 +16,8 @@ import { approveNeed, createMCPConnection, deleteConnection, revokeConnection, t
 import { useAppStore } from '../stores/app'
 import type { CapabilityNeed, Connection, Notice } from '../types'
 import { Action } from '../utils/permissions'
-import { connectionUsageLine, countLabel, expiresSoon, formatDate, sourceAuthLabel, formatRelative, kindLabel, providerLabel, utcTitle } from '../utils/format'
+import { connectionUsageLine, countLabel, expiresSoon, formatDate, sourceAuthLabel, formatRelative, kindLabel, needsReconnect, providerLabel, utcTitle } from '../utils/format'
+import { errorMessage } from '../services/api'
 
 /** Which form is open: the header "Add", a need row, or a connection row. */
 type OpenForm = { mode: 'add' } | { mode: 'need', binding: string } | { mode: 'edit', id: number }
@@ -28,8 +29,6 @@ const canTest = computed(() => app.can(Action.TestConnections))
 const route = useRoute()
 const router = useRouter()
 const requestedBinding = typeof route.query.binding === 'string' ? route.query.binding : null
-// A failed run links here with ?connection=<id> so its form opens ready to fix.
-const requestedConnection = typeof route.query.connection === 'string' ? Number(route.query.connection) : null
 const openForm = ref<OpenForm | null>(requestedBinding && canEdit.value ? { mode: 'need', binding: requestedBinding } : null)
 const busy = ref<string | null>(null)
 const confirmDelete = ref<number | null>(null)
@@ -81,14 +80,11 @@ const kindIcon: Record<string, string> = {
   notification: 'bell-outline',
   mcp: 'server-network',
   api: 'api',
-  identity: 'account-key-outline',
   source: 'source-repository',
 }
 const providerIcon: Record<Connection['provider'], string> = {
   github: 'github',
   sentry: 'server-network',
-  chatgpt: 'creation-outline',
-  slack: 'slack',
   mcp: 'server-network',
   api: 'api',
   webhook: 'webhook',
@@ -100,12 +96,12 @@ const providerIcon: Record<Connection['provider'], string> = {
 
 // Model providers live on Models. Here are the connections jobs ask for by name.
 const connections = computed(() => app.connections.filter((connection) => connection.kind !== 'model'))
-// GitHub's connections show as one card: repository access, its tools, and sign-in.
+// GitHub's connections show as one card: repository access and its tools.
 // Each stays its own connection underneath. Other providers list as rows.
-const GITHUB_ORDER: Record<string, number> = { source: 0, mcp: 1, identity: 2 }
+const GITHUB_ORDER: Record<string, number> = { source: 0, mcp: 1 }
 const githubConnections = computed(() => connections.value
   .filter((connection) => connection.provider === 'github')
-  .sort((a, b) => (GITHUB_ORDER[a.kind] ?? 3) - (GITHUB_ORDER[b.kind] ?? 3)))
+  .sort((a, b) => (GITHUB_ORDER[a.kind] ?? 2) - (GITHUB_ORDER[b.kind] ?? 2)))
 const connectionGroups = computed(() => [
   { key: 'github', connections: githubConnections.value },
   { key: 'other', connections: connections.value.filter((connection) => connection.provider !== 'github') },
@@ -116,12 +112,10 @@ const githubTools = computed(() => githubConnections.value.find((connection) => 
 const githubSummary = computed(() => {
   const failing = githubSources.value.filter((connection) => connection.last_check?.ok === false).length
   const expired = githubSourceRows.value.filter((connection) => connection.status === 'expired').length
-  const signIns = githubConnections.value.filter((connection) => connection.kind === 'identity').length
   return [
     githubSourceRows.value.length ? countLabel(githubSourceRows.value.length, 'repository connection') : 'No repository access yet',
     expired ? `${expired} with an expired token` : '',
     failing ? `${failing} failing its check` : '',
-    signIns ? countLabel(signIns, 'sign-in') : '',
   ].filter(Boolean).join(' · ')
 })
 const GITHUB_TOOLS_BINDING = 'github'
@@ -185,7 +179,7 @@ function fixLabel(connection: Connection): string | null {
   // GitHub refused the token itself, so only a new one fixes it.
   if (replaceable(connection) && connection.last_check?.ok === false && !connection.last_check.features?.length) return 'Replace token'
   if (!editable(connection)) return null
-  if (connection.status !== 'connected') return 'Reconnect'
+  if (needsReconnect(connection)) return 'Reconnect'
   if (connection.last_check && !connection.last_check.ok) return 'Fix'
   return null
 }
@@ -203,24 +197,26 @@ function testLabel(connection: Connection): string | null {
 const rowMenu = ref<InstanceType<typeof Menu> | null>(null)
 const rowMenuItems = ref<MenuItem[]>([])
 
-function openRowMenu(event: Event, connection: Connection): void {
+function rowMenuFor(connection: Connection): MenuItem[] {
   const items: MenuItem[] = []
   const test = testLabel(connection)
   if (test) items.push({ label: test, appIcon: connection.provider === 'webhook' ? 'send-outline' : 'refresh', command: () => sendTest(connection, `connection-${connection.id}`) })
-  if (editable(connection)) items.push({ label: connection.status === 'connected' ? 'Edit' : 'Reconnect', appIcon: 'pencil-outline', command: () => toggle({ mode: 'edit', id: connection.id }) })
+  if (editable(connection)) items.push({ label: needsReconnect(connection) ? 'Reconnect' : 'Edit', appIcon: 'pencil-outline', command: () => toggle({ mode: 'edit', id: connection.id }) })
   if (replaceable(connection)) items.push({ label: 'Replace token', appIcon: 'shield-key-outline', command: () => toggle({ mode: 'edit', id: connection.id }) })
   const danger: MenuItem[] = []
   if (connection.status !== 'revoked' && app.can(Action.DisconnectConnections)) danger.push({ label: 'Disconnect…', appIcon: 'power-plug-off-outline', danger: true, command: () => { confirmRevoke.value = connection.id; confirmDelete.value = null } })
   if (connection.status === 'revoked' && app.can(Action.DeleteConnections)) danger.push({ label: 'Delete…', appIcon: 'trash-can-outline', danger: true, command: () => { confirmDelete.value = connection.id; confirmRevoke.value = null } })
   if (items.length && danger.length) items.push({ separator: true })
-  rowMenuItems.value = [...items, ...danger]
+  return [...items, ...danger]
+}
+
+function openRowMenu(event: Event, connection: Connection): void {
+  rowMenuItems.value = rowMenuFor(connection)
   rowMenu.value?.toggle(event)
 }
 
 function hasMenu(connection: Connection): boolean {
-  return Boolean(testLabel(connection) || editable(connection) || replaceable(connection)
-    || (connection.status !== 'revoked' && app.can(Action.DisconnectConnections))
-    || (connection.status === 'revoked' && app.can(Action.DeleteConnections)))
+  return rowMenuFor(connection).length > 0
 }
 const connectionsSubtitle = computed(() => {
   // The same counts as the sidebar's "to fix", spelled out.
@@ -259,10 +255,6 @@ function needAccessLine(need: CapabilityNeed): string {
   return need.jobs.map((job) => `${job.job_name} → ${job.access?.ok ? job.access.scope : 'unavailable'}`).join(' · ')
 }
 
-function errorText(error: unknown, fallback: string): string {
-  return error instanceof Error ? error.message : fallback
-}
-
 function formDone(notice: Notice, binding: string): void {
   const connection = app.connections.find((item) => item.binding_key === binding)
   const key = openForm.value?.mode === 'need' ? binding : `connection-${connection?.id ?? binding}`
@@ -276,7 +268,7 @@ async function act(key: string, noticeKey: string, action: () => Promise<string>
   try {
     notices[noticeKey] = { ok: true, text: await action() }
   } catch (error) {
-    notices[noticeKey] = { ok: false, text: errorText(error, fallback) }
+    notices[noticeKey] = { ok: false, text: errorMessage(error, fallback) }
   } finally {
     busy.value = null
   }
@@ -295,7 +287,7 @@ function approve(need: CapabilityNeed): Promise<void> {
 function sendTest(connection: Connection, noticeKey: string): Promise<void> {
   return act(`test-${connection.id}`, noticeKey, async () => {
     const result = await testConnection(connection.id)
-    // Checks and deliveries are saved on the connection; refresh so its pill reflects the result.
+    // Checks and deliveries are saved on the connection. Refresh so its pill reflects the result.
     await app.refresh()
     if (!result.ok) throw new Error(result.message)
     if (connection.provider !== 'webhook') return result.message
@@ -303,7 +295,7 @@ function sendTest(connection: Connection, noticeKey: string): Promise<void> {
   }, 'Unable to send a test message')
 }
 
-// The row menu asks first; this runs from the confirm strip under the row.
+// The row menu asks first. This runs from the confirm strip under the row.
 async function disconnect(connection: Connection): Promise<void> {
   confirmRevoke.value = null
   return act(`revoke-${connection.id}`, `connection-${connection.id}`, async () => {
@@ -333,15 +325,6 @@ async function checkAgain(): Promise<void> {
 }
 
 onMounted(async () => {
-  if (requestedConnection && connections.value.some((connection) => connection.id === requestedConnection)) {
-    if (canEdit.value) openForm.value = { mode: 'edit', id: requestedConnection }
-    await nextTick()
-    // The form can be taller than a phone screen, so its top goes to the top.
-    // Scroll its box: the form itself uses display: contents and has none.
-    const row = document.getElementById(`connection-${requestedConnection}`)
-    ;(row?.querySelector('.need-setup') ?? row)?.scrollIntoView({ block: 'start' })
-    return
-  }
   if (!requestedBinding) return
   const need = app.needs.find((item) => item.binding === requestedBinding)
   if (need?.status !== 'missing') openForm.value = null
@@ -396,7 +379,7 @@ onMounted(async () => {
             <div class="need-actions">
               <Button v-if="need.status === 'missing' && canEdit" :label="isOpen({ mode: 'need', binding: need.binding }) ? 'Cancel' : 'Connect'" size="small" :severity="isOpen({ mode: 'need', binding: need.binding }) ? 'secondary' : undefined" :text="isOffer(need) || isOpen({ mode: 'need', binding: need.binding })" @click="toggle({ mode: 'need', binding: need.binding })" />
               <template v-else-if="need.status === 'unavailable' && need.connection">
-                <Button v-if="canEdit && (need.connection.provider === 'webhook' || need.connection.kind === 'mcp' || need.connection.kind === 'api')" :label="isOpen({ mode: 'need', binding: need.binding }) ? 'Cancel' : 'Reconnect'" size="small" @click="toggle({ mode: 'need', binding: need.binding })" />
+                <Button v-if="editable(need.connection)" :label="isOpen({ mode: 'need', binding: need.binding }) ? 'Cancel' : 'Reconnect'" size="small" @click="toggle({ mode: 'need', binding: need.binding })" />
               </template>
               <Button v-else-if="need.status === 'needs_approval' && need.connection && app.can(Action.ReviewCapabilities)" :label="`Approve for ${countLabel(pendingJobs(need), 'job')}`" size="small" :loading="busy === `approve-${need.binding}`" @click="approve(need)" />
             </div>
@@ -436,7 +419,6 @@ onMounted(async () => {
               <strong class="connection-name">{{ group.key === 'github' && connection.auth === 'source' ? 'GitHub job tools' : group.key === 'github' ? connection.display_name.replace(/^GitHub · /, '') : connection.display_name }}</strong>
               <span>{{ kindLabel(connection.kind) }} · {{ connection.kind === 'source' ? sourceAuthLabel(connection.auth) : providerLabel(connection.provider) }}<template v-if="connection.target"> → {{ connection.target }}</template></span>
               <small v-if="connection.provider === 'github' && connection.kind === 'source'">Repository access for {{ connection.display_name.replace(/^GitHub · /, '') }}</small>
-              <small v-if="connection.provider === 'github' && connection.kind === 'identity'">Sign-in only. Does not grant repository access.</small>
               <small v-if="connection.auth === 'source'">Uses each repository's GitHub connection</small>
               <small v-if="connection.kind === 'source' && connection.auth === 'token'" :class="{ expiring: expiresSoon(connection.expires_at), expired: connection.status === 'expired' }">{{ !connection.expires_at ? 'Token does not expire' : connection.status === 'expired' ? `Token expired ${formatDate(connection.expires_at)}. Syncs and runs stop until you replace it.` : `Token expires ${formatDate(connection.expires_at)}` }}</small>
               <small v-if="servedBindings(connection).length" class="served">

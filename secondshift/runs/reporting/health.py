@@ -4,11 +4,17 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 
+from django.db.models import Q
 from django.utils import timezone
 
 from secondshift.gateway.dao import spend_per_job, spend_totals
-from secondshift.jobs.dao import jobs_by_id, jobs_whose_last_run_failed
-from secondshift.runs.dao import finished_runs_per_day, run_counts, runs_by_id
+from secondshift.jobs.dao import jobs_by_id
+from secondshift.runs.dao import (
+    finished_runs_per_day,
+    jobs_whose_last_run_failed,
+    run_counts,
+    runs_by_id,
+)
 from secondshift.runs.models import Run
 from secondshift.runs.reporting.failures import describe_failure
 from secondshift.workspaces.models import Workspace
@@ -76,7 +82,7 @@ def failing_jobs(workspace: Workspace) -> list[FailingJob]:
     failing: list[FailingJob] = []
     for job in jobs:
         run = runs[job.latest_run_id]
-        view = describe_failure(run.summary)
+        view = describe_failure(run)
         failing.append(
             FailingJob(
                 job_id=job.pk,
@@ -97,7 +103,9 @@ def week_summary(workspace: Workspace, now: datetime | None = None) -> WeekSumma
     now = now or timezone.now()
     start, previous_start = now - WINDOW, now - 2 * WINDOW
     runs = run_counts(workspace.pk, start, previous_start)
-    totals = spend_totals(workspace.pk, start, previous_start)
+    totals = spend_totals(
+        Q(run__task__repository__workspace_id=workspace.pk), start, previous_start
+    )
     return WeekSummary(
         runs=runs["runs"],
         previous_runs=runs["previous"],

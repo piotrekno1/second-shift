@@ -8,11 +8,12 @@ from unittest.mock import Mock
 import pytest
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
+from django.db import connection as database
 from django.test import Client
 from django.utils import timezone
 
+from secondshift.connections.execution import choose_execution
 from secondshift.connections.models import Connection
-from secondshift.jobs.execution import choose_execution
 from secondshift.jobs.models import JOB_REMOVED, CapabilityRequest, Job
 from secondshift.repositories.models import Repository
 from secondshift.runs.models import Run, Task
@@ -104,6 +105,9 @@ def test_turning_a_trigger_on_shows_its_secret_once(
     assert listed[0]["enabled"] is True
     assert listed[0]["url"] == change["trigger"]["url"]  # type: ignore[index]
     assert secret not in json.dumps(listed)
+    with database.cursor() as cursor:
+        cursor.execute("SELECT secret FROM triggers_jobtrigger")
+        assert secret not in cursor.fetchone()[0]
     # The URL holds a random id, not the job's.
     assert path_of(change) == f"/api/triggers/{JobTrigger.objects.get().public_id}"
 
@@ -401,7 +405,7 @@ def test_repeat_of_a_running_event_is_ignored(
     other = send(client, path_of(change), secret, {**FIRING, "groupKey": "b"})
     assert other.status_code == 409
     task = Task.objects.get()
-    assert task.origin == "webhook"
+    assert task.runs.get().started_by == "webhook"
     assert task.submitted_by is None
     assert Run.objects.get(pk=first["run_id"]).task_id == task.pk
 

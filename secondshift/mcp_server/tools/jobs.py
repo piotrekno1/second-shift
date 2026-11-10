@@ -2,9 +2,9 @@
 
 from thin_mcp import ToolContext, ToolExecutionError
 
-from secondshift.config.constants import TaskOrigin
+from secondshift.config.constants import RunStart
 from secondshift.jobs.access import job_for_request
-from secondshift.jobs.dao import active_jobs
+from secondshift.jobs.dao import active_jobs_with_grants
 from secondshift.jobs.readiness import readiness_problems
 from secondshift.jobs.serialization import serialize_job_detail
 from secondshift.mcp_server.schemas import (
@@ -32,13 +32,13 @@ from secondshift.workspaces.access import Action, current_workspace, require
 )
 def list_jobs(context: ToolContext, arguments: JobListArguments) -> JobListResult:
     workspace = current_workspace(call_request(context))
-    jobs = active_jobs(
+    jobs = active_jobs_with_grants(
         workspace.pk if workspace else None,
         repository_id=arguments.repository_id,
         enabled=arguments.enabled,
     )
     summaries = []
-    for job in jobs.prefetch_related("capability_requests__grant__connection"):
+    for job in jobs:
         problems = readiness_problems(job)
         summaries.append(
             JobSummary(
@@ -91,7 +91,7 @@ def run_job(context: ToolContext, arguments: JobArguments) -> RunStartResult:
     job = job_for_request(request, arguments.job_id)
     require(request, Action.RUN_JOBS)
     try:
-        run = start_manual_run(job, submitted_by=request.user, origin=TaskOrigin.MCP)
+        run = start_manual_run(job, submitted_by=request.user, started_by=RunStart.MCP)
     except RunInProgress as error:
         return RunStartResult(
             run_id=error.run.pk,

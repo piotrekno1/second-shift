@@ -8,8 +8,8 @@ from pydantic_ai import RunContext, RunUsage
 from pydantic_ai.models.test import TestModel
 
 from secondshift.config.constants import RunStart
+from secondshift.connections.execution import choose_execution
 from secondshift.connections.models import Connection
-from secondshift.jobs.execution import choose_execution
 from secondshift.jobs.models import Job
 from secondshift.repositories.models import Repository
 from secondshift.runs.artifacts import artifact_storage, run_payload
@@ -140,7 +140,9 @@ def test_deleting_the_run_deletes_the_body(
     job: Job, django_capture_on_commit_callbacks
 ) -> None:
     run = start_run(job, RunStart.WEBHOOK, ALERT)
-    path = run_payload(run)["path"]
+    payload = run_payload(run)
+    assert payload is not None
+    path = payload.path
 
     with django_capture_on_commit_callbacks(execute=True):
         run.delete()

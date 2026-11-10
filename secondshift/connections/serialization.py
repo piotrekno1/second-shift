@@ -1,3 +1,4 @@
+from secondshift.connections.execution import recent_login_runs
 from secondshift.connections.mcp.base import SOURCE_AUTH
 from secondshift.connections.mcp.oauth import requested_scopes
 from secondshift.connections.models import AgentConnection, Connection
@@ -9,20 +10,17 @@ from secondshift.connections.schemas import (
 from secondshift.connections.services import (
     connection_target,
 )
-from secondshift.runs.reporting.connection_usage import (
-    ConnectionUsage,
-    agent_login_runs,
-)
+from secondshift.runs.reporting.connection_usage import ConnectionUsage
 
 
 def connection_settings_view(connection: Connection) -> dict[str, str]:
     """Owner-chosen settings that are safe to show. Never a credential."""
     if connection.kind == Connection.Kind.MCP:
-        return dict(connection.metadata.get("settings", {}))
+        return connection.settings
     if connection.kind == Connection.Kind.API:
         return {
-            **connection.metadata.get("settings", {}),
-            "base_url": connection.metadata.get("base_url", ""),
+            **connection.settings,
+            "base_url": connection.endpoint_url,
             "spec_url": connection.metadata.get("spec_url", ""),
         }
     return {}
@@ -63,7 +61,7 @@ def serialize_connection(
         is_default=connection.kind == Connection.Kind.MODEL
         and connection.workspace.default_model_connection_id == connection.pk,
         available_models=list(connection.metadata.get("available_models", [])),
-        last_check=connection.metadata.get("last_check"),
+        last_check=connection.last_check,
         settings=connection_settings_view(connection),
         auth=connection_auth(connection),
         scopes=list(connection.scopes)
@@ -79,9 +77,7 @@ def serialize_connection(
                 description=str(tool.get("description", ""))[:500],
                 read_only=bool(tool.get("readOnly")),
             )
-            for name, tool in sorted(
-                (connection.metadata.get("offered_tools") or {}).items()
-            )
+            for name, tool in sorted(connection.offered_tools.items())
         ],
         require_approval=connection.require_approval,
         usage=None
@@ -96,7 +92,7 @@ def with_recent_runs(
     connections: list[AgentConnection], workspace_id: int
 ) -> list[AgentConnection]:
     """Attach each login's recent run count for AgentConnectionSchema."""
-    counts = agent_login_runs(workspace_id)
+    counts = recent_login_runs(workspace_id)
     for connection in connections:
         connection.recent_runs = counts[connection.pk]
     return connections

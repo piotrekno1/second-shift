@@ -19,6 +19,7 @@ from secondshift.jobs.dao import (
     save_grant_reviews,
 )
 from secondshift.jobs.models import CapabilityRequest, JobGrant
+from secondshift.repositories.github import repository_ref
 from secondshift.repositories.models import Repository
 
 
@@ -31,13 +32,13 @@ def approves_automatically(
         return False
     if connection.require_approval:
         return False
-    if connection.status != Connection.Status.CONNECTED:
+    if not connection.is_connected:
         return False
     if connection.kind != request.kind or connection.binding_key != request.binding:
         return False
     if set(request.requested_tools) - set(connection.available_tools):
         return False
-    access = external_access(connection, repository)
+    access = external_access(connection, repository_ref(repository))
     return access is None or access.ok
 
 

@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 
 import { fetchRuns } from '../services/runs'
 import type { RunPage, RunQuery } from '../types'
+import { errorMessage } from '../services/api'
 
 interface RunsState {
   page: RunPage | null
@@ -28,7 +29,7 @@ export const useRunsStore = defineStore('runs', {
         this.error = null
       } catch (error) {
         if (request !== latestRequest) return
-        this.error = error instanceof Error ? error.message : 'Unable to load runs'
+        this.error = errorMessage(error, 'Unable to load runs')
       } finally {
         if (request === latestRequest) this.loading = false
       }

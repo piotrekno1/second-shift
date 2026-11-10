@@ -14,7 +14,7 @@ function types(property: ToolInputProperty | undefined): string[] {
   return Array.isArray(property.type) ? property.type : [property.type]
 }
 
-export function isNumeric(property: ToolInputProperty | undefined): boolean {
+function isNumeric(property: ToolInputProperty | undefined): boolean {
   return types(property).some((type) => type === 'integer' || type === 'number')
 }
 

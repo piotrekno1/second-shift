@@ -1,3 +1,4 @@
+from typing import Any
 from urllib.parse import urlencode
 
 from django.conf import settings
@@ -17,9 +18,16 @@ from secondshift.connections.agents import (
     save_agent_connection,
 )
 from secondshift.connections.dao import (
+    github_token_sources,
+    own_agent_connections,
     workspace_agent_connections,
     workspace_connections,
-    workspace_secrets,
+)
+from secondshift.connections.execution import (
+    apply_model_default,
+    execution_configuration,
+    save_execution_preference,
+    use_when_nothing_runs,
 )
 from secondshift.connections.github import connect_token_source
 from secondshift.connections.http_api.connections import (
@@ -32,12 +40,11 @@ from secondshift.connections.http_api.spec import APIError
 from secondshift.connections.mcp.base import MCPError
 from secondshift.connections.mcp.client import (
     create_mcp_connection,
-    discover_tools,
-    select_tools,
+    recheck_mcp_connection,
     update_mcp_connection,
 )
 from secondshift.connections.mcp.oauth import inspect_server, requested_scopes
-from secondshift.connections.mcp.providers import MCP_PROVIDERS, mcp_provider
+from secondshift.connections.mcp.providers import MCP_PROVIDERS
 from secondshift.connections.mcp.signin import (
     SignInError,
     complete_authorization,
@@ -47,6 +54,7 @@ from secondshift.connections.model_providers import (
     CheckFailed,
     ModelProviderError,
     check_model_connection,
+    checked_api_key,
     create_model_connection,
     fetch_models,
     update_model_connection,
@@ -63,6 +71,8 @@ from secondshift.connections.schemas import (
     APISpecSummarySchema,
     ConnectionSchema,
     ConnectionTestSchema,
+    ExecutionConfigurationSchema,
+    ExecutionPreferenceSchema,
     GitHubTokenConnectSchema,
     MCPConnectionCreateSchema,
     MCPConnectionUpdateSchema,
@@ -74,7 +84,6 @@ from secondshift.connections.schemas import (
     MCPSignInStartSchema,
     ModelConnectionCreateSchema,
     ModelConnectionUpdateSchema,
-    SecretSchema,
     WebhookConnectionCreateSchema,
     WebhookConnectionUpdateSchema,
     WebhookSampleSchema,
@@ -86,7 +95,6 @@ from secondshift.connections.serialization import (
 from secondshift.connections.services import (
     ConnectionConflict,
     create_webhook_connection,
-    delete_connection,
     revoke_connection,
     update_webhook_connection,
 )
@@ -97,7 +105,7 @@ from secondshift.connections.webhooks import (
 )
 from secondshift.github.errors import GitHubError
 from secondshift.jobs.automatic_grants import approve_waiting_for, set_require_approval
-from secondshift.jobs.execution import apply_model_default, use_when_nothing_runs
+from secondshift.jobs.grants import delete_connection
 from secondshift.repositories.github_check import check_source
 from secondshift.runs.reporting.connection_usage import (
     ConnectionUsage,
@@ -168,12 +176,7 @@ def connect_github_token(
     replacing = None
     if payload.connection_id is not None:
         replacing = get_object_or_404(
-            Connection,
-            pk=payload.connection_id,
-            workspace=workspace,
-            provider=Connection.Provider.GITHUB,
-            kind=Connection.Kind.SOURCE,
-            auth_strategy=Connection.AuthStrategy.API_KEY,
+            github_token_sources(workspace.pk), pk=payload.connection_id
         )
     try:
         connection = connect_token_source(workspace, payload.token, replacing)
@@ -203,7 +206,7 @@ def create_mcp(
         raise HttpError(422, str(error)) from error
     except ValidationError as error:
         raise HttpError(422, "The MCP connection configuration is invalid.") from error
-    return apply_approval(request, connection, payload.require_approval)
+    return apply_approval(connection, payload.require_approval)
 
 
 @router.post(
@@ -229,7 +232,7 @@ def update_mcp(
         raise HttpError(422, str(error)) from error
     except ValidationError as error:
         raise HttpError(422, "The MCP connection configuration is invalid.") from error
-    return apply_approval(request, connection, payload.require_approval)
+    return apply_approval(connection, payload.require_approval)
 
 
 @router.post(
@@ -275,7 +278,7 @@ def create_api(
         raise HttpError(422, str(error)) from error
     except ValidationError as error:
         raise HttpError(422, "The API connection configuration is invalid.") from error
-    return apply_approval(request, connection, payload.require_approval)
+    return apply_approval(connection, payload.require_approval)
 
 
 @router.post(
@@ -299,7 +302,7 @@ def update_api(
         raise HttpError(422, str(error)) from error
     except ValidationError as error:
         raise HttpError(422, "The API connection configuration is invalid.") from error
-    return apply_approval(request, connection, payload.require_approval)
+    return apply_approval(connection, payload.require_approval)
 
 
 @router.post(
@@ -328,10 +331,8 @@ def start_mcp_sign_in(
     workspace = require(request, Action.ADD_MCP_CONNECTIONS)
     connection = (
         get_object_or_404(
-            Connection,
+            workspace_connections(workspace.pk, Connection.Kind.MCP),
             pk=payload.connection_id,
-            workspace=workspace,
-            kind=Connection.Kind.MCP,
         )
         if payload.connection_id
         else None
@@ -345,9 +346,7 @@ def start_mcp_sign_in(
             connection.provider if connection else payload.provider,
             payload.binding_key,
             payload.display_name,
-            dict(connection.metadata.get("settings", {}))
-            if connection
-            else payload.settings,
+            connection.settings if connection else payload.settings,
             requested_scopes(connection) if connection else payload.scopes,
             connection,
             payload.require_approval,
@@ -403,11 +402,11 @@ def create_webhook(
         raise HttpError(422, str(error)) from error
     except ValidationError as error:
         raise HttpError(422, " ".join(error.messages)) from error
-    return apply_approval(request, connection, payload.require_approval)
+    return apply_approval(connection, payload.require_approval)
 
 
 def apply_approval(
-    request: HttpRequest, connection: Connection, require_approval: bool | None
+    connection: Connection, require_approval: bool | None
 ) -> ConnectionSchema:
     """Save the owner's approval choice and approve requests it now allows."""
     if require_approval is None:
@@ -421,7 +420,7 @@ def owned_connection(
     request: HttpRequest, connection_id: int, action: Action
 ) -> Connection:
     workspace = require(request, action)
-    return get_object_or_404(Connection, pk=connection_id, workspace=workspace)
+    return get_object_or_404(workspace_connections(workspace.pk), pk=connection_id)
 
 
 @router.post(
@@ -445,7 +444,7 @@ def update_webhook(
         raise HttpError(422, str(error)) from error
     except ValidationError as error:
         raise HttpError(422, " ".join(error.messages)) from error
-    return apply_approval(request, connection, payload.require_approval)
+    return apply_approval(connection, payload.require_approval)
 
 
 @router.post("/connections/model/models", response=list[str], auth=django_auth)
@@ -453,16 +452,11 @@ def discover_model_provider_models(
     request: HttpRequest, payload: ModelConnectionCreateSchema
 ) -> list[str]:
     require(request, Action.ADD_MODEL_PROVIDERS)
-    if (
-        not payload.api_key.strip()
-        and payload.provider != Connection.Provider.OPENAI_COMPATIBLE
-    ):
-        raise HttpError(422, "Enter an API key.")
     try:
         connection = Connection(
             provider=payload.provider,
             endpoint_url=validated_endpoint(payload.provider, payload.base_url),
-            access_token=payload.api_key.strip(),
+            access_token=checked_api_key(payload.provider, payload.api_key),
         )
         return fetch_models(connection)
     except (ModelProviderError, CheckFailed) as error:
@@ -556,8 +550,6 @@ def update_model_provider(
 )
 def revoke(request: HttpRequest, connection_id: int) -> ConnectionSchema:
     connection = owned_connection(request, connection_id, Action.DISCONNECT_CONNECTIONS)
-    if connection.kind == Connection.Kind.IDENTITY:
-        raise HttpError(409, "Sign-in connections are managed by their provider.")
     return serialize_connection(revoke_connection(connection))
 
 
@@ -584,23 +576,10 @@ def test_connection(request: HttpRequest, connection_id: int) -> ConnectionTestS
     connection = owned_connection(request, connection_id, Action.TEST_CONNECTIONS)
     if connection.kind == Connection.Kind.MCP:
         try:
-            provider = mcp_provider(connection.provider)
-            tools = discover_tools(connection)
-            kept = [name for name in connection.available_tools if name in tools]
-            select_tools(
-                connection,
-                provider,
-                tools,
-                kept if provider.owner_selects_tools else None,
-            )
+            message = recheck_mcp_connection(connection)
         except MCPError as error:
             return ConnectionTestSchema(ok=False, status_code=None, message=str(error))
-        connection.save(update_fields=["available_tools", "metadata", "updated_at"])
-        return ConnectionTestSchema(
-            ok=True,
-            status_code=None,
-            message=f"Discovered {len(tools)} supported {provider.label} tools.",
-        )
+        return ConnectionTestSchema(ok=True, status_code=None, message=message)
     if connection.kind == Connection.Kind.API:
         try:
             message = recheck_api_connection(connection)
@@ -640,21 +619,6 @@ def webhook_sample(request: HttpRequest) -> WebhookSampleSchema:
     )
 
 
-@router.get("/secrets", response=list[SecretSchema], auth=django_auth)
-def secrets(request: HttpRequest) -> list[SecretSchema]:
-    workspace = current_workspace(request)
-    if not workspace:
-        return []
-    return [
-        SecretSchema(
-            name=item.name,
-            description=item.description,
-            last_used_at=item.last_used_at,
-        )
-        for item in workspace_secrets(workspace)
-    ]
-
-
 @router.get("/agent-connections", response=list[AgentConnectionSchema])
 def agent_connections(request: HttpRequest) -> list[AgentConnection]:
     workspace = current_workspace(request)
@@ -688,7 +652,7 @@ def reconnect_agent(
 ) -> AgentConnection:
     workspace = require(request, Action.EDIT_CONNECTIONS)
     connection = get_object_or_404(
-        AgentConnection, pk=connection_id, workspace=workspace, owner=request.user
+        own_agent_connections(workspace, request.user), pk=connection_id
     )
     try:
         return reconnect_agent_connection(
@@ -707,13 +671,13 @@ def check_agent(request: HttpRequest, connection_id: int) -> AgentConnection:
     """Only the login's owner checks it. The check uses their plan's allowance."""
     workspace = require(request, Action.TEST_CONNECTIONS)
     connection = get_object_or_404(
-        AgentConnection, pk=connection_id, workspace=workspace, owner=request.user
+        own_agent_connections(workspace, request.user), pk=connection_id
     )
     try:
         check_agent_connection(connection)
     except AgentConnectionError as error:
         raise HttpError(409, str(error)) from None
-    return with_recent_runs([connection], workspace.pk)[0]
+    return connection
 
 
 @router.post(
@@ -725,19 +689,39 @@ def set_agent_run_limit(
     """Only the login's owner sets its cap. It is their subscription."""
     workspace = require(request, Action.EDIT_CONNECTIONS)
     connection = get_object_or_404(
-        AgentConnection, pk=connection_id, workspace=workspace, owner=request.user
+        own_agent_connections(workspace, request.user), pk=connection_id
     )
     connection.max_runs_per_day = payload.max_runs_per_day
     connection.save(update_fields=["max_runs_per_day", "updated_at"])
-    return with_recent_runs([connection], workspace.pk)[0]
+    return connection
 
 
 @router.delete("/agent-connections/{connection_id}", response={204: None})
 def disconnect_agent(request: HttpRequest, connection_id: int) -> Status[None]:
     workspace = require(request, Action.DISCONNECT_CONNECTIONS)
     connection = get_object_or_404(
-        AgentConnection, pk=connection_id, workspace=workspace, owner=request.user
+        own_agent_connections(workspace, request.user), pk=connection_id
     )
     # A cached copy the runner keeps is removed by the worker.
     disconnect_agent_connection(connection)
     return Status(204, None)
+
+
+@router.get("/settings/agent", response=ExecutionConfigurationSchema)
+def default_agent(request: HttpRequest) -> dict[str, Any]:
+    workspace = current_workspace(request)
+    if workspace is None:
+        raise HttpError(404, "Choose a workspace first.")
+    return execution_configuration(workspace, request.user)
+
+
+@router.post("/settings/agent", response=ExecutionConfigurationSchema)
+def set_default_agent(
+    request: HttpRequest, payload: ExecutionPreferenceSchema
+) -> dict[str, Any]:
+    workspace = require(request, Action.REVIEW_CAPABILITIES)
+    try:
+        save_execution_preference(workspace, payload.key, request.user)
+    except ValidationError as error:
+        raise HttpError(422, error.messages[0]) from None
+    return execution_configuration(workspace, request.user)

@@ -1,5 +1,5 @@
 /** Where the user guide lives. */
-export const DOCS_BASE_URL = 'https://second-shift.app/docs'
+const DOCS_BASE_URL = 'https://second-shift.app/docs'
 
 /** The guide's starting point, which links to every page. */
 export const DOCS_HOME_URL = `${DOCS_BASE_URL}/overview/`

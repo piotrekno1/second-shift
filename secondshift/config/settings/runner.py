@@ -75,8 +75,14 @@ RUNNER_COMMAND_OUTPUT_MAX_BYTES = env.int(
 RUNNER_MEMORY = env.str("SECONDSHIFT_RUNNER_MEMORY", default="2g")
 RUNNER_CPUS = env.str("SECONDSHIFT_RUNNER_CPUS", default="2")
 RUNNER_PIDS_LIMIT = env.int("SECONDSHIFT_RUNNER_PIDS_LIMIT", default=256)
-RUNNER_SANDBOX_UID = env.int("SECONDSHIFT_RUNNER_SANDBOX_UID", default=os.getuid())
-RUNNER_SANDBOX_GID = env.int("SECONDSHIFT_RUNNER_SANDBOX_GID", default=os.getgid())
+# A runner started as root still runs sandboxes as an unprivileged user.
+UNPRIVILEGED_ID = 10001
+RUNNER_SANDBOX_UID = env.int(
+    "SECONDSHIFT_RUNNER_SANDBOX_UID", default=os.getuid() or UNPRIVILEGED_ID
+)
+RUNNER_SANDBOX_GID = env.int(
+    "SECONDSHIFT_RUNNER_SANDBOX_GID", default=os.getgid() or UNPRIVILEGED_ID
+)
 
 if len(RUNNER_SERVICE_TOKEN) < 32:
     raise ImproperlyConfigured(

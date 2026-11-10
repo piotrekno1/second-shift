@@ -17,9 +17,9 @@ from secondshift.connections.mcp.client import (
     update_mcp_connection,
 )
 from secondshift.connections.models import Connection
+from secondshift.connections.repository_ref import RepositoryRef
 from secondshift.connections.serialization import serialize_connection
 from secondshift.github import app, credentials
-from secondshift.repositories.models import Repository
 from secondshift.workspaces.dao import create_workspace
 from secondshift.workspaces.models import Workspace
 
@@ -75,7 +75,7 @@ def mcp_tokens(monkeypatch: pytest.MonkeyPatch) -> list[str]:
         )
 
     monkeypatch.setattr(
-        "secondshift.connections.mcp.client.MCPTransport",
+        "secondshift.connections.outbound.BoundedTransport",
         lambda: httpx.MockTransport(handle),
     )
     return tokens
@@ -104,13 +104,8 @@ def app_source(workspace: Workspace) -> Connection:
     )
 
 
-def repository(workspace: Workspace, source: Connection | None) -> Repository:
-    return Repository.objects.create(
-        workspace=workspace,
-        github_connection=source,
-        full_name="owner/project",
-        external_id="7",
-    )
+def repository(workspace: Workspace, source: Connection | None) -> RepositoryRef:
+    return RepositoryRef(workspace.pk, "owner/project", 7, source)
 
 
 def borrowing(workspace: Workspace) -> Connection:
@@ -174,13 +169,8 @@ def test_a_repository_without_a_source_cannot_borrow(
 ) -> None:
     token_source(workspace)
     connection = borrowing(workspace)
-    local = Repository.objects.create(
-        workspace=workspace,
-        source_type=Repository.SourceType.LOCAL,
-        local_path="/tmp/project",
-        clone_url="https://github.com/owner/project",
-        full_name="project",
-    )
+    # A local checkout with a GitHub origin has a name but no source.
+    local = RepositoryRef(workspace.pk, "owner/project")
     access = MCPKind().access(connection, local)
     assert access.ok is False
     assert access.reason == "mcp_source_missing"
@@ -259,7 +249,7 @@ def test_a_revoked_source_stops_the_call(
     Connection.objects.filter(pk=source.pk).update(
         status=Connection.Status.REVOKED, access_token=""
     )
-    repo.github_connection.refresh_from_db()
+    source.refresh_from_db()
 
     with pytest.raises(MCPError, match="disconnected"):
         kind.call(authorization, "list_commits", {})

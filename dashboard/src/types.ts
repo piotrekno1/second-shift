@@ -61,7 +61,7 @@ export interface WorkspaceChoice {
 export interface SettingValue {
   label: string
   value: string
-  /** Environment variable that changes it; empty when it is fixed. */
+  /** Environment variable that changes it. Empty when it is fixed. */
   env: string
   help: string
 }
@@ -336,7 +336,7 @@ export interface Run {
   repository: string
   status: 'queued' | 'running' | 'succeeded' | 'failed' | 'canceled'
   scheduled_for: string
-  /** What started the run. Empty for runs from before this was recorded. */
+  /** What started the run: a schedule, a person, a webhook or an MCP client. */
   started_by: RunStart
   started_at: string | null
   finished_at: string | null
@@ -468,8 +468,8 @@ export interface RunQuery {
 
 export interface Connection {
   id: number
-  provider: 'github' | 'sentry' | 'chatgpt' | 'slack' | 'mcp' | 'api' | 'webhook' | ModelProvider
-  kind: 'source' | 'identity' | 'mcp' | 'api' | 'notification' | 'model'
+  provider: 'github' | 'sentry' | 'mcp' | 'api' | 'webhook' | ModelProvider
+  kind: 'source' | 'mcp' | 'api' | 'notification' | 'model'
   binding_key: string
   display_name: string
   status: 'connected' | 'expired' | 'revoked'
@@ -477,7 +477,7 @@ export interface Connection {
   available_tools: string[]
   /** Capability connections: whether each job's request waits for an owner. */
   require_approval: boolean
-  /** Redacted delivery target (host only); never the full URL. */
+  /** Redacted delivery target (host only). Never the full URL. */
   target: string
   allowed_models: string[]
   default_model: string
@@ -496,7 +496,7 @@ export interface Connection {
   auth?: 'oauth' | 'token' | 'app' | 'source' | ''
   /** MCP only: OAuth scopes the server granted. */
   scopes?: string[]
-  /** MCP only: scopes selected when signing in; required on refresh and reconnect. */
+  /** MCP only: scopes selected when signing in. Required on refresh and reconnect. */
   requested_scopes?: string[]
   /** Custom MCP servers: every tool the server offers. */
   offered_tools?: OfferedTool[]
@@ -508,7 +508,7 @@ export interface ConnectionUsage {
   runs_7d: number
   spend_7d_usd: number
   spend_partial: boolean
-  /** Last model call; services don't record individual calls. */
+  /** Last model call. Services don't record individual calls. */
   last_used_at: string | null
 }
 
@@ -651,7 +651,7 @@ export interface ApiTokenList {
 }
 
 export type TriggerKind = 'webhook'
-export type RunStart = 'schedule' | 'manual' | 'webhook' | ''
+export type RunStart = 'schedule' | 'manual' | 'webhook' | 'mcp'
 
 export interface TriggerEvent {
   id: number
@@ -688,4 +688,69 @@ export interface TriggerChange {
   trigger: JobTrigger
   /** Only right after it was created or rotated. Never returned again. */
   secret: string | null
+}
+
+export interface AgentConnection {
+  id: number
+  backend: 'claude_code' | 'codex'
+  display_name: string
+  connected: boolean
+  can_manage: boolean
+  max_runs_per_day: number | null
+  recent_runs: number
+  /** The last login check. Only a refused sign-in stops runs. */
+  last_check: AgentCheck | null
+  /** The runner still holds a cached copy of an earlier login. The worker removes it. */
+  runner_cleanup_pending: boolean
+}
+
+export interface AgentCheck {
+  ok: boolean
+  reason: string
+  message: string
+  checked_at: string
+}
+
+export interface ExecutionChoice {
+  key: string
+  label: string
+  disabled: boolean
+  /** Why this choice cannot run jobs, or ''. */
+  problem: string
+}
+
+export interface AgentConfiguration {
+  enabled: boolean
+  choices: ExecutionChoice[]
+  selected: string
+  label: string
+  backend: string
+  ready: boolean
+  problem: string
+}
+
+export interface APISpecSummary {
+  title: string
+  servers: string[]
+  operations: number
+  read_only: number
+}
+
+export interface GitHubSource {
+  connection_id: number
+  repository_id: number
+  full_name: string
+  default_branch: string
+}
+
+export interface GitHubAppStatus {
+  configured: boolean
+  error: string
+  repositories: GitHubSource[]
+}
+
+export interface TaskSubmissionResult {
+  task_id: number
+  run: Run
+  started: boolean
 }

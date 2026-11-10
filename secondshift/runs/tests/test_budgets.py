@@ -13,16 +13,18 @@ from pydantic_ai.models.function import AgentInfo, FunctionModel
 from pydantic_ai.toolsets import FunctionToolset
 
 from secondshift.config.constants import TOKEN_BUDGET_MESSAGE
+from secondshift.jobs.tests.plans import stored_plan
 from secondshift.jobs.tool_policy import LOCAL_TOOLS
 from secondshift.runner.protocol import CommandResult
 from secondshift.runs.execution.budgets import FINISH_INSTRUCTIONS, PARTIAL_REPORT_NOTE
+from secondshift.runs.execution.result import AgentResult
 from secondshift.runs.execution.run import (
     WORKSPACE_AGENT,
     budget_result,
     execute_agent_run,
 )
 from secondshift.runs.execution.workspace_tools import WorkspaceToolDeps
-from secondshift.runs.models import Run, RunEvent
+from secondshift.runs.models import Run, RunEvent, RunFailure
 from secondshift.runs.orchestration import workflows
 from secondshift.runs.reporting.failures import describe_failure
 from secondshift.runs.tests.test_execution import LATER
@@ -46,7 +48,6 @@ def budget_run(
             "OPTIONS": {"location": tmp_path / "artifacts", "base_url": None},
         },
     }
-    storages._storages.clear()
     monkeypatch.setattr(
         "secondshift.runs.execution.run.capture_run_input_step", lambda *args: None
     )
@@ -63,28 +64,30 @@ def budget_run(
         run = execution_run(db)
         run.started_at = timezone.now()
         run.input_snapshot = {"skill_path": ".agents/skills/review/SKILL.md"}
-        run.execution_plan["agent"] = {
-            "tools": list(LOCAL_TOOLS),
-            "limits": {
-                "max_turns": max_turns,
-                "max_tool_calls": max_tool_calls,
-                "max_tool_result_chars": 1_000,
-                "token_budget": token_budget,
+        run.execution_plan = stored_plan(
+            agent={
+                "tools": list(LOCAL_TOOLS),
+                "limits": {
+                    "max_turns": max_turns,
+                    "max_tool_calls": max_tool_calls,
+                    "max_tool_result_chars": 1_000,
+                    "token_budget": token_budget,
+                },
             },
-        }
+        )
         run.save()
         return run
 
     return make
 
 
-def run_with(model: ModelFunction, run: Run) -> dict[str, Any]:
+def run_with(model: ModelFunction, run: Run) -> AgentResult:
     with WORKSPACE_AGENT.override(model=FunctionModel(model)):
         return execute_agent_run(run, f"run-{run.pk}")
 
 
-def stored_report(result: dict[str, Any]) -> str:
-    with storages["run_artifacts"].open(result["output"]["path"]) as stored:
+def stored_report(result: AgentResult) -> str:
+    with storages["run_artifacts"].open(result.output.path) as stored:
         return stored.read().decode()
 
 
@@ -105,8 +108,8 @@ def test_the_last_request_has_no_tools_and_asks_for_the_report(
     assert [has_tools for has_tools, _ in seen] == [True, True, False]
     assert FINISH_INSTRUCTIONS not in seen[0][1]
     assert FINISH_INSTRUCTIONS in seen[-1][1]
-    assert result["succeeded"] is True
-    assert result["details"] == {"budget_reached": "requests"}
+    assert result.succeeded is True
+    assert result.details == {"budget_reached": "requests"}
     assert stored_report(result) == "Partial review: README is fine."
 
 
@@ -121,8 +124,8 @@ def test_spent_tool_calls_also_end_with_a_report(
 
     result = run_with(model, budget_run(max_turns=10, max_tool_calls=1))
 
-    assert result["succeeded"] is True
-    assert result["details"] == {"budget_reached": "tool_calls"}
+    assert result.succeeded is True
+    assert result.details == {"budget_reached": "tool_calls"}
 
 
 @pytest.mark.django_db
@@ -134,8 +137,8 @@ def test_a_run_within_budget_reports_nothing_extra(
 
     result = run_with(model, budget_run())
 
-    assert result["succeeded"] is True
-    assert result["details"] == {}
+    assert result.succeeded is True
+    assert result.details == {}
 
 
 @pytest.mark.django_db
@@ -150,12 +153,12 @@ def test_running_out_of_tool_calls_keeps_a_partial_report(
 
     result = run_with(model, budget_run(max_tool_calls=2))
 
-    assert result["succeeded"] is False
-    assert result["summary"] == (
+    assert result.succeeded is False
+    assert result.summary == (
         "Budget used up: Stopped at 2 tool calls, the run's limit. "
         "Raise it in the job's limits."
     )
-    assert result["details"] == {
+    assert result.details == {
         "budget_exhausted": "tool_calls",
         "partial_report": True,
     }
@@ -175,10 +178,10 @@ def test_a_model_that_ignores_the_last_request_runs_out(
 
     result = run_with(model, budget_run(max_turns=2))
 
-    assert result["succeeded"] is False
-    assert result["summary"].startswith("Budget used up: Stopped at 2 model requests")
-    assert result["summary"].endswith("Raise it in the job's limits.")
-    assert result["details"]["budget_exhausted"] == "requests"
+    assert result.succeeded is False
+    assert result.summary.startswith("Budget used up: Stopped at 2 model requests")
+    assert result.summary.endswith("Raise it in the job's limits.")
+    assert result.details["budget_exhausted"] == "requests"
 
 
 @pytest.mark.django_db
@@ -196,10 +199,10 @@ def test_the_gateway_token_budget_ends_the_run_with_its_work(
 
     result = run_with(model, budget_run(token_budget=50_000))
 
-    assert result["succeeded"] is False
-    assert result["summary"].startswith("Budget used up: Stopped at 50,000 tokens")
+    assert result.succeeded is False
+    assert result.summary.startswith("Budget used up: Stopped at 50,000 tokens")
     # At the server maximum only the server can allow more.
-    assert "That is the server maximum." in result["summary"]
+    assert "That is the server maximum." in result.summary
     assert "Started on the README." in stored_report(result)
 
 
@@ -224,7 +227,7 @@ def test_an_exhausted_run_fails_with_its_partial_report_and_notifies(
     notified: list[int] = []
     monkeypatch.setattr(workflows, "notify", notified.append)
 
-    def exhausted(run: Run, session_id: str) -> dict[str, Any]:
+    def exhausted(run: Run, session_id: str) -> AgentResult:
         response = ModelResponse(parts=[TextPart("Half the checks ran.")])
         return budget_result(run, "requests", 24, [response])  # type: ignore[arg-type]
 
@@ -234,7 +237,7 @@ def test_an_exhausted_run_fails_with_its_partial_report_and_notifies(
 
     run.refresh_from_db()
     assert run.status == Run.Status.FAILED
-    view = describe_failure(run.summary)
+    view = describe_failure(run)
     assert view.label == "Budget used up"
     assert view.reason.startswith("Stopped at 24 model requests")
     assert "Half the checks ran." in run.output_excerpt
@@ -254,12 +257,11 @@ def test_a_run_that_used_its_budget_says_so_in_the_timeline(
     monkeypatch.setattr(
         workflows,
         "execute_agent_run",
-        lambda run, session_id: {
-            "exit_code": 0,
-            "summary": "Report.",
-            "succeeded": True,
-            "details": {"budget_reached": "requests"},
-        },
+        lambda run, session_id: AgentResult(
+            succeeded=True,
+            summary="Report.",
+            details={"budget_reached": "requests"},
+        ),
     )
 
     workflows.execute_run(run.pk)
@@ -311,7 +313,7 @@ def test_a_timed_out_run_keeps_a_partial_report(
 
     result = run_with(model, run)
 
-    assert result["succeeded"] is False
-    assert describe_failure(result["summary"]).label == "Timed out"
-    assert result["details"] == {"timed_out": True, "partial_report": True}
+    assert result.succeeded is False
+    assert result.failure == RunFailure.TIMEOUT
+    assert result.details == {"timed_out": True, "partial_report": True}
     assert "Checked the CI config." in stored_report(result)

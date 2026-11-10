@@ -1,7 +1,6 @@
 from django.contrib import admin
 
-from secondshift.connections.forms import SecretAdminForm
-from secondshift.connections.models import Connection, Secret
+from secondshift.connections.models import Connection
 
 
 @admin.register(Connection)
@@ -24,11 +23,3 @@ class ConnectionAdmin(admin.ModelAdmin):
     )
     exclude = ("access_token", "refresh_token", "delivery_url")
     readonly_fields = ("created_at", "updated_at")
-
-
-@admin.register(Secret)
-class SecretAdmin(admin.ModelAdmin):
-    form = SecretAdminForm
-    list_display = ("name", "workspace", "description", "last_used_at", "updated_at")
-    search_fields = ("name", "workspace__name", "description")
-    readonly_fields = ("last_used_at", "created_at", "updated_at")

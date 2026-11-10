@@ -1,6 +1,6 @@
 import { countLabel } from './format'
 
-export const MAX_RUN_CAP = 1000
+const MAX_RUN_CAP = 1000
 
 /** Recent use of a login, against its cap when it has one. */
 export function runUsageLabel(recent: number, cap: number | null): string {

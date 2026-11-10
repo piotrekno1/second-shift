@@ -2,12 +2,15 @@ import base64
 import hashlib
 import json
 from datetime import timedelta
+from types import SimpleNamespace
 from typing import Any
 from urllib.parse import parse_qs, urlsplit
 
 import httpx
 import pytest
+from django.apps import apps as django_apps
 from django.contrib.auth import get_user_model
+from django.db import connection as db_connection
 from django.test import Client
 from django.utils import timezone
 
@@ -27,8 +30,9 @@ from secondshift.connections.mcp.signin import (
     complete_authorization,
     start_authorization,
 )
+from secondshift.connections.migration_helpers import record_requested_scopes_v1
 from secondshift.connections.models import Connection, OAuthAuthorization
-from secondshift.repositories.models import Repository
+from secondshift.connections.repository_ref import RepositoryRef
 from secondshift.workspaces.dao import create_workspace
 from secondshift.workspaces.models import Workspace, WorkspaceMembership
 
@@ -149,11 +153,10 @@ class FakeServer:
 @pytest.fixture
 def fake(monkeypatch) -> FakeServer:
     server = FakeServer()
-    for module in ("oauth", "client"):
-        monkeypatch.setattr(
-            f"secondshift.connections.mcp.{module}.MCPTransport",
-            lambda: httpx.MockTransport(server.handle),
-        )
+    monkeypatch.setattr(
+        "secondshift.connections.outbound.BoundedTransport",
+        lambda: httpx.MockTransport(server.handle),
+    )
     return server
 
 
@@ -207,7 +210,7 @@ def test_full_sign_in_flow(fake: FakeServer, workspace: Workspace, owner: Any) -
         "delete_dashboard",
     }
     assert fake.mcp_auth[-1] == "Bearer at-1"
-    repository = Repository.objects.create(workspace=workspace, full_name="a/b")
+    repository = RepositoryRef(workspace.pk, "a/b")
     assert external_access(connection, repository).text == (
         "Allow these tools to use anything the credential can reach on mcp.example.com."
     )
@@ -512,18 +515,19 @@ def test_refresh_expires_when_required_scope_is_missing(
     assert saved.scopes == ["read"]
 
 
-def test_legacy_refresh_persists_its_existing_scope_baseline(
+def test_migration_records_the_scope_baseline_of_older_connections(
     fake: FakeServer, workspace: Workspace, owner: Any
 ) -> None:
     connection = complete_authorization(
         owner, begin(fake, workspace, owner), "good-code", ""
     )
     del connection.metadata["oauth"]["requested_scopes"]
-    connection.expires_at = timezone.now()
     connection.save()
-    fake.grant_scope = "read mcp:admin"
-    fresh_connection(connection)
-    assert connection.scopes == ["mcp:admin", "read"]
+
+    editor = SimpleNamespace(connection=db_connection)
+    record_requested_scopes_v1(django_apps, editor)  # type: ignore[arg-type]
+
+    connection.refresh_from_db()
     assert connection.metadata["oauth"]["requested_scopes"] == ["read"]
 
 

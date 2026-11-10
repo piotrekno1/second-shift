@@ -1,8 +1,9 @@
 from datetime import datetime
-from typing import Literal
 
 from ninja import Schema
 from pydantic import Field
+
+from secondshift.repositories.status import ValidationStatus
 
 
 class RepositorySchema(Schema):
@@ -47,7 +48,7 @@ class RepositoryIssuesSchema(Schema):
 
 
 class RepositoryValidationSchema(Schema):
-    status: Literal["valid", "warning", "error"]
+    status: ValidationStatus
     message: str
     current_revision: str | None
     synced_revision: str

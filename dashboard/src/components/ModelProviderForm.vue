@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import DocsLink from './DocsLink.vue'
 import { DocsPage } from '../utils/docs'
+import { needsReconnect, providerLabel } from '../utils/format'
 import AppIcon from './AppIcon.vue'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import Button from 'primevue/button'
@@ -9,20 +10,21 @@ import ModelPicker from './ModelPicker.vue'
 import { createModelProvider, discoverModels, testConnection, updateModelProvider } from '../services/connections'
 import { useAppStore } from '../stores/app'
 import type { Connection, ModelProvider, Notice } from '../types'
+import { errorMessage } from '../services/api'
 
 const props = defineProps<{ connection?: Connection }>()
 const emit = defineEmits<{ done: [notice: Notice, binding: string], cancel: [] }>()
 
-const providerOptions: { id: ModelProvider, label: string, help: string }[] = [
-  { id: 'anthropic', label: 'Anthropic', help: 'Claude models through the Anthropic API.' },
-  { id: 'openai', label: 'OpenAI', help: 'Models through the OpenAI API.' },
-  { id: 'openrouter', label: 'OpenRouter', help: 'Models from many providers through OpenRouter. No base URL needed.' },
-  { id: 'openai_compatible', label: 'OpenAI-compatible', help: 'Ollama, vLLM or a company gateway that speaks the OpenAI API.' },
+const providerOptions: { id: ModelProvider, help: string }[] = [
+  { id: 'anthropic', help: 'Claude models through the Anthropic API.' },
+  { id: 'openai', help: 'Models through the OpenAI API.' },
+  { id: 'openrouter', help: 'Models from many providers through OpenRouter. No base URL needed.' },
+  { id: 'openai_compatible', help: 'Ollama, vLLM or a company gateway that speaks the OpenAI API.' },
 ]
 
 const app = useAppStore()
 const editing = computed(() => Boolean(props.connection))
-const reconnecting = computed(() => props.connection?.status === 'revoked')
+const reconnecting = computed(() => needsReconnect(props.connection))
 const provider = ref<ModelProvider>((props.connection?.provider as ModelProvider | undefined) ?? 'anthropic')
 const displayName = ref(props.connection?.display_name ?? '')
 const apiKey = ref('')
@@ -69,7 +71,7 @@ async function loadModels(): Promise<void> {
     }, props.connection?.id)
     if (version === discoveryVersion) availableModels.value = models
   } catch (failure) {
-    if (version === discoveryVersion) modelError.value = failure instanceof Error ? failure.message : 'Unable to load models'
+    if (version === discoveryVersion) modelError.value = errorMessage(failure, 'Unable to load models')
   } finally {
     if (version === discoveryVersion) loadingModels.value = false
   }
@@ -113,7 +115,7 @@ async function submit(): Promise<void> {
       text: result.ok ? result.message.replace(/^Connected/, verb) : `${verb}, but the check failed: ${result.message}`,
     }
   } catch (submitError) {
-    error.value = submitError instanceof Error ? submitError.message : 'Unable to save the model provider'
+    error.value = errorMessage(submitError, 'Unable to save the model provider')
   } finally {
     await app.refresh()
     saving.value = false
@@ -131,13 +133,13 @@ async function submit(): Promise<void> {
 
     <div v-if="!editing" class="need-setup-type need-setup-wide" role="radiogroup" aria-label="Provider">
       <button v-for="option in providerOptions" :key="option.id" type="button" role="radio" :aria-checked="provider === option.id" :class="{ active: provider === option.id }" :title="option.help" @click="provider = option.id">
-        {{ option.label }}
+        {{ providerLabel(option.id) }}
       </button>
     </div>
 
     <label>
       <span>Name</span>
-      <InputText v-model="displayName" name="provider-name" autocomplete="off" maxlength="200" :placeholder="providerOptions.find((option) => option.id === provider)?.label" />
+      <InputText v-model="displayName" name="provider-name" autocomplete="off" maxlength="200" :placeholder="providerLabel(provider)" />
     </label>
     <label>
       <span>API key</span>

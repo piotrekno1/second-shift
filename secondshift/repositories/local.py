@@ -5,17 +5,10 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-import yaml
-from django.db import transaction
-
 from secondshift.config.constants import GITHUB_BASE_URL, MANIFEST_FILE
-from secondshift.jobs.automatic_grants import approve_waiting
-from secondshift.jobs.dao import reopen_github_mcp_grants, repository_active_requests
-from secondshift.jobs.manifest import RepositoryManifest, parse_manifest
-from secondshift.jobs.sync import sync_jobs
 from secondshift.repositories.dao import local_repository, save_local_repository
 from secondshift.repositories.github import github_remote_name
-from secondshift.repositories.models import Repository
+from secondshift.repositories.models import SYNC_ERROR_MAX_CHARS, Repository
 from secondshift.workspaces.models import Workspace
 
 logger = logging.getLogger(__name__)
@@ -23,13 +16,6 @@ logger = logging.getLogger(__name__)
 
 class LocalRepositoryError(ValueError):
     pass
-
-
-class RepositoryConfigError(LocalRepositoryError):
-    """The branch's manifest, or a skill it names, is missing or invalid.
-
-    The repository can still be added. Its page shows the problem.
-    """
 
 
 @dataclass(frozen=True)
@@ -40,22 +26,6 @@ class LocalRepositoryLocation:
     revision: str
     repository_name: str
     clone_url: str = ""
-
-
-@dataclass(frozen=True)
-class LocalRepositoryMetadata:
-    location: LocalRepositoryLocation
-    manifest: RepositoryManifest
-    # Each job's skill text at the revision, keyed by skill path.
-    skills: dict[str, str]
-
-    @property
-    def revision(self) -> str:
-        return self.location.revision
-
-    @property
-    def clone_url(self) -> str:
-        return self.location.clone_url
 
 
 # Git file modes for a regular and an executable file. Symbolic links and
@@ -123,30 +93,6 @@ def branch_revision(root: Path, branch: str) -> str:
         raise LocalRepositoryError(f"The branch {branch} does not exist.") from error
 
 
-def read_committed_config(
-    root: Path, revision: str, branch: str
-) -> tuple[RepositoryManifest, dict[str, str]]:
-    """The manifest and its skills at a commit. Raises RepositoryConfigError."""
-    try:
-        text = committed_file(root, revision, MANIFEST_FILE)
-    except LocalRepositoryError as error:
-        raise RepositoryConfigError(
-            f"The branch {branch} has no committed {MANIFEST_FILE} at its root."
-        ) from error
-    try:
-        manifest = parse_manifest(text)
-    except (ValueError, yaml.YAMLError) as error:
-        raise RepositoryConfigError(f"Invalid {MANIFEST_FILE}: {error}") from error
-    try:
-        skills = {
-            job.skill: committed_file(root, revision, job.skill)
-            for job in manifest.jobs.values()
-        }
-    except LocalRepositoryError as error:
-        raise RepositoryConfigError(str(error)) from error
-    return manifest, skills
-
-
 def locate_local_repository(
     raw_path: str, branch: str | None = None
 ) -> LocalRepositoryLocation:
@@ -180,47 +126,31 @@ def locate_local_repository(
     )
 
 
-def inspect_local_repository(
-    raw_path: str, branch: str | None = None
-) -> LocalRepositoryMetadata:
-    """Read the jobs from the newest commit on a branch.
-
-    Only committed files count, so edits in the working folder never change
-    what runs.
-    """
-    location = locate_local_repository(raw_path, branch)
-    manifest, skills = read_committed_config(
-        location.root, location.revision, location.branch
-    )
-    return LocalRepositoryMetadata(location=location, manifest=manifest, skills=skills)
-
-
 def local_repository_name(root: Path) -> str:
     digest = hashlib.sha256(str(root).encode()).hexdigest()[:8]
     return f"local/{root.name}-{digest}"
 
 
-@transaction.atomic
-def attach_local_repository(
-    workspace: Workspace, raw_path: str, branch: str | None = None
-) -> Repository:
-    """Add a local repository, or sync one again from its branch.
+def save_local_location(
+    workspace: Workspace,
+    location: LocalRepositoryLocation,
+    config_error: str,
+    config_read: bool,
+) -> tuple[Repository, bool]:
+    """Save what was found in the folder.
 
-    A missing or invalid configuration does not stop it. The repository is
-    saved with the problem in last_sync_error, and its jobs stay as the last
-    good sync left them.
+    Returns the repository and whether its GitHub origin changed.
     """
-    location = locate_local_repository(raw_path, branch)
-    try:
-        manifest, skills = read_committed_config(
-            location.root, location.revision, location.branch
-        )
-        config_error = ""
-    except RepositoryConfigError as error:
-        manifest, skills, config_error = None, {}, str(error)[:500]
     previous = local_repository(workspace, str(location.root))
-    scope_changed = previous is not None and previous.clone_url != location.clone_url
-    synced = {"config_sha": location.revision} if manifest is not None else {}
+    origin_changed = previous is not None and previous.clone_url != location.clone_url
+    synced = {"config_sha": location.revision} if config_read else {}
+    # Only a new or a removed repository is switched on. A resync keeps the
+    # owner's choice, as GitHub syncs do.
+    added = (
+        {"enabled": True, "removed_at": None}
+        if previous is None or previous.removed_at is not None
+        else {}
+    )
     repository = save_local_repository(
         workspace,
         str(location.root),
@@ -231,18 +161,12 @@ def attach_local_repository(
             "default_branch": location.branch,
             "config_path": MANIFEST_FILE,
             "checked_sha": location.revision,
-            "last_sync_error": config_error,
-            "enabled": True,
-            "removed_at": None,
+            "last_sync_error": config_error[:SYNC_ERROR_MAX_CHARS],
+            **added,
             **synced,
         },
     )
-    if manifest is not None:
-        sync_jobs(repository, manifest, skills)
-    if scope_changed:
-        reopen_github_mcp_grants(repository)
-        approve_waiting(repository_active_requests(repository))
-    return repository
+    return repository, origin_changed
 
 
 def local_directories(raw_path: str) -> tuple[Path, Path | None, list[Path]]:

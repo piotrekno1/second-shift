@@ -4,7 +4,6 @@ Full runner output lives in the private ``run_artifacts`` storage, never in
 Postgres or DBOS checkpoints. The database keeps metadata and a short excerpt.
 """
 
-import base64
 import hashlib
 import json
 import tarfile
@@ -12,7 +11,6 @@ from dataclasses import asdict, dataclass
 from datetime import UTC
 from pathlib import Path
 from typing import IO, Any
-from urllib.parse import quote
 
 from django.conf import settings
 from django.core.files.base import ContentFile, File
@@ -23,7 +21,6 @@ from secondshift.config.constants import (
     MAX_OUTPUT_BYTES,
     MAX_OUTPUT_FILES,
 )
-from secondshift.jobs.models import Job
 from secondshift.runner.collection import (
     CHANGES_NAME,
     MANIFEST_NAME,
@@ -32,9 +29,10 @@ from secondshift.runner.collection import (
     HashingReader,
     safe_output_name,
 )
+from secondshift.runs.inputs import Payload
 from secondshift.runs.models import Run
+from secondshift.runs.outputs import Changes, RunOutputs, SavedFile, SkippedFile
 
-REDACTED = "[REDACTED]"
 TRUNCATION_MARKER = "\n\n[... {omitted} bytes omitted by SecondShift ...]\n\n"
 
 
@@ -51,53 +49,6 @@ class StoredOutput:
 
 def artifact_storage() -> Storage:
     return storages["run_artifacts"]
-
-
-def job_input_snapshot(job: Job) -> dict[str, Any]:
-    """Freeze what a run was asked to do, since the job may change later."""
-    return {
-        "job_key": job.key,
-        "skill_path": job.skill_path,
-        "config_hash": job.config_hash,
-    }
-
-
-def secret_variants(value: str) -> list[str]:
-    """Return the forms a secret commonly takes when echoed by tools."""
-    raw = value.encode()
-    variants = {
-        value,
-        base64.b64encode(raw).decode(),
-        base64.urlsafe_b64encode(raw).decode(),
-        quote(value, safe=""),
-        json.dumps(value)[1:-1],
-    }
-    variants |= {variant.rstrip("=") for variant in variants}
-    # Longest first so a short variant never splits a longer match.
-    return sorted((v for v in variants if v), key=len, reverse=True)
-
-
-def redact(text: str, secrets: dict[str, str]) -> str:
-    for value in secrets.values():
-        if not value:
-            continue
-        for variant in secret_variants(value):
-            text = text.replace(variant, REDACTED)
-    return text
-
-
-def read_bounded(path: Path, max_bytes: int) -> tuple[bytes, int, bool]:
-    """Read at most ``max_bytes``, keeping the head and tail of larger files."""
-    size = path.stat().st_size
-    with path.open("rb") as stream:
-        if size <= max_bytes:
-            return stream.read(), size, False
-        half = max_bytes // 2
-        head = stream.read(half)
-        stream.seek(size - half)
-        tail = stream.read()
-    marker = TRUNCATION_MARKER.format(omitted=size - 2 * half).encode()
-    return head + marker + tail, size, True
 
 
 def run_artifact_prefix(run: Run) -> str:
@@ -136,7 +87,7 @@ def saved_file_path(run: Run, name: str) -> str:
     return f"{run_artifact_prefix(run)}/{OUTPUTS_DIR}/{name}"
 
 
-def store_collection(run: Run, archive_path: Path) -> dict[str, Any]:
+def store_collection(run: Run, archive_path: Path) -> RunOutputs:
     """Keep what the runner collected, and return what Run.outputs records.
 
     The archive comes from the trusted runner, but the agent chose its file
@@ -144,7 +95,7 @@ def store_collection(run: Run, archive_path: Path) -> dict[str, Any]:
     within the same limits the runner applies.
     """
     stored_changes: dict[str, Any] = {}
-    files: list[dict[str, Any]] = []
+    files: list[SavedFile] = []
     manifest: dict[str, Any] = {}
     total = 0
     with tarfile.open(archive_path, mode="r:gz") as archive:
@@ -167,31 +118,27 @@ def store_collection(run: Run, archive_path: Path) -> dict[str, Any]:
                 or total > MAX_OUTPUT_BYTES
             ):
                 raise CollectionError("The collected files are not valid.")
-            files.append(
-                {
-                    "name": name,
-                    **store_stream(saved_file_path(run, name), stream, member.size),
-                }
-            )
+            stored = store_stream(saved_file_path(run, name), stream, member.size)
+            files.append(SavedFile(name=name, **stored))
     changes = manifest.get("changes") or {}
-    return {
-        "changes": {
-            "file_count": int(changes.get("file_count", 0)),
-            "files": [str(item) for item in changes.get("files", [])][
+    return RunOutputs(
+        changes=Changes(
+            file_count=int(changes.get("file_count", 0)),
+            files=tuple(str(item) for item in changes.get("files", []))[
                 :MAX_LISTED_CHANGES
             ],
-            "too_large": bool(changes.get("too_large")),
+            too_large=bool(changes.get("too_large")),
             **stored_changes,
-        },
-        "files": files,
-        "skipped": [
-            {
-                "name": str(item.get("name", ""))[:255],
-                "reason": str(item.get("reason", ""))[:200],
-            }
+        ),
+        files=tuple(files),
+        skipped=tuple(
+            SkippedFile(
+                name=str(item.get("name", ""))[:255],
+                reason=str(item.get("reason", ""))[:200],
+            )
             for item in manifest.get("skipped", [])[:MAX_OUTPUT_FILES]
-        ],
-    }
+        ),
+    )
 
 
 def store_stream(path: str, stream: IO[bytes], size: int) -> dict[str, Any]:
@@ -205,13 +152,10 @@ def store_stream(path: str, stream: IO[bytes], size: int) -> dict[str, Any]:
 
 def run_output_paths(run: Run) -> list[str]:
     """Every stored file the sandbox left behind, for deletion with the run."""
-    outputs = run.outputs or {}
-    paths = [item.get("path", "") for item in outputs.get("files", [])]
-    paths.append((outputs.get("changes") or {}).get("path", ""))
-    return [path for path in paths if path]
+    return run.collected.stored_paths() if run.collected else []
 
 
-def store_run_payload(run: Run, body: bytes) -> dict[str, Any]:
+def store_run_payload(run: Run, body: bytes) -> Payload:
     """Keep the request body that started a run, cut to TRIGGER_PAYLOAD_MAX_BYTES.
 
     Returns what the run's input snapshot records about it.
@@ -221,17 +165,16 @@ def store_run_payload(run: Run, body: bytes) -> dict[str, Any]:
     path = payload_path(run)
     storage.delete(path)
     saved = storage.save(path, ContentFile(kept))
-    return {
-        "path": saved,
-        "size_bytes": len(body),
-        "kept_bytes": len(kept),
-        "truncated": len(kept) < len(body),
-    }
+    return Payload(
+        path=saved,
+        size_bytes=len(body),
+        kept_bytes=len(kept),
+        truncated=len(kept) < len(body),
+    )
 
 
-def run_payload(run: Run) -> dict[str, Any] | None:
-    """What the input snapshot records about the run's payload, if it has one."""
-    return run.input_snapshot.get("payload")
+def run_payload(run: Run) -> Payload | None:
+    return run.inputs.payload
 
 
 def store_run_input(run: Run, text: str) -> StoredOutput:
@@ -249,23 +192,6 @@ def store_run_input(run: Run, text: str) -> StoredOutput:
         path=saved,
         size_bytes=size,
         sha256=hashlib.sha256(raw).hexdigest(),
-        truncated=truncated,
-    )
-
-
-def store_run_output(
-    run: Run, raw_output: Path, secrets: dict[str, str]
-) -> StoredOutput:
-    content, size, truncated = read_bounded(raw_output, settings.RUN_OUTPUT_MAX_BYTES)
-    text = redact(content.decode(errors="replace"), secrets).encode()
-    storage = artifact_storage()
-    path = output_path(run)
-    storage.delete(path)
-    saved = storage.save(path, ContentFile(text))
-    return StoredOutput(
-        path=saved,
-        size_bytes=size,
-        sha256=hashlib.sha256(text).hexdigest(),
         truncated=truncated,
     )
 

@@ -4,11 +4,16 @@ import type { Capability, ExecutionStatus, Job } from '../types'
 /** Why a job removed from the manifest cannot run. The server says the same. */
 export const REMOVED_JOB = 'This job is no longer in .secondshift.yaml. Add it back to run it.'
 
+/** The required capabilities the job still waits on: not approved yet. */
+export function waitingCapabilities(job: Pick<Job, 'capabilities'>): Capability[] {
+  return job.capabilities.filter((capability) => capability.required && capability.grant_status !== 'approved')
+}
+
 /** Why a job cannot be switched on yet, or '' when nothing blocks it. */
 export function enableBlocker(job: Pick<Job, 'enabled' | 'capabilities'> & Partial<Pick<Job, 'removed_at'>>): string {
   if (job.removed_at) return REMOVED_JOB
   if (job.enabled) return ''
-  const waiting = job.capabilities.filter((capability) => capability.required && capability.grant_status !== 'approved')
+  const waiting = waitingCapabilities(job)
   if (!waiting.length) return ''
   const names = waiting.map((capability) => capability.binding).join(', ')
   // Approving needs a connection, so a binding without one asks for that step.
@@ -170,4 +175,9 @@ function jobStep(state: SetupState): SetupStep {
 export function setupSteps(state: SetupState): SetupStep[] | null {
   const steps = [codeStep(state), runnerStep(state), jobStep(state)]
   return steps.every((step) => step.done) ? null : steps
+}
+
+/** Connections opens the binding's form, then links back to the job's access review. */
+export function connectionSetupQuery(job: Pick<Job, 'id' | 'name'>, capability: Pick<Capability, 'binding'>): Record<string, string> {
+  return { binding: capability.binding, job: job.name, review: String(job.id) }
 }

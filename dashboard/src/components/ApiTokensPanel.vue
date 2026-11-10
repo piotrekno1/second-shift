@@ -6,6 +6,7 @@ import { fetchApiTokens, revokeApiToken } from '../services/apiTokens'
 import type { ApiToken, TokenWorkspace } from '../types'
 import { useAgentConnectionStore } from '../stores/agentConnection'
 import { formatDate, formatRelative } from '../utils/format'
+import { errorMessage } from '../services/api'
 
 const tokens = ref<ApiToken[]>([])
 const workspaces = ref<TokenWorkspace[]>([])
@@ -17,10 +18,6 @@ const revoking = ref<number | null>(null)
 const agentConnection = useAgentConnectionStore()
 watch(() => agentConnection.visible, (visible) => { if (!visible) void load() })
 
-function message(failure: unknown): string {
-  return failure instanceof Error ? failure.message : 'Something went wrong'
-}
-
 async function load(): Promise<void> {
   error.value = null
   try {
@@ -29,7 +26,7 @@ async function load(): Promise<void> {
     workspaces.value = data.workspaces
     loaded.value = true
   } catch (failure) {
-    error.value = message(failure)
+    error.value = errorMessage(failure)
   }
 }
 
@@ -41,7 +38,7 @@ async function revoke(token: ApiToken): Promise<void> {
     await revokeApiToken(token.id)
     tokens.value = tokens.value.filter((item) => item.id !== token.id)
   } catch (failure) {
-    error.value = message(failure)
+    error.value = errorMessage(failure)
   } finally {
     revoking.value = null
     confirming.value = null

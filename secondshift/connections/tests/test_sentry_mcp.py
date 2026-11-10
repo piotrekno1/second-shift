@@ -7,6 +7,7 @@ from django.contrib.auth import get_user_model
 from django.test import Client
 
 from secondshift.config.constants import SENTRY_MCP_URL
+from secondshift.connections.execution import choose_execution
 from secondshift.connections.external import external_access
 from secondshift.connections.mcp.base import MCPError
 from secondshift.connections.mcp.client import (
@@ -17,9 +18,9 @@ from secondshift.connections.mcp.client import (
 from secondshift.connections.mcp.sentry import SENTRY_MCP, scoped_sentry_arguments
 from secondshift.connections.models import Connection
 from secondshift.connections.services import revoke_connection
-from secondshift.jobs.execution import choose_execution
 from secondshift.jobs.models import CapabilityRequest, Job, JobGrant
 from secondshift.jobs.planning import build_execution_plan
+from secondshift.repositories.github import repository_ref
 from secondshift.repositories.models import Repository
 from secondshift.workspaces.dao import create_workspace, workspace_owner
 from secondshift.workspaces.models import Workspace
@@ -78,7 +79,7 @@ def sentry_http(monkeypatch) -> list[httpx.Request]:
         )
 
     monkeypatch.setattr(
-        "secondshift.connections.mcp.client.MCPTransport",
+        "secondshift.connections.outbound.BoundedTransport",
         lambda: httpx.MockTransport(handle),
     )
     return requests
@@ -267,18 +268,18 @@ def test_access_text_and_frozen_plan_follow_the_connection(
         allowed_tools=["get_sentry_resource"],
     )
 
-    access = external_access(connection, repository)
+    access = external_access(connection, repository_ref(repository))
     assert access.ok
     assert access.text == "Allow these tools to read all Sentry projects in acme."
-    plan = build_execution_plan(job)
+    plan = build_execution_plan(job).stored()
     assert plan["ready"] is True
     assert plan["capabilities"][0]["external"]["provider"] == "sentry"
     assert plan["capabilities"][0]["external"]["scope"] == "acme"
 
     connection.metadata = {**connection.metadata, "settings": {}}
-    assert not external_access(connection, repository).ok
+    assert not external_access(connection, repository_ref(repository)).ok
     connection.save()
-    plan = build_execution_plan(job)
+    plan = build_execution_plan(job).stored()
     assert plan["capabilities"][0]["reasons"] == ["sentry_organization_unknown"]
 
 
@@ -324,7 +325,7 @@ def test_failed_check_leaves_saved_connection_alone(
 ) -> None:
     connection = connect(workspace)
     monkeypatch.setattr(
-        "secondshift.connections.mcp.client.MCPTransport",
+        "secondshift.connections.outbound.BoundedTransport",
         lambda: httpx.MockTransport(lambda request: httpx.Response(401)),
     )
     with pytest.raises(MCPError, match="request failed"):

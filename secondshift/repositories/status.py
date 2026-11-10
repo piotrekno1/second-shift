@@ -8,11 +8,14 @@ state, because runs keep using the last good sync.
 
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Literal
 
 from secondshift.repositories.models import Repository
 
-Status = Literal["valid", "warning", "error"]
+
+class ValidationStatus(StrEnum):
+    VALID = "valid"
+    WARNING = "warning"
+    ERROR = "error"
 
 
 class SyncState(StrEnum):
@@ -25,20 +28,20 @@ class SyncState(StrEnum):
 
 
 # How each state reads. A state with no message shows the problem itself.
-STATE_STATUS: dict[SyncState, tuple[Status, str]] = {
+STATE_STATUS: dict[SyncState, tuple[ValidationStatus, str]] = {
     SyncState.NEVER_SYNCED: (
-        "warning",
+        ValidationStatus.WARNING,
         "Sync the repository before enabling schedules.",
     ),
-    SyncState.SETUP_PROBLEM: ("warning", ""),
-    SyncState.BROKEN: ("error", ""),
-    SyncState.SYNCED: ("valid", "Repository synchronized."),
+    SyncState.SETUP_PROBLEM: (ValidationStatus.WARNING, ""),
+    SyncState.BROKEN: (ValidationStatus.ERROR, ""),
+    SyncState.SYNCED: (ValidationStatus.VALID, "Repository synchronized."),
 }
 
 
 @dataclass(frozen=True)
 class SourceStatus:
-    status: Status
+    status: ValidationStatus
     message: str
     needs_sync: bool
 

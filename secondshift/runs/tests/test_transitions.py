@@ -13,7 +13,7 @@ from secondshift.runs.transitions import (
     TransitionRefused,
     can_move,
     finish_run,
-    start_run,
+    mark_running,
 )
 
 ALLOWED = {
@@ -39,7 +39,7 @@ def test_a_finished_run_never_changes(final: str) -> None:
     run = create_run(status=final, workflow_id="wf-1")
 
     assert finish_run(run.pk, Run.Status.FAILED, "Too late.") is None
-    assert start_run(run.pk, "wf-2") is False
+    assert mark_running(run.pk, "wf-2") is False
     run.refresh_from_db()
     assert run.status == final
     assert run.summary == ""
@@ -58,7 +58,7 @@ def test_a_queued_run_cannot_succeed_without_running() -> None:
 @pytest.mark.django_db
 def test_finishing_sets_the_summary_time_and_fields() -> None:
     run = create_run(status=Run.Status.QUEUED, workflow_id="wf-1")
-    assert start_run(run.pk, "wf-1") is True
+    assert mark_running(run.pk, "wf-1") is True
 
     finished = finish_run(run.pk, Run.Status.FAILED, "Broke.", fields={"exit_code": 2})
 
@@ -71,7 +71,7 @@ def test_finishing_sets_the_summary_time_and_fields() -> None:
 @pytest.mark.django_db
 def test_a_late_result_does_not_overwrite_a_canceled_run() -> None:
     run = create_run(status=Run.Status.QUEUED, workflow_id="wf-1")
-    start_run(run.pk, "wf-1")
+    mark_running(run.pk, "wf-1")
     finish_run(run.pk, Run.Status.CANCELED, "Canceled.")
 
     workflows.finish_run_step.__wrapped__(

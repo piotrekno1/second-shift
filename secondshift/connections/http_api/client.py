@@ -7,7 +7,6 @@ from typing import Any
 from urllib.parse import quote, urlencode
 
 import anyio
-import httpx
 from django.conf import settings
 
 from secondshift.connections.http_api.spec import (
@@ -16,8 +15,8 @@ from secondshift.connections.http_api.spec import (
     APIError,
     APIRequestError,
 )
-from secondshift.connections.mcp.transport import MCP_RESPONSE_MAX_BYTES, MCPTransport
 from secondshift.connections.models import Connection
+from secondshift.connections.outbound import RESPONSE_MAX_BYTES, outbound_client
 
 BEARER = "bearer"
 HEADER = "header"
@@ -106,14 +105,12 @@ def build_request(
 
 
 def validate_api_connection(connection: Connection) -> None:
-    saved = connection.metadata.get("base_url", "")
     if (
         connection.kind != Connection.Kind.API
         or connection.provider != Connection.Provider.API
         or connection.status != Connection.Status.CONNECTED
         or not connection.access_token
-        or not saved
-        or connection.endpoint_url != saved
+        or not connection.endpoint_url
         or connection.token_expired
     ):
         raise APIError("This API connection is unavailable.")
@@ -122,19 +119,12 @@ def validate_api_connection(connection: Connection) -> None:
 async def send(connection: Connection, request: APIRequest) -> dict[str, Any]:
     """Status and body. No token, exception text, or redirect target leaks."""
     headers = {
-        **auth_header(connection.metadata.get("settings", {}), connection.access_token),
+        **auth_header(connection.settings, connection.access_token),
         "Accept": "application/json, text/plain;q=0.5",
-        "Accept-Encoding": "identity",
     }
     try:
         with anyio.fail_after(settings.OUTBOUND_TIMEOUT_SECONDS):
-            async with httpx.AsyncClient(
-                transport=MCPTransport(),
-                headers=headers,
-                timeout=settings.OUTBOUND_TIMEOUT_SECONDS,
-                follow_redirects=False,
-                trust_env=False,
-            ) as client:
+            async with outbound_client(headers) as client:
                 response = await client.request(
                     request.method,
                     request.url,
@@ -166,6 +156,6 @@ async def send(connection: Connection, request: APIRequest) -> dict[str, Any]:
     else:
         body = f"Unsupported content type: {content_type[:80]}"
     result = {"status": response.status_code, "ok": response.is_success, "body": body}
-    if len(json.dumps(result).encode()) > MCP_RESPONSE_MAX_BYTES:
+    if len(json.dumps(result).encode()) > RESPONSE_MAX_BYTES:
         raise APIError("The API response exceeded the size limit.")
     return result

@@ -8,10 +8,10 @@ import InputText from 'primevue/inputtext'
 import Textarea from 'primevue/textarea'
 import ApprovalSetting from './ApprovalSetting.vue'
 import { createAPIConnection, inspectAPISpec, updateAPIConnection } from '../services/connections'
-import type { APISpecSummary } from '../services/connections'
 import { useAppStore } from '../stores/app'
-import type { Connection, Notice } from '../types'
-import { countLabel, finishedBinding, typingBinding } from '../utils/format'
+import type { APISpecSummary, Connection, Notice } from '../types'
+import { countLabel, finishedBinding, needsReconnect, typingBinding } from '../utils/format'
+import { errorMessage } from '../services/api'
 
 const OTHER = 'other'
 
@@ -23,7 +23,7 @@ const props = defineProps<{
 const emit = defineEmits<{ done: [notice: Notice, binding: string], cancel: [] }>()
 const app = useAppStore()
 const editing = computed(() => Boolean(props.connection))
-const reconnecting = computed(() => Boolean(props.connection) && props.connection?.status !== 'connected')
+const reconnecting = computed(() => needsReconnect(props.connection))
 const saved = props.connection?.settings ?? {}
 const binding = ref(props.connection?.binding_key ?? props.binding ?? '')
 const name = ref(props.connection?.display_name ?? '')
@@ -117,7 +117,7 @@ async function submit(): Promise<void> {
     if (needsSpec.value) await loadSpec()
     else await save()
   } catch (failure) {
-    error.value = failure instanceof Error ? failure.message : 'Unable to connect the API'
+    error.value = errorMessage(failure, 'Unable to connect the API')
   } finally {
     saving.value = false
   }

@@ -2,8 +2,6 @@
 
 from typing import Any
 
-import httpx
-
 from secondshift.config.constants import GITHUB_API_URL
 from secondshift.github.errors import GitHubError
 from secondshift.github.rest import parsed, reason, send
@@ -30,7 +28,7 @@ def open_draft(
         },
     )
     if created.status_code == 201:
-        return pull_request(created)
+        return checked(parsed(created))
     owner = full_name.split("/", 1)[0]
     existing = send(
         "GET", url, token, params={"head": f"{owner}:{head}", "state": "all"}
@@ -39,10 +37,6 @@ def open_draft(
     if isinstance(found, list) and found:
         return checked(found[0])
     raise GitHubError(f"GitHub did not open the pull request: {reason(created)}")
-
-
-def pull_request(response: httpx.Response) -> dict[str, Any]:
-    return checked(parsed(response))
 
 
 def checked(payload: object) -> dict[str, Any]:

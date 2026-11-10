@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import AppIcon from '../components/AppIcon.vue'
+import FailureLabel from '../components/FailureLabel.vue'
 import Button from 'primevue/button'
 import { computed, ref, watch } from 'vue'
 import { useAgentConnectionStore } from '../stores/agentConnection'
@@ -13,21 +14,19 @@ import { useLiveRefresh } from '../composables/useLiveRefresh'
 import { isRunActive } from '../services/runs'
 import { useAppStore } from '../stores/app'
 import { agentCardDismissed, dismissAgentCard } from '../utils/agentSetup'
-import { setupSteps } from '../utils/readiness'
+import { setupSteps, waitingCapabilities } from '../utils/readiness'
 import { Action } from '../utils/permissions'
 import {
-  accessLabel, countLabel, formatCost, formatDate, formatRelative, formatScheduled, healthHeadline, runsTrend, spendTrend, utcTitle, weekRange,
+  accessLabel, awaitsApproval, countLabel, formatCost, formatDate, formatRelative, formatScheduled, healthHeadline, runsTrend, spendTrend, utcTitle, weekRange,
 } from '../utils/format'
 
 const agentConnection = useAgentConnectionStore()
 const app = useAppStore()
-// While a run is active only its numbers change; otherwise refresh everything, since
+// While a run is active only its numbers change. Otherwise refresh everything, since
 // scheduled runs and job changes can happen in other tabs.
 const runActive = (): boolean => app.runs.some((run) => isRunActive(run.status))
 useLiveRefresh(() => (runActive() ? app.refreshRuns() : app.refresh()), runActive)
-const approvalJobs = computed(() => app.jobs.filter((job) =>
-  job.capabilities.some((capability) => capability.required && capability.grant_status !== 'approved'),
-))
+const approvalJobs = computed(() => app.jobs.filter((job) => awaitsApproval(job.grant_status)))
 // Approving cannot start before the binding has a connection, so that comes first.
 const missingConnection = computed(() => app.needs.find((need) => need.required && need.status === 'missing') ?? null)
 // While nothing can run jobs every run fails, so fixing that is the one next step.
@@ -62,7 +61,7 @@ function closeAgentCard(): void {
   if (app.user?.workspace_slug) dismissAgentCard(localStorage, app.user.email, app.user.workspace_slug)
   agentCardClosed.value = true
 }
-// Soonest first; jobs without a next run (just enabled, not yet scheduled) go last.
+// Soonest first. Jobs without a next run (just enabled, not yet scheduled) go last.
 const upcoming = computed(() => app.jobs
   .filter((job) => job.enabled)
   .sort((a, b) => (a.next_run_at ?? '9999').localeCompare(b.next_run_at ?? '9999'))
@@ -141,7 +140,7 @@ const passRate = computed(() => {
       <div class="approval-list">
         <RouterLink v-for="job in failing" :key="job.job_id" :to="`/runs/${job.run_id}`" class="attention-row">
           <div class="activity-main"><strong>{{ job.job }}</strong><span>{{ job.repository }} · run #{{ job.run_id }}<template v-if="job.paused"> · paused</template></span></div>
-          <div class="run-failure"><span class="failure-label"><AppIcon name="alert-circle-outline" />{{ job.label }}</span><span class="failure-reason">{{ job.reason }}</span></div>
+          <div class="run-failure"><FailureLabel :label="job.label" /><span class="failure-reason">{{ job.reason }}</span></div>
           <span class="activity-time" :title="`${formatDate(job.failed_at)} · ${utcTitle(job.failed_at)}`">{{ formatRelative(job.failed_at) }}</span>
           <AppIcon name="chevron-right" class="row-chevron" />
         </RouterLink>
@@ -160,7 +159,7 @@ const passRate = computed(() => {
           :to="{ path: '/jobs', query: { review: String(job.id) } }"
           class="approval-row"
         >
-          <div><strong>{{ job.name }}</strong><span>{{ job.repository }} · needs <code>{{ job.capabilities.filter((capability) => capability.required && capability.grant_status !== 'approved').map((capability) => capability.binding).join(', ') }}</code></span></div>
+          <div><strong>{{ job.name }}</strong><span>{{ job.repository }} · needs <code>{{ waitingCapabilities(job).map((capability) => capability.binding).join(', ') }}</code></span></div>
           <StatusPill :status="job.grant_status" :label="accessLabel(job.grant_status)" />
           <AppIcon name="chevron-right" />
         </RouterLink>

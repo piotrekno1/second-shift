@@ -7,7 +7,7 @@ from secondshift.workspaces.dao import active_member_role
 
 
 def task_admission_problem(run: Run, repository: Repository) -> str:
-    if not repository.enabled or repository.removed_at is not None:
+    if not repository.accepts_runs:
         return "The repository was disabled or removed before this task started."
     role = active_member_role(repository.workspace_id, run.task.submitted_by_id)
     if not role_allows(role, Action.RUN_JOBS):

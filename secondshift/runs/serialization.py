@@ -1,14 +1,9 @@
-from secondshift.jobs.limits import RunLimit
-from secondshift.jobs.planning import plan_backend
 from secondshift.runner.agent_image.outcomes import cache_reads, usage_budget
 from secondshift.runs.dao import run_events
 from secondshift.runs.deliveries import retryable
-from secondshift.runs.execution.budgets import BUDGET_HEADLINE
-from secondshift.runs.execution.deadlines import TIMEOUT_HEADLINE
-from secondshift.runs.models import Run, RunDelivery
+from secondshift.runs.models import Run, RunDelivery, RunFailure
+from secondshift.runs.outputs import RunOutputs
 from secondshift.runs.reporting.failures import (
-    MODEL_PROVIDER_LABEL,
-    TOOL_RULE_LABEL,
     TOOL_RULE_NEXT_STEP,
     describe_failure,
     model_provider_next_step,
@@ -25,14 +20,9 @@ from secondshift.runs.schemas import (
     RunSavedFileSchema,
     RunSchema,
     RunSkippedFileSchema,
+    TaskSubmissionSchema,
 )
-
-
-def run_limit(run: Run, limit: RunLimit) -> int | None:
-    """A limit frozen into the run's plan. Older plans may not have it."""
-    limits = (run.execution_plan.get("agent") or {}).get("limits") or {}
-    value = limits.get(str(limit))
-    return int(value) if isinstance(value, int) else None
+from secondshift.workspaces.limits import RunLimit
 
 
 def run_failure(run: Run) -> RunFailureSchema | None:
@@ -42,27 +32,26 @@ def run_failure(run: Run) -> RunFailureSchema | None:
         )
     if run.status != Run.Status.FAILED:
         return None
-    view = describe_failure(run.summary)
+    view = describe_failure(run)
     connection_id, next_step = None, ""
-    if view.label == MODEL_PROVIDER_LABEL:
-        model = run.execution_plan.get("model") or {}
-        if isinstance(model.get("connection_id"), int):
-            connection_id = model["connection_id"]
-        name = model.get("connection_name") or "the model connection"
+    if run.failure == RunFailure.MODEL_PROVIDER:
+        model = run.plan.model
+        connection_id = model.connection_id if model else None
+        name = (model.connection_name if model else "") or "the model connection"
         next_step = model_provider_next_step(view.reason, name)
-    elif view.label == TOOL_RULE_LABEL:
+    elif run.failure == RunFailure.TOOL_RULE:
         next_step = TOOL_RULE_NEXT_STEP
     return RunFailureSchema(
         label=view.label,
         reason=view.reason,
-        limit=view.label in (BUDGET_HEADLINE, TIMEOUT_HEADLINE),
+        limit=run.failure in (RunFailure.BUDGET, RunFailure.TIMEOUT),
         connection_id=connection_id,
         next_step=next_step,
     )
 
 
 def serialize_run(run: Run) -> RunSchema:
-    api = plan_backend(run.execution_plan).uses_model_api
+    api = run.plan.execution.backend.uses_model_api
     input_tokens = getattr(run, "model_input_tokens", None) or 0
     output_tokens = getattr(run, "model_output_tokens", None) or 0
     tokens = getattr(run, "model_tokens", None) or 0
@@ -70,7 +59,7 @@ def serialize_run(run: Run) -> RunSchema:
     budget_tokens = getattr(run, "model_budget_tokens", None) or 0
     if not api:
         usage = getattr(run, "agent_usage", None) or {}
-        # Codex input includes cached tokens; Claude reports cache input separately.
+        # Codex input includes cached tokens. Claude reports cache input separately.
         input_tokens = sum(
             usage.get(key, 0)
             for key in (
@@ -96,12 +85,12 @@ def serialize_run(run: Run) -> RunSchema:
         started_at=run.started_at,
         finished_at=run.finished_at,
         summary=run.summary,
-        plan_ready=bool(run.execution_plan.get("ready", False)),
+        plan_ready=run.plan.ready,
         commit_sha=run.commit_sha,
-        model=(run.execution_plan.get("model") or {}).get("default_model") or None,
+        model=(run.plan.model.default_model if run.plan.model else "") or None,
         # Agent CLIs do not report model calls, so a turn count would read 0.
-        max_turns=run_limit(run, RunLimit.MAX_TURNS) if api else None,
-        token_budget=run_limit(run, RunLimit.TOKEN_BUDGET),
+        max_turns=run.plan.limit(RunLimit.MAX_TURNS) if api else None,
+        token_budget=run.plan.limit(RunLimit.TOKEN_BUDGET),
         model_requests=getattr(run, "model_requests", None) or 0,
         model_input_tokens=input_tokens,
         model_output_tokens=output_tokens,
@@ -163,43 +152,36 @@ def serialize_delivery(delivery: RunDelivery) -> RunDeliverySchema:
 
 
 def run_changes(run: Run) -> RunChangesSchema | None:
-    changes = (run.outputs or {}).get("changes") or {}
-    if not changes.get("file_count"):
+    changes = run.collected.changes if run.collected else None
+    if changes is None or not changes.file_count:
         return None
     return RunChangesSchema(
-        file_count=changes["file_count"],
-        files=changes.get("files", []),
-        too_large=bool(changes.get("too_large")),
-        available=bool(changes.get("path")),
-        size_bytes=changes.get("size_bytes"),
+        file_count=changes.file_count,
+        files=list(changes.files),
+        too_large=changes.too_large,
+        available=bool(changes.path),
+        size_bytes=changes.size_bytes,
     )
 
 
 def saved_file_path(run: Run, name: str) -> str:
     """The stored path of one saved file, found by its exact name."""
-    for item in (run.outputs or {}).get("files", []):
-        if item.get("name") == name:
-            return str(item["path"])
-    return ""
+    saved = run.collected.saved_file(name) if run.collected else None
+    return saved.path if saved else ""
 
 
 def serialize_run_detail(run: Run) -> RunDetailSchema:
-    model = run.execution_plan.get("model") or {}
+    model = run.plan.model
+    outputs = run.collected or RunOutputs()
     return RunDetailSchema(
         **serialize_run(run).model_dump(),
-        submission_input=str(run.input_snapshot.get("submission_input", "")),
-        job_key=str(
-            run.input_snapshot.get("job_key")
-            or (run.job.key if run.job is not None else "")
-        ),
-        skill_path=str(
-            run.input_snapshot.get("skill_path")
-            or (run.job.skill_path if run.job is not None else "")
-        ),
+        submission_input=run.inputs.submission_input,
+        job_key=run.job_key,
+        skill_path=run.plan.job.skill_path,
         created_at=run.created_at,
         exit_code=run.exit_code,
-        model_provider=model.get("connection_name"),
-        execution_agent=(run.execution_plan.get("execution") or {}).get("label"),
+        model_provider=model.connection_name if model else None,
+        execution_agent=run.plan.execution.label or None,
         output_excerpt=run.output_excerpt,
         output_truncated=run.output_truncated,
         output_size_bytes=run.output_size_bytes,
@@ -225,11 +207,17 @@ def serialize_run_detail(run: Run) -> RunDetailSchema:
         ],
         changes=run_changes(run),
         saved_files=[
-            RunSavedFileSchema(name=item["name"], size_bytes=item["size_bytes"])
-            for item in (run.outputs or {}).get("files", [])
+            RunSavedFileSchema(name=item.name, size_bytes=item.size_bytes)
+            for item in outputs.files
         ],
         skipped_files=[
-            RunSkippedFileSchema(**item)
-            for item in (run.outputs or {}).get("skipped", [])
+            RunSkippedFileSchema(name=item.name, reason=item.reason)
+            for item in outputs.skipped
         ],
+    )
+
+
+def serialize_submission(run: Run, started: bool) -> TaskSubmissionSchema:
+    return TaskSubmissionSchema(
+        task_id=run.task_id, run=serialize_run(run), started=started
     )

@@ -92,7 +92,7 @@ def start(
         parent[AppEnv.LOG_LEVEL] = "DEBUG"
     configured_host, configured_port = launcher.web_address("127.0.0.1", 8000, parent)
     host, port = host or configured_host, port if port is not None else configured_port
-    parent.pop("SECONDSHIFT_HTTP_BIND", None)
+    parent.pop(AppEnv.HTTP_BIND, None)
     terminal.heading(f"SecondShift {version('secondshift')}")
     check_port(host, port)
     check_docker()

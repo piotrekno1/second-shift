@@ -85,7 +85,7 @@ import {
   X,
   type IconNode,
 } from 'lucide'
-import { mdiGithub, mdiSlack } from '@mdi/js'
+import { mdiGithub } from '@mdi/js'
 
 export type { IconNode }
 
@@ -182,5 +182,4 @@ export const lineIcons: Record<string, IconNode> = {
 // Brand marks are filled logos. Lucide does not draw them.
 export const brandIcons: Record<string, string> = {
   'github': mdiGithub,
-  'slack': mdiSlack,
 }

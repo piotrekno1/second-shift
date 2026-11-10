@@ -6,22 +6,26 @@ from ninja import Query, Router, Status
 from ninja.errors import HttpError
 from ninja.security import django_auth
 
-from secondshift.connections.models import Connection
+from secondshift.connections.dao import connected_github_sources
 from secondshift.github.app import configured
 from secondshift.github.errors import GitHubError
 from secondshift.jobs.dao import disable_repository_jobs, enabled_repository_jobs
+from secondshift.jobs.repository_sync import (
+    SyncError,
+    attach_github_repository,
+    attach_local_repository,
+    resync,
+)
 from secondshift.jobs.scheduling import restart_schedules
 from secondshift.repositories.access import repository_for_request
-from secondshift.repositories.dao import active_repositories
+from secondshift.repositories.dao import active_repositories_with_jobs
 from secondshift.repositories.github_sync import (
     GitHubRepositoryExistsError,
-    attach_github_repository,
     available_github_sources,
     repository_branches,
 )
 from secondshift.repositories.local import (
     LocalRepositoryError,
-    attach_local_repository,
     local_directories,
 )
 from secondshift.repositories.models import Repository
@@ -44,7 +48,7 @@ from secondshift.repositories.serialization import (
     serialize_repository_detail,
     validate_repository,
 )
-from secondshift.repositories.sync import SyncError, resync
+from secondshift.repositories.status import ValidationStatus
 from secondshift.workspaces.access import (
     Action,
     current_workspace,
@@ -59,7 +63,7 @@ def repositories(request: HttpRequest) -> list[RepositorySchema]:
     workspace = current_workspace(request)
     if not workspace:
         return []
-    queryset = active_repositories(workspace.pk).prefetch_related("jobs")
+    queryset = active_repositories_with_jobs(workspace.pk)
     return [serialize_repository(request, item) for item in queryset]
 
 
@@ -123,12 +127,7 @@ def github_branches(
 ) -> list[str]:
     workspace = require(request, Action.ADD_GITHUB_REPOSITORIES)
     connection = get_object_or_404(
-        Connection,
-        pk=connection_id,
-        workspace=workspace,
-        provider=Connection.Provider.GITHUB,
-        kind=Connection.Kind.SOURCE,
-        status=Connection.Status.CONNECTED,
+        connected_github_sources(workspace.pk), pk=connection_id
     )
     try:
         return repository_branches(connection, repository_id)
@@ -142,12 +141,7 @@ def create_github_repository(
 ) -> RepositorySchema:
     workspace = require(request, Action.ADD_GITHUB_REPOSITORIES)
     connection = get_object_or_404(
-        Connection,
-        pk=payload.connection_id,
-        workspace=workspace,
-        provider=Connection.Provider.GITHUB,
-        kind=Connection.Kind.SOURCE,
-        status=Connection.Status.CONNECTED,
+        connected_github_sources(workspace.pk), pk=payload.connection_id
     )
     try:
         repository = attach_github_repository(
@@ -217,7 +211,7 @@ def set_repository_enabled(
     require(request, Action.CHANGE_REPOSITORY_STATE)
     if payload.enabled:
         validation = validate_repository(repository)
-        if validation.status != "valid":
+        if validation.status != ValidationStatus.VALID:
             raise HttpError(409, validation.message)
     turned_on = payload.enabled and not repository.enabled
     repository.enabled = payload.enabled

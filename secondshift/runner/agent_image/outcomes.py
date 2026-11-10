@@ -7,7 +7,7 @@ standard library. The control plane imports AgentOutcome from here too.
 from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
-from typing import Any
+from typing import Any, NotRequired, TypedDict
 
 # Container paths. Backends read them as outcomes.TMP and outcomes.AUTH, so
 # tests can point both somewhere else.
@@ -23,6 +23,23 @@ TOKEN_KEYS = (
 # Cache reads cost about a tenth of fresh input on Anthropic and OpenAI, so
 # they count as a tenth toward a run's token budget.
 CACHE_READ_DIVISOR = 10
+
+
+# The login file each CLI backend reads from AUTH, by backend name.
+AUTH_FILES = {"claude_code": "claude-token", "codex": "auth.json"}
+
+
+class AgentConfig(TypedDict):
+    """What the runner hands the agent image. A login check has no broker."""
+
+    backend: str
+    prompt: str
+    max_turns: int
+    token_budget: int
+    broker_url: NotRequired[str]
+    broker_token: NotRequired[str]
+    # The most sub-agents the agent may start.
+    subagents: NotRequired[int]
 
 
 class AgentOutcome(StrEnum):

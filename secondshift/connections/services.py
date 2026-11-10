@@ -2,9 +2,8 @@ from django.db import IntegrityError, transaction
 
 from secondshift.connections.dao import binding_taken
 from secondshift.connections.models import Connection
-from secondshift.connections.webhooks import validate_webhook_url, webhook_target_label
-from secondshift.jobs.dao import release_connection_grants
-from secondshift.repositories.dao import has_repositories
+from secondshift.connections.outbound import host_label
+from secondshift.connections.webhooks import validate_webhook_url
 from secondshift.workspaces.models import Workspace
 
 
@@ -13,11 +12,8 @@ class ConnectionConflict(ValueError):
 
 
 def connection_target(connection: Connection) -> str:
-    if connection.provider == Connection.Provider.WEBHOOK or (
-        connection.kind in {Connection.Kind.MODEL, Connection.Kind.MCP}
-    ):
-        return str(connection.metadata.get("target", ""))
-    return ""
+    """The host a connection reaches, as saved when it was set up."""
+    return str(connection.metadata.get("target", ""))
 
 
 def create_webhook_connection(
@@ -39,7 +35,7 @@ def create_webhook_connection(
         display_name=display_name.strip() or binding_key,
         auth_strategy=Connection.AuthStrategy.NONE,
         delivery_url=url,
-        metadata={"target": webhook_target_label(url)},
+        metadata={"target": host_label(url)},
     )
     connection.full_clean()
     try:
@@ -66,7 +62,7 @@ def update_webhook_connection(
         connection.delivery_url = url
         connection.metadata = {
             **connection.metadata,
-            "target": webhook_target_label(url),
+            "target": host_label(url),
         }
         connection.status = Connection.Status.CONNECTED
     elif connection.status == Connection.Status.REVOKED:
@@ -96,17 +92,3 @@ def revoke_connection(connection: Connection) -> Connection:
         ]
     )
     return connection
-
-
-@transaction.atomic
-def delete_connection(connection: Connection) -> None:
-    if connection.kind == Connection.Kind.IDENTITY:
-        raise ConnectionConflict("Sign-in connections are managed by their provider.")
-    if connection.kind == Connection.Kind.SOURCE and has_repositories(connection):
-        raise ConnectionConflict(
-            "This installation has repository history. Disconnect it instead."
-        )
-    # Grants are review records: they return to pending instead of disappearing,
-    # so the jobs show up again under "Needed by your jobs".
-    release_connection_grants(connection)
-    connection.delete()

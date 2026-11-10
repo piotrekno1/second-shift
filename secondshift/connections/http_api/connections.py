@@ -22,6 +22,7 @@ from secondshift.connections.outbound import (
     validate_outbound_url,
 )
 from secondshift.connections.services import ConnectionConflict
+from secondshift.connections.tools import UnknownTools, store_tools
 from secondshift.workspaces.models import Workspace
 
 TOKEN_PATTERN = r"\S{1,2000}"
@@ -82,18 +83,10 @@ def select_operations(
     connection: Connection, operations: dict[str, Any], selected: list[str] | None
 ) -> None:
     """GET operations start selected. Anything else waits for the owner."""
-    if selected is None:
-        chosen = {name for name, item in operations.items() if item["readOnly"]}
-    else:
-        if set(selected) - set(operations):
-            raise APIError("Choose operations from the spec.")
-        chosen = set(selected)
-    connection.available_tools = sorted(chosen)
-    connection.metadata = {
-        **connection.metadata,
-        "tools": {name: operations[name] for name in sorted(chosen)},
-        "offered_tools": operations,
-    }
+    try:
+        store_tools(connection, operations, selected)
+    except UnknownTools as error:
+        raise APIError("Choose operations from the spec.") from error
 
 
 def create_api_connection(
@@ -126,9 +119,7 @@ def create_api_connection(
         access_token=token,
         metadata={
             "target": host_label(base_url),
-            "base_url": base_url,
             "spec_url": spec_url,
-            "title": spec.title,
             "settings": auth_settings,
         },
     )
@@ -167,13 +158,10 @@ def update_api_connection(
         connection.endpoint_url = cleaned
         connection.metadata = {
             **connection.metadata,
-            "base_url": cleaned,
             "target": host_label(cleaned),
         }
     if operations is not None:
-        select_operations(
-            connection, connection.metadata.get("offered_tools", {}), operations
-        )
+        select_operations(connection, connection.offered_tools, operations)
     connection.status = Connection.Status.CONNECTED
     connection.full_clean()
     connection.save()
@@ -193,7 +181,7 @@ def recheck_api_connection(connection: Connection) -> str:
     select_operations(connection, operations, kept)
     connection.save(update_fields=["available_tools", "metadata", "updated_at"])
     message = f"Found {len(operations)} operations. {len(kept)} enabled."
-    base_url = connection.metadata.get("base_url", "")
+    base_url = connection.endpoint_url
     if spec.servers and base_url not in spec.servers:
         message += f" The spec now lists a different server. Requests still go to {host_label(base_url)}."
     return message

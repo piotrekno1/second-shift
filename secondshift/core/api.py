@@ -5,6 +5,7 @@ from ninja import Router
 from ninja.security import django_auth
 
 from secondshift.connections.dao import connected_count
+from secondshift.connections.execution import execution_status
 from secondshift.core.schemas import (
     FailingJobSchema,
     JobSpendSchema,
@@ -12,13 +13,8 @@ from secondshift.core.schemas import (
     RunDaySchema,
     UserSchema,
 )
-from secondshift.core.workspace_settings import (
-    environment_label,
-    sandbox_label,
-)
 from secondshift.github.app import configured as github_app_configured
 from secondshift.jobs.dao import enabled_job_count
-from secondshift.jobs.execution import execution_status
 from secondshift.repositories.dao import active_repositories
 from secondshift.repositories.models import Repository
 from secondshift.runs.dao import run_counts_today
@@ -34,7 +30,11 @@ from secondshift.workspaces.access import (
     is_operator,
     permitted_actions,
 )
-from secondshift.workspaces.dao import own_tokens
+from secondshift.workspaces.dao import has_own_token
+from secondshift.workspaces.server_settings import (
+    environment_label,
+    sandbox_label,
+)
 from secondshift.workspaces.services import can_create_workspace
 
 router = Router(auth=django_auth, tags=["core"])
@@ -100,5 +100,5 @@ def overview(request: HttpRequest) -> OverviewSchema:
         ],
         run_days=[RunDaySchema(**vars(day)) for day in runs_by_day(workspace)],
         execution=execution_status(workspace),
-        has_agent_token=own_tokens(request.user).filter(workspace=workspace).exists(),
+        has_agent_token=has_own_token(request.user, workspace),
     )

@@ -5,8 +5,8 @@ from pathlib import Path
 from django.contrib.auth import get_user_model
 from django.test import Client, override_settings
 
-from secondshift.repositories.autosync import sync_moved_repositories
-from secondshift.repositories.local import attach_local_repository
+from secondshift.jobs.autosync import sync_moved_repositories
+from secondshift.jobs.repository_sync import attach_local_repository
 from secondshift.repositories.tests.test_local import create_local_repository, run_git
 from secondshift.workspaces.models import Workspace
 

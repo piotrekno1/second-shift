@@ -57,7 +57,7 @@ def api_connection(workspace: Workspace, **fields: Any) -> Connection:
         "binding_key": "billing",
         "display_name": "Billing",
         "available_tools": ["listCharges"],
-        "metadata": {"base_url": "https://billing.example.com"},
+        "endpoint_url": "https://billing.example.com",
     }
     return Connection.objects.create(workspace=workspace, **{**defaults, **fields})
 
@@ -315,7 +315,7 @@ def test_allowing_a_tool_approves_jobs_waiting_for_it(
     connection = api_connection(
         repository.workspace,
         access_token="token",
-        metadata={"base_url": "https://billing.example.com", "offered_tools": offered},
+        metadata={"offered_tools": offered},
     )
     sync(repository, manifest(["listCharges", "createRefund"]))
     assert grant().status == JobGrant.Status.PENDING

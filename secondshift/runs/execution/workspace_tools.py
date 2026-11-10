@@ -17,6 +17,7 @@ from secondshift.runner.protocol import CommandRequest, CommandResult
 from secondshift.runs.execution.deadlines import (
     check_deadline,
 )
+from secondshift.runs.inputs import Payload
 
 MODEL_TOOL_NAMES = {
     "workspace.list_files": "workspace_list_files",
@@ -49,7 +50,7 @@ class WorkspaceToolDeps:
     deadline: datetime
     allowed_tools: tuple[str, ...] = LOCAL_TOOLS
     # What the input snapshot records about a trigger's request body, if any.
-    payload: dict[str, Any] | None = None
+    payload: Payload | None = None
     # How many issues the agent may propose. Zero hides the tool.
     issue_limit: int = 0
     # How many sub-agents the run may start. Zero hides the tool.

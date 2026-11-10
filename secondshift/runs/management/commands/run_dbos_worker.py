@@ -9,9 +9,8 @@ from dbos import DBOS, DBOSClient
 from django.conf import settings
 
 from secondshift.connections.agents import retry_credential_cleanups
-from secondshift.jobs.scheduling import synchronize_schedules
+from secondshift.jobs.autosync import server_syncs, sync_moved_repositories
 from secondshift.mcp_server.audit import prune_tool_calls
-from secondshift.repositories.autosync import server_syncs, sync_moved_repositories
 from secondshift.repositories.github_check import check_due_sources
 from secondshift.repositories.sources import prune_source_cache
 from secondshift.runs.orchestration.dbos_runtime import (
@@ -21,6 +20,7 @@ from secondshift.runs.orchestration.dbos_runtime import (
 from secondshift.runs.orchestration.dispatch import dispatch_waiting_tasks
 from secondshift.runs.orchestration.periodic import PeriodicTask
 from secondshift.runs.orchestration.reconciliation import reconcile_terminal_workflows
+from secondshift.runs.orchestration.schedules import synchronize_schedules
 from secondshift.runs.retention import prune_runs
 
 logger = logging.getLogger(__name__)

@@ -10,26 +10,24 @@ import pytest
 from asgiref.sync import async_to_sync
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import User
-from django.db import IntegrityError, transaction
-from django.db import connection as database
-from django.db.migrations.executor import MigrationExecutor
+from django.db import IntegrityError
 from django.test import Client
 from django.utils import timezone
 from pydantic import ValidationError
 
-from secondshift.config.constants import TaskOrigin
+from secondshift.config.constants import RunStart
 from secondshift.connections.errors import ExternalToolError
+from secondshift.connections.execution import choose_execution
 from secondshift.connections.models import AgentConnection, Connection
 from secondshift.gateway.models import ModelUsage
-from secondshift.gateway.tokens import aauthenticate, authenticate, issue_run_token
-from secondshift.jobs.execution import choose_execution
-from secondshift.jobs.manifest import JobManifest
+from secondshift.gateway.tokens import aauthenticate, authenticate
 from secondshift.jobs.models import Job
 from secondshift.mcp_server.tests.test_job_tools import call, error_text, token
 from secondshift.repositories.local import committed_file, git
 from secondshift.repositories.models import Repository
 from secondshift.runs.artifacts import artifact_storage, store_run_text
 from secondshift.runs.execution.agent_broker import run_connection
+from secondshift.runs.execution.model_gateway import issue_run_token
 from secondshift.runs.execution.run import (
     PULL_REQUEST_NOTE,
     capture_run_input_step,
@@ -52,7 +50,7 @@ from secondshift.runs.reporting.notifications import (
 from secondshift.runs.retention import prune_runs
 from secondshift.runs.services import RunRefused
 from secondshift.runs.submissions import SkillSubmission, submit_skill
-from secondshift.runs.transitions import start_run
+from secondshift.runs.transitions import mark_running
 from secondshift.workspaces.dao import create_workspace
 from secondshift.workspaces.models import WorkspaceMembership
 
@@ -122,31 +120,30 @@ def submission(repository: Repository, **fields: Any) -> SkillSubmission:
 
 def start(repository: Repository, owner: User, **fields: Any) -> Run:
     return submit_skill(
-        repository, submission(repository, **fields), owner, TaskOrigin.MANUAL
+        repository, submission(repository, **fields), owner, RunStart.MANUAL
     ).run
 
 
 def test_accepts_pins_and_replays_without_touching_jobs(
     repository: Repository, owner: User, queued: list[int]
 ) -> None:
-    first = submit_skill(repository, submission(repository), owner, TaskOrigin.MANUAL)
+    first = submit_skill(repository, submission(repository), owner, RunStart.MANUAL)
     root = Path(repository.local_path)
     pinned = git(root, "rev-parse", "HEAD")
     (root / SKILL).write_text("# Changed skill")
     git(root, "commit", "-am", "Change skill")
-    second = submit_skill(repository, submission(repository), owner, TaskOrigin.MANUAL)
+    second = submit_skill(repository, submission(repository), owner, RunStart.MANUAL)
 
     assert first.started is True and second.started is False
     assert first.run.pk == second.run.pk
     assert queued == [first.run.pk]
-    assert first.run.job_id is None and first.run.task.job_id is None
+    assert first.run.job_id is None
     assert first.run.task.repository == repository
     assert first.run.task.submitted_by == owner
-    assert first.run.task.origin == TaskOrigin.MANUAL
-    assert first.run.commit_sha == first.run.task.commit_sha == pinned
+    assert first.run.started_by == RunStart.MANUAL
+    assert first.run.commit_sha == pinned
     assert first.run.execution_plan["repository"]["config_sha"] == pinned
     assert "useful report" in committed_file(root, pinned, SKILL)
-    assert first.run.input_snapshot == first.run.task.input_snapshot
     assert "installation instructions" in run_prompt(first.run)
     assert Task.objects.count() == Run.objects.count() == 1
     assert not Job.objects.exists()
@@ -284,7 +281,8 @@ def test_mcp_run_scope_and_origin(repository: Repository, owner: User) -> None:
     first = call(secret, "submit_task", **submission(repository).model_dump())
     assert not first.get("isError"), first
     task = Task.objects.get()
-    assert task.origin == TaskOrigin.MCP and task.submitted_by == owner
+    assert task.runs.get().started_by == RunStart.MCP
+    assert task.submitted_by == owner
     replay = call(secret, "submit_task", **submission(repository).model_dump())
     assert not replay.get("isError")
     assert Task.objects.count() == Run.objects.count() == 1
@@ -322,7 +320,7 @@ def test_worker_source_sandbox_output_and_retention(
     assert spec.commit_sha == run.commit_sha
     assert spec.repository == repository.full_name
     output = store_run_text(run, "Review complete.")
-    start_run(run.pk, run.dbos_workflow_id)
+    mark_running(run.pk, run.dbos_workflow_id)
     finish_run_step.__wrapped__(
         run.pk,
         {
@@ -379,12 +377,6 @@ def test_history_cannot_cross_ad_hoc_tasks(repository: Repository, owner: User) 
     assert previous_reports(second) == ""
 
 
-def test_task_source_constraints(repository: Repository, owner: User) -> None:
-    run = start(repository, owner)
-    with pytest.raises(IntegrityError), transaction.atomic():
-        Task.objects.create(commit_sha=run.commit_sha, scheduled_for=timezone.now())
-
-
 def test_external_tools_and_notifications_recheck_consent(
     repository: Repository, owner: User, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -398,7 +390,6 @@ def test_external_tools_and_notifications_recheck_consent(
         endpoint_url="https://billing.example.com",
         available_tools=["listCharges"],
         metadata={
-            "base_url": "https://billing.example.com",
             "tools": {
                 "listCharges": {
                     "description": "Read charges",
@@ -497,39 +488,6 @@ def test_http_submission_refuses_policy_overrides(
     assert not Task.objects.exists()
 
 
-def test_pre_submission_models_can_still_create_job_tasks(
-    repository: Repository, owner: User
-) -> None:
-    job = Job.objects.create(
-        workspace=repository.workspace,
-        repository=repository,
-        key="legacy",
-        name="Legacy",
-        skill_path=SKILL,
-        config_hash="legacy-config",
-    )
-    apps = (
-        MigrationExecutor(database)
-        .loader.project_state([("runs", "0005_backfill_tasks")])
-        .apps
-    )
-    legacy_task = apps.get_model("runs", "Task").objects.create(
-        job_id=job.pk,
-        submitted_by_id=owner.pk,
-        origin="manual",
-        commit_sha="a" * 40,
-        scheduled_for=timezone.now(),
-    )
-    legacy_run = apps.get_model("runs", "Run").objects.create(
-        job_id=job.pk,
-        task_id=legacy_task.pk,
-        commit_sha="a" * 40,
-        scheduled_for=timezone.now(),
-    )
-    assert Task.objects.get(pk=legacy_task.pk).submission_key == ""
-    assert Run.objects.get(pk=legacy_run.pk).repository == repository
-
-
 def test_written_task_needs_no_skill_file_and_keeps_original_instructions(
     repository: Repository, owner: User, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -543,7 +501,6 @@ def test_written_task_needs_no_skill_file_and_keeps_original_instructions(
         repository, owner, definition={"name": "Review setup"}, input=instructions
     )
     assert run.commit_sha == git(root, "rev-parse", "HEAD")
-    assert run.input_snapshot["skill_path"] is None
     assert run.execution_plan["job"]["skill_path"] == ""
     assert run.execution_plan["ready"] is True
     assert instructions in run_prompt(run)
@@ -584,7 +541,6 @@ def test_http_and_mcp_accept_written_tasks(repository: Repository, owner: User) 
     )
     assert response.status_code == 200, response.content
     first = Run.objects.get()
-    assert first.input_snapshot["skill_path"] is None
     detail = client.get(f"/api/runs/{first.pk}").json()
     assert (
         detail["skill_path"] == ""
@@ -593,11 +549,6 @@ def test_http_and_mcp_accept_written_tasks(repository: Repository, owner: User) 
     replay = call(token(owner, "run"), "submit_task", **payload.model_dump())
     assert not replay.get("isError"), replay
     assert Task.objects.count() == Run.objects.count() == 1
-
-
-def test_repository_jobs_still_require_a_skill_file() -> None:
-    with pytest.raises(ValidationError):
-        JobManifest.model_validate({"name": "A scheduled job"})
 
 
 def test_written_task_uses_same_capability_approval_boundary(

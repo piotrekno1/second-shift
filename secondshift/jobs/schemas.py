@@ -7,6 +7,7 @@ from pydantic import Field
 from secondshift.config.constants import AgentBackend
 from secondshift.connections.schemas import ConnectionSchema
 from secondshift.runs.schemas import RunSchema
+from secondshift.workspaces.schemas import LimitSchema
 
 
 class AccessSchema(Schema):
@@ -128,27 +129,6 @@ class GrantDecisionSchema(Schema):
     tool_rules: ToolRulesSchema | None = None
 
 
-class LimitSchema(Schema):
-    key: str
-    label: str
-    help: str
-    unit: str
-    value: int
-    override: int | None
-    inherited: int
-    minimum: int
-    maximum: int
-
-
-class RunLimitsUpdateSchema(Schema):
-    """Fields left out stay as they are. Null uses the inherited value."""
-
-    max_turns: int | None = None
-    max_tool_calls: int | None = None
-    token_budget: int | None = None
-    timeout_seconds: int | None = None
-
-
 class OpenIssuesSchema(Schema):
     labels: list[str]
     max: int
@@ -181,32 +161,3 @@ class JobDetailSchema(JobSchema):
     recent_runs: list[RunSchema]
     limits: list[LimitSchema]
     can_edit_limits: bool
-
-
-class ExecutionChoiceSchema(Schema):
-    key: str
-    label: str
-    disabled: bool = False
-    # Why this choice cannot run jobs, or empty when it can.
-    problem: str = ""
-
-
-class ExecutionStatusSchema(Schema):
-    label: str
-    backend: str
-    problem: str
-    # False until an owner picks a model provider or a login.
-    chosen: bool
-    # Nothing to choose yet: no model provider and no login saved.
-    needs_setup: bool
-    fix_connection_id: int | None
-
-
-class ExecutionConfigurationSchema(Schema):
-    enabled: bool
-    choices: list[ExecutionChoiceSchema]
-    selected: str
-    label: str
-    backend: str
-    ready: bool
-    problem: str

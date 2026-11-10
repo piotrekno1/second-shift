@@ -9,7 +9,9 @@ from django.contrib.auth import get_user_model
 from django.test import Client
 from django.utils import timezone
 
+from secondshift.config.constants import RunStart
 from secondshift.connections.errors import ExternalToolError
+from secondshift.connections.execution import choose_execution
 from secondshift.connections.external import external_access
 from secondshift.connections.http_api.client import APIRequest, build_request, send
 from secondshift.connections.http_api.connections import (
@@ -24,11 +26,13 @@ from secondshift.connections.http_api.spec import (
     read_spec,
 )
 from secondshift.connections.models import Connection
-from secondshift.jobs.execution import choose_execution
+from secondshift.connections.services import connection_target
 from secondshift.jobs.models import CapabilityRequest, Job, JobGrant
 from secondshift.jobs.planning import build_execution_plan
 from secondshift.jobs.serialization import serialize_job
+from secondshift.repositories.github import repository_ref
 from secondshift.repositories.models import Repository
+from secondshift.runs.dao import create_task
 from secondshift.runs.execution.external_tools import external_tools
 from secondshift.runs.execution.tool_broker import call_external_tool_step
 from secondshift.runs.models import Run
@@ -158,11 +162,10 @@ def fake(monkeypatch) -> FakeAPI:
         ],
     )
     api = FakeAPI()
-    for module in ("spec", "client"):
-        monkeypatch.setattr(
-            f"secondshift.connections.http_api.{module}.MCPTransport",
-            lambda: httpx.MockTransport(api.handle),
-        )
+    monkeypatch.setattr(
+        "secondshift.connections.outbound.BoundedTransport",
+        lambda: httpx.MockTransport(api.handle),
+    )
     return api
 
 
@@ -305,7 +308,7 @@ def test_connect_selects_get_operations_and_stores_no_secret_in_metadata(
     assert connection.kind == Connection.Kind.API
     assert connection.display_name == "Billing"
     assert connection.endpoint_url == BASE
-    assert connection.metadata["target"] == "api.example.com"
+    assert connection_target(connection) == "api.example.com"
     assert connection.available_tools == ["get_charges_chargeId", "listCharges", "tree"]
     assert set(connection.metadata["offered_tools"]) >= {"createCharge", "deleteCharge"}
     assert TOKEN not in json.dumps(connection.metadata)
@@ -421,12 +424,14 @@ def api_run(fake: FakeAPI, workspace: Workspace) -> Run:
         allowed_tools=["listCharges"],
     )
     return Run.objects.create(
+        task=create_task(repository=job.repository),
+        started_by=RunStart.SCHEDULE,
         job=job,
         status="running",
         scheduled_for=timezone.now(),
         commit_sha="a" * 40,
         input_snapshot={"skill_path": job.skill_path},
-        execution_plan=build_execution_plan(job),
+        execution_plan=build_execution_plan(job).stored(),
     )
 
 
@@ -436,7 +441,8 @@ def test_job_calls_an_approved_operation(fake: FakeAPI, api_run: Run) -> None:
     assert capability["external"]["base_url"] == BASE
     assert capability["external"]["scope"] == "api.example.com"
     access = external_access(
-        Connection.objects.get(binding_key="billing"), api_run.job.repository
+        Connection.objects.get(binding_key="billing"),
+        repository_ref(api_run.job.repository),
     )
     assert access and access.text == (
         "Allow these operations to use anything the credential can reach on api.example.com."

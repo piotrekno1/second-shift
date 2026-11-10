@@ -6,6 +6,7 @@ from typing import Any
 from secondshift.runner.agent_image import outcomes
 from secondshift.runner.agent_image.outcomes import (
     MAX_REPORT_CHARS,
+    AgentConfig,
     Outcome,
     numbers,
     private_file,
@@ -15,7 +16,7 @@ BROKER_TOKEN_VAR = "SECONDSHIFT_BROKER_TOKEN"
 BROKER_STARTUP_TIMEOUT_SECONDS = 60
 
 
-def codex(config: dict[str, Any]) -> tuple[list[str], dict[str, str]]:
+def codex(config: AgentConfig) -> tuple[list[str], dict[str, str]]:
     """Codex with no built-in tools and only the run's broker.
 
     A login check has no broker, so it has no tools at all.

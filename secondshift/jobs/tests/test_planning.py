@@ -4,9 +4,9 @@ import pytest
 from django.contrib.auth import get_user_model
 
 from secondshift.config.constants import AgentBackend
+from secondshift.connections.execution import choose_execution
 from secondshift.connections.models import Connection
 from secondshift.jobs import planning
-from secondshift.jobs.execution import choose_execution
 from secondshift.jobs.manifest import TaskManifest
 from secondshift.jobs.models import CapabilityRequest, Job, JobGrant
 from secondshift.jobs.planning import build_execution_plan
@@ -52,7 +52,7 @@ def test_plan_fails_closed_without_grant(db) -> None:
         requested_tools=["query_metrics"],
     )
 
-    plan = build_execution_plan(job)
+    plan = build_execution_plan(job).stored()
 
     assert plan["ready"] is False
     assert plan["capabilities"][0]["reasons"] == ["no_grant"]
@@ -62,7 +62,7 @@ def test_plan_fails_closed_without_a_model_provider(db) -> None:
     job = create_job(db)
     Connection.objects.filter(kind=Connection.Kind.MODEL).delete()
 
-    plan = build_execution_plan(Job.objects.get(pk=job.pk))
+    plan = build_execution_plan(Job.objects.get(pk=job.pk)).stored()
 
     assert plan["ready"] is False
     assert plan["model"] is None
@@ -83,7 +83,7 @@ def test_plan_contains_only_effective_approved_tools(db) -> None:
         binding_key="observability",
         display_name="Grafana production",
         available_tools=["query_metrics", "delete_dashboard"],
-        credential_reference="vault://grafana/production",
+        access_token="grafana-secret-token",
     )
     JobGrant.objects.create(
         capability_request=request,
@@ -92,12 +92,10 @@ def test_plan_contains_only_effective_approved_tools(db) -> None:
         allowed_tools=["query_metrics"],
     )
 
-    plan = build_execution_plan(job)
+    plan = build_execution_plan(job).stored()
 
     assert plan["ready"] is True
     assert plan["agent"] == {
-        "driver": "pydantic-ai",
-        "protocol": "pydantic-ai-v1",
         "limits": {
             "max_turns": 24,
             "max_tool_calls": 150,
@@ -115,7 +113,7 @@ def test_plan_contains_only_effective_approved_tools(db) -> None:
         ],
     }
     assert plan["capabilities"][0]["effective_tools"] == ["query_metrics"]
-    assert "credential_reference" not in str(plan)
+    assert "grafana-secret-token" not in str(plan)
 
 
 def test_plan_fails_closed_when_requested_tool_was_not_discovered(db) -> None:
@@ -141,7 +139,7 @@ def test_plan_fails_closed_when_requested_tool_was_not_discovered(db) -> None:
         allowed_tools=["query_metrics"],
     )
 
-    plan = build_execution_plan(job)
+    plan = build_execution_plan(job).stored()
 
     assert plan["ready"] is False
     assert "tools_unavailable" in plan["capabilities"][0]["reasons"]
@@ -170,11 +168,11 @@ def test_plan_fails_closed_for_unsupported_mcp_providers(db) -> None:
         allowed_tools=["query_metrics"],
     )
 
-    plan = build_execution_plan(job)
+    plan = build_execution_plan(job).stored()
 
     assert plan["ready"] is False
     assert plan["capabilities"][0]["reasons"] == ["mcp_provider_unsupported"]
-    assert "external" not in plan["capabilities"][0]
+    assert plan["capabilities"][0]["external"] is None
 
 
 def optional_request(job: Job, binding: str) -> CapabilityRequest:
@@ -213,7 +211,7 @@ def test_plan_says_why_each_binding_is_missing(db) -> None:
     )
     JobGrant.objects.create(capability_request=waiting)
 
-    plan = build_execution_plan(job)
+    plan = build_execution_plan(job).stored()
 
     missing = {item["binding"]: item["missing"] for item in plan["capabilities"]}
     assert missing == {
@@ -234,10 +232,10 @@ def test_plan_says_nothing_is_missing_for_authorized_bindings(db) -> None:
         allowed_tools=["search"],
     )
 
-    plan = build_execution_plan(job)
+    plan = build_execution_plan(job).stored()
 
     assert plan["capabilities"][0]["authorized"] is True
-    assert "missing" not in plan["capabilities"][0]
+    assert plan["capabilities"][0]["missing"] is None
 
 
 @pytest.mark.parametrize(
@@ -260,7 +258,7 @@ def test_plan_fails_closed_with_an_unusable_default_model(
     Connection.objects.filter(kind=Connection.Kind.MODEL).update(**change)
     job = Job.objects.get(pk=job.pk)
 
-    plan = build_execution_plan(job)
+    plan = build_execution_plan(job).stored()
 
     assert plan["ready"] is False
     assert plan["model"] is None
@@ -272,7 +270,7 @@ def test_plan_caps_subagents_at_the_server_maximum(db, settings) -> None:
     job = create_job(db)
     job.subagents = 5
 
-    assert build_execution_plan(job)["agent"]["subagents"] == 2
+    assert build_execution_plan(job).stored()["agent"]["subagents"] == 2
 
 
 @pytest.mark.parametrize(
@@ -289,7 +287,7 @@ def test_codex_runs_plan_no_subagents(db, monkeypatch, backend, planned) -> None
         lambda workspace: replace(selection, backend=backend),
     )
 
-    assert build_execution_plan(job)["agent"]["subagents"] == planned
+    assert build_execution_plan(job).stored()["agent"]["subagents"] == planned
 
 
 def test_a_task_can_start_subagents(db) -> None:
@@ -298,6 +296,6 @@ def test_a_task_can_start_subagents(db) -> None:
 
     plan = planning.build_skill_execution_plan(
         job.repository, definition, key="audit", commit_sha="a" * 40
-    )
+    ).stored()
 
     assert plan["agent"]["subagents"] == 1

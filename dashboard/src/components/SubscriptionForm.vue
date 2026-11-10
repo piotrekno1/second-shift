@@ -4,9 +4,9 @@ import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
 import AppIcon from './AppIcon.vue'
 import { useAgentsStore } from '../stores/agents'
-import type { AgentConnection } from '../services/agents'
-import type { Notice } from '../types'
+import type { AgentConnection, Notice } from '../types'
 import { SUBSCRIPTION_NAMES } from '../utils/models'
+import { errorMessage } from '../services/api'
 
 /** Save a new Claude Code or Codex login, or reconnect a saved one. */
 const props = defineProps<{ login?: AgentConnection }>()
@@ -32,10 +32,10 @@ async function connect(): Promise<void> {
       const check = (await agents.check(saved.id)).last_check
       notice = check?.ok ? { ok: true, text: `${verb}. ${check.message}` } : { ok: false, text: `${verb}, but the check failed: ${check?.message ?? 'no answer.'}` }
     } catch (err) {
-      notice = { ok: true, text: `${verb}. ${err instanceof Error ? err.message : 'The check could not run.'}` }
+      notice = { ok: true, text: `${verb}. ${errorMessage(err, 'The check could not run.')}` }
     }
     emit('done', notice)
-  } catch (err) { error.value = err instanceof Error ? err.message : 'Unable to save the login.' }
+  } catch (err) { error.value = errorMessage(err, 'Unable to save the login.') }
   finally { busy.value = false }
 }
 </script>

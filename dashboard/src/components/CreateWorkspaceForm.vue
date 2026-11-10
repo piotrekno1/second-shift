@@ -4,6 +4,7 @@ import { ref } from 'vue'
 import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
 import { createWorkspace, openWorkspace } from '../services/workspaces'
+import { errorMessage } from '../services/api'
 
 const name = ref('')
 const busy = ref(false)
@@ -16,7 +17,7 @@ async function create(): Promise<void> {
     await createWorkspace(name.value)
     openWorkspace()
   } catch (failure) {
-    error.value = failure instanceof Error ? failure.message : 'Could not create the workspace'
+    error.value = errorMessage(failure, 'Could not create the workspace')
     busy.value = false
   }
 }

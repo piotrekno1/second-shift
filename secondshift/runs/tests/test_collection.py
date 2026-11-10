@@ -13,6 +13,7 @@ from secondshift.runs.artifacts import (
 )
 from secondshift.runs.models import Run, RunEvent
 from secondshift.runs.orchestration import workflows
+from secondshift.runs.outputs import RunOutputs
 from secondshift.runs.reporting.collection import collection_summary
 from secondshift.runs.tests.test_workflows import execution_run
 from secondshift.workspaces.dao import workspace_owner
@@ -67,17 +68,17 @@ def test_collected_changes_and_files_are_stored_with_the_run(
 
     outputs = store_collection(run, agent_session(tmp_path))
 
-    changes = outputs["changes"]
-    assert changes["file_count"] == 1
-    assert changes["files"] == ["README.md"]
-    assert changes["path"].endswith(f"/{run.pk}/changes.patch")
-    assert b"+new" in artifact_storage().open(changes["path"]).read()
-    [saved] = outputs["files"]
-    assert saved["name"] == "findings.csv"
-    assert saved["path"].endswith(f"/{run.pk}/outputs/findings.csv")
-    assert saved["size_bytes"] == len("file,issue\nREADME.md,stale\n")
-    assert len(saved["sha256"]) == 64
-    assert outputs["skipped"] == []
+    changes = outputs.changes
+    assert changes.file_count == 1
+    assert changes.files == ("README.md",)
+    assert changes.path.endswith(f"/{run.pk}/changes.patch")
+    assert b"+new" in artifact_storage().open(changes.path).read()
+    [saved] = outputs.files
+    assert saved.name == "findings.csv"
+    assert saved.path.endswith(f"/{run.pk}/outputs/findings.csv")
+    assert saved.size_bytes == len("file,issue\nREADME.md,stale\n")
+    assert len(saved.sha256) == 64
+    assert outputs.skipped == ()
 
 
 @pytest.mark.django_db
@@ -122,9 +123,10 @@ def test_deleting_a_run_deletes_its_collected_files(
     django_capture_on_commit_callbacks: Any,
 ) -> None:
     run = execution_run(db)
-    run.outputs = store_collection(run, agent_session(tmp_path))
+    outputs = store_collection(run, agent_session(tmp_path))
+    run.outputs = outputs.stored()
     run.save()
-    paths = [run.outputs["changes"]["path"], run.outputs["files"][0]["path"]]
+    paths = [outputs.changes.path, outputs.files[0].path]
     assert all(artifact_storage().exists(path) for path in paths)
 
     with django_capture_on_commit_callbacks(execute=True):
@@ -193,7 +195,14 @@ def test_a_failed_collection_is_noted_and_keeps_the_run(
             "Collected changes to 3 files.",
         ),
         (
-            {"changes": {"file_count": 0}, "files": [{}, {}], "skipped": [{}]},
+            {
+                "changes": {"file_count": 0},
+                "files": [
+                    {"name": "a.csv", "path": "a", "size_bytes": 1},
+                    {"name": "b.csv", "path": "b", "size_bytes": 1},
+                ],
+                "skipped": [{"name": "link", "reason": "Not a regular file."}],
+            },
             "Collected 2 saved files. Skipped 1 saved file.",
         ),
         (
@@ -203,7 +212,7 @@ def test_a_failed_collection_is_noted_and_keeps_the_run(
     ],
 )
 def test_collection_summary(outputs: dict[str, Any], summary: str) -> None:
-    assert collection_summary(outputs) == summary
+    assert collection_summary(RunOutputs.model_validate(outputs)) == summary
 
 
 @pytest.mark.django_db
@@ -212,7 +221,7 @@ def test_collected_files_are_listed_and_downloaded_safely(
 ) -> None:
     run = execution_run(db)
     archive = agent_session(tmp_path)
-    run.outputs = store_collection(run, archive)
+    run.outputs = store_collection(run, archive).stored()
     run.outputs["skipped"] = [{"name": "link", "reason": "Not a regular file."}]
     run.save()
     client.force_login(workspace_owner(run.job.workspace))

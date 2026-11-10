@@ -12,7 +12,14 @@ from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 
 from secondshift.config.api import api
-from secondshift.config.constants import AgentBackend
+from secondshift.config.constants import AgentBackend, RunStart
+from secondshift.connections.execution import (
+    NOTHING_CHOSEN,
+    choose_execution,
+    execution_configuration,
+    save_execution_preference,
+    workspace_execution,
+)
 from secondshift.connections.models import AgentConnection, Connection
 from secondshift.connections.tests.test_agent_connections import (
     TOKEN,
@@ -20,17 +27,11 @@ from secondshift.connections.tests.test_agent_connections import (
 from secondshift.connections.tests.test_agent_connections import (
     agent_login as agent_login_fixture,
 )
-from secondshift.jobs.execution import (
-    NOTHING_CHOSEN,
-    choose_execution,
-    execution_configuration,
-    job_execution,
-    save_execution_preference,
-)
 from secondshift.jobs.models import Job
 from secondshift.jobs.planning import build_execution_plan
 from secondshift.jobs.serialization import serialize_workspace_jobs
 from secondshift.repositories.models import Repository
+from secondshift.runs.dao import create_task
 from secondshift.runs.models import Run
 from secondshift.workspaces.models import Workspace, WorkspaceMembership
 
@@ -64,12 +65,14 @@ def agent_run(
         config_hash="abc",
     )
     run = Run.objects.create(
+        task=create_task(repository=job.repository),
+        started_by=RunStart.SCHEDULE,
         job=job,
         commit_sha="a" * 40,
         scheduled_for=timezone.now(),
         started_at=timezone.now(),
         status=Run.Status.RUNNING,
-        execution_plan=build_execution_plan(job),
+        execution_plan=build_execution_plan(job).stored(),
     )
     return run, owner
 
@@ -132,7 +135,7 @@ def test_a_new_login_keeps_a_working_model_provider(
     connect_login(client, owner)
     job.workspace.refresh_from_db()
     assert job.workspace.default_agent_connection is None
-    assert job_execution(job).backend == AgentBackend.PYDANTIC
+    assert workspace_execution(job.workspace).backend == AgentBackend.PYDANTIC
 
 
 def test_working_api_default_keeps_existing_behavior(
@@ -141,8 +144,8 @@ def test_working_api_default_keeps_existing_behavior(
     run, _ = agent_run
     job = model_workspace(run)
     model = use_model(run)
-    assert job_execution(job).model == model
-    assert build_execution_plan(job)["model"]["connection_id"] == model.pk
+    assert workspace_execution(job.workspace).model == model
+    assert build_execution_plan(job).stored()["model"]["connection_id"] == model.pk
 
 
 def test_connections_changing_never_switch_what_runs_jobs(
@@ -152,12 +155,12 @@ def test_connections_changing_never_switch_what_runs_jobs(
     job = run.job
     model = add_model(run)
     # A working model provider does not take over from the chosen login.
-    assert job_execution(job).backend == AgentBackend.CLAUDE_CODE
+    assert workspace_execution(job.workspace).backend == AgentBackend.CLAUDE_CODE
     choose_execution(job.workspace, model=model)
     model.metadata = {"last_check": {"ok": False}}
     model.save(update_fields=["metadata"])
     # A broken model provider does not hand runs to a working login.
-    selection = job_execution(Job.objects.get(pk=job.pk))
+    selection = workspace_execution(Job.objects.get(pk=job.pk).workspace)
     assert selection.backend == AgentBackend.PYDANTIC
     assert selection.problem == (
         "The model provider Workspace API failed its last check."
@@ -172,11 +175,11 @@ def test_workspace_default_is_inherited_and_frozen_in_run_plan(
     job = model_workspace(run)
     model = add_model(run)
     save_execution_preference(job.workspace, f"agent:{connection.pk}", owner)
-    plan = build_execution_plan(job)
+    plan = build_execution_plan(job).stored()
     assert plan["execution"]["connection_id"] == connection.pk
     assert plan["model"] is None
     save_execution_preference(job.workspace, f"model:{model.pk}", owner)
-    assert job_execution(job).backend == AgentBackend.PYDANTIC
+    assert workspace_execution(job.workspace).backend == AgentBackend.PYDANTIC
     assert plan["execution"]["connection_id"] == connection.pk
 
 
@@ -190,7 +193,7 @@ def test_disconnected_explicit_default_never_falls_back_to_api(
     save_execution_preference(job.workspace, f"agent:{connection.pk}", owner)
     AgentConnection.objects.filter(pk=connection.pk).update(connected=False)
     fresh = Job.objects.get(pk=job.pk)
-    plan = build_execution_plan(fresh)
+    plan = build_execution_plan(fresh).stored()
     assert plan["ready"] is False
     assert plan["model"] is None
     assert plan["execution"]["backend"] == "claude_code"
@@ -210,11 +213,17 @@ def test_all_jobs_use_workspace_default_and_job_override_api_is_absent(
         skill_path="SKILL.md",
         config_hash="test",
     )
-    assert job_execution(job).connection == job_execution(other).connection
+    assert (
+        workspace_execution(job.workspace).connection
+        == workspace_execution(other.workspace).connection
+    )
     model = add_model(run)
     save_execution_preference(job.workspace, f"model:{model.pk}", owner)
-    assert job_execution(job).backend == AgentBackend.PYDANTIC
-    assert job_execution(Job.objects.get(pk=other.pk)).backend == AgentBackend.PYDANTIC
+    assert workspace_execution(job.workspace).backend == AgentBackend.PYDANTIC
+    assert (
+        workspace_execution(Job.objects.get(pk=other.pk).workspace).backend
+        == AgentBackend.PYDANTIC
+    )
     assert not any(
         path.endswith("/jobs/{job_id}/agent")
         for path in api.get_openapi_schema()["paths"]
@@ -327,7 +336,7 @@ def test_existing_jobs_keep_model_backend_and_no_subscription_requirement(
     run, _ = agent_run
     job = model_workspace(run)
     use_model(run)
-    plan = build_execution_plan(job)
+    plan = build_execution_plan(job).stored()
     assert plan["execution"]["backend"] == "pydantic"
     assert plan["ready"] is True
     assert plan["model"]["connection_name"] == "Workspace API"
@@ -389,7 +398,7 @@ def test_an_unusable_default_login_says_what_is_wrong(
             role=WorkspaceMembership.Role.MEMBER
         )
         expected = "The agent login Personal belongs to someone who is no longer a workspace owner."
-    selection = job_execution(run.job)
+    selection = workspace_execution(run.job.workspace)
     assert selection.problem == expected
     assert selection.ready is False
 
@@ -446,7 +455,7 @@ def test_deleting_the_chosen_model_provider_leaves_nothing_chosen(
     run, _ = agent_run
     model = use_model(run)
     model.delete()
-    selection = job_execution(Job.objects.get(pk=run.job_id))
+    selection = workspace_execution(Job.objects.get(pk=run.job_id).workspace)
     assert (selection.key, selection.problem) == ("", NOTHING_CHOSEN)
 
 

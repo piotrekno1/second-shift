@@ -7,7 +7,7 @@ from django.http import HttpResponse
 from django.test import RequestFactory, override_settings
 from whitenoise.middleware import WhiteNoiseMiddleware
 
-from secondshift.core.static_storage import StaticFilesStorage, immutable_static_file
+from secondshift.config.static_storage import StaticFilesStorage, immutable_static_file
 
 
 def test_collect_preserves_vite_bytes_and_hashes_django_assets(tmp_path: Path) -> None:

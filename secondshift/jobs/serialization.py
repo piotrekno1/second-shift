@@ -1,15 +1,13 @@
 from secondshift.config.constants import GITHUB_BASE_URL
 from secondshift.connections.dao import connections_by_binding
-from secondshift.connections.external import changing_tools, external_access
-from secondshift.connections.models import Connection
-from secondshift.jobs.api_limits import serialize_limits
-from secondshift.jobs.dao import active_jobs, job_with_last_run, with_last_run
-from secondshift.jobs.execution import (
+from secondshift.connections.execution import (
     ExecutionSelection,
-    job_execution,
     workspace_execution,
 )
-from secondshift.jobs.limits import limit_views
+from secondshift.connections.external import changing_tools, external_access
+from secondshift.connections.models import Connection
+from secondshift.jobs.dao import active_jobs_with_grants
+from secondshift.jobs.limits import job_limit_views
 from secondshift.jobs.models import Job
 from secondshift.jobs.schemas import (
     AccessSchema,
@@ -20,10 +18,17 @@ from secondshift.jobs.schemas import (
     OpenIssuesSchema,
     ToolInputSchema,
 )
+from secondshift.repositories.github import repository_ref
 from secondshift.repositories.models import Repository
-from secondshift.runs.dao import newest_job_runs, with_model_usage
+from secondshift.runs.dao import (
+    job_with_last_run,
+    newest_job_runs,
+    with_last_run,
+    with_model_usage,
+)
 from secondshift.runs.serialization import serialize_run
 from secondshift.workspaces.models import Workspace
+from secondshift.workspaces.serialization import serialize_limits
 
 
 def last_run(job: Job) -> LastRunSchema | None:
@@ -37,7 +42,7 @@ def last_run(job: Job) -> LastRunSchema | None:
 
 
 def tool_inputs(connection: Connection, tools: list[str]) -> dict[str, ToolInputSchema]:
-    definitions = connection.metadata.get("tools", {})
+    definitions = connection.tool_definitions
     inputs = {}
     for tool in tools:
         schema = (definitions.get(tool) or {}).get("inputSchema") or {}
@@ -77,7 +82,11 @@ def serialize_job(
                     AccessSchema(**vars(access))
                     if connection
                     and connection.kind == capability.kind
-                    and (access := external_access(connection, job.repository))
+                    and (
+                        access := external_access(
+                            connection, repository_ref(job.repository)
+                        )
+                    )
                     else None
                 ),
                 tool_rules=grant.tool_rules if grant else {},
@@ -97,7 +106,7 @@ def serialize_job(
                 ),
             )
         )
-    execution = execution or job_execution(job)
+    execution = execution or workspace_execution(job.workspace)
     return JobSchema(
         id=job.id,
         execution_backend=execution.backend,
@@ -147,27 +156,26 @@ def serialize_job_detail(job: Job, can_edit_limits: bool) -> JobDetailSchema:
         triggers=job.triggers,
         open_pull_request=job.open_pull_request,
         can_open_pull_requests=is_github,
-        pull_requests_allowed=job.repository.allow_pull_requests and is_github,
-        open_issues=OpenIssuesSchema(**job.open_issues) if job.open_issues else None,
-        issues_allowed=job.repository.allow_issues and is_github,
+        pull_requests_allowed=job.repository.receives_pull_requests,
+        open_issues=OpenIssuesSchema(**issues.model_dump())
+        if (issues := job.issue_settings)
+        else None,
+        issues_allowed=job.repository.receives_issues,
         repository_revision=job.repository.config_sha,
         repository_enabled=job.repository.enabled,
         skill_text=job.skill_text,
         skill_truncated=job.skill_truncated,
         skill_url=skill_url(job),
         recent_runs=[serialize_run(run) for run in recent_runs],
-        limits=serialize_limits(limit_views(job.workspace, job)),
+        limits=serialize_limits(job_limit_views(job)),
         can_edit_limits=can_edit_limits,
     )
 
 
 def serialize_workspace_jobs(workspace: Workspace) -> list[JobSchema]:
     """Every job in the workspace whose repository was not removed."""
-    queryset = with_last_run(active_jobs(workspace.pk))
+    queryset = with_last_run(active_jobs_with_grants(workspace.pk))
     connections = connections_by_binding(workspace.pk)
     # Every job runs on the workspace default, so resolve it once.
     execution = workspace_execution(workspace)
-    return [
-        serialize_job(item, connections, execution)
-        for item in queryset.prefetch_related("capability_requests__grant__connection")
-    ]
+    return [serialize_job(item, connections, execution) for item in queryset]

@@ -1,16 +1,18 @@
 """Explicit skill planning must not borrow another job's authorization."""
 
+from datetime import timedelta
 from typing import Any
 
 import pytest
 from django.contrib.auth import get_user_model
+from django.utils import timezone
 from pydantic import ValidationError
 
 from secondshift.config.constants import AgentBackend
+from secondshift.connections.execution import choose_execution
 from secondshift.connections.models import Connection
 from secondshift.jobs.automatic_grants import approves_automatically
 from secondshift.jobs.capabilities import RequestedCapability
-from secondshift.jobs.execution import choose_execution
 from secondshift.jobs.manifest import JobManifest, RepositoryManifest, manifest_hash
 from secondshift.jobs.models import CapabilityRequest, Job, JobGrant
 from secondshift.jobs.planning import build_execution_plan, build_skill_execution_plan
@@ -60,7 +62,7 @@ def connection(repository: Repository, **fields: Any) -> Connection:
             "binding_key": "billing",
             "display_name": "Billing",
             "available_tools": ["listCharges", "createRefund"],
-            "metadata": {"base_url": "https://billing.example.com"},
+            "endpoint_url": "https://billing.example.com",
             "access_token": "must-not-appear-in-plan",
             **fields,
         }
@@ -73,7 +75,7 @@ def plan(repository: Repository, skill: JobManifest | None = None) -> dict[str, 
         definition() if skill is None else skill,
         key="review",
         commit_sha=COMMIT,
-    )
+    ).stored()
 
 
 def test_explicit_skill_uses_automatic_connection_policy_without_saving(
@@ -84,7 +86,6 @@ def test_explicit_skill_uses_automatic_connection_policy_without_saving(
     result = plan(repository)
 
     assert result["ready"] is True
-    assert result["version"] == 5
     assert result["repository"]["config_sha"] == COMMIT
     assert result["repository"]["config_sha"] != repository.config_sha
     assert result["job"] == {
@@ -113,7 +114,7 @@ def test_job_and_explicit_definition_compile_the_same_plan(
     sync_jobs(repository, RepositoryManifest(jobs={"review": skill}))
     job = Job.objects.get()
 
-    assert build_execution_plan(job) == plan(repository, skill)
+    assert build_execution_plan(job).stored() == plan(repository, skill)
 
 
 @pytest.mark.parametrize(
@@ -125,7 +126,7 @@ def test_job_and_explicit_definition_compile_the_same_plan(
         {"available_tools": ["createRefund"]},
         {"kind": Connection.Kind.NOTIFICATION},
         {"binding_key": "other-binding"},
-        {"metadata": {}},
+        {"endpoint_url": ""},
     ],
 )
 def test_explicit_skill_fails_closed(
@@ -137,7 +138,7 @@ def test_explicit_skill_fails_closed(
 
     assert result["ready"] is False
     assert result["capabilities"][0]["effective_tools"] == []
-    assert "external" not in result["capabilities"][0]
+    assert result["capabilities"][0]["external"] is None
     assert not any("billing" in tool for tool in result["agent"]["tools"])
 
 
@@ -150,7 +151,7 @@ def test_explicit_skill_does_not_borrow_a_job_grant(repository: Repository) -> N
     grant.connection = connected
     grant.allowed_tools = ["listCharges"]
     grant.save()
-    assert build_execution_plan(Job.objects.get())["ready"] is True
+    assert build_execution_plan(Job.objects.get()).stored()["ready"] is True
 
     assert plan(repository)["ready"] is False
     grant.refresh_from_db()
@@ -269,7 +270,7 @@ def test_explicit_skill_requires_a_resolved_commit(
     with pytest.raises(ValueError, match="commit"):
         build_skill_execution_plan(
             repository, definition(), key="review", commit_sha=revision
-        )
+        ).stored()
 
 
 def test_approved_grant_without_connection_fails_closed(repository: Repository) -> None:
@@ -280,7 +281,20 @@ def test_approved_grant_without_connection_fails_closed(repository: Repository) 
         allowed_tools=["listCharges"],
     )
 
-    result = build_execution_plan(Job.objects.get())
+    result = build_execution_plan(Job.objects.get()).stored()
 
     assert result["ready"] is False
     assert "connection_missing" in result["capabilities"][0]["reasons"]
+
+
+def test_an_expired_token_is_not_approved_automatically(
+    repository: Repository,
+) -> None:
+    expired = connection(
+        repository,
+        auth_strategy=Connection.AuthStrategy.API_KEY,
+        expires_at=timezone.now() - timedelta(minutes=1),
+    )
+    request = RequestedCapability("billing", Connection.Kind.API, ("listCharges",))
+
+    assert approves_automatically(request, expired, repository) is False

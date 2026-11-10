@@ -11,7 +11,8 @@ import { approveNeed, createWebhook, fetchWebhookSample, testConnection, updateW
 import { useAppStore } from '../stores/app'
 import type { Connection, Notice, WebhookSample } from '../types'
 import { DocsPage } from '../utils/docs'
-import { countLabel, finishedBinding, titleFromSlug, typingBinding } from '../utils/format'
+import { countLabel, finishedBinding, needsReconnect, titleFromSlug, typingBinding } from '../utils/format'
+import { errorMessage } from '../services/api'
 
 type ConnectionType = 'webhook' | 'mcp' | 'api'
 
@@ -50,7 +51,7 @@ async function loadSample(event: Event): Promise<void> {
   try {
     sample.value = await fetchWebhookSample()
   } catch (loadError) {
-    sampleError.value = loadError instanceof Error ? loadError.message : 'Unable to load the sample'
+    sampleError.value = errorMessage(loadError, 'Unable to load the sample')
   }
 }
 
@@ -60,7 +61,7 @@ const typeOptions = computed(() => ([
   ['api', 'HTTP API', 'api'],
   ['webhook', 'Webhook', 'webhook'],
 ] as [ConnectionType, string, string][]))
-const reconnecting = computed(() => props.connection?.status === 'revoked')
+const reconnecting = computed(() => needsReconnect(props.connection))
 const bindingFixed = computed(() => editing.value || Boolean(props.binding))
 const bindingValid = computed(() => /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(bindingKey.value))
 const taken = computed(() => Boolean(bindingKey.value) && !editing.value && app.connections.some((item) => item.binding_key === bindingKey.value))
@@ -113,7 +114,7 @@ async function submit(): Promise<void> {
       binding: saved.binding_key,
     }
   } catch (submitError) {
-    error.value = submitError instanceof Error ? submitError.message : 'Unable to save the connection'
+    error.value = errorMessage(submitError, 'Unable to save the connection')
   } finally {
     // Refresh first so the parent can find a newly created connection.
     await app.refresh()

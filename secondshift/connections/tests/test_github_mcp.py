@@ -22,8 +22,8 @@ from secondshift.connections.mcp.github import (
     narrowed_github_schema,
     scoped_github_arguments,
 )
-from secondshift.connections.mcp.transport import BoundedStream
 from secondshift.connections.models import Connection
+from secondshift.connections.outbound import BoundedStream, OutboundResponseError
 from secondshift.jobs.manifest import load_manifest
 from secondshift.workspaces.dao import create_workspace
 
@@ -115,7 +115,7 @@ def mcp_http(monkeypatch) -> list[dict[str, Any]]:
         )
 
     monkeypatch.setattr(
-        "secondshift.connections.mcp.client.MCPTransport",
+        "secondshift.connections.outbound.BoundedTransport",
         lambda: httpx.MockTransport(handle),
     )
     return calls
@@ -235,16 +235,14 @@ def test_remote_schema_references_are_rejected() -> None:
 
 
 def test_response_limit(monkeypatch) -> None:
-    monkeypatch.setattr(
-        "secondshift.connections.mcp.transport.MCP_RESPONSE_MAX_BYTES", 5
-    )
+    monkeypatch.setattr("secondshift.connections.outbound.RESPONSE_MAX_BYTES", 5)
 
     async def read() -> None:
         stream = BoundedStream(httpx.ByteStream(b"too much"))
         async for chunk in stream:
             assert chunk
 
-    with pytest.raises(MCPError, match="size limit"):
+    with pytest.raises(OutboundResponseError, match="size limit"):
         anyio.run(read)
 
 
@@ -255,7 +253,7 @@ def test_failures_do_not_expose_token_or_remote_error(
         return httpx.Response(401, text="github_pat_test_token secret remote detail")
 
     monkeypatch.setattr(
-        "secondshift.connections.mcp.client.MCPTransport",
+        "secondshift.connections.outbound.BoundedTransport",
         lambda: httpx.MockTransport(handle),
     )
     with pytest.raises(MCPError) as caught:
@@ -588,7 +586,7 @@ def test_tool_refusal_reaches_the_agent_without_remote_text(
         "403 Resource not accessible by personal access token github_pat_test_token"
     )
     monkeypatch.setattr(
-        "secondshift.connections.mcp.client.MCPTransport",
+        "secondshift.connections.outbound.BoundedTransport",
         lambda: tool_error_transport(remote),
     )
     with pytest.raises(MCPRequestError) as caught:
@@ -602,7 +600,7 @@ def test_other_tool_failures_keep_the_general_message(
     monkeypatch, github_connection
 ) -> None:
     monkeypatch.setattr(
-        "secondshift.connections.mcp.client.MCPTransport",
+        "secondshift.connections.outbound.BoundedTransport",
         lambda: tool_error_transport("something broke at api.github.com"),
     )
     with pytest.raises(MCPRequestError, match="GitHub could not complete") as caught:

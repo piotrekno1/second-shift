@@ -2,7 +2,7 @@
 
 Runner settings are server-owned (see AGENTS.md), so they are shown with the
 environment variable that changes them rather than edited here. Run limits are
-edited on the page within server maximums (see secondshift.jobs.limits).
+edited on the page within server maximums (see secondshift.workspaces.limits).
 Nothing secret is included: no keys, connection URLs or filesystem paths.
 """
 
@@ -12,10 +12,12 @@ from django.conf import settings
 
 from secondshift.config.constants import (
     DEFAULT_SANDBOX_IMAGE,
+    AppEnv,
+    ArtifactStorage,
     Environment,
     SandboxRuntime,
 )
-from secondshift.core.formatting import duration_label
+from secondshift.config.formatting import duration_label
 
 
 @dataclass(frozen=True)
@@ -70,7 +72,7 @@ def repository_groups() -> list[SettingGroup]:
                 SettingValue(
                     "Background sync",
                     f"Every {duration_label(interval)}" if interval > 0 else "Off",
-                    "SECONDSHIFT_REPOSITORY_SYNC_INTERVAL_SECONDS",
+                    AppEnv.REPOSITORY_SYNC_INTERVAL_SECONDS,
                     "New commits on a repository's branch apply on their own. "
                     "Each repository can turn this off.",
                 ),
@@ -88,21 +90,21 @@ def setting_groups() -> list[SettingGroup]:
                 SettingValue(
                     "History kept for",
                     f"{retention} days" if retention > 0 else "Forever",
-                    "SECONDSHIFT_RUN_RETENTION_DAYS",
+                    AppEnv.RUN_RETENTION_DAYS,
                     "Finished runs and their files are deleted after this.",
                 ),
                 SettingValue(
                     "Largest stored output",
                     size_label(settings.RUN_OUTPUT_MAX_BYTES),
-                    "SECONDSHIFT_RUN_OUTPUT_MAX_BYTES",
+                    AppEnv.RUN_OUTPUT_MAX_BYTES,
                     "Longer reports keep their start and end.",
                 ),
                 SettingValue(
                     "File storage",
                     "Object storage (S3)"
-                    if settings.ARTIFACT_STORAGE == "s3"
+                    if settings.ARTIFACT_STORAGE == ArtifactStorage.S3
                     else "Server filesystem",
-                    "SECONDSHIFT_ARTIFACT_STORAGE",
+                    AppEnv.ARTIFACT_STORAGE,
                     "Where run input and output files are kept.",
                 ),
             ],
@@ -114,7 +116,7 @@ def setting_groups() -> list[SettingGroup]:
                 SettingValue(
                     "Isolation",
                     sandbox_label(),
-                    "SECONDSHIFT_RUNNER_RUNTIME",
+                    AppEnv.RUNNER_RUNTIME,
                     "Production requires gVisor and refuses to start without it.",
                 ),
                 SettingValue(
@@ -127,7 +129,7 @@ def setting_groups() -> list[SettingGroup]:
                 SettingValue(
                     "Image",
                     image_label(settings.RUNNER_IMAGE),
-                    "SECONDSHIFT_RUNNER_IMAGE",
+                    AppEnv.RUNNER_IMAGE,
                     "Repositories cannot choose the image."
                     if settings.RUNNER_IMAGE != DEFAULT_SANDBOX_IMAGE
                     else "Docker's official Python image, pinned. "

@@ -1,7 +1,5 @@
 """Queue acceptance, recovery and execution boundaries without an agent call."""
 
-import hashlib
-import json
 import shutil
 from datetime import timedelta
 from pathlib import Path
@@ -15,9 +13,12 @@ from django.test import Client
 from django.utils import timezone
 from pydantic import ValidationError
 
+from secondshift.config.constants import RunStart
 from secondshift.jobs.models import Job
+from secondshift.jobs.tests.plans import stored_plan
 from secondshift.mcp_server.tests.test_job_tools import call, token
 from secondshift.repositories.models import Repository
+from secondshift.runs.dao import create_task
 from secondshift.runs.models import Run, RunEvent, Task
 from secondshift.runs.orchestration import dbos_runtime, dispatch, workflows
 from secondshift.runs.queue import cancel_queued_task
@@ -71,7 +72,7 @@ def test_future_task_does_not_block_ready_work(
     future = timezone.now() + timedelta(hours=8)
     delayed = start(repository, owner, not_before=future)
     ready = start(repository, owner, idempotency_key="ready")
-    assert delayed.scheduled_for == delayed.task.scheduled_for == future
+    assert delayed.scheduled_for == future
     assert client_queue.enqueue.call_args.args[1] == ready.pk
     Run.objects.filter(pk=ready.pk).update(status=Run.Status.SUCCEEDED)
     assert dispatch.dispatch_waiting_tasks() == 0
@@ -227,26 +228,6 @@ def test_capacity_limit_preserves_idempotent_retry(
     assert Task.objects.count() == 3
 
 
-def test_pre_queue_idempotency_key_still_replays(
-    repository: Repository,
-    owner: User,
-    client_queue: Mock,
-) -> None:
-    payload = submission(repository)
-    run = start(repository, owner)
-    previous_data = payload.model_dump(
-        mode="json", exclude={"idempotency_key", "not_before", "pull_request"}
-    )
-    previous_data["definition"].pop("subagents")
-    previous_data["submitted_by"] = owner.pk
-    run.task.input_snapshot["submission_fingerprint"] = hashlib.sha256(
-        json.dumps(previous_data, sort_keys=True).encode()
-    ).hexdigest()
-    run.task.save()
-    assert start(repository, owner).pk == run.pk
-    assert client_queue.enqueue.call_count == 1
-
-
 def test_repository_slots_are_independent(
     repository: Repository,
     owner: User,
@@ -292,7 +273,12 @@ def test_cancel_is_workspace_scoped_and_rejects_saved_job_runs(
         config_hash="hash",
     )
     legacy = Run.objects.create(
-        job=job, commit_sha="a" * 40, scheduled_for=timezone.now()
+        task=create_task(repository=job.repository),
+        started_by=RunStart.SCHEDULE,
+        execution_plan=stored_plan(),
+        job=job,
+        commit_sha="a" * 40,
+        scheduled_for=timezone.now(),
     )
     client.force_login(owner)
     assert client.post(f"/api/runs/{legacy.pk}/cancel").status_code == 409

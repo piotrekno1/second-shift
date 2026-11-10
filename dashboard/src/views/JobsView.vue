@@ -12,13 +12,14 @@ import SearchInput from '../components/SearchInput.vue'
 import StatusPill from '../components/StatusPill.vue'
 import ToolRulesEditor from '../components/ToolRulesEditor.vue'
 import { useListQuery } from '../composables/useListQuery'
-import { apiPost } from '../services/api'
+import { errorMessage } from '../services/api'
+import { reviewGrant, setJobEnabled } from '../services/jobs'
 import { startJobRun } from '../services/runs'
 import { useAppStore } from '../stores/app'
 import type { Access, Capability, Connection, Job, ToolRules } from '../types'
 import { DocsPage } from '../utils/docs'
 import { Action } from '../utils/permissions'
-import { REMOVED_JOB, approvalPending, enableBlocker, runWarning } from '../utils/readiness'
+import { REMOVED_JOB, approvalPending, connectionSetupQuery, enableBlocker, runWarning } from '../utils/readiness'
 import { sameRules } from '../utils/toolRules'
 import { accessLabel, accessNeedsAction, awaitsApproval, countLabel, formatDate, formatRelative, lastRunLine, formatSchedule, formatScheduled, jobState, kindLabel, utcTitle } from '../utils/format'
 
@@ -46,13 +47,14 @@ const jobsSubtitle = computed(() => {
   return summary.join(' · ')
 })
 
-type JobState = '' | 'enabled' | 'disabled' | 'manual' | 'review'
+type JobState = '' | ReturnType<typeof jobState> | 'review'
 const JOB_STATES: { value: JobState, label: string, matches: (job: Job) => boolean }[] = [
   { value: '', label: 'All', matches: () => true },
-  { value: 'enabled', label: 'Enabled', matches: (job) => job.enabled },
+  { value: 'enabled', label: 'Enabled', matches: (job) => jobState(job) === 'enabled' },
+  { value: 'disabled', label: 'Disabled', matches: (job) => jobState(job) === 'disabled' },
   // Manual jobs have no schedule to switch on, so they are their own group.
-  { value: 'disabled', label: 'Disabled', matches: (job) => Boolean(job.cron) && !job.enabled },
-  { value: 'manual', label: 'Manual', matches: (job) => !job.cron },
+  { value: 'manual', label: 'Manual', matches: (job) => jobState(job) === 'manual' },
+  { value: 'removed', label: 'Removed', matches: (job) => jobState(job) === 'removed' },
   { value: 'review', label: 'Needs approval', matches: (job) => awaitsApproval(job.grant_status) },
 ]
 const search = computed(() => list.text('q'))
@@ -108,7 +110,7 @@ async function runNow(jobId: number): Promise<void> {
     noticeTimer = window.setTimeout(() => { startedRun.value = null }, NOTICE_MS)
     await app.refresh()
   } catch (runError) {
-    error.value = runError instanceof Error ? runError.message : 'Unable to run job'
+    error.value = errorMessage(runError, 'Unable to run job')
   } finally {
     action.value = null
   }
@@ -154,18 +156,6 @@ function ruleTools(capability: Capability): string[] {
   return capability.requested_tools.filter((tool) => capability.tool_inputs?.[tool])
 }
 
-function accessFor(capability: Capability): Access | null {
-  return capability.access ?? null
-}
-
-function connectionSetupQuery(job: Job, capability: Capability): Record<string, string> {
-  return {
-    binding: capability.binding,
-    kind: capability.kind,
-    job: job.name,
-    review: String(job.id),
-  }
-}
 
 async function reviewCapability(job: Job, capability: Capability, decision: 'approved' | 'denied'): Promise<void> {
   const connectionId = selectedConnection(capability)
@@ -176,7 +166,7 @@ async function reviewCapability(job: Job, capability: Capability, decision: 'app
   action.value = `${decision}-${capability.id}`
   error.value = null
   try {
-    await apiPost<Job>(`/jobs/${job.id}/capabilities/${capability.id}/grant`, {
+    await reviewGrant(job.id, capability.id, {
       decision,
       connection_id: connectionId,
       allowed_tools: capability.requested_tools,
@@ -185,7 +175,7 @@ async function reviewCapability(job: Job, capability: Capability, decision: 'app
     delete ruleDrafts[capability.id]
     await app.refresh()
   } catch (reviewError) {
-    error.value = reviewError instanceof Error ? reviewError.message : 'Unable to save the review'
+    error.value = errorMessage(reviewError, 'Unable to save the review')
   } finally {
     action.value = null
   }
@@ -195,10 +185,10 @@ async function toggleJob(job: Job): Promise<void> {
   action.value = `toggle-${job.id}`
   error.value = null
   try {
-    await apiPost<Job>(`/jobs/${job.id}/enabled`, { enabled: !job.enabled })
+    await setJobEnabled(job.id, !job.enabled)
     await app.refresh()
   } catch (toggleError) {
-    error.value = toggleError instanceof Error ? toggleError.message : 'Unable to change job state'
+    error.value = errorMessage(toggleError, 'Unable to change job state')
   } finally {
     action.value = null
   }
@@ -290,7 +280,7 @@ async function toggleJob(job: Job): Promise<void> {
                     />
                   </div>
                 </div>
-                <small v-if="accessFor(capability)" :class="{ 'field-error': !accessFor(capability)?.ok }">{{ accessFor(capability)?.text }}</small>
+                <small v-if="capability.access" :class="{ 'field-error': !capability.access?.ok }">{{ capability.access?.text }}</small>
               </div>
               <Select
                 v-if="matchingConnections(capability).length && app.can(Action.ReviewCapabilities)"
@@ -313,7 +303,7 @@ async function toggleJob(job: Job): Promise<void> {
               <StatusPill :status="capability.grant_status" :label="accessLabel(capability.grant_status)" />
               <div v-if="app.can(Action.ReviewCapabilities)" class="review-actions">
                 <Button :label="capability.grant_status === 'approved' ? 'Revoke' : 'Deny'" severity="danger" text size="small" :loading="action === `denied-${capability.id}`" @click="reviewCapability(job, capability, 'denied')" />
-                <Button v-if="reviewNeeded(capability)" :label="approveLabel(capability)" size="small" :disabled="!selectedConnection(capability) || accessFor(capability)?.ok === false" :title="selectedConnection(capability) ? 'Approve this connection and scope' : 'Set up a matching connection first'" :loading="action === `approved-${capability.id}`" @click="reviewCapability(job, capability, 'approved')">
+                <Button v-if="reviewNeeded(capability)" :label="approveLabel(capability)" size="small" :disabled="!selectedConnection(capability) || capability.access?.ok === false" :title="selectedConnection(capability) ? 'Approve this connection and scope' : 'Set up a matching connection first'" :loading="action === `approved-${capability.id}`" @click="reviewCapability(job, capability, 'approved')">
                   <template #icon><AppIcon name="check" /></template>
                 </Button>
               </div>

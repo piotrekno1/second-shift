@@ -1,4 +1,5 @@
 import uuid
+from typing import Any
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -14,8 +15,6 @@ class Connection(models.Model):
     class Provider(models.TextChoices):
         GITHUB = "github", "GitHub"
         SENTRY = "sentry", "Sentry"
-        CHATGPT = "chatgpt", "ChatGPT"
-        SLACK = "slack", "Slack"
         MCP = "mcp", "MCP server"
         API = "api", "HTTP API"
         WEBHOOK = "webhook", "Webhook"
@@ -25,7 +24,6 @@ class Connection(models.Model):
         OPENAI_COMPATIBLE = "openai_compatible", "OpenAI-compatible"
 
     class Kind(models.TextChoices):
-        IDENTITY = "identity", "Identity"
         SOURCE = "source", "Repository source"
         MCP = "mcp", "MCP"
         API = "api", "API"
@@ -34,7 +32,6 @@ class Connection(models.Model):
 
     class AuthStrategy(models.TextChoices):
         OAUTH = "oauth", "OAuth"
-        SECRET_REFERENCE = "secret_reference", "Secret reference"
         API_KEY = "api_key", "Encrypted API key"
         MANAGED = "managed", "Managed by service"
         NONE = "none", "None"
@@ -50,11 +47,7 @@ class Connection(models.Model):
         related_name="connections",
     )
     provider = models.CharField(max_length=24, choices=Provider.choices)
-    kind = models.CharField(
-        max_length=24,
-        choices=Kind.choices,
-        default=Kind.IDENTITY,
-    )
+    kind = models.CharField(max_length=24, choices=Kind.choices)
     binding_key = models.SlugField(
         max_length=120,
         blank=True,
@@ -70,18 +63,13 @@ class Connection(models.Model):
     )
     scopes = models.JSONField(default=list, blank=True)
     available_tools = models.JSONField(default=list, blank=True)
-    # Model providers only. Runs may call just these models; empty allows any.
+    # Model providers only. Runs may call just these models. Empty allows any.
     allowed_models = models.JSONField(default=list, blank=True)
     default_model = models.CharField(max_length=200, blank=True)
     auth_strategy = models.CharField(
         max_length=24,
         choices=AuthStrategy.choices,
         default=AuthStrategy.OAUTH,
-    )
-    credential_reference = models.CharField(
-        max_length=255,
-        blank=True,
-        help_text="Opaque Vault/KMS/provider reference. Never a credential value.",
     )
     # Webhook URLs usually embed their own token, so they are stored encrypted
     # and only a redacted target label is ever returned.
@@ -116,6 +104,30 @@ class Connection(models.Model):
         return f"{self.get_provider_display()}: {self.display_name}{binding}"
 
     @property
+    def tool_definitions(self) -> dict[str, Any]:
+        """Each offered tool's definition, by provider tool name."""
+        return self.metadata.get("tools") or {}
+
+    @property
+    def settings(self) -> dict[str, str]:
+        """Owner-chosen settings, such as an MCP scope. Never a credential."""
+        return dict(self.metadata.get("settings", {}))
+
+    @property
+    def offered_tools(self) -> dict[str, Any]:
+        """Every tool the server offers, when the owner chooses among them."""
+        return self.metadata.get("offered_tools") or {}
+
+    @property
+    def last_check(self) -> dict[str, Any] | None:
+        """The latest check or delivery result. See checks.record_check."""
+        return self.metadata.get("last_check")
+
+    @property
+    def failed_last_check(self) -> bool:
+        return (self.last_check or {}).get("ok") is False
+
+    @property
     def token_expired(self) -> bool:
         """The saved token is past its expiry. It is never sent."""
         return bool(self.expires_at and self.expires_at <= timezone.now())
@@ -135,51 +147,16 @@ class Connection(models.Model):
             return self.Status.EXPIRED
         return self.status
 
+    @property
+    def is_connected(self) -> bool:
+        return self.current_status == self.Status.CONNECTED
+
     def clean(self) -> None:
-        # Repositories never name identities or model providers, so neither
-        # needs a logical binding.
-        unbound = {self.Kind.IDENTITY, self.Kind.MODEL}
-        if self.kind not in unbound and not self.binding_key:
+        # Repositories never name model providers, so they need no binding.
+        if self.kind != self.Kind.MODEL and not self.binding_key:
             raise ValidationError(
                 {"binding_key": "Capability connections require a logical binding."}
             )
-        if (
-            self.auth_strategy == self.AuthStrategy.SECRET_REFERENCE
-            and not self.credential_reference
-        ):
-            raise ValidationError(
-                {
-                    "credential_reference": (
-                        "A credential reference is required for this auth strategy."
-                    )
-                }
-            )
-
-
-class Secret(models.Model):
-    workspace = models.ForeignKey(
-        Workspace,
-        on_delete=models.CASCADE,
-        related_name="secrets",
-    )
-    name = models.CharField(max_length=128)
-    description = models.CharField(max_length=255, blank=True)
-    value = EncryptedTextField()
-    last_used_at = models.DateTimeField(null=True, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(
-                fields=["workspace", "name"],
-                name="unique_workspace_secret_name",
-            )
-        ]
-        ordering = ["name"]
-
-    def __str__(self) -> str:
-        return self.name
 
 
 class OAuthAuthorization(models.Model):

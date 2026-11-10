@@ -2,13 +2,15 @@ from django.http import HttpRequest
 
 from secondshift.github import repos
 from secondshift.github.errors import GitHubError
+from secondshift.jobs.autosync import server_syncs
 from secondshift.jobs.dao import repository_jobs_with_grants
-from secondshift.repositories.autosync import server_syncs
+from secondshift.jobs.repository_sync import (
+    RepositoryConfigError,
+    inspect_local_repository,
+)
 from secondshift.repositories.github_access import github_access
 from secondshift.repositories.local import (
     LocalRepositoryError,
-    RepositoryConfigError,
-    inspect_local_repository,
 )
 from secondshift.repositories.models import Repository
 from secondshift.repositories.schemas import (
@@ -17,7 +19,7 @@ from secondshift.repositories.schemas import (
     RepositorySchema,
     RepositoryValidationSchema,
 )
-from secondshift.repositories.status import source_status
+from secondshift.repositories.status import ValidationStatus, source_status
 from secondshift.workspaces.access import (
     Action,
     allows,
@@ -67,7 +69,7 @@ def validation_schema(
 
 def unreachable(repository: Repository, error: Exception) -> RepositoryValidationSchema:
     return RepositoryValidationSchema(
-        status="error",
+        status=ValidationStatus.ERROR,
         message=str(error),
         current_revision=None,
         synced_revision=repository.config_sha,

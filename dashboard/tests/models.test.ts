@@ -1,8 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import type { AgentConfiguration, AgentConnection } from '../src/services/agents'
-import type { Connection } from '../src/types'
+import type { AgentConfiguration, AgentConnection, Connection } from '../src/types'
 import { modelRows } from '../src/utils/models'
 
 function model(id: number, overrides: Partial<Connection> = {}): Connection {

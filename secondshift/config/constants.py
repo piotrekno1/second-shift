@@ -7,9 +7,6 @@ read its keys. Values both need live here instead.
 from enum import StrEnum
 from urllib.parse import urlsplit
 
-# Defined beside the agent so the agent image can load it too.
-from secondshift.runner.agent_image.outcomes import AgentOutcome as AgentOutcome
-
 # Git object formats supported by repository snapshots and execution plans.
 COMMIT_SHA_PATTERN = r"[0-9a-f]{40}|[0-9a-f]{64}"
 
@@ -33,10 +30,19 @@ LOCAL_AGENT_TAG = "secondshift-agent:local"
 LOCAL_GATEWAY_URL = "http://127.0.0.1:8001"
 
 
+# The gateway's MCP endpoint for subscription agents. Deploy files spell it out too.
+AGENT_BROKER_PATH = "gateway/agent/mcp"
+
+
 def local_agent_broker_url(gateway_url: str) -> str:
     """The gateway's agent broker, as agent containers on this host reach it."""
     port = urlsplit(gateway_url).port or 80
-    return f"http://{HOST_ALIAS}:{port}/gateway/agent/mcp"
+    return f"http://{HOST_ALIAS}:{port}/{AGENT_BROKER_PATH}"
+
+
+class ArtifactStorage(StrEnum):
+    FILESYSTEM = "filesystem"
+    S3 = "s3"
 
 
 class AppEnv(StrEnum):
@@ -53,6 +59,10 @@ class AppEnv(StrEnum):
     RUNNER_WORK_ROOT = "SECONDSHIFT_RUNNER_WORK_ROOT"
     SOURCE_CACHE_ROOT = "SECONDSHIFT_SOURCE_CACHE_ROOT"
     SOURCE_CACHE_MAX_BYTES = "SECONDSHIFT_SOURCE_CACHE_MAX_BYTES"
+    ARTIFACT_STORAGE = "SECONDSHIFT_ARTIFACT_STORAGE"
+    RUN_OUTPUT_MAX_BYTES = "SECONDSHIFT_RUN_OUTPUT_MAX_BYTES"
+    RUN_RETENTION_DAYS = "SECONDSHIFT_RUN_RETENTION_DAYS"
+    REPOSITORY_SYNC_INTERVAL_SECONDS = "SECONDSHIFT_REPOSITORY_SYNC_INTERVAL_SECONDS"
 
     SECRET_KEY = "SECONDSHIFT_SECRET_KEY"
     ENCRYPTION_KEY = "SECONDSHIFT_ENCRYPTION_KEY"
@@ -73,6 +83,13 @@ class AppEnv(StrEnum):
     RUNNER_DB_CONN_MAX_AGE_SECONDS = "SECONDSHIFT_RUNNER_DB_CONN_MAX_AGE_SECONDS"
     EMAIL_URL = "SECONDSHIFT_EMAIL_URL"
     FROM_EMAIL = "SECONDSHIFT_FROM_EMAIL"
+
+    HTTP_BIND = "SECONDSHIFT_HTTP_BIND"
+    HTTP_PROCESSES = "SECONDSHIFT_HTTP_PROCESSES"
+    HTTP_TIMEOUT_SECONDS = "SECONDSHIFT_HTTP_TIMEOUT_SECONDS"
+    HTTP_GRACEFUL_TIMEOUT_SECONDS = "SECONDSHIFT_HTTP_GRACEFUL_TIMEOUT_SECONDS"
+    HTTP_LOG_LEVEL = "SECONDSHIFT_HTTP_LOG_LEVEL"
+    HTTP_ACCESS_LOG = "SECONDSHIFT_HTTP_ACCESS_LOG"
 
 
 GITHUB_HOST = "github.com"
@@ -116,16 +133,15 @@ class TriggerKind(StrEnum):
     WEBHOOK = "webhook"
 
 
+class ModelFamily(StrEnum):
+    """The API shape a model provider speaks. Names the gateway's URL path."""
+
+    ANTHROPIC = "anthropic"
+    OPENAI = "openai"
+
+
 class RunStart(StrEnum):
     """What started a run."""
-
-    SCHEDULE = "schedule"
-    MANUAL = "manual"
-    WEBHOOK = "webhook"
-
-
-class TaskOrigin(StrEnum):
-    """Where an assignment entered SecondShift, independent of run behavior."""
 
     SCHEDULE = "schedule"
     MANUAL = "manual"

@@ -25,9 +25,12 @@ from django.utils import timezone
 from secondshift.connections.dao import get_connection, lock_connection, mark_expired
 from secondshift.connections.mcp.base import MCPError, MCPProvider, MCPRequestError
 from secondshift.connections.mcp.providers import mcp_provider
-from secondshift.connections.mcp.transport import MCPTransport
 from secondshift.connections.models import Connection
-from secondshift.connections.outbound import OutboundUrlError, validate_outbound_url
+from secondshift.connections.outbound import (
+    OutboundUrlError,
+    outbound_client,
+    validate_outbound_url,
+)
 
 OAUTH = "oauth"
 CALLBACK_PATH = "/api/connections/oauth/callback"
@@ -94,13 +97,7 @@ async def request_json(
     """Status, parsed JSON body (or None), and headers. Never raises remote text."""
     try:
         with anyio.fail_after(settings.OUTBOUND_TIMEOUT_SECONDS):
-            async with httpx.AsyncClient(
-                transport=MCPTransport(),
-                headers={"Accept": "application/json", "Accept-Encoding": "identity"},
-                timeout=settings.OUTBOUND_TIMEOUT_SECONDS,
-                follow_redirects=False,
-                trust_env=False,
-            ) as client:
+            async with outbound_client({"Accept": "application/json"}) as client:
                 response = await client.request(method, url, data=data, json=payload)
                 body = await response.aread()
     except Exception:
@@ -240,14 +237,8 @@ def granted_scopes(tokens: dict[str, Any], requested: list[str]) -> list[str]:
 
 
 def requested_scopes(connection: Connection) -> list[str]:
-    """Keep the original requirement separate from the server's actual grant.
-
-    Older connections did not retain this distinction; use their last known
-    scopes as the baseline until their next successful refresh or sign-in.
-    """
-    return list(
-        connection.metadata.get("oauth", {}).get("requested_scopes", connection.scopes)
-    )
+    """What the connection asked for, apart from what the server granted."""
+    return list(connection.metadata.get("oauth", {}).get("requested_scopes", []))
 
 
 def apply_tokens(connection: Connection, tokens: dict[str, Any]) -> None:

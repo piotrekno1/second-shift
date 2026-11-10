@@ -1,6 +1,8 @@
 import { defineStore } from 'pinia'
 import { useAppStore } from './app'
-import { submitTask, type TaskSubmission, type TaskSubmissionResult } from '../services/tasks'
+import { submitTask, type TaskSubmission } from '../services/tasks'
+import { errorMessage } from '../services/api'
+import type { TaskSubmissionResult } from '../types'
 
 export const useTasksStore = defineStore('tasks', {
   state: () => ({ submitting: false, error: null as string | null }),
@@ -19,7 +21,7 @@ export const useTasksStore = defineStore('tasks', {
         }
         return result
       } catch (error) {
-        this.error = error instanceof Error ? error.message : 'Unable to submit this task'
+        this.error = errorMessage(error, 'Unable to submit this task')
         throw error
       } finally {
         this.submitting = false

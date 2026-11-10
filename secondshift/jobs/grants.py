@@ -6,7 +6,8 @@ from django.utils import timezone
 
 from secondshift.connections.external import external_access
 from secondshift.connections.models import Connection
-from secondshift.jobs.dao import find_grant
+from secondshift.connections.services import ConnectionConflict
+from secondshift.jobs.dao import find_grant, release_connection_grants
 from secondshift.jobs.models import CapabilityRequest, JobGrant
 from secondshift.jobs.tool_rules import (
     ToolRuleError,
@@ -14,6 +15,8 @@ from secondshift.jobs.tool_rules import (
     kept_rules,
     validate_rules,
 )
+from secondshift.repositories.dao import has_repositories
+from secondshift.repositories.github import repository_ref
 
 
 class GrantError(Exception):
@@ -32,11 +35,11 @@ def check_connection(
         or connection.binding_key != capability.binding
     ):
         raise GrantError(422, "Connection kind and binding must match capability.")
-    if connection.status != Connection.Status.CONNECTED:
+    if not connection.is_connected:
         raise GrantError(409, "The selected connection is not connected.")
     if not approving:
         return
-    access = external_access(connection, capability.job.repository)
+    access = external_access(connection, repository_ref(capability.job.repository))
     if access and not access.ok:
         raise GrantError(409, access.text)
 
@@ -87,7 +90,7 @@ def decide_grant(
         raise GrantError(422, "Rules can only apply to approved tools.")
     if rules and connection is not None:
         try:
-            validate_rules(rules, connection.metadata.get("tools", {}), sorted(allowed))
+            validate_rules(rules, connection.tool_definitions, sorted(allowed))
         except ToolRuleError as error:
             raise GrantError(422, str(error)) from error
     grant.connection = connection
@@ -99,3 +102,15 @@ def decide_grant(
     grant.full_clean()
     grant.save()
     return grant
+
+
+@transaction.atomic
+def delete_connection(connection: Connection) -> None:
+    if connection.kind == Connection.Kind.SOURCE and has_repositories(connection):
+        raise ConnectionConflict(
+            "This installation has repository history. Disconnect it instead."
+        )
+    # Grants are review records: they return to pending instead of disappearing,
+    # so the jobs show up again under "Needed by your jobs".
+    release_connection_grants(connection)
+    connection.delete()

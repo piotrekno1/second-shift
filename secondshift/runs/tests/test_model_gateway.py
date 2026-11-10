@@ -3,12 +3,14 @@ from django.contrib.auth import get_user_model
 from pydantic_ai.models.anthropic import AnthropicModel
 from pydantic_ai.models.openai import OpenAIChatModel, OpenAIResponsesModel
 
+from secondshift.config.constants import RunStart
+from secondshift.connections.execution import choose_execution
 from secondshift.connections.models import Connection
 from secondshift.gateway.tokens import authenticate
-from secondshift.jobs.execution import choose_execution
 from secondshift.jobs.models import Job
 from secondshift.jobs.planning import build_execution_plan
 from secondshift.repositories.models import Repository
+from secondshift.runs.dao import create_task
 from secondshift.runs.execution.model_gateway import (
     ModelGatewayAccess,
     ModelGatewayConfigurationError,
@@ -49,11 +51,13 @@ def model_run(db, settings) -> Run:
     )
     choose_execution(model.workspace, model=model)
     return Run.objects.create(
+        task=create_task(repository=job.repository),
+        started_by=RunStart.SCHEDULE,
         job=job,
         status=Run.Status.RUNNING,
         commit_sha="abc",
         scheduled_for="2026-10-01T00:00:00Z",
-        execution_plan=build_execution_plan(job),
+        execution_plan=build_execution_plan(job).stored(),
     )
 
 
@@ -102,7 +106,7 @@ def test_pydantic_model_uses_only_gateway_access(
     model = pydantic_model(access)
 
     assert isinstance(model, expected_type)
-    assert "gateway.internal" in model._provider.base_url  # type: ignore[attr-defined]
+    assert "gateway.internal" in (model.base_url or "")
     assert "ssrt_test-token" not in repr(model)
 
 

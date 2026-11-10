@@ -4,16 +4,15 @@ from ninja import Router
 from ninja.errors import HttpError
 from ninja.security import django_auth
 
-from secondshift.connections.models import Connection
+from secondshift.connections.dao import workspace_connections
 from secondshift.connections.serialization import serialize_connection
 from secondshift.jobs.access import job_for_request
-from secondshift.jobs.api_limits import limit_error_detail, limit_updates
+from secondshift.jobs.dao import job_requests
 from secondshift.jobs.grants import GrantError, decide_grant
-from secondshift.jobs.limits import LimitError, save_overrides
-from secondshift.jobs.models import JOB_REMOVED, CapabilityRequest
+from secondshift.jobs.models import JOB_REMOVED
 from secondshift.jobs.needs import capability_needs
 from secondshift.jobs.planning import build_execution_plan
-from secondshift.jobs.readiness import plan_problems
+from secondshift.jobs.readiness import execution_problems
 from secondshift.jobs.scheduling import restart_schedules
 from secondshift.jobs.schemas import (
     CapabilityNeedSchema,
@@ -22,7 +21,6 @@ from secondshift.jobs.schemas import (
     JobEnabledSchema,
     JobSchema,
     NeedJobSchema,
-    RunLimitsUpdateSchema,
 )
 from secondshift.jobs.serialization import (
     serialize_job,
@@ -35,6 +33,9 @@ from secondshift.workspaces.access import (
     current_workspace,
     require,
 )
+from secondshift.workspaces.limits import LimitError, save_overrides
+from secondshift.workspaces.schemas import RunLimitsUpdateSchema
+from secondshift.workspaces.serialization import limit_error_detail
 
 router = Router(auth=django_auth, tags=["jobs"])
 
@@ -89,7 +90,7 @@ def set_job_limits(
     job = job_for_request(request, job_id)
     require(request, Action.CHANGE_RUN_LIMITS)
     try:
-        save_overrides(job, limit_updates(payload))
+        save_overrides(job, payload.model_dump(exclude_unset=True))
     except LimitError as error:
         raise HttpError(422, limit_error_detail(request, error)) from error
     return serialize_job_detail(job_for_request(request, job_id), True)
@@ -106,11 +107,11 @@ def set_job_enabled(
             raise HttpError(409, JOB_REMOVED)
         if not job.cron:
             raise HttpError(409, "This job has no schedule. Use Run now to run it.")
-        if not job.repository.enabled:
+        if not job.repository.accepts_runs:
             raise HttpError(409, "Enable the repository before enabling this job.")
         plan = build_execution_plan(job)
-        if not plan["ready"]:
-            raise HttpError(409, " ".join(plan_problems(job, plan)))
+        if not plan.ready:
+            raise HttpError(409, " ".join(execution_problems(job.repository, plan)))
     turned_on = payload.enabled and not job.enabled
     job.enabled = payload.enabled
     job.save(update_fields=["enabled", "updated_at"])
@@ -128,12 +129,12 @@ def review_job_capability(
 ) -> JobSchema:
     job = job_for_request(request, job_id)
     require(request, Action.REVIEW_CAPABILITIES)
-    capability = get_object_or_404(CapabilityRequest, pk=capability_id, job=job)
+    capability = get_object_or_404(job_requests(job), pk=capability_id)
     connection = (
         None
         if payload.connection_id is None
         else get_object_or_404(
-            Connection, pk=payload.connection_id, workspace=job.workspace
+            workspace_connections(job.workspace_id), pk=payload.connection_id
         )
     )
     try:

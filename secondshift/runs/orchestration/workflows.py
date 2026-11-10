@@ -31,33 +31,36 @@ from secondshift.runs.artifacts import read_output_excerpt, store_collection
 from secondshift.runs.dao import (
     add_event,
     fail_notification_delivery,
+    finish_delivery,
     get_run,
     notification_delivery,
-    run_execution_plan,
     update_run,
 )
 from secondshift.runs.execution.budgets import Budget, budget_reached_message
-from secondshift.runs.execution.deadlines import (
-    run_deadline,
-    run_timeout_seconds,
-    timeout_summary,
-)
-from secondshift.runs.execution.issues import issue_limit
+from secondshift.runs.execution.deadlines import run_deadline, timeout_failure
+from secondshift.runs.execution.result import AgentResult
 from secondshift.runs.execution.run import execute_agent_run
 from secondshift.runs.history import pack_earlier_files
 from secondshift.runs.issue_delivery import open_run_issues
-from secondshift.runs.models import Run, RunDelivery
+from secondshift.runs.models import Run, RunDelivery, RunFailure
 from secondshift.runs.orchestration.admission import task_admission_problem
-from secondshift.runs.orchestration.reconciliation import mark_run_terminal
+from secondshift.runs.orchestration.reconciliation import (
+    WorkflowStatus,
+    mark_run_terminal,
+)
 from secondshift.runs.publishing import publish_run
 from secondshift.runs.reporting.collection import collection_summary
-from secondshift.runs.reporting.failures import failure_metadata, failure_summary
+from secondshift.runs.reporting.failures import (
+    StageFailure,
+    failure_metadata,
+    stage_failure,
+)
 from secondshift.runs.reporting.notifications import (
     notification_targets,
     run_report_payload,
 )
 from secondshift.runs.services import create_scheduled_run
-from secondshift.runs.transitions import finish_run, start_run
+from secondshift.runs.transitions import finish_run, mark_running
 
 logger = logging.getLogger(__name__)
 
@@ -96,20 +99,23 @@ def mark_run_started_step(run_id: int) -> bool:
         run.refresh_from_db()
         if problem := task_admission_problem(run, repository):
             mark_run_terminal(
-                run.pk, Run.Status.FAILED, problem, workflow_status="NOT_ADMITTED"
+                run.pk,
+                Run.Status.FAILED,
+                problem,
+                workflow_status=WorkflowStatus.NOT_ADMITTED,
             )
             return False
     if run.status == Run.Status.RUNNING and run.dbos_workflow_id == DBOS.workflow_id:
         # The application commit may precede DBOS persisting this step's result.
         return True
-    plan = run.execution_plan
-    if run.status == Run.Status.QUEUED and not plan.get("ready", False):
+    plan = run.plan
+    if run.status == Run.Status.QUEUED and not plan.ready:
         # A scheduled tick creates the run even when the job lost its access.
         problems = execution_problems(run.repository, plan)
         raise RunNotReadyError(
             " ".join(problems) or "The frozen execution plan is not ready."
         )
-    started = start_run(run_id, DBOS.workflow_id or run.dbos_workflow_id)
+    started = mark_running(run_id, DBOS.workflow_id or run.dbos_workflow_id)
     if started:
         add_event(run_id, "Run started.")
     return bool(started)
@@ -120,10 +126,8 @@ def record_run_event_step(run_id: int, message: str) -> None:
     add_event(run_id, message)
 
 
-# The name stays from when this step copied local repositories, so runs that
-# were in flight during an upgrade still replay.
 @DBOS.step(
-    name="secondshift.materialize_local_repository",
+    name="secondshift.prepare_source",
     retries_allowed=True,
     max_attempts=3,
 )
@@ -149,12 +153,8 @@ def prepare_source_step(run_id: int) -> None:
 )
 def start_runner_session_step(run_id: int) -> str:
     run = get_run(run_id, "job__repository", "task__repository")
-    plan = run.execution_plan
-    runner_plan = plan.get("runner", {})
-    if runner_plan.get("network_policy") != "none":
-        raise RuntimeError("The execution plan does not require an offline sandbox.")
-    repository_plan = plan.get("repository", {})
-    if repository_plan.get("config_sha") != run.commit_sha:
+    plan = run.plan
+    if plan.repository.config_sha != run.commit_sha:
         raise RuntimeError("The run commit does not match its execution plan.")
     snapshot = source_snapshot(run.repository, run.commit_sha)
     client = get_runner_client()
@@ -164,17 +164,17 @@ def start_runner_session_step(run_id: int) -> str:
         history = pack_earlier_files(run, archive)
         if history is not None:
             client.upload_source(history.sha256, archive)
-            run.input_snapshot["history_files"] = history.record
-            update_run(run.pk, input_snapshot=run.input_snapshot)
+            inputs = run.inputs.model_copy(update={"history_files": history.files})
+            update_run(run.pk, input_snapshot=inputs.stored())
     session_id = client.start(
         RunnerSessionSpec(
             run_id=run.pk,
             session_key=run.runner_session_key.hex,
-            repository=str(repository_plan["full_name"]),
+            repository=plan.repository.full_name,
             commit_sha=run.commit_sha,
-            image=str(runner_plan["image"]),
+            image=plan.runner.image,
             source_sha256=snapshot.sha256,
-            collect_changes=bool(runner_plan.get("collect_changes", False)),
+            collect_changes=plan.runner.collect_changes,
             history_sha256=history.sha256 if history is not None else "",
         )
     )
@@ -195,7 +195,7 @@ def collect_outputs_step(run_id: int, session_id: str) -> None:
         archive = Path(folder) / "collection.tar.gz"
         get_runner_client().collect(session_id, archive)
         outputs = store_collection(run, archive)
-    update_run(run_id, outputs=outputs)
+    update_run(run_id, outputs=outputs.stored())
     if message := collection_summary(outputs):
         add_event(run_id, message)
 
@@ -229,43 +229,45 @@ def stop_runner_session_step(session_id: str) -> None:
 
 @DBOS.step(name="secondshift.finish_run")
 @transaction.atomic
-def finish_run_step(run_id: int, result: dict[str, Any]) -> None:
-    status = Run.Status.SUCCEEDED if result["succeeded"] else Run.Status.FAILED
-    fields: dict[str, object] = {"exit_code": result["exit_code"]}
-    if output := result.get("output"):
+def finish_run_step(run_id: int, stored: dict[str, Any]) -> None:
+    result = AgentResult.model_validate(stored)
+    status = Run.Status.SUCCEEDED if result.succeeded else Run.Status.FAILED
+    fields: dict[str, object] = {"exit_code": result.exit_code}
+    if output := result.output:
         fields |= {
-            "output_path": output["path"],
-            "output_size_bytes": output["size_bytes"],
-            "output_sha256": output["sha256"],
-            "output_truncated": output["truncated"],
-            "output_excerpt": read_output_excerpt(output["path"]),
+            "output_path": output.path,
+            "output_size_bytes": output.size_bytes,
+            "output_sha256": output.sha256,
+            "output_truncated": output.truncated,
+            "output_excerpt": read_output_excerpt(output.path),
         }
     run = finish_run(
         run_id,
         status,
-        str(result["summary"]),
+        result.summary,
         only_from={Run.Status.RUNNING},
         fields=fields,
+        failure=result.failure,
+        reason=result.reason,
     )
     if run is None:
         # A replay, or the run was canceled while it ran. Its result stands.
         logger.info("run %s had already finished", run_id)
         return
-    details = result.get("details") or {}
-    if reached := details.get("budget_reached"):
+    if reached := result.details.get("budget_reached"):
         add_event(
             run.pk,
             budget_reached_message(Budget(reached)),
             level="warning",
-            metadata=details,
+            metadata=result.details,
         )
     add_event(
         run.pk,
         "Run succeeded. The report is stored as the run's output."
-        if result["succeeded"]
-        else str(result["summary"]),
-        level="info" if result["succeeded"] else "error",
-        metadata=details,
+        if result.succeeded
+        else result.summary,
+        level="info" if result.succeeded else "error",
+        metadata=result.details,
     )
 
 
@@ -293,32 +295,22 @@ def deliver_run_notification_step(run_id: int, connection_id: int) -> None:
     # A grant revoked or a connection disconnected since planning stops delivery,
     # including when a failed delivery is retried later.
     if connection_id not in notification_targets(run):
-        record_delivery(delivery, RunDelivery.Status.SKIPPED, "No longer approved.")
+        finish_delivery(
+            delivery, RunDelivery.Status.SKIPPED, "No longer approved.", announce=False
+        )
         return
     result = deliver_webhook(connection, run_report_payload(run))
     delivery.attempts += 1
     delivery.status_code = result.status_code
     if result.retryable:
-        record_delivery(delivery, RunDelivery.Status.RETRYING, result.message)
+        finish_delivery(
+            delivery, RunDelivery.Status.RETRYING, result.message, announce=False
+        )
         raise RetryableDeliveryError(result.message)
-    record_delivery(
+    finish_delivery(
         delivery,
         RunDelivery.Status.DELIVERED if result.ok else RunDelivery.Status.FAILED,
         result.message,
-    )
-    add_event(
-        run.pk,
-        f"Notification to {connection.binding_key}: {result.message}",
-        level="info" if result.ok else "warning",
-        metadata={"connection_id": connection_id, "status_code": result.status_code},
-    )
-
-
-def record_delivery(delivery: RunDelivery, status: str, message: str) -> None:
-    delivery.status = status
-    delivery.message = message
-    delivery.save(
-        update_fields=["status", "message", "attempts", "status_code", "updated_at"]
     )
 
 
@@ -369,19 +361,14 @@ def retry_issues_workflow(run_id: int) -> None:
 
 def deliver(run_id: int) -> None:
     """Publish first, so the notification can link to the pull request and issues."""
-    plan = run_execution_plan(run_id)
-    # Only plans that ask for a pull request or issues add the step, so
-    # workflows started before these steps existed replay the same steps.
-    if plan.get("pull_request"):
-        try:
-            publish_pull_request_step(run_id)
-        except Exception:
-            logger.exception("could not publish run %s", run_id)
-    if issue_limit(plan):
-        try:
-            open_issues_step(run_id)
-        except Exception:
-            logger.exception("could not open issues for run %s", run_id)
+    try:
+        publish_pull_request_step(run_id)
+    except Exception:
+        logger.exception("could not publish run %s", run_id)
+    try:
+        open_issues_step(run_id)
+    except Exception:
+        logger.exception("could not open issues for run %s", run_id)
     notify(run_id)
 
 
@@ -397,43 +384,46 @@ def retry_notification_workflow(run_id: int, connection_id: int) -> None:
 
 
 @DBOS.step(name="secondshift.fail_run")
-def fail_run_step(run_id: int, summary: str, details: dict[str, object]) -> None:
+def fail_run_step(
+    run_id: int, summary: str, failure: str, reason: str, details: dict[str, object]
+) -> None:
     mark_run_terminal(
         run_id,
         Run.Status.FAILED,
         summary,
-        workflow_status="ERROR",
+        workflow_status=WorkflowStatus.ERROR,
         metadata=details,
+        failure=RunFailure(failure),
+        reason=reason,
     )
 
 
 def execute_run(run_id: int) -> None:
     session_id: str | None = None
     deadline: datetime | None = None
-    timeout_seconds = 0
-    stage = "starting"
+    timeout: StageFailure | None = None
+    stage = RunFailure.STARTING
     try:
-        # Older completed steps returned None; preserve their replay behavior.
-        if mark_run_started_step(run_id) is False:
+        if not mark_run_started_step(run_id):
             return
-        stage = "checkout"
+        stage = RunFailure.CHECKOUT
         prepare_source_step(run_id)
-        stage = "sandbox"
+        stage = RunFailure.SANDBOX
         session_id = start_runner_session_step(run_id)
-        stage = "skill"
+        stage = RunFailure.SKILL
         run = get_run(run_id, "job")
         record_run_event_step(
             run_id,
-            f"Running {run.input_snapshot.get('skill_path') or 'the submitted task'}.",
+            f"Running {run.plan.job.skill_path or 'the submitted task'}.",
         )
         deadline = run_deadline(run)
-        timeout_seconds = run_timeout_seconds(run)
+        timeout = timeout_failure(run)
         result = execute_agent_run(run, session_id)
-        stage = "finishing"
+        stage = RunFailure.FINISHING
         collect_outputs(run_id, session_id)
         stop_runner_session_step(session_id)
         session_id = None
-        finish_run_step(run_id, result)
+        finish_run_step(run_id, result.model_dump(mode="json"))
     except Exception as error:
         if session_id is not None:
             try:
@@ -441,14 +431,15 @@ def execute_run(run_id: int) -> None:
             except Exception:
                 logger.exception("failed to stop runner session %s", session_id)
         details = failure_metadata(stage, error)
-        if stage == "skill" and deadline is not None and timezone.now() >= deadline:
+        timed_out = deadline is not None and timezone.now() >= deadline
+        if stage == RunFailure.SKILL and timeout is not None and timed_out:
             # The skill stopped after its time limit, so the error is the model
             # call or tool call that hit the deadline.
-            summary = timeout_summary(timeout_seconds)
+            failure = timeout
             details["timed_out"] = True
         else:
-            summary = failure_summary(stage, error)
-        fail_run_step(run_id, summary, details)
+            failure = stage_failure(stage, error)
+        fail_run_step(run_id, failure.summary, failure.kind, failure.reason, details)
         # A failed run notifies too, so a scheduled job never fails silently.
         try:
             deliver(run_id)

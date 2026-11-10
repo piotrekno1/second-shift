@@ -1,32 +1,32 @@
 """Queries and writes on runs, tasks, run events, deliveries, issues and leases."""
 
-from collections import Counter
 from collections.abc import Collection, Iterable
 from datetime import date, datetime
 from typing import Any
 
 from django.db import transaction
 from django.db.models import Count, Exists, F, OuterRef, Q, QuerySet, Subquery, Sum
-from django.db.models.functions import TruncDate
+from django.db.models.functions import Coalesce, TruncDate
 
 from secondshift.config.constants import AgentBackend
 from secondshift.connections.models import Connection
+from secondshift.jobs.dao import active_jobs
 from secondshift.jobs.models import Job
+from secondshift.jobs.plan import ExecutionPlan
 from secondshift.runner.agent_image.outcomes import CACHE_READ_DIVISOR
 from secondshift.runs.models import (
-    RUN_ENQUEUE_FAILED,
     AgentLease,
     Run,
     RunDelivery,
     RunEvent,
+    RunFailure,
     RunIssue,
     Task,
-    run_workspace_filter,
 )
 
 # Runs the queue could not hand off. They never started, so they do not count
 # as earlier or recent runs.
-ENQUEUE_FAILED = Q(status=Run.Status.FAILED, summary=RUN_ENQUEUE_FAILED)
+ENQUEUE_FAILED = Q(failure=RunFailure.NOT_QUEUED)
 NEWEST_FIRST = ("-created_at", "-pk")
 
 
@@ -36,10 +36,6 @@ NEWEST_FIRST = ("-created_at", "-pk")
 def get_run(run_id: int, *related: str) -> Run:
     """The run with these relations loaded. Raises Run.DoesNotExist when missing."""
     return Run.objects.select_related(*related).get(pk=run_id)
-
-
-def run_execution_plan(run_id: int) -> dict[str, Any]:
-    return Run.objects.only("execution_plan").get(pk=run_id).execution_plan
 
 
 def lock_run(run_id: int, *related: str) -> Run:
@@ -55,6 +51,12 @@ def lock_run_in(run_id: int, statuses: Collection[str]) -> Run | None:
 
 
 def create_run_record(**fields: Any) -> Run:
+    """A run counts against its agent login only when its plan was ready."""
+    plan = fields.get("execution_plan")
+    if plan:
+        typed = ExecutionPlan.model_validate(plan)
+        if typed.ready:
+            fields["agent_connection_id"] = typed.execution.connection_id
     return Run.objects.create(**fields)
 
 
@@ -117,14 +119,14 @@ def find_workspace_run(workspace_id: int | None, run_id: int) -> Run | None:
         with_model_usage(
             Run.objects.select_related("job__repository", "task__repository")
         )
-        .filter(run_workspace_filter(workspace_id), pk=run_id)
+        .filter(task__repository__workspace_id=workspace_id, pk=run_id)
         .first()
     )
 
 
 def workspace_runs(workspace_id: int | None) -> QuerySet[Run]:
     """The workspace's job runs and ad hoc tasks."""
-    return Run.objects.filter(run_workspace_filter(workspace_id))
+    return Run.objects.filter(task__repository__workspace_id=workspace_id)
 
 
 def runs_by_id(run_ids: Iterable[int]) -> dict[int, Run]:
@@ -270,18 +272,6 @@ def delete_runs(runs: list[Run]) -> None:
 # Reporting
 
 
-def login_run_counts(workspace_id: int, since: datetime) -> Counter[int]:
-    """Runs per agent login since then. Only runs whose plan was ready count."""
-    return Counter(
-        Run.objects.filter(
-            run_workspace_filter(workspace_id),
-            created_at__gte=since,
-            execution_plan__ready=True,
-            execution_plan__execution__connection_id__isnull=False,
-        ).values_list("execution_plan__execution__connection_id", flat=True)
-    )
-
-
 def run_counts(workspace_id: int, start: datetime, previous_start: datetime) -> dict:
     """Runs since `start`, finished and succeeded among them, and runs before."""
     recent = Q(created_at__gte=start)
@@ -329,7 +319,6 @@ def search_runs(runs: QuerySet[Run], q: str) -> QuerySet[Run]:
     match = (
         Q(job__name__icontains=q)
         | Q(job__key__icontains=q)
-        | Q(job__repository__full_name__icontains=q)
         | Q(task__repository__full_name__icontains=q)
         | Q(input_snapshot__name__icontains=q)
         | Q(summary__icontains=q)
@@ -361,10 +350,7 @@ def run_listing(
     if job_id is not None:
         runs = runs.filter(job_id=job_id)
     if repository_id is not None:
-        runs = runs.filter(
-            Q(job__repository_id=repository_id)
-            | Q(job__isnull=True, task__repository_id=repository_id)
-        )
+        runs = runs.filter(task__repository_id=repository_id)
     if since is not None:
         runs = runs.filter(created_at__gte=since)
     runs = search_runs(runs, q)
@@ -380,7 +366,7 @@ def run_listing(
     page = min(page, last_page)
     start = (page - 1) * page_size
     page_slice = slice(start, start + page_size)
-    related = ("job__repository", "task__repository")
+    related = ("job", "task__repository")
     if by_cost:
         # Cost comes from usage, so aggregate every run before taking the page.
         ordered = with_model_usage(runs.select_related(*related)).order_by(
@@ -412,10 +398,6 @@ def find_submitted_task(repository_id: int, submission_key: str) -> Task | None:
 
 def first_attempt(task: Task) -> Run | None:
     return task.runs.order_by("created_at", "pk").first()
-
-
-def update_task_snapshot(task_id: int, snapshot: dict[str, Any]) -> None:
-    Task.objects.filter(pk=task_id).update(input_snapshot=snapshot)
 
 
 # Run events
@@ -498,6 +480,36 @@ def notification_delivery(run: Run, connection: Connection) -> RunDelivery:
     return delivery
 
 
+def finish_delivery(
+    delivery: RunDelivery, status: str, message: str, *, announce: bool = True
+) -> None:
+    """Save the delivery's outcome, and say it in the run's events."""
+    delivery.status = status
+    delivery.message = message
+    delivery.save(
+        update_fields=[
+            "status",
+            "message",
+            "attempts",
+            "status_code",
+            "external_url",
+            "updated_at",
+        ]
+    )
+    if announce:
+        add_event(
+            delivery.run_id,
+            f"{delivery.event_name}: {message}",
+            level="warning" if status == RunDelivery.Status.FAILED else "info",
+            metadata={
+                "delivery_id": delivery.pk,
+                "connection_id": delivery.connection_id,
+                "status_code": delivery.status_code,
+                "url": delivery.external_url,
+            },
+        )
+
+
 def fail_notification_delivery(run_id: int, connection_id: int, now: datetime) -> None:
     """Mark the notification failed, unless it was delivered."""
     RunDelivery.objects.filter(
@@ -566,3 +578,38 @@ def lock_lease(lease_id: int) -> AgentLease:
 
 def active_lease(token_hash: str) -> AgentLease | None:
     return AgentLease.objects.filter(token_hash=token_hash, active=True).first()
+
+
+def with_last_run(jobs: QuerySet[Job]) -> QuerySet[Job]:
+    """Annotate each job with its newest run, so a list needs no query per job."""
+    newest = Run.objects.filter(job=OuterRef("pk")).order_by("-created_at", "-pk")
+    return jobs.annotate(
+        last_run_id=Subquery(newest.values("pk")[:1]),
+        last_run_status=Subquery(newest.values("status")[:1]),
+        last_run_at=Subquery(
+            newest.annotate(at=Coalesce("finished_at", "created_at")).values("at")[:1]
+        ),
+    )
+
+
+def job_with_last_run(job_id: int) -> Job:
+    return with_last_run(Job.objects.filter(pk=job_id)).get()
+
+
+def jobs_whose_last_run_failed(workspace_id: int) -> list[Job]:
+    """Active jobs whose newest finished run failed, by name.
+
+    Each job gets `latest_run_id`.
+    """
+    latest = Run.objects.filter(
+        job=OuterRef("pk"), status__in=Run.FINISHED_STATUSES
+    ).order_by("-created_at", "-pk")
+    return list(
+        active_jobs(workspace_id)
+        .annotate(
+            latest_run_id=Subquery(latest.values("pk")[:1]),
+            latest_status=Subquery(latest.values("status")[:1]),
+        )
+        .filter(latest_status=Run.Status.FAILED)
+        .order_by("name")
+    )

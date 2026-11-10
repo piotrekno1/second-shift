@@ -6,8 +6,11 @@ from dbos import DBOSClient
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 
+from secondshift.config.constants import RunStart
 from secondshift.jobs.models import Job
+from secondshift.jobs.tests.plans import stored_plan
 from secondshift.repositories.models import Repository
+from secondshift.runs.dao import create_task
 from secondshift.runs.models import Run
 from secondshift.runs.orchestration.reconciliation import reconcile_terminal_workflows
 from secondshift.workspaces.dao import create_workspace
@@ -48,6 +51,9 @@ def create_run(*, status: str, workflow_id: str) -> Run:
         enabled=True,
     )
     return Run.objects.create(
+        task=create_task(repository=job.repository),
+        started_by=RunStart.SCHEDULE,
+        execution_plan=stored_plan(),
         job=job,
         status=status,
         commit_sha="abc123",

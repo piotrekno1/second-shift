@@ -12,8 +12,9 @@ from pydantic_ai import Agent, ModelRetry, ToolFailed, capture_run_messages
 from pydantic_ai.messages import ModelRequest, ToolReturnPart
 from pydantic_ai.models.test import TestModel
 
-from secondshift.config.constants import GITHUB_MCP_URL
+from secondshift.config.constants import GITHUB_MCP_URL, RunStart
 from secondshift.connections.errors import ExternalToolError
+from secondshift.connections.execution import choose_execution
 from secondshift.connections.mcp.base import MCPError, MCPRequestError
 from secondshift.connections.models import Connection
 from secondshift.connections.tests.test_github_mcp import (
@@ -22,12 +23,13 @@ from secondshift.connections.tests.test_github_mcp import (
 )
 from secondshift.connections.tests.test_github_mcp import mcp_http as imported_mcp_http
 from secondshift.connections.webhooks import deliver_webhook
-from secondshift.jobs.execution import choose_execution
 from secondshift.jobs.manifest import load_manifest
 from secondshift.jobs.models import CapabilityRequest, Job, JobGrant
 from secondshift.jobs.planning import build_execution_plan
+from secondshift.jobs.tests.plans import CAPABILITY
 from secondshift.jobs.tool_policy import ToolPolicyError
 from secondshift.repositories.models import Repository
+from secondshift.runs.dao import create_task
 from secondshift.runs.execution.external_tools import external_tools
 from secondshift.runs.execution.run import WORKSPACE_AGENT, execute_agent_run
 from secondshift.runs.execution.tool_broker import call_external_tool_step
@@ -100,12 +102,14 @@ def planned_run() -> Run:
         allowed_tools=list(TOOL_SCHEMAS),
     )
     return Run.objects.create(
+        task=create_task(repository=job.repository),
+        started_by=RunStart.SCHEDULE,
         job=job,
         status="running",
         scheduled_for=timezone.now(),
         commit_sha="a" * 40,
         input_snapshot={"skill_path": job.skill_path},
-        execution_plan=build_execution_plan(job),
+        execution_plan=build_execution_plan(job).stored(),
     )
 
 
@@ -135,14 +139,14 @@ def test_custom_mcp_failure_reaches_model_as_bounded_untrusted_data(
     connection.access_token = token
     connection.metadata["settings"] = {"url": endpoint}
     connection.save()
-    planned_run.execution_plan = build_execution_plan(planned_run.job)
+    planned_run.execution_plan = build_execution_plan(planned_run.job).stored()
     planned_run.save()
 
     reason = f"time range exceeds 24h (token {token})"
     prefix = reason.ljust(495, ".")
     remote = prefix + token + "discard this tail"
     monkeypatch.setattr(
-        "secondshift.connections.mcp.client.MCPTransport",
+        "secondshift.connections.outbound.BoundedTransport",
         lambda: tool_error_transport(remote),
     )
     tool = next(
@@ -262,7 +266,6 @@ def test_agent_mcp_report_and_webhook_payload_flow(
             "OPTIONS": {"location": tmp_path},
         },
     }
-    storages._storages.clear()
     tool_name = next(
         tool.name
         for tool in external_tools(planned_run)
@@ -277,9 +280,9 @@ def test_agent_mcp_report_and_webhook_payload_flow(
     )
     with WORKSPACE_AGENT.override(model=model):
         result = execute_agent_run(planned_run, "offline-sandbox")
-    assert result["succeeded"]
+    assert result.succeeded
     assert planned_run.events.filter(message__startswith="Tool completed").exists()
-    with storages["run_artifacts"].open(result["output"]["path"]) as artifact:
+    with storages["run_artifacts"].open(result.output.path) as artifact:
         assert b"What shipped" in artifact.read()
     webhook = Connection.objects.create(
         workspace=planned_run.job.workspace,
@@ -296,10 +299,18 @@ def test_agent_mcp_report_and_webhook_payload_flow(
         capability_request=request, connection=webhook, status="approved"
     )
     planned_run.execution_plan["capabilities"].append(
-        {"kind": "notification", "authorized": True, "connection_id": webhook.pk}
+        CAPABILITY
+        | {
+            "kind": "notification",
+            "binding": "engineering-reports",
+            "authorized": True,
+            "connection_id": webhook.pk,
+        }
     )
-    planned_run.summary = result["summary"]
+    planned_run.summary = result.summary
     planned_run.status = "succeeded"
+    planned_run.save()
+    planned_run = Run.objects.get(pk=planned_run.pk)
     assert notification_targets(planned_run) == [webhook.pk]
     assert "PR #1" in run_report_payload(planned_run)["text"]
 
@@ -381,11 +392,13 @@ def test_one_connection_is_reused_with_independent_job_scopes(
         allowed_tools=list(TOOL_SCHEMAS),
     )
     other_run = Run.objects.create(
+        task=create_task(repository=job.repository),
+        started_by=RunStart.SCHEDULE,
         job=job,
         status="running",
         commit_sha="b" * 40,
         scheduled_for=timezone.now(),
-        execution_plan=build_execution_plan(job),
+        execution_plan=build_execution_plan(job).stored(),
     )
     call_external_tool_step(planned_run.pk, NAME, {"query": "is:merged"}, "first")
     call_external_tool_step(other_run.pk, NAME, {"query": "is:merged"}, "second")
@@ -410,7 +423,7 @@ def test_local_job_without_github_origin_is_not_ready(planned_run) -> None:
     repository.source_type = "local"
     repository.clone_url = ""
     repository.save()
-    plan = build_execution_plan(planned_run.job)
+    plan = build_execution_plan(planned_run.job).stored()
     assert not plan["ready"]
     assert "github_repository_unknown" in plan["capabilities"][0]["reasons"]
 
@@ -481,7 +494,7 @@ def set_rules(run: Run, rules: dict) -> None:
     grant = JobGrant.objects.get(capability_request__job=run.job)
     grant.tool_rules = rules
     grant.save()
-    run.execution_plan = build_execution_plan(run.job)
+    run.execution_plan = build_execution_plan(run.job).stored()
     run.save()
 
 

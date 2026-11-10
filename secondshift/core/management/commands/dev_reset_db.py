@@ -5,13 +5,14 @@ from django.conf import settings
 from django.core.management import call_command
 from django.utils import timezone
 
-from secondshift.config.constants import SandboxRuntime
+from secondshift.config.constants import RunStart, SandboxRuntime
 from secondshift.connections.dao import create_connection
 from secondshift.connections.models import Connection
 from secondshift.github.identity import clone_url
 from secondshift.jobs.dao import create_job
+from secondshift.jobs.planning import build_execution_plan
 from secondshift.repositories.dao import create_repository
-from secondshift.runs.dao import add_event, create_run_record
+from secondshift.runs.dao import add_event, create_run_record, create_task
 from secondshift.runs.models import Run
 from secondshift.workspaces.dao import get_workspace_by_slug
 
@@ -63,34 +64,23 @@ def seed_demo_data() -> None:
     workspace = get_workspace_by_slug("secondshift")
     now = timezone.now()
 
-    connections = {
-        provider: create_connection(
-            workspace=workspace,
-            provider=provider,
-            kind=Connection.Kind.IDENTITY,
-            display_name=display_name,
-            external_account_id=f"demo-{provider}",
-            status=Connection.Status.CONNECTED,
-            scopes=scopes,
-            auth_strategy=Connection.AuthStrategy.NONE,
-            metadata={"demo": True},
-        )
-        for provider, display_name, scopes in (
-            (Connection.Provider.GITHUB, "GitHub · demo", ["read:user", "repo"]),
-            (Connection.Provider.CHATGPT, "ChatGPT · demo", ["agent:execute"]),
-            (
-                Connection.Provider.SLACK,
-                "Slack · #engineering",
-                ["chat:write", "channels:read"],
-            ),
-        )
-    }
+    github = create_connection(
+        workspace=workspace,
+        provider=Connection.Provider.GITHUB,
+        kind=Connection.Kind.SOURCE,
+        display_name="GitHub · demo",
+        external_account_id="demo-github",
+        status=Connection.Status.CONNECTED,
+        auth_strategy=Connection.AuthStrategy.MANAGED,
+        metadata={"demo": True},
+    )
 
     repositories = {
         name: create_repository(
             workspace=workspace,
-            github_connection=connections[Connection.Provider.GITHUB],
-            external_id=f"demo-repository-{index}",
+            github_connection=github,
+            # GitHub repository ids are numbers.
+            external_id=str(900_000 + index),
             full_name=name,
             clone_url=clone_url(name),
             default_branch=branch,
@@ -192,6 +182,9 @@ def seed_demo_data() -> None:
     ):
         finished_at = now - timedelta(days=days_ago)
         run = create_run_record(
+            task=create_task(repository=jobs[job_key].repository),
+            started_by=RunStart.SCHEDULE,
+            execution_plan=build_execution_plan(jobs[job_key]).stored(),
             job=jobs[job_key],
             status=status,
             commit_sha=jobs[job_key].repository.config_sha,

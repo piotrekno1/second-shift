@@ -70,6 +70,10 @@ def duration_seconds(value: str) -> int:
     return int(match.group(1)) * DURATION_UNITS[match.group(2)]
 
 
+# Used when a job sets repeat_key without repeat_window.
+REPEAT_WINDOW_DEFAULT = "1h"
+
+
 class WebhookManifest(BaseModel):
     """Which webhook requests start a run. Field names are the sender's."""
 
@@ -91,6 +95,11 @@ class WebhookManifest(BaseModel):
         if not 0 < seconds <= REPEAT_WINDOW_MAX_SECONDS:
             raise ValueError("must be between 1m and 7d")
         return value
+
+    @property
+    def window(self) -> str:
+        """How long repeats are skipped, as written in the manifest."""
+        return self.repeat_window or REPEAT_WINDOW_DEFAULT
 
     @model_validator(mode="after")
     def validate_window_has_key(self) -> Self:
@@ -297,16 +306,6 @@ def field_path(item: ErrorDetails) -> str:
 
 
 def manifest_hash(job: JobManifest) -> str:
-    # Jobs keep the hash they had before these optional fields existed.
-    unset = {"triggers"} if not job.triggers else set()
-    if not job.open_pull_request:
-        unset.add("open_pull_request")
-    if job.open_issues is None:
-        unset.add("open_issues")
-    if job.webhook is None:
-        unset.add("webhook")
-    if not job.subagents:
-        unset.add("subagents")
-    data = job.model_dump(exclude=unset or None)
+    data = job.model_dump()
     canonical = json.dumps(data, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(canonical.encode()).hexdigest()

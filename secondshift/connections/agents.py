@@ -3,21 +3,22 @@
 import json
 import logging
 import uuid
-from typing import Any
 
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.db import transaction
 from django.utils import timezone
+from pydantic import ValidationError
 
-from secondshift.config.constants import AgentBackend, AgentOutcome
+from secondshift.config.constants import AgentBackend
 from secondshift.connections.dao import (
     count_cleanup_attempt,
     pending_cleanups,
     queue_cleanup,
 )
 from secondshift.connections.models import AgentConnection, AgentCredentialCleanup
-from secondshift.runner.agent_credentials import encrypt_agent_auth
+from secondshift.runner.agent_image.outcomes import AgentOutcome
+from secondshift.runner.agent_protocol import AgentCheckInput
 from secondshift.runner.client import get_runner_client
 from secondshift.runner.protocol import RunnerProtocolError
 from secondshift.workspaces.dao import is_owner
@@ -80,9 +81,7 @@ def save_agent_connection(
         raise AgentConnectionError("Only the login's owner can reconnect it.")
     if connection.backend != backend:
         raise AgentConnectionError("The agent backend cannot change during reconnect.")
-    connection.display_name = (
-        display_name.strip() or AgentBackend(backend).name.replace("_", " ").title()
-    )
+    connection.display_name = display_name.strip() or product_name(backend)
     connection.auth_data = cleaned
     connection.credential_key = uuid.uuid4()
     connection.connected = True
@@ -105,7 +104,7 @@ def reconnect_agent_connection(
         raise AgentConnectionError("The agent backend cannot change during reconnect.")
     with transaction.atomic():
         # Saving the new login gives it a new key, so runs stop using the old one.
-        cleanup = queue_credential_cleanup(connection)
+        cleanup = queue_cleanup(connection)
         connection = save_agent_connection(
             connection.workspace, owner, backend, display_name, auth, connection
         )
@@ -122,12 +121,8 @@ def disconnect_agent_connection(connection: AgentConnection) -> bool:
         connection.connected = False
         connection.auth_data = ""
         connection.save(update_fields=["connected", "auth_data", "updated_at"])
-        cleanup = queue_credential_cleanup(connection)
+        cleanup = queue_cleanup(connection)
     return remove_cached_credentials(cleanup)
-
-
-def queue_credential_cleanup(connection: AgentConnection) -> AgentCredentialCleanup:
-    return queue_cleanup(connection)
 
 
 def remove_cached_credentials(cleanup: AgentCredentialCleanup) -> bool:
@@ -184,29 +179,25 @@ def check_agent_connection(connection: AgentConnection) -> AgentConnection:
     """
     if not connection.connected:
         raise AgentConnectionError("Reconnect this login before checking it.")
+    client = get_runner_client()
     try:
-        client = get_runner_client()
-        key = client.response_payload(client.send("GET", "/v1/agent-provisioning-key"))
-        response = client.send(
-            "POST",
-            "/v1/agent-checks",
-            # The runner stops the CLI after its own limit. This covers startup.
-            timeout=28,
-            json={
-                "backend": connection.backend,
-                "credential_key": connection.credential_key.hex,
-                "auth": encrypt_agent_auth(
-                    str(key["public_key"]), connection.auth_data
-                ),
-            },
+        check_input = AgentCheckInput(
+            backend=connection.backend,
+            credential_key=connection.credential_key.hex,
+            auth=client.encrypted_auth(connection.auth_data),
         )
-        result: dict[str, Any] = client.response_payload(response)
+    except ValidationError:
+        raise AgentConnectionError(
+            "This login is larger than the runner accepts. Sign in again."
+        ) from None
+    try:
+        result = client.check_agent(check_input)
     except RunnerProtocolError:
         raise AgentConnectionError(
             "The runner could not check the login now. It may be running a job "
             "with it. Try again in a moment."
         ) from None
-    reason = str(result.get("reason", ""))
+    reason = result.reason
     ok, message = CHECK_RESULTS.get(reason, CHECK_FAILED)
     connection.last_check = {
         "ok": ok,

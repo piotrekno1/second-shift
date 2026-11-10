@@ -16,14 +16,19 @@ from typing import Any
 
 from secondshift.runner.agent_image.claude import claude, read_claude
 from secondshift.runner.agent_image.codex import codex, read_codex
-from secondshift.runner.agent_image.outcomes import AgentOutcome, Outcome, usage_budget
+from secondshift.runner.agent_image.outcomes import (
+    AgentConfig,
+    AgentOutcome,
+    Outcome,
+    usage_budget,
+)
 
 MAX_CONFIG_BYTES = 512 * 1024
 MAX_EVENT_BYTES = 1024 * 1024
 
 
 # The command and extra environment for one CLI.
-Start = Callable[[dict[str, Any]], tuple[list[str], dict[str, str]]]
+Start = Callable[[AgentConfig], tuple[list[str], dict[str, str]]]
 # Updates the outcome from one CLI event.
 Read = Callable[[dict[str, Any], Outcome], None]
 BACKENDS: dict[str, tuple[str, Start, Read]] = {
@@ -71,7 +76,7 @@ def version(binary: str) -> str:
     return found.stdout.strip()[:100] or "unknown"
 
 
-def run(config: dict[str, Any]) -> dict[str, Any]:
+def run(config: AgentConfig) -> dict[str, Any]:
     binary, start, read = BACKENDS[config["backend"]]
     argv, env = start(config)
     outcome = Outcome()

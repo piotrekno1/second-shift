@@ -3,10 +3,8 @@
 import hashlib
 import json
 import re
-from copy import deepcopy
 from dataclasses import dataclass
-from datetime import datetime
-from typing import Any, Self
+from typing import Self
 
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -14,9 +12,10 @@ from django.db import transaction
 from django.utils import timezone
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
 
-from secondshift.config.constants import COMMIT_SHA_PATTERN, RunStart, TaskOrigin
+from secondshift.config.constants import COMMIT_SHA_PATTERN, RunStart
 from secondshift.github.errors import GitHubError
 from secondshift.jobs.manifest import TaskManifest
+from secondshift.jobs.plan import PullRequestPlan
 from secondshift.jobs.planning import build_skill_execution_plan
 from secondshift.jobs.readiness import execution_problems
 from secondshift.repositories.dao import lock_repository
@@ -25,15 +24,14 @@ from secondshift.repositories.models import Repository
 from secondshift.repositories.skill_source import SkillSourceError, skill_commit
 from secondshift.runs.dao import (
     active_task_count,
-    create_run_record,
     create_task,
     find_submitted_task,
     first_attempt,
 )
+from secondshift.runs.inputs import RunInput
 from secondshift.runs.models import Run
 from secondshift.runs.orchestration.dispatch import enqueue_run
-from secondshift.runs.publishing import record_pending_pull_request
-from secondshift.runs.services import RunNotReady, RunRefused
+from secondshift.runs.services import RunNotReady, RunRefused, create_attempt
 
 
 class SkillSubmission(BaseModel):
@@ -84,13 +82,6 @@ class SubmissionResult:
 
 def submission_fingerprint(submission: SkillSubmission, user: User) -> str:
     data = submission.model_dump(mode="json", exclude={"idempotency_key"})
-    # Keep retries of pre-queue submissions compatible with their saved hash.
-    if submission.not_before is None:
-        data.pop("not_before")
-    if not submission.pull_request:
-        data.pop("pull_request")
-    if not submission.definition.subagents:
-        data["definition"].pop("subagents")
     data["submitted_by"] = user.pk
     return hashlib.sha256(json.dumps(data, sort_keys=True).encode()).hexdigest()
 
@@ -99,11 +90,11 @@ def admission(
     repository: Repository, submission: SkillSubmission, fingerprint: str
 ) -> SubmissionResult | None:
     """Called with the repository row locked, before and after source access."""
-    if not repository.enabled or repository.removed_at is not None:
+    if not repository.accepts_runs:
         raise RunRefused("Enable the repository before submitting a task.")
     task = find_submitted_task(repository.pk, submission.idempotency_key)
     if task is not None:
-        if task.input_snapshot.get("submission_fingerprint") != fingerprint:
+        if task.fingerprint != fingerprint:
             raise RunRefused(
                 "This idempotency key was already used for a different submission."
             )
@@ -121,28 +112,25 @@ def admission(
 
 def pull_request_plan(
     repository: Repository, submission: SkillSubmission
-) -> dict[str, Any] | None:
+) -> PullRequestPlan | None:
     """The draft's base is the requested branch, else the followed one."""
     if not submission.pull_request:
         return None
-    if (
-        repository.source_type != Repository.SourceType.GITHUB
-        or not repository.allow_pull_requests
-    ):
+    if not repository.receives_pull_requests:
         raise RunRefused("This repository does not allow tasks to open pull requests.")
     revision = submission.revision
     is_branch = revision and not re.fullmatch(COMMIT_SHA_PATTERN, revision)
-    return {
-        "base": revision if is_branch else repository.default_branch,
-        "run_ci": repository.pull_request_ci,
-    }
+    return PullRequestPlan(
+        base=revision if is_branch else repository.default_branch,
+        run_ci=repository.pull_request_ci,
+    )
 
 
 def submit_skill(
     repository: Repository,
     submission: SkillSubmission,
     user: User,
-    origin: TaskOrigin,
+    started_by: RunStart,
 ) -> SubmissionResult:
     if repository.pk != submission.repository_id:
         raise RunRefused("The submission does not match the selected repository.")
@@ -174,35 +162,26 @@ def submit_skill(
             commit_sha=commit,
             pull_request=pull_request_plan(repository, submission),
         )
-        if not plan["ready"]:
+        if not plan.ready:
             raise RunNotReady(execution_problems(repository, plan))
-        snapshot = {
-            "name": submission.definition.name,
-            "skill_path": submission.definition.skill,
-            "config_hash": plan["job"]["config_hash"],
-            "definition": submission.definition.model_dump(mode="json"),
-            "submission_input": submission.input,
-            "requested_revision": submission.revision,
-            "submission_fingerprint": fingerprint,
-        }
-        scheduled_for: datetime = submission.not_before or timezone.now()
         task = create_task(
             repository=repository,
             submission_key=submission.idempotency_key,
-            origin=origin,
+            fingerprint=fingerprint,
             submitted_by=user,
-            commit_sha=commit,
-            input_snapshot=deepcopy(snapshot),
-            scheduled_for=scheduled_for,
         )
-        run = create_run_record(
-            task=task,
-            started_by=RunStart.MANUAL,
+        run = create_attempt(
+            task,
+            plan,
+            RunInput(
+                name=submission.definition.name,
+                definition=submission.definition.model_dump(mode="json"),
+                submission_input=submission.input,
+                requested_revision=submission.revision,
+            ),
+            started_by=started_by,
             commit_sha=commit,
-            input_snapshot=snapshot,
-            execution_plan=plan,
-            scheduled_for=scheduled_for,
+            scheduled_for=submission.not_before or timezone.now(),
         )
-        record_pending_pull_request(run)
         transaction.on_commit(lambda: enqueue_run(run))
     return SubmissionResult(run, True)

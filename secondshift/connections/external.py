@@ -10,6 +10,7 @@ from typing import Any, Protocol
 
 from asgiref.sync import async_to_sync
 
+from secondshift.connections.access import Access, AccessReason
 from secondshift.connections.errors import ExternalToolError
 from secondshift.connections.http_api.client import (
     build_request,
@@ -24,23 +25,11 @@ from secondshift.connections.mcp.client import (
 from secondshift.connections.mcp.oauth import fresh_connection
 from secondshift.connections.mcp.providers import (
     MCP_PROVIDERS,
-    connection_settings,
     mcp_provider,
 )
 from secondshift.connections.models import Connection
 from secondshift.connections.outbound import host_label
-from secondshift.repositories.models import Repository
-
-
-@dataclass(frozen=True)
-class Access:
-    """What a job could reach through a connection, in plain words."""
-
-    ok: bool
-    scope: str | None
-    text: str
-    # The plan's reason code when the job cannot use the connection.
-    reason: str = ""
+from secondshift.connections.repository_ref import RepositoryRef
 
 
 @dataclass(frozen=True)
@@ -55,11 +44,11 @@ class Authorization:
     name_prefix: str
     scope_label: str
     # The run's repository. Connections that borrow its source need it.
-    repository: Repository | None = None
+    repository: RepositoryRef | None = None
 
 
 class ExternalKind(Protocol):
-    def access(self, connection: Connection, repository: Repository) -> Access: ...
+    def access(self, connection: Connection, repository: RepositoryRef) -> Access: ...
 
     def freeze(
         self, connection: Connection, scope: str, tools: set[str]
@@ -69,7 +58,7 @@ class ExternalKind(Protocol):
         self,
         connection: Connection,
         frozen: dict[str, Any],
-        repository: Repository,
+        repository: RepositoryRef,
         tool: str,
     ) -> Authorization: ...
 
@@ -79,7 +68,7 @@ class ExternalKind(Protocol):
 
 
 def frozen_tools(connection: Connection, tools: set[str]) -> dict[str, Any]:
-    definitions = connection.metadata.get("tools", {})
+    definitions = connection.tool_definitions
     return {name: definitions.get(name) for name in sorted(tools)}
 
 
@@ -87,22 +76,22 @@ def frozen_definition(
     connection: Connection, frozen: dict[str, Any], tool: str, noun: str
 ) -> dict[str, Any]:
     definition = frozen.get("tools", {}).get(tool)
-    if not definition or definition != connection.metadata.get("tools", {}).get(tool):
+    if not definition or definition != connection.tool_definitions.get(tool):
         raise ExternalToolError(f"The {noun} definition changed. Start a new run.")
     return definition
 
 
 class MCPKind:
-    def access(self, connection: Connection, repository: Repository) -> Access:
+    def access(self, connection: Connection, repository: RepositoryRef) -> Access:
         provider = MCP_PROVIDERS.get(connection.provider)
         if provider is None:
             return Access(
                 False,
                 None,
                 "This MCP provider is not supported.",
-                "mcp_provider_unsupported",
+                AccessReason.MCP_PROVIDER_UNSUPPORTED,
             )
-        scope = provider.scope(connection_settings(connection), repository)
+        scope = provider.scope(connection.settings, repository)
         if not scope:
             return Access(
                 False,
@@ -112,7 +101,10 @@ class MCPKind:
             )
         if borrows_source(connection) and not provider.source_reachable(repository):
             return Access(
-                False, None, provider.missing_source_message, "mcp_source_missing"
+                False,
+                None,
+                provider.missing_source_message,
+                AccessReason.MCP_SOURCE_MISSING,
             )
         return Access(
             True,
@@ -135,7 +127,7 @@ class MCPKind:
         self,
         connection: Connection,
         frozen: dict[str, Any],
-        repository: Repository,
+        repository: RepositoryRef,
         tool: str,
     ) -> Authorization:
         # Signed-in connections renew their token here, before the checks below.
@@ -144,8 +136,7 @@ class MCPKind:
         if (
             frozen.get("provider") != provider.key
             or not frozen.get("scope")
-            or frozen["scope"]
-            != provider.scope(connection_settings(connection), repository)
+            or frozen["scope"] != provider.scope(connection.settings, repository)
         ):
             raise ExternalToolError(
                 f"The job {provider.scope_label} scope changed. Start a new run."
@@ -175,15 +166,15 @@ class MCPKind:
 
 
 class APIKind:
-    def access(self, connection: Connection, repository: Repository) -> Access:
+    def access(self, connection: Connection, repository: RepositoryRef) -> Access:
         del repository
-        base_url = connection.metadata.get("base_url")
+        base_url = connection.endpoint_url
         if not base_url:
             return Access(
                 False,
                 None,
                 "This API connection has no base URL.",
-                "api_base_url_unknown",
+                AccessReason.API_BASE_URL_UNKNOWN,
             )
         host = host_label(base_url)
         return Access(
@@ -196,7 +187,7 @@ class APIKind:
         self, connection: Connection, scope: str, tools: set[str]
     ) -> dict[str, Any]:
         return {
-            "base_url": connection.metadata.get("base_url", ""),
+            "base_url": connection.endpoint_url,
             "scope": scope,
             "tools": frozen_tools(connection, tools),
         }
@@ -205,7 +196,7 @@ class APIKind:
         self,
         connection: Connection,
         frozen: dict[str, Any],
-        repository: Repository,
+        repository: RepositoryRef,
         tool: str,
     ) -> Authorization:
         del repository
@@ -243,7 +234,7 @@ def external_kind(kind: str) -> ExternalKind:
         raise ExternalToolError("This external tool is not supported.") from None
 
 
-def external_access(connection: Connection, repository: Repository) -> Access | None:
+def external_access(connection: Connection, repository: RepositoryRef) -> Access | None:
     """None for connections that are not external tools, such as webhooks."""
     adapter = EXTERNAL_KINDS.get(connection.kind)
     return adapter.access(connection, repository) if adapter else None
@@ -261,7 +252,7 @@ def changing_tools(connection: Connection, tools: list[str]) -> list[str]:
             return []
     elif connection.kind != Connection.Kind.API:
         return []
-    offered = connection.metadata.get("offered_tools") or {}
+    offered = connection.offered_tools
     return [
         name for name in tools if name in offered and not offered[name].get("readOnly")
     ]

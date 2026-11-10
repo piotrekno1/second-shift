@@ -1,4 +1,5 @@
 import json
+from collections.abc import Callable
 from types import SimpleNamespace
 from typing import Any
 
@@ -148,16 +149,16 @@ def test_openai_check_reports_rejected_key(
     created = create(client, provider="openai")
     seen: list[dict[str, Any]] = []
 
-    def fake_get(url: str, **kwargs: Any) -> SimpleNamespace:
-        seen.append({"url": url, **kwargs})
-        return SimpleNamespace(status_code=401)
+    def handle(request: httpx.Request) -> httpx.Response:
+        seen.append({"url": str(request.url)})
+        return httpx.Response(401)
 
     monkeypatch.setattr(
         model_providers,
         "validate_outbound_url",
         lambda url, noun: url,
     )
-    monkeypatch.setattr(httpx, "get", fake_get)
+    fake_client(monkeypatch, handle)
 
     response = client.post(f"/api/connections/{created.json()['id']}/test")
 
@@ -197,14 +198,22 @@ class FakeResponse:
         self.status_code = status_code
         self.body = body
 
-    def json(self) -> Any:
-        return self.body
+
+def fake_client(
+    monkeypatch: pytest.MonkeyPatch,
+    handle: Callable[[httpx.Request], httpx.Response],
+) -> None:
+    monkeypatch.setattr(
+        model_providers,
+        "outbound_sync_client",
+        lambda: httpx.Client(transport=httpx.MockTransport(handle)),
+    )
 
 
 def compatible_provider(
     client: Client, monkeypatch: pytest.MonkeyPatch, **body: Any
 ) -> int:
-    # Creating validates the URL; skip the DNS lookup in tests.
+    # Creating validates the URL. Skip the DNS lookup in tests.
     monkeypatch.setattr(model_providers, "validate_outbound_url", lambda url, noun: url)
     return create(
         client,
@@ -219,19 +228,22 @@ def fake_provider(
 ) -> list[dict[str, Any]]:
     posts: list[dict[str, Any]] = []
     monkeypatch.setattr(model_providers, "validate_outbound_url", lambda url, noun: url)
-    monkeypatch.setattr(
-        httpx,
-        "get",
-        lambda url, **kwargs: FakeResponse(
-            200, {"data": [{"id": "anthropic/claude-haiku-5.5"}]}
-        ),
-    )
 
-    def fake_post(url: str, **kwargs: Any) -> FakeResponse:
-        posts.append({"url": url, **kwargs})
-        return call
+    def handle(request: httpx.Request) -> httpx.Response:
+        if request.method == "GET":
+            return httpx.Response(
+                200, json={"data": [{"id": "anthropic/claude-haiku-5.5"}]}
+            )
+        posts.append(
+            {
+                "url": str(request.url),
+                "json": json.loads(request.content),
+                "headers": request.headers,
+            }
+        )
+        return httpx.Response(call.status_code, json=call.body)
 
-    monkeypatch.setattr(httpx, "post", fake_post)
+    fake_client(monkeypatch, handle)
     return posts
 
 
@@ -241,7 +253,7 @@ def test_check_catches_a_key_that_lists_models_but_cannot_run_them(
     monkeypatch: pytest.MonkeyPatch,
     owner: tuple[AbstractUser, Workspace],
 ) -> None:
-    # OpenRouter lets any key list models; only a real call shows it is unusable.
+    # OpenRouter lets any key list models. Only a real call shows it is unusable.
     client.force_login(owner[0])
     connection_id = compatible_provider(client, monkeypatch)
     posts = fake_provider(
@@ -260,7 +272,6 @@ def test_check_catches_a_key_that_lists_models_but_cannot_run_them(
     assert call["json"]["model"] == "anthropic/claude-haiku-5.5"
     assert call["json"]["max_tokens"] == 16
     assert call["headers"]["Authorization"] == f"Bearer {KEY}"
-    assert call["follow_redirects"] is False
     listed = client.get("/api/connections").json()[0]
     assert listed["last_check"]["ok"] is False
     assert "User not found." in listed["last_check"]["message"]

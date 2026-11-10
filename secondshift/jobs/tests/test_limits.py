@@ -6,23 +6,25 @@ from django.test import Client
 from django.utils import timezone
 from pydantic import ValidationError
 
+from secondshift.config.constants import RunStart
 from secondshift.connections.models import Connection
 from secondshift.gateway.models import RunToken
-from secondshift.gateway.tokens import issue_run_token
-from secondshift.jobs.limits import (
-    LIMIT_SPECS,
-    LimitError,
-    RunLimit,
-    effective_limits,
-    validate_overrides,
-)
+from secondshift.jobs.limits import effective_limits
 from secondshift.jobs.manifest import RepositoryManifest
 from secondshift.jobs.models import Job
 from secondshift.jobs.planning import build_execution_plan
 from secondshift.jobs.tests.test_planning import create_job
-from secondshift.runs.execution.budgets import Budget, budget_summary
-from secondshift.runs.models import Run
+from secondshift.runs.dao import create_task
+from secondshift.runs.execution.budgets import Budget, budget_failure, budget_reason
+from secondshift.runs.execution.model_gateway import issue_run_token
+from secondshift.runs.models import Run, RunFailure
 from secondshift.workspaces.dao import workspace_owner
+from secondshift.workspaces.limits import (
+    LIMIT_SPECS,
+    LimitError,
+    RunLimit,
+    validate_overrides,
+)
 from secondshift.workspaces.models import WorkspaceMembership
 
 
@@ -103,7 +105,7 @@ def test_the_plan_freezes_every_limit(job: Job) -> None:
     job.timeout_seconds = 1800
     job.save()
 
-    limits = build_execution_plan(job)["agent"]["limits"]
+    limits = build_execution_plan(job).stored()["agent"]["limits"]
 
     assert limits["token_budget"] == 3_000_000
     assert limits["timeout_seconds"] == 1800
@@ -232,11 +234,13 @@ def test_the_gateway_token_uses_the_frozen_budget(job: Job) -> None:
     job.token_budget = 7_000_000
     job.save()
     run = Run.objects.create(
+        task=create_task(repository=job.repository),
+        started_by=RunStart.SCHEDULE,
         job=job,
         commit_sha="abc",
         scheduled_for=timezone.now(),
         started_at=timezone.now(),
-        execution_plan=build_execution_plan(job),
+        execution_plan=build_execution_plan(job).stored(),
     )
     job.token_budget = None
     job.save()
@@ -250,12 +254,16 @@ def test_the_gateway_token_uses_the_frozen_budget(job: Job) -> None:
 @pytest.mark.django_db
 def test_a_run_stopped_by_a_limit_says_so(client: Client, job: Job) -> None:
     run = Run.objects.create(
+        task=create_task(repository=job.repository),
+        started_by=RunStart.SCHEDULE,
         job=job,
         commit_sha="abc",
         scheduled_for=timezone.now(),
         status=Run.Status.FAILED,
-        summary=budget_summary(Budget.TOKENS, 2_000_000),
-        execution_plan=build_execution_plan(job),
+        summary=budget_failure(Budget.TOKENS, 2_000_000).summary,
+        failure=RunFailure.BUDGET,
+        failure_reason=budget_reason(Budget.TOKENS, 2_000_000),
+        execution_plan=build_execution_plan(job).stored(),
     )
     client.force_login(workspace_owner(job.workspace))
 
@@ -268,7 +276,7 @@ def test_a_run_stopped_by_a_limit_says_so(client: Client, job: Job) -> None:
 
 
 def test_a_limit_at_the_maximum_points_to_the_server(ceilings: Any) -> None:
-    summary = budget_summary(Budget.TOOL_CALLS, 64)
+    summary = budget_failure(Budget.TOOL_CALLS, 64).summary
 
     assert summary.endswith(
         "That is the server maximum. Whoever runs this server can raise it."
