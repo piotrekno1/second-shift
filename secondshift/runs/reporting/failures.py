@@ -18,8 +18,6 @@ STAGE_FAILURES: dict[str, str] = {
     RunFailure.FINISHING: "The run could not be recorded",
 }
 MAX_DETAIL_CHARS = 300
-TOOL_RULE_PREFIX = "Blocked by a tool restriction: "
-MODEL_PROVIDER_PREFIX = "The model provider answered "
 TOOL_RULE_NEXT_STEP = (
     "The model used a tool in a way the job's access review does not allow. "
     "Change the restriction or the skill, then run again."
@@ -68,14 +66,19 @@ def one_line(text: str) -> str:
     return line
 
 
+def provider_reply(error: ModelHTTPError, separator: str) -> str:
+    """`HTTP 401: User not found.`, or `HTTP 401.` when the body says nothing."""
+    message = provider_message(error.body)
+    reply = f"HTTP {error.status_code}"
+    return one_line(f"{reply}{separator}{message}" if message else f"{reply}.")
+
+
 def failure_detail(error: BaseException) -> str:
     if isinstance(error, ModelHTTPError):
-        message = provider_message(error.body)
-        reply = f"The model provider answered HTTP {error.status_code}"
-        return one_line(f"{reply}: {message}" if message else f"{reply}.")
+        return one_line(f"The model provider answered {provider_reply(error, ': ')}")
     if isinstance(error, ToolRuleViolation):
         # Names the argument and the rule, never the value the model sent.
-        return one_line(f"{TOOL_RULE_PREFIX}{error}")
+        return one_line(f"Blocked by a tool restriction: {error}")
     if isinstance(error, SHOWN_ERROR_TYPES) and str(error).strip():
         return one_line(str(error))
     # SecondShift writes these for people. Request errors may quote the
@@ -98,15 +101,15 @@ class StageFailure:
 
 def stage_failure(stage: RunFailure, error: BaseException) -> StageFailure:
     """What a workflow error at this stage means for the run."""
-    detail = failure_detail(root_error(error))
+    root = root_error(error)
+    detail = failure_detail(root)
     summary = f"{STAGE_FAILURES[stage]}: {detail}"
-    if detail.startswith(MODEL_PROVIDER_PREFIX):
-        # "HTTP 401: User not found." reads better as "HTTP 401 · User not found."
-        reason = detail.removeprefix(MODEL_PROVIDER_PREFIX).replace(": ", " · ", 1)
+    if isinstance(root, ModelHTTPError):
+        # model_provider_next_step reads the status from the start of this.
+        reason = provider_reply(root, " · ")
         return StageFailure(RunFailure.MODEL_PROVIDER, reason, summary)
-    if detail.startswith(TOOL_RULE_PREFIX):
-        reason = detail.removeprefix(TOOL_RULE_PREFIX)
-        return StageFailure(RunFailure.TOOL_RULE, reason, summary)
+    if isinstance(root, ToolRuleViolation):
+        return StageFailure(RunFailure.TOOL_RULE, one_line(str(root)), summary)
     return StageFailure(stage, detail, summary)
 
 
