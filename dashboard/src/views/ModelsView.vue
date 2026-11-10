@@ -337,12 +337,12 @@ onMounted(async () => {
 <style scoped>
 .model-start { padding: 20px; margin-bottom: 16px; }
 .model-start-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin-top: 16px; }
-.model-start-options button { display: grid; gap: 8px; justify-items: start; align-content: start; padding: 16px; border: 1px solid var(--border); border-radius: 10px; background: transparent; color: var(--ink); text-align: left; cursor: pointer; }
+.model-start-options button { display: grid; gap: 8px; justify-items: start; align-content: start; padding: 16px; border: 1px solid var(--border); border-radius: var(--radius-md); background: transparent; color: var(--ink); text-align: left; cursor: pointer; }
 .model-start-options button:hover:not(:disabled) { border-color: var(--ink); }
 .model-start-options button:disabled { cursor: not-allowed; opacity: 0.55; }
-.model-start-options strong { font-size: 14px; font-weight: 600; }
-.model-start-options span { color: var(--muted); font-size: 12px; line-height: 1.6; }
-.model-start-note, .model-note { margin: 12px 0 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.model-start-options strong { font-size: var(--text-md); font-weight: 600; }
+.model-start-options span { color: var(--muted); font-size: var(--text-xs); line-height: 1.6; }
+.model-start-note, .model-note { margin: 12px 0 0; color: var(--muted); font-size: var(--text-xs); line-height: 1.6; }
 .model-note summary { cursor: pointer; }
 .run-limit { border-left: 1px solid var(--border); }
 .run-limit label { display: inline-flex; align-items: center; gap: 8px; }

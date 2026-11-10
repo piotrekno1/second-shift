@@ -92,7 +92,7 @@ onUnmounted(directories.reset)
   width: min(600px, calc(100vw - 32px));
   max-height: calc(100dvh - 32px);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   background: var(--night-900);
   color: var(--ink);
   box-shadow: 0 28px 90px rgba(0, 0, 0, .5);
@@ -102,7 +102,7 @@ onUnmounted(directories.reset)
 }
 .local-directory-picker .p-dialog-title {
   font-family: var(--font-sans);
-  font-size: 16px;
+  font-size: var(--text-lg);
   letter-spacing: -.025em;
 }
 .local-directory-picker .p-dialog-content {
@@ -111,7 +111,7 @@ onUnmounted(directories.reset)
 .local-directory-picker .directory-description {
   margin: 0 0 20px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-xs);
   line-height: 1.6;
 }
 .local-directory-picker .directory-location {
@@ -121,7 +121,7 @@ onUnmounted(directories.reset)
   margin-bottom: 12px;
   padding: 8px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--night-950);
 }
 .local-directory-picker .directory-location > div {
@@ -137,11 +137,11 @@ onUnmounted(directories.reset)
 .local-directory-picker .directory-label {
   color: var(--subtle);
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--text-xs);
 }
 .local-directory-picker code {
   color: var(--ink);
-  font-size: 12px;
+  font-size: var(--text-xs);
   overflow-wrap: anywhere;
 }
 .local-directory-picker .directory-list {
@@ -149,7 +149,7 @@ onUnmounted(directories.reset)
   overflow-y: auto;
   padding: 4px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: rgba(0, 0, 0, .45);
   scrollbar-width: thin;
   scrollbar-color: var(--night-750) transparent;
@@ -162,7 +162,7 @@ onUnmounted(directories.reset)
   min-height: 42px;
   padding: 8px 12px;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--ink);
   text-align: left;
@@ -180,7 +180,7 @@ onUnmounted(directories.reset)
   flex: 1;
   min-width: 0;
   overflow-wrap: anywhere;
-  font-size: 12px;
+  font-size: var(--text-xs);
 }
 .local-directory-picker .directory-icon {
   color: var(--muted);
@@ -199,13 +199,13 @@ onUnmounted(directories.reset)
   margin: 0;
   padding: 24px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-xs);
   text-align: center;
   line-height: 1.7;
 }
 .local-directory-picker .directory-error {
   color: var(--danger);
-  font-size: 12px;
+  font-size: var(--text-xs);
   line-height: 1.6;
 }
 .local-directory-picker .p-dialog-footer {
@@ -216,7 +216,7 @@ onUnmounted(directories.reset)
 .local-directory-picker .directory-count {
   margin-right: auto;
   color: var(--subtle);
-  font-size: 11px;
+  font-size: var(--text-xs);
 }
 @media (max-width: 480px) {
   .local-directory-picker .p-dialog-header {

@@ -315,40 +315,40 @@ onUnmounted(stopPolling)
 </template>
 
 <style scoped>
-.run-queue-help { margin: 12px 0 0; color: var(--muted); font-size: 12px; }
+.run-queue-help { margin: 12px 0 0; color: var(--muted); font-size: var(--text-xs); }
 .run-queue-help a { display: inline-flex; align-items: center; gap: 4px; text-decoration: underline; text-underline-offset: 3px; }
 .run-detail-page :deep(.page-header > div:first-child) { min-width: 0; max-width: 100%; }
 .run-detail-page :deep(.page-header p) { overflow-wrap: anywhere; }
 .task-input-panel { padding: 20px 24px; }
-.task-input-panel > summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; list-style: none; color: var(--muted); font-size: 14px; font-weight: 500; cursor: pointer; }
+.task-input-panel > summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; list-style: none; color: var(--muted); font-size: var(--text-md); font-weight: 500; cursor: pointer; }
 .task-input-panel > summary::-webkit-details-marker { display: none; }
-.task-input-panel > summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 6px; border-radius: 3px; }
+.task-input-panel > summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 6px; border-radius: var(--radius-sm); }
 .task-input-panel .app-icon { flex: none; font-size: 14px; }
 .task-input-panel[open] > summary { color: var(--ink); }
 .task-input-panel[open] .app-icon { transform: rotate(90deg); }
-.task-instructions-meta { display: flex; align-items: center; gap: 12px; color: var(--subtle); font-size: 11px; font-weight: 400; }
-.task-instructions { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border); color: var(--muted); font-size: 13px; line-height: 1.75; overflow-wrap: anywhere; }
+.task-instructions-meta { display: flex; align-items: center; gap: 12px; color: var(--subtle); font-size: var(--text-xs); font-weight: 400; }
+.task-instructions { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border); color: var(--muted); font-size: var(--text-sm); line-height: 1.75; overflow-wrap: anywhere; }
 .task-instructions :deep(> :first-child) { margin-top: 0; }
 .task-instructions :deep(> :last-child) { margin-bottom: 0; }
-.task-instructions :deep(h1), .task-instructions :deep(h2), .task-instructions :deep(h3) { color: var(--ink); font-size: 15px; font-weight: 500; }
+.task-instructions :deep(h1), .task-instructions :deep(h2), .task-instructions :deep(h3) { color: var(--ink); font-size: var(--text-md); font-weight: 500; }
 .run-files-panel { display: grid; gap: 12px; }
-.run-file-line { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; font-size: 13px; overflow-wrap: anywhere; }
+.run-file-line { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; font-size: var(--text-sm); overflow-wrap: anywhere; }
 .run-saved-files { display: grid; gap: 8px; margin: 0; padding: 12px 0 0; border-top: 1px solid var(--border); list-style: none; }
 .run-files-changes + .run-saved-files { margin-top: 4px; }
-.run-changed-files { margin-top: 8px; font-size: 12px; }
+.run-changed-files { margin-top: 8px; font-size: var(--text-xs); }
 .run-changed-files summary { color: var(--muted); cursor: pointer; }
 .run-changed-files ul { display: grid; gap: 4px; margin: 8px 0 0; padding-left: 16px; }
-.run-skipped-file { margin: 0; font-size: 12px; }
+.run-skipped-file { margin: 0; font-size: var(--text-xs); }
 .run-delivery + .run-delivery { margin-top: 6px; }
 .run-delivery-status.delivered { color: var(--mint); }
 .run-delivery-status.failed { color: var(--danger); }
 .run-delivery-status.retrying { color: var(--amber); }
 .run-delivery-status.pending, .run-delivery-status.skipped { color: var(--subtle); }
-.run-delivery-reason { display: block; font-size: 12px; }
-.run-delivery-link { display: inline-flex; align-items: center; gap: 4px; margin-top: 2px; font-size: 12px; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+.run-delivery-reason { display: block; font-size: var(--text-xs); }
+.run-delivery-link { display: inline-flex; align-items: center; gap: 4px; margin-top: 2px; font-size: var(--text-xs); color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
 .run-delivery-link .app-icon { font-size: 12px; }
 .run-delivery-retry { margin-top: 6px; }
-.run-delivery-issues { margin: 4px 0 0; padding: 0; list-style: none; font-size: 12px; }
+.run-delivery-issues { margin: 4px 0 0; padding: 0; list-style: none; font-size: var(--text-xs); }
 .run-delivery-issues li + li { margin-top: 2px; }
 @media (max-width: 540px) { .task-input-panel { padding: 16px 20px; } }
 </style>

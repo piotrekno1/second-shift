@@ -10,6 +10,10 @@ import router from './router'
 
 // No brand accent: PrimeVue's own focus rings, checks and selections use neutral greys too.
 const Neutral = definePreset(Aura, {
+  // The same three radii as styles.css: 6px small, 8px controls, 12px cards and dialogs.
+  primitive: {
+    borderRadius: { none: '0', xs: '6px', sm: '6px', md: '8px', lg: '8px', xl: '12px' },
+  },
   semantic: {
     primary: {
       50: '{neutral.50}', 100: '{neutral.100}', 200: '{neutral.200}', 300: '{neutral.300}', 400: '{neutral.400}',

@@ -184,8 +184,8 @@ async function submit(): Promise<void> {
 
 <style scoped>
 .model-field { display: grid; min-width: 0; align-content: start; gap: 8px; }
-.model-field small { color: var(--muted); font-size: 11px; line-height: 1.5; }
+.model-field small { color: var(--muted); font-size: var(--text-xs); line-height: 1.5; }
 .model-field small.field-error { color: var(--danger); }
 .model-discovery { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 16px 0; border-top: 1px solid var(--border); }
-.model-discovery .field-error { flex-basis: 100%; margin: 0; color: var(--danger); font-size: 11px; }
+.model-discovery .field-error { flex-basis: 100%; margin: 0; color: var(--danger); font-size: var(--text-xs); }
 </style>

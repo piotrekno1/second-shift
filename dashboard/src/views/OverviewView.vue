@@ -236,6 +236,6 @@ const passRate = computed(() => {
 .recent-runs-panel .activity-row { padding: 14px 24px; border-radius: 0; }
 
 .activity-main > strong { display: flex; align-items: center; gap: 6px; min-width: 0; }
-.activity-main .activity-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); font-size: 13px; }
+.activity-main .activity-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); font-size: var(--text-sm); }
 .activity-main .activity-id { flex: none; }
 </style>
