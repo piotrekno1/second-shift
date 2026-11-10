@@ -37,7 +37,7 @@ export default createRouter({
   scrollBehavior(to, from, savedPosition) {
     if (savedPosition) return savedPosition
     if (to.hash) return { el: to.hash, top: 16, behavior: 'smooth' }
-    // Filter changes replace the query on the same page; keep the reader's place.
+    // Filter changes replace the query on the same page. Keep the reader's place.
     if (to.path === from.path) return false
     // Connections scrolls to the row a link names. Going to the top would undo that.
     if (to.path === '/connections' && (to.query.connection || to.query.binding)) return false

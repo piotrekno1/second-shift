@@ -58,7 +58,7 @@ def serialize_run(run: Run) -> RunSchema:
     budget_tokens = getattr(run, "model_budget_tokens", None) or 0
     if not api:
         usage = getattr(run, "agent_usage", None) or {}
-        # Codex input includes cached tokens; Claude reports cache input separately.
+        # Codex input includes cached tokens. Claude reports cache input separately.
         input_tokens = sum(
             usage.get(key, 0)
             for key in (

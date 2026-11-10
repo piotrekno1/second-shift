@@ -45,7 +45,7 @@ class ModelUsage(models.Model):
     output_tokens = models.PositiveBigIntegerField(default=0)
     cache_read_tokens = models.PositiveBigIntegerField(default=0)
     cache_write_tokens = models.PositiveBigIntegerField(default=0)
-    # USD at list price; null when the model has no known price.
+    # USD at list price. Null when the model has no known price.
     cost_usd = models.DecimalField(
         max_digits=14, decimal_places=8, null=True, blank=True
     )

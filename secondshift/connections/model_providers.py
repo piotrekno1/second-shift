@@ -179,7 +179,7 @@ def update_model_connection(
     elif connection.status == Connection.Status.REVOKED:
         raise ModelProviderError("Enter a new API key to reconnect this provider.")
     check_default_model(connection)
-    # A saved check result described the old settings; drop it.
+    # A saved check result described the old settings, so drop it.
     connection.metadata = {
         key: value for key, value in connection.metadata.items() if key != "last_check"
     }

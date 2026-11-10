@@ -360,7 +360,7 @@ class DockerRunnerService:
             *sandbox_flags(),
             "--network=none",
             "--tmpfs=/tmp:rw,noexec,nosuid,size=256m",
-            # Bind mounts are writable by default; Docker rejects a bare "rw" field.
+            # Bind mounts are writable by default. Docker rejects a bare "rw" field.
             f"--mount=type=bind,src={workspace},dst=/workspace",
             # Files the agent hands back. The runner collects them at the end.
             f"--mount=type=bind,src={workspace.parent / OUTPUTS_DIR},"

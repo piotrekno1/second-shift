@@ -184,7 +184,7 @@ async def read_payload(
         declared = int(request.headers.get("content-length") or 0)
     except ValueError:
         declared = 0
-    # The ASGI handler has already spooled the body; read it off the event loop.
+    # The ASGI handler has already spooled the body. Read it off the event loop.
     raw = (
         b""
         if declared > limit
@@ -257,7 +257,7 @@ async def send_upstream(
     connection = run_token.connection
     root = api_root(connection)
     try:
-        # Scheme and userinfo rules; the transport re-checks addresses on connect.
+        # Scheme and userinfo rules. The transport re-checks addresses on connect.
         validate_outbound_url(root, "provider URL", resolve=False)
     except OutboundUrlError as error:
         raise GatewayRefusal(family, 502, "api_error", str(error)) from error

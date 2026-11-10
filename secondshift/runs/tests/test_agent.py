@@ -61,7 +61,7 @@ def test_run_model_resolves_from_inside_an_event_loop(monkeypatch) -> None:
     context = SimpleNamespace(deps=SimpleNamespace(run_id=run.pk, deadline=LATER))
 
     # Pydantic AI awaits the resolver on its event loop, where Django forbids
-    # synchronous queries; this used to raise SynchronousOnlyOperation.
+    # synchronous queries. This used to raise SynchronousOnlyOperation.
     resolved = asyncio.run(agent.resolve_run_model(context, RUN_MODEL_ID))
     other = asyncio.run(agent.resolve_run_model(context, "some-other-model"))
 

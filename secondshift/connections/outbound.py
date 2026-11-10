@@ -233,7 +233,7 @@ class PinnedTransport(httpx.AsyncHTTPTransport):
 
     def __init__(self, limits: httpx.Limits = httpx.Limits()) -> None:
         super().__init__(trust_env=False, limits=limits)
-        # httpx has no public hook for the network backend; swap the pool it
+        # httpx has no public hook for the network backend. Swap the pool it
         # built for one that uses ours, with the same TLS and pool settings.
         self._pool = httpcore.AsyncConnectionPool(
             ssl_context=httpx.create_ssl_context(trust_env=False),

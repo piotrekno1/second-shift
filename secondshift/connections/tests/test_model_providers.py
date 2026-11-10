@@ -213,7 +213,7 @@ def fake_client(
 def compatible_provider(
     client: Client, monkeypatch: pytest.MonkeyPatch, **body: Any
 ) -> int:
-    # Creating validates the URL; skip the DNS lookup in tests.
+    # Creating validates the URL. Skip the DNS lookup in tests.
     monkeypatch.setattr(model_providers, "validate_outbound_url", lambda url, noun: url)
     return create(
         client,
@@ -253,7 +253,7 @@ def test_check_catches_a_key_that_lists_models_but_cannot_run_them(
     monkeypatch: pytest.MonkeyPatch,
     owner: tuple[AbstractUser, Workspace],
 ) -> None:
-    # OpenRouter lets any key list models; only a real call shows it is unusable.
+    # OpenRouter lets any key list models. Only a real call shows it is unusable.
     client.force_login(owner[0])
     connection_id = compatible_provider(client, monkeypatch)
     posts = fake_provider(

@@ -3,7 +3,7 @@ import { onMounted, onUnmounted } from 'vue'
 export const ACTIVE_MS = 3000
 export const IDLE_MS = 60000
 
-/** How long to wait before the next refresh; null means wait until the tab is visible again. */
+/** How long to wait before the next refresh. Null means wait until the tab is visible again. */
 export function refreshDelay(active: boolean, hidden: boolean): number | null {
   if (hidden) return null
   return active ? ACTIVE_MS : IDLE_MS
@@ -32,7 +32,7 @@ export function useLiveRefresh(load: () => Promise<unknown> | void, active: () =
     try {
       await load()
     } catch {
-      // The view shows its own load errors; keep refreshing.
+      // The view shows its own load errors. Keep refreshing.
     } finally {
       inFlight = false
       schedule()

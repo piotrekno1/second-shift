@@ -272,7 +272,7 @@ def test_runs_filter_by_period_and_sort_by_cost(
 
     assert old.pk not in ids(week) and old.pk in ids(month)  # type: ignore[attr-defined]
     assert week.json()["status_counts"].get("failed") is None
-    # Priced runs first, most expensive first; unpriced runs after them.
+    # Priced runs first, most expensive first. Unpriced runs after them.
     assert [item["id"] for item in by_cost[:3]] == [
         runs["triage_ok"].pk,  # type: ignore[attr-defined]
         runs["health_ok"].pk,  # type: ignore[attr-defined]

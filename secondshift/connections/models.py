@@ -63,7 +63,7 @@ class Connection(models.Model):
     )
     scopes = models.JSONField(default=list, blank=True)
     available_tools = models.JSONField(default=list, blank=True)
-    # Model providers only. Runs may call just these models; empty allows any.
+    # Model providers only. Runs may call just these models. Empty allows any.
     allowed_models = models.JSONField(default=list, blank=True)
     default_model = models.CharField(max_length=200, blank=True)
     auth_strategy = models.CharField(

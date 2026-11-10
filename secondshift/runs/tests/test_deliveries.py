@@ -185,7 +185,7 @@ def test_retrying_sends_the_stored_report_again(
     delivery.refresh_from_db()
     assert delivery.status == RunDelivery.Status.DELIVERED
     assert receiver.sent == [run.pk, run.pk]
-    # The agent did not run again; the run's outcome is unchanged.
+    # The agent did not run again. The run's outcome is unchanged.
     run.refresh_from_db()
     assert run.status == Run.Status.SUCCEEDED
 

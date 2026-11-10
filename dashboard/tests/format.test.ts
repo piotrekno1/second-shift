@@ -196,7 +196,7 @@ test('jobOutcomes summarizes finished runs and keeps active ones out of the rate
   ])
   assert.equal(outcomes.finished, 4)
   assert.equal(outcomes.successRate, 0.75)
-  // Successful runs only: 40s, 30s, 50s; costs 0.01 and 0.02 (one unpriced).
+  // Successful runs only: 40s, 30s, 50s. Costs 0.01 and 0.02 (one unpriced).
   assert.equal(outcomes.medianSeconds, 40)
   assert.ok(Math.abs((outcomes.averageCostUsd ?? 0) - 0.015) < 1e-9)
   assert.ok(Math.abs(outcomes.totalCostUsd - 0.03) < 1e-9)

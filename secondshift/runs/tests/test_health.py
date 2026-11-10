@@ -42,7 +42,7 @@ def add_run(
         scheduled_for=NOW - timedelta(minutes=minutes_ago),
         finished_at=NOW - timedelta(minutes=minutes_ago),
     )
-    # created_at is set on insert; move it to the run's own time.
+    # created_at is set on insert. Move it to the run's own time.
     Run.objects.filter(pk=run.pk).update(
         created_at=NOW - timedelta(minutes=minutes_ago)
     )

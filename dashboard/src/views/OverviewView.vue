@@ -22,7 +22,7 @@ import {
 
 const agentConnection = useAgentConnectionStore()
 const app = useAppStore()
-// While a run is active only its numbers change; otherwise refresh everything, since
+// While a run is active only its numbers change. Otherwise refresh everything, since
 // scheduled runs and job changes can happen in other tabs.
 const runActive = (): boolean => app.runs.some((run) => isRunActive(run.status))
 useLiveRefresh(() => (runActive() ? app.refreshRuns() : app.refresh()), runActive)
@@ -61,7 +61,7 @@ function closeAgentCard(): void {
   if (app.user?.workspace_slug) dismissAgentCard(localStorage, app.user.email, app.user.workspace_slug)
   agentCardClosed.value = true
 }
-// Soonest first; jobs without a next run (just enabled, not yet scheduled) go last.
+// Soonest first. Jobs without a next run (just enabled, not yet scheduled) go last.
 const upcoming = computed(() => app.jobs
   .filter((job) => job.enabled)
   .sort((a, b) => (a.next_run_at ?? '9999').localeCompare(b.next_run_at ?? '9999'))

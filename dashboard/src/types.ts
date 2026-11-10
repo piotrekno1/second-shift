@@ -61,7 +61,7 @@ export interface WorkspaceChoice {
 export interface SettingValue {
   label: string
   value: string
-  /** Environment variable that changes it; empty when it is fixed. */
+  /** Environment variable that changes it. Empty when it is fixed. */
   env: string
   help: string
 }
@@ -477,7 +477,7 @@ export interface Connection {
   available_tools: string[]
   /** Capability connections: whether each job's request waits for an owner. */
   require_approval: boolean
-  /** Redacted delivery target (host only); never the full URL. */
+  /** Redacted delivery target (host only). Never the full URL. */
   target: string
   allowed_models: string[]
   default_model: string
@@ -496,7 +496,7 @@ export interface Connection {
   auth?: 'oauth' | 'token' | 'app' | 'source' | ''
   /** MCP only: OAuth scopes the server granted. */
   scopes?: string[]
-  /** MCP only: scopes selected when signing in; required on refresh and reconnect. */
+  /** MCP only: scopes selected when signing in. Required on refresh and reconnect. */
   requested_scopes?: string[]
   /** Custom MCP servers: every tool the server offers. */
   offered_tools?: OfferedTool[]
@@ -508,7 +508,7 @@ export interface ConnectionUsage {
   runs_7d: number
   spend_7d_usd: number
   spend_partial: boolean
-  /** Last model call; services don't record individual calls. */
+  /** Last model call. Services don't record individual calls. */
   last_used_at: string | null
 }
 

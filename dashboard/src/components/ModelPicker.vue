@@ -11,7 +11,7 @@ const props = defineProps<{
   inputId: string
 }>()
 const model = defineModel<string | string[] | null>({ required: true })
-// Render both modes identically; single selection keeps only the latest chip.
+// Render both modes identically. Single selection keeps only the latest chip.
 const selectedModels = computed<string[]>({
   get: () => Array.isArray(model.value) ? model.value : model.value ? [model.value] : [],
   set: (values) => { model.value = props.multiple ? values : values.at(-1) ?? '' },

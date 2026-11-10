@@ -27,7 +27,6 @@ class RunSchema(Schema):
     repository: str
     status: str
     scheduled_for: datetime
-    # schedule, manual, webhook or mcp.
     started_by: RunStart
     started_at: datetime | None = None
     finished_at: datetime | None

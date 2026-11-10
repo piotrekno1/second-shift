@@ -59,7 +59,7 @@ const inputFile = computed(() => run.value?.files.find((file) => file.name === '
 const outputFile = computed(() => run.value?.files.find((file) => file.name === 'output') ?? null)
 const excerptOnly = computed(() => Boolean(run.value?.output_size_bytes && run.value.output_size_bytes > run.value.output_excerpt.length))
 const hasFiles = computed(() => Boolean(run.value && (run.value.changes || run.value.saved_files.length || run.value.skipped_files.length)))
-// Steps matter while a run is in progress or after it fails; on success they are routine.
+// Steps matter while a run is in progress or after it fails. On success they are routine.
 const timelineOpen = computed(() => run.value?.status !== 'succeeded')
 const activeNote = computed(() => {
   if (run.value?.status !== 'queued') return 'Running now · this page updates live'

@@ -71,7 +71,7 @@ def apply_openai_usage(usage: Usage, data: Any) -> None:
         token_count(details.get("cached_tokens")) if isinstance(details, dict) else None
     )
     cached = cached or 0
-    # OpenAI counts cached tokens inside the prompt; store them separately so
+    # OpenAI counts cached tokens inside the prompt. Store them separately so
     # totals match Anthropic's accounting.
     if prompt is not None:
         usage.input_tokens = max(prompt - cached, 0)

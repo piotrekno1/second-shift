@@ -115,8 +115,8 @@ class Run(models.Model):
         blank=True,
         related_name="runs",
     )
-    # The full report is in run_artifacts storage at output_path;
-    # only its metadata and the tail are kept here.
+    # The full report is in run_artifacts storage at output_path. Only its
+    # metadata and the tail are kept here.
     output_excerpt = models.TextField(blank=True)
     # The rendered input (instructions, prompt and the skill at its commit),
     # stored next to the output in run_artifacts.

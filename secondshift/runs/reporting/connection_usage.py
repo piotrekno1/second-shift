@@ -22,7 +22,7 @@ class ConnectionUsage:
     spend_7d_usd: Decimal = Decimal(0)
     # Some model calls had no known price, so spend is a lower bound.
     spend_partial: bool = False
-    # Last model call; services don't record individual calls.
+    # Last model call. Services don't record individual calls.
     last_used_at: datetime | None = None
 
 

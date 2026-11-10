@@ -287,7 +287,7 @@ function approve(need: CapabilityNeed): Promise<void> {
 function sendTest(connection: Connection, noticeKey: string): Promise<void> {
   return act(`test-${connection.id}`, noticeKey, async () => {
     const result = await testConnection(connection.id)
-    // Checks and deliveries are saved on the connection; refresh so its pill reflects the result.
+    // Checks and deliveries are saved on the connection. Refresh so its pill reflects the result.
     await app.refresh()
     if (!result.ok) throw new Error(result.message)
     if (connection.provider !== 'webhook') return result.message
@@ -295,7 +295,7 @@ function sendTest(connection: Connection, noticeKey: string): Promise<void> {
   }, 'Unable to send a test message')
 }
 
-// The row menu asks first; this runs from the confirm strip under the row.
+// The row menu asks first. This runs from the confirm strip under the row.
 async function disconnect(connection: Connection): Promise<void> {
   confirmRevoke.value = null
   return act(`revoke-${connection.id}`, `connection-${connection.id}`, async () => {

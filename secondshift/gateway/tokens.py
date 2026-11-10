@@ -60,7 +60,7 @@ async def aauthenticate(token: str) -> RunToken | None:
 
 
 def request_token(request: HttpRequest) -> str:
-    # Anthropic SDKs send x-api-key; OpenAI SDKs send a bearer token.
+    # Anthropic SDKs send x-api-key. OpenAI SDKs send a bearer token.
     if api_key := request.headers.get("x-api-key"):
         return api_key.strip()
     authorization = request.headers.get("authorization", "")
