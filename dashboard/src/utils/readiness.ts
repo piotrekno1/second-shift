@@ -176,3 +176,8 @@ export function setupSteps(state: SetupState): SetupStep[] | null {
   const steps = [codeStep(state), runnerStep(state), jobStep(state)]
   return steps.every((step) => step.done) ? null : steps
 }
+
+/** Connections opens the binding's form, then links back to the job's access review. */
+export function connectionSetupQuery(job: Pick<Job, 'id' | 'name'>, capability: Pick<Capability, 'binding'>): Record<string, string> {
+  return { binding: capability.binding, job: job.name, review: String(job.id) }
+}

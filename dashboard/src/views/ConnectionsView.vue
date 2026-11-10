@@ -29,8 +29,6 @@ const canTest = computed(() => app.can(Action.TestConnections))
 const route = useRoute()
 const router = useRouter()
 const requestedBinding = typeof route.query.binding === 'string' ? route.query.binding : null
-// A failed run links here with ?connection=<id> so its form opens ready to fix.
-const requestedConnection = typeof route.query.connection === 'string' ? Number(route.query.connection) : null
 const openForm = ref<OpenForm | null>(requestedBinding && canEdit.value ? { mode: 'need', binding: requestedBinding } : null)
 const busy = ref<string | null>(null)
 const confirmDelete = ref<number | null>(null)
@@ -325,15 +323,6 @@ async function checkAgain(): Promise<void> {
 }
 
 onMounted(async () => {
-  if (requestedConnection && connections.value.some((connection) => connection.id === requestedConnection)) {
-    if (canEdit.value) openForm.value = { mode: 'edit', id: requestedConnection }
-    await nextTick()
-    // The form can be taller than a phone screen, so its top goes to the top.
-    // Scroll its box: the form itself uses display: contents and has none.
-    const row = document.getElementById(`connection-${requestedConnection}`)
-    ;(row?.querySelector('.need-setup') ?? row)?.scrollIntoView({ block: 'start' })
-    return
-  }
   if (!requestedBinding) return
   const need = app.needs.find((item) => item.binding === requestedBinding)
   if (need?.status !== 'missing') openForm.value = null

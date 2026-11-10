@@ -40,7 +40,7 @@ export default createRouter({
     // Filter changes replace the query on the same page. Keep the reader's place.
     if (to.path === from.path) return false
     // Connections scrolls to the row a link names. Going to the top would undo that.
-    if (to.path === '/connections' && (to.query.connection || to.query.binding)) return false
+    if (to.path === '/connections' && to.query.binding) return false
     if (to.path === '/models' && to.query.connection) return false
     return { top: 0 }
   },

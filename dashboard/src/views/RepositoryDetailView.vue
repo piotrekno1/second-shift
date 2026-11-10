@@ -8,7 +8,7 @@ import Menu from 'primevue/menu'
 import PageHeader from '../components/PageHeader.vue'
 import StatusPill from '../components/StatusPill.vue'
 import { errorMessage } from '../services/api'
-import { waitingCapabilities } from '../utils/readiness'
+import { connectionSetupQuery, waitingCapabilities } from '../utils/readiness'
 import { setJobEnabled } from '../services/jobs'
 import {
   checkRepository,
@@ -66,14 +66,6 @@ const repositorySubtitle = computed(() => {
   return `${source} · ${item.default_branch} · ${countLabel(item.jobs.length, 'job')}`
 })
 
-function connectionSetupQuery(job: Job, capability: Capability): Record<string, string> {
-  return {
-    binding: capability.binding,
-    kind: capability.kind,
-    job: job.name,
-    review: String(job.id),
-  }
-}
 
 async function enableReadyJobs(): Promise<void> {
   if (!readyDisabledJobs.value.length) return

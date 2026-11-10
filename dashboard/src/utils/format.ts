@@ -196,13 +196,7 @@ export function titleFromSlug(slug: string): string {
 
 export function formatDuration(start: string | null, end: string | null, now = Date.now()): string {
   if (!start) return 'Not started'
-  const elapsed = Math.max(0, Math.round(((end ? Date.parse(end) : now) - Date.parse(start)) / 1000))
-  const hours = Math.floor(elapsed / 3600)
-  const minutes = Math.floor((elapsed % 3600) / 60)
-  const seconds = elapsed % 60
-  if (hours) return `${hours}h ${minutes}m`
-  if (minutes) return `${minutes}m ${seconds}s`
-  return `${seconds}s`
+  return formatSeconds(Math.max(0, ((end ? Date.parse(end) : now) - Date.parse(start)) / 1000))
 }
 
 /** "11:59:41", for timelines whose heading names the zone. */
@@ -301,7 +295,6 @@ export function runStats(run: RunStatSource, now = Date.now()): RunStat[] {
   return stats
 }
 
-/** Greeting for the viewer's local hour. */
 /** The seven days the overview numbers cover, ending today: "21–27 Oct". */
 export function weekRange(now: Date): string {
   const start = new Date(now)
@@ -326,13 +319,9 @@ export interface JobOutcomes {
   chronological: Run[]
 }
 
-function seconds(run: Pick<Run, 'started_at' | 'finished_at'>): number | null {
+export function runSeconds(run: Pick<Run, 'started_at' | 'finished_at'>): number | null {
   if (!run.started_at || !run.finished_at) return null
   return Math.max(0, (Date.parse(run.finished_at) - Date.parse(run.started_at)) / 1000)
-}
-
-export function runSeconds(run: Pick<Run, 'started_at' | 'finished_at'>): number | null {
-  return seconds(run)
 }
 
 /** Headline numbers for a job from its recent runs (newest first, as the API sends them). */
@@ -342,7 +331,7 @@ export function jobOutcomes(runs: Run[]): JobOutcomes {
   const succeeded = successful.length
   // Duration and cost describe a real run of the skill, so failed runs
   // (often stopped in seconds) would only distort them.
-  const durations = successful.map(seconds).filter((value): value is number => value !== null).sort((a, b) => a - b)
+  const durations = successful.map(runSeconds).filter((value): value is number => value !== null).sort((a, b) => a - b)
   const middle = Math.floor(durations.length / 2)
   const median = durations.length === 0
     ? null
@@ -382,7 +371,6 @@ export function formatLimit(unit: RunLimitItem['unit'], value: number): string {
   return value.toLocaleString('en')
 }
 
-/** Week-over-week spend, e.g. "↑ 40% vs previous week". */
 /** A week against the one before. `delta` is empty when there is nothing to compare. */
 export interface Trend {
   delta: string

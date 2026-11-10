@@ -19,7 +19,7 @@ import { useAppStore } from '../stores/app'
 import type { Access, Capability, Connection, Job, ToolRules } from '../types'
 import { DocsPage } from '../utils/docs'
 import { Action } from '../utils/permissions'
-import { REMOVED_JOB, approvalPending, enableBlocker, runWarning } from '../utils/readiness'
+import { REMOVED_JOB, approvalPending, connectionSetupQuery, enableBlocker, runWarning } from '../utils/readiness'
 import { sameRules } from '../utils/toolRules'
 import { accessLabel, accessNeedsAction, awaitsApproval, countLabel, formatDate, formatRelative, lastRunLine, formatSchedule, formatScheduled, jobState, kindLabel, utcTitle } from '../utils/format'
 
@@ -156,18 +156,6 @@ function ruleTools(capability: Capability): string[] {
   return capability.requested_tools.filter((tool) => capability.tool_inputs?.[tool])
 }
 
-function accessFor(capability: Capability): Access | null {
-  return capability.access ?? null
-}
-
-function connectionSetupQuery(job: Job, capability: Capability): Record<string, string> {
-  return {
-    binding: capability.binding,
-    kind: capability.kind,
-    job: job.name,
-    review: String(job.id),
-  }
-}
 
 async function reviewCapability(job: Job, capability: Capability, decision: 'approved' | 'denied'): Promise<void> {
   const connectionId = selectedConnection(capability)
@@ -292,7 +280,7 @@ async function toggleJob(job: Job): Promise<void> {
                     />
                   </div>
                 </div>
-                <small v-if="accessFor(capability)" :class="{ 'field-error': !accessFor(capability)?.ok }">{{ accessFor(capability)?.text }}</small>
+                <small v-if="capability.access" :class="{ 'field-error': !capability.access?.ok }">{{ capability.access?.text }}</small>
               </div>
               <Select
                 v-if="matchingConnections(capability).length && app.can(Action.ReviewCapabilities)"
@@ -315,7 +303,7 @@ async function toggleJob(job: Job): Promise<void> {
               <StatusPill :status="capability.grant_status" :label="accessLabel(capability.grant_status)" />
               <div v-if="app.can(Action.ReviewCapabilities)" class="review-actions">
                 <Button :label="capability.grant_status === 'approved' ? 'Revoke' : 'Deny'" severity="danger" text size="small" :loading="action === `denied-${capability.id}`" @click="reviewCapability(job, capability, 'denied')" />
-                <Button v-if="reviewNeeded(capability)" :label="approveLabel(capability)" size="small" :disabled="!selectedConnection(capability) || accessFor(capability)?.ok === false" :title="selectedConnection(capability) ? 'Approve this connection and scope' : 'Set up a matching connection first'" :loading="action === `approved-${capability.id}`" @click="reviewCapability(job, capability, 'approved')">
+                <Button v-if="reviewNeeded(capability)" :label="approveLabel(capability)" size="small" :disabled="!selectedConnection(capability) || capability.access?.ok === false" :title="selectedConnection(capability) ? 'Approve this connection and scope' : 'Set up a matching connection first'" :loading="action === `approved-${capability.id}`" @click="reviewCapability(job, capability, 'approved')">
                   <template #icon><AppIcon name="check" /></template>
                 </Button>
               </div>
