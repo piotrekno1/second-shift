@@ -79,7 +79,8 @@ def seed_demo_data() -> None:
         name: create_repository(
             workspace=workspace,
             github_connection=github,
-            external_id=f"demo-repository-{index}",
+            # GitHub repository ids are numbers.
+            external_id=str(900_000 + index),
             full_name=name,
             clone_url=clone_url(name),
             default_branch=branch,

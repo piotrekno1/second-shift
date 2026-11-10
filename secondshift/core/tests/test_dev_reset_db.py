@@ -8,6 +8,7 @@ from django.core.management import call_command
 from secondshift.connections.models import Connection
 from secondshift.core.management.commands import dev_reset_db
 from secondshift.jobs.models import Job
+from secondshift.repositories.github import repository_ref
 from secondshift.repositories.models import Repository
 from secondshift.runs.models import Run, RunEvent
 
@@ -56,6 +57,10 @@ def test_seed_demo_data_creates_credential_free_disabled_jobs(settings: Any) -> 
     assert Repository.objects.count() == 3
     assert all(
         len(repository.config_sha) == 40 for repository in Repository.objects.all()
+    )
+    # Pages describe each repository to tools by its GitHub id.
+    assert all(
+        repository_ref(repository).github_id for repository in Repository.objects.all()
     )
     assert Job.objects.count() == 4
     assert Job.objects.filter(enabled=True).count() == 0
