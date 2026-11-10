@@ -10,7 +10,8 @@ import JobTriggersPanel from '../components/JobTriggersPanel.vue'
 import RunLimitsPanel from '../components/RunLimitsPanel.vue'
 import RunRow from '../components/RunRow.vue'
 import StatusPill from '../components/StatusPill.vue'
-import { apiGet, apiPost, errorMessage } from '../services/api'
+import { errorMessage } from '../services/api'
+import { fetchJob, setJobEnabled } from '../services/jobs'
 import { useLiveRefresh } from '../composables/useLiveRefresh'
 import { isRunActive, startJobRun } from '../services/runs'
 import { saveJobLimits } from '../services/settings'
@@ -60,7 +61,7 @@ const renderedSkill = computed(() => renderMarkdown(skill.value.body))
 
 async function loadJob(): Promise<void> {
   try {
-    job.value = await apiGet<JobDetail>(`/jobs/${jobId}`)
+    job.value = await fetchJob(jobId)
     error.value = null
   } catch (loadError) {
     error.value = errorMessage(loadError, 'Unable to load job')
@@ -95,7 +96,7 @@ async function toggleJob(): Promise<void> {
   action.value = 'toggle'
   error.value = null
   try {
-    await apiPost<Job>(`/jobs/${jobId}/enabled`, { enabled: !job.value.enabled })
+    await setJobEnabled(jobId, !job.value.enabled)
     await Promise.all([loadJob(), app.refresh()])
   } catch (toggleError) {
     error.value = errorMessage(toggleError, 'Unable to change job state')

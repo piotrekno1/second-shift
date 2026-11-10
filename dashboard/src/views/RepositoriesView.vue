@@ -12,7 +12,8 @@ import PageHeader from '../components/PageHeader.vue'
 import SearchInput from '../components/SearchInput.vue'
 import StatusPill from '../components/StatusPill.vue'
 import { useListQuery } from '../composables/useListQuery'
-import { apiPost, errorMessage } from '../services/api'
+import { errorMessage } from '../services/api'
+import { createLocalRepository } from '../services/repositories'
 import { storeToRefs } from 'pinia'
 import { GITHUB_TOKENS_URL } from '../services/githubRepositories'
 import { useGitHubRepositoriesStore } from '../stores/githubRepositories'
@@ -132,7 +133,7 @@ async function addLocalRepository(): Promise<void> {
   saving.value = true
   localError.value = null
   try {
-    const repository = await apiPost<Repository>('/repositories/local', { path: localPath.value })
+    const repository = await createLocalRepository(localPath.value)
     await app.refresh()
     localPath.value = ''
     addingLocal.value = false

@@ -12,7 +12,8 @@ import SearchInput from '../components/SearchInput.vue'
 import StatusPill from '../components/StatusPill.vue'
 import ToolRulesEditor from '../components/ToolRulesEditor.vue'
 import { useListQuery } from '../composables/useListQuery'
-import { apiPost, errorMessage } from '../services/api'
+import { errorMessage } from '../services/api'
+import { reviewGrant, setJobEnabled } from '../services/jobs'
 import { startJobRun } from '../services/runs'
 import { useAppStore } from '../stores/app'
 import type { Access, Capability, Connection, Job, ToolRules } from '../types'
@@ -176,7 +177,7 @@ async function reviewCapability(job: Job, capability: Capability, decision: 'app
   action.value = `${decision}-${capability.id}`
   error.value = null
   try {
-    await apiPost<Job>(`/jobs/${job.id}/capabilities/${capability.id}/grant`, {
+    await reviewGrant(job.id, capability.id, {
       decision,
       connection_id: connectionId,
       allowed_tools: capability.requested_tools,
@@ -195,7 +196,7 @@ async function toggleJob(job: Job): Promise<void> {
   action.value = `toggle-${job.id}`
   error.value = null
   try {
-    await apiPost<Job>(`/jobs/${job.id}/enabled`, { enabled: !job.enabled })
+    await setJobEnabled(job.id, !job.enabled)
     await app.refresh()
   } catch (toggleError) {
     error.value = errorMessage(toggleError, 'Unable to change job state')

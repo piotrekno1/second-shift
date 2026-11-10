@@ -6,6 +6,8 @@ import { awaitsApproval } from '../utils/format'
 import { Action, allows } from '../utils/permissions'
 import { fetchMCPProviders } from '../services/connections'
 import { fetchPendingInvite } from '../services/invites'
+import { fetchJobs } from '../services/jobs'
+import { fetchRepositories } from '../services/repositories'
 import { fetchRuns } from '../services/runs'
 import type { CapabilityNeed, Connection, Job, MCPProviderInfo, Overview, PendingInvite, Repository, Run, User } from '../types'
 
@@ -89,8 +91,8 @@ export const useAppStore = defineStore('app', {
     async refresh(): Promise<void> {
       const [overview, repositories, jobs, runs, connections, needs] = await Promise.all([
         apiGet<Overview>('/overview'),
-        apiGet<Repository[]>('/repositories'),
-        apiGet<Job[]>('/jobs'),
+        fetchRepositories(),
+        fetchJobs(),
         fetchRuns({ page_size: RECENT_RUNS }),
         apiGet<Connection[]>('/connections'),
         apiGet<CapabilityNeed[]>('/capability-needs'),

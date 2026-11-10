@@ -7,9 +7,20 @@ import Button from 'primevue/button'
 import Menu from 'primevue/menu'
 import PageHeader from '../components/PageHeader.vue'
 import StatusPill from '../components/StatusPill.vue'
-import { apiDelete, apiGet, apiPost, errorMessage } from '../services/api'
+import { errorMessage } from '../services/api'
+import { setJobEnabled } from '../services/jobs'
+import {
+  checkRepository,
+  deleteRepository,
+  fetchRepository,
+  saveIssueSettings,
+  savePullRequestSettings,
+  setRepositoryAutoSync,
+  setRepositoryEnabled,
+  syncRepository,
+} from '../services/repositories'
 import { useAppStore } from '../stores/app'
-import type { Capability, Job, RepositoryDetail, RepositoryValidation } from '../types'
+import type { Capability, Job, RepositoryDetail } from '../types'
 import { Action } from '../utils/permissions'
 import { accessLabel, accessNeedsAction, countLabel, formatDate, formatRelative, formatSchedule, jobState, utcTitle } from '../utils/format'
 
@@ -71,7 +82,7 @@ async function enableReadyJobs(): Promise<void> {
   error.value = null
   try {
     await Promise.all(readyDisabledJobs.value.map((job) =>
-      apiPost<Job>(`/jobs/${job.id}/enabled`, { enabled: true }),
+      setJobEnabled(job.id, true),
     ))
     await Promise.all([app.refresh(), loadRepository()])
   } catch (enableError) {
@@ -83,7 +94,7 @@ async function enableReadyJobs(): Promise<void> {
 
 async function loadRepository(): Promise<void> {
   try {
-    repository.value = await apiGet<RepositoryDetail>(`/repositories/${repositoryId}`)
+    repository.value = await fetchRepository(repositoryId)
     error.value = null
   } catch (loadError) {
     error.value = errorMessage(loadError, 'Unable to load repository')
@@ -96,7 +107,7 @@ async function validateRepository(): Promise<void> {
   action.value = 'validate'
   error.value = null
   try {
-    const validation = await apiPost<RepositoryValidation>(`/repositories/${repositoryId}/validate`)
+    const validation = await checkRepository(repositoryId)
     if (repository.value) repository.value.validation = validation
   } catch (validationError) {
     error.value = errorMessage(validationError, 'Validation failed')
@@ -109,7 +120,7 @@ async function resyncRepository(): Promise<void> {
   action.value = 'resync'
   error.value = null
   try {
-    repository.value = await apiPost<RepositoryDetail>(`/repositories/${repositoryId}/resync`)
+    repository.value = await syncRepository(repositoryId)
     await app.refresh()
   } catch (syncError) {
     error.value = errorMessage(syncError, 'Synchronization failed')
@@ -123,9 +134,7 @@ async function toggleRepository(): Promise<void> {
   action.value = 'toggle'
   error.value = null
   try {
-    repository.value = await apiPost<RepositoryDetail>(`/repositories/${repositoryId}/enabled`, {
-      enabled: !repository.value.enabled,
-    })
+    repository.value = await setRepositoryEnabled(repositoryId, !repository.value.enabled)
     await app.refresh()
   } catch (toggleError) {
     error.value = errorMessage(toggleError, 'Unable to change repository state')
@@ -139,9 +148,7 @@ async function toggleAutoSync(): Promise<void> {
   action.value = 'auto-sync'
   error.value = null
   try {
-    repository.value = await apiPost<RepositoryDetail>(`/repositories/${repositoryId}/auto-sync`, {
-      enabled: !repository.value.auto_sync,
-    })
+    repository.value = await setRepositoryAutoSync(repositoryId, !repository.value.auto_sync)
   } catch (toggleError) {
     error.value = errorMessage(toggleError, 'Unable to change auto-sync')
   } finally {
@@ -154,7 +161,7 @@ async function setPullRequests(allow: boolean, runCi: boolean): Promise<void> {
   action.value = 'pull-requests'
   error.value = null
   try {
-    repository.value = await apiPost<RepositoryDetail>(`/repositories/${repositoryId}/pull-requests`, { allow, run_ci: runCi })
+    repository.value = await savePullRequestSettings(repositoryId, allow, runCi)
   } catch (changeError) {
     error.value = errorMessage(changeError, 'Unable to change pull request settings')
   } finally {
@@ -167,7 +174,7 @@ async function setIssues(allow: boolean): Promise<void> {
   action.value = 'issues'
   error.value = null
   try {
-    repository.value = await apiPost<RepositoryDetail>(`/repositories/${repositoryId}/issues`, { allow })
+    repository.value = await saveIssueSettings(repositoryId, allow)
   } catch (changeError) {
     error.value = errorMessage(changeError, 'Unable to change issue settings')
   } finally {
@@ -196,7 +203,7 @@ async function removeRepository(): Promise<void> {
   action.value = 'remove'
   error.value = null
   try {
-    await apiDelete(`/repositories/${repositoryId}`)
+    await deleteRepository(repositoryId)
     await app.refresh()
     await router.push('/repositories')
   } catch (removeError) {
