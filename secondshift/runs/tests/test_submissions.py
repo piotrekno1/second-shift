@@ -21,7 +21,6 @@ from secondshift.connections.execution import choose_execution
 from secondshift.connections.models import AgentConnection, Connection
 from secondshift.gateway.models import ModelUsage
 from secondshift.gateway.tokens import aauthenticate, authenticate
-from secondshift.jobs.manifest import JobManifest
 from secondshift.jobs.models import Job
 from secondshift.mcp_server.tests.test_job_tools import call, error_text, token
 from secondshift.repositories.local import committed_file, git
@@ -550,11 +549,6 @@ def test_http_and_mcp_accept_written_tasks(repository: Repository, owner: User) 
     replay = call(token(owner, "run"), "submit_task", **payload.model_dump())
     assert not replay.get("isError"), replay
     assert Task.objects.count() == Run.objects.count() == 1
-
-
-def test_repository_jobs_still_require_a_skill_file() -> None:
-    with pytest.raises(ValidationError):
-        JobManifest.model_validate({"name": "A scheduled job"})
 
 
 def test_written_task_uses_same_capability_approval_boundary(

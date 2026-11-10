@@ -48,7 +48,6 @@ def budget_run(
             "OPTIONS": {"location": tmp_path / "artifacts", "base_url": None},
         },
     }
-    storages._storages.clear()
     monkeypatch.setattr(
         "secondshift.runs.execution.run.capture_run_input_step", lambda *args: None
     )

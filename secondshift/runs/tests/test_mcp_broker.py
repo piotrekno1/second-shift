@@ -266,7 +266,6 @@ def test_agent_mcp_report_and_webhook_payload_flow(
             "OPTIONS": {"location": tmp_path},
         },
     }
-    storages._storages.clear()
     tool_name = next(
         tool.name
         for tool in external_tools(planned_run)

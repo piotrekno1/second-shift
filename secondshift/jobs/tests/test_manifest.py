@@ -1,8 +1,10 @@
 from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
 
 from secondshift.jobs.manifest import (
+    JobManifest,
     ManifestError,
     load_manifest,
     manifest_hash,
@@ -252,3 +254,8 @@ def test_subagents_cannot_pass_the_server_maximum(settings) -> None:
     assert parse_manifest(job_with("    subagents: 2")).jobs["triage"].subagents == 2
     with pytest.raises(ManifestError, match="subagents cannot be above 2"):
         parse_manifest(job_with("    subagents: 3"))
+
+
+def test_repository_jobs_require_a_skill_file() -> None:
+    with pytest.raises(ValidationError):
+        JobManifest.model_validate({"name": "A scheduled job"})

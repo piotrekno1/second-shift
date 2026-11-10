@@ -165,7 +165,6 @@ def test_execute_agent_run_stores_report_and_uses_native_limits(
             "OPTIONS": {"location": tmp_path / "artifacts", "base_url": None},
         },
     }
-    storages._storages.clear()
     user = get_user_model().objects.create_user(username="owner")
     workspace = create_workspace(name="Test", slug="test", owner=user)
     repository = Repository.objects.create(

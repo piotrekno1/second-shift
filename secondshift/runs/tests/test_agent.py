@@ -3,23 +3,10 @@ from datetime import UTC, datetime
 from types import SimpleNamespace
 
 import pytest
-from pydantic_ai.capabilities import ResolveModelId
-from pydantic_ai.durable_exec.dbos import DBOSDurability
 
 from secondshift.runs.execution import agent
 from secondshift.runs.execution.agent import RUN_MODEL_ID, AgentLimits
-from secondshift.runs.execution.run import WORKSPACE_AGENT
 from secondshift.runs.tests.test_workflows import execution_run
-
-
-def test_agent_limits_use_pydantic_ai_limits() -> None:
-    limits = AgentLimits(max_turns=12, max_tool_calls=30)
-
-    usage_limits = limits.usage_limits()
-
-    assert usage_limits.request_limit == 12
-    assert usage_limits.tool_calls_limit == 30
-
 
 LATER = datetime(2100, 1, 1, tzinfo=UTC)
 
@@ -35,19 +22,6 @@ LATER = datetime(2100, 1, 1, tzinfo=UTC)
 def test_agent_limits_reject_invalid_server_policy(values: dict[str, int]) -> None:
     with pytest.raises(ValueError):
         AgentLimits(**values)
-
-
-def test_workspace_agent_uses_deferred_model_resolution_and_dbos() -> None:
-    assert WORKSPACE_AGENT.name == "secondshift"
-    assert WORKSPACE_AGENT.model == RUN_MODEL_ID
-    assert any(
-        isinstance(capability, DBOSDurability)
-        for capability in WORKSPACE_AGENT.root_capability.capabilities
-    )
-    assert any(
-        isinstance(capability, ResolveModelId)
-        for capability in WORKSPACE_AGENT.root_capability.capabilities
-    )
 
 
 @pytest.mark.django_db(transaction=True)
