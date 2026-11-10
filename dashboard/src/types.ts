@@ -689,3 +689,68 @@ export interface TriggerChange {
   /** Only right after it was created or rotated. Never returned again. */
   secret: string | null
 }
+
+export interface AgentConnection {
+  id: number
+  backend: 'claude_code' | 'codex'
+  display_name: string
+  connected: boolean
+  can_manage: boolean
+  max_runs_per_day: number | null
+  recent_runs: number
+  /** The last login check. Only a refused sign-in stops runs. */
+  last_check: AgentCheck | null
+  /** The runner still holds a cached copy of an earlier login. The worker removes it. */
+  runner_cleanup_pending: boolean
+}
+
+export interface AgentCheck {
+  ok: boolean
+  reason: string
+  message: string
+  checked_at: string
+}
+
+export interface ExecutionChoice {
+  key: string
+  label: string
+  disabled: boolean
+  /** Why this choice cannot run jobs, or ''. */
+  problem: string
+}
+
+export interface AgentConfiguration {
+  enabled: boolean
+  choices: ExecutionChoice[]
+  selected: string
+  label: string
+  backend: string
+  ready: boolean
+  problem: string
+}
+
+export interface APISpecSummary {
+  title: string
+  servers: string[]
+  operations: number
+  read_only: number
+}
+
+export interface GitHubSource {
+  connection_id: number
+  repository_id: number
+  full_name: string
+  default_branch: string
+}
+
+export interface GitHubAppStatus {
+  configured: boolean
+  error: string
+  repositories: GitHubSource[]
+}
+
+export interface TaskSubmissionResult {
+  task_id: number
+  run: Run
+  started: boolean
+}

@@ -1,7 +1,8 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { connectGitHubToken, githubRepositories, githubBranches, importGitHubRepository, type GitHubSource } from '../services/githubRepositories'
+import { connectGitHubToken, githubRepositories, githubBranches, importGitHubRepository } from '../services/githubRepositories'
 import { errorMessage } from '../services/api'
+import type { GitHubSource } from '../types'
 
 export const useGitHubRepositoriesStore = defineStore('githubRepositories', () => {
   const sources = ref<GitHubSource[]>([])

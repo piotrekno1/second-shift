@@ -1,5 +1,5 @@
 import { apiGet, apiPost } from './api'
-import type { Connection, Repository } from '../types'
+import type { Connection, GitHubAppStatus, GitHubSource, Repository } from '../types'
 
 /** Where an owner creates or edits a fine-grained token. */
 export const GITHUB_TOKENS_URL = 'https://github.com/settings/personal-access-tokens'
@@ -17,19 +17,6 @@ export function newTokenUrl(drafts: boolean = false): string {
     ...(drafts ? WRITE_PERMISSIONS : READ_PERMISSIONS),
   })
   return `${GITHUB_TOKENS_URL}/new?${params}`
-}
-
-export interface GitHubSource {
-  connection_id: number
-  repository_id: number
-  full_name: string
-  default_branch: string
-}
-
-export interface GitHubAppStatus {
-  configured: boolean
-  error: string
-  repositories: GitHubSource[]
 }
 
 export function githubRepositories(): Promise<GitHubAppStatus> {

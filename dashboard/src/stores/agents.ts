@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { useAppStore } from './app'
-import { checkAgent, connectAgent, disconnectAgent, fetchAgentConfiguration, fetchAgentConnections, selectWorkspaceAgent, setAgentRunLimit, type AgentConfiguration, type AgentConnection, type AgentLoginInput } from '../services/agents'
+import { checkAgent, connectAgent, disconnectAgent, fetchAgentConfiguration, fetchAgentConnections, selectWorkspaceAgent, setAgentRunLimit, type AgentLoginInput } from '../services/agents'
+import type { AgentConfiguration, AgentConnection } from '../types'
 
 export const useAgentsStore = defineStore('agents', {
   state: () => ({

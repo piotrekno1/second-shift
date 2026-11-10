@@ -1,5 +1,4 @@
-import type { AgentConfiguration, AgentConnection } from '../services/agents'
-import type { Connection } from '../types'
+import type { AgentConfiguration, AgentConnection, Connection } from '../types'
 import { runUsageLabel } from './agents'
 import { providerLabel } from './format'
 

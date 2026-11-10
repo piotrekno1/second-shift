@@ -1,48 +1,10 @@
 import { apiDelete, apiGet, apiPost } from './api'
-
-export interface AgentConnection {
-  id: number
-  backend: 'claude_code' | 'codex'
-  display_name: string
-  connected: boolean
-  can_manage: boolean
-  max_runs_per_day: number | null
-  recent_runs: number
-  /** The last login check. Only a refused sign-in stops runs. */
-  last_check: AgentCheck | null
-  /** The runner still holds a cached copy of an earlier login. The worker removes it. */
-  runner_cleanup_pending: boolean
-}
-
-export interface AgentCheck {
-  ok: boolean
-  reason: string
-  message: string
-  checked_at: string
-}
+import type { AgentConfiguration, AgentConnection } from '../types'
 
 export interface AgentLoginInput {
   backend: 'claude_code' | 'codex'
   display_name: string
   auth: string
-}
-
-export interface ExecutionChoice {
-  key: string
-  label: string
-  disabled: boolean
-  /** Why this choice cannot run jobs, or ''. */
-  problem: string
-}
-
-export interface AgentConfiguration {
-  enabled: boolean
-  choices: ExecutionChoice[]
-  selected: string
-  label: string
-  backend: string
-  ready: boolean
-  problem: string
 }
 
 export const fetchAgentConnections = () => apiGet<AgentConnection[]>('/agent-connections')

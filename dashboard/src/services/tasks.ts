@@ -1,5 +1,5 @@
 import { apiPost } from './api'
-import type { Run } from '../types'
+import type { Run, TaskSubmissionResult } from '../types'
 
 export interface TaskCapability {
   binding: string
@@ -21,12 +21,6 @@ export interface TaskSubmission {
   /** Open a draft pull request with the agent's changes. */
   pull_request?: boolean
   idempotency_key: string
-}
-
-export interface TaskSubmissionResult {
-  task_id: number
-  run: Run
-  started: boolean
 }
 
 export function submitTask(submission: TaskSubmission): Promise<TaskSubmissionResult> {
