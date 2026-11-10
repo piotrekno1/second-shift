@@ -109,6 +109,18 @@ def queries_relation(node: ast.AST, accessors: set[str]) -> bool:
     )
 
 
+def slices_relation(node: ast.AST, accessors: set[str]) -> bool:
+    """`job.runs.all()[:5]` runs a query with a limit, even after a prefetch."""
+    return (
+        isinstance(node, ast.Subscript)
+        and isinstance(node.value, ast.Call)
+        and isinstance(node.value.func, ast.Attribute)
+        and node.value.func.attr == "all"
+        and isinstance(node.value.func.value, ast.Attribute)
+        and node.value.func.value.attr in accessors
+    )
+
+
 def looks_up_model(node: ast.AST, models: set[str]) -> bool:
     return (
         isinstance(node, ast.Call)
@@ -135,6 +147,7 @@ def queries(tree: ast.AST, accessors: set[str], models: set[str]) -> list[int]:
         for node in ast.walk(tree)
         if uses_manager(node)
         or queries_relation(node, accessors)
+        or slices_relation(node, accessors)
         or looks_up_model(node, models)
         or refines_a_query(node)
     )
@@ -160,5 +173,6 @@ def test_the_check_finds_manager_and_reverse_relation_queries() -> None:
         "get_object_or_404(Run, pk=1)\n"
         "get_object_or_404(workspace_runs(1), pk=1)\n"
         "workspace_runs(1).filter(status='queued')\n"
+        "job.runs.all()[:5]\n"
     )
-    assert queries(tree, {"runs", "jobs"}, {"Run"}) == [1, 2, 5, 7]
+    assert queries(tree, {"runs", "jobs"}, {"Run"}) == [1, 2, 5, 7, 8]
