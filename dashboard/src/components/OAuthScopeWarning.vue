@@ -24,7 +24,7 @@ const extraScopes = computed(() => additionalOAuthScopes(props.connection))
 </template>
 
 <style scoped>
-.oauth-scope-warning { display: flex; align-items: flex-start; gap: 12px; margin: 0 4px 16px 52px; padding: 16px; border: 1px solid var(--border); border-left: 2px solid var(--amber); border-radius: var(--radius-md); background: var(--night-900); font-size: var(--text-xs); line-height: 1.6; }
+.oauth-scope-warning { display: flex; align-items: flex-start; gap: 12px; margin: 0 4px 16px 52px; padding: 16px; border: 1px solid color-mix(in srgb, var(--amber) 35%, transparent); border-radius: var(--radius-md); background: var(--night-900); font-size: var(--text-xs); line-height: 1.6; }
 .oauth-scope-warning > .app-icon { flex-shrink: 0; margin-top: 2px; color: var(--amber); }
 strong { color: var(--amber); font-size: var(--text-sm); font-weight: 600; }
 p { margin: 6px 0 0; color: var(--muted); }
