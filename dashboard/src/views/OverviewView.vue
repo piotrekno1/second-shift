@@ -17,7 +17,7 @@ import { agentCardDismissed, dismissAgentCard } from '../utils/agentSetup'
 import { setupSteps, waitingCapabilities } from '../utils/readiness'
 import { Action } from '../utils/permissions'
 import {
-  accessLabel, countLabel, formatCost, formatDate, formatRelative, formatScheduled, healthHeadline, runsTrend, spendTrend, utcTitle, weekRange,
+  accessLabel, awaitsApproval, countLabel, formatCost, formatDate, formatRelative, formatScheduled, healthHeadline, runsTrend, spendTrend, utcTitle, weekRange,
 } from '../utils/format'
 
 const agentConnection = useAgentConnectionStore()
@@ -26,7 +26,7 @@ const app = useAppStore()
 // scheduled runs and job changes can happen in other tabs.
 const runActive = (): boolean => app.runs.some((run) => isRunActive(run.status))
 useLiveRefresh(() => (runActive() ? app.refreshRuns() : app.refresh()), runActive)
-const approvalJobs = computed(() => app.jobs.filter((job) => waitingCapabilities(job).length))
+const approvalJobs = computed(() => app.jobs.filter((job) => awaitsApproval(job.grant_status)))
 // Approving cannot start before the binding has a connection, so that comes first.
 const missingConnection = computed(() => app.needs.find((need) => need.required && need.status === 'missing') ?? null)
 // While nothing can run jobs every run fails, so fixing that is the one next step.

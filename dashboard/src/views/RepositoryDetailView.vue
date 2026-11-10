@@ -54,7 +54,7 @@ const optionalSetups = computed(() => detailedJobs.value.flatMap((job) =>
     .map((capability) => ({ job, capability })),
 ))
 const readyDisabledJobs = computed(() => detailedJobs.value.filter((job) =>
-  Boolean(job.cron) && !job.enabled && (job.grant_status === 'approved' || job.grant_status === 'not_required'),
+  jobState(job) === 'disabled' && (job.grant_status === 'approved' || job.grant_status === 'not_required'),
 ))
 // No commit has synced yet, so there is no valid .secondshift.yaml to read jobs from.
 const needsConfig = computed(() => !repository.value?.revision)

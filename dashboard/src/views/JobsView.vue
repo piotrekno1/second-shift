@@ -47,13 +47,14 @@ const jobsSubtitle = computed(() => {
   return summary.join(' · ')
 })
 
-type JobState = '' | 'enabled' | 'disabled' | 'manual' | 'review'
+type JobState = '' | ReturnType<typeof jobState> | 'review'
 const JOB_STATES: { value: JobState, label: string, matches: (job: Job) => boolean }[] = [
   { value: '', label: 'All', matches: () => true },
-  { value: 'enabled', label: 'Enabled', matches: (job) => job.enabled },
+  { value: 'enabled', label: 'Enabled', matches: (job) => jobState(job) === 'enabled' },
+  { value: 'disabled', label: 'Disabled', matches: (job) => jobState(job) === 'disabled' },
   // Manual jobs have no schedule to switch on, so they are their own group.
-  { value: 'disabled', label: 'Disabled', matches: (job) => Boolean(job.cron) && !job.enabled },
-  { value: 'manual', label: 'Manual', matches: (job) => !job.cron },
+  { value: 'manual', label: 'Manual', matches: (job) => jobState(job) === 'manual' },
+  { value: 'removed', label: 'Removed', matches: (job) => jobState(job) === 'removed' },
   { value: 'review', label: 'Needs approval', matches: (job) => awaitsApproval(job.grant_status) },
 ]
 const search = computed(() => list.text('q'))
