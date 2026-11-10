@@ -127,7 +127,6 @@ def create_api_connection(
         metadata={
             "target": host_label(base_url),
             "spec_url": spec_url,
-            "title": spec.title,
             "settings": auth_settings,
         },
     )
