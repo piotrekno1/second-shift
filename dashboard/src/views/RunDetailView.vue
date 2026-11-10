@@ -274,7 +274,7 @@ onUnmounted(stopPolling)
             <div><dt>Repository</dt><dd><RouterLink :to="`/repositories/${run.repository_id}`" class="detail-link">{{ run.repository }}</RouterLink></dd></div>
             <div><dt>Instructions</dt><dd><code v-if="run.skill_path">{{ run.skill_path }}</code><span v-else>Written task</span></dd></div>
             <div><dt>Agent</dt><dd>{{ run.execution_agent ?? run.model_provider ?? 'None' }}</dd></div>
-            <div><dt>Started by</dt><dd>{{ run.job_id === null ? 'Manual task' : startedByLabel(run.started_by) }}</dd></div>
+            <div><dt>Started by</dt><dd>{{ run.job_id === null && run.started_by === 'manual' ? 'Manual task' : startedByLabel(run.started_by) }}</dd></div>
             <div v-if="run.job_id === null"><dt>Not before</dt><dd :title="utcTitle(run.scheduled_for)">{{ formatDate(run.scheduled_for) }}</dd></div>
             <div><dt>Queued</dt><dd :title="utcTitle(run.created_at)">{{ formatDate(run.created_at) }}</dd></div>
             <div><dt>Started</dt><dd :title="utcTitle(run.started_at)">{{ formatDate(run.started_at) }}</dd></div>

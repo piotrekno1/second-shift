@@ -336,7 +336,7 @@ export interface Run {
   repository: string
   status: 'queued' | 'running' | 'succeeded' | 'failed' | 'canceled'
   scheduled_for: string
-  /** What started the run. Empty for runs from before this was recorded. */
+  /** What started the run: a schedule, a person, a webhook or an MCP client. */
   started_by: RunStart
   started_at: string | null
   finished_at: string | null
