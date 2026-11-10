@@ -30,6 +30,7 @@ from secondshift.runs.serialization import (
     serialize_delivery,
     serialize_run,
     serialize_run_detail,
+    serialize_submission,
 )
 from secondshift.runs.services import RunInProgress, RunRefused, start_manual_run
 from secondshift.runs.submissions import SkillSubmission, submit_skill
@@ -191,8 +192,4 @@ def submit_task(request: HttpRequest, payload: SkillSubmission) -> TaskSubmissio
         result = submit_skill(repository, payload, request.user, RunStart.MANUAL)
     except RunRefused as error:
         raise HttpError(409, str(error)) from error
-    return TaskSubmissionSchema(
-        task_id=result.run.task_id,
-        run=serialize_run(result.run),
-        started=result.started,
-    )
+    return serialize_submission(result.run, result.started)

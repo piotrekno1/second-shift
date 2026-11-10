@@ -20,6 +20,7 @@ from secondshift.runs.schemas import (
     RunSavedFileSchema,
     RunSchema,
     RunSkippedFileSchema,
+    TaskSubmissionSchema,
 )
 from secondshift.workspaces.limits import RunLimit
 
@@ -213,4 +214,10 @@ def serialize_run_detail(run: Run) -> RunDetailSchema:
             RunSkippedFileSchema(name=item.name, reason=item.reason)
             for item in outputs.skipped
         ],
+    )
+
+
+def serialize_submission(run: Run, started: bool) -> TaskSubmissionSchema:
+    return TaskSubmissionSchema(
+        task_id=run.task_id, run=serialize_run(run), started=started
     )

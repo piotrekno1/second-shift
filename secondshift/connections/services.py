@@ -2,7 +2,8 @@ from django.db import IntegrityError, transaction
 
 from secondshift.connections.dao import binding_taken
 from secondshift.connections.models import Connection
-from secondshift.connections.webhooks import validate_webhook_url, webhook_target_label
+from secondshift.connections.outbound import host_label
+from secondshift.connections.webhooks import validate_webhook_url
 from secondshift.workspaces.models import Workspace
 
 
@@ -34,7 +35,7 @@ def create_webhook_connection(
         display_name=display_name.strip() or binding_key,
         auth_strategy=Connection.AuthStrategy.NONE,
         delivery_url=url,
-        metadata={"target": webhook_target_label(url)},
+        metadata={"target": host_label(url)},
     )
     connection.full_clean()
     try:
@@ -61,7 +62,7 @@ def update_webhook_connection(
         connection.delivery_url = url
         connection.metadata = {
             **connection.metadata,
-            "target": webhook_target_label(url),
+            "target": host_label(url),
         }
         connection.status = Connection.Status.CONNECTED
     elif connection.status == Connection.Status.REVOKED:

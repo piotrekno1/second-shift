@@ -206,7 +206,7 @@ def create_mcp(
         raise HttpError(422, str(error)) from error
     except ValidationError as error:
         raise HttpError(422, "The MCP connection configuration is invalid.") from error
-    return apply_approval(request, connection, payload.require_approval)
+    return apply_approval(connection, payload.require_approval)
 
 
 @router.post(
@@ -232,7 +232,7 @@ def update_mcp(
         raise HttpError(422, str(error)) from error
     except ValidationError as error:
         raise HttpError(422, "The MCP connection configuration is invalid.") from error
-    return apply_approval(request, connection, payload.require_approval)
+    return apply_approval(connection, payload.require_approval)
 
 
 @router.post(
@@ -278,7 +278,7 @@ def create_api(
         raise HttpError(422, str(error)) from error
     except ValidationError as error:
         raise HttpError(422, "The API connection configuration is invalid.") from error
-    return apply_approval(request, connection, payload.require_approval)
+    return apply_approval(connection, payload.require_approval)
 
 
 @router.post(
@@ -302,7 +302,7 @@ def update_api(
         raise HttpError(422, str(error)) from error
     except ValidationError as error:
         raise HttpError(422, "The API connection configuration is invalid.") from error
-    return apply_approval(request, connection, payload.require_approval)
+    return apply_approval(connection, payload.require_approval)
 
 
 @router.post(
@@ -402,11 +402,11 @@ def create_webhook(
         raise HttpError(422, str(error)) from error
     except ValidationError as error:
         raise HttpError(422, " ".join(error.messages)) from error
-    return apply_approval(request, connection, payload.require_approval)
+    return apply_approval(connection, payload.require_approval)
 
 
 def apply_approval(
-    request: HttpRequest, connection: Connection, require_approval: bool | None
+    connection: Connection, require_approval: bool | None
 ) -> ConnectionSchema:
     """Save the owner's approval choice and approve requests it now allows."""
     if require_approval is None:
@@ -444,7 +444,7 @@ def update_webhook(
         raise HttpError(422, str(error)) from error
     except ValidationError as error:
         raise HttpError(422, " ".join(error.messages)) from error
-    return apply_approval(request, connection, payload.require_approval)
+    return apply_approval(connection, payload.require_approval)
 
 
 @router.post("/connections/model/models", response=list[str], auth=django_auth)

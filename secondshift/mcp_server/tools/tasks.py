@@ -9,7 +9,7 @@ from secondshift.repositories.access import repository_for_request
 from secondshift.runs.access import run_for_request
 from secondshift.runs.queue import cancel_queued_task
 from secondshift.runs.schemas import TaskSubmissionSchema
-from secondshift.runs.serialization import serialize_run, serialize_run_detail
+from secondshift.runs.serialization import serialize_run_detail, serialize_submission
 from secondshift.runs.services import RunRefused
 from secondshift.runs.submissions import SkillSubmission, submit_skill
 from secondshift.workspaces.access import Action, require
@@ -42,11 +42,7 @@ def submit_task(
         result = submit_skill(repository, arguments, request.user, RunStart.MCP)
     except RunRefused as error:
         raise ToolExecutionError(str(error)) from error
-    return TaskSubmissionSchema(
-        task_id=result.run.task_id,
-        run=serialize_run(result.run),
-        started=result.started,
-    )
+    return serialize_submission(result.run, result.started)
 
 
 @register_tool(

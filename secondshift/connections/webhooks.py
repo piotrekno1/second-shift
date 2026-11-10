@@ -10,7 +10,6 @@ from secondshift.connections.models import Connection
 from secondshift.connections.outbound import (
     OutboundUrlError,
     PinnedSyncTransport,
-    host_label,
     validate_outbound_url,
 )
 
@@ -32,10 +31,6 @@ class WebhookDelivery:
 
 def validate_webhook_url(url: str) -> str:
     return validate_outbound_url(url, "webhook URL")
-
-
-def webhook_target_label(url: str) -> str:
-    return host_label(url)
 
 
 def webhook_transport() -> httpx.BaseTransport:
