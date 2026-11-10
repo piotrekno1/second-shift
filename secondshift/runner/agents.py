@@ -18,7 +18,11 @@ from secondshift.config.constants import (
     AgentBackend,
 )
 from secondshift.runner.agent_credentials import decrypt_agent_auth
-from secondshift.runner.agent_image.outcomes import AgentOutcome
+from secondshift.runner.agent_image.outcomes import (
+    AUTH_FILES,
+    AgentConfig,
+    AgentOutcome,
+)
 from secondshift.runner.agent_protocol import AgentCheckInput, AgentInput, AgentOutput
 from secondshift.runner.dao import is_session_active
 from secondshift.runner.images import resolve_image_id
@@ -105,8 +109,7 @@ def provision_auth(request: AgentInput | AgentCheckInput) -> Path:
         return path
     auth = decrypt_agent_auth(request.auth.get_secret_value())
     path.mkdir(mode=0o700)
-    name = "auth.json" if request.backend == "codex" else "claude-token"
-    target = path / name
+    target = path / AUTH_FILES[request.backend]
     target.write_text(auth)
     target.chmod(0o600)
     uid, gid = settings.RUNNER_SANDBOX_UID, settings.RUNNER_SANDBOX_GID
@@ -150,7 +153,7 @@ def execute_locked_agent(session_id: str, request: AgentInput) -> AgentOutput:
     if service.reserve_command(session_id, reservation) is not None:
         raise RunnerProtocolError("This agent execution cannot be repeated.")
     auth_path = provision_auth(request)
-    configuration = {
+    configuration: AgentConfig = {
         "backend": request.backend,
         "broker_url": settings.AGENT_BROKER_URL,
         "broker_token": request.broker_token.get_secret_value(),
@@ -158,7 +161,7 @@ def execute_locked_agent(session_id: str, request: AgentInput) -> AgentOutput:
         "max_turns": request.max_turns,
         "token_budget": request.token_budget,
         "subagents": request.subagents
-        if request.backend == AgentBackend.CLAUDE_CODE
+        if AgentBackend(request.backend).starts_subagents
         else 0,
     }
     return run_agent_container(
@@ -175,7 +178,7 @@ def check_agent(request: AgentCheckInput) -> AgentOutput:
         image = require_agent_configuration()
         auth_path = provision_auth(request)
         name = f"check-{request.credential_key}"
-        configuration = {
+        configuration: AgentConfig = {
             "backend": request.backend,
             "prompt": CHECK_PROMPT,
             "max_turns": 1,
@@ -190,7 +193,7 @@ def check_agent(request: AgentCheckInput) -> AgentOutput:
 
 
 def run_agent_container(
-    name: str, command: list[str], configuration: dict[str, object], timeout: int
+    name: str, command: list[str], configuration: AgentConfig, timeout: int
 ) -> AgentOutput:
     # Auth and the broker token never appear in argv, Docker env, logs, or DBOS.
     with tempfile.TemporaryFile() as output:

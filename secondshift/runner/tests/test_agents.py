@@ -4,12 +4,13 @@ import sys
 import time
 import tomllib
 from pathlib import Path
-from typing import Any
+from typing import Any, get_args
 from unittest.mock import Mock
 
 import pytest
 from pydantic import ValidationError
 
+from secondshift.config.constants import AgentBackend
 from secondshift.core.launcher import services
 from secondshift.runner import agents
 from secondshift.runner.agent_credentials import (
@@ -600,3 +601,10 @@ def test_agent_and_command_sandboxes_get_the_same_hardening(
     for command in (agent, sandbox):
         start = command.index(hardening[0])
         assert command[start : start + len(hardening)] == hardening
+
+
+def test_the_image_and_the_runner_name_the_same_cli_backends() -> None:
+    cli_backends = {backend for backend in AgentBackend if not backend.uses_model_api}
+    accepted = set(get_args(AgentInput.model_fields["backend"].annotation))
+
+    assert set(agent.BACKENDS) == set(outcomes.AUTH_FILES) == accepted == cli_backends

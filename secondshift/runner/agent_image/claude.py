@@ -8,8 +8,10 @@ from typing import Any
 
 from secondshift.runner.agent_image import outcomes
 from secondshift.runner.agent_image.outcomes import (
+    AUTH_FILES,
     MAX_REPORT_CHARS,
     TOKEN_KEYS,
+    AgentConfig,
     AgentOutcome,
     Outcome,
     numbers,
@@ -67,7 +69,7 @@ def subagent_options(limit: int) -> list[str]:
     ]
 
 
-def claude(config: dict[str, Any]) -> tuple[list[str], dict[str, str]]:
+def claude(config: AgentConfig) -> tuple[list[str], dict[str, str]]:
     """Claude Code with no built-in tools and only the run's broker.
 
     A run with sub-agents also gets the Agent tool. A login check has no
@@ -108,7 +110,7 @@ def claude(config: dict[str, Any]) -> tuple[list[str], dict[str, str]]:
         "",
         "--no-session-persistence",
     ]
-    token = (outcomes.AUTH / "claude-token").read_text().strip()
+    token = (outcomes.AUTH / AUTH_FILES["claude_code"]).read_text().strip()
     return argv, {"CLAUDE_CODE_OAUTH_TOKEN": token}
 
 
