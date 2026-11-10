@@ -35,7 +35,10 @@ from secondshift.repositories.models import Repository
 from secondshift.runs.dao import create_task
 from secondshift.runs.execution.model_gateway import issue_run_token
 from secondshift.runs.models import Run
-from secondshift.runs.orchestration.reconciliation import mark_run_terminal
+from secondshift.runs.orchestration.reconciliation import (
+    WorkflowStatus,
+    mark_run_terminal,
+)
 from secondshift.workspaces.dao import create_workspace, workspace_owner
 from secondshift.workspaces.models import Workspace
 
@@ -153,7 +156,9 @@ def test_tokens_are_hashed_and_die_with_the_run(workspace: Workspace) -> None:
     assert token not in stored.token_hash
     assert authenticate(token) is not None
 
-    mark_run_terminal(run.pk, Run.Status.FAILED, "stopped", workflow_status="ERROR")
+    mark_run_terminal(
+        run.pk, Run.Status.FAILED, "stopped", workflow_status=WorkflowStatus.ERROR
+    )
     assert authenticate(token) is None
 
 

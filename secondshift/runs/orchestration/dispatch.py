@@ -18,7 +18,10 @@ from secondshift.runs.dao import (
 from secondshift.runs.models import Run, RunFailure
 from secondshift.runs.orchestration.admission import task_admission_problem
 from secondshift.runs.orchestration.dbos_runtime import new_dbos_client
-from secondshift.runs.orchestration.reconciliation import mark_run_terminal
+from secondshift.runs.orchestration.reconciliation import (
+    WorkflowStatus,
+    mark_run_terminal,
+)
 from secondshift.runs.transitions import finish_run
 
 logger = logging.getLogger(__name__)
@@ -97,7 +100,10 @@ def enqueue_task(run: Run) -> str:
         return ""
     if problem := task_admission_problem(run, repository):
         mark_run_terminal(
-            run.pk, Run.Status.FAILED, problem, workflow_status="NOT_ADMITTED"
+            run.pk,
+            Run.Status.FAILED,
+            problem,
+            workflow_status=WorkflowStatus.NOT_ADMITTED,
         )
         return ""
     if has_dispatched_task(repository.pk):

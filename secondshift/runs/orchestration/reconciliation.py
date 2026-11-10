@@ -1,3 +1,4 @@
+from enum import StrEnum
 from typing import Literal
 
 from dbos import DBOSClient
@@ -9,8 +10,23 @@ from secondshift.runs.models import Run, RunFailure
 from secondshift.runs.orchestration.dbos_runtime import new_dbos_client
 from secondshift.runs.transitions import finish_run
 
-FAILED_WORKFLOW_STATUSES = {"ERROR", "MAX_RECOVERY_ATTEMPTS_EXCEEDED"}
-TERMINAL_WORKFLOW_STATUSES = {*FAILED_WORKFLOW_STATUSES, "CANCELLED", "SUCCESS"}
+
+class WorkflowStatus(StrEnum):
+    """DBOS workflow statuses, plus the one recorded before DBOS starts a run."""
+
+    ERROR = "ERROR"
+    MAX_RECOVERY_ATTEMPTS_EXCEEDED = "MAX_RECOVERY_ATTEMPTS_EXCEEDED"
+    CANCELLED = "CANCELLED"
+    SUCCESS = "SUCCESS"
+    NOT_ADMITTED = "NOT_ADMITTED"
+
+
+TERMINAL_WORKFLOW_STATUSES = {
+    WorkflowStatus.ERROR,
+    WorkflowStatus.MAX_RECOVERY_ATTEMPTS_EXCEEDED,
+    WorkflowStatus.CANCELLED,
+    WorkflowStatus.SUCCESS,
+}
 
 
 @transaction.atomic
@@ -19,7 +35,7 @@ def mark_run_terminal(
     status: Literal["failed", "canceled"],
     summary: str,
     *,
-    workflow_status: str,
+    workflow_status: WorkflowStatus,
     metadata: dict[str, object] | None = None,
     failure: RunFailure = RunFailure.OTHER,
     reason: str = "",
@@ -62,10 +78,10 @@ def reconcile_terminal_workflows(client: DBOSClient | None = None) -> int:
         run_id = run_ids.get(workflow.workflow_id)
         if run_id is None:
             continue
-        if workflow.status == "CANCELLED":
+        if workflow.status == WorkflowStatus.CANCELLED:
             status = Run.Status.CANCELED
             summary = "The durable workflow was canceled before the run completed."
-        elif workflow.status == "SUCCESS":
+        elif workflow.status == WorkflowStatus.SUCCESS:
             status = Run.Status.FAILED
             summary = "The workflow completed without persisting a terminal run result."
         else:

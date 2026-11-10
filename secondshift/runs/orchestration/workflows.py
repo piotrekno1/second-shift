@@ -44,7 +44,10 @@ from secondshift.runs.history import pack_earlier_files
 from secondshift.runs.issue_delivery import open_run_issues
 from secondshift.runs.models import Run, RunDelivery, RunFailure
 from secondshift.runs.orchestration.admission import task_admission_problem
-from secondshift.runs.orchestration.reconciliation import mark_run_terminal
+from secondshift.runs.orchestration.reconciliation import (
+    WorkflowStatus,
+    mark_run_terminal,
+)
 from secondshift.runs.publishing import publish_run
 from secondshift.runs.reporting.collection import collection_summary
 from secondshift.runs.reporting.failures import (
@@ -96,7 +99,10 @@ def mark_run_started_step(run_id: int) -> bool:
         run.refresh_from_db()
         if problem := task_admission_problem(run, repository):
             mark_run_terminal(
-                run.pk, Run.Status.FAILED, problem, workflow_status="NOT_ADMITTED"
+                run.pk,
+                Run.Status.FAILED,
+                problem,
+                workflow_status=WorkflowStatus.NOT_ADMITTED,
             )
             return False
     if run.status == Run.Status.RUNNING and run.dbos_workflow_id == DBOS.workflow_id:
@@ -385,7 +391,7 @@ def fail_run_step(
         run_id,
         Run.Status.FAILED,
         summary,
-        workflow_status="ERROR",
+        workflow_status=WorkflowStatus.ERROR,
         metadata=details,
         failure=RunFailure(failure),
         reason=reason,
