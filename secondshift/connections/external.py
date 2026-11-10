@@ -170,7 +170,7 @@ class MCPKind:
 class APIKind:
     def access(self, connection: Connection, repository: RepositoryRef) -> Access:
         del repository
-        base_url = connection.metadata.get("base_url")
+        base_url = connection.endpoint_url
         if not base_url:
             return Access(
                 False,
@@ -189,7 +189,7 @@ class APIKind:
         self, connection: Connection, scope: str, tools: set[str]
     ) -> dict[str, Any]:
         return {
-            "base_url": connection.metadata.get("base_url", ""),
+            "base_url": connection.endpoint_url,
             "scope": scope,
             "tools": frozen_tools(connection, tools),
         }

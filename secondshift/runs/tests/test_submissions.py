@@ -391,7 +391,6 @@ def test_external_tools_and_notifications_recheck_consent(
         endpoint_url="https://billing.example.com",
         available_tools=["listCharges"],
         metadata={
-            "base_url": "https://billing.example.com",
             "tools": {
                 "listCharges": {
                     "description": "Read charges",

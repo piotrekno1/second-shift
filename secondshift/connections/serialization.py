@@ -20,7 +20,7 @@ def connection_settings_view(connection: Connection) -> dict[str, str]:
     if connection.kind == Connection.Kind.API:
         return {
             **connection.metadata.get("settings", {}),
-            "base_url": connection.metadata.get("base_url", ""),
+            "base_url": connection.endpoint_url,
             "spec_url": connection.metadata.get("spec_url", ""),
         }
     return {}

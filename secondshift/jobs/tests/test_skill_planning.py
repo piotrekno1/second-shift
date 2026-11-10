@@ -60,7 +60,7 @@ def connection(repository: Repository, **fields: Any) -> Connection:
             "binding_key": "billing",
             "display_name": "Billing",
             "available_tools": ["listCharges", "createRefund"],
-            "metadata": {"base_url": "https://billing.example.com"},
+            "endpoint_url": "https://billing.example.com",
             "access_token": "must-not-appear-in-plan",
             **fields,
         }
@@ -124,7 +124,7 @@ def test_job_and_explicit_definition_compile_the_same_plan(
         {"available_tools": ["createRefund"]},
         {"kind": Connection.Kind.NOTIFICATION},
         {"binding_key": "other-binding"},
-        {"metadata": {}},
+        {"endpoint_url": ""},
     ],
 )
 def test_explicit_skill_fails_closed(

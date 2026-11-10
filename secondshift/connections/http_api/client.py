@@ -105,14 +105,12 @@ def build_request(
 
 
 def validate_api_connection(connection: Connection) -> None:
-    saved = connection.metadata.get("base_url", "")
     if (
         connection.kind != Connection.Kind.API
         or connection.provider != Connection.Provider.API
         or connection.status != Connection.Status.CONNECTED
         or not connection.access_token
-        or not saved
-        or connection.endpoint_url != saved
+        or not connection.endpoint_url
         or connection.token_expired
     ):
         raise APIError("This API connection is unavailable.")

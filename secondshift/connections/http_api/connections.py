@@ -126,7 +126,6 @@ def create_api_connection(
         access_token=token,
         metadata={
             "target": host_label(base_url),
-            "base_url": base_url,
             "spec_url": spec_url,
             "title": spec.title,
             "settings": auth_settings,
@@ -167,7 +166,6 @@ def update_api_connection(
         connection.endpoint_url = cleaned
         connection.metadata = {
             **connection.metadata,
-            "base_url": cleaned,
             "target": host_label(cleaned),
         }
     if operations is not None:
@@ -193,7 +191,7 @@ def recheck_api_connection(connection: Connection) -> str:
     select_operations(connection, operations, kept)
     connection.save(update_fields=["available_tools", "metadata", "updated_at"])
     message = f"Found {len(operations)} operations. {len(kept)} enabled."
-    base_url = connection.metadata.get("base_url", "")
+    base_url = connection.endpoint_url
     if spec.servers and base_url not in spec.servers:
         message += f" The spec now lists a different server. Requests still go to {host_label(base_url)}."
     return message

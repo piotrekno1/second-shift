@@ -81,10 +81,8 @@ def test_first_sync_with_automatic_grants(
     }
     for connection in Connection.objects.filter(workspace=repository.workspace):
         connection.available_tools = tools.get(connection.binding_key, [])
-        connection.metadata = {
-            "base_url": "https://sentry.example.com",
-            "settings": {"url": "https://mcp.example.com"},
-        }
+        connection.endpoint_url = "https://sentry.example.com"
+        connection.metadata = {"settings": {"url": "https://mcp.example.com"}}
         connection.save()
 
     with query_budget(FIRST_SYNC_QUERIES):
