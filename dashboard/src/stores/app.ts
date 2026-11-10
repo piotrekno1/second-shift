@@ -1,13 +1,14 @@
 import { defineStore } from 'pinia'
 
-import { apiGet, AuthenticationRequired, errorMessage } from '../services/api'
+import { AuthenticationRequired, errorMessage } from '../services/api'
 import { signInUrl } from '../utils/signIn'
 import { awaitsApproval } from '../utils/format'
 import { Action, allows } from '../utils/permissions'
-import { fetchMCPProviders } from '../services/connections'
+import { fetchCapabilityNeeds, fetchConnections, fetchMCPProviders } from '../services/connections'
 import { fetchPendingInvite } from '../services/invites'
 import { fetchJobs } from '../services/jobs'
 import { fetchRepositories } from '../services/repositories'
+import { fetchOverview, fetchUser } from '../services/overview'
 import { fetchRuns } from '../services/runs'
 import type { CapabilityNeed, Connection, Job, MCPProviderInfo, Overview, PendingInvite, Repository, Run, User } from '../types'
 
@@ -70,7 +71,7 @@ export const useAppStore = defineStore('app', {
     },
     async initialize(): Promise<void> {
       try {
-        this.user = await apiGet<User>('/me')
+        this.user = await fetchUser()
         this.authenticated = true
         // Without a workspace there is nothing to load but an invite to join one.
         await Promise.all(this.user.workspace_slug
@@ -90,12 +91,12 @@ export const useAppStore = defineStore('app', {
     },
     async refresh(): Promise<void> {
       const [overview, repositories, jobs, runs, connections, needs] = await Promise.all([
-        apiGet<Overview>('/overview'),
+        fetchOverview(),
         fetchRepositories(),
         fetchJobs(),
         fetchRuns({ page_size: RECENT_RUNS }),
-        apiGet<Connection[]>('/connections'),
-        apiGet<CapabilityNeed[]>('/capability-needs'),
+        fetchConnections(),
+        fetchCapabilityNeeds(),
       ])
       this.overview = overview
       this.repositories = repositories
@@ -112,7 +113,7 @@ export const useAppStore = defineStore('app', {
     },
     async refreshRuns(): Promise<void> {
       const [overview, runs] = await Promise.all([
-        apiGet<Overview>('/overview'),
+        fetchOverview(),
         fetchRuns({ page_size: RECENT_RUNS }),
       ])
       this.overview = overview

@@ -1,6 +1,15 @@
 import { apiDelete, apiGet, apiPost } from './api'
 import type { APISpecSummary, CapabilityNeed, Connection, ConnectionTest, Job, MCPProviderInfo, MCPServerInfo, ModelProvider, WebhookSample } from '../types'
 
+export function fetchConnections(): Promise<Connection[]> {
+  return apiGet<Connection[]>('/connections')
+}
+
+/** What the workspace's jobs ask for, by binding. */
+export function fetchCapabilityNeeds(): Promise<CapabilityNeed[]> {
+  return apiGet<CapabilityNeed[]>('/capability-needs')
+}
+
 export interface WebhookInput {
   binding_key: string
   display_name: string
