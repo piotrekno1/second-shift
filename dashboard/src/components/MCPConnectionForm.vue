@@ -10,7 +10,7 @@ import ProviderIcon from './ProviderIcon.vue'
 import { createMCPConnection, inspectMCPServer, startMCPSignIn, updateMCPConnection } from '../services/connections'
 import { useAppStore } from '../stores/app'
 import type { Connection, MCPServerInfo, Notice } from '../types'
-import { countLabel, finishedBinding, typingBinding } from '../utils/format'
+import { countLabel, finishedBinding, needsReconnect, typingBinding } from '../utils/format'
 
 const PROVIDER_ICONS: Record<string, string> = {
   github: 'github',
@@ -27,7 +27,7 @@ const props = defineProps<{
 const emit = defineEmits<{ done: [notice: Notice, binding: string], cancel: [] }>()
 const app = useAppStore()
 const editing = computed(() => Boolean(props.connection))
-const reconnecting = computed(() => props.connection?.status === 'revoked' || props.connection?.status === 'expired')
+const reconnecting = computed(() => needsReconnect(props.connection))
 const providerKey = ref(props.connection?.provider ?? app.mcpProviders[0]?.key ?? '')
 const provider = computed(() => app.mcpProvider(providerKey.value))
 const binding = ref(props.connection?.binding_key ?? props.binding ?? provider.value?.default_binding ?? '')

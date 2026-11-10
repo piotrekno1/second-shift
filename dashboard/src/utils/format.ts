@@ -1,4 +1,4 @@
-import type { ConnectionUsage, Run, RunLimitItem } from '../types'
+import type { Connection, ConnectionUsage, Run, RunLimitItem } from '../types'
 
 // Dates read in English like the rest of the UI, always with their timezone.
 const LOCALE = 'en-GB'
@@ -485,6 +485,11 @@ export const TOKEN_WARNING_DAYS = 14
 /** How a repository source reaches GitHub. */
 export function sourceAuthLabel(auth: string | undefined): string {
   return auth === 'token' ? 'Personal token' : 'GitHub App'
+}
+
+/** Revoked or expired: saving needs a new secret, and the button says Reconnect. */
+export function needsReconnect(connection: Pick<Connection, 'status'> | null | undefined): boolean {
+  return Boolean(connection) && connection?.status !== 'connected'
 }
 
 export function expiresSoon(expiresAt: string | null, now: number = Date.now()): boolean {

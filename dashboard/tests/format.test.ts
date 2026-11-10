@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import type { Run } from '../src/types'
 
-import { formatLimit, accessLabel, accessNeedsAction, awaitsApproval, connectionUsageLine, countLabel, describeCron, formatDate, formatSeconds, healthHeadline, runsTrend, weekRange, jobOutcomes, spendTrend, formatRelative, formatScheduled, formatTime, utcTitle, zoneName, formatBytes, plainSummary, providerLabel, runStats, statusLabel, formatDuration, formatModelUsage, finishedBinding, formatSchedule, jobState, historyLabel, lastRunLine, titleFromSlug, typingBinding, kindLabel, expiresSoon, sourceAuthLabel } from '../src/utils/format'
+import { formatLimit, accessLabel, accessNeedsAction, awaitsApproval, connectionUsageLine, countLabel, describeCron, formatDate, formatSeconds, healthHeadline, runsTrend, weekRange, jobOutcomes, spendTrend, formatRelative, formatScheduled, formatTime, utcTitle, zoneName, formatBytes, plainSummary, providerLabel, runStats, statusLabel, formatDuration, formatModelUsage, finishedBinding, formatSchedule, jobState, historyLabel, lastRunLine, titleFromSlug, typingBinding, kindLabel, expiresSoon, needsReconnect, sourceAuthLabel } from '../src/utils/format'
 
 test('formatSchedule keeps cron and timezone visible', () => {
   assert.equal(formatSchedule('0 9 * * 1', 'Europe/Warsaw'), 'Mondays at 09:00 · Europe/Warsaw')
@@ -300,4 +300,11 @@ test('repository access names how it reaches GitHub', () => {
   assert.equal(kindLabel('source'), 'Repository access')
   assert.equal(sourceAuthLabel('token'), 'Personal token')
   assert.equal(sourceAuthLabel('app'), 'GitHub App')
+})
+
+test('a revoked or expired connection needs reconnecting, a new one does not', () => {
+  assert.equal(needsReconnect({ status: 'revoked' }), true)
+  assert.equal(needsReconnect({ status: 'expired' }), true)
+  assert.equal(needsReconnect({ status: 'connected' }), false)
+  assert.equal(needsReconnect(null), false)
 })

@@ -16,7 +16,7 @@ import { approveNeed, createMCPConnection, deleteConnection, revokeConnection, t
 import { useAppStore } from '../stores/app'
 import type { CapabilityNeed, Connection, Notice } from '../types'
 import { Action } from '../utils/permissions'
-import { connectionUsageLine, countLabel, expiresSoon, formatDate, sourceAuthLabel, formatRelative, kindLabel, providerLabel, utcTitle } from '../utils/format'
+import { connectionUsageLine, countLabel, expiresSoon, formatDate, sourceAuthLabel, formatRelative, kindLabel, needsReconnect, providerLabel, utcTitle } from '../utils/format'
 
 /** Which form is open: the header "Add", a need row, or a connection row. */
 type OpenForm = { mode: 'add' } | { mode: 'need', binding: string } | { mode: 'edit', id: number }
@@ -180,7 +180,7 @@ function fixLabel(connection: Connection): string | null {
   // GitHub refused the token itself, so only a new one fixes it.
   if (replaceable(connection) && connection.last_check?.ok === false && !connection.last_check.features?.length) return 'Replace token'
   if (!editable(connection)) return null
-  if (connection.status !== 'connected') return 'Reconnect'
+  if (needsReconnect(connection)) return 'Reconnect'
   if (connection.last_check && !connection.last_check.ok) return 'Fix'
   return null
 }
@@ -202,7 +202,7 @@ function openRowMenu(event: Event, connection: Connection): void {
   const items: MenuItem[] = []
   const test = testLabel(connection)
   if (test) items.push({ label: test, appIcon: connection.provider === 'webhook' ? 'send-outline' : 'refresh', command: () => sendTest(connection, `connection-${connection.id}`) })
-  if (editable(connection)) items.push({ label: connection.status === 'connected' ? 'Edit' : 'Reconnect', appIcon: 'pencil-outline', command: () => toggle({ mode: 'edit', id: connection.id }) })
+  if (editable(connection)) items.push({ label: needsReconnect(connection) ? 'Reconnect' : 'Edit', appIcon: 'pencil-outline', command: () => toggle({ mode: 'edit', id: connection.id }) })
   if (replaceable(connection)) items.push({ label: 'Replace token', appIcon: 'shield-key-outline', command: () => toggle({ mode: 'edit', id: connection.id }) })
   const danger: MenuItem[] = []
   if (connection.status !== 'revoked' && app.can(Action.DisconnectConnections)) danger.push({ label: 'Disconnect…', appIcon: 'power-plug-off-outline', danger: true, command: () => { confirmRevoke.value = connection.id; confirmDelete.value = null } })

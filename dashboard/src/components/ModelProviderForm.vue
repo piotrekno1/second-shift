@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import DocsLink from './DocsLink.vue'
 import { DocsPage } from '../utils/docs'
+import { needsReconnect } from '../utils/format'
 import AppIcon from './AppIcon.vue'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import Button from 'primevue/button'
@@ -22,7 +23,7 @@ const providerOptions: { id: ModelProvider, label: string, help: string }[] = [
 
 const app = useAppStore()
 const editing = computed(() => Boolean(props.connection))
-const reconnecting = computed(() => props.connection?.status === 'revoked')
+const reconnecting = computed(() => needsReconnect(props.connection))
 const provider = ref<ModelProvider>((props.connection?.provider as ModelProvider | undefined) ?? 'anthropic')
 const displayName = ref(props.connection?.display_name ?? '')
 const apiKey = ref('')

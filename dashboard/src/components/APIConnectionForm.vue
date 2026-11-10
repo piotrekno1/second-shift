@@ -11,7 +11,7 @@ import { createAPIConnection, inspectAPISpec, updateAPIConnection } from '../ser
 import type { APISpecSummary } from '../services/connections'
 import { useAppStore } from '../stores/app'
 import type { Connection, Notice } from '../types'
-import { countLabel, finishedBinding, typingBinding } from '../utils/format'
+import { countLabel, finishedBinding, needsReconnect, typingBinding } from '../utils/format'
 
 const OTHER = 'other'
 
@@ -23,7 +23,7 @@ const props = defineProps<{
 const emit = defineEmits<{ done: [notice: Notice, binding: string], cancel: [] }>()
 const app = useAppStore()
 const editing = computed(() => Boolean(props.connection))
-const reconnecting = computed(() => Boolean(props.connection) && props.connection?.status !== 'connected')
+const reconnecting = computed(() => needsReconnect(props.connection))
 const saved = props.connection?.settings ?? {}
 const binding = ref(props.connection?.binding_key ?? props.binding ?? '')
 const name = ref(props.connection?.display_name ?? '')

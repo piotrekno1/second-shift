@@ -11,7 +11,7 @@ import { approveNeed, createWebhook, fetchWebhookSample, testConnection, updateW
 import { useAppStore } from '../stores/app'
 import type { Connection, Notice, WebhookSample } from '../types'
 import { DocsPage } from '../utils/docs'
-import { countLabel, finishedBinding, titleFromSlug, typingBinding } from '../utils/format'
+import { countLabel, finishedBinding, needsReconnect, titleFromSlug, typingBinding } from '../utils/format'
 
 type ConnectionType = 'webhook' | 'mcp' | 'api'
 
@@ -60,7 +60,7 @@ const typeOptions = computed(() => ([
   ['api', 'HTTP API', 'api'],
   ['webhook', 'Webhook', 'webhook'],
 ] as [ConnectionType, string, string][]))
-const reconnecting = computed(() => props.connection?.status === 'revoked')
+const reconnecting = computed(() => needsReconnect(props.connection))
 const bindingFixed = computed(() => editing.value || Boolean(props.binding))
 const bindingValid = computed(() => /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(bindingKey.value))
 const taken = computed(() => Boolean(bindingKey.value) && !editing.value && app.connections.some((item) => item.binding_key === bindingKey.value))
