@@ -78,6 +78,26 @@ def sqlalchemy_url(database_url: str) -> str:
     return database_url
 
 
+def run_limit(
+    setting: str, default: int, ceiling: int, minimum: int
+) -> tuple[int, int]:
+    """A run limit's default and the highest value an owner may choose.
+
+    Read from SECONDSHIFT_<setting> and SECONDSHIFT_<setting>_CEILING, the
+    names workspaces.limits.LimitSpec shows.
+    """
+    name = f"SECONDSHIFT_{setting}"
+    value = env.int(name, default=default)
+    highest = env.int(f"{name}_CEILING", default=max(ceiling, value))
+    if value < minimum:
+        raise ImproperlyConfigured(
+            f"{name} must be positive" if minimum else f"{name} cannot be negative"
+        )
+    if highest < value:
+        raise ImproperlyConfigured(f"{name}_CEILING cannot be below {name}")
+    return value, highest
+
+
 # --- Core --------------------------------------------------------------------
 
 # Required in production. Generated into DATA_DIR/.env on a single host.
@@ -378,37 +398,22 @@ SOURCE_CACHE_MAX_BYTES = env.int(
 # Run limits. These are the defaults. A workspace owner can choose other values
 # for the workspace or a job, up to the *_CEILING maximums. Repository manifests
 # cannot set them. The values that apply are frozen into each execution plan.
-AGENT_MAX_TURNS = env.int("SECONDSHIFT_AGENT_MAX_TURNS", default=24)
-AGENT_MAX_TOOL_CALLS = env.int("SECONDSHIFT_AGENT_MAX_TOOL_CALLS", default=150)
+# The ceilings are the highest limits a workspace owner can choose for a
+# workspace or a job. The defaults suit short reviews. The ceilings leave room
+# for long jobs, such as an audit, so an owner can raise one job's limits
+# without a server change.
+AGENT_MAX_TURNS, AGENT_MAX_TURNS_CEILING = run_limit(
+    "AGENT_MAX_TURNS", default=24, ceiling=200, minimum=1
+)
+AGENT_MAX_TOOL_CALLS, AGENT_MAX_TOOL_CALLS_CEILING = run_limit(
+    "AGENT_MAX_TOOL_CALLS", default=150, ceiling=500, minimum=0
+)
 AGENT_MAX_TOOL_RESULT_CHARS = env.int(
     "SECONDSHIFT_AGENT_MAX_TOOL_RESULT_CHARS", default=65_536
 )
-if AGENT_MAX_TURNS < 1:
-    raise ImproperlyConfigured("SECONDSHIFT_AGENT_MAX_TURNS must be positive")
-if AGENT_MAX_TOOL_CALLS < 0:
-    raise ImproperlyConfigured("SECONDSHIFT_AGENT_MAX_TOOL_CALLS cannot be negative")
 if AGENT_MAX_TOOL_RESULT_CHARS < 1:
     raise ImproperlyConfigured(
         "SECONDSHIFT_AGENT_MAX_TOOL_RESULT_CHARS must be positive"
-    )
-# The highest limits a workspace owner can choose for a workspace or a job.
-# The defaults suit short reviews. The maximums leave room for long jobs, such
-# as an audit, so an owner can raise one job's limits without a server change.
-AGENT_MAX_TURNS_CEILING = env.int(
-    "SECONDSHIFT_AGENT_MAX_TURNS_CEILING", default=max(200, AGENT_MAX_TURNS)
-)
-AGENT_MAX_TOOL_CALLS_CEILING = env.int(
-    "SECONDSHIFT_AGENT_MAX_TOOL_CALLS_CEILING", default=max(500, AGENT_MAX_TOOL_CALLS)
-)
-if AGENT_MAX_TURNS_CEILING < AGENT_MAX_TURNS:
-    raise ImproperlyConfigured(
-        "SECONDSHIFT_AGENT_MAX_TURNS_CEILING cannot be below "
-        "SECONDSHIFT_AGENT_MAX_TURNS"
-    )
-if AGENT_MAX_TOOL_CALLS_CEILING < AGENT_MAX_TOOL_CALLS:
-    raise ImproperlyConfigured(
-        "SECONDSHIFT_AGENT_MAX_TOOL_CALLS_CEILING cannot be below "
-        "SECONDSHIFT_AGENT_MAX_TOOL_CALLS"
     )
 RUNNER_RUNTIME = env.str(AppEnv.RUNNER_RUNTIME, default=SandboxRuntime.DOCKER)
 RUNNER_IMAGE = env.str(AppEnv.RUNNER_IMAGE, default=DEFAULT_SANDBOX_IMAGE)
@@ -426,17 +431,9 @@ MODEL_GATEWAY_URL = env.str(
     "SECONDSHIFT_MODEL_GATEWAY_URL",
     default=LOCAL_GATEWAY_URL if SINGLE_HOST else "",
 )
-RUN_TIMEOUT_SECONDS = env.int("SECONDSHIFT_RUN_TIMEOUT_SECONDS", default=900)
-RUN_TIMEOUT_SECONDS_CEILING = env.int(
-    "SECONDSHIFT_RUN_TIMEOUT_SECONDS_CEILING", default=max(7200, RUN_TIMEOUT_SECONDS)
+RUN_TIMEOUT_SECONDS, RUN_TIMEOUT_SECONDS_CEILING = run_limit(
+    "RUN_TIMEOUT_SECONDS", default=900, ceiling=7200, minimum=1
 )
-if RUN_TIMEOUT_SECONDS < 1:
-    raise ImproperlyConfigured("SECONDSHIFT_RUN_TIMEOUT_SECONDS must be positive")
-if RUN_TIMEOUT_SECONDS_CEILING < RUN_TIMEOUT_SECONDS:
-    raise ImproperlyConfigured(
-        "SECONDSHIFT_RUN_TIMEOUT_SECONDS_CEILING cannot be below "
-        "SECONDSHIFT_RUN_TIMEOUT_SECONDS"
-    )
 RUN_OUTPUT_MAX_BYTES = env.int(AppEnv.RUN_OUTPUT_MAX_BYTES, default=5 * 1024 * 1024)
 RUN_OUTPUT_EXCERPT_BYTES = 16 * 1024
 # The most earlier reports a job can ask for with `history` in its manifest.
@@ -490,20 +487,9 @@ TRIGGER_MAX_RUNS_PER_HOUR_CEILING = env.int(
 )
 # Per-run token budget (input + output + cache tokens), largest accepted
 # request body, and how long to wait between streamed chunks.
-MODEL_RUN_TOKEN_BUDGET = env.int(
-    "SECONDSHIFT_MODEL_RUN_TOKEN_BUDGET", default=2_000_000
+MODEL_RUN_TOKEN_BUDGET, MODEL_RUN_TOKEN_BUDGET_CEILING = run_limit(
+    "MODEL_RUN_TOKEN_BUDGET", default=2_000_000, ceiling=20_000_000, minimum=1
 )
-MODEL_RUN_TOKEN_BUDGET_CEILING = env.int(
-    "SECONDSHIFT_MODEL_RUN_TOKEN_BUDGET_CEILING",
-    default=max(20_000_000, MODEL_RUN_TOKEN_BUDGET),
-)
-if MODEL_RUN_TOKEN_BUDGET < 1:
-    raise ImproperlyConfigured("SECONDSHIFT_MODEL_RUN_TOKEN_BUDGET must be positive")
-if MODEL_RUN_TOKEN_BUDGET_CEILING < MODEL_RUN_TOKEN_BUDGET:
-    raise ImproperlyConfigured(
-        "SECONDSHIFT_MODEL_RUN_TOKEN_BUDGET_CEILING cannot be below "
-        "SECONDSHIFT_MODEL_RUN_TOKEN_BUDGET"
-    )
 GATEWAY_MAX_BODY_BYTES = 32 * 1024 * 1024
 GATEWAY_READ_TIMEOUT_SECONDS = 600
 
