@@ -94,9 +94,19 @@ The runs app has three internal packages:
   periodic worker tasks.
 - `reporting`: failure summaries, health, connection usage and report payloads.
 
-`runner.client` is the public client for sandbox operations. Runtime flags,
-images, mounts and isolation stay with the runner service. `sandbox_flags()`
-gives every sandbox container the same hardening and user.
+`runner.client` is the public client for sandbox operations and subscription
+agent runs. Runtime flags, images, mounts and isolation stay with the runner
+service. `sandbox_flags()` gives every sandbox container the same hardening and
+user.
+
+`runs.services.create_attempt` creates every run, for a job or an ad hoc task,
+with the deliveries its plan promises shown as pending.
+
+## Model providers
+
+`connections.model_providers.MODEL_PROVIDERS` holds what each provider is: its
+API family, default URL, and whether it routes other vendors' models. The
+gateway serves each `ModelFamily` from the routes in `gateway.proxy.ROUTES`.
 
 ## Outbound HTTP
 
