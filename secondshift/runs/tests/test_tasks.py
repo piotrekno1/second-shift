@@ -10,6 +10,7 @@ from django.utils import timezone
 from secondshift.config.constants import RunStart
 from secondshift.jobs.models import Job
 from secondshift.jobs.plan import ExecutionPlan
+from secondshift.jobs.planning import build_execution_plan
 from secondshift.jobs.tests.plans import stored_plan
 from secondshift.repositories.models import Repository
 from secondshift.runs.inputs import Payload
@@ -94,15 +95,13 @@ def test_disabled_repository_creates_no_task(job: Job) -> None:
 def test_readiness_refusal_creates_no_task(
     job: Job, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    # The real planner. The workspace has no model, so the job is not ready.
     monkeypatch.setattr(
-        "secondshift.runs.services.build_execution_plan",
-        lambda job: ExecutionPlan.model_validate(stored_plan(ready=False)),
+        "secondshift.runs.services.build_execution_plan", build_execution_plan
     )
-    monkeypatch.setattr(
-        "secondshift.runs.services.execution_problems", lambda *args: []
-    )
-    with pytest.raises(RunNotReady):
+    with pytest.raises(RunNotReady) as refused:
         start_manual_run(job)
+    assert refused.value.problems
     assert not Task.objects.exists()
 
 

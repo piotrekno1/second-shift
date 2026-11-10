@@ -106,7 +106,7 @@ def test_pydantic_model_uses_only_gateway_access(
     model = pydantic_model(access)
 
     assert isinstance(model, expected_type)
-    assert "gateway.internal" in model._provider.base_url  # type: ignore[attr-defined]
+    assert "gateway.internal" in (model.base_url or "")
     assert "ssrt_test-token" not in repr(model)
 
 
