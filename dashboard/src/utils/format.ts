@@ -125,8 +125,6 @@ const STATUS_LABELS: Record<string, string> = {
   removed: 'Removed from manifest',
   // Same words the Connections page uses for a binding with no connection.
   unconfigured: 'Not connected',
-  'policy-ready': 'Policy ready',
-  'policy-blocked': 'Policy blocked',
 }
 
 const KIND_LABELS: Record<string, string> = {
@@ -196,19 +194,6 @@ export function titleFromSlug(slug: string): string {
     .join(' ')
 }
 
-export function formatModelUsage(tokens: number, costUsd: number | null, partial = false): string {
-  if (!tokens) return ''
-  const count = new Intl.NumberFormat(undefined, { notation: 'compact', maximumFractionDigits: 1 }).format(tokens)
-  if (costUsd === null) return `${count} tokens`
-  const cost = new Intl.NumberFormat(undefined, {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: costUsd < 1 ? 4 : 2,
-  }).format(costUsd)
-  return `${count} tokens · ${partial ? 'at least ' : ''}${cost}`
-}
-
 export function formatDuration(start: string | null, end: string | null, now = Date.now()): string {
   if (!start) return 'Not started'
   const elapsed = Math.max(0, Math.round(((end ? Date.parse(end) : now) - Date.parse(start)) / 1000))
@@ -236,18 +221,6 @@ export function formatBytes(bytes: number | null): string {
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`
-}
-
-/** A one-line plain-text preview of a Markdown summary, for lists. */
-export function plainSummary(text: string): string {
-  return text
-    .replace(/```[\s\S]*?```/g, ' ')
-    .replace(/`([^`]*)`/g, '$1')
-    .replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1')
-    .replace(/^\s{0,3}(#{1,6}|>|[-*+]|\d+\.)\s+/gm, '')
-    .replace(/(\*\*|__|\*|_|~~)(\S(?:.*?\S)?)\1/g, '$2')
-    .replace(/\s+/g, ' ')
-    .trim()
 }
 
 export function formatTokens(tokens: number): string {

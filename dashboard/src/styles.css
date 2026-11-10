@@ -151,8 +151,8 @@ body .account-menu { width: 224px; }
 /* A status is a colored dot and plain text. The same colors mark outcomes in the runs chart. */
 .status-pill { --dot: var(--subtle); display: inline-flex; width: fit-content; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; font-weight: 500; white-space: nowrap; }
 .status-pill::before { content: ''; width: 6px; height: 6px; flex: none; border-radius: 50%; background: var(--dot); }
-.status-pill.succeeded, .status-pill.connected, .status-pill.enabled, .status-pill.approved, .status-pill.not_required, .status-pill.policy-ready, .status-pill.valid { --dot: var(--mint); }
-.status-pill.failed, .status-pill.expired, .status-pill.denied, .status-pill.policy-blocked, .status-pill.error { --dot: var(--danger); color: var(--ink); }
+.status-pill.succeeded, .status-pill.connected, .status-pill.enabled, .status-pill.approved, .status-pill.not_required, .status-pill.valid { --dot: var(--mint); }
+.status-pill.failed, .status-pill.expired, .status-pill.denied, .status-pill.error { --dot: var(--danger); color: var(--ink); }
 .status-pill.pending, .status-pill.unconfigured, .status-pill.warning { --dot: var(--amber); color: var(--ink); }
 /* In progress is not a problem, so it pulses in the text color instead of amber. */
 .status-pill.running, .status-pill.queued { --dot: var(--ink); color: var(--ink); }
