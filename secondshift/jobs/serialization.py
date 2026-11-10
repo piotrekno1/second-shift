@@ -157,7 +157,9 @@ def serialize_job_detail(job: Job, can_edit_limits: bool) -> JobDetailSchema:
         open_pull_request=job.open_pull_request,
         can_open_pull_requests=is_github,
         pull_requests_allowed=job.repository.allow_pull_requests and is_github,
-        open_issues=OpenIssuesSchema(**job.open_issues) if job.open_issues else None,
+        open_issues=OpenIssuesSchema(**issues.model_dump())
+        if (issues := job.issue_settings)
+        else None,
         issues_allowed=job.repository.allow_issues and is_github,
         repository_revision=job.repository.config_sha,
         repository_enabled=job.repository.enabled,

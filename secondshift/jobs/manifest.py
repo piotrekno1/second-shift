@@ -70,6 +70,10 @@ def duration_seconds(value: str) -> int:
     return int(match.group(1)) * DURATION_UNITS[match.group(2)]
 
 
+# Used when a job sets repeat_key without repeat_window.
+REPEAT_WINDOW_DEFAULT = "1h"
+
+
 class WebhookManifest(BaseModel):
     """Which webhook requests start a run. Field names are the sender's."""
 
@@ -91,6 +95,11 @@ class WebhookManifest(BaseModel):
         if not 0 < seconds <= REPEAT_WINDOW_MAX_SECONDS:
             raise ValueError("must be between 1m and 7d")
         return value
+
+    @property
+    def window(self) -> str:
+        """How long repeats are skipped, as written in the manifest."""
+        return self.repeat_window or REPEAT_WINDOW_DEFAULT
 
     @model_validator(mode="after")
     def validate_window_has_key(self) -> Self:

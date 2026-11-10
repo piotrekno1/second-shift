@@ -8,12 +8,12 @@ import time
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import Any
 
 from django.conf import settings
 from django.utils import timezone
 
 from secondshift.config.constants import RunStart, TriggerKind
+from secondshift.jobs.manifest import WebhookManifest, duration_seconds
 from secondshift.jobs.models import JOB_REMOVED, Job
 from secondshift.runs.dao import run_for_repeat_key, started_run_count
 from secondshift.runs.models import Run
@@ -28,7 +28,6 @@ from secondshift.triggers.dao import (
 from secondshift.triggers.filters import (
     parse_body,
     repeat_key,
-    repeat_window_seconds,
     skip_reason,
 )
 from secondshift.triggers.models import JobTrigger, TriggerEvent
@@ -149,9 +148,9 @@ def runs_per_hour(trigger: JobTrigger | None) -> int:
     return min(chosen, settings.TRIGGER_MAX_RUNS_PER_HOUR_CEILING)
 
 
-def earlier_run(job: Job, key: str, webhook: dict[str, Any]) -> Run | None:
+def earlier_run(job: Job, key: str, webhook: WebhookManifest) -> Run | None:
     """A run for the same event that is active or finished within the window."""
-    since = timezone.now() - timedelta(seconds=repeat_window_seconds(webhook))
+    since = timezone.now() - timedelta(seconds=duration_seconds(webhook.window))
     return run_for_repeat_key(job, key, since)
 
 
@@ -234,11 +233,12 @@ def receive(trigger: JobTrigger, headers: Mapping[str, str], body: bytes) -> Rec
         return refuse_unauthorized(trigger, verdict.reason)
     if refused := refusal(trigger):
         return refused
-    webhook = trigger.job.webhook or {}
-    data = parse_body(body) if webhook else None
-    if reason := skip_reason(data, webhook.get("skip_when") or {}):
+    declared = trigger.job.webhook_settings
+    data = parse_body(body) if declared else None
+    webhook = declared or WebhookManifest()
+    if reason := skip_reason(data, webhook.skip_when):
         return ignore(trigger, reason)
-    key = repeat_key(data, webhook.get("repeat_key"))
+    key = repeat_key(data, webhook.repeat_key)
     if key is not None and (earlier := earlier_run(trigger.job, key, webhook)):
         return ignore(trigger, repeat_reason(earlier))
     if refused := hourly_refusal(trigger):

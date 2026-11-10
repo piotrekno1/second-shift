@@ -311,11 +311,8 @@ def build_execution_plan(job: Job) -> ExecutionPlan:
         if job.open_pull_request
         else None,
         issues=(
-            IssuesPlan(
-                max=int(job.open_issues["max"]),
-                labels=tuple(job.open_issues["labels"]),
-            )
-            if job.open_issues
+            IssuesPlan(max=issues.max, labels=tuple(issues.labels))
+            if (issues := job.issue_settings)
             else None
         ),
         subagents=job.subagents,
