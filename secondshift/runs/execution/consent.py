@@ -29,8 +29,10 @@ def approved_connection(
             capability.kind,
             capability.binding,
         )
-        if connection is None or set(capability.effective_tools) - set(
-            connection.available_tools
+        if (
+            connection is None
+            or not connection.is_connected
+            or set(capability.effective_tools) - set(connection.available_tools)
         ):
             return None
         return connection
@@ -44,7 +46,7 @@ def approved_connection(
         or connection.kind != capability.kind
         or connection.workspace_id != run.workspace_id
         or connection.binding_key != capability.binding
-        or connection.status != Connection.Status.CONNECTED
+        or not connection.is_connected
     ):
         return None
     if tool is not None and not (

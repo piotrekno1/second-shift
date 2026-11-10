@@ -1,9 +1,11 @@
 """Explicit skill planning must not borrow another job's authorization."""
 
+from datetime import timedelta
 from typing import Any
 
 import pytest
 from django.contrib.auth import get_user_model
+from django.utils import timezone
 from pydantic import ValidationError
 
 from secondshift.config.constants import AgentBackend
@@ -283,3 +285,16 @@ def test_approved_grant_without_connection_fails_closed(repository: Repository) 
 
     assert result["ready"] is False
     assert "connection_missing" in result["capabilities"][0]["reasons"]
+
+
+def test_an_expired_token_is_not_approved_automatically(
+    repository: Repository,
+) -> None:
+    expired = connection(
+        repository,
+        auth_strategy=Connection.AuthStrategy.API_KEY,
+        expires_at=timezone.now() - timedelta(minutes=1),
+    )
+    request = RequestedCapability("billing", Connection.Kind.API, ("listCharges",))
+
+    assert approves_automatically(request, expired, repository) is False

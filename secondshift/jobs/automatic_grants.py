@@ -32,7 +32,7 @@ def approves_automatically(
         return False
     if connection.require_approval:
         return False
-    if connection.status != Connection.Status.CONNECTED:
+    if not connection.is_connected:
         return False
     if connection.kind != request.kind or connection.binding_key != request.binding:
         return False

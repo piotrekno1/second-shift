@@ -35,7 +35,7 @@ def check_connection(
         or connection.binding_key != capability.binding
     ):
         raise GrantError(422, "Connection kind and binding must match capability.")
-    if connection.status != Connection.Status.CONNECTED:
+    if not connection.is_connected:
         raise GrantError(409, "The selected connection is not connected.")
     if not approving:
         return

@@ -147,6 +147,10 @@ class Connection(models.Model):
             return self.Status.EXPIRED
         return self.status
 
+    @property
+    def is_connected(self) -> bool:
+        return self.current_status == self.Status.CONNECTED
+
     def clean(self) -> None:
         # Repositories never name model providers, so they need no binding.
         if self.kind != self.Kind.MODEL and not self.binding_key:
