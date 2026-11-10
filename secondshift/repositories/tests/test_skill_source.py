@@ -1,58 +1,105 @@
-from contextlib import nullcontext
+import subprocess
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 from unittest.mock import Mock
 
 import pytest
 
-from secondshift.connections.models import Connection
 from secondshift.repositories import skill_source
 from secondshift.repositories.github_access import GitHubAccess
 from secondshift.repositories.local import LocalRepositoryError
 from secondshift.repositories.models import Repository
+from secondshift.repositories.tests.test_local import run_git
 
 
-@pytest.mark.parametrize("revision", [None, "feature/review", "a" * 40, "a" * 64])
-def test_github_submission_fetches_requested_source_and_verifies_the_pinned_skill(
-    revision: str | None, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+@dataclass(frozen=True)
+class LocalSourceAccess(GitHubAccess):
+    """GitHub access whose clone URL is a local repository."""
+
+    source: str = ""
+
+    @property
+    def clone_url(self) -> str:
+        return self.source
+
+
+def head(path: Path, ref: str) -> str:
+    return subprocess.check_output(
+        ["git", "-C", str(path), "rev-parse", ref], text=True
+    ).strip()
+
+
+@pytest.fixture
+def source(tmp_path: Path) -> Path:
+    """A repository whose default branch is stable, with a feature branch."""
+    path = tmp_path / "source"
+    path.mkdir()
+    run_git(path, "init", "-b", "stable")
+    run_git(path, "config", "user.email", "test@secondshift.local")
+    run_git(path, "config", "user.name", "SecondShift Test")
+    skill = path / "skills/review/SKILL.md"
+    skill.parent.mkdir(parents=True)
+    skill.write_text("# Stable\n")
+    run_git(path, "add", ".")
+    run_git(path, "commit", "-m", "stable")
+    run_git(path, "switch", "-c", "feature/review")
+    skill.write_text("# Feature\n")
+    run_git(path, "commit", "-am", "feature")
+    run_git(path, "switch", "stable")
+    return path
+
+
+@pytest.mark.parametrize("revision", [None, "feature/review", "commit"])
+def test_github_submission_resolves_the_requested_source(
+    revision: str | None,
+    source: Path,
+    tmp_path: Path,
+    settings: Any,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    settings.SOURCE_CACHE_ROOT = tmp_path / "sources"
+    monkeypatch.setattr(
+        skill_source,
+        "github_access",
+        lambda repo: LocalSourceAccess(
+            42, repo.full_name, "server-token", {}, str(source)
+        ),
+    )
     repository = Repository(
         pk=12,
         source_type=Repository.SourceType.GITHUB,
         full_name="example/project",
         default_branch="stable",
-        external_id="42",
-        github_connection=Connection(external_account_id="7"),
     )
-    commit = "a" * (64 if revision and len(revision) == 64 else 40)
-    fetch = Mock(side_effect=["", commit])
-    read = Mock(return_value="# Skill")
-    monkeypatch.setattr(
-        skill_source,
-        "github_access",
-        lambda repo: GitHubAccess(42, repo.full_name, "server-token", {}),
-    )
-    monkeypatch.setattr(skill_source, "locked_mirror", lambda pk: nullcontext(tmp_path))
-    monkeypatch.setattr(skill_source, "authenticated_git", fetch)
-    monkeypatch.setattr(skill_source, "committed_file", read)
+    if revision == "commit":
+        revision = head(source, "feature/review")
+    expected = head(source, revision or "stable")
 
     assert (
         skill_source.skill_commit(repository, "skills/review/SKILL.md", revision)
-        == commit
+        == expected
     )
-
-    target = (
-        revision
-        if revision and len(revision) in (40, 64)
-        else f"refs/heads/{revision or 'stable'}"
-    )
-    assert fetch.call_args_list[0].args[-2:] == (
-        "https://github.com/example/project.git",
-        target,
-    )
-    assert "--" in fetch.call_args_list[0].args
-    read.assert_called_once_with(tmp_path, commit, "skills/review/SKILL.md")
     # Source selection never updates synced configuration or reconciles jobs.
     assert repository.config_sha == ""
+
+
+def test_github_submission_refuses_a_skill_missing_at_that_commit(
+    source: Path, tmp_path: Path, settings: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    settings.SOURCE_CACHE_ROOT = tmp_path / "sources"
+    monkeypatch.setattr(
+        skill_source,
+        "github_access",
+        lambda repo: LocalSourceAccess(
+            42, repo.full_name, "server-token", {}, str(source)
+        ),
+    )
+    repository = Repository(
+        pk=12, source_type=Repository.SourceType.GITHUB, default_branch="stable"
+    )
+    with pytest.raises(LocalRepositoryError, match="not committed"):
+        skill_source.skill_commit(repository, "skills/missing/SKILL.md", None)
 
 
 @pytest.mark.parametrize("revision", ["HEAD~1", "main:file", "../private"])
