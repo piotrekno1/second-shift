@@ -23,7 +23,7 @@ from secondshift.runs.dao import (
 from secondshift.runs.history import previous_run_ids
 from secondshift.runs.inputs import RunInput
 from secondshift.runs.issue_delivery import record_pending_issues
-from secondshift.runs.models import Run
+from secondshift.runs.models import Run, Task
 from secondshift.runs.orchestration.dispatch import enqueue_run
 from secondshift.runs.publishing import record_pending_pull_request
 
@@ -42,6 +42,31 @@ class RunInProgress(RunRefused):
         self.run = run
 
 
+def create_attempt(
+    task: Task,
+    plan: ExecutionPlan,
+    inputs: RunInput,
+    *,
+    started_by: RunStart,
+    commit_sha: str,
+    scheduled_for: datetime,
+    job: Job | None = None,
+) -> Run:
+    """One run of the task, with the deliveries its plan promises shown as pending."""
+    run = create_run_record(
+        job=job,
+        task=task,
+        started_by=started_by,
+        commit_sha=commit_sha,
+        input_snapshot=inputs.stored(),
+        execution_plan=plan.stored(),
+        scheduled_for=scheduled_for,
+    )
+    record_pending_pull_request(run)
+    record_pending_issues(run)
+    return run
+
+
 @transaction.atomic
 def create_run(
     job: Job,
@@ -52,21 +77,15 @@ def create_run(
     submitted_by: User | None = None,
 ) -> Run:
     """Create an assignment and its first attempt in the same transaction."""
-    defaults = {
-        "started_by": started_by,
-        "commit_sha": job.repository.config_sha,
-        "input_snapshot": RunInput(
-            history_run_ids=tuple(previous_run_ids(job))
-        ).stored(),
-        "execution_plan": (
-            build_execution_plan(job) if execution_plan is None else execution_plan
-        ).stored(),
-    }
-    task = create_task(repository=job.repository, submitted_by=submitted_by)
-    run = create_run_record(job=job, task=task, scheduled_for=scheduled_for, **defaults)
-    record_pending_pull_request(run)
-    record_pending_issues(run)
-    return run
+    return create_attempt(
+        create_task(repository=job.repository, submitted_by=submitted_by),
+        build_execution_plan(job) if execution_plan is None else execution_plan,
+        RunInput(history_run_ids=tuple(previous_run_ids(job))),
+        job=job,
+        started_by=started_by,
+        commit_sha=job.repository.config_sha,
+        scheduled_for=scheduled_for,
+    )
 
 
 class RunNotReady(RunRefused):

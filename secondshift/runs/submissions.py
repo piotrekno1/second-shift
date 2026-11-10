@@ -4,7 +4,6 @@ import hashlib
 import json
 import re
 from dataclasses import dataclass
-from datetime import datetime
 from typing import Self
 
 from django.conf import settings
@@ -25,7 +24,6 @@ from secondshift.repositories.models import Repository
 from secondshift.repositories.skill_source import SkillSourceError, skill_commit
 from secondshift.runs.dao import (
     active_task_count,
-    create_run_record,
     create_task,
     find_submitted_task,
     first_attempt,
@@ -33,8 +31,7 @@ from secondshift.runs.dao import (
 from secondshift.runs.inputs import RunInput
 from secondshift.runs.models import Run
 from secondshift.runs.orchestration.dispatch import enqueue_run
-from secondshift.runs.publishing import record_pending_pull_request
-from secondshift.runs.services import RunNotReady, RunRefused
+from secondshift.runs.services import RunNotReady, RunRefused, create_attempt
 
 
 class SkillSubmission(BaseModel):
@@ -170,27 +167,24 @@ def submit_skill(
         )
         if not plan.ready:
             raise RunNotReady(execution_problems(repository, plan))
-        snapshot = RunInput(
-            name=submission.definition.name,
-            definition=submission.definition.model_dump(mode="json"),
-            submission_input=submission.input,
-            requested_revision=submission.revision,
-        ).stored()
-        scheduled_for: datetime = submission.not_before or timezone.now()
         task = create_task(
             repository=repository,
             submission_key=submission.idempotency_key,
             fingerprint=fingerprint,
             submitted_by=user,
         )
-        run = create_run_record(
-            task=task,
+        run = create_attempt(
+            task,
+            plan,
+            RunInput(
+                name=submission.definition.name,
+                definition=submission.definition.model_dump(mode="json"),
+                submission_input=submission.input,
+                requested_revision=submission.revision,
+            ),
             started_by=started_by,
             commit_sha=commit,
-            input_snapshot=snapshot,
-            execution_plan=plan.stored(),
-            scheduled_for=scheduled_for,
+            scheduled_for=submission.not_before or timezone.now(),
         )
-        record_pending_pull_request(run)
         transaction.on_commit(lambda: enqueue_run(run))
     return SubmissionResult(run, True)
