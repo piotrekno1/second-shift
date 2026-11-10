@@ -47,7 +47,7 @@ export function agentSetup(client: AgentClient, workspaceSlug: string, origin: s
 }
 
 /** Where the browser remembers that someone closed the after-setup agent card. */
-export function agentCardKey(email: string, workspaceSlug: string): string {
+function agentCardKey(email: string, workspaceSlug: string): string {
   return `secondshift:agent-card-dismissed:${workspaceSlug}:${email}`
 }
 

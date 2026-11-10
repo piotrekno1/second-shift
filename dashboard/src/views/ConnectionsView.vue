@@ -197,7 +197,7 @@ function testLabel(connection: Connection): string | null {
 const rowMenu = ref<InstanceType<typeof Menu> | null>(null)
 const rowMenuItems = ref<MenuItem[]>([])
 
-function openRowMenu(event: Event, connection: Connection): void {
+function rowMenuFor(connection: Connection): MenuItem[] {
   const items: MenuItem[] = []
   const test = testLabel(connection)
   if (test) items.push({ label: test, appIcon: connection.provider === 'webhook' ? 'send-outline' : 'refresh', command: () => sendTest(connection, `connection-${connection.id}`) })
@@ -207,14 +207,16 @@ function openRowMenu(event: Event, connection: Connection): void {
   if (connection.status !== 'revoked' && app.can(Action.DisconnectConnections)) danger.push({ label: 'Disconnect…', appIcon: 'power-plug-off-outline', danger: true, command: () => { confirmRevoke.value = connection.id; confirmDelete.value = null } })
   if (connection.status === 'revoked' && app.can(Action.DeleteConnections)) danger.push({ label: 'Delete…', appIcon: 'trash-can-outline', danger: true, command: () => { confirmDelete.value = connection.id; confirmRevoke.value = null } })
   if (items.length && danger.length) items.push({ separator: true })
-  rowMenuItems.value = [...items, ...danger]
+  return [...items, ...danger]
+}
+
+function openRowMenu(event: Event, connection: Connection): void {
+  rowMenuItems.value = rowMenuFor(connection)
   rowMenu.value?.toggle(event)
 }
 
 function hasMenu(connection: Connection): boolean {
-  return Boolean(testLabel(connection) || editable(connection) || replaceable(connection)
-    || (connection.status !== 'revoked' && app.can(Action.DisconnectConnections))
-    || (connection.status === 'revoked' && app.can(Action.DeleteConnections)))
+  return rowMenuFor(connection).length > 0
 }
 const connectionsSubtitle = computed(() => {
   // The same counts as the sidebar's "to fix", spelled out.
@@ -377,7 +379,7 @@ onMounted(async () => {
             <div class="need-actions">
               <Button v-if="need.status === 'missing' && canEdit" :label="isOpen({ mode: 'need', binding: need.binding }) ? 'Cancel' : 'Connect'" size="small" :severity="isOpen({ mode: 'need', binding: need.binding }) ? 'secondary' : undefined" :text="isOffer(need) || isOpen({ mode: 'need', binding: need.binding })" @click="toggle({ mode: 'need', binding: need.binding })" />
               <template v-else-if="need.status === 'unavailable' && need.connection">
-                <Button v-if="canEdit && (need.connection.provider === 'webhook' || need.connection.kind === 'mcp' || need.connection.kind === 'api')" :label="isOpen({ mode: 'need', binding: need.binding }) ? 'Cancel' : 'Reconnect'" size="small" @click="toggle({ mode: 'need', binding: need.binding })" />
+                <Button v-if="editable(need.connection)" :label="isOpen({ mode: 'need', binding: need.binding }) ? 'Cancel' : 'Reconnect'" size="small" @click="toggle({ mode: 'need', binding: need.binding })" />
               </template>
               <Button v-else-if="need.status === 'needs_approval' && need.connection && app.can(Action.ReviewCapabilities)" :label="`Approve for ${countLabel(pendingJobs(need), 'job')}`" size="small" :loading="busy === `approve-${need.binding}`" @click="approve(need)" />
             </div>

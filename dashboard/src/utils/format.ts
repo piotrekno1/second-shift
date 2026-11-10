@@ -4,7 +4,7 @@ import type { Connection, ConnectionUsage, Run, RunLimitItem } from '../types'
 const LOCALE = 'en-GB'
 
 /** The viewer's timezone, e.g. "Europe/Warsaw". */
-export function viewerTimeZone(): string {
+function viewerTimeZone(): string {
   return Intl.DateTimeFormat().resolvedOptions().timeZone
 }
 
@@ -441,7 +441,7 @@ export function finishedBinding(value: string): string {
 }
 
 /** A token expiring within this many days gets a warning. */
-export const TOKEN_WARNING_DAYS = 14
+const TOKEN_WARNING_DAYS = 14
 
 /** How a repository source reaches GitHub. */
 export function sourceAuthLabel(auth: string | undefined): string {
