@@ -1,5 +1,4 @@
 from typing import Any
-from unittest.mock import Mock
 
 import pytest
 from django.contrib.auth import get_user_model
@@ -16,8 +15,8 @@ from secondshift.connections.tests.test_agent_connections import (
 from secondshift.connections.tests.test_agent_connections import (
     agent_login as agent_login_fixture,
 )
-from secondshift.runner.agent_credentials import provisioning_public_key
 from secondshift.runner.protocol import RunnerProtocolError
+from secondshift.runner.tests.fakes import agent_runner
 from secondshift.workspaces.models import Workspace, WorkspaceMembership
 
 agent_login = agent_login_fixture
@@ -32,24 +31,7 @@ def runner_keys(settings: Any, tmp_path: Any) -> None:
 def fake_runner(
     monkeypatch: pytest.MonkeyPatch, result: dict[str, Any] | Exception
 ) -> list[dict[str, Any]]:
-    """Answer the provisioning key and the check, and record what was sent."""
-    sent: list[dict[str, Any]] = []
-    runner = Mock()
-
-    def send(method: str, path: str, **kwargs: Any) -> str:
-        sent.append({"method": method, "path": path, **kwargs})
-        if isinstance(result, Exception) and path == "/v1/agent-checks":
-            raise result
-        return path
-
-    def payload(path: str) -> dict[str, Any]:
-        if path == "/v1/agent-provisioning-key":
-            return {"public_key": provisioning_public_key()}
-        assert isinstance(result, dict)
-        return result
-
-    runner.send.side_effect = send
-    runner.response_payload.side_effect = payload
+    runner, sent = agent_runner(result)
     monkeypatch.setattr(agent_logins, "get_runner_client", lambda: runner)
     return sent
 

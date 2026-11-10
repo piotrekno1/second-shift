@@ -19,8 +19,8 @@ from secondshift.jobs.tests.test_execution_defaults import (
 )
 from secondshift.runner.agent_credentials import (
     decrypt_agent_auth,
-    provisioning_public_key,
 )
+from secondshift.runner.tests.fakes import agent_runner
 from secondshift.runs.dao import with_model_usage
 from secondshift.runs.execution import cli_agent
 from secondshift.runs.execution.cli_agent import execute_cli_step
@@ -42,23 +42,9 @@ def memory_artifacts(settings: Any, tmp_path: Path) -> None:
 
 
 def fake_runner(
-    monkeypatch: pytest.MonkeyPatch, result: dict[str, Any]
+    monkeypatch: pytest.MonkeyPatch, result: dict[str, Any] | Exception
 ) -> list[dict[str, Any]]:
-    """Answer the provisioning key and agent requests, and record the bodies."""
-    sent: list[dict[str, Any]] = []
-    runner = Mock()
-
-    def send(method: str, path: str, **kwargs: Any) -> str:
-        sent.append({"method": method, "path": path, **kwargs})
-        return path
-
-    def payload(path: str) -> dict[str, Any]:
-        if path == "/v1/agent-provisioning-key":
-            return {"public_key": provisioning_public_key()}
-        return result
-
-    runner.send.side_effect = send
-    runner.response_payload.side_effect = payload
+    runner, sent = agent_runner(result)
     monkeypatch.setattr(cli_agent, "get_runner_client", lambda: runner)
     return sent
 

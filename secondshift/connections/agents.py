@@ -3,7 +3,6 @@
 import json
 import logging
 import uuid
-from typing import Any
 
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -17,8 +16,8 @@ from secondshift.connections.dao import (
     queue_cleanup,
 )
 from secondshift.connections.models import AgentConnection, AgentCredentialCleanup
-from secondshift.runner.agent_credentials import encrypt_agent_auth
 from secondshift.runner.agent_image.outcomes import AgentOutcome
+from secondshift.runner.agent_protocol import AgentCheckInput
 from secondshift.runner.client import get_runner_client
 from secondshift.runner.protocol import RunnerProtocolError
 from secondshift.workspaces.dao import is_owner
@@ -181,27 +180,19 @@ def check_agent_connection(connection: AgentConnection) -> AgentConnection:
         raise AgentConnectionError("Reconnect this login before checking it.")
     try:
         client = get_runner_client()
-        key = client.response_payload(client.send("GET", "/v1/agent-provisioning-key"))
-        response = client.send(
-            "POST",
-            "/v1/agent-checks",
-            # The runner stops the CLI after its own limit. This covers startup.
-            timeout=28,
-            json={
-                "backend": connection.backend,
-                "credential_key": connection.credential_key.hex,
-                "auth": encrypt_agent_auth(
-                    str(key["public_key"]), connection.auth_data
-                ),
-            },
+        result = client.check_agent(
+            AgentCheckInput(
+                backend=connection.backend,
+                credential_key=connection.credential_key.hex,
+                auth=client.encrypted_auth(connection.auth_data),
+            )
         )
-        result: dict[str, Any] = client.response_payload(response)
     except RunnerProtocolError:
         raise AgentConnectionError(
             "The runner could not check the login now. It may be running a job "
             "with it. Try again in a moment."
         ) from None
-    reason = str(result.get("reason", ""))
+    reason = result.reason
     ok, message = CHECK_RESULTS.get(reason, CHECK_FAILED)
     connection.last_check = {
         "ok": ok,

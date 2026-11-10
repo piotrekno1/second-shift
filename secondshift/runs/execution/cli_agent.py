@@ -9,8 +9,8 @@ from django.utils import timezone
 
 from secondshift.connections.agents import AgentConnectionError, check_agent_connection
 from secondshift.connections.models import AgentConnection
-from secondshift.runner.agent_credentials import encrypt_agent_auth
 from secondshift.runner.agent_image.outcomes import AgentOutcome
+from secondshift.runner.agent_protocol import AgentInput
 from secondshift.runner.client import get_runner_client
 from secondshift.runs.dao import (
     add_event,
@@ -120,52 +120,39 @@ def execute_cli_step(run_id: int, session_id: str, prompt: str) -> dict[str, Any
     limits = run.plan.agent.limits
     try:
         client = get_runner_client()
-        provisioning = client.response_payload(
-            client.send("GET", "/v1/agent-provisioning-key")
+        result = client.run_agent(
+            session_id,
+            AgentInput(
+                backend=connection.backend,
+                credential_key=connection.credential_key.hex,
+                auth=client.encrypted_auth(connection.auth_data),
+                broker_token=token,
+                prompt=prompt,
+                max_turns=limits.max_turns,
+                token_budget=limits.token_budget,
+                timeout_seconds=remaining,
+                subagents=run.plan.agent.subagents,
+            ),
         )
-        encrypted_auth = encrypt_agent_auth(
-            str(provisioning["public_key"]), connection.auth_data
-        )
-        response = client.send(
-            "POST",
-            f"/v1/sessions/{session_id}/agent",
-            timeout=remaining + 30,
-            json={
-                "backend": connection.backend,
-                "credential_key": connection.credential_key.hex,
-                "auth": encrypted_auth,
-                "broker_token": token,
-                "prompt": prompt,
-                "max_turns": limits.max_turns,
-                "token_budget": limits.token_budget,
-                "timeout_seconds": remaining,
-                "subagents": run.plan.agent.subagents,
-            },
-        )
-        result = client.response_payload(response)
     finally:
         end_lease(lease.pk)
-    report = str(result.get("report", "")).strip()
-    succeeded = bool(result.get("succeeded")) and bool(report)
-    reason = str(result.get("reason", AgentOutcome.AGENT_FAILED))
+    report = result.report.strip()
+    succeeded = result.succeeded and bool(report)
+    reason = result.reason
     if reason == AgentOutcome.RECONNECT_REQUIRED:
         reason = confirm_sign_in(run, connection)
-    record_subagents(run, result.get("subagents", []))
+    record_subagents(run, result.subagents)
     add_event(
         run.pk,
         "Agent execution finished.",
         metadata={
             "backend": connection.backend,
             "reason": reason,
-            "versions": result.get("versions", {}),
-            "usage": result.get("usage", {}),
+            "versions": result.versions,
+            "usage": result.usage,
         },
     )
-    details = {
-        "backend": connection.backend,
-        "reason": reason,
-        "usage": result.get("usage", {}),
-    }
+    details = {"backend": connection.backend, "reason": reason, "usage": result.usage}
     if succeeded:
         agent_result = AgentResult.success(run, report, details)
     else:
