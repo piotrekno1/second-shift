@@ -234,6 +234,9 @@ def test_gateway_enforces_auth_paths_models_and_budget(
     other_path = post(
         client, "/gateway/anthropic/v1/files", message, **{"x-api-key": token}
     )
+    other_api = post(
+        client, "/gateway/gemini/v1/messages", message, **{"x-api-key": token}
+    )
     other_model = post(
         client,
         "/gateway/anthropic/v1/messages",
@@ -249,6 +252,7 @@ def test_gateway_enforces_auth_paths_models_and_budget(
     assert unauthenticated.json()["error"]["type"] == "authentication_error"
     assert wrong_family.status_code == 404
     assert other_path.status_code == 404
+    assert other_api.status_code == 404
     assert other_model.status_code == 403
     assert over_budget.status_code == 429
     # The provider SDK must not retry a run that has used its budget.

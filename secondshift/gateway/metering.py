@@ -4,6 +4,7 @@ import json
 from dataclasses import asdict, dataclass, field
 from typing import Any
 
+from secondshift.config.constants import ModelFamily
 from secondshift.gateway.dao import aadd_used_tokens, acreate_model_usage
 from secondshift.gateway.models import RunToken
 from secondshift.gateway.pricing import request_cost
@@ -79,11 +80,11 @@ def apply_openai_usage(usage: Usage, data: Any) -> None:
         usage.output_tokens = completion
 
 
-def usage_from_json(family: str, body: Any) -> Usage:
+def usage_from_json(family: ModelFamily, body: Any) -> Usage:
     usage = Usage()
     if not isinstance(body, dict):
         return usage
-    if family == "anthropic":
+    if family == ModelFamily.ANTHROPIC:
         apply_anthropic_usage(usage, body.get("usage"))
     else:
         apply_openai_usage(usage, body.get("usage"))
@@ -94,7 +95,7 @@ def usage_from_json(family: str, body: Any) -> Usage:
 class StreamMeter:
     """Reads usage out of a server-sent event stream without altering it."""
 
-    family: str
+    family: ModelFamily
     usage: Usage = field(default_factory=Usage)
     # The partial line waiting for its newline. A bytearray grows in place, so
     # a long line read in small chunks costs time linear in its length.
@@ -115,7 +116,7 @@ class StreamMeter:
         event = sse_event(line)
         if event is None:
             return
-        if self.family == "anthropic":
+        if self.family == ModelFamily.ANTHROPIC:
             apply_anthropic_event(self.usage, event)
         else:
             apply_openai_event(self.usage, event)
@@ -156,7 +157,7 @@ def apply_openai_event(usage: Usage, event: dict[str, Any]) -> None:
 
 
 async def record_usage(
-    run_token: RunToken, family: str, model: str, status_code: int, usage: Usage
+    run_token: RunToken, family: ModelFamily, model: str, status_code: int, usage: Usage
 ) -> None:
     await acreate_model_usage(
         run_token,
