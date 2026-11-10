@@ -9,6 +9,7 @@ import { fetchSettings, saveWorkspaceLimits } from '../services/settings'
 import { useAppStore } from '../stores/app'
 import type { RunLimitUpdate, WorkspaceSettings } from '../types'
 import { Action } from '../utils/permissions'
+import { errorMessage } from '../services/api'
 
 const app = useAppStore()
 const canInvite = computed(() => app.can(Action.InvitePeople))
@@ -25,7 +26,7 @@ async function saveLimits(values: RunLimitUpdate): Promise<void> {
   try {
     data.value = await saveWorkspaceLimits(values)
   } catch (saveError) {
-    limitsError.value = saveError instanceof Error ? saveError.message : 'Unable to save the limits'
+    limitsError.value = errorMessage(saveError, 'Unable to save the limits')
   } finally {
     savingLimits.value = false
   }
@@ -51,7 +52,7 @@ onMounted(async () => {
   try {
     data.value = await fetchSettings()
   } catch (loadError) {
-    error.value = loadError instanceof Error ? loadError.message : 'Unable to load settings'
+    error.value = errorMessage(loadError, 'Unable to load settings')
   }
 })
 </script>

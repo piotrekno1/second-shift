@@ -19,6 +19,7 @@ import { parseRunCap } from '../utils/agents'
 import { formatRelative } from '../utils/format'
 import { modelRows, SIGN_IN_REFUSED, type ModelRow } from '../utils/models'
 import { Action } from '../utils/permissions'
+import { errorMessage } from '../services/api'
 
 /** Which form is open: adding an API key or a login, or editing one row. */
 type OpenForm = { mode: 'add-key' } | { mode: 'add-login' } | { mode: 'edit', key: string }
@@ -71,7 +72,7 @@ async function act(key: string, action: () => Promise<string>, fallback: string)
   try {
     notices[key] = { ok: true, text: await action() }
   } catch (error) {
-    notices[key] = { ok: false, text: error instanceof Error ? error.message : fallback }
+    notices[key] = { ok: false, text: errorMessage(error, fallback) }
   } finally {
     busy.value = null
   }
@@ -153,7 +154,7 @@ async function saveLimit(row: ModelRow): Promise<void> {
     await agents.setRunLimit(row.login!.id, parsed.value)
     limitKey.value = null
   } catch (error) {
-    limitProblem.value = error instanceof Error ? error.message : 'Unable to save the limit.'
+    limitProblem.value = errorMessage(error, 'Unable to save the limit.')
   } finally {
     busy.value = null
   }
@@ -206,7 +207,7 @@ onMounted(async () => {
   try {
     await agents.refresh()
   } catch (error) {
-    loadError.value = error instanceof Error ? error.message : 'Unable to load what runs jobs.'
+    loadError.value = errorMessage(error, 'Unable to load what runs jobs.')
   }
   loaded.value = true
   // Warnings link here with ?connection=<id> so the broken provider opens ready to fix.

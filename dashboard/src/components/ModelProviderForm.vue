@@ -10,6 +10,7 @@ import ModelPicker from './ModelPicker.vue'
 import { createModelProvider, discoverModels, testConnection, updateModelProvider } from '../services/connections'
 import { useAppStore } from '../stores/app'
 import type { Connection, ModelProvider, Notice } from '../types'
+import { errorMessage } from '../services/api'
 
 const props = defineProps<{ connection?: Connection }>()
 const emit = defineEmits<{ done: [notice: Notice, binding: string], cancel: [] }>()
@@ -70,7 +71,7 @@ async function loadModels(): Promise<void> {
     }, props.connection?.id)
     if (version === discoveryVersion) availableModels.value = models
   } catch (failure) {
-    if (version === discoveryVersion) modelError.value = failure instanceof Error ? failure.message : 'Unable to load models'
+    if (version === discoveryVersion) modelError.value = errorMessage(failure, 'Unable to load models')
   } finally {
     if (version === discoveryVersion) loadingModels.value = false
   }
@@ -114,7 +115,7 @@ async function submit(): Promise<void> {
       text: result.ok ? result.message.replace(/^Connected/, verb) : `${verb}, but the check failed: ${result.message}`,
     }
   } catch (submitError) {
-    error.value = submitError instanceof Error ? submitError.message : 'Unable to save the model provider'
+    error.value = errorMessage(submitError, 'Unable to save the model provider')
   } finally {
     await app.refresh()
     saving.value = false

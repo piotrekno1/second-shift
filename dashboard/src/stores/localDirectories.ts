@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { fetchLocalDirectories } from '../services/localDirectories'
 import type { LocalRepositoryDirectoryList } from '../types'
+import { errorMessage } from '../services/api'
 
 export const useLocalDirectoriesStore = defineStore('localDirectories', () => {
   const listing = ref<LocalRepositoryDirectoryList | null>(null)
@@ -25,7 +26,7 @@ export const useLocalDirectoriesStore = defineStore('localDirectories', () => {
       const result = await fetchLocalDirectories(path)
       if (current === request) listing.value = result
     } catch (cause) {
-      if (current === request) error.value = cause instanceof Error ? cause.message : 'Unable to browse directories'
+      if (current === request) error.value = errorMessage(cause, 'Unable to browse directories')
     } finally {
       if (current === request) loading.value = false
     }

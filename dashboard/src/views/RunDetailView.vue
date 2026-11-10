@@ -16,6 +16,7 @@ import { renderMarkdown } from '../utils/markdown'
 import { runOutputLink } from '../utils/runOutputLink'
 import { runWarning } from '../utils/readiness'
 import { startedByLabel } from '../utils/triggers'
+import { errorMessage } from '../services/api'
 
 const POLL_MS = 2000
 
@@ -73,7 +74,7 @@ async function cancel(): Promise<void> {
     await load()
     await app.refreshRuns()
   } catch (cause) {
-    error.value = cause instanceof Error ? cause.message : 'Unable to cancel this task'
+    error.value = errorMessage(cause, 'Unable to cancel this task')
   } finally {
     canceling.value = false
   }
@@ -86,7 +87,7 @@ async function retry(delivery: RunDelivery): Promise<void> {
     await retryDelivery(run.value.id, delivery.id)
     await load()
   } catch (cause) {
-    error.value = cause instanceof Error ? cause.message : 'Unable to retry this delivery'
+    error.value = errorMessage(cause, 'Unable to retry this delivery')
   } finally {
     retrying.value = null
   }
@@ -111,7 +112,7 @@ async function load(): Promise<void> {
     error.value = null
   } catch (loadError) {
     if (serial !== requestSerial) return
-    error.value = loadError instanceof Error ? loadError.message : 'Unable to load run'
+    error.value = errorMessage(loadError, 'Unable to load run')
   } finally {
     if (serial === requestSerial) loading.value = false
   }
@@ -138,7 +139,7 @@ async function runAgain(): Promise<void> {
     const started = await startJobRun(run.value.job_id)
     await router.push(`/runs/${started.id}`)
   } catch (runError) {
-    error.value = runError instanceof Error ? runError.message : 'Unable to start a new run'
+    error.value = errorMessage(runError, 'Unable to start a new run')
   } finally {
     rerunning.value = false
   }

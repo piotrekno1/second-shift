@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { connectGitHubToken, githubRepositories, githubBranches, importGitHubRepository, type GitHubSource } from '../services/githubRepositories'
+import { errorMessage } from '../services/api'
 
 export const useGitHubRepositoriesStore = defineStore('githubRepositories', () => {
   const sources = ref<GitHubSource[]>([])
@@ -26,7 +27,7 @@ export const useGitHubRepositoriesStore = defineStore('githubRepositories', () =
       branches.value = names
     } catch (caught) {
       if (request !== branchRequest) return
-      branchesError.value = caught instanceof Error ? caught.message : 'Unable to load branches'
+      branchesError.value = errorMessage(caught, 'Unable to load branches')
     } finally {
       if (request === branchRequest) branchesLoading.value = false
     }
@@ -41,7 +42,7 @@ export const useGitHubRepositoriesStore = defineStore('githubRepositories', () =
       sources.value = status.repositories
       error.value = status.error || null
     } catch (caught) {
-      error.value = caught instanceof Error ? caught.message : 'Unable to load GitHub repositories'
+      error.value = errorMessage(caught, 'Unable to load GitHub repositories')
     } finally { loading.value = false }
   }
 
@@ -51,7 +52,7 @@ export const useGitHubRepositoriesStore = defineStore('githubRepositories', () =
     try {
       return await importGitHubRepository(source, branch)
     } catch (caught) {
-      error.value = caught instanceof Error ? caught.message : 'Unable to import repository'
+      error.value = errorMessage(caught, 'Unable to import repository')
       return null
     } finally {
       importing.value = false
@@ -66,7 +67,7 @@ export const useGitHubRepositoriesStore = defineStore('githubRepositories', () =
       await connectGitHubToken(token.trim(), connectionId)
       return true
     } catch (caught) {
-      tokenError.value = caught instanceof Error ? caught.message : 'Unable to connect the token'
+      tokenError.value = errorMessage(caught, 'Unable to connect the token')
       return false
     } finally {
       connecting.value = false

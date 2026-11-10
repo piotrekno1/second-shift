@@ -12,6 +12,7 @@ import type { APISpecSummary } from '../services/connections'
 import { useAppStore } from '../stores/app'
 import type { Connection, Notice } from '../types'
 import { countLabel, finishedBinding, needsReconnect, typingBinding } from '../utils/format'
+import { errorMessage } from '../services/api'
 
 const OTHER = 'other'
 
@@ -117,7 +118,7 @@ async function submit(): Promise<void> {
     if (needsSpec.value) await loadSpec()
     else await save()
   } catch (failure) {
-    error.value = failure instanceof Error ? failure.message : 'Unable to connect the API'
+    error.value = errorMessage(failure, 'Unable to connect the API')
   } finally {
     saving.value = false
   }

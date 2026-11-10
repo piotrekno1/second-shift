@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 
-import { apiGet, AuthenticationRequired } from '../services/api'
+import { apiGet, AuthenticationRequired, errorMessage } from '../services/api'
 import { signInUrl } from '../utils/signIn'
 import { awaitsApproval } from '../utils/format'
 import { Action, allows } from '../utils/permissions'
@@ -80,7 +80,7 @@ export const useAppStore = defineStore('app', {
           const { pathname, search } = window.location
           window.location.replace(signInUrl(pathname + search))
         } else {
-          this.error = error instanceof Error ? error.message : 'Unable to start SecondShift'
+          this.error = errorMessage(error, 'Unable to start SecondShift')
         }
       } finally {
         this.initializing = false

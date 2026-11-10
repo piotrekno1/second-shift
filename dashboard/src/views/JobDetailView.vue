@@ -10,7 +10,7 @@ import JobTriggersPanel from '../components/JobTriggersPanel.vue'
 import RunLimitsPanel from '../components/RunLimitsPanel.vue'
 import RunRow from '../components/RunRow.vue'
 import StatusPill from '../components/StatusPill.vue'
-import { apiGet, apiPost } from '../services/api'
+import { apiGet, apiPost, errorMessage } from '../services/api'
 import { useLiveRefresh } from '../composables/useLiveRefresh'
 import { isRunActive, startJobRun } from '../services/runs'
 import { saveJobLimits } from '../services/settings'
@@ -63,7 +63,7 @@ async function loadJob(): Promise<void> {
     job.value = await apiGet<JobDetail>(`/jobs/${jobId}`)
     error.value = null
   } catch (loadError) {
-    error.value = loadError instanceof Error ? loadError.message : 'Unable to load job'
+    error.value = errorMessage(loadError, 'Unable to load job')
   } finally {
     loading.value = false
   }
@@ -75,7 +75,7 @@ async function saveLimits(values: RunLimitUpdate): Promise<void> {
   try {
     job.value = await saveJobLimits(jobId, values)
   } catch (saveError) {
-    limitsError.value = saveError instanceof Error ? saveError.message : 'Unable to save the limits'
+    limitsError.value = errorMessage(saveError, 'Unable to save the limits')
   } finally {
     savingLimits.value = false
   }
@@ -98,7 +98,7 @@ async function toggleJob(): Promise<void> {
     await apiPost<Job>(`/jobs/${jobId}/enabled`, { enabled: !job.value.enabled })
     await Promise.all([loadJob(), app.refresh()])
   } catch (toggleError) {
-    error.value = toggleError instanceof Error ? toggleError.message : 'Unable to change job state'
+    error.value = errorMessage(toggleError, 'Unable to change job state')
   } finally {
     action.value = null
   }
@@ -114,7 +114,7 @@ async function runNow(): Promise<void> {
     await router.push(`/runs/${run.id}`)
     void app.refreshRuns()
   } catch (runError) {
-    error.value = runError instanceof Error ? runError.message : 'Unable to run job'
+    error.value = errorMessage(runError, 'Unable to run job')
   } finally {
     action.value = null
   }

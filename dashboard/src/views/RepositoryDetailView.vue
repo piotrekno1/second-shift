@@ -7,7 +7,7 @@ import Button from 'primevue/button'
 import Menu from 'primevue/menu'
 import PageHeader from '../components/PageHeader.vue'
 import StatusPill from '../components/StatusPill.vue'
-import { apiDelete, apiGet, apiPost } from '../services/api'
+import { apiDelete, apiGet, apiPost, errorMessage } from '../services/api'
 import { useAppStore } from '../stores/app'
 import type { Capability, Job, RepositoryDetail, RepositoryValidation } from '../types'
 import { Action } from '../utils/permissions'
@@ -75,7 +75,7 @@ async function enableReadyJobs(): Promise<void> {
     ))
     await Promise.all([app.refresh(), loadRepository()])
   } catch (enableError) {
-    error.value = enableError instanceof Error ? enableError.message : 'Unable to enable jobs'
+    error.value = errorMessage(enableError, 'Unable to enable jobs')
   } finally {
     action.value = null
   }
@@ -86,7 +86,7 @@ async function loadRepository(): Promise<void> {
     repository.value = await apiGet<RepositoryDetail>(`/repositories/${repositoryId}`)
     error.value = null
   } catch (loadError) {
-    error.value = loadError instanceof Error ? loadError.message : 'Unable to load repository'
+    error.value = errorMessage(loadError, 'Unable to load repository')
   } finally {
     loading.value = false
   }
@@ -99,7 +99,7 @@ async function validateRepository(): Promise<void> {
     const validation = await apiPost<RepositoryValidation>(`/repositories/${repositoryId}/validate`)
     if (repository.value) repository.value.validation = validation
   } catch (validationError) {
-    error.value = validationError instanceof Error ? validationError.message : 'Validation failed'
+    error.value = errorMessage(validationError, 'Validation failed')
   } finally {
     action.value = null
   }
@@ -112,7 +112,7 @@ async function resyncRepository(): Promise<void> {
     repository.value = await apiPost<RepositoryDetail>(`/repositories/${repositoryId}/resync`)
     await app.refresh()
   } catch (syncError) {
-    error.value = syncError instanceof Error ? syncError.message : 'Synchronization failed'
+    error.value = errorMessage(syncError, 'Synchronization failed')
   } finally {
     action.value = null
   }
@@ -128,7 +128,7 @@ async function toggleRepository(): Promise<void> {
     })
     await app.refresh()
   } catch (toggleError) {
-    error.value = toggleError instanceof Error ? toggleError.message : 'Unable to change repository state'
+    error.value = errorMessage(toggleError, 'Unable to change repository state')
   } finally {
     action.value = null
   }
@@ -143,7 +143,7 @@ async function toggleAutoSync(): Promise<void> {
       enabled: !repository.value.auto_sync,
     })
   } catch (toggleError) {
-    error.value = toggleError instanceof Error ? toggleError.message : 'Unable to change auto-sync'
+    error.value = errorMessage(toggleError, 'Unable to change auto-sync')
   } finally {
     action.value = null
   }
@@ -156,7 +156,7 @@ async function setPullRequests(allow: boolean, runCi: boolean): Promise<void> {
   try {
     repository.value = await apiPost<RepositoryDetail>(`/repositories/${repositoryId}/pull-requests`, { allow, run_ci: runCi })
   } catch (changeError) {
-    error.value = changeError instanceof Error ? changeError.message : 'Unable to change pull request settings'
+    error.value = errorMessage(changeError, 'Unable to change pull request settings')
   } finally {
     action.value = null
   }
@@ -169,7 +169,7 @@ async function setIssues(allow: boolean): Promise<void> {
   try {
     repository.value = await apiPost<RepositoryDetail>(`/repositories/${repositoryId}/issues`, { allow })
   } catch (changeError) {
-    error.value = changeError instanceof Error ? changeError.message : 'Unable to change issue settings'
+    error.value = errorMessage(changeError, 'Unable to change issue settings')
   } finally {
     action.value = null
   }
@@ -200,7 +200,7 @@ async function removeRepository(): Promise<void> {
     await app.refresh()
     await router.push('/repositories')
   } catch (removeError) {
-    error.value = removeError instanceof Error ? removeError.message : 'Unable to remove repository'
+    error.value = errorMessage(removeError, 'Unable to remove repository')
   } finally {
     action.value = null
   }

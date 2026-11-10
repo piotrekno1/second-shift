@@ -12,7 +12,7 @@ import SearchInput from '../components/SearchInput.vue'
 import StatusPill from '../components/StatusPill.vue'
 import ToolRulesEditor from '../components/ToolRulesEditor.vue'
 import { useListQuery } from '../composables/useListQuery'
-import { apiPost } from '../services/api'
+import { apiPost, errorMessage } from '../services/api'
 import { startJobRun } from '../services/runs'
 import { useAppStore } from '../stores/app'
 import type { Access, Capability, Connection, Job, ToolRules } from '../types'
@@ -108,7 +108,7 @@ async function runNow(jobId: number): Promise<void> {
     noticeTimer = window.setTimeout(() => { startedRun.value = null }, NOTICE_MS)
     await app.refresh()
   } catch (runError) {
-    error.value = runError instanceof Error ? runError.message : 'Unable to run job'
+    error.value = errorMessage(runError, 'Unable to run job')
   } finally {
     action.value = null
   }
@@ -185,7 +185,7 @@ async function reviewCapability(job: Job, capability: Capability, decision: 'app
     delete ruleDrafts[capability.id]
     await app.refresh()
   } catch (reviewError) {
-    error.value = reviewError instanceof Error ? reviewError.message : 'Unable to save the review'
+    error.value = errorMessage(reviewError, 'Unable to save the review')
   } finally {
     action.value = null
   }
@@ -198,7 +198,7 @@ async function toggleJob(job: Job): Promise<void> {
     await apiPost<Job>(`/jobs/${job.id}/enabled`, { enabled: !job.enabled })
     await app.refresh()
   } catch (toggleError) {
-    error.value = toggleError instanceof Error ? toggleError.message : 'Unable to change job state'
+    error.value = errorMessage(toggleError, 'Unable to change job state')
   } finally {
     action.value = null
   }

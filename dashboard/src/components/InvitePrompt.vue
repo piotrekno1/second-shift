@@ -5,6 +5,7 @@ import Button from 'primevue/button'
 import { acceptPendingInvite, dismissPendingInvite } from '../services/invites'
 import { useAppStore } from '../stores/app'
 import { statusLabel } from '../utils/format'
+import { errorMessage } from '../services/api'
 
 const app = useAppStore()
 const busy = ref(false)
@@ -19,7 +20,7 @@ async function act(action: () => Promise<unknown>, reload: boolean): Promise<voi
     if (reload) window.location.assign('/')
     else app.pendingInvite = null
   } catch (actionError) {
-    error.value = actionError instanceof Error ? actionError.message : 'Something went wrong'
+    error.value = errorMessage(actionError, 'Something went wrong')
     busy.value = false
   }
 }

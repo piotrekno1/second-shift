@@ -7,6 +7,7 @@ import { fetchRunFile, runFileUrl } from '../services/runs'
 import type { RunFileName } from '../types'
 import { renderMarkdown } from '../utils/markdown'
 import { runOutputLink } from '../utils/runOutputLink'
+import { errorMessage } from '../services/api'
 
 const LABELS: Record<RunFileName, string> = { input: 'Input', output: 'Output' }
 const DESCRIPTIONS: Record<RunFileName, string> = {
@@ -35,7 +36,7 @@ async function load(): Promise<void> {
   try {
     content.value = await fetchRunFile(runId.value, name.value)
   } catch (loadError) {
-    error.value = loadError instanceof Error ? loadError.message : 'Unable to load file'
+    error.value = errorMessage(loadError, 'Unable to load file')
   } finally {
     loading.value = false
   }

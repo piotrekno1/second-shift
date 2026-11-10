@@ -11,6 +11,7 @@ import { createMCPConnection, inspectMCPServer, startMCPSignIn, updateMCPConnect
 import { useAppStore } from '../stores/app'
 import type { Connection, MCPServerInfo, Notice } from '../types'
 import { countLabel, finishedBinding, needsReconnect, typingBinding } from '../utils/format'
+import { errorMessage } from '../services/api'
 
 const PROVIDER_ICONS: Record<string, string> = {
   github: 'github',
@@ -164,7 +165,7 @@ async function submit(): Promise<void> {
     else if (mode.value === 'oauth' && (!editing.value || reconnecting.value)) await signIn()
     else await save()
   } catch (failure) {
-    error.value = failure instanceof Error ? failure.message : `Unable to connect ${provider.value.label}`
+    error.value = errorMessage(failure, `Unable to connect ${provider.value.label}`)
   } finally {
     saving.value = false
   }

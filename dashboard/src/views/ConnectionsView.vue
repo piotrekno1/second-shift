@@ -17,6 +17,7 @@ import { useAppStore } from '../stores/app'
 import type { CapabilityNeed, Connection, Notice } from '../types'
 import { Action } from '../utils/permissions'
 import { connectionUsageLine, countLabel, expiresSoon, formatDate, sourceAuthLabel, formatRelative, kindLabel, needsReconnect, providerLabel, utcTitle } from '../utils/format'
+import { errorMessage } from '../services/api'
 
 /** Which form is open: the header "Add", a need row, or a connection row. */
 type OpenForm = { mode: 'add' } | { mode: 'need', binding: string } | { mode: 'edit', id: number }
@@ -254,10 +255,6 @@ function needAccessLine(need: CapabilityNeed): string {
   return need.jobs.map((job) => `${job.job_name} → ${job.access?.ok ? job.access.scope : 'unavailable'}`).join(' · ')
 }
 
-function errorText(error: unknown, fallback: string): string {
-  return error instanceof Error ? error.message : fallback
-}
-
 function formDone(notice: Notice, binding: string): void {
   const connection = app.connections.find((item) => item.binding_key === binding)
   const key = openForm.value?.mode === 'need' ? binding : `connection-${connection?.id ?? binding}`
@@ -271,7 +268,7 @@ async function act(key: string, noticeKey: string, action: () => Promise<string>
   try {
     notices[noticeKey] = { ok: true, text: await action() }
   } catch (error) {
-    notices[noticeKey] = { ok: false, text: errorText(error, fallback) }
+    notices[noticeKey] = { ok: false, text: errorMessage(error, fallback) }
   } finally {
     busy.value = null
   }
