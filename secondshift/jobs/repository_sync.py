@@ -103,7 +103,7 @@ def attach_local_repository(
         )
         config_error = ""
     except RepositoryConfigError as error:
-        manifest, skills, config_error = None, {}, str(error)[:500]
+        manifest, skills, config_error = None, {}, str(error)
     with transaction.atomic():
         repository, origin_changed = save_local_location(
             workspace, location, config_error, manifest is not None
@@ -131,7 +131,7 @@ def sync_github_repository(repository: Repository) -> Repository:
             )
         except RepositoryConfigError as error:
             # Keep the last good sync. Runs go on using it.
-            set_sync_error(repository.pk, str(error)[:500], checked_sha=branch.revision)
+            set_sync_error(repository.pk, str(error), checked_sha=branch.revision)
             repository.refresh_from_db()
             return repository
         branch.mark_synced()

@@ -8,7 +8,7 @@ from pathlib import Path
 from secondshift.config.constants import GITHUB_BASE_URL, MANIFEST_FILE
 from secondshift.repositories.dao import local_repository, save_local_repository
 from secondshift.repositories.github import github_remote_name
-from secondshift.repositories.models import Repository
+from secondshift.repositories.models import SYNC_ERROR_MAX_CHARS, Repository
 from secondshift.workspaces.models import Workspace
 
 logger = logging.getLogger(__name__)
@@ -161,7 +161,7 @@ def save_local_location(
             "default_branch": location.branch,
             "config_path": MANIFEST_FILE,
             "checked_sha": location.revision,
-            "last_sync_error": config_error,
+            "last_sync_error": config_error[:SYNC_ERROR_MAX_CHARS],
             **added,
             **synced,
         },

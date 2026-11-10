@@ -73,7 +73,7 @@ def sync_moved_repositories() -> int:
         except (LocalRepositoryError, GitHubError) as error:
             # The repository page shows the same problem when opened. Runs
             # keep using the last good sync until it is fixed.
-            set_sync_error(repository.pk, str(error)[:500])
+            set_sync_error(repository.pk, str(error))
             logger.warning("could not sync %s: %s", repository.display_name, error)
             if repository.source_type == Repository.SourceType.GITHUB:
                 check_after_failure(repository.github_connection)

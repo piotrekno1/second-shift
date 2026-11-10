@@ -5,7 +5,7 @@ from typing import Any
 from django.db.models import Q, QuerySet
 
 from secondshift.connections.models import Connection
-from secondshift.repositories.models import Repository
+from secondshift.repositories.models import SYNC_ERROR_MAX_CHARS, Repository
 from secondshift.workspaces.models import Workspace
 
 
@@ -75,7 +75,7 @@ def repositories_to_sync(include_local: bool) -> list[Repository]:
 
 def set_sync_error(repository_id: int, error: str, checked_sha: str = "") -> None:
     """Record a failed sync. The last good sync stays in place."""
-    fields: dict[str, str] = {"last_sync_error": error}
+    fields: dict[str, str] = {"last_sync_error": error[:SYNC_ERROR_MAX_CHARS]}
     if checked_sha:
         fields["checked_sha"] = checked_sha
     Repository.objects.filter(pk=repository_id).update(**fields)
