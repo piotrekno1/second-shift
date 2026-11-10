@@ -116,10 +116,7 @@ def pull_request_plan(
     """The draft's base is the requested branch, else the followed one."""
     if not submission.pull_request:
         return None
-    if (
-        repository.source_type != Repository.SourceType.GITHUB
-        or not repository.allow_pull_requests
-    ):
+    if not repository.receives_pull_requests:
         raise RunRefused("This repository does not allow tasks to open pull requests.")
     revision = submission.revision
     is_branch = revision and not re.fullmatch(COMMIT_SHA_PATTERN, revision)

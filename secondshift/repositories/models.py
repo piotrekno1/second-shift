@@ -78,6 +78,14 @@ class Repository(models.Model):
         return self.enabled and self.removed_at is None
 
     @property
+    def receives_pull_requests(self) -> bool:
+        return self.source_type == self.SourceType.GITHUB and self.allow_pull_requests
+
+    @property
+    def receives_issues(self) -> bool:
+        return self.source_type == self.SourceType.GITHUB and self.allow_issues
+
+    @property
     def display_name(self) -> str:
         if self.source_type == self.SourceType.LOCAL and self.local_path:
             return Path(self.local_path).name

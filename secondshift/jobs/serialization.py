@@ -156,11 +156,11 @@ def serialize_job_detail(job: Job, can_edit_limits: bool) -> JobDetailSchema:
         triggers=job.triggers,
         open_pull_request=job.open_pull_request,
         can_open_pull_requests=is_github,
-        pull_requests_allowed=job.repository.allow_pull_requests and is_github,
+        pull_requests_allowed=job.repository.receives_pull_requests,
         open_issues=OpenIssuesSchema(**issues.model_dump())
         if (issues := job.issue_settings)
         else None,
-        issues_allowed=job.repository.allow_issues and is_github,
+        issues_allowed=job.repository.receives_issues,
         repository_revision=job.repository.config_sha,
         repository_enabled=job.repository.enabled,
         skill_text=job.skill_text,
