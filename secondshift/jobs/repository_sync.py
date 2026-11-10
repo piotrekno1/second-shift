@@ -165,6 +165,15 @@ def attach_github_repository(
         raise
 
 
+def sync_repository(repository: Repository) -> Repository:
+    """Sync from the branch's newest commit, from GitHub or the local folder."""
+    if repository.source_type == Repository.SourceType.GITHUB:
+        return sync_github_repository(repository)
+    return attach_local_repository(
+        repository.workspace, repository.local_path, repository.default_branch
+    )
+
+
 def resync(repository: Repository) -> Repository:
     """Read the manifest and skills again from the branch's newest commit.
 
@@ -172,12 +181,7 @@ def resync(repository: Repository) -> Repository:
     person who pressed Resync sees it.
     """
     try:
-        if repository.source_type == Repository.SourceType.GITHUB:
-            synced = sync_github_repository(repository)
-        else:
-            synced = attach_local_repository(
-                repository.workspace, repository.local_path, repository.default_branch
-            )
+        synced = sync_repository(repository)
     except (GitHubError, LocalRepositoryError) as error:
         raise SyncError(str(error)) from error
     if synced.last_sync_error:

@@ -16,10 +16,7 @@ from secondshift.connections.github import can_check
 from secondshift.github import repos
 from secondshift.github.app import configured
 from secondshift.github.errors import GitHubError
-from secondshift.jobs.repository_sync import (
-    attach_local_repository,
-    sync_github_repository,
-)
+from secondshift.jobs.repository_sync import sync_repository
 from secondshift.repositories.dao import repositories_to_sync, set_sync_error
 from secondshift.repositories.github_access import github_access
 from secondshift.repositories.github_check import check_after_failure
@@ -44,38 +41,32 @@ def server_syncs() -> bool:
     )
 
 
+def branch_head(repository: Repository) -> str:
+    if repository.source_type == Repository.SourceType.GITHUB:
+        access = github_access(repository)
+        return repos.branch_head(
+            access.token, access.repository_id, repository.default_branch
+        )
+    return branch_revision(Path(repository.local_path), repository.default_branch)
+
+
 def sync_moved_repositories() -> int:
     """Sync each repository whose branch has a new commit. Returns how many."""
     synced = 0
     for repository in repositories_to_sync(settings.LOCAL_REPOSITORIES_ENABLED):
+        is_github = repository.source_type == Repository.SourceType.GITHUB
+        if is_github and not can_check(repository.github_connection):
+            continue
         try:
-            if repository.source_type == Repository.SourceType.GITHUB:
-                if not can_check(repository.github_connection):
-                    continue
-                access = github_access(repository)
-                head = repos.branch_head(
-                    access.token, access.repository_id, repository.default_branch
-                )
-                if head == repository.checked_sha:
-                    continue
-                result = sync_github_repository(repository)
-            else:
-                head = branch_revision(
-                    Path(repository.local_path), repository.default_branch
-                )
-                if head == repository.checked_sha:
-                    continue
-                result = attach_local_repository(
-                    repository.workspace,
-                    repository.local_path,
-                    repository.default_branch,
-                )
+            if branch_head(repository) == repository.checked_sha:
+                continue
+            result = sync_repository(repository)
         except (LocalRepositoryError, GitHubError) as error:
             # The repository page shows the same problem when opened. Runs
             # keep using the last good sync until it is fixed.
             set_sync_error(repository.pk, str(error))
             logger.warning("could not sync %s: %s", repository.display_name, error)
-            if repository.source_type == Repository.SourceType.GITHUB:
+            if is_github:
                 check_after_failure(repository.github_connection)
             continue
         if result.last_sync_error:

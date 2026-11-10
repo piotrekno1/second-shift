@@ -286,8 +286,8 @@ def test_autosync_picks_up_the_first_manifest_of_a_disabled_repository(
             ["git", "-C", str(source), "rev-parse", "main"], text=True
         ).strip(),
     )
-    fetches = Mock(wraps=autosync.sync_github_repository)
-    monkeypatch.setattr(autosync, "sync_github_repository", fetches)
+    fetches = Mock(wraps=autosync.sync_repository)
+    monkeypatch.setattr(autosync, "sync_repository", fetches)
 
     # The commit without a manifest was already read, so it is not fetched again.
     assert autosync.sync_moved_repositories() == 0
@@ -332,7 +332,7 @@ def test_failed_poll_is_visible_and_retains_last_revision(
     def fail_sync(repository: Any) -> None:
         raise GitHubError("The committed manifest is invalid.")
 
-    monkeypatch.setattr(autosync, "sync_github_repository", fail_sync)
+    monkeypatch.setattr(autosync, "sync_repository", fail_sync)
     assert autosync.sync_moved_repositories() == 0
     repository.refresh_from_db()
     assert repository.config_sha == "a" * 40
