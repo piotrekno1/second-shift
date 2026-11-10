@@ -32,6 +32,7 @@ from secondshift.connections.outbound import (
     outbound_client,
 )
 from secondshift.connections.services import ConnectionConflict
+from secondshift.connections.tools import UnknownTools, store_tools
 from secondshift.workspaces.models import Workspace
 
 MCP_MAX_PAGES = 10
@@ -227,26 +228,13 @@ def select_tools(
     tools: dict[str, Any],
     selected: list[str] | None = None,
 ) -> None:
-    """Store what the server offers and what jobs may use.
-
-    Built-in providers use every allowlisted tool. Custom servers use the
-    owner's choice, starting with the tools the server marks read-only.
-    """
-    if not provider.owner_selects_tools:
-        chosen = set(tools)
-    elif selected is None:
-        chosen = {name for name, tool in tools.items() if tool.get("readOnly")}
-    else:
-        unknown = set(selected) - set(tools)
-        if unknown:
-            raise MCPError("Choose tools from the server's list.")
-        chosen = set(selected)
-    connection.available_tools = sorted(chosen)
-    connection.metadata = {
-        **connection.metadata,
-        "tools": {name: tools[name] for name in sorted(chosen)},
-        "offered_tools": tools if provider.owner_selects_tools else {},
-    }
+    """Built-in providers use every allowlisted tool. Custom servers let the owner choose."""
+    try:
+        store_tools(
+            connection, tools, selected, owner_selects=provider.owner_selects_tools
+        )
+    except UnknownTools as error:
+        raise MCPError("Choose tools from the server's list.") from error
 
 
 def create_mcp_connection(

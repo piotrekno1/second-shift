@@ -77,9 +77,7 @@ def serialize_connection(
                 description=str(tool.get("description", ""))[:500],
                 read_only=bool(tool.get("readOnly")),
             )
-            for name, tool in sorted(
-                (connection.metadata.get("offered_tools") or {}).items()
-            )
+            for name, tool in sorted(connection.offered_tools.items())
         ],
         require_approval=connection.require_approval,
         usage=None

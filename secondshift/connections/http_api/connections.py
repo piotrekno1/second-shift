@@ -22,6 +22,7 @@ from secondshift.connections.outbound import (
     validate_outbound_url,
 )
 from secondshift.connections.services import ConnectionConflict
+from secondshift.connections.tools import UnknownTools, store_tools
 from secondshift.workspaces.models import Workspace
 
 TOKEN_PATTERN = r"\S{1,2000}"
@@ -82,18 +83,10 @@ def select_operations(
     connection: Connection, operations: dict[str, Any], selected: list[str] | None
 ) -> None:
     """GET operations start selected. Anything else waits for the owner."""
-    if selected is None:
-        chosen = {name for name, item in operations.items() if item["readOnly"]}
-    else:
-        if set(selected) - set(operations):
-            raise APIError("Choose operations from the spec.")
-        chosen = set(selected)
-    connection.available_tools = sorted(chosen)
-    connection.metadata = {
-        **connection.metadata,
-        "tools": {name: operations[name] for name in sorted(chosen)},
-        "offered_tools": operations,
-    }
+    try:
+        store_tools(connection, operations, selected)
+    except UnknownTools as error:
+        raise APIError("Choose operations from the spec.") from error
 
 
 def create_api_connection(
@@ -168,9 +161,7 @@ def update_api_connection(
             "target": host_label(cleaned),
         }
     if operations is not None:
-        select_operations(
-            connection, connection.metadata.get("offered_tools", {}), operations
-        )
+        select_operations(connection, connection.offered_tools, operations)
     connection.status = Connection.Status.CONNECTED
     connection.full_clean()
     connection.save()

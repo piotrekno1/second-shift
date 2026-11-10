@@ -109,6 +109,11 @@ class Connection(models.Model):
         return self.metadata.get("tools") or {}
 
     @property
+    def offered_tools(self) -> dict[str, Any]:
+        """Every tool the server offers, when the owner chooses among them."""
+        return self.metadata.get("offered_tools") or {}
+
+    @property
     def last_check(self) -> dict[str, Any] | None:
         """The latest check or delivery result. See checks.record_check."""
         return self.metadata.get("last_check")

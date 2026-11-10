@@ -254,7 +254,7 @@ def changing_tools(connection: Connection, tools: list[str]) -> list[str]:
             return []
     elif connection.kind != Connection.Kind.API:
         return []
-    offered = connection.metadata.get("offered_tools") or {}
+    offered = connection.offered_tools
     return [
         name for name in tools if name in offered and not offered[name].get("readOnly")
     ]
