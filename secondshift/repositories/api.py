@@ -48,6 +48,7 @@ from secondshift.repositories.serialization import (
     serialize_repository_detail,
     validate_repository,
 )
+from secondshift.repositories.status import ValidationStatus
 from secondshift.workspaces.access import (
     Action,
     current_workspace,
@@ -210,7 +211,7 @@ def set_repository_enabled(
     require(request, Action.CHANGE_REPOSITORY_STATE)
     if payload.enabled:
         validation = validate_repository(repository)
-        if validation.status != "valid":
+        if validation.status != ValidationStatus.VALID:
             raise HttpError(409, validation.message)
     turned_on = payload.enabled and not repository.enabled
     repository.enabled = payload.enabled

@@ -19,7 +19,7 @@ from secondshift.repositories.schemas import (
     RepositorySchema,
     RepositoryValidationSchema,
 )
-from secondshift.repositories.status import source_status
+from secondshift.repositories.status import ValidationStatus, source_status
 from secondshift.workspaces.access import (
     Action,
     allows,
@@ -69,7 +69,7 @@ def validation_schema(
 
 def unreachable(repository: Repository, error: Exception) -> RepositoryValidationSchema:
     return RepositoryValidationSchema(
-        status="error",
+        status=ValidationStatus.ERROR,
         message=str(error),
         current_revision=None,
         synced_revision=repository.config_sha,
