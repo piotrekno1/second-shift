@@ -51,7 +51,7 @@ from secondshift.runs.reporting.notifications import (
 from secondshift.runs.retention import prune_runs
 from secondshift.runs.services import RunRefused
 from secondshift.runs.submissions import SkillSubmission, submit_skill
-from secondshift.runs.transitions import start_run
+from secondshift.runs.transitions import mark_running
 from secondshift.workspaces.dao import create_workspace
 from secondshift.workspaces.models import WorkspaceMembership
 
@@ -321,7 +321,7 @@ def test_worker_source_sandbox_output_and_retention(
     assert spec.commit_sha == run.commit_sha
     assert spec.repository == repository.full_name
     output = store_run_text(run, "Review complete.")
-    start_run(run.pk, run.dbos_workflow_id)
+    mark_running(run.pk, run.dbos_workflow_id)
     finish_run_step.__wrapped__(
         run.pk,
         {

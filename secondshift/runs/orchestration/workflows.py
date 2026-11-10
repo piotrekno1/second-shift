@@ -60,7 +60,7 @@ from secondshift.runs.reporting.notifications import (
     run_report_payload,
 )
 from secondshift.runs.services import create_scheduled_run
-from secondshift.runs.transitions import finish_run, start_run
+from secondshift.runs.transitions import finish_run, mark_running
 
 logger = logging.getLogger(__name__)
 
@@ -115,7 +115,7 @@ def mark_run_started_step(run_id: int) -> bool:
         raise RunNotReadyError(
             " ".join(problems) or "The frozen execution plan is not ready."
         )
-    started = start_run(run_id, DBOS.workflow_id or run.dbos_workflow_id)
+    started = mark_running(run_id, DBOS.workflow_id or run.dbos_workflow_id)
     if started:
         add_event(run_id, "Run started.")
     return bool(started)

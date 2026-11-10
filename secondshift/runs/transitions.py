@@ -34,7 +34,7 @@ def can_move(current: str, new: str) -> bool:
     return new in NEXT_STATUSES.get(current, frozenset())
 
 
-def start_run(run_id: int, workflow_id: str) -> bool:
+def mark_running(run_id: int, workflow_id: str) -> bool:
     """Move a queued run to running. False when the run is not queued."""
     # Status writes stay in this module, so it is the only place they happen.
     return bool(
