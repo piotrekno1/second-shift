@@ -179,16 +179,20 @@ def check_agent_connection(connection: AgentConnection) -> AgentConnection:
     """
     if not connection.connected:
         raise AgentConnectionError("Reconnect this login before checking it.")
+    client = get_runner_client()
     try:
-        client = get_runner_client()
-        result = client.check_agent(
-            AgentCheckInput(
-                backend=connection.backend,
-                credential_key=connection.credential_key.hex,
-                auth=client.encrypted_auth(connection.auth_data),
-            )
+        check_input = AgentCheckInput(
+            backend=connection.backend,
+            credential_key=connection.credential_key.hex,
+            auth=client.encrypted_auth(connection.auth_data),
         )
-    except (RunnerProtocolError, ValidationError):
+    except ValidationError:
+        raise AgentConnectionError(
+            "This login is larger than the runner accepts. Sign in again."
+        ) from None
+    try:
+        result = client.check_agent(check_input)
+    except RunnerProtocolError:
         raise AgentConnectionError(
             "The runner could not check the login now. It may be running a job "
             "with it. Try again in a moment."

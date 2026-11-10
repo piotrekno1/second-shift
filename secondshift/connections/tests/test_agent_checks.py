@@ -137,4 +137,5 @@ def test_a_login_too_large_for_the_runner_is_refused_cleanly(
     )
     response = check(client, owner, login)
     assert response.status_code == 409
+    assert "larger than the runner accepts" in response.json()["detail"]
     assert not [request for request in sent if request["path"] == "/v1/agent-checks"]
