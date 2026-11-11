@@ -24,9 +24,16 @@ from secondshift.repositories.github_access import github_access
 from secondshift.repositories.github_sync import fetch_github_commit
 from secondshift.repositories.mirrors import has_commit, locked_mirror
 from secondshift.repositories.models import Repository
-from secondshift.repositories.snapshots import SnapshotError, write_snapshot
+from secondshift.repositories.snapshots import (
+    REPOSITORY_LIMITS,
+    SnapshotError,
+    SnapshotLimits,
+    write_snapshot,
+)
 
 COMMIT_SHA = re.compile(COMMIT_SHA_PATTERN)
+# A skill from another repository that no run used for this long is removed.
+SKILL_UNUSED_SECONDS = 30 * 24 * 60 * 60
 
 
 @dataclass(frozen=True)
@@ -38,6 +45,15 @@ class SourceSnapshot:
 
 def snapshots_root() -> Path:
     return settings.SOURCE_CACHE_ROOT / "snapshots"
+
+
+def skill_snapshots_root() -> Path:
+    """Folders of skills from other repositories. See external_skills."""
+    return settings.SOURCE_CACHE_ROOT / "skill-snapshots"
+
+
+def skill_mirrors_root() -> Path:
+    return settings.SOURCE_CACHE_ROOT / "skill-mirrors"
 
 
 def snapshot_path(repository_id: int, commit_sha: str) -> Path:
@@ -75,14 +91,20 @@ def build_snapshot(repository: Repository, commit_sha: str, path: Path) -> None:
         write_atomically(mirror, commit_sha, path)
 
 
-def write_atomically(git_dir: Path, commit_sha: str, path: Path) -> None:
+def write_atomically(
+    git_dir: Path,
+    commit_sha: str,
+    path: Path,
+    folder: str = "",
+    limits: SnapshotLimits = REPOSITORY_LIMITS,
+) -> None:
     # Two runs of one commit may build at once. Both write the same bytes, and
     # each replaces the file whole, so neither ever reads a partial snapshot.
     descriptor, name = tempfile.mkstemp(dir=path.parent, prefix="building-")
     temporary = Path(name)
     try:
         with os.fdopen(descriptor, "wb") as output:
-            write_snapshot(git_dir, commit_sha, output)
+            write_snapshot(git_dir, commit_sha, output, folder, limits)
         os.replace(temporary, path)
     finally:
         temporary.unlink(missing_ok=True)
@@ -135,7 +157,32 @@ def prune_source_cache(dry_run: bool = False) -> CachePrune:
                     shutil.rmtree(path)
     remove_stale_builds(pruned, dry_run)
     trim_snapshots(pruned, dry_run=dry_run, skip=removed)
+    prune_unused_skills(pruned, dry_run)
     return pruned
+
+
+def prune_unused_skills(pruned: CachePrune, dry_run: bool) -> None:
+    """Remove skills from other repositories that no run used for a while."""
+    cutoff = time.time() - SKILL_UNUSED_SECONDS
+    for path in [
+        *cached_paths(skill_snapshots_root(), "*.tar.gz"),
+        *cached_paths(skill_mirrors_root(), "*.git"),
+    ]:
+        if path.stat().st_mtime >= cutoff:
+            continue
+        pruned.add(path)
+        if dry_run:
+            continue
+        if path.is_dir():
+            shutil.rmtree(path, ignore_errors=True)
+        else:
+            path.unlink(missing_ok=True)
+
+
+def cached_paths(root: Path, pattern: str) -> list[Path]:
+    if not root.is_dir():
+        return []
+    return [path for path in root.glob(pattern) if not path.is_symlink()]
 
 
 def trim_snapshots(

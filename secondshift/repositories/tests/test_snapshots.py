@@ -1,3 +1,4 @@
+import dataclasses
 import io
 import subprocess
 import tarfile
@@ -6,7 +7,11 @@ from pathlib import Path
 import pytest
 
 from secondshift.repositories import snapshots
-from secondshift.repositories.snapshots import SnapshotError, write_snapshot
+from secondshift.repositories.snapshots import (
+    SKILL_LIMITS,
+    SnapshotError,
+    write_snapshot,
+)
 
 
 def git(repository: Path, *arguments: str) -> str:
@@ -125,21 +130,34 @@ def test_an_unknown_commit_fails(tmp_path: Path) -> None:
         snapshot_bytes(source, "c" * 40)
 
 
-def test_limits_apply_while_building(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_limits_apply_while_building(tmp_path: Path) -> None:
     source, revision = repository(tmp_path)
 
-    monkeypatch.setattr(snapshots, "MAX_SOURCE_FILES", 2)
+    def build(**changes: int) -> None:
+        limits = dataclasses.replace(snapshots.REPOSITORY_LIMITS, **changes)
+        write_snapshot(source, revision, io.BytesIO(), limits=limits)
+
     with pytest.raises(SnapshotError, match="more than 2 files"):
-        snapshot_bytes(source, revision)
-    monkeypatch.undo()
-
-    monkeypatch.setattr(snapshots, "MAX_SOURCE_UNPACKED_BYTES", 10)
+        build(files=2)
     with pytest.raises(SnapshotError, match="too large"):
-        snapshot_bytes(source, revision)
-    monkeypatch.undo()
-
-    monkeypatch.setattr(snapshots, "MAX_SOURCE_SNAPSHOT_BYTES", 100)
+        build(unpacked_bytes=10)
     with pytest.raises(SnapshotError, match="compressed"):
-        snapshot_bytes(source, revision)
+        build(snapshot_bytes=100)
+
+
+def test_a_folder_snapshot_holds_only_that_folder(tmp_path: Path) -> None:
+    source, revision = repository(tmp_path)
+    output = io.BytesIO()
+
+    write_snapshot(source, revision, output, folder="scripts", limits=SKILL_LIMITS)
+
+    found = members(output.getvalue())
+    assert set(found) == {"check.sh"}
+    assert found["check.sh"].mode == 0o755
+
+
+def test_a_skill_snapshot_refuses_links(tmp_path: Path) -> None:
+    source, revision = repository(tmp_path)
+
+    with pytest.raises(SnapshotError, match="Not allowed: link"):
+        write_snapshot(source, revision, io.BytesIO(), limits=SKILL_LIMITS)

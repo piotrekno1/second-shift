@@ -391,6 +391,11 @@ LOCAL_REPOSITORIES_ENABLED = SINGLE_HOST and env.bool(
 SOURCE_CACHE_ROOT = Path(
     env.str(AppEnv.SOURCE_CACHE_ROOT, default=str(DATA_DIR / "sources"))
 ).resolve()
+# Tasks and jobs may run skills from other public GitHub repositories.
+EXTERNAL_SKILLS_ENABLED = env.bool(AppEnv.EXTERNAL_SKILLS_ENABLED, default=True)
+# Where skills from other repositories are fetched from. Tests point it at a
+# local folder. Only public repositories are read, without credentials.
+EXTERNAL_SKILLS_BASE_URL = GITHUB_BASE_URL
 # Snapshots past this size are removed, oldest first.
 SOURCE_CACHE_MAX_BYTES = env.int(
     AppEnv.SOURCE_CACHE_MAX_BYTES, default=2 * 1024 * 1024 * 1024
