@@ -132,6 +132,11 @@ function turnOnGitHubTools(): Promise<void> {
   }, 'Unable to turn on GitHub tools')
 }
 
+/** The github binding is served by GitHub tools, so it is turned on, not set up by hand. */
+function turnsOnGitHubTools(need: CapabilityNeed): boolean {
+  return need.binding === GITHUB_TOOLS_BINDING && need.kind === 'mcp' && need.status === 'missing' && canEdit.value && !githubTools.value && githubSources.value.length > 0
+}
+
 const openNeeds = computed(() => app.needs.filter((need) => need.status !== 'ready'))
 // What blocks a job comes first: broken, then missing, then waiting on approval. Optional last.
 const SETUP_ORDER: Record<CapabilityNeed['status'], number> = { unavailable: 0, missing: 1, needs_approval: 2, ready: 3 }
@@ -377,7 +382,8 @@ onMounted(async () => {
             </div>
             <span class="status-pill" :class="isOffer(need) ? 'optional' : needStatus[need.status].pill">{{ needStatus[need.status].label }}</span>
             <div class="need-actions">
-              <Button v-if="need.status === 'missing' && canEdit" :label="isOpen({ mode: 'need', binding: need.binding }) ? 'Cancel' : 'Connect'" size="small" :severity="isOpen({ mode: 'need', binding: need.binding }) ? 'secondary' : undefined" :text="isOffer(need) || isOpen({ mode: 'need', binding: need.binding })" @click="toggle({ mode: 'need', binding: need.binding })" />
+              <Button v-if="turnsOnGitHubTools(need)" label="Turn on GitHub tools" size="small" :loading="busy === 'github-tools'" @click="turnOnGitHubTools" />
+              <Button v-else-if="need.status === 'missing' && canEdit" :label="isOpen({ mode: 'need', binding: need.binding }) ? 'Cancel' : 'Connect'" size="small" :severity="isOpen({ mode: 'need', binding: need.binding }) ? 'secondary' : undefined" :text="isOffer(need) || isOpen({ mode: 'need', binding: need.binding })" @click="toggle({ mode: 'need', binding: need.binding })" />
               <template v-else-if="need.status === 'unavailable' && need.connection">
                 <Button v-if="editable(need.connection)" :label="isOpen({ mode: 'need', binding: need.binding }) ? 'Cancel' : 'Reconnect'" size="small" @click="toggle({ mode: 'need', binding: need.binding })" />
               </template>
