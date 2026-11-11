@@ -173,6 +173,8 @@ export interface Repository {
   source_type: 'github' | 'local'
   local_path: string | null
   revision: string
+  /** The GitHub source connection it syncs through. Null for local folders. */
+  github_connection_id: number | null
 }
 
 export interface RepositoryValidation {
