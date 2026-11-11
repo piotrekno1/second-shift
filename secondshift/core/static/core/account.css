@@ -53,7 +53,7 @@ body {
 }
 
 .account-brand { display: inline-flex; align-items: center; gap: 10px; margin-bottom: 8px; color: var(--ink); font-size: 16px; font-weight: 600; text-decoration: none; }
-.account-eyebrow { margin-bottom: 32px; color: var(--subtle); font-family: var(--font-mono); font-size: 12px; }
+.account-eyebrow { margin-bottom: 32px; color: var(--subtle); font-size: 13px; }
 
 h1, h2 { margin: 0 0 8px; font-weight: 600; }
 h1 { font-size: 28px; letter-spacing: -0.02em; }
