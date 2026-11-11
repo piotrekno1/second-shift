@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import type { Capability, ExecutionStatus } from '../src/types'
+import type { Capability, Connection, ExecutionStatus } from '../src/types'
 import { PAUSED_REPOSITORY, REMOVED_JOB, approvalPending, enableBlocker, executionFix, runBlocker, runWarning, setupSteps, type SetupState } from '../src/utils/readiness'
 
 function capability(binding: string, required: boolean, grant: Capability['grant_status']): Capability {
@@ -65,6 +65,19 @@ test('runBlocker checks what the server checks, in its order', () => {
   assert.equal(runBlocker(ready, true, status({ problem: 'No model.' })), 'No model.')
   const waiting = { ...ready, capabilities: [capability('github', true, 'pending'), { ...capability('reports', true, 'approved'), connection_id: 2 }] }
   assert.equal(runBlocker(waiting, true, status()), 'Connect and approve github first.')
+})
+
+test('runBlocker names an approved binding whose connection stopped working', () => {
+  const approved = { ...capability('github', true, 'approved'), connection_id: 7 }
+  const job = { capabilities: [approved], execution_problem: '', removed_at: null }
+  const connection = (status: 'connected' | 'expired' | 'revoked') => ({ id: 7, status }) as Connection
+  assert.equal(runBlocker(job, true, status(), [connection('expired')]), 'github uses a connection whose sign-in expired.')
+  assert.equal(runBlocker(job, true, status(), [connection('revoked')]), 'github uses a connection that was disconnected.')
+  assert.equal(runBlocker(job, true, status(), [connection('connected')]), '')
+  // Without the connection list the page cannot tell, so the server decides.
+  assert.equal(runBlocker(job, true, status()), '')
+  const unreachable = { ...job, capabilities: [{ ...approved, access: { ok: false, scope: null, text: 'Cannot see the repository' } }] }
+  assert.equal(runBlocker(unreachable, true, status(), [connection('connected')]), 'github cannot reach what the job needs through its connection.')
 })
 
 test('approvalPending hides Approve once the chosen connection is approved', () => {

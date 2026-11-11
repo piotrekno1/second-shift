@@ -64,7 +64,7 @@ function skillName(path: string): string {
 /** Why Run now would be refused for this job, or ''. */
 function runBlockedBy(job: Job): string {
   const repository = app.repositories.find((item) => item.id === job.repository_id)
-  return runBlocker(job, repository?.enabled ?? true, app.overview?.execution)
+  return runBlocker(job, repository?.enabled ?? true, app.overview?.execution, app.connections)
 }
 
 const NOTICE_MS = 6000
