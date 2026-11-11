@@ -15,6 +15,7 @@ from secondshift.runs.models import RunDelivery
 from secondshift.runs.queue import cancel_queued_task
 from secondshift.runs.reporting.queries import RunFilters, run_page
 from secondshift.runs.schemas import (
+    RunAgainSchema,
     RunDeliverySchema,
     RunDetailSchema,
     RunFileName,
@@ -33,7 +34,7 @@ from secondshift.runs.serialization import (
     serialize_submission,
 )
 from secondshift.runs.services import RunInProgress, RunRefused, start_manual_run
-from secondshift.runs.submissions import SkillSubmission, submit_skill
+from secondshift.runs.submissions import SkillSubmission, resubmission, submit_skill
 from secondshift.workspaces.access import (
     Action,
     current_workspace,
@@ -51,6 +52,21 @@ def cancel_task(request: HttpRequest, run_id: int) -> RunSchema:
         return serialize_run(cancel_queued_task(run))
     except RunRefused as error:
         raise HttpError(409, str(error)) from error
+
+
+@router.post("/runs/{run_id}/again", response=TaskSubmissionSchema)
+def run_task_again(
+    request: HttpRequest, run_id: int, payload: RunAgainSchema
+) -> TaskSubmissionSchema:
+    """Submit a task run's task again, as it was first submitted."""
+    require(request, Action.RUN_JOBS)
+    run = run_for_request(request, run_id)
+    try:
+        submission = resubmission(run, payload.idempotency_key)
+        result = submit_skill(run.repository, submission, request.user, RunStart.MANUAL)
+    except RunRefused as error:
+        raise HttpError(409, str(error)) from error
+    return serialize_submission(result.run, result.started)
 
 
 @router.post(

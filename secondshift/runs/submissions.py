@@ -206,3 +206,31 @@ def submit_skill(
         )
         transaction.on_commit(lambda: enqueue_run(run))
     return SubmissionResult(run, True)
+
+
+def resubmission(run: Run, idempotency_key: str) -> SkillSubmission:
+    """The task this run did, submitted again as it was first submitted.
+
+    A branch, or a skill source named by branch, resolves to its newest commit
+    again, like Run again on a job.
+    """
+    if run.job_id is not None:
+        raise RunRefused("Start a job's run from the job.")
+    inputs = run.inputs
+    if inputs.definition is None:
+        raise RunRefused("This run did not keep its task, so it cannot run again.")
+    try:
+        return SkillSubmission.model_validate(
+            {
+                "repository_id": run.repository.pk,
+                "definition": inputs.definition,
+                "revision": inputs.requested_revision,
+                "input": inputs.submission_input,
+                "pull_request": run.plan.pull_request is not None,
+                "idempotency_key": idempotency_key,
+            }
+        )
+    except ValueError as error:
+        raise RunRefused(
+            "This task can no longer be submitted as it was. Start a new task."
+        ) from error
