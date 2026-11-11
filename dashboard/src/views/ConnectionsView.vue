@@ -7,6 +7,7 @@ import Button from 'primevue/button'
 import Menu from 'primevue/menu'
 import type { MenuItem } from 'primevue/menuitem'
 import ConnectionForm from '../components/ConnectionForm.vue'
+import DocsLink from '../components/DocsLink.vue'
 import GitHubTokenForm from '../components/GitHubTokenForm.vue'
 import SourceAccess from '../components/SourceAccess.vue'
 import PageHeader from '../components/PageHeader.vue'
@@ -15,6 +16,7 @@ import StatusPill from '../components/StatusPill.vue'
 import { approveNeed, createMCPConnection, deleteConnection, revokeConnection, testConnection } from '../services/connections'
 import { useAppStore } from '../stores/app'
 import type { CapabilityNeed, Connection, Notice } from '../types'
+import { DocsPage } from '../utils/docs'
 import { Action } from '../utils/permissions'
 import { connectionUsageLine, countLabel, expiresSoon, formatDate, sourceAuthLabel, formatRelative, kindLabel, needsReconnect, providerLabel, utcTitle } from '../utils/format'
 import { errorMessage } from '../services/api'
@@ -232,19 +234,16 @@ function hasMenu(connection: Connection): boolean {
   return rowMenuFor(connection).length > 0
 }
 const connectionsSubtitle = computed(() => {
-  // The same counts as the sidebar's "to fix", spelled out.
-  const broken = app.brokenConnections
-  const setUp = app.bindingsToSetUp
-  const parts = [`${countLabel(connections.value.length - broken, 'connection')} working`]
-  const fixes = [
-    broken ? `${countLabel(broken, 'connection')} failing` : '',
-    setUp ? `${countLabel(setUp, 'binding')} to set up` : '',
-  ].filter(Boolean)
-  if (fixes.length) parts.push(`${broken + setUp} to fix: ${fixes.join(', ')}`)
+  // The sidebar's "to fix" count, spelled out. When nothing needs doing, say so.
   const waiting = app.needs.filter((need) => need.status === 'needs_approval').length
-  if (waiting) parts.push(`${waiting} waiting for approval`)
-  if (!fixes.length && !waiting && app.needs.length) parts.push('every job has what it needs')
-  return parts.join(' · ')
+  const parts = [
+    app.bindingsToSetUp ? `${countLabel(app.bindingsToSetUp, 'binding')} to set up` : '',
+    app.brokenConnections ? `${countLabel(app.brokenConnections, 'connection')} failing` : '',
+    waiting ? `${countLabel(waiting, 'binding')} waiting for approval` : '',
+  ].filter(Boolean)
+  if (parts.length) return parts.join(' · ')
+  const total = countLabel(connections.value.length, 'connection')
+  return app.needs.length ? `${total} · every job has what it needs` : total
 })
 
 function isOpen(form: OpenForm): boolean {
@@ -372,7 +371,7 @@ onMounted(async () => {
       <div class="panel-heading">
         <div>
           <h2>{{ blockingNeeds.length ? 'To set up' : 'Optional bindings' }} <span class="heading-count">{{ blockingNeeds.length || optionalNeeds.length }}</span></h2>
-          <p>A binding is the name a job uses in <code>.secondshift.yaml</code> to ask for a connection. Connect each binding once and every job that names it can use it.</p>
+          <p>Jobs ask for connections by name. Connect each name once and every job that uses it is covered. <DocsLink :page="DocsPage.RepositoryConfiguration" section="manifest-fields">How bindings work</DocsLink></p>
         </div>
       </div>
 
@@ -408,7 +407,7 @@ onMounted(async () => {
 
     <section class="panel services-panel">
       <div class="panel-heading">
-        <div><h2>Connections <span class="heading-count">{{ connections.length }}</span></h2><p>Shared by the whole workspace. A job uses one when its <code>.secondshift.yaml</code> names it under <code>notify</code> or <code>requires</code>.</p></div>
+        <div><h2>Connections <span class="heading-count">{{ connections.length }}</span></h2><p>Shared by the whole workspace.</p></div>
       </div>
       <div v-if="connections.length" class="need-list">
         <div v-for="group in connectionGroups" :key="group.key" :class="group.key === 'github' ? 'provider-group' : 'connection-group'">
@@ -431,14 +430,14 @@ onMounted(async () => {
             <div class="row-glyph"><ProviderIcon :provider="connection.provider" :fallback="providerIcon[connection.provider] ?? kindIcon[connection.kind]" /></div>
             <div class="need-primary">
               <strong class="connection-name">{{ group.key === 'github' && connection.auth === 'source' ? 'GitHub job tools' : group.key === 'github' ? connection.display_name.replace(/^GitHub · /, '') : connection.display_name }}</strong>
-              <span>{{ kindLabel(connection.kind) }} · {{ connection.kind === 'source' ? sourceAuthLabel(connection.auth) : providerLabel(connection.provider) }}<template v-if="connection.target"> → {{ connection.target }}</template></span>
-              <small v-if="connection.provider === 'github' && connection.kind === 'source'">Repository access for {{ connection.display_name.replace(/^GitHub · /, '') }}</small>
+              <span v-if="connection.kind === 'source'">{{ sourceAuthLabel(connection.auth) }} · imports and syncs repositories</span>
+              <span v-else>{{ kindLabel(connection.kind) }} · {{ providerLabel(connection.provider) }}<template v-if="connection.target"> → {{ connection.target }}</template></span>
               <small v-if="connection.auth === 'source'">Uses each repository's GitHub connection</small>
-              <small v-if="connection.kind === 'source' && connection.auth === 'token'" :class="{ expiring: expiresSoon(connection.expires_at), expired: connection.status === 'expired' }">{{ !connection.expires_at ? 'Token does not expire' : connection.status === 'expired' ? `Token expired ${formatDate(connection.expires_at)}. Syncs and runs stop until you replace it.` : `Token expires ${formatDate(connection.expires_at)}` }}</small>
+              <small v-if="connection.kind === 'source' && connection.auth === 'token'" :class="{ expiring: expiresSoon(connection.expires_at), expired: connection.status === 'expired' }" :title="connection.expires_at ? `${formatDate(connection.expires_at)} · ${utcTitle(connection.expires_at)}` : undefined">{{ !connection.expires_at ? 'Token does not expire' : connection.status === 'expired' ? `Token expired ${formatRelative(connection.expires_at)}. Syncs and runs stop until you replace it.` : `Token expires ${formatRelative(connection.expires_at)}` }}</small>
               <small v-if="servedBindings(connection).length" class="served">
                 Serves <template v-for="(need, index) in servedBindings(connection)" :key="need.binding"><template v-if="index">, </template><code>{{ need.binding }}</code> for <template v-for="(job, jobIndex) in need.jobs" :key="job.job_id"><template v-if="jobIndex">, </template><RouterLink :to="`/jobs/${job.job_id}`" class="need-job">{{ job.job_name }}</RouterLink><template v-if="need.required && !job.required"> (optional)</template></template></template>
               </small>
-              <small v-else-if="connectionUsageLine(connection.usage, connection.kind)" :title="connection.usage?.last_used_at ? `Last used ${formatDate(connection.usage.last_used_at)}` : undefined">
+              <small v-else-if="connection.kind !== 'source' && connectionUsageLine(connection.usage, connection.kind)" :title="connection.usage?.last_used_at ? `Last used ${formatDate(connection.usage.last_used_at)}` : undefined">
                 {{ connectionUsageLine(connection.usage, connection.kind) }}
               </small>
               <small v-if="connection.available_tools.length" class="mono-line">
