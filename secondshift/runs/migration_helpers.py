@@ -10,6 +10,16 @@ from django.conf import settings
 from django.db.backends.base.schema import BaseDatabaseSchemaEditor
 
 
+def check_constraints_now_v1(schema_editor: BaseDatabaseSchemaEditor) -> None:
+    """Run the foreign key checks that row changes left for commit.
+
+    A squashed migration runs these steps in one transaction. PostgreSQL
+    refuses to alter a table while those checks are still pending.
+    """
+    if schema_editor.connection.vendor == "postgresql":
+        schema_editor.execute("SET CONSTRAINTS ALL IMMEDIATE")
+
+
 def backfill_tasks_v1(apps: Apps, schema_editor: BaseDatabaseSchemaEditor) -> None:
     """Preserve the assignment actually recorded on each historical run."""
     run_model = apps.get_model("runs", "Run")
@@ -55,6 +65,7 @@ def backfill_agent_connections_v1(
             run.agent_connection_id = login
             changed.append(run)
     run_model.objects.using(alias).bulk_update(changed, ["agent_connection"], 500)
+    check_constraints_now_v1(schema_editor)
 
 
 PLAN_LIMIT_SETTINGS_V1 = {
@@ -198,6 +209,7 @@ def normalize_execution_plans_v1(
             run.execution_plan = normalized
             changed.append(run)
     run_model.objects.using(alias).bulk_update(changed, ["execution_plan"], 500)
+    check_constraints_now_v1(schema_editor)
 
 
 def record_run_starts_v1(apps: Apps, schema_editor: BaseDatabaseSchemaEditor) -> None:
@@ -211,6 +223,7 @@ def record_run_starts_v1(apps: Apps, schema_editor: BaseDatabaseSchemaEditor) ->
     runs = run_model.objects.using(alias)
     runs.filter(task__origin="mcp").update(started_by="mcp")
     runs.filter(started_by="").update(started_by="schedule")
+    check_constraints_now_v1(schema_editor)
 
 
 def assign_task_repositories_v1(
@@ -244,6 +257,7 @@ def assign_task_repositories_v1(
     task_model.objects.using(alias).bulk_update(
         changed, ["repository", "fingerprint"], 500
     )
+    check_constraints_now_v1(schema_editor)
 
 
 # The summaries v0.1.0b10 wrote, by the failure each one names.
@@ -296,3 +310,4 @@ def record_run_failures_v1(apps: Apps, schema_editor: BaseDatabaseSchemaEditor) 
     run_model.objects.using(schema_editor.connection.alias).bulk_update(
         changed, ["failure", "failure_reason"], 500
     )
+    check_constraints_now_v1(schema_editor)
