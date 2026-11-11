@@ -1,5 +1,5 @@
 import type { RouteLocationRaw } from 'vue-router'
-import type { Capability, ExecutionStatus, Job } from '../types'
+import type { Capability, Connection, ExecutionStatus, Job } from '../types'
 
 /** Why a job removed from the manifest cannot run. The server says the same. */
 export const REMOVED_JOB = 'This job is no longer in .secondshift.yaml. Add it back to run it.'
@@ -30,6 +30,27 @@ export function enableBlocker(job: Pick<Job, 'enabled' | 'capabilities'> & Parti
   return step && `${step} Scheduled runs would fail without ${waiting.length === 1 ? 'it' : 'them'}.`
 }
 
+/** The server's words for an approved binding whose connection stopped working. */
+const CONNECTION_PROBLEMS: Record<Exclude<Connection['status'], 'connected'>, string> = {
+  expired: 'uses a connection whose sign-in expired',
+  revoked: 'uses a connection that was disconnected',
+}
+const UNREACHABLE = 'cannot reach what the job needs through its connection'
+
+/**
+ * A required, approved binding that still cannot work, or ''.
+ * Only says so when the page knows the connection. Otherwise the server decides.
+ */
+function connectionStep(capabilities: Capability[], connections: Connection[]): string {
+  for (const capability of capabilities) {
+    if (!capability.required || capability.grant_status !== 'approved') continue
+    const connection = connections.find((item) => item.id === capability.connection_id)
+    if (connection && connection.status !== 'connected') return `${capability.binding} ${CONNECTION_PROBLEMS[connection.status]}.`
+    if (capability.access && !capability.access.ok) return `${capability.binding} ${UNREACHABLE}.`
+  }
+  return ''
+}
+
 /**
  * Why Run now would be refused, or '' when it would start.
  * Checks what the server checks, in the same order, so a button never offers a run that fails.
@@ -38,10 +59,13 @@ export function runBlocker(
   job: Pick<Job, 'capabilities' | 'execution_problem' | 'removed_at'>,
   repositoryEnabled: boolean,
   execution: ExecutionStatus | null | undefined,
+  connections: Connection[] = [],
 ): string {
   if (job.removed_at) return REMOVED_JOB
   if (!repositoryEnabled) return PAUSED_REPOSITORY
-  return runWarning(execution, job) || approvalStep(waitingCapabilities(job))
+  return runWarning(execution, job)
+    || approvalStep(waitingCapabilities(job))
+    || connectionStep(job.capabilities, connections)
 }
 
 /** What to show while every run would fail, and where to fix it. */
