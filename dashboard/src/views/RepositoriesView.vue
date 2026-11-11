@@ -20,8 +20,8 @@ const canAdd = computed(() => app.canAddLocalRepositories || app.can(Action.AddG
 type RepositoryState = '' | 'enabled' | 'disabled' | 'local' | 'github'
 const REPOSITORY_STATES: { value: RepositoryState, label: string, matches: (repository: Repository) => boolean }[] = [
   { value: '', label: 'All', matches: () => true },
-  { value: 'enabled', label: 'Enabled', matches: (repository) => repository.enabled },
-  { value: 'disabled', label: 'Disabled', matches: (repository) => !repository.enabled },
+  { value: 'enabled', label: 'Active', matches: (repository) => repository.enabled },
+  { value: 'disabled', label: 'Paused', matches: (repository) => !repository.enabled },
   { value: 'local', label: 'Local', matches: (repository) => repository.source_type === 'local' },
   { value: 'github', label: 'GitHub', matches: (repository) => repository.source_type === 'github' },
 ]
@@ -50,7 +50,7 @@ const repositoriesSubtitle = computed(() => {
   const jobs = app.repositories.reduce((sum, repository) => sum + repository.job_count, 0)
   const disabled = app.repositories.filter((repository) => !repository.enabled).length
   const parts = [countLabel(total, 'repository', 'repositories'), countLabel(jobs, 'job')]
-  if (disabled) parts.push(`${disabled} disabled`)
+  if (disabled) parts.push(`${disabled} paused`)
   return parts.join(' · ')
 })
 </script>
@@ -77,9 +77,9 @@ const repositoriesSubtitle = computed(() => {
           <span v-else class="repository-row-jobs">{{ countLabel(repository.job_count, 'job') }}</span>
           <span v-if="repository.last_synced_at" class="repository-row-sync" :title="`${formatDate(repository.last_synced_at)} · ${utcTitle(repository.last_synced_at)}`">Synced {{ formatRelative(repository.last_synced_at) }}</span>
           <span v-else class="repository-row-sync">Not synced</span>
-          <!-- Enabled means little while no valid .secondshift.yaml has synced, so that comes first. -->
+          <!-- Active means little while no valid .secondshift.yaml has synced, so that comes first. -->
           <StatusPill v-if="repository.enabled && !repository.revision" status="warning" label="Needs config" title="No valid .secondshift.yaml has synced yet" />
-          <StatusPill v-else :status="repository.enabled ? 'enabled' : 'disabled'" />
+          <StatusPill v-else :status="repository.enabled ? 'enabled' : 'disabled'" :label="repository.enabled ? 'Active' : 'Paused'" />
           <AppIcon name="chevron-right" class="row-chevron" />
         </RouterLink>
       </div>

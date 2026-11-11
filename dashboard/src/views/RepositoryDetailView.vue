@@ -310,7 +310,7 @@ onMounted(loadRepository)
           <h2>Source</h2>
           <div class="repository-statuses">
             <StatusPill :status="repository.validation.status" :title="repository.validation.message" />
-            <StatusPill :status="repository.enabled ? 'enabled' : 'disabled'" />
+            <StatusPill :status="repository.enabled ? 'enabled' : 'disabled'" :label="repository.enabled ? 'Active' : 'Paused'" />
           </div>
         </div>
         <dl class="repository-metadata compact-grid">

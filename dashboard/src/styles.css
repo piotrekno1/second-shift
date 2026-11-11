@@ -726,7 +726,7 @@ body .row-menu .p-menu-separator { margin: 4px 8px; border-top-color: var(--card
 /* Repositories: one row each, like jobs and runs. */
 .repository-row { display: grid; grid-template-columns: 32px minmax(0,1fr) 72px 140px 112px 16px; align-items: center; gap: 16px; padding: 12px 20px; border-top: 1px solid var(--divider); color: inherit; }
 .repository-row:first-child { border-top: 0; }
-.repository-row:hover { background: var(--white-3); }
+.repository-row:hover { background: var(--white-6); }
 .repository-row-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .repository-row-main strong { overflow: hidden; font-size: var(--text-md); font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
 .repository-row-main span { overflow: hidden; color: var(--subtle); font-size: var(--text-xs); text-overflow: ellipsis; white-space: nowrap; }
