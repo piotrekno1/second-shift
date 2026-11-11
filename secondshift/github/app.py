@@ -56,7 +56,9 @@ def installation_token(
 ) -> str:
     """A token that expires within an hour. Read-only unless permissions say more."""
     if not installation_id.isdecimal():
-        raise GitHubError("Invalid installation identity.")
+        raise GitHubError(
+            "The saved GitHub App installation is not valid. Reconnect the GitHub App."
+        )
     payload: dict[str, object] = {"permissions": permissions or {"contents": "read"}}
     if repository_id is not None:
         payload["repository_ids"] = [repository_id]
@@ -88,7 +90,9 @@ class InstallationDetails:
 
 def installation(installation_id: str) -> InstallationDetails:
     if not installation_id.isdecimal():
-        raise GitHubError("Invalid installation identity.")
+        raise GitHubError(
+            "The saved GitHub App installation is not valid. Reconnect the GitHub App."
+        )
     data = request_json(
         "GET", f"{GITHUB_API_URL}/app/installations/{installation_id}", app_token()
     )

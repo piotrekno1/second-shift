@@ -174,7 +174,7 @@ function chooseDirectory(path: string): void {
             <AppIcon name="github" class="add-repository-glyph" />
             <div class="add-repository-name">
               <strong>{{ item.full_name }}</strong>
-              <span>{{ item.account ? `${item.account} · ` : '' }}{{ branchRow === item.key ? 'Choose the branch to follow' : `Follows ${item.default_branch}` }}</span>
+              <span>{{ item.account ? `${item.account} · ` : '' }}{{ branchRow === item.key ? 'Choose the branch SecondShift reads jobs from' : `Follows ${item.default_branch}, the default branch` }}</span>
             </div>
             <Select
               v-if="branchRow === item.key"
@@ -188,10 +188,11 @@ function chooseDirectory(path: string): void {
               :aria-label="`Branch for ${item.full_name}`"
               class="add-repository-branch"
             />
-            <button v-else type="button" class="link-button add-repository-other" :disabled="importing" @click="chooseBranch(item)">Other branch</button>
+            <button v-else type="button" class="link-button add-repository-other" :disabled="importing" @click="chooseBranch(item)" title="Read jobs from a branch other than the default">Change branch</button>
             <Button
               class="add-repository-import"
-              label="Import"
+              :label="importingRow === item.key ? undefined : 'Import'"
+              :aria-label="importingRow === item.key ? 'Importing' : 'Import'"
               size="small"
               :loading="importingRow === item.key"
               :disabled="importing || (branchRow === item.key && (github.branchesLoading || !github.branches.includes(branch)))"

@@ -940,7 +940,8 @@ body .workspace-menu { width: 224px; }
 .add-repository-glyph { grid-area: icon; }
 .add-repository-name { grid-area: name; }
 .add-repository-other, .add-repository-branch { grid-area: branch; }
-.add-repository-import { grid-area: import; }
+/* While importing, the spinner replaces the label, so the button keeps its width. */
+.add-repository-import { grid-area: import; min-width: 72px; justify-content: center; }
 .add-repository-row .add-repository-other { color: var(--muted); font-size: var(--text-xs); }
 .add-repository-row + .add-repository-row { border-top: 1px solid var(--white-8); }
 .add-repository-glyph { color: var(--subtle); }
