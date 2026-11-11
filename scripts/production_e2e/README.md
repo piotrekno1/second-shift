@@ -63,8 +63,9 @@ dependencies:
 - `drive.py` uses the deployment over HTTPS like a browser and checks results.
 - `s3_copy.py` stands in for the S3 provider's tools when backing up the bucket.
 
-Not covered: real GitHub.com and model providers, and Caddy's public
-certificate issuance.
+Not covered: real GitHub.com and model providers, Caddy's public
+certificate issuance, and a read-only S3 key for the gateway. RustFS has one
+key here, so the gateway reads with the application key.
 
 If a step fails, the host is kept and the step's log is printed. See service
 logs with `docker exec secondshift-e2e-host sh

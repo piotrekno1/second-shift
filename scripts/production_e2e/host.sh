@@ -106,6 +106,12 @@ s#^ARTIFACT_SECRET_ACCESS_KEY=.*#ARTIFACT_SECRET_ACCESS_KEY=$(hex)#
 s#^ARTIFACT_ENDPOINT_URL=.*#ARTIFACT_ENDPOINT_URL=http://rustfs:9000#
 s#^ARTIFACT_ADDRESSING_STYLE=.*#ARTIFACT_ADDRESSING_STYLE=path#" \
     deploy/production/compose.env
+  # RustFS has a single key here. A real server gives the gateway its own
+  # read-only key.
+  . deploy/production/compose.env
+  sed -i "s#^ARTIFACT_READ_ACCESS_KEY_ID=.*#ARTIFACT_READ_ACCESS_KEY_ID=$ARTIFACT_ACCESS_KEY_ID#
+s#^ARTIFACT_READ_SECRET_ACCESS_KEY=.*#ARTIFACT_READ_SECRET_ACCESS_KEY=$ARTIFACT_SECRET_ACCESS_KEY#" \
+    deploy/production/compose.env
   docker run --rm --user 0:0 -v "$PWD/deploy/production:$PWD/deploy/production" \
     -w "$PWD/deploy/production" "$SECONDSHIFT_IMAGE" \
     python -m secondshift.config.container_env --hostname secondshift.e2e.test
