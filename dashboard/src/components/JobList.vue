@@ -1,24 +1,18 @@
 <script setup lang="ts">
 // Job rows with their access review and Run button. The Jobs page and a
 // repository's page both use it, so a job looks and acts the same in both.
-import { computed, onBeforeUnmount, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import Button from 'primevue/button'
-import Select from 'primevue/select'
 import AppIcon from './AppIcon.vue'
-import DocsLink from './DocsLink.vue'
+import JobAccessReview from './JobAccessReview.vue'
 import StatusPill from './StatusPill.vue'
-import ToolRulesEditor from './ToolRulesEditor.vue'
 import { errorMessage } from '../services/api'
-import { reviewGrant } from '../services/jobs'
 import { startJobRun } from '../services/runs'
 import { useAppStore } from '../stores/app'
-import type { Capability, Connection, Job, ToolRules } from '../types'
-import { DocsPage } from '../utils/docs'
+import type { Job } from '../types'
 import { Action } from '../utils/permissions'
-import { REMOVED_JOB, approvalPending, connectionSetupQuery, runBlocker } from '../utils/readiness'
-import { sameRules } from '../utils/toolRules'
-import { accessLabel, accessNeedsAction, formatDate, formatRelative, lastRunLine, formatSchedule, formatScheduled, jobState, jobStateLabel, kindLabel, utcTitle, withArticle } from '../utils/format'
+import { REMOVED_JOB, runBlocker } from '../utils/readiness'
+import { accessLabel, accessNeedsAction, formatDate, formatRelative, lastRunLine, formatSchedule, formatScheduled, jobState, jobStateLabel, utcTitle } from '../utils/format'
 
 const props = withDefaults(defineProps<{
   jobs: Job[]
@@ -31,9 +25,6 @@ const props = withDefaults(defineProps<{
 const app = useAppStore()
 const router = useRouter()
 const expandedJobId = ref<number | null>(props.review)
-const connectionSelections = reactive<Record<number, number>>({})
-// Rule edits not saved yet, by capability.
-const ruleDrafts = reactive<Record<number, ToolRules>>({})
 const action = ref<string | null>(null)
 const error = ref<string | null>(null)
 const startedRun = ref<{ id: number; job: string; started: boolean } | null>(null)
@@ -92,70 +83,6 @@ async function runNow(jobId: number): Promise<void> {
   }
 }
 
-function matchingConnections(capability: Capability): Connection[] {
-  return app.connections.filter((connection) =>
-    connection.kind === capability.kind
-    && connection.binding_key === capability.binding
-    && connection.status === 'connected',
-  )
-}
-
-function selectedConnection(capability: Capability): number | null {
-  return connectionSelections[capability.id]
-    ?? capability.connection_id
-    ?? matchingConnections(capability)[0]?.id
-    ?? null
-}
-
-function chooseConnection(capabilityId: number, connectionId: number): void {
-  connectionSelections[capabilityId] = connectionId
-}
-
-function draftRules(capability: Capability): ToolRules {
-  return ruleDrafts[capability.id] ?? capability.tool_rules ?? {}
-}
-
-function rulesChanged(capability: Capability): boolean {
-  return !sameRules(draftRules(capability), capability.tool_rules ?? {})
-}
-
-function reviewNeeded(capability: Capability): boolean {
-  return approvalPending(capability, selectedConnection(capability)) || rulesChanged(capability)
-}
-
-function approveLabel(capability: Capability): string {
-  if (capability.grant_status !== 'approved') return 'Approve'
-  return approvalPending(capability, selectedConnection(capability)) ? 'Approve change' : 'Save restrictions'
-}
-
-function ruleTools(capability: Capability): string[] {
-  return capability.requested_tools.filter((tool) => capability.tool_inputs?.[tool])
-}
-
-
-async function reviewCapability(job: Job, capability: Capability, decision: 'approved' | 'denied'): Promise<void> {
-  const connectionId = selectedConnection(capability)
-  if (decision === 'approved' && !connectionId) {
-    error.value = `Connect the ${capability.binding} binding before reviewing it.`
-    return
-  }
-  action.value = `${decision}-${capability.id}`
-  error.value = null
-  try {
-    await reviewGrant(job.id, capability.id, {
-      decision,
-      connection_id: connectionId,
-      allowed_tools: capability.requested_tools,
-      ...(decision === 'approved' ? { tool_rules: draftRules(capability) } : {}),
-    })
-    delete ruleDrafts[capability.id]
-    await app.refresh()
-  } catch (reviewError) {
-    error.value = errorMessage(reviewError, 'Unable to save the review')
-  } finally {
-    action.value = null
-  }
-}
 </script>
 
 <template>
@@ -204,59 +131,7 @@ async function reviewCapability(job: Job, capability: Capability, decision: 'app
         </div>
       </div>
       <section v-if="expandedJobId === job.id" :id="`job-access-${job.id}`" class="job-review">
-        <div class="job-review-heading">
-          <div><h3>Access review</h3><p>This job asks for these bindings. Choose a connection for each binding, then approve it. <span class="review-links"><RouterLink :to="`/jobs/${job.id}#skill`" class="review-skill-link">Read the skill first</RouterLink> · <DocsLink :page="DocsPage.SecurityModel" section="who-grants-what" class="review-skill-link">How access works</DocsLink></span></p></div>
-        </div>
-        <div v-for="capability in job.capabilities" :key="capability.id" class="capability-review-row">
-          <div class="capability-summary">
-            <strong>{{ capability.binding }}</strong>
-            <span>{{ kindLabel(capability.kind) }} · {{ capability.required ? 'Required' : 'Optional' }}</span>
-            <small v-if="capability.requested_tools.length" class="requested-tools">
-              <span v-for="tool in capability.requested_tools" :key="tool">
-                {{ tool }}<span v-if="capability.changing_tools?.includes(tool)" class="mcp-flag" title="The service does not mark this as read-only">May change data</span>
-              </span>
-            </small>
-            <small v-else>No tool list. It can use the whole connection</small>
-            <div v-if="ruleTools(capability).length && (app.can(Action.ReviewCapabilities) || Object.keys(draftRules(capability)).length)" class="tool-rule-grid">
-              <div v-for="tool in ruleTools(capability)" :key="tool" class="tool-rule-tool">
-                <code v-if="app.can(Action.ReviewCapabilities) || draftRules(capability)[tool]">{{ tool }}</code>
-                <ToolRulesEditor
-                  :tool="tool"
-                  :input="capability.tool_inputs![tool]"
-                  :rules="draftRules(capability)"
-                  :editable="app.can(Action.ReviewCapabilities)"
-                  @update:rules="ruleDrafts[capability.id] = $event"
-                />
-              </div>
-            </div>
-            <small v-if="capability.access" :class="{ 'field-error': !capability.access?.ok }">{{ capability.access?.text }}</small>
-          </div>
-          <Select
-            v-if="matchingConnections(capability).length && app.can(Action.ReviewCapabilities)"
-            class="connection-select"
-            :model-value="selectedConnection(capability)"
-            :options="matchingConnections(capability)"
-            option-label="display_name"
-            option-value="id"
-            :aria-label="`Connection for ${capability.binding}`"
-            @update:model-value="chooseConnection(capability.id, $event)"
-          />
-          <div v-else-if="!matchingConnections(capability).length" class="connection-required">
-            <strong>No workspace connection matches <code>{{ capability.binding }}</code>.</strong>
-            <small>Create {{ withArticle(kindLabel(capability.kind)) }} connection with this binding name, then come back to approve it.</small>
-            <RouterLink v-if="app.can(Action.AddConnections)" :to="{ path: '/connections', query: connectionSetupQuery(job, capability) }" class="secondary-action connection-setup-action">
-              <AppIcon name="link-plus" /> Set up {{ capability.binding }}
-            </RouterLink>
-          </div>
-          <!-- The box above already says a binding is not connected. -->
-          <StatusPill v-if="matchingConnections(capability).length" :status="capability.grant_status" :label="accessLabel(capability.grant_status)" />
-          <div v-if="app.can(Action.ReviewCapabilities)" class="review-actions">
-            <Button :label="capability.grant_status === 'approved' ? 'Revoke' : 'Deny'" severity="danger" text size="small" :loading="action === `denied-${capability.id}`" @click="reviewCapability(job, capability, 'denied')" />
-            <Button v-if="reviewNeeded(capability)" :label="approveLabel(capability)" size="small" :disabled="!selectedConnection(capability) || capability.access?.ok === false" :title="selectedConnection(capability) ? 'Approve this connection and scope' : 'Set up a matching connection first'" :loading="action === `approved-${capability.id}`" @click="reviewCapability(job, capability, 'approved')">
-              <template #icon><AppIcon name="check" /></template>
-            </Button>
-          </div>
-        </div>
+        <JobAccessReview :job="job" />
       </section>
       </template>
     </template>

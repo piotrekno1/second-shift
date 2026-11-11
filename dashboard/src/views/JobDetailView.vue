@@ -3,7 +3,9 @@ import AppIcon from '../components/AppIcon.vue'
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Button from 'primevue/button'
+import DocsLink from '../components/DocsLink.vue'
 import ExecutionWarning from '../components/ExecutionWarning.vue'
+import JobAccessReview from '../components/JobAccessReview.vue'
 import PageHeader from '../components/PageHeader.vue'
 import RunOutcomes from '../components/RunOutcomes.vue'
 import JobTriggersPanel from '../components/JobTriggersPanel.vue'
@@ -17,6 +19,7 @@ import { isRunActive, startJobRun } from '../services/runs'
 import { saveJobLimits } from '../services/settings'
 import { useAppStore } from '../stores/app'
 import type { Job, JobDetail, RunLimitUpdate } from '../types'
+import { DocsPage } from '../utils/docs'
 import { Action } from '../utils/permissions'
 import { REMOVED_JOB, enableBlocker, runBlocker } from '../utils/readiness'
 import { renderMarkdown } from '../utils/markdown'
@@ -85,7 +88,7 @@ async function saveLimits(values: RunLimitUpdate): Promise<void> {
 async function openFromLink(): Promise<void> {
   await loadJob()
   // Panels exist only after the job loads, so the router cannot scroll to them.
-  if (['#limits', '#skill', '#triggers'].includes(route.hash)) {
+  if (['#access', '#limits', '#skill', '#triggers'].includes(route.hash)) {
     await nextTick()
     document.getElementById(route.hash.slice(1))?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
@@ -159,7 +162,7 @@ useLiveRefresh(loadJob, () => (job.value?.recent_runs ?? []).some((run) => isRun
           </RouterLink>
           <strong v-else>Not yet</strong>
         </div>
-        <RouterLink v-if="accessNeedsAction(job.grant_status)" :to="{ path: '/jobs', query: { review: String(job.id) } }" class="job-status-action">
+        <RouterLink v-if="accessNeedsAction(job.grant_status)" :to="{ hash: '#access' }" class="job-status-action">
           <StatusPill :status="job.grant_status" :label="accessLabel(job.grant_status)" /> Review access <AppIcon name="arrow-right" />
         </RouterLink>
         <span v-if="!job.repository_enabled" class="job-status-warning"><AppIcon name="alert-outline" /> Repository paused</span>
@@ -212,12 +215,14 @@ useLiveRefresh(loadJob, () => (job.value?.recent_runs ?? []).some((run) => isRun
             <div v-else class="empty-state compact"><AppIcon name="file-code-outline" /><strong>Skill not loaded yet</strong><span>Sync the repository to see the skill here.</span></div>
           </section>
 
-          <section v-if="job.capabilities.length" class="panel job-access-panel">
+          <section v-if="job.capabilities.length" id="access" class="panel job-access-panel">
             <div class="panel-heading">
               <div><h2>Access and connections</h2><p>{{ accessSummary }}</p></div>
-              <RouterLink v-if="app.can(Action.ReviewCapabilities)" :to="{ path: '/jobs', query: { review: String(job.id) } }">Review access</RouterLink>
+              <DocsLink :page="DocsPage.SecurityModel" section="who-grants-what">How access works</DocsLink>
             </div>
-            <div class="job-capability-details">
+            <!-- Reviewers change access here, with the same review as the Jobs list. Others see what is set. -->
+            <JobAccessReview v-if="app.can(Action.ReviewCapabilities)" :job="job" :heading="false" @reviewed="loadJob" />
+            <div v-else class="job-capability-details">
               <div v-for="capability in job.capabilities" :key="capability.id" class="job-capability-detail">
                 <div><strong>{{ capability.binding }}</strong><span>{{ kindLabel(capability.kind) }} · {{ capability.required ? 'Required' : 'Optional' }}</span></div>
                 <div class="tool-list"><span v-for="tool in capability.requested_tools" :key="tool">{{ tool }}</span><small v-if="!capability.requested_tools.length">No tool list. It can use the whole connection</small></div>
