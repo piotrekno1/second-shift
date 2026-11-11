@@ -247,10 +247,10 @@ function chooseDirectory(path: string): void {
       <div class="data-list">
         <RouterLink v-for="repository in visibleRepositories" :key="repository.id" :to="`/repositories/${repository.id}`" class="repository-row">
           <span class="row-glyph"><AppIcon :name="repository.source_type === 'local' ? 'folder-outline' : 'github'" /></span>
-          <div class="repository-row-main">
+          <!-- The full path is long and shown on the repository page, so the row keeps it in a tooltip. -->
+          <div class="repository-row-main" :title="repository.local_path ?? undefined">
             <strong>{{ repository.display_name }}</strong>
-            <span v-if="repository.local_path" class="mono-line">{{ repository.local_path }}</span>
-            <span v-else>{{ repository.source_type === 'local' ? 'Local' : 'GitHub' }} · {{ repository.default_branch }}</span>
+            <span>{{ repository.source_type === 'local' ? 'Local' : 'GitHub' }} · {{ repository.default_branch }}</span>
           </div>
           <span v-if="!repository.revision" class="repository-row-jobs">No jobs</span>
           <span v-else class="repository-row-jobs">{{ countLabel(repository.job_count, 'job') }}</span>
