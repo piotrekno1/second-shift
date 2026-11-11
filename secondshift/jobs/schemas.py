@@ -115,6 +115,8 @@ class JobSchema(Schema):
     grant_status: str
     capabilities: list[CapabilitySchema]
     last_run: LastRunSchema | None = None
+    # Trigger kinds the configuration names, such as "webhook".
+    triggers: list[str] = []
 
 
 class JobEnabledSchema(Schema):
@@ -139,8 +141,6 @@ class JobDetailSchema(JobSchema):
     config_hash: str
     history: int
     subagents: int
-    # Trigger kinds the configuration names, such as "webhook".
-    triggers: list[str]
     # The configuration asks for a draft pull request with each run's changes.
     open_pull_request: bool
     # A GitHub repository, so drafts could open. Local repositories cannot.

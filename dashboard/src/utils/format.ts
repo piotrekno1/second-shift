@@ -68,6 +68,7 @@ export function formatScheduled(value: string | null, jobTimeZone: string, viewe
 
 const DAY_NAMES = ['Sundays', 'Mondays', 'Tuesdays', 'Wednesdays', 'Thursdays', 'Fridays', 'Saturdays']
 const SHORT_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+const SHORT_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
 function expandDays(field: string): number[] | null {
   const days = new Set<number>()
@@ -91,8 +92,15 @@ export function describeCron(cron: string): string {
   if (step && hour === '*' && dayOfMonth === '*' && month === '*' && dayOfWeek === '*') {
     return `Every ${step[1]} minutes`
   }
-  if (!/^\d+$/.test(minute) || month !== '*') return cron
+  if (!/^\d+$/.test(minute)) return cron
   const mm = minute.padStart(2, '0')
+  if (month !== '*') {
+    // Only "these months, on this day, at this time" reads well, as in a quarterly review.
+    const months = month.split(',').map(Number)
+    const valid = months.every((value) => Number.isInteger(value) && value >= 1 && value <= 12)
+    if (!valid || !/^\d+$/.test(hour) || !/^\d+$/.test(dayOfMonth) || dayOfWeek !== '*') return cron
+    return `${months.map((value) => SHORT_MONTHS[value - 1]).join(', ')} on day ${dayOfMonth} at ${hour.padStart(2, '0')}:${mm}`
+  }
   if (hour === '*' && dayOfMonth === '*' && dayOfWeek === '*') return `Hourly at :${mm}`
   if (!/^\d+$/.test(hour)) return cron
   const time = `${hour.padStart(2, '0')}:${mm}`
@@ -107,21 +115,22 @@ export function describeCron(cron: string): string {
   return `${days.map((day) => SHORT_DAYS[day]).join(', ')} at ${time}`
 }
 
-export function formatSchedule(cron: string, timezone: string): string {
-  if (!cron) return 'Manual only'
+/** A job without a schedule starts from a webhook when it has one, and otherwise only with Run now. */
+export function formatSchedule(cron: string, timezone: string, triggers: readonly string[] = []): string {
+  if (!cron) return triggers.length ? 'On webhook' : 'Manual only'
   return `${describeCron(cron)} · ${timezone}`
 }
 
-/** A job without a schedule runs only when started with Run now. */
-export function jobState(job: { cron: string, enabled: boolean, removed_at?: string | null }): 'enabled' | 'disabled' | 'manual' | 'removed' {
+export function jobState(job: { cron: string, enabled: boolean, removed_at?: string | null, triggers?: readonly string[] }): 'enabled' | 'disabled' | 'manual' | 'webhook' | 'removed' {
   if (job.removed_at) return 'removed'
-  if (!job.cron) return 'manual'
+  if (!job.cron) return job.triggers?.length ? 'webhook' : 'manual'
   return job.enabled ? 'enabled' : 'disabled'
 }
 
 const STATUS_LABELS: Record<string, string> = {
   not_required: 'No access needed',
   manual: 'Manual only',
+  webhook: 'On webhook',
   removed: 'Removed from manifest',
   // Same words the Connections page uses for a binding with no connection.
   unconfigured: 'Not connected',
