@@ -465,7 +465,7 @@ onMounted(async () => {
             <div class="row-glyph"><ProviderIcon :provider="connection.provider" :fallback="providerIcon[connection.provider] ?? kindIcon[connection.kind]" /></div>
             <div class="need-primary">
               <strong class="connection-name">{{ group.key === 'github' && connection.auth === 'source' ? 'GitHub tools' : group.key === 'github' ? connection.display_name.replace(/^GitHub · /, '') : connection.display_name }}</strong>
-              <span v-if="connection.kind === 'source'" :title="sourceRepositories(connection).join('\n') || undefined">{{ sourceAuthLabel(connection.auth) }} · {{ repositoriesLine(connection) }}</span>
+              <span v-if="connection.kind === 'source'">{{ sourceAuthLabel(connection.auth) }} · <RouterLink v-if="sourceRepositories(connection).length > REPOSITORIES_NAMED" :to="{ path: '/repositories', query: { account: connection.id } }" class="need-job">{{ repositoriesLine(connection) }}</RouterLink><template v-else>{{ repositoriesLine(connection) }}</template></span>
               <span v-else-if="connection.auth === 'source'">{{ countLabel(connection.available_tools.length, 'tool') }} · each job reads only its own repository</span>
               <span v-else>{{ kindLabel(connection.kind) }} · {{ providerLabel(connection.provider) }}<template v-if="connection.target"> → {{ connection.target }}</template></span>
               <small v-if="connection.kind === 'source' && sourceImpact(connection)" class="expired">{{ sourceImpact(connection) }}</small>

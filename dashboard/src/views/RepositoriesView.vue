@@ -3,6 +3,7 @@ import AppIcon from '../components/AppIcon.vue'
 import AddRepositoryFlow from '../components/AddRepositoryFlow.vue'
 import { computed } from 'vue'
 import Button from 'primevue/button'
+import Select from 'primevue/select'
 import FilterChips from '../components/FilterChips.vue'
 import PageHeader from '../components/PageHeader.vue'
 import SearchInput from '../components/SearchInput.vue'
@@ -26,12 +27,17 @@ const REPOSITORY_STATES: { value: RepositoryState, label: string, matches: (repo
   { value: 'github', label: 'GitHub', matches: (repository) => repository.source_type === 'github' },
 ]
 const search = computed(() => list.text('q'))
+// The GitHub account a repository syncs through. Connections links here for accounts with many repositories.
+const accountFilter = computed(() => list.number('account'))
+const accountOptions = computed(() => app.connections
+  .filter((connection) => connection.kind === 'source' && connection.provider === 'github')
+  .map((connection) => ({ value: connection.id, label: connection.display_name.replace(/^GitHub · /, '') })))
 const state = computed<RepositoryState>(() => REPOSITORY_STATES.find((item) => item.value === list.text('state'))?.value ?? '')
 const searchedRepositories = computed(() => {
   const needle = search.value.toLowerCase()
   return app.repositories.filter((repository) =>
-    !needle || [repository.display_name, repository.full_name, repository.local_path ?? '']
-      .some((field) => field.toLowerCase().includes(needle)),
+    (accountFilter.value === null || repository.github_connection_id === accountFilter.value) && (!needle || [repository.display_name, repository.full_name, repository.local_path ?? '']
+      .some((field) => field.toLowerCase().includes(needle))),
   )
 })
 // Source chips only help when both sources are present.
@@ -42,7 +48,7 @@ const visibleRepositories = computed(() => {
   const matches = REPOSITORY_STATES.find((item) => item.value === state.value)?.matches ?? (() => true)
   return searchedRepositories.value.filter(matches)
 })
-const filtered = computed(() => Boolean(search.value || state.value))
+const filtered = computed(() => Boolean(search.value || state.value || accountFilter.value))
 const repositoriesSubtitle = computed(() => {
   const total = app.repositories.length
   if (total === 0) return 'No repositories connected yet.'
@@ -60,8 +66,9 @@ const repositoriesSubtitle = computed(() => {
     <PageHeader compact title="Repositories" :description="repositoriesSubtitle">
       <RouterLink v-if="canAdd && app.repositories.length" to="/repositories/new" class="primary-action"><AppIcon name="plus" /> Add repository</RouterLink>
     </PageHeader>
-    <div v-if="app.repositories.length > 1" class="list-toolbar">
+    <div v-if="app.repositories.length > 1 || accountFilter" class="list-toolbar">
       <SearchInput :model-value="search" placeholder="Search repositories" @update:model-value="list.update({ q: $event })" />
+      <Select v-if="accountOptions.length > 1 || accountFilter" :model-value="accountFilter" :options="accountOptions" option-label="label" option-value="value" placeholder="All GitHub accounts" show-clear class="list-select" aria-label="GitHub account" @update:model-value="list.update({ account: $event })" />
       <FilterChips :model-value="state" :options="stateOptions" label="Repository state" @update:model-value="list.update({ state: $event })" />
     </div>
     <section v-if="visibleRepositories.length" class="panel table-panel">
@@ -87,7 +94,7 @@ const repositoriesSubtitle = computed(() => {
     <section v-else-if="app.repositories.length && filtered" class="card-grid">
       <article class="panel empty-state wide">
         <AppIcon name="filter-remove-outline" /><strong>No repositories match these filters</strong>
-        <Button label="Clear filters" severity="secondary" text size="small" @click="list.update({ q: null, state: null })" />
+        <Button label="Clear filters" severity="secondary" text size="small" @click="list.update({ q: null, state: null, account: null })" />
       </article>
     </section>
     <!-- With nothing added yet, the page is the add flow. -->
