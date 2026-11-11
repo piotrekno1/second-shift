@@ -665,5 +665,5 @@ def test_unconfigured_app_opens_token_setup(owner_client: Any, settings: Any) ->
     settings.GITHUB_APP_ID = ""
     response = owner_client.get("/github/connect/")
     assert response.status_code == 302
-    assert response.url == "/repositories?add=github"
+    assert response.url == "/repositories/new?source=github"
     assert STATE_KEY not in owner_client.session

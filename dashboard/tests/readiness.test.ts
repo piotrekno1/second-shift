@@ -87,7 +87,7 @@ test('a hosted server offers only GitHub for the first repository', () => {
   const steps = setupSteps(setup())!
   assert.deepEqual(steps.map((step) => step.done), [false, false, false])
   assert.deepEqual(steps[0]!.actions.map((action) => action.label), ['Connect GitHub'])
-  assert.deepEqual(steps[0]!.actions[0]!.to, { path: '/repositories', query: { add: 'github' } })
+  assert.deepEqual(steps[0]!.actions[0]!.to, { path: '/repositories/new', query: { source: 'github' } })
   assert.deepEqual(steps[2]!.actions, [])
 })
 

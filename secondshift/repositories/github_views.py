@@ -28,7 +28,7 @@ def github_start(request: HttpRequest) -> HttpResponse:
     except AccessDenied as error:
         raise PermissionDenied(str(error)) from error
     if not configured():
-        return redirect("/repositories?add=github")
+        return redirect("/repositories/new?source=github")
     state = secrets.token_urlsafe(32)
     request.session[STATE_KEY] = {
         "state": state,
@@ -83,7 +83,7 @@ def github_callback(request: HttpRequest) -> HttpResponse:
             return redirect(installations.installation_url(state))
     except GitHubError as error:
         return HttpResponseBadRequest(str(error))
-    return redirect("/repositories?github=connected")
+    return redirect("/repositories/new?source=github")
 
 
 def callback_url() -> str:

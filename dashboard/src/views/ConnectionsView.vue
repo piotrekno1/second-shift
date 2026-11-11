@@ -408,7 +408,7 @@ onMounted(async () => {
             <Button v-else-if="canEdit && githubTools && app.can(Action.DisconnectConnections)" label="Turn off" size="small" severity="secondary" text @click="confirmRevoke = githubTools.id; confirmDelete = null" />
           </div>
         </div>
-        <p v-if="group.key === 'github' && !githubSourceRows.length" class="provider-group-hint">Connect GitHub on <RouterLink :to="app.can(Action.AddGitHubRepositories) ? '/repositories?add=github' : '/repositories'">Repositories</RouterLink> to sync code and enable job tools.</p>
+        <p v-if="group.key === 'github' && !githubSourceRows.length" class="provider-group-hint">Connect GitHub on <RouterLink :to="app.can(Action.AddGitHubRepositories) ? '/repositories/new?source=github' : '/repositories'">Repositories</RouterLink> to sync code and enable job tools.</p>
         <p v-if="group.key === 'github' && notices['github-tools']" class="need-notice" :class="{ ok: notices['github-tools'].ok }">
           <AppIcon :name="notices['github-tools'].ok ? 'check-circle-outline' : 'alert-circle-outline'" /> {{ notices['github-tools'].text }}
         </p>
