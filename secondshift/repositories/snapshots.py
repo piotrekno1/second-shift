@@ -17,6 +17,9 @@ from pathlib import Path
 from typing import IO
 
 from secondshift.config.constants import (
+    MAX_SKILL_FILES,
+    MAX_SKILL_SNAPSHOT_BYTES,
+    MAX_SKILL_UNPACKED_BYTES,
     MAX_SOURCE_FILES,
     MAX_SOURCE_SNAPSHOT_BYTES,
     MAX_SOURCE_UNPACKED_BYTES,
@@ -33,6 +36,33 @@ class SnapshotError(RuntimeError):
 
 
 @dataclass(frozen=True)
+class SnapshotLimits:
+    files: int
+    unpacked_bytes: int
+    snapshot_bytes: int
+    # What the snapshot is of, in error messages.
+    label: str
+    # A repository keeps its links and submodules. A skill from another
+    # repository may hold only regular files.
+    regular_files_only: bool = False
+
+
+REPOSITORY_LIMITS = SnapshotLimits(
+    MAX_SOURCE_FILES,
+    MAX_SOURCE_UNPACKED_BYTES,
+    MAX_SOURCE_SNAPSHOT_BYTES,
+    "The commit",
+)
+SKILL_LIMITS = SnapshotLimits(
+    MAX_SKILL_FILES,
+    MAX_SKILL_UNPACKED_BYTES,
+    MAX_SKILL_SNAPSHOT_BYTES,
+    "The skill",
+    regular_files_only=True,
+)
+
+
+@dataclass(frozen=True)
 class TreeEntry:
     mode: str
     object_id: str
@@ -40,13 +70,15 @@ class TreeEntry:
     path: str
 
 
-def tree_entries(git_dir: Path, commit_sha: str) -> list[TreeEntry]:
-    """Every file, link and submodule in the commit, in Git's order."""
+def tree_entries(git_dir: Path, commit_sha: str, folder: str = "") -> list[TreeEntry]:
+    """Every file, link and submodule in the commit, in Git's order.
+
+    With a folder, only what is inside it, with paths relative to it.
+    """
     if not COMMIT_SHA.fullmatch(commit_sha):
         raise SnapshotError("A full commit SHA is required.")
-    output = run_git_bytes(
-        git_dir, "ls-tree", "-r", "-z", "-l", "--full-tree", f"{commit_sha}^{{tree}}"
-    )
+    tree = f"{commit_sha}:{folder}" if folder else f"{commit_sha}^{{tree}}"
+    output = run_git_bytes(git_dir, "ls-tree", "-r", "-z", "-l", "--full-tree", tree)
     entries = []
     for record in output.split(b"\0"):
         if not record:
@@ -64,14 +96,30 @@ def tree_entries(git_dir: Path, commit_sha: str) -> list[TreeEntry]:
     return entries
 
 
-def write_snapshot(git_dir: Path, commit_sha: str, output: IO[bytes]) -> None:
-    """Write the commit's files to `output` as a reproducible .tar.gz."""
-    entries = tree_entries(git_dir, commit_sha)
-    if len(entries) > MAX_SOURCE_FILES:
-        raise SnapshotError(f"The commit has more than {MAX_SOURCE_FILES:,} files.")
-    if sum(entry.size for entry in entries) > MAX_SOURCE_UNPACKED_BYTES:
-        raise SnapshotError("The commit's files are too large to run.")
-    limited = LimitedWriter(output, MAX_SOURCE_SNAPSHOT_BYTES)
+def write_snapshot(
+    git_dir: Path,
+    commit_sha: str,
+    output: IO[bytes],
+    folder: str = "",
+    limits: SnapshotLimits = REPOSITORY_LIMITS,
+) -> None:
+    """Write the commit's files, or one folder's, to `output` as a
+    reproducible .tar.gz."""
+    entries = tree_entries(git_dir, commit_sha, folder)
+    if len(entries) > limits.files:
+        raise SnapshotError(f"{limits.label} has more than {limits.files:,} files.")
+    if sum(entry.size for entry in entries) > limits.unpacked_bytes:
+        raise SnapshotError(f"{limits.label}'s files are too large to run.")
+    if limits.regular_files_only and (
+        links := [
+            entry.path for entry in entries if entry.mode not in REGULAR_FILE_MODES
+        ]
+    ):
+        raise SnapshotError(
+            f"{limits.label} may hold only regular files. Not allowed: "
+            + ", ".join(links[:5])
+        )
+    limited = LimitedWriter(output, limits.snapshot_bytes, limits.label)
     with (
         gzip.GzipFile(
             fileobj=limited, mode="wb", mtime=0, filename="", compresslevel=6
@@ -107,9 +155,11 @@ def write_snapshot(git_dir: Path, commit_sha: str, output: IO[bytes]) -> None:
 
 
 class LimitedWriter(io.RawIOBase):
-    def __init__(self, output: IO[bytes], limit: int) -> None:
+    def __init__(self, output: IO[bytes], limit: int, label: str) -> None:
         self.output = output
+        self.limit = limit
         self.remaining = limit
+        self.label = label
 
     def writable(self) -> bool:
         return True
@@ -118,8 +168,8 @@ class LimitedWriter(io.RawIOBase):
         self.remaining -= len(data)
         if self.remaining < 0:
             raise SnapshotError(
-                "The commit's files are larger than "
-                f"{MAX_SOURCE_SNAPSHOT_BYTES // (1024 * 1024)} MiB compressed."
+                f"{self.label}'s files are larger than "
+                f"{self.limit // (1024 * 1024)} MiB compressed."
             )
         return self.output.write(data)
 

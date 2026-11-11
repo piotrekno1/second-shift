@@ -99,6 +99,7 @@ Put these in `runner.env` unless the table names other services:
 | `SECONDSHIFT_RUNNER_RUNTIME` | Sandbox OCI runtime, not the HTTP server. Use `runsc` in web, worker and runner for production. Gateway does not need it. |
 | `SECONDSHIFT_RUNNER_IMAGE` | Optional command-sandbox image. If overridden, keep the value identical in web, worker and runner. Default is the pinned Python image supplied by SecondShift. |
 | `SECONDSHIFT_RUNNER_SANDBOX_UID`, `SECONDSHIFT_RUNNER_SANDBOX_GID` | Identity inside command sandboxes. Image defaults `10001:10001`. Separate from the runner container's root user. |
+| `SECONDSHIFT_EXTERNAL_SKILLS_ENABLED` | Set in web and worker. `true` by default. Lets tasks and jobs run skills from other public GitHub repositories. The control plane fetches them over HTTPS from `github.com` without credentials. Set `false` to allow only skills committed to a run's own repository. |
 
 Only the runner receives the Docker socket. It must not receive the application
 volume or another service's env file. Repository manifests cannot override any

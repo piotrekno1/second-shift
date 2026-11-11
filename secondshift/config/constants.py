@@ -59,6 +59,7 @@ class AppEnv(StrEnum):
     RUNNER_WORK_ROOT = "SECONDSHIFT_RUNNER_WORK_ROOT"
     SOURCE_CACHE_ROOT = "SECONDSHIFT_SOURCE_CACHE_ROOT"
     SOURCE_CACHE_MAX_BYTES = "SECONDSHIFT_SOURCE_CACHE_MAX_BYTES"
+    EXTERNAL_SKILLS_ENABLED = "SECONDSHIFT_EXTERNAL_SKILLS_ENABLED"
     ARTIFACT_STORAGE = "SECONDSHIFT_ARTIFACT_STORAGE"
     RUN_OUTPUT_MAX_BYTES = "SECONDSHIFT_RUN_OUTPUT_MAX_BYTES"
     RUN_RETENTION_DAYS = "SECONDSHIFT_RUN_RETENTION_DAYS"
@@ -122,6 +123,10 @@ MAX_RUN_ISSUES = 10
 SANDBOX_OUTPUTS_DIR = "/outputs"
 # Where a sandbox finds the files its job's earlier runs saved. Read-only.
 SANDBOX_HISTORY_DIR = "/history"
+# Limits for a skill from another repository: its SKILL.md and the files beside it.
+MAX_SKILL_FILES = 500
+MAX_SKILL_UNPACKED_BYTES = 20 * 1024 * 1024
+MAX_SKILL_SNAPSHOT_BYTES = 10 * 1024 * 1024
 GITHUB_MCP_URL = "https://api.githubcopilot.com/mcp/readonly"
 # The model gateway refuses a run past its token budget with this message.
 TOKEN_BUDGET_MESSAGE = "This run has used its token budget."
