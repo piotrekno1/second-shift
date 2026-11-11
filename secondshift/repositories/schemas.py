@@ -17,6 +17,8 @@ class RepositorySchema(Schema):
     source_type: str
     local_path: str | None
     revision: str
+    # The GitHub source connection it syncs through. None for local folders.
+    github_connection_id: int | None
 
 
 class LocalRepositoryCreateSchema(Schema):
