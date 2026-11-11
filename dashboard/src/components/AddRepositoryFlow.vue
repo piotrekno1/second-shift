@@ -49,7 +49,14 @@ const source = ref<Source | undefined>(sourceChoices.value.find((choice) => choi
 // GitHub: connect once, then pick from a list.
 const connectingAnother = ref(route.query.connect === '1')
 const showConnect = computed(() => !githubConnected.value || connectingAnother.value)
+// The token form is long, so it opens on request. Without a GitHub App it is the only way.
 const useToken = ref(!githubConfigured.value)
+// Connected, but GitHub refused to list anything, so the list cannot help.
+const githubBroken = computed(() => Boolean(githubError.value) && !githubSources.value.length && !githubLoading.value)
+function connectWithToken(): void {
+  connectingAnother.value = true
+  useToken.value = true
+}
 const appInstallUrl = computed(() => hasAppSource.value ? '/github/connect/?install=1' : '/github/connect/')
 const search = ref('')
 const options = computed(() => githubSources.value
@@ -135,24 +142,33 @@ function chooseDirectory(path: string): void {
       <div v-if="showConnect" class="add-repository-connect">
         <h2>Connect GitHub</h2>
         <p>SecondShift reads jobs from the repositories you choose, and only those.</p>
-        <template v-if="githubConfigured && !useToken">
+        <div v-if="githubConfigured" class="add-repository-option">
+          <div><strong>GitHub App <span class="mcp-flag ok">Recommended</span></strong><span>You choose repositories on GitHub, then come back here to import them.</span></div>
           <Button class="main-action" label="Connect GitHub" as="a" :href="appInstallUrl">
             <template #icon><AppIcon name="github" /></template>
           </Button>
-          <small>You choose repositories on GitHub, then come back here to import them.</small>
-          <button type="button" class="link-button" @click="useToken = true">Can't install apps? Use a personal access token</button>
-        </template>
-        <template v-else>
-          <p v-if="!githubConfigured">This server has no GitHub App, so connect with a fine-grained personal access token. It is stored encrypted.</p>
-          <GitHubTokenForm @connected="tokenConnected" />
-          <button v-if="githubConfigured" type="button" class="link-button" @click="useToken = false">Use the GitHub App instead</button>
-        </template>
+        </div>
+        <div class="add-repository-option" :class="{ open: useToken }">
+          <div><strong>Personal access token</strong><span>{{ githubConfigured ? 'For an organization where you cannot install apps. Stored encrypted.' : 'This server has no GitHub App, so connect with a fine-grained token. Stored encrypted.' }}</span></div>
+          <Button v-if="!useToken" label="Use a token" severity="secondary" outlined @click="useToken = true">
+            <template #icon><AppIcon name="key-variant" /></template>
+          </Button>
+          <GitHubTokenForm v-else @connected="tokenConnected" />
+        </div>
         <button v-if="githubConnected" type="button" class="link-button" @click="connectingAnother = false">Back to your repositories</button>
       </div>
 
       <div v-else class="add-repository-github">
         <SearchInput v-if="options.length > 6" v-model="search" placeholder="Search repositories" />
-        <div v-if="githubLoading" class="empty-state compact"><AppIcon name="loading" spin /><strong>Loading your GitHub repositories</strong></div>
+        <div v-if="githubBroken" class="add-repository-problem" role="alert">
+          <AppIcon name="alert-outline" />
+          <div><strong>GitHub did not list your repositories</strong><span>{{ githubError }}</span></div>
+          <div class="add-repository-problem-actions">
+            <Button v-if="hasAppSource && githubConfigured" label="Reconnect GitHub App" size="small" as="a" :href="appInstallUrl" />
+            <Button label="Use a token" severity="secondary" outlined size="small" @click="connectWithToken" />
+          </div>
+        </div>
+        <div v-else-if="githubLoading" class="empty-state compact"><AppIcon name="loading" spin /><strong>Loading your GitHub repositories</strong></div>
         <div v-else-if="visibleOptions.length" class="data-list add-repository-list" :aria-busy="importing">
           <div v-for="item in visibleOptions" :key="item.key" class="add-repository-row">
             <AppIcon name="github" class="add-repository-glyph" />
@@ -182,7 +198,7 @@ function chooseDirectory(path: string): void {
             />
           </div>
         </div>
-        <div v-else-if="!githubError" class="empty-state compact">
+        <div v-else class="empty-state compact">
           <AppIcon name="github" />
           <strong v-if="search">No repositories match</strong>
           <strong v-else-if="githubSources.length">Every repository you shared is imported</strong>
@@ -190,13 +206,14 @@ function chooseDirectory(path: string): void {
           <span v-if="!search">Give SecondShift access to more repositories on GitHub, then come back.</span>
         </div>
         <p v-if="branchRow && github.branchesError" class="form-error" role="alert">{{ github.branchesError }}</p>
-        <p v-if="githubError" class="form-error" role="alert">{{ githubError }}</p>
-        <div class="add-repository-footer">
+        <p v-if="githubError && !githubBroken" class="form-error" role="alert">{{ githubError }}</p>
+        <!-- The problem box already offers these. -->
+        <div v-if="!githubBroken" class="add-repository-footer">
           <span>Schedules stay off until you review the imported jobs.</span>
           <span class="add-repository-links">
             <a v-if="hasAppSource && githubConfigured" href="/github/connect/?install=1">Missing a repository? Manage access <AppIcon name="open-in-new" /></a>
             <a v-if="hasTokenSource" :href="GITHUB_TOKENS_URL" target="_blank" rel="noopener noreferrer">Edit your token's repositories <AppIcon name="open-in-new" /></a>
-            <button type="button" class="link-button" @click="connectingAnother = true">Connect another account</button>
+            <button type="button" class="link-button" @click="connectingAnother = true">Add a token or another account</button>
           </span>
         </div>
       </div>
