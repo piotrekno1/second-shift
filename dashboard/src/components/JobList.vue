@@ -116,6 +116,8 @@ async function runNow(jobId: number): Promise<void> {
           <StatusPill v-if="job.cron || job.removed_at" :status="jobState(job)" :label="jobStateLabel(jobState(job))" :title="job.removed_at ? REMOVED_JOB : undefined" />
           <!-- People who can review get the Review access button instead. -->
           <StatusPill v-if="accessNeedsAction(job.grant_status) && !app.can(Action.ReviewCapabilities)" :status="job.grant_status" :label="accessLabel(job.grant_status)" />
+          <!-- On phones the schedule column is hidden, so a job with no pill says how it starts. -->
+          <small v-if="!job.cron && !job.removed_at" class="job-start-note">{{ formatSchedule(job.cron, job.timezone, job.triggers) }}</small>
         </div>
         <div class="job-actions">
           <!-- One button for both cases. Amber means the job waits on someone's review. -->

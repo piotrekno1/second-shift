@@ -174,9 +174,12 @@ const attentionDetail = computed(() => {
         <div class="panel-heading"><h2>Upcoming</h2><RouterLink to="/jobs">All jobs</RouterLink></div>
         <div v-if="upcoming.length" class="upcoming-list">
           <RouterLink v-for="job in upcoming" :key="job.id" :to="`/jobs/${job.id}`" class="upcoming-row">
-            <strong>{{ job.name }}</strong>
-            <span :title="utcTitle(job.next_run_at)">{{ formatScheduled(job.next_run_at, job.timezone) }}</span>
-            <small>{{ formatRelative(job.next_run_at) }} · {{ job.repository }}</small>
+            <div class="upcoming-main">
+              <strong>{{ job.name }}</strong>
+              <span :title="utcTitle(job.next_run_at)">{{ formatScheduled(job.next_run_at, job.timezone) }}</span>
+              <small>{{ formatRelative(job.next_run_at) }} · {{ job.repository }}</small>
+            </div>
+            <AppIcon aria-hidden="true" name="chevron-right" class="row-chevron" />
           </RouterLink>
         </div>
         <div v-else class="empty-state compact"><AppIcon name="calendar-blank-outline" /><strong>No job enabled</strong><span>Enable a job to put it on the schedule.</span></div>
