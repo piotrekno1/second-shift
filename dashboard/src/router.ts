@@ -14,6 +14,7 @@ import RunDetailView from './views/RunDetailView.vue'
 import RunFileView from './views/RunFileView.vue'
 import RunsView from './views/RunsView.vue'
 import SettingsView from './views/SettingsView.vue'
+import TryView from './views/TryView.vue'
 
 export default createRouter({
   history: createWebHistory(),
@@ -33,6 +34,8 @@ export default createRouter({
     { path: '/connections', component: ConnectionsView },
     { path: '/settings', component: SettingsView },
     { path: '/account', component: AccountView },
+    // A link from a skill's page: /try?repository=owner/name&path=…/SKILL.md&ref=…
+    { path: '/try', component: TryView },
     // Ids are numbers, so /runs/abc lands here instead of asking the server.
     { path: '/:unknown(.*)*', component: NotFoundView },
   ],

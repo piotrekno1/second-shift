@@ -189,8 +189,8 @@ useLiveRefresh(loadJob, () => (job.value?.recent_runs ?? []).some((run) => isRun
               <div>
                 <h2>Skill</h2>
                 <p class="job-skill-origin">
-                  <a v-if="job.skill_url" :href="job.skill_url" target="_blank" rel="noopener noreferrer" class="job-skill-source" title="Open this file on GitHub at this commit"><code>{{ job.skill_path }}</code> @ <code>{{ job.repository_revision.slice(0, 7) }}</code><AppIcon name="open-in-new" /></a>
-                  <template v-else><code>{{ job.skill_path }}</code> @ <code>{{ job.repository_revision.slice(0, 7) }}</code></template>
+                  <a v-if="job.skill_url" :href="job.skill_url" target="_blank" rel="noopener noreferrer" class="job-skill-source" title="Open this file on GitHub at this commit"><template v-if="job.skill_repository"><code>{{ job.skill_repository }}</code> / </template><code>{{ job.skill_path }}</code> @ <code>{{ (job.skill_revision || job.repository_revision).slice(0, 7) }}</code><AppIcon name="open-in-new" /></a>
+                  <template v-else><code>{{ job.skill_path }}</code> @ <code>{{ (job.skill_revision || job.repository_revision).slice(0, 7) }}</code></template>
                 </p>
               </div>
               <div v-if="job.skill_text" class="segmented" role="group" aria-label="Skill view">

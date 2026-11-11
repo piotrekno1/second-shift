@@ -235,6 +235,8 @@ export interface Job {
   repository_id: number
   repository: string
   skill_path: string
+  /** Another public GitHub repository the skill comes from. Empty when it is in this one. */
+  skill_repository?: string
   cron: string
   timezone: string
   enabled: boolean
@@ -267,6 +269,8 @@ export interface JobDetail extends Job {
   /** An owner allows issues for the repository, so they open. */
   issues_allowed: boolean
   repository_revision: string
+  /** The commit the skill is read from. The pinned one for a skill from another repository. */
+  skill_revision?: string
   repository_enabled: boolean
   /** The skill file at the synced commit. Empty until the repository syncs again. */
   skill_text: string
@@ -444,6 +448,50 @@ export interface RunDetail extends Run {
   changes: RunChanges | null
   saved_files: RunSavedFile[]
   skipped_files: RunSkippedFile[]
+  /** Another repository the skill came from, at the commit the run used. */
+  skill_source?: RunSkillSource | null
+  /** Access the agent reported it needed and did not have. Model output. */
+  access_needs?: RunAccessNeed[]
+}
+
+export interface RunSkillSource {
+  repository: string
+  commit_sha: string
+  url: string
+}
+
+export interface RunAccessNeed {
+  service: string
+  tools: string[]
+  reason: string
+}
+
+export type SkillNeedStatus = 'ready' | 'needs_approval' | 'unavailable' | 'missing'
+
+export interface SkillNeed {
+  binding: string
+  server: string
+  tools: string[]
+  /** declared: in the frontmatter's allowed-tools. mentioned: in the text. */
+  origin: 'declared' | 'mentioned'
+  status: SkillNeedStatus
+  detail: string
+}
+
+/** A skill from another public repository, pinned to a commit. */
+export interface SkillInspection {
+  repository: string
+  path: string
+  commit_sha: string
+  url: string
+  name: string
+  description: string
+  file_count: number
+  size_bytes: number
+  /** Someone else's file. Show it as text. */
+  text: string
+  text_truncated: boolean
+  needs: SkillNeed[]
 }
 
 export interface RunPage {

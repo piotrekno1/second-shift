@@ -18,6 +18,8 @@ import { runOutputLink } from '../utils/runOutputLink'
 import { runBlocker } from '../utils/readiness'
 import { startedByLabel } from '../utils/triggers'
 import { errorMessage } from '../services/api'
+import Dialog from 'primevue/dialog'
+import { scheduleYaml } from '../utils/skills'
 
 const POLL_MS = 2000
 
@@ -139,6 +141,32 @@ function startPolling(): void {
   }, POLL_MS)
 }
 
+// A task that tried a skill from another repository can become a job.
+const scheduling = ref(false)
+const copied = ref(false)
+const scheduleText = computed(() => {
+  const source = run.value?.skill_source
+  if (!run.value || !source) return ''
+  return scheduleYaml({
+    name: run.value.job,
+    repository: source.repository,
+    path: run.value.skill_path,
+    commitSha: source.commit_sha,
+    // The run's access is not a binding list, so people add requires themselves.
+    mcps: [],
+  })
+})
+
+async function copySchedule(): Promise<void> {
+  try {
+    await navigator.clipboard.writeText(scheduleText.value)
+    copied.value = true
+    window.setTimeout(() => { copied.value = false }, 2000)
+  } catch {
+    // Some browsers refuse the clipboard. The text stays selectable.
+  }
+}
+
 async function runAgain(): Promise<void> {
   if (!run.value || run.value.job_id === null) return
   rerunning.value = true
@@ -170,6 +198,9 @@ onUnmounted(stopPolling)
   <div class="page run-detail-page">
     <PageHeader compact :title="`Run #${runId}`" :description="subtitle" :parent="{ label: 'Runs', to: '/runs' }">
       <Button v-if="run?.job_id === null && run.status === 'queued' && app.can(Action.RunJobs)" label="Cancel task" severity="secondary" :loading="canceling" @click="cancel" />
+      <Button v-if="run?.job_id === null && run.skill_source && !active" label="Schedule this skill" severity="secondary" @click="scheduling = true">
+        <template #icon><AppIcon name="calendar-clock-outline" /></template>
+      </Button>
       <Button class="main-action" v-if="run && run.job_id !== null && !active && app.can(Action.RunJobs)" label="Run again" :title="rerunBlocker || undefined" :disabled="Boolean(rerunBlocker)" :loading="rerunning" @click="runAgain">
         <template #icon><AppIcon name="replay" /></template>
       </Button>
@@ -207,6 +238,16 @@ onUnmounted(stopPolling)
             <!-- eslint-disable-next-line vue/no-v-html -- sanitized by renderMarkdown -->
             <article class="markdown-body task-instructions" v-html="taskInstructionsHtml" />
           </details>
+          <section v-if="run.access_needs?.length" class="panel job-runs-panel run-access-panel">
+            <div class="panel-heading"><div><h2>Access it asked for</h2><p>The agent said it needed these and this run did not have them. Nothing was granted.</p></div></div>
+            <ul class="run-access-needs">
+              <li v-for="need in run.access_needs" :key="need.service">
+                <span class="run-access-service"><AppIcon name="key-variant" /><strong>{{ need.service }}</strong><code v-if="need.tools.length">{{ need.tools.join(', ') }}</code></span>
+                <span v-if="need.reason" class="run-details-muted">{{ need.reason }}</span>
+              </li>
+            </ul>
+            <p class="run-details-muted run-access-next">Connect a service in <RouterLink to="/connections" class="detail-link">Connections</RouterLink>, then run it again. Tasks can use a connection when it does not require approval.</p>
+          </section>
           <section v-if="timelineOpen" class="panel job-runs-panel">
             <div class="panel-heading"><h2>Timeline</h2><span class="run-details-muted">Times in {{ timelineZone }}</span></div>
             <ol v-if="run.events.length" class="run-timeline">
@@ -282,6 +323,7 @@ onUnmounted(stopPolling)
             <div><dt>{{ run.job_id === null ? 'Task' : 'Job' }}</dt><dd><RouterLink v-if="run.job_id !== null" :to="`/jobs/${run.job_id}`" class="detail-link">{{ run.job }}</RouterLink><span v-else>{{ run.job }}</span></dd></div>
             <div><dt>Repository</dt><dd><RouterLink :to="`/repositories/${run.repository_id}`" class="detail-link">{{ run.repository }}</RouterLink></dd></div>
             <div><dt>Instructions</dt><dd><code v-if="run.skill_path">{{ run.skill_path }}</code><span v-else>Written task</span></dd></div>
+            <div v-if="run.skill_source"><dt>Skill from</dt><dd><a :href="run.skill_source.url" target="_blank" rel="noopener noreferrer" class="detail-link">{{ run.skill_source.repository }} @ <code>{{ run.skill_source.commit_sha.slice(0, 7) }}</code></a></dd></div>
             <div><dt>Agent</dt><dd>{{ run.execution_agent ?? run.model_provider ?? 'None' }}</dd></div>
             <div><dt>Started by</dt><dd>{{ run.job_id === null && run.started_by === 'manual' ? 'Manual task' : startedByLabel(run.started_by) }}</dd></div>
             <div v-if="run.job_id === null"><dt>Not before</dt><dd :title="utcTitle(run.scheduled_for)">{{ formatDate(run.scheduled_for) }}</dd></div>
@@ -317,11 +359,25 @@ onUnmounted(stopPolling)
           </dl>
         </aside>
       </div>
+      <Dialog v-model:visible="scheduling" modal header="Schedule this skill" :style="{ width: 'min(640px, calc(100vw - 32px))' }">
+        <p class="run-details-muted">Add this job to <code>.secondshift.yaml</code> in {{ run.repository }} and commit it. It pins the commit this run used, so the skill changes only when you change the commit. Set the schedule you want, and add the access it needs under <code>requires</code>.</p>
+        <pre class="run-output schedule-skill-yaml">{{ scheduleText }}</pre>
+        <template #footer>
+          <Button label="Close" severity="secondary" text @click="scheduling = false" />
+          <Button :label="copied ? 'Copied' : 'Copy'" class="main-action" @click="copySchedule"><template #icon><AppIcon :name="copied ? 'check' : 'content-copy'" /></template></Button>
+        </template>
+      </Dialog>
     </template>
   </div>
 </template>
 
 <style scoped>
+.run-access-needs { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.run-access-needs li { display: grid; gap: 4px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: var(--text-sm); }
+.run-access-service { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.run-access-service code { color: var(--muted); font-size: var(--text-xs); overflow-wrap: anywhere; }
+.run-access-next { margin: 12px 0 0; font-size: var(--text-xs); }
+.schedule-skill-yaml { margin: 12px 0 0; white-space: pre; overflow-x: auto; }
 .run-queue-help { margin: 12px 0 0; color: var(--muted); font-size: var(--text-xs); }
 .run-queue-help a { display: inline-flex; align-items: center; gap: 4px; text-decoration: underline; text-underline-offset: 3px; }
 .run-detail-page :deep(.page-header > div:first-child) { min-width: 0; max-width: 100%; }
