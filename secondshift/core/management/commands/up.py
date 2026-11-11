@@ -214,6 +214,9 @@ def check_port(host: str, port: int) -> None:
         addresses = socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)
         family, kind, protocol, _, address = addresses[0]
         with socket.socket(family, kind, protocol) as listener:
+            # The server binds the same way. Without this, closed connections
+            # from the last run keep the port looking busy for a minute.
+            listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             listener.bind(address)
     except OSError as error:
         raise click.ClickException(
