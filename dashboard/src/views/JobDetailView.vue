@@ -131,7 +131,7 @@ useLiveRefresh(loadJob, () => (job.value?.recent_runs ?? []).some((run) => isRun
       <Button v-if="job && job.cron && !job.removed_at && app.can(Action.EnableJobs)" :label="job.enabled ? 'Pause schedule' : 'Resume schedule'" severity="secondary" outlined :disabled="Boolean(enableBlocker(job))" :title="enableBlocker(job) || undefined" :loading="action === 'toggle'" @click="toggleJob">
         <template #icon><AppIcon :name="job.enabled ? 'pause' : 'play'" /></template>
       </Button>
-      <Button class="main-action" v-if="job && app.can(Action.RunJobs)" label="Run now" :disabled="Boolean(runBlocker(job, job.repository_enabled, app.overview?.execution))" :title="runBlocker(job, job.repository_enabled, app.overview?.execution) || 'Start a run and open it'" :loading="action === 'run'" @click="runNow">
+      <Button class="main-action" v-if="job && app.can(Action.RunJobs)" label="Run now" :disabled="Boolean(runBlocker(job, job.repository_enabled, app.overview?.execution, app.connections))" :title="runBlocker(job, job.repository_enabled, app.overview?.execution, app.connections) || 'Start a run and open it'" :loading="action === 'run'" @click="runNow">
         <template #icon><AppIcon name="play" /></template>
       </Button>
     </PageHeader>
@@ -151,7 +151,7 @@ useLiveRefresh(loadJob, () => (job.value?.recent_runs ?? []).some((run) => isRun
           <small>{{ formatRelative(job.next_run_at) }}</small>
         </div>
         <div v-else-if="!job.cron" class="job-status-item"><span>No schedule</span><strong>{{ job.triggers.length ? 'Runs when a webhook or Run now starts it' : 'Runs only when you choose Run now' }}</strong></div>
-        <div v-else class="job-status-item"><span>Schedule paused</span><strong>{{ !job.repository_enabled ? 'Resume the repository before starting runs or resuming this schedule.' : runBlocker(job, true, app.overview?.execution) ? 'Resume the schedule for automatic runs.' : 'Run now still works. Resume the schedule for automatic runs.' }}</strong></div>
+        <div v-else class="job-status-item"><span>Schedule paused</span><strong>{{ !job.repository_enabled ? 'Resume the repository before starting runs or resuming this schedule.' : runBlocker(job, true, app.overview?.execution, app.connections) ? 'Resume the schedule for automatic runs.' : 'Run now still works. Resume the schedule for automatic runs.' }}</strong></div>
         <div class="job-status-item">
           <span>Last run</span>
           <RouterLink v-if="lastRun" :to="`/runs/${lastRun.id}`" class="job-last-run" :title="`${formatDate(lastRun.scheduled_for)} · ${utcTitle(lastRun.scheduled_for)}`">

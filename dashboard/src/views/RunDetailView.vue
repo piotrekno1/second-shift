@@ -42,7 +42,7 @@ const rerunBlocker = computed(() => {
   const job = app.jobs.find((item) => item.id === run.value?.job_id)
   if (!job) return ''
   const repository = app.repositories.find((item) => item.id === job.repository_id)
-  return runBlocker(job, repository?.enabled ?? true, app.overview?.execution)
+  return runBlocker(job, repository?.enabled ?? true, app.overview?.execution, app.connections)
 })
 const changing = computed(() => active.value || Boolean(run.value?.deliveries.some(isDeliveryInProgress)))
 const DELIVERY_LABELS: Record<RunDelivery['status'], string> = { pending: 'Sending', retrying: 'Retrying', delivered: 'Delivered', skipped: 'Skipped', failed: 'Failed' }
