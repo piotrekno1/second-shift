@@ -18,9 +18,6 @@ const doneCount = computed(() => props.steps.filter((step) => step.done).length)
         <h2 id="setup-heading">Get to your first run</h2>
         <p>{{ doneCount }} of {{ steps.length }} done</p>
       </div>
-      <div class="setup-progress" role="progressbar" :aria-valuenow="doneCount" aria-valuemin="0" :aria-valuemax="steps.length" aria-label="Setup progress">
-        <span v-for="step in steps" :key="step.key" :class="{ done: step.done }" />
-      </div>
     </div>
     <ol>
       <li

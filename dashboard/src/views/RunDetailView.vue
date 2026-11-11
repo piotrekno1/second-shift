@@ -319,7 +319,7 @@ onUnmounted(stopPolling)
 .run-queue-help a { display: inline-flex; align-items: center; gap: 4px; text-decoration: underline; text-underline-offset: 3px; }
 .run-detail-page :deep(.page-header > div:first-child) { min-width: 0; max-width: 100%; }
 .run-detail-page :deep(.page-header p) { overflow-wrap: anywhere; }
-.task-input-panel { padding: 20px 24px; }
+.task-input-panel { padding: 20px; }
 .task-input-panel > summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; list-style: none; color: var(--muted); font-size: var(--text-md); font-weight: 500; cursor: pointer; }
 .task-input-panel > summary::-webkit-details-marker { display: none; }
 .task-input-panel > summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 6px; border-radius: var(--radius-sm); }

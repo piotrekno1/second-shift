@@ -225,7 +225,7 @@ const passRate = computed(() => {
 
 <style scoped>
 .recent-runs-panel { padding: 0; overflow: hidden; }
-.recent-runs-panel > .panel-heading { margin: 0; padding: 20px 24px 16px; }
+.recent-runs-panel > .panel-heading { margin: 0; padding: 20px 20px 16px; }
 
 .activity-main > strong { display: flex; align-items: center; gap: 6px; min-width: 0; }
 </style>
