@@ -15,6 +15,7 @@ class SessionInput(StrictSchema):
     source_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     collect_changes: bool = False
     history_sha256: str = Field(default="", pattern=r"^(?:[0-9a-f]{64})?$")
+    skill_sha256: str = Field(default="", pattern=r"^(?:[0-9a-f]{64})?$")
 
 
 class SessionOutput(Schema):

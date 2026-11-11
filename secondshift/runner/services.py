@@ -11,6 +11,7 @@ from django.db import IntegrityError, transaction
 from secondshift.config.constants import (
     SANDBOX_HISTORY_DIR,
     SANDBOX_OUTPUTS_DIR,
+    SANDBOX_SKILL_DIR,
     SandboxRuntime,
 )
 from secondshift.runner.collection import OUTPUTS_DIR, collect, record_baseline
@@ -35,6 +36,8 @@ from secondshift.runner.sources import sweep_sources, unpack_source
 TRUNCATION_MARKER = b"\n[... command output truncated by SecondShift ...]\n"
 # Beside the workspace: the files earlier runs of the job saved.
 HISTORY_DIR = "history"
+# Beside the workspace: a skill from another repository.
+SKILL_DIR = "skill"
 
 
 def sandbox_name(session_id: str) -> str:
@@ -138,6 +141,7 @@ class DockerRunnerService:
                         source_sha256=spec.source_sha256,
                         collect_changes=spec.collect_changes,
                         history_sha256=spec.history_sha256,
+                        skill_sha256=spec.skill_sha256,
                         container_name=container_name,
                         workspace_path=str(workspace),
                     )
@@ -163,6 +167,7 @@ class DockerRunnerService:
         outputs = session_root / OUTPUTS_DIR
         outputs.mkdir(mode=0o700)
         (session_root / HISTORY_DIR).mkdir(mode=0o700)
+        (session_root / SKILL_DIR).mkdir(mode=0o700)
         try:
             self.prepare_sandbox(spec, container_name, workspace, outputs)
         except Exception:
@@ -180,17 +185,21 @@ class DockerRunnerService:
         workspace: Path,
         outputs: Path,
     ) -> None:
-        """Unpack the commit and any earlier files, record the commit if asked,
-        and start the container."""
+        """Unpack the commit, any earlier files and any skill from another
+        repository, record the commit if asked, and start the container."""
         unpack_source(spec.source_sha256, workspace)
         history = workspace.parent / HISTORY_DIR
         if spec.history_sha256:
             unpack_source(spec.history_sha256, history)
+        skill = workspace.parent / SKILL_DIR
+        if spec.skill_sha256:
+            unpack_source(spec.skill_sha256, skill)
         if spec.collect_changes:
             record_baseline(workspace.parent, workspace)
         self.prepare_workspace_permissions(workspace)
         self.prepare_workspace_permissions(outputs)
         self.prepare_workspace_permissions(history)
+        self.prepare_workspace_permissions(skill)
         completed = self.run_command(
             self.create_command(spec, container_name, workspace)
         )
@@ -335,6 +344,7 @@ class DockerRunnerService:
             session.source_sha256,
             session.collect_changes,
             session.history_sha256,
+            session.skill_sha256,
         )
         requested = (
             spec.run_id,
@@ -344,6 +354,7 @@ class DockerRunnerService:
             spec.source_sha256,
             spec.collect_changes,
             spec.history_sha256,
+            spec.skill_sha256,
         )
         if recorded != requested:
             raise RunnerProtocolError("The run already has a different session spec.")
@@ -368,6 +379,10 @@ class DockerRunnerService:
             # Files earlier runs of the job saved. The sandbox can only read them.
             f"--mount=type=bind,src={workspace.parent / HISTORY_DIR},"
             f"dst={SANDBOX_HISTORY_DIR},readonly",
+            # A skill from another repository. The sandbox can only read it,
+            # and it is never part of the repository's changes.
+            f"--mount=type=bind,src={workspace.parent / SKILL_DIR},"
+            f"dst={SANDBOX_SKILL_DIR},readonly",
             "--workdir=/workspace",
             "--env=HOME=/tmp",
             # Skills that run Python must not leave bytecode in the repository.

@@ -16,6 +16,7 @@ class RunnerSession(models.Model):
     source_sha256 = models.CharField(max_length=64)
     collect_changes = models.BooleanField(default=False)
     history_sha256 = models.CharField(max_length=64, blank=True)
+    skill_sha256 = models.CharField(max_length=64, blank=True)
     container_name = models.CharField(max_length=120, unique=True)
     workspace_path = models.TextField()
     status = models.CharField(

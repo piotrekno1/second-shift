@@ -88,6 +88,7 @@ def test_container_flags_are_server_owned(settings, tmp_path: Path) -> None:
         f"--mount=type=bind,src={tmp_path / 'workspace'},dst=/workspace",
         f"--mount=type=bind,src={tmp_path / 'outputs'},dst=/outputs",
         f"--mount=type=bind,src={tmp_path / 'history'},dst=/history,readonly",
+        f"--mount=type=bind,src={tmp_path / 'skill'},dst=/skill,readonly",
     ]
     assert not any(part.startswith("--env-file") for part in command)
     assert [part for part in command if part.startswith("--env")] == [
@@ -389,5 +390,52 @@ def test_earlier_files_are_unpacked_beside_the_workspace(
     session = RunnerSession.objects.get(session_id=spec.session_id)
     assert session.history_sha256 == "e" * 64
     other = RunnerSessionSpec(**{**spec.__dict__, "history_sha256": "f" * 64})
+    with pytest.raises(RunnerProtocolError, match="different session spec"):
+        DockerRunnerService().start(other)
+
+
+@pytest.mark.django_db
+def test_a_skill_from_another_repository_is_unpacked_beside_the_workspace(
+    settings, monkeypatch, tmp_path: Path
+) -> None:
+    settings.RUNNER_WORK_ROOT = tmp_path
+    settings.RUNNER_IMAGE = "secondshift-runner:test"
+    unpacked: list[tuple[str, Path]] = []
+    commands: list[list[str]] = []
+
+    def run(command: list[str], timeout: int = 30) -> Mock:
+        commands.append(command)
+        return completed(0)
+
+    monkeypatch.setattr(DockerRunnerService, "run_command", staticmethod(run))
+    monkeypatch.setattr(
+        DockerRunnerService, "prepare_workspace_permissions", lambda *a, **k: None
+    )
+    monkeypatch.setattr(
+        "secondshift.runner.services.unpack_source",
+        lambda sha256, target: unpacked.append((sha256, target)),
+    )
+    spec = RunnerSessionSpec(
+        run_id=7,
+        session_key="c" * 32,
+        repository="example/project",
+        commit_sha="a" * 40,
+        image="secondshift-runner:test",
+        source_sha256="d" * 64,
+        collect_changes=True,
+        skill_sha256="e" * 64,
+    )
+
+    DockerRunnerService().start(spec)
+
+    root = tmp_path / "sessions" / spec.session_id
+    # Never inside the workspace, so it is not part of the agent's changes.
+    assert unpacked == [("d" * 64, root / "workspace"), ("e" * 64, root / "skill")]
+    create = next(command for command in commands if command[1] == "create")
+    assert f"--mount=type=bind,src={root / 'skill'},dst=/skill,readonly" in create
+    assert "--network=none" in create
+    session = RunnerSession.objects.get(session_id=spec.session_id)
+    assert session.skill_sha256 == "e" * 64
+    other = RunnerSessionSpec(**{**spec.__dict__, "skill_sha256": "f" * 64})
     with pytest.raises(RunnerProtocolError, match="different session spec"):
         DockerRunnerService().start(other)
