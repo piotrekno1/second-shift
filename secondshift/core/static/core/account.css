@@ -1,11 +1,11 @@
 /* SecondShift theme for the sign-in, sign-up and account pages that
    allauth renders. Its elements are plain HTML, so they are styled by tag.
    The tokens and components copy the dashboard (dashboard/src/styles.css):
-   neutral greys, Geist, and color only where it carries meaning. */
+   neutral greys, IBM Plex, and color only where it carries meaning. */
 :root {
   color-scheme: dark;
-  --font-sans: 'Geist', system-ui, sans-serif;
-  --font-mono: 'Geist Mono', ui-monospace, monospace;
+  --font-sans: 'IBM Plex Sans', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
   --night-950: #0d0d0d;
   --night-900: #131313;
   --ink: #ededed;
