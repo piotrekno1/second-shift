@@ -21,12 +21,18 @@ from secondshift.jobs.schemas import (
     JobEnabledSchema,
     JobSchema,
     NeedJobSchema,
+    SkillInspectionInput,
+    SkillInspectionSchema,
 )
 from secondshift.jobs.serialization import (
+    serialize_inspection,
     serialize_job,
     serialize_job_detail,
     serialize_workspace_jobs,
 )
+from secondshift.jobs.skill_needs import inspect_external_skill
+from secondshift.repositories.access import repository_for_request
+from secondshift.repositories.external_skills import ExternalSkillError
 from secondshift.workspaces.access import (
     Action,
     allows,
@@ -156,3 +162,23 @@ def review_job_capability(
     except GrantError as error:
         raise HttpError(error.status, str(error)) from error
     return serialize_job(job_for_request(request, job_id))
+
+
+@router.post("/skills/inspect", response=SkillInspectionSchema)
+def inspect_skill(
+    request: HttpRequest, payload: SkillInspectionInput
+) -> SkillInspectionSchema:
+    """Fetch a skill from another public repository and show what it needs."""
+    workspace = require(request, Action.RUN_JOBS)
+    target = (
+        repository_for_request(request, payload.repository_id)
+        if payload.repository_id is not None
+        else None
+    )
+    try:
+        inspection = inspect_external_skill(
+            workspace, payload.repository, payload.path, payload.ref, target
+        )
+    except ExternalSkillError as error:
+        raise HttpError(422, str(error)) from error
+    return serialize_inspection(inspection)

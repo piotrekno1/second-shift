@@ -32,6 +32,7 @@ from secondshift.jobs.plan import (
     PullRequestPlan,
     RepositoryPlan,
     RunnerPlan,
+    SkillSourcePlan,
 )
 from secondshift.jobs.tool_policy import plan_tools
 from secondshift.jobs.tool_rules import ToolRules, broken_rules, kept_rules
@@ -77,6 +78,7 @@ class ExecutionDefinition:
     key: str
     skill_path: str
     config_hash: str
+    skill_source: SkillSourcePlan | None = None
 
 
 GRANT_REASONS = {
@@ -258,6 +260,7 @@ def compile_execution_plan(
             key=definition.key,
             skill_path=definition.skill_path,
             config_hash=definition.config_hash,
+            skill_source=definition.skill_source,
         ),
         repository=RepositoryPlan(
             full_name=repository.full_name, config_sha=commit_sha
@@ -271,6 +274,16 @@ def compile_execution_plan(
         issues=issues,
         model=model_plan(workspace) if selection.backend.uses_model_api else None,
         capabilities=capabilities,
+    )
+
+
+def job_skill_source(job: Job) -> SkillSourcePlan | None:
+    """A synced job's source is always pinned to a commit."""
+    if not job.skill_source:
+        return None
+    return SkillSourcePlan(
+        repository=job.skill_source["repository"],
+        commit_sha=job.skill_source["ref"],
     )
 
 
@@ -300,7 +313,12 @@ def build_execution_plan(job: Job) -> ExecutionPlan:
     return compile_execution_plan(
         job.workspace,
         job.repository,
-        ExecutionDefinition(job.key, job.skill_path, job.config_hash),
+        ExecutionDefinition(
+            job.key,
+            job.skill_path,
+            job.config_hash,
+            job_skill_source(job),
+        ),
         capabilities,
         effective_limits(job),
         job.repository.config_sha,
@@ -326,10 +344,12 @@ def build_skill_execution_plan(
     key: str,
     commit_sha: str,
     pull_request: PullRequestPlan | None = None,
+    skill_source: SkillSourcePlan | None = None,
 ) -> ExecutionPlan:
     """Plan an ad hoc repository skill without saving jobs, requests or grants.
 
-    The caller resolves the repository revision to a commit before planning.
+    The caller resolves the repository revision to a commit before planning,
+    and a skill from another repository to its commit.
     Logical capabilities use only connections that allow automatic approval;
     grants for other jobs are never inherited. Limits and execution selection
     come from the workspace, and sandbox policy comes from server settings.
@@ -355,7 +375,9 @@ def build_skill_execution_plan(
     return compile_execution_plan(
         repository.workspace,
         repository,
-        ExecutionDefinition(key, definition.skill or "", manifest_hash(definition)),
+        ExecutionDefinition(
+            key, definition.skill or "", manifest_hash(definition), skill_source
+        ),
         capabilities,
         workspace_limits(repository.workspace),
         commit_sha,

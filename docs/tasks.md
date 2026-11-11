@@ -170,6 +170,22 @@ Replace `12` with your repository ID. To reuse a skill, add
 `"skill": ".agents/skills/docs-drift/SKILL.md"` inside `definition`. Add
 `revision` at the top level to choose a branch or full commit SHA.
 
+To try a skill from another public repository, call `inspect_skill` with its
+`repository` and `path`. Then submit with `skill` set to that path and
+`skill_source` set to the repository and the returned `commit_sha`:
+
+```json
+{
+  "repository_id": 12,
+  "definition": {
+    "name": "Triage new bugs",
+    "skill": "skills/triage/SKILL.md",
+    "skill_source": {"repository": "acme/agent-skills", "ref": "4f2c1d0e8b7a6c5d4e3f2a1b0c9d8e7f6a5b4c3d"}
+  },
+  "idempotency_key": "triage-trial-001"
+}
+```
+
 For a delayed start, add a timezone-aware `not_before` timestamp at the top
 level, such as `"2026-11-04T01:00:00+01:00"`. Replace it with your intended time;
 past timestamps are immediately eligible. The dashboard's local-time field and

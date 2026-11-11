@@ -1,3 +1,4 @@
+from secondshift.config.constants import GITHUB_BASE_URL
 from secondshift.runner.agent_image.outcomes import cache_reads, usage_budget
 from secondshift.runs.dao import run_events
 from secondshift.runs.deliveries import retryable
@@ -19,6 +20,7 @@ from secondshift.runs.schemas import (
     RunIssueSchema,
     RunSavedFileSchema,
     RunSchema,
+    RunSkillSourceSchema,
     RunSkippedFileSchema,
     TaskSubmissionSchema,
 )
@@ -178,6 +180,7 @@ def serialize_run_detail(run: Run) -> RunDetailSchema:
         submission_input=run.inputs.submission_input,
         job_key=run.job_key,
         skill_path=run.plan.job.skill_path,
+        skill_source=run_skill_source(run),
         created_at=run.created_at,
         exit_code=run.exit_code,
         model_provider=model.connection_name if model else None,
@@ -214,6 +217,18 @@ def serialize_run_detail(run: Run) -> RunDetailSchema:
             RunSkippedFileSchema(name=item.name, reason=item.reason)
             for item in outputs.skipped
         ],
+    )
+
+
+def run_skill_source(run: Run) -> RunSkillSourceSchema | None:
+    job = run.plan.job
+    if (source := job.skill_source) is None:
+        return None
+    return RunSkillSourceSchema(
+        repository=source.repository,
+        commit_sha=source.commit_sha,
+        url=f"{GITHUB_BASE_URL}/{source.repository}/blob/"
+        f"{source.commit_sha}/{job.skill_path}",
     )
 
 

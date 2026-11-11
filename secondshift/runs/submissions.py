@@ -15,10 +15,14 @@ from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validato
 from secondshift.config.constants import COMMIT_SHA_PATTERN, RunStart
 from secondshift.github.errors import GitHubError
 from secondshift.jobs.manifest import TaskManifest
-from secondshift.jobs.plan import PullRequestPlan
+from secondshift.jobs.plan import PullRequestPlan, SkillSourcePlan
 from secondshift.jobs.planning import build_skill_execution_plan
 from secondshift.jobs.readiness import execution_problems
 from secondshift.repositories.dao import lock_repository
+from secondshift.repositories.external_skills import (
+    ExternalSkillError,
+    resolve_external_skill,
+)
 from secondshift.repositories.local import LocalRepositoryError
 from secondshift.repositories.models import Repository
 from secondshift.repositories.skill_source import SkillSourceError, skill_commit
@@ -126,6 +130,18 @@ def pull_request_plan(
     )
 
 
+def external_source(definition: TaskManifest) -> SkillSourcePlan | None:
+    """Pin a skill from another repository to the commit the run gets."""
+    source = definition.skill_source
+    if source is None or definition.skill is None:
+        return None
+    try:
+        skill = resolve_external_skill(source.repository, definition.skill, source.ref)
+    except ExternalSkillError as error:
+        raise RunRefused(str(error)) from error
+    return SkillSourcePlan(repository=skill.repository, commit_sha=skill.commit_sha)
+
+
 def submit_skill(
     repository: Repository,
     submission: SkillSubmission,
@@ -139,15 +155,19 @@ def submit_skill(
         repository = lock_repository(repository.pk)
         if existing := admission(repository, submission, fingerprint):
             return existing
+    definition = submission.definition
+    source = external_source(definition)
     try:
         commit = skill_commit(
-            repository, submission.definition.skill, submission.revision
+            repository,
+            definition.skill if source is None else None,
+            submission.revision,
         )
     except (LocalRepositoryError, GitHubError, SkillSourceError) as error:
         # GitHub helpers already redact credentials from errors.
         message = (
             "The skill or revision is unavailable in this repository."
-            if submission.definition.skill is not None
+            if definition.skill is not None and source is None
             else "The requested repository revision is unavailable."
         )
         raise RunRefused(message) from error
@@ -161,6 +181,7 @@ def submit_skill(
             key=submission.idempotency_key,
             commit_sha=commit,
             pull_request=pull_request_plan(repository, submission),
+            skill_source=source,
         )
         if not plan.ready:
             raise RunNotReady(execution_problems(repository, plan))

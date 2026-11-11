@@ -10,8 +10,9 @@ from pydantic_ai.exceptions import UsageLimitExceeded
 from pydantic_ai.messages import ModelMessage
 from pydantic_ai.toolsets import FunctionToolset
 
+from secondshift.config.constants import SANDBOX_SKILL_DIR
 from secondshift.jobs.models import CapabilityRequest
-from secondshift.jobs.plan import ExecutionPlan
+from secondshift.jobs.plan import ExecutionPlan, JobPlan
 from secondshift.runner.client import get_runner_client
 from secondshift.runner.protocol import CommandRequest, CommandResult
 from secondshift.runs.artifacts import (
@@ -39,7 +40,7 @@ from secondshift.runs.execution.result import AgentResult
 from secondshift.runs.execution.subagents import subagent_tool, subagents_note
 from secondshift.runs.execution.workspace_tools import (
     WorkspaceToolDeps,
-    workspace_path,
+    sandbox_path,
     workspace_tools,
 )
 from secondshift.runs.history import previous_reports
@@ -70,10 +71,18 @@ WORKSPACE_AGENT = build_agent(
 )
 
 
-def task_prompt(skill_path: str) -> str:
+def task_prompt(job: JobPlan) -> str:
+    skill_path = job.sandbox_skill_path
     if not skill_path:
         return "Execute the submitted task in this repository and produce the requested result."
-    return f"Read {skill_path} with workspace_read_file, then execute that skill."
+    prompt = f"Read {skill_path} with workspace_read_file, then execute that skill."
+    if source := job.skill_source:
+        prompt += (
+            f" The skill comes from {source.repository} at {source.commit_sha[:12]}, "
+            f"not from this repository. Its files are in {SANDBOX_SKILL_DIR}, "
+            "read-only. Work on this repository, in the current folder."
+        )
+    return prompt
 
 
 def missing_bindings(plan: ExecutionPlan) -> str:
@@ -127,8 +136,7 @@ def run_prompt(run: Run) -> str:
     """The first user message: the task, the reporting time, the trigger
     payload, missing optional bindings and any history."""
     prompt = (
-        task_prompt(run.plan.job.skill_path)
-        + f"\nReporting time (UTC): {reporting_time(run)}"
+        task_prompt(run.plan.job) + f"\nReporting time (UTC): {reporting_time(run)}"
     )
     if submission_input := run.inputs.submission_input:
         prompt = f"{prompt}\n\nInput from the person submitting this task:\n{submission_input}"
@@ -151,7 +159,10 @@ def run_prompt(run: Run) -> str:
 
 def render_run_input(run: Run, skill: CommandResult | None) -> str:
     """Markdown showing exactly what the agent was given for this run."""
-    skill_path = run.plan.job.skill_path
+    job = run.plan.job
+    skill_path = job.skill_path
+    if source := job.skill_source:
+        skill_path = f"{source.repository}/{skill_path}"
     if skill is not None and skill.exit_code == 0 and not skill.timed_out:
         skill_text = skill.output
     else:
@@ -219,7 +230,7 @@ def capture_run_input_step(run_id: int, session_id: str) -> None:
     """Store the rendered input. The skill is read from the sandbox, so it is
     the same commit the agent sees. Failing here never fails the run."""
     run = get_run(run_id, "job")
-    skill_path = run.plan.job.skill_path
+    skill_path = run.plan.job.sandbox_skill_path
     skill: CommandResult | None = None
     if skill_path:
         try:
@@ -229,7 +240,7 @@ def capture_run_input_step(run_id: int, session_id: str) -> None:
                     call_id=hashlib.sha256(
                         f"{run_id}:input:skill".encode()
                     ).hexdigest(),
-                    argv=("cat", "--", workspace_path(skill_path)),
+                    argv=("cat", "--", sandbox_path(skill_path)),
                     cwd=".",
                     timeout_seconds=30,
                 ),

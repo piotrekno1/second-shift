@@ -58,6 +58,18 @@ plans an ad hoc skill with the same compiler. It creates no jobs or grants, and
 uses only connections that grant access without review. The caller resolves
 the revision to a full commit SHA first.
 
+## Skills from another repository
+
+`repositories.external_skills` fetches a skill from another public GitHub
+repository without credentials and pins it to a commit. Its folder becomes a
+snapshot of its own. A job's `skill_source` must name a full commit SHA. A
+task may name a branch or tag, and submission pins it. The plan records the
+source in `JobPlan.skill_source`. The run uploads the skill snapshot beside the
+repository's, and the runner mounts it read-only at `/skill`.
+
+`jobs.skill_needs` reads the MCP tools a skill names, for people to review
+before a run. It grants nothing.
+
 ## Starting and queueing runs
 
 `runs.services.start_run` starts a job run now or from a webhook. It refuses

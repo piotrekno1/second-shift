@@ -222,6 +222,14 @@ the `#alerts` and `#ops` channels.
   goes to the run's own repository, at most 10 per run, and each one names the
   run that opened it.
 
+- **A skill from another repository is someone else's instructions.** Its
+  author decides what the agent is told to do. SecondShift pins it to a
+  commit, mounts its folder read-only beside the repository, and gives it no
+  network and no tools beyond the task's or job's own. A job must pin a full
+  commit SHA, so the skill changes only when someone commits a new one. Read a
+  skill before you run it, and treat what it asks for as a request, not a
+  grant.
+
 Approve only the tools a job needs, restrict the arguments that pick a target,
 and prefer read-only credentials.
 

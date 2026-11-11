@@ -5,11 +5,12 @@ read it through these types. It never holds credentials.
 """
 
 from enum import StrEnum
+from pathlib import PurePosixPath
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict
 
-from secondshift.config.constants import AgentBackend
+from secondshift.config.constants import SANDBOX_SKILL_DIR, AgentBackend
 from secondshift.workspaces.limits import RunLimit
 
 
@@ -73,10 +74,26 @@ class AgentPlan(Frozen):
     subagents: int = 0
 
 
+class SkillSourcePlan(Frozen):
+    """A skill from another repository, pinned to the commit the run gets."""
+
+    repository: str
+    commit_sha: str
+
+
 class JobPlan(Frozen):
     key: str
+    # A path in the run's repository, or in skill_source's when it is set.
     skill_path: str
     config_hash: str
+    skill_source: SkillSourcePlan | None = None
+
+    @property
+    def sandbox_skill_path(self) -> str:
+        """Where the agent reads the skill. Empty for written instructions."""
+        if self.skill_source is not None:
+            return f"{SANDBOX_SKILL_DIR}/{PurePosixPath(self.skill_path).name}"
+        return self.skill_path
 
 
 class RepositoryPlan(Frozen):

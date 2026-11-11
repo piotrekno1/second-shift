@@ -127,7 +127,7 @@ def test_capture_stores_the_skill_read_from_the_sandbox(
     assert runner.requests[0].argv == ("cat", "--", SKILL_PATH)
     assert f"## Skill: `{SKILL_PATH}`" in text
     assert SKILL.strip() in text
-    assert execution.task_prompt(SKILL_PATH) in text
+    assert execution.task_prompt(run.plan.job) in text
     assert run.input_size_bytes == len(text.encode())
     assert not run.events.filter(level="warning").exists()
 

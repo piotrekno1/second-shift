@@ -15,12 +15,16 @@ from secondshift.connections.models import Connection
 from secondshift.github.errors import GitHubError
 from secondshift.jobs.automatic_grants import approve_waiting
 from secondshift.jobs.dao import reopen_github_mcp_grants, repository_active_requests
-from secondshift.jobs.manifest import RepositoryManifest, parse_manifest
+from secondshift.jobs.manifest import RepositoryManifest, parse_manifest, skill_key
 from secondshift.jobs.sync import sync_jobs
 from secondshift.repositories.dao import (
     get_repository_with_connection,
     restore_repository_fields,
     set_sync_error,
+)
+from secondshift.repositories.external_skills import (
+    ExternalSkillError,
+    resolve_external_skill,
 )
 from secondshift.repositories.github_access import connection_access
 from secondshift.repositories.github_sync import (
@@ -64,11 +68,17 @@ def read_committed_config(
         manifest = parse_manifest(text)
     except (ValueError, yaml.YAMLError) as error:
         raise RepositoryConfigError(f"Invalid {MANIFEST_FILE}: {error}") from error
+    skills = {}
     try:
-        skills = {
-            job.skill: committed_file(root, revision, job.skill)
-            for job in manifest.jobs.values()
-        }
+        for job in manifest.jobs.values():
+            if source := job.skill_source:
+                skills[skill_key(job)] = resolve_external_skill(
+                    source.repository, job.skill, source.ref
+                ).text
+            else:
+                skills[skill_key(job)] = committed_file(root, revision, job.skill)
+    except ExternalSkillError as error:
+        raise RepositoryConfigError(f"Invalid {MANIFEST_FILE}: {error}") from error
     except LocalRepositoryError as error:
         raise RepositoryConfigError(str(error)) from error
     return manifest, skills

@@ -13,6 +13,7 @@ from secondshift.config.constants import (
     RETRY_ISSUES_WORKFLOW,
     RETRY_NOTIFICATION_WORKFLOW,
     RETRY_PULL_REQUEST_WORKFLOW,
+    SANDBOX_SKILL_DIR,
     SCHEDULED_JOB_WORKFLOW,
     RunSandbox,
 )
@@ -22,6 +23,7 @@ from secondshift.jobs.dao import scheduled_job
 from secondshift.jobs.readiness import execution_problems
 from secondshift.jobs.scheduling import next_occurrence
 from secondshift.repositories.dao import lock_repository
+from secondshift.repositories.external_skills import skill_snapshot
 from secondshift.repositories.github_access import github_access
 from secondshift.repositories.models import Repository
 from secondshift.repositories.sources import source_snapshot
@@ -144,6 +146,15 @@ def prepare_source_step(run_id: int) -> None:
         f"Checked out the repository at {run.commit_sha[:12]} "
         f"({snapshot.size_bytes / (1024 * 1024):.1f} MiB compressed).",
     )
+    job = run.plan.job
+    if source := job.skill_source:
+        skill_snapshot(source.repository, job.skill_path, source.commit_sha)
+        add_event(
+            run.pk,
+            f"Fetched the skill {job.skill_path} from {source.repository} "
+            f"at {source.commit_sha[:12]}. The sandbox reads it at "
+            f"{SANDBOX_SKILL_DIR}.",
+        )
 
 
 @DBOS.step(
@@ -166,6 +177,13 @@ def start_runner_session_step(run_id: int) -> str:
             client.upload_source(history.sha256, archive)
             inputs = run.inputs.model_copy(update={"history_files": history.files})
             update_run(run.pk, input_snapshot=inputs.stored())
+    skill_sha256 = ""
+    if source := plan.job.skill_source:
+        skill = skill_snapshot(
+            source.repository, plan.job.skill_path, source.commit_sha
+        )
+        client.upload_source(skill.sha256, skill.path)
+        skill_sha256 = skill.sha256
     session_id = client.start(
         RunnerSessionSpec(
             run_id=run.pk,
@@ -176,6 +194,7 @@ def start_runner_session_step(run_id: int) -> str:
             source_sha256=snapshot.sha256,
             collect_changes=plan.runner.collect_changes,
             history_sha256=history.sha256 if history is not None else "",
+            skill_sha256=skill_sha256,
         )
     )
     update_run(run.pk, sandbox_runtime=RunSandbox.ISOLATED_RUNNER)

@@ -113,10 +113,19 @@ class RunSkippedFileSchema(Schema):
     reason: str
 
 
+class RunSkillSourceSchema(Schema):
+    """Another repository the run's skill came from, at the commit it used."""
+
+    repository: str
+    commit_sha: str
+    url: str
+
+
 class RunDetailSchema(RunSchema):
     submission_input: str = ""
     job_key: str
     skill_path: str
+    skill_source: RunSkillSourceSchema | None = None
     created_at: datetime
     exit_code: int | None
     model_provider: str | None
