@@ -354,6 +354,19 @@ def test_import_rejects_another_workspaces_connection(
     assert response.status_code == 404
 
 
+def test_repository_list_names_its_github_connection(
+    owner_client: Any, workspace: Any, source_connection: Any
+) -> None:
+    Repository.objects.create(
+        workspace=workspace,
+        github_connection=source_connection,
+        full_name="owner/project",
+        external_id="7",
+    )
+    listed = owner_client.get("/api/repositories").json()
+    assert [item["github_connection_id"] for item in listed] == [source_connection.pk]
+
+
 def test_repository_rename_does_not_reuse_existing_scope(
     workspace: Any, source_connection: Any, monkeypatch: Any
 ) -> None:

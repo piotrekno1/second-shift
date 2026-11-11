@@ -50,6 +50,7 @@ def serialize_repository(
         source_type=repository.source_type,
         local_path=visible_local_path(request, repository),
         revision=repository.config_sha,
+        github_connection_id=repository.github_connection_id,
     )
 
 
