@@ -27,15 +27,17 @@ const jobsSubtitle = computed(() => app.jobs.length
 
 // Jobs whose latest finished run failed, as Overview counts them.
 const failingJobIds = computed(() => new Set((app.overview?.failing_jobs ?? []).map((failing) => failing.job_id)))
-type JobState = '' | ReturnType<typeof jobState> | 'review' | 'failing'
+type JobState = '' | ReturnType<typeof jobState> | 'scheduled' | 'review' | 'failing'
 const JOB_STATES: { value: JobState, label: string, matches: (job: Job) => boolean }[] = [
   { value: '', label: 'All', matches: () => true },
-  { value: 'enabled', label: 'Enabled', matches: (job) => jobState(job) === 'enabled' },
-  { value: 'disabled', label: 'Paused', matches: (job) => jobState(job) === 'disabled' },
+  // How a job starts comes first, then its state.
+  { value: 'scheduled', label: 'Scheduled', matches: (job) => !job.removed_at && Boolean(job.cron) },
   // A job can have a schedule and a webhook, so this looks at the trigger alone.
   { value: 'webhook', label: 'Webhook', matches: (job) => !job.removed_at && job.triggers.includes('webhook') },
   // Manual jobs have no schedule to switch on and no webhook, so they are their own group.
   { value: 'manual', label: 'Manual', matches: (job) => jobState(job) === 'manual' },
+  { value: 'enabled', label: 'Enabled', matches: (job) => jobState(job) === 'enabled' },
+  { value: 'disabled', label: 'Paused', matches: (job) => jobState(job) === 'disabled' },
   { value: 'failing', label: 'Failing', matches: (job) => failingJobIds.value.has(job.id) },
   { value: 'review', label: 'Needs approval', matches: (job) => awaitsApproval(job.grant_status) },
   { value: 'removed', label: 'Removed', matches: (job) => jobState(job) === 'removed' },
