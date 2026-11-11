@@ -27,7 +27,7 @@ run:
 ```bash
 release=https://github.com/piotrekno1/second-shift/releases
 uv tool install --force --python 3.13 \
-  "$release/download/v0.1.0b10/secondshift-0.1.0b10-py3-none-any.whl"
+  "$release/download/v0.1.0b11/secondshift-0.1.0b11-py3-none-any.whl"
 secondshift up
 ```
 
