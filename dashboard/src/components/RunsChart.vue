@@ -32,14 +32,15 @@ onMounted(() => {
 })
 onBeforeUnmount(() => observer?.disconnect())
 
+// The legend counts this week only, like the rest of the page. The earlier days are there to compare.
 const totals = computed(() => OUTCOMES.map((outcome) => ({
   ...outcome,
-  count: props.days.reduce((sum, day) => sum + day[outcome.key], 0),
+  count: props.days.slice(weekStart.value).reduce((sum, day) => sum + day[outcome.key], 0),
 })))
 const ticks = computed(() => countTicks(Math.max(0, ...props.days.map((day) => day.succeeded + day.failed + day.canceled))))
 const top = computed(() => ticks.value[ticks.value.length - 1] ?? 1)
 const slot = computed(() => (WIDTH.value - LEFT) / Math.max(props.days.length, 1))
-const empty = computed(() => totals.value.every((total) => total.count === 0))
+const empty = computed(() => props.days.every((day) => day.succeeded + day.failed + day.canceled === 0))
 // The last seven days are this week. Earlier days are dimmed for comparison.
 const weekStart = computed(() => Math.max(0, props.days.length - 7))
 

@@ -100,11 +100,6 @@ const attentionDetail = computed(() => {
   if (failing.value.length) return `${failing.value.length === 1 ? 'Job' : 'Jobs'} whose last run failed${paused ? `, ${paused} paused` : ''}`
   return app.runs.length ? 'No job\'s last run failed' : 'Nothing has run yet'
 })
-const passRate = computed(() => {
-  const overview = app.overview
-  if (!overview || overview.finished_7d === 0) return ''
-  return `${Math.round((overview.succeeded_7d / overview.finished_7d) * 100)}% of this week's finished runs passed`
-})
 </script>
 
 <template>
@@ -176,7 +171,7 @@ const passRate = computed(() => {
     </div>
     <section v-if="hasFinishedRuns" class="panel runs-panel">
       <div class="panel-heading">
-        <div><h2>Finished runs</h2><p>{{ passRate || 'Per day, by outcome, over the last two weeks.' }}</p></div>
+        <div><h2>Finished runs</h2><p>Per day, by outcome. The faded bars are last week.</p></div>
         <RouterLink :to="{ path: '/runs', query: { period: '7d' } }">All runs</RouterLink>
       </div>
       <RunsChart :days="runDays" />
