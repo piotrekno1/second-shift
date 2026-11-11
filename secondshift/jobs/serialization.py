@@ -125,6 +125,7 @@ def serialize_job(
         grant_status=job.capability_grant_status(),
         capabilities=capabilities,
         last_run=last_run(job),
+        triggers=job.triggers,
     )
 
 
@@ -153,7 +154,6 @@ def serialize_job_detail(job: Job, can_edit_limits: bool) -> JobDetailSchema:
         config_hash=job.config_hash,
         history=job.history,
         subagents=job.subagents,
-        triggers=job.triggers,
         open_pull_request=job.open_pull_request,
         can_open_pull_requests=is_github,
         pull_requests_allowed=job.repository.receives_pull_requests,

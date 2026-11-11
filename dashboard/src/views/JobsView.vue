@@ -47,15 +47,20 @@ const jobsSubtitle = computed(() => {
   return summary.join(' · ')
 })
 
-type JobState = '' | ReturnType<typeof jobState> | 'review'
+// Jobs whose latest finished run failed, as Overview counts them.
+const failingJobIds = computed(() => new Set((app.overview?.failing_jobs ?? []).map((failing) => failing.job_id)))
+type JobState = '' | ReturnType<typeof jobState> | 'review' | 'failing'
 const JOB_STATES: { value: JobState, label: string, matches: (job: Job) => boolean }[] = [
   { value: '', label: 'All', matches: () => true },
   { value: 'enabled', label: 'Enabled', matches: (job) => jobState(job) === 'enabled' },
   { value: 'disabled', label: 'Disabled', matches: (job) => jobState(job) === 'disabled' },
-  // Manual jobs have no schedule to switch on, so they are their own group.
+  // A job can have a schedule and a webhook, so this looks at the trigger alone.
+  { value: 'webhook', label: 'Webhook', matches: (job) => !job.removed_at && job.triggers.includes('webhook') },
+  // Manual jobs have no schedule to switch on and no webhook, so they are their own group.
   { value: 'manual', label: 'Manual', matches: (job) => jobState(job) === 'manual' },
-  { value: 'removed', label: 'Removed', matches: (job) => jobState(job) === 'removed' },
+  { value: 'failing', label: 'Failing', matches: (job) => failingJobIds.value.has(job.id) },
   { value: 'review', label: 'Needs approval', matches: (job) => awaitsApproval(job.grant_status) },
+  { value: 'removed', label: 'Removed', matches: (job) => jobState(job) === 'removed' },
 ]
 const search = computed(() => list.text('q'))
 const repositoryFilter = computed(() => list.number('repository'))
@@ -70,11 +75,10 @@ const searchedJobs = computed(() => {
       .some((field) => field.toLowerCase().includes(needle))),
   )
 })
-const stateOptions = computed(() => JOB_STATES.map((item) => ({
-  value: item.value,
-  label: item.label,
-  count: searchedJobs.value.filter(item.matches).length,
-})))
+// Empty groups stay out of the row, unless a link chose one.
+const stateOptions = computed(() => JOB_STATES
+  .map((item) => ({ value: item.value, label: item.label, count: searchedJobs.value.filter(item.matches).length }))
+  .filter((item) => item.value === '' || item.count > 0 || item.value === state.value))
 const visibleJobs = computed(() => {
   const matches = JOB_STATES.find((item) => item.value === state.value)?.matches ?? (() => true)
   return searchedJobs.value.filter(matches)
@@ -221,15 +225,11 @@ async function toggleJob(job: Job): Promise<void> {
           <div class="job-row">
             <div class="job-primary">
               <RouterLink :to="`/jobs/${job.id}`" class="job-name-link"><strong>{{ job.name }}</strong></RouterLink>
-              <span><template v-if="app.repositories.length > 1"><RouterLink :to="`/repositories/${job.repository_id}`" class="repository-inline-link">{{ job.repository }}</RouterLink> · </template><span :title="job.skill_path">skill {{ skillName(job.skill_path) }}</span></span>
-              <div v-if="job.capabilities.length" class="capability-list">
-                <span v-for="capability in job.capabilities" :key="capability.binding" class="capability-chip" :title="capability.requested_tools.join(', ') || capability.kind">
-                  {{ capability.binding }}<small>{{ capability.required ? 'required' : 'optional' }}</small>
-                </span>
-              </div>
+              <!-- Bindings sit on the same line as the skill, so every row is two lines tall. Access has the details. -->
+              <span><template v-if="app.repositories.length > 1"><RouterLink :to="`/repositories/${job.repository_id}`" class="repository-inline-link">{{ job.repository }}</RouterLink> · </template><span :title="job.skill_path">skill {{ skillName(job.skill_path) }}</span><template v-if="job.capabilities.length"> · uses {{ job.capabilities.map((capability) => capability.binding).join(', ') }}</template></span>
             </div>
             <div class="job-cell">
-              <strong :title="job.cron">{{ formatSchedule(job.cron, job.timezone) }}</strong>
+              <strong :title="job.cron">{{ formatSchedule(job.cron, job.timezone, job.triggers) }}</strong>
               <RouterLink v-if="job.last_run" :to="`/runs/${job.last_run.id}`" class="cell-sub last-run" :class="job.last_run.status" :title="`${formatDate(job.last_run.at)} · ${utcTitle(job.last_run.at)}`">{{ lastRunLine(job.last_run) }}</RouterLink>
               <small v-else class="cell-sub">{{ lastRunLine(null) }}</small>
             </div>
@@ -237,7 +237,7 @@ async function toggleJob(job: Job): Promise<void> {
               <template v-if="job.cron && job.enabled && job.next_run_at"><strong :title="utcTitle(job.next_run_at)">Next {{ formatRelative(job.next_run_at) }}</strong><small class="cell-sub">{{ formatScheduled(job.next_run_at, job.timezone) }}</small></template>
             </div>
             <div class="job-statuses">
-              <StatusPill :status="jobState(job)" :title="job.removed_at ? REMOVED_JOB : job.cron ? undefined : 'No schedule. Start it with Run now'" />
+              <StatusPill v-if="job.cron || job.removed_at" :status="jobState(job)" :title="job.removed_at ? REMOVED_JOB : undefined" />
               <StatusPill v-if="accessNeedsAction(job.grant_status)" :status="job.grant_status" :label="accessLabel(job.grant_status)" />
             </div>
             <div class="job-actions">

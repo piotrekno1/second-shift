@@ -244,6 +244,8 @@ export interface Job {
   capabilities: Capability[]
   /** The newest run, finished or not. */
   last_run: { id: number, status: Run['status'], at: string } | null
+  /** Trigger kinds the configuration names, such as "webhook". */
+  triggers: TriggerKind[]
 }
 
 export interface JobDetail extends Job {
@@ -252,8 +254,6 @@ export interface JobDetail extends Job {
   /** How many of its own earlier reports each run starts with. */
   history: number
   subagents: number
-  /** Trigger kinds the configuration names, such as "webhook". */
-  triggers: TriggerKind[]
   /** The configuration asks for a draft pull request with each run's changes. */
   open_pull_request: boolean
   /** A GitHub repository, so drafts could open. Local repositories cannot. */

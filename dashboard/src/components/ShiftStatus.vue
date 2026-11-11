@@ -64,8 +64,8 @@ const active = computed(() => running.value + queued.value)
 </template>
 
 <style scoped>
-.shift-status { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 14px; min-height: 32px; padding: 0 var(--row-inset); font-size: 13px; }
-.shift-activity { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; color: var(--ink); white-space: nowrap; border-radius: 4px; }
+.shift-status { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 14px; min-height: 32px; padding: 0 var(--row-inset); font-size: var(--text-sm); }
+.shift-activity { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; color: var(--ink); white-space: nowrap; border-radius: var(--radius-sm); }
 .shift-activity:hover { color: var(--ink); text-decoration: underline; }
 .shift-activity:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .shift-activity .shift-dot { width: 6px; height: 6px; flex: none; border-radius: 50%; margin: 0 3px; background: var(--subtle); }

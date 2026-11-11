@@ -38,7 +38,7 @@ const requiredCapabilities = computed(() => job.value?.capabilities.filter((capa
 const optionalCapabilities = computed(() => job.value?.capabilities.filter((capability) => !capability.required) ?? [])
 const detailSubtitle = computed(() => {
   if (!job.value) return loading.value ? 'Loading job…' : 'This job could not be loaded'
-  return `${job.value.repository} · ${formatSchedule(job.value.cron, job.value.timezone)}`
+  return `${job.value.repository} · ${formatSchedule(job.value.cron, job.value.timezone, job.value.triggers)}`
 })
 // "1 needed, 1 optional" instead of "0 required bindings · 1 optional".
 const accessSummary = computed(() => {
@@ -175,7 +175,8 @@ useLiveRefresh(loadJob, () => (job.value?.recent_runs ?? []).some((run) => isRun
               <RouterLink :to="{ path: '/runs', query: { job: job.id } }">All runs</RouterLink>
             </div>
             <div v-if="job.recent_runs.length" class="data-list">
-              <RunRow v-for="run in job.recent_runs" :key="run.id" :run="run" :show-job="false" />
+              <!-- The outcome strip above uses all 20. The list keeps to the newest 10, and All runs has the rest. -->
+              <RunRow v-for="run in job.recent_runs.slice(0, 10)" :key="run.id" :run="run" :show-job="false" />
             </div>
             <div v-else class="empty-state compact"><AppIcon name="history" /><strong>No runs yet</strong><span>Use Run now to try the job, or wait for its schedule.</span></div>
           </section>

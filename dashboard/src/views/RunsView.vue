@@ -121,5 +121,4 @@ useLiveRefresh(load, () => Boolean(counts.value.queued || counts.value.running))
 </template>
 
 <style scoped>
-.runs-page .data-list { container-type: inline-size; }
 </style>

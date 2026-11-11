@@ -8,7 +8,7 @@
     <link rel="icon" type="image/svg+xml" href="{% static 'favicon.svg' %}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
     <link rel="stylesheet" href="{% static 'core/account.css' %}">
     {% block extra_head %}{% endblock extra_head %}
   </head>
@@ -37,33 +37,28 @@
           {% endif %}
         </section>
         <aside class="account-atmosphere" aria-label="{% trans "Example scheduled reviews" %}">
-          <div class="orbit orbit-one"></div>
-          <div class="orbit orbit-two"></div>
-          <article class="shift-preview shift-release">
-            <span>Monday · 09:00</span>
-            <strong>Weekly release recap</strong>
-            <p>Merged features, fixes, and what comes next.</p>
-          </article>
-          <article class="shift-preview shift-ci">
-            <span>Every morning · 08:00</span>
-            <strong>CI failure review</strong>
-            <p>Recurring failures and suggested fixes.</p>
-          </article>
-          <article class="shift-preview shift-health">
-            <span>Monday · 09:15</span>
-            <strong>Repository health review</strong>
-            <p>Defects, test gaps, and docs that drifted.</p>
-          </article>
-          <article class="shift-preview shift-contributors">
-            <span>Friday · 16:00</span>
-            <strong>Contributor recap</strong>
-            <p>The people behind the work and reviews.</p>
-          </article>
-          <article class="shift-preview shift-alerts">
-            <span>Monday · 09:30</span>
-            <strong>Alert coverage review</strong>
-            <p>Removed alerts, paused rules, and changed thresholds.</p>
-          </article>
+          <ol class="shift-schedule">
+            <li class="shift-preview">
+              <time>Mon 09:00</time>
+              <div><strong>Weekly release recap</strong><p>Merged features, fixes, and what comes next.</p></div>
+            </li>
+            <li class="shift-preview">
+              <time>Daily 08:00</time>
+              <div><strong>CI failure review</strong><p>Recurring failures and suggested fixes.</p></div>
+            </li>
+            <li class="shift-preview">
+              <time>Mon 09:15</time>
+              <div><strong>Repository health review</strong><p>Defects, test gaps, and docs that drifted.</p></div>
+            </li>
+            <li class="shift-preview">
+              <time>Mon 09:30</time>
+              <div><strong>Alert coverage review</strong><p>Removed alerts, paused rules, and changed thresholds.</p></div>
+            </li>
+            <li class="shift-preview">
+              <time>Fri 16:00</time>
+              <div><strong>Contributor recap</strong><p>The people behind the work and reviews.</p></div>
+            </li>
+          </ol>
         </aside>
       </main>
     {% endblock body %}

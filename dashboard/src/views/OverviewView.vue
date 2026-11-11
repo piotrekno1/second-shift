@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import AppIcon from '../components/AppIcon.vue'
-import FailureLabel from '../components/FailureLabel.vue'
 import Button from 'primevue/button'
 import { computed, ref, watch } from 'vue'
 import { useAgentConnectionStore } from '../stores/agentConnection'
 import ExecutionWarning from '../components/ExecutionWarning.vue'
 import PageHeader from '../components/PageHeader.vue'
+import RunRow from '../components/RunRow.vue'
 import RunsChart from '../components/RunsChart.vue'
 import SetupChecklist from '../components/SetupChecklist.vue'
 import StatCard from '../components/StatCard.vue'
@@ -17,7 +17,7 @@ import { agentCardDismissed, dismissAgentCard } from '../utils/agentSetup'
 import { setupSteps, waitingCapabilities } from '../utils/readiness'
 import { Action } from '../utils/permissions'
 import {
-  accessLabel, awaitsApproval, countLabel, formatCost, formatDate, formatRelative, formatScheduled, healthHeadline, runsTrend, spendTrend, utcTitle, weekRange,
+  accessLabel, awaitsApproval, countLabel, formatCost, formatRelative, formatScheduled, healthHeadline, runsTrend, spendTrend, utcTitle, weekRange,
 } from '../utils/format'
 
 const agentConnection = useAgentConnectionStore()
@@ -99,11 +99,6 @@ const attentionDetail = computed(() => {
   if (failing.value.length) return `${failing.value.length === 1 ? 'Job' : 'Jobs'} whose last run failed${paused ? `, ${paused} paused` : ''}`
   return app.runs.length ? 'No job\'s last run failed' : 'Nothing has run yet'
 })
-const passRate = computed(() => {
-  const overview = app.overview
-  if (!overview || overview.finished_7d === 0) return ''
-  return `${Math.round((overview.succeeded_7d / overview.finished_7d) * 100)}% of this week's finished runs passed`
-})
 </script>
 
 <template>
@@ -126,25 +121,10 @@ const passRate = computed(() => {
          already carries the next step, so the rest of the page waits. -->
     <template v-if="!setup">
     <section class="stats-grid">
-      <StatCard label="Needs attention" :value="failing.length" :detail="attentionDetail" :tone="failing.length ? 'danger' : undefined" :to="failing.length ? { hash: '#failing' } : undefined" />
+      <StatCard label="Needs attention" :value="failing.length" :detail="attentionDetail" :tone="failing.length ? 'danger' : undefined" :to="failing.length ? { path: '/jobs', query: { state: 'failing' } } : undefined" />
       <StatCard label="Runs" :value="app.overview?.runs_7d ?? 0" :delta="runs.delta" :detail="runs.detail" :to="{ path: '/runs', query: { period: '7d' } }" />
       <StatCard label="Model spend" :value="spend.value" :delta="spend.delta" :good="spend.good" :detail="spend.detail" :to="spendRows.length ? { hash: '#spend' } : undefined" />
       <StatCard label="Enabled jobs" :value="app.overview?.enabled_jobs ?? 0" :detail="`Across ${countLabel(app.overview?.repositories ?? 0, 'repository', 'repositories')}`" :to="{ path: '/jobs', query: { state: 'enabled' } }" />
-    </section>
-
-    <section v-if="failing.length" id="failing" class="panel attention-panel">
-      <div class="panel-heading">
-        <div><h2>Failing jobs</h2><p>Their most recent run failed. Open the run to see why.</p></div>
-        <RouterLink :to="{ path: '/runs', query: { status: 'failed' } }">All failed runs</RouterLink>
-      </div>
-      <div class="approval-list">
-        <RouterLink v-for="job in failing" :key="job.job_id" :to="`/runs/${job.run_id}`" class="attention-row">
-          <div class="activity-main"><strong>{{ job.job }}</strong><span>{{ job.repository }} · run #{{ job.run_id }}<template v-if="job.paused"> · paused</template></span></div>
-          <div class="run-failure"><FailureLabel :label="job.label" /><span class="failure-reason">{{ job.reason }}</span></div>
-          <span class="activity-time" :title="`${formatDate(job.failed_at)} · ${utcTitle(job.failed_at)}`">{{ formatRelative(job.failed_at) }}</span>
-          <AppIcon name="chevron-right" class="row-chevron" />
-        </RouterLink>
-      </div>
     </section>
 
     <section v-if="approvalJobs.length" class="panel approval-inbox">
@@ -175,7 +155,7 @@ const passRate = computed(() => {
     </div>
     <section v-if="hasFinishedRuns" class="panel runs-panel">
       <div class="panel-heading">
-        <div><h2>Finished runs</h2><p>{{ passRate || 'Per day, by outcome, over the last two weeks.' }}</p></div>
+        <div><h2>Finished runs</h2><p>Per day, by outcome. Gray bars are last week's totals.</p></div>
         <RouterLink :to="{ path: '/runs', query: { period: '7d' } }">All runs</RouterLink>
       </div>
       <RunsChart :days="runDays" />
@@ -184,16 +164,8 @@ const passRate = computed(() => {
     <section class="content-grid">
       <article class="panel span-two recent-runs-panel">
         <div class="panel-heading"><h2>Recent runs</h2><RouterLink to="/runs">All runs</RouterLink></div>
-        <div v-if="app.runs.length" class="activity-list">
-          <RouterLink v-for="run in app.runs.slice(0, 6)" :key="run.id" :to="`/runs/${run.id}`" class="activity-row clickable-row">
-            <div class="activity-main">
-              <strong><span class="activity-title" :title="run.job">{{ run.job }}</span><span class="activity-id">#{{ run.id }}</span></strong>
-              <span v-if="run.failure" class="activity-failure">{{ run.failure.label }} · {{ run.failure.reason }}</span>
-              <span v-else>{{ run.repository }}</span>
-            </div>
-            <span class="activity-time" :title="`${formatDate(run.scheduled_for)} · ${utcTitle(run.scheduled_for)}`">{{ formatRelative(run.scheduled_for) }}</span>
-            <StatusPill :status="run.status" />
-          </RouterLink>
+        <div v-if="app.runs.length" class="data-list">
+          <RunRow v-for="run in app.runs.slice(0, 6)" :key="run.id" :run="run" compact />
         </div>
         <div v-else class="empty-state"><AppIcon name="weather-night" /><strong>No runs yet</strong><span>Runs appear here when a job starts.</span></div>
       </article>
@@ -232,10 +204,7 @@ const passRate = computed(() => {
 
 <style scoped>
 .recent-runs-panel { padding: 0; overflow: hidden; }
-.recent-runs-panel > .panel-heading { margin: 0; padding: 20px 24px 16px; }
-.recent-runs-panel .activity-row { padding: 14px 24px; border-radius: 0; }
+.recent-runs-panel > .panel-heading { margin: 0; padding: 20px 20px 16px; }
 
 .activity-main > strong { display: flex; align-items: center; gap: 6px; min-width: 0; }
-.activity-main .activity-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); font-size: 13px; }
-.activity-main .activity-id { flex: none; }
 </style>
