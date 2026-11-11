@@ -25,6 +25,9 @@ class Job(RunLimitOverrides):
     key = models.SlugField(max_length=120)
     name = models.CharField(max_length=200)
     skill_path = models.CharField(max_length=500)
+    # {"repository": "owner/name", "ref": <commit SHA>} when the skill is in
+    # another public GitHub repository. skill_path is then a path there.
+    skill_source = models.JSONField(null=True, blank=True)
     # The skill file at the synced commit, for people to read before a run.
     # Runs read the file from the commit, never from here.
     skill_text = models.TextField(blank=True, default="")

@@ -10,7 +10,7 @@ from pydantic import Field
 from pydantic_ai import ModelRetry, RunContext, Tool
 from pydantic_ai.tools import ToolDefinition
 
-from secondshift.config.constants import SANDBOX_HISTORY_DIR
+from secondshift.config.constants import SANDBOX_HISTORY_DIR, SANDBOX_SKILL_DIR
 from secondshift.jobs.tool_policy import LOCAL_TOOLS
 from secondshift.runner.client import get_runner_client
 from secondshift.runner.protocol import CommandRequest, CommandResult
@@ -125,20 +125,34 @@ def argument_path(value: str) -> str:
         raise ModelRetry(str(error)) from None
 
 
-def readable_path(value: str) -> str:
-    """A repository path, or one under /history, where earlier runs' files are."""
+# Read-only folders beside the repository: earlier runs' saved files, and a
+# skill from another repository.
+READABLE_FOLDERS = (SANDBOX_HISTORY_DIR, SANDBOX_SKILL_DIR)
+
+
+def sandbox_path(value: str) -> str:
+    """A repository path, or one under a read-only folder. Raises ValueError."""
     path = PurePosixPath(value)
     if (
-        path.is_relative_to(SANDBOX_HISTORY_DIR)
+        any(path.is_relative_to(folder) for folder in READABLE_FOLDERS)
         and ".." not in path.parts
         and "\0" not in value
     ):
         return path.as_posix()
     if path.is_absolute():
-        raise ModelRetry(
-            f"Paths must stay inside the repository or {SANDBOX_HISTORY_DIR}."
+        raise ValueError(
+            "Paths must stay inside the repository, "
+            f"{SANDBOX_HISTORY_DIR} or {SANDBOX_SKILL_DIR}."
         )
-    return argument_path(value)
+    return workspace_path(value)
+
+
+def readable_path(value: str) -> str:
+    """A path the model sent to read. A bad one goes back to the model to fix."""
+    try:
+        return sandbox_path(value)
+    except ValueError as error:
+        raise ModelRetry(str(error)) from None
 
 
 def truncate_output(output: str, limit: int) -> tuple[str, bool]:
@@ -156,7 +170,7 @@ def list_files(
     ctx: RunContext[WorkspaceToolDeps], path: PathArgument = "."
 ) -> dict[str, Any]:
     """List files recursively beneath a relative repository path, or under
-    /history, where earlier runs' saved files are."""
+    /history, where earlier runs' saved files are, or /skill."""
     return ctx.deps.execute(
         ctx.tool_call_id,
         ["find", readable_path(path), "-type", "f", "-print"],
@@ -164,7 +178,8 @@ def list_files(
 
 
 def read_file(ctx: RunContext[WorkspaceToolDeps], path: PathArgument) -> dict[str, Any]:
-    """Read a text file at a relative repository path, or under /history."""
+    """Read a text file at a relative repository path, or under /history or
+    /skill."""
     return ctx.deps.execute(
         ctx.tool_call_id,
         ["cat", "--", readable_path(path)],
@@ -177,7 +192,7 @@ def search_text(
     path: PathArgument = ".",
 ) -> dict[str, Any]:
     """Search text recursively using a fixed-string query, beneath a relative
-    repository path or under /history."""
+    repository path or under /history or /skill."""
     if "\0" in query:
         raise ModelRetry("Search text cannot contain NUL bytes.")
     return ctx.deps.execute(

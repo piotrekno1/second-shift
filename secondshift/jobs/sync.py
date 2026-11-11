@@ -28,6 +28,7 @@ from secondshift.jobs.manifest import (
     NotificationManifest,
     RepositoryManifest,
     manifest_hash,
+    skill_key,
 )
 from secondshift.jobs.models import CapabilityRequest, Job, JobGrant
 from secondshift.jobs.scheduling import next_occurrence
@@ -83,6 +84,7 @@ def job_fields(
         "workspace_id": repository.workspace_id,
         "name": item.name,
         "skill_path": item.skill,
+        "skill_source": item.skill_source.model_dump() if item.skill_source else None,
         "skill_text": skill[:MAX_SKILL_PREVIEW_CHARS],
         "skill_truncated": len(skill) > MAX_SKILL_PREVIEW_CHARS,
         "cron": item.schedule or "",
@@ -119,7 +121,9 @@ def sync_job_rows(
     for key, item in manifest.jobs.items():
         job = existing.get(key) or Job(key=key)
         job.repository = repository
-        changed = assign(job, job_fields(repository, item, skills.get(item.skill, "")))
+        changed = assign(
+            job, job_fields(repository, item, skills.get(skill_key(item), ""))
+        )
         changed += schedule(job, changed)
         if job.pk is None:
             created.append(job)

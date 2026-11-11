@@ -76,7 +76,8 @@ standard-library tests work without installing packages.
 | `version` | No | Manifest version. Only `1` is supported and is the default. |
 | `jobs` | Yes | Mapping of job keys to job definitions. |
 | `jobs.<key>.name` | Yes | Display name in SecondShift. |
-| `jobs.<key>.skill` | Yes | Repository-relative path to a `SKILL.md` file. |
+| `jobs.<key>.skill` | Yes | Repository-relative path to a `SKILL.md` file. With `skill_source`, a path in that repository instead. |
+| `jobs.<key>.skill_source` | No | Another public GitHub repository that holds the skill: `repository` (`owner/name`) and `ref` (a full commit SHA). See [skills from another repository](#skills-from-another-repository). |
 | `jobs.<key>.schedule` | No | Cron schedule, such as `0 9 * * 1` for Monday at 09:00. Leave it out for a job that runs only with **Run now**. A tick is skipped while the job has a run that has not finished. |
 | `jobs.<key>.timezone` | No | IANA timezone, such as `Europe/Warsaw`. Defaults to `UTC`. |
 | `jobs.<key>.history` | No | How many of the job's own earlier runs each run starts with: their reports, and the files they saved. Up to the server's `SECONDSHIFT_JOB_HISTORY_MAX` (5 by default). Defaults to 0. See [run history](#run-history). |
@@ -91,6 +92,44 @@ standard-library tests work without installing packages.
 Skill paths must stay inside the repository. Unknown fields are rejected.
 Use separate job definitions for skills with different schedules or access
 requirements.
+
+## Skills from another repository
+
+A job can run a skill that someone else publishes in a public GitHub
+repository. Name the repository and pin the commit you reviewed:
+
+```yaml
+version: 1
+jobs:
+  triage:
+    name: Triage new bugs
+    skill: skills/triage/SKILL.md
+    skill_source:
+      repository: acme/agent-skills
+      ref: 4f2c1d0e8b7a6c5d4e3f2a1b0c9d8e7f6a5b4c3d
+    schedule: "0 9 * * 1"
+    requires:
+      mcps:
+        - binding: linear
+          tools: [create_issue]
+```
+
+`ref` must be a full commit SHA. A branch could change what runs without
+anyone reviewing it. To take a newer version, change the SHA in a commit.
+
+The run still works on this repository. SecondShift fetches the skill's folder,
+the `SKILL.md` and the files beside it, at that commit. The sandbox reads it at
+`/skill`, read-only. It is never part of the run's changes. Only regular files
+are allowed, at most 500 files and 20 MB. Links are refused.
+
+The skill's repository cannot grant itself anything. Its access comes from
+`requires` in this file, and an owner approves it as for any other job. Sync
+fetches the skill, so a missing repository, path or commit shows as a sync
+error. SecondShift reads public repositories only, without credentials.
+
+To try a skill once before you schedule it, use a task. See
+[dispatch from a coding agent through MCP](tasks.md#dispatch-from-a-coding-agent-through-mcp). A server can turn
+this off with `SECONDSHIFT_EXTERNAL_SKILLS_ENABLED=false`.
 
 ## Run history
 

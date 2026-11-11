@@ -92,6 +92,7 @@ def test_explicit_skill_uses_automatic_connection_policy_without_saving(
         "key": "review",
         "skill_path": definition().skill,
         "config_hash": manifest_hash(definition()),
+        "skill_source": None,
     }
     capability = result["capabilities"][0]
     assert capability["connection_id"] == connected.pk

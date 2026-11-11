@@ -2,7 +2,7 @@ import hashlib
 import json
 import re
 from pathlib import Path, PurePosixPath
-from typing import Annotated, Self
+from typing import Annotated, ClassVar, Self
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import yaml
@@ -18,7 +18,12 @@ from pydantic import (
 )
 from pydantic_core import ErrorDetails
 
-from secondshift.config.constants import MAX_RUN_ISSUES, TriggerKind
+from secondshift.config.constants import (
+    COMMIT_SHA_PATTERN,
+    GITHUB_REPOSITORY_PATTERN,
+    MAX_RUN_ISSUES,
+    TriggerKind,
+)
 
 
 class CapabilityManifest(BaseModel):
@@ -108,6 +113,25 @@ class WebhookManifest(BaseModel):
         return self
 
 
+class SkillSourceManifest(BaseModel):
+    """Another public GitHub repository that holds the job's skill.
+
+    The job's `skill` is then a path in that repository. Only the skill's
+    folder reaches the run, read-only at /skill.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    repository: str = Field(pattern=rf"^{GITHUB_REPOSITORY_PATTERN}$", max_length=200)
+    # A job pins a full commit SHA. A one-off task may name a branch or tag,
+    # or leave it out for the default branch.
+    ref: str | None = Field(default=None, min_length=1, max_length=200)
+
+    @property
+    def pinned(self) -> bool:
+        return self.ref is not None and bool(re.fullmatch(COMMIT_SHA_PATTERN, self.ref))
+
+
 IssueLabel = Annotated[
     str, Field(min_length=1, max_length=50, pattern=r"^\S(?:.*\S)?$")
 ]
@@ -132,9 +156,13 @@ class OpenIssuesManifest(BaseModel):
 
 class JobManifest(BaseModel):
     model_config = ConfigDict(extra="forbid")
+    # A saved job runs only a skill someone reviewed, so its source is pinned.
+    pinned_sources: ClassVar[bool] = True
 
     name: str = Field(min_length=1, max_length=200)
     skill: str = Field(min_length=1, max_length=500)
+    # Where the skill comes from, when it is not in this repository.
+    skill_source: SkillSourceManifest | None = None
     # Without a schedule, the job runs only when started with Run now.
     schedule: str | None = Field(default=None, min_length=1, max_length=100)
     timezone: str = "UTC"
@@ -215,6 +243,19 @@ class JobManifest(BaseModel):
         return value
 
     @model_validator(mode="after")
+    def validate_skill_source(self) -> Self:
+        if self.skill_source is None:
+            return self
+        if self.skill is None:
+            raise ValueError("skill_source needs a skill path in that repository")
+        if self.pinned_sources and not self.skill_source.pinned:
+            raise ValueError(
+                "skill_source.ref must be a full commit SHA, so a sync never "
+                "runs a skill nobody reviewed"
+            )
+        return self
+
+    @model_validator(mode="after")
     def validate_webhook_is_a_trigger(self) -> Self:
         if self.webhook is not None and TriggerKind.WEBHOOK not in self.triggers:
             raise ValueError("webhook settings need triggers: [webhook]")
@@ -234,7 +275,9 @@ class JobManifest(BaseModel):
 class TaskManifest(JobManifest):
     """One-off work may supply instructions instead of a committed skill."""
 
-    skill: str | None = Field(default=None, min_length=1, max_length=500)
+    pinned_sources: ClassVar[bool] = False
+
+    skill: str | None = Field(default=None, min_length=1, max_length=500)  # type: ignore[assignment]
 
     @field_validator("skill")
     @classmethod
@@ -305,7 +348,17 @@ def field_path(item: ErrorDetails) -> str:
     return ".".join(str(part) for part in item["loc"])
 
 
+def skill_key(job: JobManifest) -> str:
+    """Names the job's skill file among those a sync reads."""
+    if source := job.skill_source:
+        return f"{source.repository}@{source.ref}:{job.skill}"
+    return job.skill
+
+
 def manifest_hash(job: JobManifest) -> str:
     data = job.model_dump()
+    if data["skill_source"] is None:
+        # Jobs written before skill sources keep the hash they had.
+        del data["skill_source"]
     canonical = json.dumps(data, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(canonical.encode()).hexdigest()

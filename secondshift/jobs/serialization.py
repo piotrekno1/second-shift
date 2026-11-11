@@ -16,8 +16,11 @@ from secondshift.jobs.schemas import (
     JobSchema,
     LastRunSchema,
     OpenIssuesSchema,
+    SkillInspectionSchema,
+    SkillNeedSchema,
     ToolInputSchema,
 )
+from secondshift.jobs.skill_needs import MAX_INSPECTED_CHARS, SkillInspection
 from secondshift.repositories.github import repository_ref
 from secondshift.repositories.models import Repository
 from secondshift.runs.dao import (
@@ -116,6 +119,7 @@ def serialize_job(
         repository_id=job.repository_id,
         repository=job.repository.display_name,
         skill_path=job.skill_path,
+        skill_repository=(job.skill_source or {}).get("repository", ""),
         cron=job.cron,
         timezone=job.timezone,
         enabled=job.enabled,
@@ -131,6 +135,11 @@ def serialize_job(
 
 def skill_url(job: Job) -> str:
     """The skill file on GitHub at the synced commit, or empty when there is none."""
+    if source := job.skill_source:
+        return (
+            f"{GITHUB_BASE_URL}/{source['repository']}/blob/"
+            f"{source['ref']}/{job.skill_path}"
+        )
     repository = job.repository
     if (
         repository.source_type != Repository.SourceType.GITHUB
@@ -162,6 +171,7 @@ def serialize_job_detail(job: Job, can_edit_limits: bool) -> JobDetailSchema:
         else None,
         issues_allowed=job.repository.receives_issues,
         repository_revision=job.repository.config_sha,
+        skill_revision=(job.skill_source or {}).get("ref") or job.repository.config_sha,
         repository_enabled=job.repository.enabled,
         skill_text=job.skill_text,
         skill_truncated=job.skill_truncated,
@@ -179,3 +189,30 @@ def serialize_workspace_jobs(workspace: Workspace) -> list[JobSchema]:
     # Every job runs on the workspace default, so resolve it once.
     execution = workspace_execution(workspace)
     return [serialize_job(item, connections, execution) for item in queryset]
+
+
+def serialize_inspection(inspection: SkillInspection) -> SkillInspectionSchema:
+    skill = inspection.skill
+    return SkillInspectionSchema(
+        repository=skill.repository,
+        path=skill.path,
+        commit_sha=skill.commit_sha,
+        url=f"{GITHUB_BASE_URL}/{skill.repository}/blob/{skill.commit_sha}/{skill.path}",
+        name=inspection.details.name,
+        description=inspection.details.description,
+        file_count=skill.file_count,
+        size_bytes=skill.size_bytes,
+        text=skill.text[:MAX_INSPECTED_CHARS],
+        text_truncated=len(skill.text) > MAX_INSPECTED_CHARS,
+        needs=[
+            SkillNeedSchema(
+                binding=need.binding,
+                server=need.server,
+                tools=need.tools,
+                origin=need.origin,
+                status=need.status,
+                detail=need.detail,
+            )
+            for need in inspection.needs
+        ],
+    )

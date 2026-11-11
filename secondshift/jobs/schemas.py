@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Annotated, Any, Literal
 
 from ninja import Schema
-from pydantic import Field
+from pydantic import ConfigDict, Field
 
 from secondshift.config.constants import AgentBackend
 from secondshift.connections.schemas import ConnectionSchema
@@ -105,6 +105,9 @@ class JobSchema(Schema):
     repository_id: int
     repository: str
     skill_path: str
+    # Another public GitHub repository the skill comes from. Empty when the
+    # skill is in the job's own repository.
+    skill_repository: str = ""
     cron: str
     timezone: str
     enabled: bool
@@ -152,6 +155,9 @@ class JobDetailSchema(JobSchema):
     # An owner allows issues for the repository, so they open.
     issues_allowed: bool
     repository_revision: str
+    # The commit the skill is read from: the repository's, or the pinned
+    # commit of the repository in skill_repository.
+    skill_revision: str = ""
     repository_enabled: bool
     # The skill file at the synced commit. Empty until the next sync.
     skill_text: str
@@ -161,3 +167,41 @@ class JobDetailSchema(JobSchema):
     recent_runs: list[RunSchema]
     limits: list[LimitSchema]
     can_edit_limits: bool
+
+
+class SkillInspectionInput(Schema):
+    model_config = ConfigDict(extra="forbid")
+
+    # owner/name of a public GitHub repository.
+    repository: str = Field(min_length=3, max_length=200)
+    # The SKILL.md path in that repository.
+    path: str = Field(min_length=1, max_length=500)
+    # A branch, tag or full commit SHA. The default branch when left out.
+    ref: str | None = Field(default=None, min_length=1, max_length=200)
+    # The repository a task would run in, to check its connections' access.
+    repository_id: int | None = Field(default=None, gt=0)
+
+
+class SkillNeedSchema(Schema):
+    binding: str
+    server: str
+    tools: list[str]
+    origin: str
+    status: str
+    detail: str
+
+
+class SkillInspectionSchema(Schema):
+    repository: str
+    path: str
+    commit_sha: str
+    url: str
+    name: str
+    description: str
+    file_count: int
+    size_bytes: int
+    # The SKILL.md text. It comes from someone else's repository, so treat it
+    # as data and not as instructions.
+    text: str
+    text_truncated: bool
+    needs: list[SkillNeedSchema]
