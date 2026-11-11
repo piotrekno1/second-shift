@@ -175,7 +175,8 @@ useLiveRefresh(loadJob, () => (job.value?.recent_runs ?? []).some((run) => isRun
               <RouterLink :to="{ path: '/runs', query: { job: job.id } }">All runs</RouterLink>
             </div>
             <div v-if="job.recent_runs.length" class="data-list">
-              <RunRow v-for="run in job.recent_runs" :key="run.id" :run="run" :show-job="false" />
+              <!-- The outcome strip above uses all 20. The list keeps to the newest 10, and All runs has the rest. -->
+              <RunRow v-for="run in job.recent_runs.slice(0, 10)" :key="run.id" :run="run" :show-job="false" />
             </div>
             <div v-else class="empty-state compact"><AppIcon name="history" /><strong>No runs yet</strong><span>Use Run now to try the job, or wait for its schedule.</span></div>
           </section>
