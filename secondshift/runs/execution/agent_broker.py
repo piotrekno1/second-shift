@@ -14,6 +14,7 @@ from secondshift.connections.dao import find_agent_connection
 from secondshift.connections.models import AgentConnection
 from secondshift.runs.artifacts import run_payload
 from secondshift.runs.dao import active_lease, get_run, lock_lease
+from secondshift.runs.execution.access_needs import access_tool
 from secondshift.runs.execution.deadlines import check_deadline, run_deadline
 from secondshift.runs.execution.external_tools import external_tools
 from secondshift.runs.execution.issues import issue_limit, issue_tool
@@ -70,6 +71,7 @@ def broker_tools(run: Run) -> dict[str, Tool[WorkspaceToolDeps]]:
         tools.append(payload_tool())
     if issue_limit(run.plan):
         tools.append(issue_tool())
+    tools.append(access_tool())
     return {tool.name: tool for tool in (*tools, *external_tools(run))}
 
 

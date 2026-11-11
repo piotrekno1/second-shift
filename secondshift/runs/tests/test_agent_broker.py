@@ -65,7 +65,11 @@ def test_mcp_exposes_and_calls_only_frozen_tools(
     run.execution_plan["agent"]["tools"] = ["workspace.read_file"]
     run.save()
     listed = mcp_request(lease, {"id": 1, "method": "tools/list"})
-    assert [tool["name"] for tool in listed["tools"]] == ["workspace_read_file"]
+    # Reporting missing access is always offered. It grants nothing.
+    assert [tool["name"] for tool in listed["tools"]] == [
+        "workspace_read_file",
+        "report_missing_access",
+    ]
     call = {"name": "workspace_read_file", "arguments": {"path": "SKILL.md"}}
     first = mcp_request(lease, {"id": 2, "method": "tools/call", "params": call})
     # A reconnected client starts its request IDs again. That is a new call.

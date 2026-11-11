@@ -10,6 +10,7 @@ from secondshift.runs.reporting.failures import (
     model_provider_next_step,
 )
 from secondshift.runs.schemas import (
+    RunAccessNeedSchema,
     RunChangesSchema,
     RunDeliverySchema,
     RunDetailSchema,
@@ -216,6 +217,12 @@ def serialize_run_detail(run: Run) -> RunDetailSchema:
         skipped_files=[
             RunSkippedFileSchema(name=item.name, reason=item.reason)
             for item in outputs.skipped
+        ],
+        access_needs=[
+            RunAccessNeedSchema(
+                service=need.service, tools=list(need.tools), reason=need.reason
+            )
+            for need in run.access_needs.all()
         ],
     )
 

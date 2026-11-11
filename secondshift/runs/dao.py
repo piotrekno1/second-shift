@@ -17,6 +17,7 @@ from secondshift.runner.agent_image.outcomes import CACHE_READ_DIVISOR
 from secondshift.runs.models import (
     AgentLease,
     Run,
+    RunAccessNeed,
     RunDelivery,
     RunEvent,
     RunFailure,
@@ -553,6 +554,30 @@ def create_issue_proposal(run_id: int, call_id: str, title: str, body: str) -> R
     return RunIssue.objects.create(
         run_id=run_id, call_id=call_id, title=title, body=body
     )
+
+
+# Access the agent needed
+
+
+def access_need_for_call(run_id: int, call_id: str) -> RunAccessNeed | None:
+    return RunAccessNeed.objects.filter(run_id=run_id, call_id=call_id).first()
+
+
+def run_access_needs(run_id: int) -> list[RunAccessNeed]:
+    return list(RunAccessNeed.objects.filter(run_id=run_id))
+
+
+def create_access_need(
+    run_id: int, call_id: str, service: str, tools: list[str], reason: str
+) -> RunAccessNeed:
+    return RunAccessNeed.objects.create(
+        run_id=run_id, call_id=call_id, service=service, tools=tools, reason=reason
+    )
+
+
+def update_access_need_tools(need: RunAccessNeed, tools: list[str]) -> None:
+    need.tools = tools
+    need.save(update_fields=["tools"])
 
 
 # Agent leases
