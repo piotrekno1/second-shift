@@ -128,7 +128,7 @@ fetches the skill, so a missing repository, path or commit shows as a sync
 error. SecondShift reads public repositories only, without credentials.
 
 To try a skill once before you schedule it, use a task. See
-[dispatch from a coding agent through MCP](tasks.md#dispatch-from-a-coding-agent-through-mcp). A server can turn
+[Try a skill from GitHub](tasks.md#try-a-skill-from-github). A server can turn
 this off with `SECONDSHIFT_EXTERNAL_SKILLS_ENABLED=false`.
 
 ## Run history

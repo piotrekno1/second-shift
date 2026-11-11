@@ -14,15 +14,19 @@ import Textarea from 'primevue/textarea'
 import { useAppStore } from '../stores/app'
 import { useTasksStore } from '../stores/tasks'
 import type { TaskCapability } from '../services/tasks'
+import type { SkillReference } from '../services/skills'
+import type { SkillInspection } from '../types'
+import ExternalSkillPicker from './ExternalSkillPicker.vue'
 
-const props = defineProps<{ repositoryId: number, repositoryName: string, defaultBranch: string, allowsPullRequests?: boolean }>()
+const props = defineProps<{ repositoryId: number, repositoryName: string, defaultBranch: string, allowsPullRequests?: boolean, initialSkill?: SkillReference | null }>()
 const emit = defineEmits<{ cancel: [] }>()
 const app = useAppStore()
 const tasks = useTasksStore()
 tasks.error = null
 const router = useRouter()
 const visible = ref(true)
-const instructionSource = ref<'text' | 'skill'>('text')
+const instructionSource = ref<'text' | 'skill' | 'external'>(props.initialSkill ? 'external' : 'text')
+const inspection = ref<SkillInspection | null>(null)
 const name = ref('')
 const skill = ref('')
 const revision = ref('')
@@ -33,18 +37,23 @@ const notifications = ref<string[]>([])
 const pullRequest = ref(false)
 const skillSuggestions = ref<string[]>([])
 const knownSkills = computed(() => [...new Set(app.jobs.filter(job => job.repository_id === props.repositoryId).map(job => job.skill_path))])
-const taskName = computed(() => name.value.trim() || (instructionSource.value === 'skill'
+const taskName = computed(() => name.value.trim() || (instructionSource.value === 'external'
+  ? titleFromSlug(inspection.value?.name || inspection.value?.path.split('/').slice(-2, -1)[0] || 'Skill from GitHub')
+  : instructionSource.value === 'skill'
   ? titleFromSlug(skill.value.trim().split('/').slice(-2, -1)[0] || 'Repository task')
   : input.value.trim().split('\n')[0]?.replace(/^#+\s*/, '').trim().slice(0, 80) || 'Repository task').slice(0, 200))
 const toolCount = computed(() => Object.values(selected.value).reduce((total, tools) => total + tools.length, 0))
-const ready = computed(() => Boolean(instructionSource.value === 'skill' ? skill.value.trim() : input.value.trim()) && !tasks.submitting)
+const ready = computed(() => Boolean(
+  instructionSource.value === 'external' ? inspection.value
+    : instructionSource.value === 'skill' ? skill.value.trim() : input.value.trim(),
+) && !tasks.submitting)
 
 function suggestSkills(event: { query: string }): void {
   skillSuggestions.value = knownSkills.value.filter(path => path.toLowerCase().includes(event.query.toLowerCase()))
 }
 // A retry with unchanged input must keep its key, even after a lost response.
 const submissionKey = ref(crypto.randomUUID())
-watch([instructionSource, name, skill, revision, input, notBefore, selected, notifications, pullRequest], () => {
+watch([instructionSource, name, skill, inspection, revision, input, notBefore, selected, notifications, pullRequest], () => {
   submissionKey.value = crypto.randomUUID()
   tasks.error = null
 }, { deep: true })
@@ -56,6 +65,13 @@ const toolConnections = computed(() => available.value.filter(connection => conn
 watch(toolConnections, connections => {
   for (const connection of connections) selected.value[connection.binding_key] ??= []
 }, { immediate: true })
+// Tools a checked skill names and a connection can give a task start selected.
+watch(inspection, checked => {
+  for (const need of checked?.needs ?? []) {
+    if (need.status !== 'ready' || !(need.binding in selected.value)) continue
+    selected.value[need.binding] = [...new Set([...selected.value[need.binding]!, ...need.tools])]
+  }
+})
 const deliveryConnections = computed(() => available.value.filter(connection => connection.kind === 'notification'))
 
 function capabilities(kind: string): TaskCapability[] {
@@ -69,7 +85,12 @@ async function submit(): Promise<void> {
     const result = await tasks.submit({
       repository_id: props.repositoryId,
       definition: {
-        name: taskName.value, ...(instructionSource.value === 'skill' ? { skill: skill.value.trim() } : {}),
+        name: taskName.value,
+        ...(instructionSource.value === 'skill' ? { skill: skill.value.trim() } : {}),
+        // The commit that was checked is the one that runs.
+        ...(instructionSource.value === 'external' && inspection.value
+          ? { skill: inspection.value.path, skill_source: { repository: inspection.value.repository, ref: inspection.value.commit_sha } }
+          : {}),
         requires: { mcps: capabilities('mcp'), apis: capabilities('api') },
         notify: notifications.value.map(binding => ({ binding, required: true })),
       },
@@ -103,7 +124,9 @@ async function submit(): Promise<void> {
         <div class="task-source" role="group" aria-label="Instruction source">
           <button type="button" :aria-pressed="instructionSource === 'text'" :disabled="tasks.submitting" @click="instructionSource = 'text'"><AppIcon name="pencil-outline" />Write a task</button>
           <button type="button" :aria-pressed="instructionSource === 'skill'" :disabled="tasks.submitting" @click="instructionSource = 'skill'"><AppIcon name="book-open-variant-outline" />Use a skill</button>
+          <button type="button" :aria-pressed="instructionSource === 'external'" :disabled="tasks.submitting" @click="instructionSource = 'external'"><AppIcon name="github" />Skill from GitHub</button>
         </div>
+        <ExternalSkillPicker v-if="instructionSource === 'external'" v-model:inspection="inspection" :repository-id="repositoryId" :initial="initialSkill" :disabled="tasks.submitting" />
         <div v-if="instructionSource === 'skill'" class="task-field">
           <label for="task-skill">Repository skill</label>
           <InputText v-if="!knownSkills.length" id="task-skill" v-model="skill" required autofocus maxlength="500" spellcheck="false" autocomplete="off" aria-describedby="task-skill-help" placeholder=".agents/skills/review/SKILL.md" class="task-skill-path" />
@@ -126,7 +149,7 @@ async function submit(): Promise<void> {
           <small id="task-skill-help">A SKILL.md file committed to this repository.</small>
         </div>
         <div class="task-field">
-          <label for="task-input">{{ instructionSource === 'text' ? 'What should this task do?' : 'What should this run focus on?' }} <span v-if="instructionSource === 'skill'">Optional</span></label>
+          <label for="task-input">{{ instructionSource === 'text' ? 'What should this task do?' : 'What should this run focus on?' }} <span v-if="instructionSource !== 'text'">Optional</span></label>
           <Textarea id="task-input" v-model="input" :autofocus="instructionSource === 'text'" :rows="instructionSource === 'text' ? 6 : 4" :required="instructionSource === 'text'" maxlength="16000" aria-describedby="task-input-help" placeholder="Review the installation steps. Flag anything a new user would get stuck on." />
           <small id="task-input-help">{{ instructionSource === 'text' ? 'Describe the outcome you want and any constraints. No skill file is needed.' : 'Add context for this run. The skill provides the base instructions.' }}</small>
         </div>

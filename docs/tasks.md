@@ -37,7 +37,9 @@ See the [local quickstart](https://second-shift.app/docs/quickstart/) for instal
 3. Alternatively, choose **Use a skill** and enter a committed `SKILL.md` path,
    such as `.agents/skills/docs-drift/SKILL.md`. Add context in the focus field
    if this run needs a narrower scope. A skill supplies reusable instructions;
-   the additional text applies only to this run.
+   the additional text applies only to this run. To use a skill from another
+   public repository, choose **Skill from GitHub**. See
+   [Try a skill from GitHub](#try-a-skill-from-github).
 4. Open **Run settings** if you want a task name, another branch or commit, or a
    delayed start. The default branch is the one followed by the repository.
 5. Choose **Queue task**. SecondShift opens the run so you can follow it.
@@ -61,6 +63,57 @@ You can also select a notification connection to send the finished report.
 Reports remain available in **Runs** whether or not delivery is selected.
 Disconnecting a service or changing consent prevents subsequent tool calls and
 report deliveries that no longer have access.
+
+## Try a skill from GitHub
+
+You can try a skill someone else publishes before you trust it with a schedule.
+
+1. Open a repository, choose **New task**, then **Skill from GitHub**.
+2. Paste a link to the skill on GitHub, such as
+   `https://github.com/acme/agent-skills/blob/main/skills/triage/SKILL.md`.
+   This fills in the repository, path and branch.
+3. Choose **Check skill**. SecondShift pins the skill to a commit and shows
+   what it asks for. Nothing runs yet.
+4. Read the list, and the `SKILL.md` itself, then choose **Queue task**. The
+   commit you checked is the one that runs.
+
+The list comes from the skill's text. It reads MCP tools named in the
+frontmatter's `allowed-tools`, and names like `mcp__linear__create_issue`
+anywhere in the file. Each one shows whether a task here can use it:
+
+| Status | Meaning |
+| --- | --- |
+| Ready | A connection with that binding has the tools and skips approval. Its tools start selected. |
+| Needs approval | The connection needs an owner's approval, so a task cannot use it. |
+| Unavailable | The connection is not connected, or lacks a tool the skill names. |
+| Not connected | No connection uses that binding. |
+
+The list is a hint, not a promise. A skill can need things it never names.
+
+The run works on your repository. The skill's folder is mounted read-only at
+`/skill`, and it is never part of the run's changes. Commands still run
+without network. The task gets only the tools you select.
+
+### Access it asked for
+
+Every run can tell you what it needed and did not have. The agent records
+each missing service with the `report_missing_access` tool, and the run page
+lists them under **Access it asked for**. Nothing is granted by this. Connect
+the service, or change its approval setting, then run the task again.
+
+### Link to a skill
+
+A link to `/try` opens the task form with a skill filled in, for example
+`https://secondshift.example.com/try?repository=acme/agent-skills&path=skills/triage/SKILL.md&ref=main`.
+You choose the repository, check the skill and queue it yourself. Opening the
+link runs nothing.
+
+### Schedule it
+
+After a run, choose **Schedule this skill** on the run page. It shows a job
+for `.secondshift.yaml` that pins the commit the run used. Commit it to the
+repository and approve its access as for any job. See
+[skills from another repository](repository-configuration.md#skills-from-another-repository).
 
 ## Queue and delayed starts
 
