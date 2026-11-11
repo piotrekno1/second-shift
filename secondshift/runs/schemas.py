@@ -179,6 +179,13 @@ class RunInProgressSchema(Schema):
     run_id: int
 
 
+class RunAgainSchema(Schema):
+    # Reuse the key when retrying after a lost response.
+    idempotency_key: str = Field(
+        min_length=1, max_length=120, pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]*$"
+    )
+
+
 class TaskSubmissionSchema(Schema):
     task_id: int
     run: RunSchema

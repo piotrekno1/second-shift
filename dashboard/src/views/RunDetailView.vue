@@ -8,7 +8,7 @@ import PageHeader from '../components/PageHeader.vue'
 import StatusPill from '../components/StatusPill.vue'
 import DocsLink from '../components/DocsLink.vue'
 import { DocsPage } from '../utils/docs'
-import { cancelTask, fetchRun, isDeliveryInProgress, isRunActive, retryDelivery, runChangesUrl, runFileUrl, savedFileUrl, startJobRun } from '../services/runs'
+import { cancelTask, fetchRun, isDeliveryInProgress, isRunActive, retryDelivery, runChangesUrl, runFileUrl, runTaskAgain, savedFileUrl, startJobRun } from '../services/runs'
 import { useAppStore } from '../stores/app'
 import type { RunDelivery, RunDetail } from '../types'
 import { Action } from '../utils/permissions'
@@ -167,12 +167,19 @@ async function copySchedule(): Promise<void> {
   }
 }
 
+// A retry after a lost response keeps its key, so it finds the first new run.
+let againKey = crypto.randomUUID()
+
 async function runAgain(): Promise<void> {
-  if (!run.value || run.value.job_id === null) return
+  if (!run.value) return
   rerunning.value = true
   error.value = null
   try {
-    const started = await startJobRun(run.value.job_id)
+    const started = run.value.job_id === null
+      ? await runTaskAgain(run.value.id, againKey)
+      : await startJobRun(run.value.job_id)
+    againKey = crypto.randomUUID()
+    if (run.value.job_id === null) void app.refreshRuns().catch(() => undefined)
     await router.push(`/runs/${started.id}`)
   } catch (runError) {
     error.value = errorMessage(runError, 'Unable to start a new run')
@@ -201,7 +208,7 @@ onUnmounted(stopPolling)
       <Button v-if="run?.job_id === null && run.skill_source && !active" label="Schedule this skill" severity="secondary" @click="scheduling = true">
         <template #icon><AppIcon name="calendar-clock-outline" /></template>
       </Button>
-      <Button class="main-action" v-if="run && run.job_id !== null && !active && app.can(Action.RunJobs)" label="Run again" :title="rerunBlocker || undefined" :disabled="Boolean(rerunBlocker)" :loading="rerunning" @click="runAgain">
+      <Button class="main-action" v-if="run && !active && app.can(Action.RunJobs)" label="Run again" :title="rerunBlocker || undefined" :disabled="Boolean(rerunBlocker)" :loading="rerunning" @click="runAgain">
         <template #icon><AppIcon name="replay" /></template>
       </Button>
     </PageHeader>
