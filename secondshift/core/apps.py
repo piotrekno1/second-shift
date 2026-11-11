@@ -15,4 +15,6 @@ class CoreConfig(AppConfig):
     name = "secondshift.core"
 
     def ready(self) -> None:
-        post_migrate.connect(create_cache_tables, sender=self)
+        # Django sends post_migrate only for apps with models, and core has
+        # none. Listen to every app. The command skips a table that exists.
+        post_migrate.connect(create_cache_tables, dispatch_uid="create_cache_tables")

@@ -4,6 +4,7 @@ import pytest
 from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
 from django.core.cache import cache
+from django.core.management import call_command
 from django.db import connection
 from django.db.migrations.loader import MigrationLoader
 from django.test import override_settings
@@ -31,8 +32,14 @@ def test_runner_migrations_do_not_require_control_plane() -> None:
         assert {app for app, name in loader.graph.nodes} == {"contenttypes", "runner"}
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 def test_migrate_creates_the_cache_table() -> None:
+    # Test database setup creates the table on its own, so start without it.
+    with connection.schema_editor() as editor:
+        editor.execute("DROP TABLE secondshift_cache")
+
+    call_command("migrate", verbosity=0)
+
     assert "secondshift_cache" in connection.introspection.table_names()
 
     cache.set("probe", "shared")
