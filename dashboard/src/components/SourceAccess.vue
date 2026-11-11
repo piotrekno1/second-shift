@@ -22,7 +22,7 @@ function icon(ok: boolean | null): string {
     </li>
     <li v-if="gaps && check.fix_url" class="source-access-fix">
       <a :href="check.fix_url" target="_blank" rel="noopener noreferrer">Fix access on GitHub <AppIcon name="open-in-new" /></a>
-      <span>then check again.</span>
+      <span>then check access again.</span>
     </li>
   </ul>
 </template>

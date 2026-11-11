@@ -183,10 +183,18 @@ function fixLabel(connection: Connection): string | null {
   if (replaceable(connection) && expiresSoon(connection.expires_at)) return 'Replace token'
   // GitHub refused the token itself, so only a new one fixes it.
   if (replaceable(connection) && connection.last_check?.ok === false && !connection.last_check.features?.length) return 'Replace token'
+  // An App installation has no secret to edit. Checking again shows whether it is back.
+  if (connection.kind === 'source' && connection.auth !== 'token' && connection.status === 'connected' && connection.last_check?.ok === false && canTest.value) return 'Check access'
   if (!editable(connection)) return null
   if (needsReconnect(connection)) return 'Reconnect'
   if (connection.last_check && !connection.last_check.ok) return 'Fix'
   return null
+}
+
+/** Run the row's fix: check again, or open its form. */
+function fix(connection: Connection): void {
+  if (fixLabel(connection) === 'Check access') void sendTest(connection, `connection-${connection.id}`)
+  else toggle({ mode: 'edit', id: connection.id })
 }
 
 function testLabel(connection: Connection): string | null {
@@ -344,7 +352,7 @@ onMounted(async () => {
       <RouterLink v-if="returnReview" :to="{ path: '/jobs', query: { review: returnReview } }" class="secondary-action">
         <AppIcon name="arrow-left" /> Back to {{ returnJob || 'job review' }}
       </RouterLink>
-      <Button label="Check again" severity="secondary" text :loading="busy === 'refresh'" @click="checkAgain">
+      <Button label="Refresh" severity="secondary" text :loading="busy === 'refresh'" @click="checkAgain">
         <template #icon><AppIcon name="refresh" /></template>
       </Button>
       <Button class="main-action" v-if="canEdit" label="Add connection" @click="toggle({ mode: 'add' })">
@@ -444,7 +452,7 @@ onMounted(async () => {
             <StatusPill v-else-if="connection.status === 'expired' && connection.kind === 'source'" status="error" label="Token expired" />
             <StatusPill v-else :status="connection.status" />
             <div class="need-actions">
-              <Button v-if="fixLabel(connection)" :label="isOpen({ mode: 'edit', id: connection.id }) ? 'Cancel' : fixLabel(connection)!" size="small" :loading="busy === `test-${connection.id}`" @click="toggle({ mode: 'edit', id: connection.id })" />
+              <Button v-if="fixLabel(connection)" :label="isOpen({ mode: 'edit', id: connection.id }) ? 'Cancel' : fixLabel(connection)!" size="small" :loading="busy === `test-${connection.id}`" @click="fix(connection)" />
               <button v-if="hasMenu(connection)" type="button" class="icon-action" :aria-label="`More actions for ${connection.display_name}`" aria-haspopup="menu" @click="openRowMenu($event, connection)">
                 <AppIcon name="dots-horizontal" />
               </button>
