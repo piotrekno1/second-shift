@@ -267,6 +267,7 @@ onMounted(loadRepository)
             Commit a valid <code>{{ repository.config_path }}</code> to {{ repository.default_branch }} to define its jobs.
             {{ repository.auto_sync && repository.server_syncs ? 'It is picked up within minutes.' : 'Then press Resync.' }}
           </p>
+          <p v-if="needsConfig && repository.validation.status !== 'valid'" class="setup-problem">{{ repository.validation.message }}</p>
           <p v-else-if="requiredReviews.length">Approve access for {{ countLabel(requiredReviews.length, 'required binding') }} before its jobs can run.</p>
           <p v-else-if="readyDisabledJobs.length">Access is ready. Enable {{ countLabel(readyDisabledJobs.length, 'job') }} to start its schedule.</p>
           <p v-else>All required access is resolved and every ready job is enabled.</p>
@@ -301,7 +302,8 @@ onMounted(loadRepository)
           <template #icon><AppIcon name="refresh" /></template>
         </Button>
       </section>
-      <section v-else-if="repository.validation.status !== 'valid'" class="panel repository-alert" :class="repository.validation.status">
+      <!-- Without a synced config, Finish setup already shows the problem. -->
+      <section v-else-if="repository.validation.status !== 'valid' && !needsConfig" class="panel repository-alert" :class="repository.validation.status">
         <AppIcon :name="repository.validation.status === 'warning' ? 'alert-outline' : 'close-octagon-outline'" />
         <div><strong>{{ repository.validation.status === 'warning' ? 'Check this repository' : 'Repository needs attention' }}</strong><span>{{ repository.validation.message }}</span></div>
       </section>

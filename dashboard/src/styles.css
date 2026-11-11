@@ -949,3 +949,4 @@ body .workspace-menu { width: 224px; }
 .github-token-guide li + li { margin-top: 8px; }
 .github-token-guide p { margin: 12px 0 0; }
 .github-token-guide a { color: var(--ink); text-decoration: underline; }
+.setup-copy .setup-problem { margin-top: 8px; color: var(--danger); overflow-wrap: anywhere; }
