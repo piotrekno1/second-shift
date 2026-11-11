@@ -225,12 +225,8 @@ async function toggleJob(job: Job): Promise<void> {
           <div class="job-row">
             <div class="job-primary">
               <RouterLink :to="`/jobs/${job.id}`" class="job-name-link"><strong>{{ job.name }}</strong></RouterLink>
-              <span><template v-if="app.repositories.length > 1"><RouterLink :to="`/repositories/${job.repository_id}`" class="repository-inline-link">{{ job.repository }}</RouterLink> · </template><span :title="job.skill_path">skill {{ skillName(job.skill_path) }}</span></span>
-              <div v-if="job.capabilities.length" class="capability-list">
-                <span v-for="capability in job.capabilities" :key="capability.binding" class="capability-chip" :title="capability.requested_tools.join(', ') || capability.kind">
-                  {{ capability.binding }}<small>{{ capability.required ? 'required' : 'optional' }}</small>
-                </span>
-              </div>
+              <!-- Bindings sit on the same line as the skill, so every row is two lines tall. Access has the details. -->
+              <span><template v-if="app.repositories.length > 1"><RouterLink :to="`/repositories/${job.repository_id}`" class="repository-inline-link">{{ job.repository }}</RouterLink> · </template><span :title="job.skill_path">skill {{ skillName(job.skill_path) }}</span><template v-if="job.capabilities.length"> · uses {{ job.capabilities.map((capability) => capability.binding).join(', ') }}</template></span>
             </div>
             <div class="job-cell">
               <strong :title="job.cron">{{ formatSchedule(job.cron, job.timezone, job.triggers) }}</strong>
