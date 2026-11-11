@@ -466,12 +466,6 @@ body .p-select-overlay { color: var(--ink); background: var(--night-800); border
 .outcome-tile > span em { font-style: normal; font-weight: 500; }
 
 /* Overview: failing jobs and upcoming shifts */
-.attention-panel { margin-bottom: 16px; padding: 20px; }
-/* Color stays a small mark: a dot by the heading, not a tinted frame. */
-/* Fixed time column, so the failure badges start at the same x on every row. */
-.attention-row { display: grid; grid-template-columns: minmax(160px,.8fr) minmax(0,1.4fr) 104px 18px; align-items: center; gap: 16px; padding: 12px 4px; border-top: 1px solid var(--white-8); border-radius: var(--radius-md); }
-.attention-row:hover { background: var(--white-6); }
-.attention-row > .activity-time { text-align: right; }
 
 .activity-main .activity-failure { color: var(--muted); }
 .upcoming-panel { padding: 20px; }
@@ -497,7 +491,6 @@ body .p-select-overlay { color: var(--ink); background: var(--night-800); border
 .spend-share { color: var(--subtle); font-size: var(--text-xs); font-variant-numeric: tabular-nums; text-align: right; }
 .spend-value { font-size: var(--text-sm); text-align: right; font-variant-numeric: tabular-nums; }
 @media (max-width: 800px) { .spend-row { grid-template-columns: minmax(0,1fr) auto; } .spend-bar { grid-column: 1 / -1; grid-row: 2; } .spend-share, .spend-row .row-chevron { display: none; } }
-@media (max-width: 800px) { .attention-row { grid-template-columns: minmax(0,1fr) 18px; } .attention-row > .run-failure { grid-column: 1; } .attention-row > .activity-time { display: none; } }
 
 /* Repository page: alerts only when actionable, compact source, quiet danger zone */
 .repository-alert { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; padding: 16px 20px; }

@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import AppIcon from '../components/AppIcon.vue'
-import FailureLabel from '../components/FailureLabel.vue'
 import Button from 'primevue/button'
 import { computed, ref, watch } from 'vue'
 import { useAgentConnectionStore } from '../stores/agentConnection'
@@ -18,7 +17,7 @@ import { agentCardDismissed, dismissAgentCard } from '../utils/agentSetup'
 import { setupSteps, waitingCapabilities } from '../utils/readiness'
 import { Action } from '../utils/permissions'
 import {
-  accessLabel, awaitsApproval, countLabel, formatCost, formatDate, formatRelative, formatScheduled, healthHeadline, runsTrend, spendTrend, utcTitle, weekRange,
+  accessLabel, awaitsApproval, countLabel, formatCost, formatRelative, formatScheduled, healthHeadline, runsTrend, spendTrend, utcTitle, weekRange,
 } from '../utils/format'
 
 const agentConnection = useAgentConnectionStore()
@@ -122,25 +121,10 @@ const attentionDetail = computed(() => {
          already carries the next step, so the rest of the page waits. -->
     <template v-if="!setup">
     <section class="stats-grid">
-      <StatCard label="Needs attention" :value="failing.length" :detail="attentionDetail" :tone="failing.length ? 'danger' : undefined" :to="failing.length ? { hash: '#failing' } : undefined" />
+      <StatCard label="Needs attention" :value="failing.length" :detail="attentionDetail" :tone="failing.length ? 'danger' : undefined" :to="failing.length ? { path: '/jobs', query: { state: 'failing' } } : undefined" />
       <StatCard label="Runs" :value="app.overview?.runs_7d ?? 0" :delta="runs.delta" :detail="runs.detail" :to="{ path: '/runs', query: { period: '7d' } }" />
       <StatCard label="Model spend" :value="spend.value" :delta="spend.delta" :good="spend.good" :detail="spend.detail" :to="spendRows.length ? { hash: '#spend' } : undefined" />
       <StatCard label="Enabled jobs" :value="app.overview?.enabled_jobs ?? 0" :detail="`Across ${countLabel(app.overview?.repositories ?? 0, 'repository', 'repositories')}`" :to="{ path: '/jobs', query: { state: 'enabled' } }" />
-    </section>
-
-    <section v-if="failing.length" id="failing" class="panel attention-panel">
-      <div class="panel-heading">
-        <div><h2>Failing jobs</h2><p>Their most recent run failed. Open the run to see why.</p></div>
-        <RouterLink :to="{ path: '/runs', query: { status: 'failed' } }">All failed runs</RouterLink>
-      </div>
-      <div class="approval-list">
-        <RouterLink v-for="job in failing" :key="job.job_id" :to="`/runs/${job.run_id}`" class="attention-row">
-          <div class="activity-main"><strong>{{ job.job }}</strong><span>{{ job.repository }} · run #{{ job.run_id }}<template v-if="job.paused"> · paused</template></span></div>
-          <div class="run-failure"><FailureLabel :label="job.label" /><span class="failure-reason">{{ job.reason }}</span></div>
-          <span class="activity-time" :title="`${formatDate(job.failed_at)} · ${utcTitle(job.failed_at)}`">{{ formatRelative(job.failed_at) }}</span>
-          <AppIcon name="chevron-right" class="row-chevron" />
-        </RouterLink>
-      </div>
     </section>
 
     <section v-if="approvalJobs.length" class="panel approval-inbox">

@@ -47,15 +47,20 @@ const jobsSubtitle = computed(() => {
   return summary.join(' · ')
 })
 
-type JobState = '' | ReturnType<typeof jobState> | 'review'
+// Jobs whose latest finished run failed, as Overview counts them.
+const failingJobIds = computed(() => new Set((app.overview?.failing_jobs ?? []).map((failing) => failing.job_id)))
+type JobState = '' | ReturnType<typeof jobState> | 'review' | 'failing'
 const JOB_STATES: { value: JobState, label: string, matches: (job: Job) => boolean }[] = [
   { value: '', label: 'All', matches: () => true },
   { value: 'enabled', label: 'Enabled', matches: (job) => jobState(job) === 'enabled' },
   { value: 'disabled', label: 'Disabled', matches: (job) => jobState(job) === 'disabled' },
-  // Manual jobs have no schedule to switch on, so they are their own group.
+  // A job can have a schedule and a webhook, so this looks at the trigger alone.
+  { value: 'webhook', label: 'Webhook', matches: (job) => !job.removed_at && job.triggers.includes('webhook') },
+  // Manual jobs have no schedule to switch on and no webhook, so they are their own group.
   { value: 'manual', label: 'Manual', matches: (job) => jobState(job) === 'manual' },
-  { value: 'removed', label: 'Removed', matches: (job) => jobState(job) === 'removed' },
+  { value: 'failing', label: 'Failing', matches: (job) => failingJobIds.value.has(job.id) },
   { value: 'review', label: 'Needs approval', matches: (job) => awaitsApproval(job.grant_status) },
+  { value: 'removed', label: 'Removed', matches: (job) => jobState(job) === 'removed' },
 ]
 const search = computed(() => list.text('q'))
 const repositoryFilter = computed(() => list.number('repository'))
@@ -70,11 +75,10 @@ const searchedJobs = computed(() => {
       .some((field) => field.toLowerCase().includes(needle))),
   )
 })
-const stateOptions = computed(() => JOB_STATES.map((item) => ({
-  value: item.value,
-  label: item.label,
-  count: searchedJobs.value.filter(item.matches).length,
-})))
+// Empty groups stay out of the row, unless a link chose one.
+const stateOptions = computed(() => JOB_STATES
+  .map((item) => ({ value: item.value, label: item.label, count: searchedJobs.value.filter(item.matches).length }))
+  .filter((item) => item.value === '' || item.count > 0 || item.value === state.value))
 const visibleJobs = computed(() => {
   const matches = JOB_STATES.find((item) => item.value === state.value)?.matches ?? (() => true)
   return searchedJobs.value.filter(matches)
@@ -229,7 +233,7 @@ async function toggleJob(job: Job): Promise<void> {
               </div>
             </div>
             <div class="job-cell">
-              <strong :title="job.cron">{{ formatSchedule(job.cron, job.timezone) }}</strong>
+              <strong :title="job.cron">{{ formatSchedule(job.cron, job.timezone, job.triggers) }}</strong>
               <RouterLink v-if="job.last_run" :to="`/runs/${job.last_run.id}`" class="cell-sub last-run" :class="job.last_run.status" :title="`${formatDate(job.last_run.at)} · ${utcTitle(job.last_run.at)}`">{{ lastRunLine(job.last_run) }}</RouterLink>
               <small v-else class="cell-sub">{{ lastRunLine(null) }}</small>
             </div>
