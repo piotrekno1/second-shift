@@ -180,13 +180,10 @@ body .account-menu { width: 224px; }
 .empty-state .detail-link { margin-top: 12px; font-size: var(--text-xs); }
 .empty-state.compact { min-height: 112px; width: 100%; }.empty-state.wide { grid-column: 1 / -1; }
 .card-grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 16px; }
-.local-repository-form { display: grid; grid-template-columns: minmax(240px, .8fr) minmax(320px, 1.2fr) auto; align-items: center; gap: 16px; margin-bottom: 16px; padding: 20px; }.local-repository-form h2 { margin: 0 0 4px; font-size: var(--text-lg); }.local-repository-form p { margin: 0; color: var(--muted); font-size: var(--text-xs); }.local-repository-form .p-inputtext { width: 100%; color: var(--ink); background: var(--field); border-color: var(--field-border); }.local-repository-form .form-error { grid-column: 2 / -1; color: var(--danger); }
-.local-repository-actions { display: flex; align-items: center; gap: 8px; }
 .need-primary small.expiring { color: var(--amber); }.need-primary small.expired { color: var(--danger); }
 .github-token-form { display: grid; gap: 8px; }.github-token-row { display: flex; gap: 8px; }.github-token-row .p-inputtext { flex: 1; min-width: 0; color: var(--ink); background: var(--field); border-color: var(--field-border); }.github-token-form > small { color: var(--subtle); font-size: var(--text-xs); line-height: 1.6; }.github-token-form > small a { display: inline-flex; align-items: center; gap: 2px; color: var(--ink); }.github-token-form .form-error { margin: 0; color: var(--danger); font-size: var(--text-xs); }
 .need-setup.github-token-form { grid-template-columns: minmax(0, 1fr); gap: 8px; }
-.github-connect-options { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); gap: 16px; }.github-connect-options.single { grid-template-columns: minmax(0, 1fr); }.github-connect-option { display: grid; align-content: start; gap: 12px; padding: 16px; border: 1px solid var(--border); border-radius: var(--radius-md); }.github-connect-option h3 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: var(--text-md); }.github-connect-option > p { margin: 0; color: var(--muted); font-size: var(--text-xs); line-height: 1.5; }.github-connect-option > .p-button { justify-self: start; }
-@media (max-width: 700px) { .github-connect-options { grid-template-columns: minmax(0, 1fr); } }.github-import-links { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; }.repository-setup { display: grid; grid-template-columns: 40px minmax(0,1fr) auto; align-items: center; gap: 16px; margin-bottom: 16px; padding: 20px; }.setup-status-icon { width: 40px; height: 40px; display: grid; place-items: center; border: 1px solid var(--raised-border); border-radius: var(--radius-md); color: var(--muted); background: var(--raised); font-size: 20px; }.repository-setup.complete .setup-status-icon { color: var(--mint); }.setup-copy h2 { margin: 4px 0 4px; font-size: var(--text-lg); }.setup-copy p { margin: 0; color: var(--muted); font-size: var(--text-xs); }.setup-copy small { display: block; margin-top: 8px; color: var(--subtle); font-size: var(--text-xs); }.repository-setup-actions { display: flex; justify-content: flex-end; gap: 8px; }.repository-info-card, .repository-jobs-panel { padding: 20px; }.repository-metadata { display: grid; margin: 0; }.repository-metadata > div { display: grid; grid-template-columns: 130px minmax(0,1fr); align-items: center; gap: 16px; padding: 12px 0; border-top: 1px solid var(--white-8); }.repository-metadata dt { color: var(--subtle); font-size: var(--text-xs); }.repository-metadata dd { min-width: 0; margin: 0; color: var(--muted); font-size: var(--text-xs); }.repository-metadata code { overflow-wrap: anywhere; color: var(--ink); }.copy-button { width: 28px; height: 28px; margin-left: 8px; border: 0; border-radius: var(--radius-sm); background: var(--white-8); color: var(--ink); cursor: pointer; }.repository-actions { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; padding: 16px 24px; }.repository-actions > div { min-width: 220px; margin-right: auto; }.repository-actions h2 { margin: 0 0 4px; font-size: var(--text-lg); }.repository-actions p { margin: 0; color: var(--muted); font-size: var(--text-xs); }.repository-job-list { display: grid; }/* Rows share the list's columns, so schedules and pills line up. */
+.repository-setup { display: grid; grid-template-columns: 40px minmax(0,1fr) auto; align-items: center; gap: 16px; margin-bottom: 16px; padding: 20px; }.setup-status-icon { width: 40px; height: 40px; display: grid; place-items: center; border: 1px solid var(--raised-border); border-radius: var(--radius-md); color: var(--muted); background: var(--raised); font-size: 20px; }.repository-setup.complete .setup-status-icon { color: var(--mint); }.setup-copy h2 { margin: 4px 0 4px; font-size: var(--text-lg); }.setup-copy p { margin: 0; color: var(--muted); font-size: var(--text-xs); }.setup-copy small { display: block; margin-top: 8px; color: var(--subtle); font-size: var(--text-xs); }.repository-setup-actions { display: flex; justify-content: flex-end; gap: 8px; }.repository-info-card, .repository-jobs-panel { padding: 20px; }.repository-metadata { display: grid; margin: 0; }.repository-metadata > div { display: grid; grid-template-columns: 130px minmax(0,1fr); align-items: center; gap: 16px; padding: 12px 0; border-top: 1px solid var(--white-8); }.repository-metadata dt { color: var(--subtle); font-size: var(--text-xs); }.repository-metadata dd { min-width: 0; margin: 0; color: var(--muted); font-size: var(--text-xs); }.repository-metadata code { overflow-wrap: anywhere; color: var(--ink); }.copy-button { width: 28px; height: 28px; margin-left: 8px; border: 0; border-radius: var(--radius-sm); background: var(--white-8); color: var(--ink); cursor: pointer; }.repository-actions { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; padding: 16px 24px; }.repository-actions > div { min-width: 220px; margin-right: auto; }.repository-actions h2 { margin: 0 0 4px; font-size: var(--text-lg); }.repository-actions p { margin: 0; color: var(--muted); font-size: var(--text-xs); }.repository-job-list { display: grid; }/* Rows share the list's columns, so schedules and pills line up. */
 .repository-job-list { display: grid; grid-template-columns: minmax(220px,1fr) minmax(180px,.8fr) auto auto; column-gap: 16px; }
 .repository-job-row { display: grid; grid-column: 1 / -1; grid-template-columns: subgrid; align-items: center; gap: 16px; padding: 16px 4px; border-top: 1px solid var(--white-8); }.repository-job-row strong { font-size: var(--text-sm); font-weight: 500; }
 .repository-job-row .job-primary strong { font-size: var(--text-md); }.job-row-action { color: var(--ink); white-space: nowrap; font-size: var(--text-xs); font-weight: 600; }.page-error { margin: 0 0 16px; padding: 12px 16px; border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent); border-radius: var(--radius-md); background: var(--white-3); color: var(--ink); font-size: var(--text-xs); }
@@ -281,7 +278,7 @@ body .p-select-overlay { color: var(--ink); background: var(--night-800); border
 .mobile-brand strong { overflow: hidden; font-size: var(--text-md); text-overflow: ellipsis; white-space: nowrap; }
 .mobile-menu { display: grid; place-items: center; width: 44px; height: 44px; border: 0; border-radius: var(--radius-md); background: transparent; color: var(--ink); font-size: 22px; }
 .mobile-backdrop { position: fixed; inset: 56px 0 0; z-index: 19; display: block; background: rgba(0,0,0,.55); }
-.sidebar { top: 56px; z-index: 20; height: calc(100vh - 56px); }.page { padding: 16px 16px 48px; }.page-header { align-items: flex-start; flex-direction: column; }.content-grid, .card-grid, .local-repository-form { grid-template-columns: 1fr; }.local-repository-form .form-error { grid-column: 1; }.stats-grid { grid-template-columns: repeat(2,1fr); }.activity-time { display: none; }.approval-row { grid-template-columns: minmax(0,1fr) auto 18px; }.job-row { grid-template-columns: minmax(0,1fr) auto auto; }.job-row > div:nth-child(2), .job-row > div:nth-child(3) { display: none; }.job-review { padding: 16px; }.job-review-heading { align-items: stretch; flex-direction: column; }.capability-review-row, .job-capability-detail { grid-template-columns: 1fr; }.capability-review-row .review-actions { grid-column: auto; }.repository-setup { grid-template-columns: 42px minmax(0,1fr); }.repository-setup-actions { grid-column: 1 / -1; }.setup-actions, .repository-setup-actions { min-width: 0; }.run-row { grid-template-columns: 44px minmax(0,1fr) auto; }.run-row > span:nth-child(3) { display: none; }.repository-job-list { grid-template-columns: minmax(0,1fr) auto; }.repository-job-row > div:nth-child(2), .repository-job-row .job-statuses > .status-pill:first-child:not(:last-child) { display: none; }.repository-actions { align-items: stretch; flex-direction: column; }
+.sidebar { top: 56px; z-index: 20; height: calc(100vh - 56px); }.page { padding: 16px 16px 48px; }.page-header { align-items: flex-start; flex-direction: column; }.content-grid, .card-grid { grid-template-columns: 1fr; }.stats-grid { grid-template-columns: repeat(2,1fr); }.activity-time { display: none; }.approval-row { grid-template-columns: minmax(0,1fr) auto 18px; }.job-row { grid-template-columns: minmax(0,1fr) auto auto; }.job-row > div:nth-child(2), .job-row > div:nth-child(3) { display: none; }.job-review { padding: 16px; }.job-review-heading { align-items: stretch; flex-direction: column; }.capability-review-row, .job-capability-detail { grid-template-columns: 1fr; }.capability-review-row .review-actions { grid-column: auto; }.repository-setup { grid-template-columns: 42px minmax(0,1fr); }.repository-setup-actions { grid-column: 1 / -1; }.setup-actions, .repository-setup-actions { min-width: 0; }.run-row { grid-template-columns: 44px minmax(0,1fr) auto; }.run-row > span:nth-child(3) { display: none; }.repository-job-list { grid-template-columns: minmax(0,1fr) auto; }.repository-job-row > div:nth-child(2), .repository-job-row .job-statuses > .status-pill:first-child:not(:last-child) { display: none; }.repository-actions { align-items: stretch; flex-direction: column; }
 }
 
 @media (max-width: 500px) {
@@ -667,40 +664,6 @@ body .p-select-overlay { color: var(--ink); background: var(--night-800); border
 @keyframes icon-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .app-icon-spin, .job-action.is-loading > .app-icon { animation: none; } }
 
-.github-import { padding: 20px; margin-bottom: 20px; }
-.github-import-heading { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
-.github-import-icon { display: grid; place-items: center; flex: 0 0 42px; height: 42px; border: 1px solid var(--border); border-radius: var(--radius-md); color: var(--muted); font-size: 22px; }
-.github-import-heading h2 { margin: 0 0 4px; font-size: var(--text-lg); }
-.github-import-heading p { margin: 0; color: var(--muted); font-size: var(--text-xs); line-height: 1.5; }
-.github-import-fields { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, .9fr) auto; align-items: start; gap: 16px; }
-.github-import-field { display: grid; gap: 8px; min-width: 0; }
-.github-import-field label { color: var(--ink); font-size: var(--text-xs); font-weight: 600; }
-.github-import-field small { color: var(--subtle); font-size: var(--text-xs); line-height: 1.5; }
-.github-import-select.p-select { width: 100%; min-height: 44px; align-items: center; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--white-3); }
-.github-import-select.p-select:not(.p-disabled):hover { border-color: var(--white-18); }
-.github-import-select.p-select.p-focus { border-color: var(--ink); box-shadow: 0 0 0 3px var(--white-12); }
-.github-import-select .p-select-label { min-width: 0; color: var(--ink); font-size: var(--text-sm); }
-.github-import-select .p-select-label.p-placeholder, .github-import-select .p-select-dropdown { color: var(--subtle); }
-.github-import-submit { padding-top: 24px; }
-.github-import-submit .p-button { min-height: 44px; white-space: nowrap; }
-.github-import-empty { margin: 0; color: var(--muted); }
-.github-import-footer { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border); font-size: var(--text-xs); line-height: 1.5; }
-.github-import-footer > span { color: var(--muted); }
-.github-import-footer a { display: inline-flex; align-items: center; gap: 4px; color: var(--ink); }
-.github-import-footer a:hover { text-decoration: underline; }
-.github-import .form-error { color: var(--danger); }
-.github-import-error { margin: 16px 0 0; font-size: var(--text-xs); }
-@media (max-width: 1150px) and (min-width: 981px) {
-  .github-import-fields { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
-  .github-import-submit { grid-column: 1 / -1; padding-top: 0; justify-self: end; }
-}
-@media (max-width: 700px) {
-  .github-import { padding: 20px; }
-  .github-import-fields { grid-template-columns: minmax(0, 1fr); }
-  .github-import-submit { padding-top: 0; }
-  .github-import-submit .p-button { width: 100%; }
-}
-
 /* Overview: finished runs per day */
 .runs-panel { margin-bottom: 16px; padding: 20px; }
 .runs-chart { position: relative; margin: 0; }
@@ -950,3 +913,31 @@ body .workspace-menu { width: 224px; }
 /* A missing file is the expected first state, so only a broken one is red. */
 .setup-copy .setup-problem { margin-top: 8px; color: var(--ink); overflow-wrap: anywhere; }
 .setup-copy .setup-problem.error { color: var(--danger); }
+/* Add repository: where it lives, then which one. */
+.add-repository { display: grid; gap: 20px; padding: 20px; }
+.add-repository-source { justify-self: start; }
+.add-repository-source button { display: inline-flex; align-items: center; gap: 8px; }
+.add-repository h2 { margin: 0; font-size: var(--text-lg); }
+.add-repository-connect, .add-repository-local { display: grid; justify-items: start; gap: 12px; max-width: 640px; }
+.add-repository-connect p, .add-repository-local p { margin: 0; color: var(--muted); font-size: var(--text-sm); }
+.add-repository-connect small { color: var(--subtle); font-size: var(--text-xs); }
+.add-repository-connect .github-token-form { width: 100%; }
+.add-repository-github { display: grid; gap: 12px; }
+.add-repository-list { border: 1px solid var(--border); border-radius: var(--radius-md); }
+.add-repository-row { display: grid; grid-template-columns: 20px minmax(0, 1fr) auto auto; align-items: center; gap: 16px; padding: 12px 16px; }
+.add-repository-row + .add-repository-row { border-top: 1px solid var(--white-8); }
+.add-repository-glyph { color: var(--subtle); }
+.add-repository-name { display: grid; min-width: 0; }
+.add-repository-name strong { overflow: hidden; font-size: var(--text-sm); text-overflow: ellipsis; white-space: nowrap; }
+.add-repository-name span { color: var(--subtle); font-size: var(--text-xs); }
+.add-repository-branch { width: 200px; }
+.add-repository-footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; padding-top: 16px; border-top: 1px solid var(--border); color: var(--subtle); font-size: var(--text-xs); }
+.add-repository-links { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; }
+.add-repository-links a { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); }
+.add-repository-path { display: flex; gap: 8px; width: 100%; }
+.add-repository-path .p-inputtext { flex: 1; min-width: 0; }
+@media (max-width: 700px) {
+  .add-repository-row { grid-template-columns: 20px minmax(0, 1fr) auto; }
+  .add-repository-row .link-button, .add-repository-branch { grid-column: 2 / -1; justify-self: start; }
+  .add-repository-path { flex-wrap: wrap; }
+}

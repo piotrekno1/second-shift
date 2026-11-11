@@ -110,7 +110,7 @@ const attentionDetail = computed(() => {
            While nothing can run jobs, the warning below carries the step instead. -->
       <RouterLink v-if="!executionBlocked && missingConnection && app.can(Action.AddConnections)" :to="{ path: '/connections', query: { binding: missingConnection.binding } }" class="primary-action"><AppIcon name="link-plus" /> Connect {{ missingConnection.binding }}</RouterLink>
       <RouterLink v-else-if="!executionBlocked && approvalJobs[0] && app.can(Action.ReviewCapabilities)" :to="{ path: '/jobs', query: { review: String(approvalJobs[0].id) } }" class="primary-action"><AppIcon name="shield-key-outline" /> Review access</RouterLink>
-      <RouterLink v-else-if="!executionBlocked && !app.repositories.length && app.canAddLocalRepositories" to="/repositories" class="primary-action"><AppIcon name="plus" /> Add repository</RouterLink>
+      <RouterLink v-else-if="!executionBlocked && !app.repositories.length && app.canAddLocalRepositories" to="/repositories/new" class="primary-action"><AppIcon name="plus" /> Add repository</RouterLink>
     </PageHeader>
 
     <SetupChecklist v-if="setup" :steps="setup" />

@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
 import AccountView from './views/AccountView.vue'
+import AddRepositoryView from './views/AddRepositoryView.vue'
 import ConnectionsView from './views/ConnectionsView.vue'
 import JobsView from './views/JobsView.vue'
 import ModelsView from './views/ModelsView.vue'
@@ -21,6 +22,7 @@ export default createRouter({
     { path: '/login', redirect: '/' },
     { path: '/', component: OverviewView },
     { path: '/repositories', component: RepositoriesView },
+    { path: '/repositories/new', component: AddRepositoryView },
     { path: '/repositories/:id(\\d+)', component: RepositoryDetailView },
     { path: '/jobs', component: JobsView },
     { path: '/jobs/:id(\\d+)', component: JobDetailView },

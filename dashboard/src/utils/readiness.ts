@@ -115,11 +115,11 @@ function codeStep(state: SetupState): SetupStep {
   }
   // Without a .secondshift.yaml there is nothing to add. A coding agent can draft and check one.
   if (state.offerAgent) step.agentHint = { lead: 'No .secondshift.yaml yet?', link: 'Let your coding agent write one' }
-  const github = { label: 'Connect GitHub', to: { path: '/repositories', query: { add: 'github' } }, icon: 'github' }
+  const github = { label: 'Connect GitHub', to: { path: '/repositories/new', query: { source: 'github' } }, icon: 'github' }
   if (state.canAddLocal) {
     // On a local install a folder on disk is the quickest start. GitHub adds draft pull requests.
     step.detail = 'Pick a Git repository with a .secondshift.yaml. Connect GitHub instead if jobs should open draft pull requests.'
-    step.actions.push({ label: 'Add local repository', to: { path: '/repositories', query: { add: 'local' } }, icon: 'folder-open-outline' })
+    step.actions.push({ label: 'Add local repository', to: { path: '/repositories/new', query: { source: 'local' } }, icon: 'folder-open-outline' })
     if (state.canAddGitHub) step.actions.push(github)
   } else {
     step.detail = 'Choose GitHub repositories with a .secondshift.yaml. SecondShift lists their jobs.'
