@@ -10,6 +10,7 @@ import StatusPill from '../components/StatusPill.vue'
 import { errorMessage } from '../services/api'
 import { connectionSetupQuery, waitingCapabilities } from '../utils/readiness'
 import { setJobEnabled } from '../services/jobs'
+import JobList from '../components/JobList.vue'
 import {
   checkRepository,
   deleteRepository,
@@ -23,7 +24,7 @@ import {
 import { useAppStore } from '../stores/app'
 import type { Capability, Job, RepositoryDetail } from '../types'
 import { Action } from '../utils/permissions'
-import { accessLabel, accessNeedsAction, countLabel, formatDate, formatRelative, formatSchedule, jobState, utcTitle } from '../utils/format'
+import { countLabel, formatDate, formatRelative, jobState, utcTitle } from '../utils/format'
 
 const route = useRoute()
 const router = useRouter()
@@ -40,10 +41,6 @@ const repositoryActions = computed(() => [
   { label: 'Validate configuration', appIcon: 'check-circle-outline', command: validateRepository },
 ])
 const repositoryId = Number(route.params.id)
-// The repository's job list leaves out triggers, so read them from the jobs the app already has.
-function jobTriggers(jobId: number): readonly string[] {
-  return app.jobs.find((job) => job.id === jobId)?.triggers ?? []
-}
 const justAdded = computed(() => route.query.added === '1')
 const detailedJobs = computed(() => {
   const jobIds = new Set(repository.value?.jobs.map((job) => job.id) ?? [])
@@ -355,18 +352,8 @@ onMounted(loadRepository)
 
       <section class="panel repository-jobs-panel">
         <div class="panel-heading"><div><h2>Discovered jobs</h2><p>Read from <code>{{ repository.config_path }}</code> at the synced commit.</p></div><RouterLink to="/jobs">All jobs</RouterLink></div>
-        <div v-if="repository.jobs.length" class="repository-job-list">
-          <div v-for="job in repository.jobs" :key="job.id" class="repository-job-row">
-            <div class="job-primary"><strong>{{ job.name }}</strong><span :title="job.skill_path">{{ job.skill_path }}</span></div>
-            <div class="job-cell"><strong :title="job.cron">{{ formatSchedule(job.cron, job.timezone, jobTriggers(job.id)) }}</strong></div>
-            <div class="job-statuses">
-              <StatusPill v-if="job.cron || job.removed_at" :status="jobState(job)" />
-              <StatusPill v-if="accessNeedsAction(job.grant_status)" :status="job.grant_status" :label="accessLabel(job.grant_status)" />
-            </div>
-            <RouterLink v-if="accessNeedsAction(job.grant_status) && app.can(Action.ReviewCapabilities)" :to="{ path: '/jobs', query: { review: String(job.id) } }" class="job-row-action">Review access <AppIcon name="arrow-right" /></RouterLink>
-            <RouterLink v-else :to="`/jobs/${job.id}`" class="job-row-action">Open job <AppIcon name="arrow-right" /></RouterLink>
-          </div>
-        </div>
+        <!-- The same rows as the Jobs page, so a job looks and acts the same in both places. -->
+        <JobList v-if="detailedJobs.length" :jobs="detailedJobs" />
         <div v-else class="empty-state compact"><AppIcon name="calendar-search" /><strong>No jobs discovered</strong></div>
       </section>
       <section v-if="app.can(Action.RemoveRepositories)" class="repository-danger">
