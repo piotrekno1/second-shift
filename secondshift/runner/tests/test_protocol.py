@@ -49,6 +49,12 @@ def test_session_key_must_be_lowercase_hex(session_key: str) -> None:
         )
 
 
+@pytest.mark.parametrize("skill_sha256", ["../x", "E" * 64, "e" * 63, "/etc"])
+def test_a_skill_archive_must_be_named_by_its_sha256(skill_sha256: str) -> None:
+    with pytest.raises(ValueError, match="skill_sha256"):
+        RunnerSessionSpec(**{**spec().__dict__, "skill_sha256": skill_sha256})
+
+
 @pytest.mark.parametrize("history_sha256", ["../x", "E" * 64, "e" * 63])
 def test_history_archive_must_be_named_by_its_sha256(history_sha256: str) -> None:
     with pytest.raises(ValueError, match="history_sha256"):

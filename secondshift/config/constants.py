@@ -123,6 +123,8 @@ MAX_RUN_ISSUES = 10
 SANDBOX_OUTPUTS_DIR = "/outputs"
 # Where a sandbox finds the files its job's earlier runs saved. Read-only.
 SANDBOX_HISTORY_DIR = "/history"
+# Where a sandbox finds a skill from another repository. Read-only.
+SANDBOX_SKILL_DIR = "/skill"
 # Limits for a skill from another repository: its SKILL.md and the files beside it.
 MAX_SKILL_FILES = 500
 MAX_SKILL_UNPACKED_BYTES = 20 * 1024 * 1024

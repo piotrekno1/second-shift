@@ -30,6 +30,11 @@ class RunnerSessionSpec:
     # An uploaded archive of earlier runs' saved files, mounted read-only.
     # Empty when the run has none.
     history_sha256: str = ""
+    # An uploaded archive of a skill from another repository, mounted
+    # read-only. Empty when the skill is in the run's repository or there is
+    # none. The control plane builds it, so the skill's repository never
+    # chooses where it goes or how it is mounted.
+    skill_sha256: str = ""
 
     def __post_init__(self) -> None:
         if self.run_id < 1:
@@ -48,6 +53,8 @@ class RunnerSessionSpec:
             raise ValueError("source_sha256 must be a lowercase SHA-256")
         if self.history_sha256 and not SOURCE_SHA256.fullmatch(self.history_sha256):
             raise ValueError("history_sha256 must be empty or a lowercase SHA-256")
+        if self.skill_sha256 and not SOURCE_SHA256.fullmatch(self.skill_sha256):
+            raise ValueError("skill_sha256 must be empty or a lowercase SHA-256")
 
     @property
     def session_id(self) -> str:
