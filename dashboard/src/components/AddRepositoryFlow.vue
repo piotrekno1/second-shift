@@ -188,8 +188,9 @@ function chooseDirectory(path: string): void {
               :aria-label="`Branch for ${item.full_name}`"
               class="add-repository-branch"
             />
-            <button v-else type="button" class="link-button" :disabled="importing" @click="chooseBranch(item)">Other branch</button>
+            <button v-else type="button" class="link-button add-repository-other" :disabled="importing" @click="chooseBranch(item)">Other branch</button>
             <Button
+              class="add-repository-import"
               label="Import"
               size="small"
               :loading="importingRow === item.key"

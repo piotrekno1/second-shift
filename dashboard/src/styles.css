@@ -920,7 +920,7 @@ body .workspace-menu { width: 224px; }
 .add-repository h2 { margin: 0; font-size: var(--text-lg); }
 .add-repository-local { display: grid; justify-items: start; gap: 12px; max-width: 720px; }
 .add-repository-connect { display: grid; gap: 12px; max-width: 720px; }
-.add-repository-connect > .link-button { justify-self: start; }
+.add-repository-connect > .link-button { justify-self: start; color: var(--muted); font-size: var(--text-xs); }
 .add-repository-option { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 16px; padding: 16px; border: 1px solid var(--border); border-radius: var(--radius-md); }
 .add-repository-option.open { grid-template-columns: minmax(0, 1fr); }
 .add-repository-option > div:first-child { display: grid; gap: 4px; }
@@ -936,7 +936,12 @@ body .workspace-menu { width: 224px; }
 .add-repository-connect .github-token-form { width: 100%; }
 .add-repository-github { display: grid; gap: 12px; }
 .add-repository-list { border: 1px solid var(--border); border-radius: var(--radius-md); }
-.add-repository-row { display: grid; grid-template-columns: 20px minmax(0, 1fr) auto auto; align-items: center; gap: 16px; padding: 12px 16px; }
+.add-repository-row { display: grid; grid-template-columns: 20px minmax(0, 1fr) auto auto; grid-template-areas: "icon name branch import"; align-items: center; gap: 4px 16px; padding: 12px 16px; }
+.add-repository-glyph { grid-area: icon; }
+.add-repository-name { grid-area: name; }
+.add-repository-other, .add-repository-branch { grid-area: branch; }
+.add-repository-import { grid-area: import; }
+.add-repository-row .add-repository-other { color: var(--muted); font-size: var(--text-xs); }
 .add-repository-row + .add-repository-row { border-top: 1px solid var(--white-8); }
 .add-repository-glyph { color: var(--subtle); }
 .add-repository-name { display: grid; min-width: 0; }
@@ -949,8 +954,10 @@ body .workspace-menu { width: 224px; }
 .add-repository-path { display: flex; gap: 8px; width: 100%; }
 .add-repository-path .p-inputtext { flex: 1; min-width: 0; }
 @media (max-width: 700px) {
-  .add-repository-row { grid-template-columns: 20px minmax(0, 1fr) auto; }
-  .add-repository-row .link-button, .add-repository-branch { grid-column: 2 / -1; justify-self: start; }
+  /* The branch control moves under the name, so the name keeps the width. */
+  .add-repository-row { grid-template-columns: 20px minmax(0, 1fr) auto; grid-template-areas: "icon name import" ". branch branch"; }
+  .add-repository-other, .add-repository-branch { justify-self: start; }
+  .add-repository-branch { width: 100%; }
   .add-repository-path { flex-wrap: wrap; }
   .add-repository-option, .add-repository-problem { grid-template-columns: minmax(0, 1fr); }
   .add-repository-problem > .app-icon { display: none; }
