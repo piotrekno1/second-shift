@@ -12,7 +12,6 @@
   --muted: #a3a3a3;
   --subtle: #737373;
   --focus: #a3a3a3;
-  --card: linear-gradient(180deg, #191919, #161616);
   --card-border: #232323;
   --field: #181818;
   --field-border: #262626;
@@ -114,62 +113,32 @@ button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
   border: 1px solid #2e2e2e;
   border-radius: 8px;
   color: var(--ink);
-  background: linear-gradient(180deg, #2b2b2b, #1e1e1e);
-  box-shadow: inset 0 1px 0 var(--white-6), 0 1px 2px rgba(0,0,0,.4);
+  background: #242424;
+  box-shadow: 0 1px 2px rgba(0,0,0,.4);
   font-weight: 600;
   text-decoration: none;
 }
-.account-provider:hover { background: linear-gradient(180deg, #313131, #232323); }
+.account-provider:hover { background: #2a2a2a; }
 .account-provider:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 
-/* Notices use the dashboard callout: the normal surface with a colored left edge. */
+/* Notices use the dashboard callout: a faint border in the notice's color. */
 .account-messages, .account-invite { margin: 0 0 18px; padding: 10px 14px; border: 1px solid var(--border); border-radius: 8px; background: rgba(255,255,255,.025); color: var(--ink); list-style: none; font-size: 13px; }
-.account-messages { border-left: 2px solid var(--mint); }
+.account-messages { border-color: color-mix(in srgb, var(--mint) 35%, transparent); }
 .account-back { display: inline-block; margin-top: 18px; font-size: 13px; }
 
-/* Example shifts, drawn like the dashboard's cards on its sidebar black. */
+/* Example shifts, drawn as a schedule in the dashboard's own row style. */
 .account-atmosphere {
-  position: relative;
-  overflow: hidden;
+  display: grid;
+  place-items: center;
+  padding: 48px;
   border-left: 1px solid var(--divider);
   background: var(--night-950);
 }
-.account-atmosphere::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background-image: radial-gradient(circle, var(--white-8) 1px, transparent 1px);
-  background-size: 38px 38px;
-  mask-image: linear-gradient(to bottom, black, transparent 86%);
-}
-.orbit { position: absolute; left: 50%; top: 50%; border: 1px solid var(--white-6); border-radius: 50%; transform: translate(-50%, -50%); }
-.orbit-one { width: 520px; height: 520px; }
-.orbit-two { width: 760px; height: 760px; }
-
-.shift-preview {
-  position: absolute;
-  width: min(330px, 70%);
-  padding: 20px 24px;
-  border: 1px solid var(--card-border);
-  border-radius: 16px;
-  background: var(--card);
-  box-shadow: inset 0 1px 0 var(--white-3), 0 24px 64px rgba(0, 0, 0, 0.5);
-  transform: rotate(var(--card-angle, -2deg));
-}
-.shift-preview > span { color: var(--subtle); font-family: var(--font-mono); font-size: 12px; }
-.shift-preview > strong { display: block; margin: 8px 0 6px; font-size: 18px; font-weight: 600; letter-spacing: -0.01em; }
-.shift-preview > p { margin: 0; font-size: 13px; }
-
-.shift-release { top: 7%; left: 10%; --card-angle: -5deg; }
-.shift-ci { top: 25%; left: 32%; --card-angle: 4deg; }
-.shift-health { top: 43%; left: 8%; --card-angle: -3deg; z-index: 1; }
-.shift-contributors { top: 61%; left: 30%; --card-angle: 5deg; }
-.shift-alerts { top: 79%; left: 12%; --card-angle: -4deg; }
-
-@media (min-width: 901px) and (max-height: 760px) {
-  .shift-preview { padding: 16px 20px; }
-  .shift-preview > strong { margin: 6px 0 4px; font-size: 16px; }
-}
+.shift-schedule { width: min(460px, 100%); margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--divider); }
+.shift-preview { display: grid; grid-template-columns: 88px minmax(0, 1fr); gap: 16px; padding: 16px 0; border-bottom: 1px solid var(--divider); }
+.shift-preview > time { padding-top: 2px; color: var(--subtle); font-family: var(--font-mono); font-size: 12px; font-variant-numeric: tabular-nums; }
+.shift-preview strong { display: block; margin-bottom: 4px; font-size: 14px; font-weight: 600; }
+.shift-preview p { margin: 0; color: var(--muted); font-size: 13px; }
 
 @media (max-width: 900px) {
   .account-page { grid-template-columns: 1fr; }
