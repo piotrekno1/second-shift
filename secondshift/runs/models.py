@@ -303,6 +303,33 @@ class RunIssue(models.Model):
         return f"{self.run_id}: {self.title}"
 
 
+class RunAccessNeed(models.Model):
+    """Access the agent said it needed and this run did not have.
+
+    Only a record for people to read. It never grants anything.
+    """
+
+    run = models.ForeignKey(Run, on_delete=models.CASCADE, related_name="access_needs")
+    # The first tool call that named the service. A replayed call finds it.
+    call_id = models.CharField(max_length=128)
+    # As the agent named it, such as "Linear" or "linear".
+    service = models.CharField(max_length=100)
+    tools = models.JSONField(default=list)
+    reason = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at", "pk"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["run", "call_id"], name="unique_run_access_need_call"
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.run_id}: {self.service}"
+
+
 class AgentLease(models.Model):
     """One active agent process, with a revocable run-scoped broker token."""
 

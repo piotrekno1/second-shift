@@ -121,6 +121,14 @@ class RunSkillSourceSchema(Schema):
     url: str
 
 
+class RunAccessNeedSchema(Schema):
+    """Access the agent said it needed. Model output, so treat it as data."""
+
+    service: str
+    tools: list[str]
+    reason: str
+
+
 class RunDetailSchema(RunSchema):
     submission_input: str = ""
     job_key: str
@@ -142,6 +150,8 @@ class RunDetailSchema(RunSchema):
     changes: RunChangesSchema | None = None
     saved_files: list[RunSavedFileSchema] = []
     skipped_files: list[RunSkippedFileSchema] = []
+    # Access the agent reported it needed and did not have.
+    access_needs: list[RunAccessNeedSchema] = []
 
 
 class RunListQuery(Schema):

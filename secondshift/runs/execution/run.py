@@ -21,6 +21,7 @@ from secondshift.runs.artifacts import (
     store_run_input,
 )
 from secondshift.runs.dao import add_event, get_run, update_run
+from secondshift.runs.execution.access_needs import ACCESS_NOTE, access_tool
 from secondshift.runs.execution.agent import AgentLimits, build_agent
 from secondshift.runs.execution.budgets import (
     Budget,
@@ -66,7 +67,13 @@ logger = logging.getLogger(__name__)
 
 WORKSPACE_AGENT = build_agent(
     instructions=SYSTEM_INSTRUCTIONS,
-    tools=(*workspace_tools(), payload_tool(), issue_tool(), subagent_tool()),
+    tools=(
+        *workspace_tools(),
+        payload_tool(),
+        issue_tool(),
+        subagent_tool(),
+        access_tool(),
+    ),
     deps_type=WorkspaceToolDeps,
 )
 
@@ -149,6 +156,7 @@ def run_prompt(run: Run) -> str:
         prompt = f"{prompt}\n\n{PULL_REQUEST_NOTE}"
     if limit := issue_limit(plan):
         prompt = f"{prompt}\n\n{issues_note(limit)}"
+    prompt = f"{prompt}\n\n{ACCESS_NOTE}"
     backend = plan.execution.backend
     prompt = f"{prompt}\n\n{limits_note(plan, backend, run.started_at)}"
     if subagents := subagent_limit(plan):

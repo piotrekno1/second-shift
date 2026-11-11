@@ -68,7 +68,8 @@ source in `JobPlan.skill_source`. The run uploads the skill snapshot beside the
 repository's, and the runner mounts it read-only at `/skill`.
 
 `jobs.skill_needs` reads the MCP tools a skill names, for people to review
-before a run. It grants nothing.
+before a run. It grants nothing. During a run, the agent can record access it
+needed with `report_missing_access`. Those land in `RunAccessNeed`.
 
 ## Starting and queueing runs
 
