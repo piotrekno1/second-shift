@@ -715,7 +715,8 @@ body .p-select-overlay { color: var(--ink); background: var(--night-800); border
 .runs-chart text { fill: var(--subtle); font-size: var(--text-xs); font-variant-numeric: tabular-nums; }
 .runs-chart-grid line { stroke: var(--white-6); }
 .runs-chart-weeks line { stroke: var(--white-12); stroke-dasharray: 2 4; }
-.runs-chart-day.previous rect:not(.runs-chart-hit) { opacity: .45; }
+.runs-chart rect.previous { fill: var(--subtle); opacity: .45; }
+.legend-period { min-width: 88px; color: var(--ink); font-weight: 500; }
 .runs-chart-hit { fill: transparent; }
 .runs-chart-day:hover .runs-chart-hit { fill: var(--white-3); }
 .runs-chart-day:hover text { fill: var(--ink); }

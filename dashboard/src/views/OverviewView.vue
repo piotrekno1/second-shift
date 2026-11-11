@@ -155,7 +155,7 @@ const attentionDetail = computed(() => {
     </div>
     <section v-if="hasFinishedRuns" class="panel runs-panel">
       <div class="panel-heading">
-        <div><h2>Finished runs</h2><p>Per day, by outcome. The faded bars are last week.</p></div>
+        <div><h2>Finished runs</h2><p>Per day, by outcome. Gray bars are last week's totals.</p></div>
         <RouterLink :to="{ path: '/runs', query: { period: '7d' } }">All runs</RouterLink>
       </div>
       <RunsChart :days="runDays" />

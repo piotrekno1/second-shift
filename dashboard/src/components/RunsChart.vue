@@ -32,11 +32,15 @@ onMounted(() => {
 })
 onBeforeUnmount(() => observer?.disconnect())
 
-// The legend counts this week only, like the rest of the page. The earlier days are there to compare.
+// The legend counts this week, like the rest of the page. Hovering a day shows that day instead.
+const hovered = ref<RunDay | null>(null)
 const totals = computed(() => OUTCOMES.map((outcome) => ({
   ...outcome,
-  count: props.days.slice(weekStart.value).reduce((sum, day) => sum + day[outcome.key], 0),
+  count: hovered.value ? hovered.value[outcome.key] : props.days.slice(weekStart.value).reduce((sum, day) => sum + day[outcome.key], 0),
 })))
+const legendLabel = computed(() => hovered.value
+  ? new Date(`${hovered.value.day}T00:00:00`).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
+  : 'This week')
 const ticks = computed(() => countTicks(Math.max(0, ...props.days.map((day) => day.succeeded + day.failed + day.canceled))))
 const top = computed(() => ticks.value[ticks.value.length - 1] ?? 1)
 const slot = computed(() => (WIDTH.value - LEFT) / Math.max(props.days.length, 1))
@@ -51,23 +55,29 @@ function y(value: number): number {
 const bars = computed(() => props.days.map((day, index) => {
   const width = Math.min(slot.value * 0.56, 28)
   const x = LEFT + index * slot.value + (slot.value - width) / 2
+  const previous = index < weekStart.value
+  // Last week is context, so it shows one neutral total. Color is kept for this week.
+  const parts = previous
+    ? [{ key: 'previous', count: day.succeeded + day.failed + day.canceled }]
+    : OUTCOMES.map((outcome) => ({ key: outcome.key, count: day[outcome.key] }))
   let base = 0
-  const segments = OUTCOMES.filter((outcome) => day[outcome.key] > 0).map((outcome) => {
+  const segments = parts.filter((part) => part.count > 0).map((part) => {
     const from = base
-    base += day[outcome.key]
-    return { key: outcome.key, y: y(base), height: y(from) - y(base) }
+    base += part.count
+    return { key: part.key, y: y(base), height: y(from) - y(base) }
   })
   const date = new Date(`${day.day}T00:00:00`)
-  const parts = OUTCOMES.filter((outcome) => day[outcome.key] > 0).map((outcome) => `${day[outcome.key]} ${outcome.label.toLowerCase()}`)
+  const counts = OUTCOMES.filter((outcome) => day[outcome.key] > 0).map((outcome) => `${day[outcome.key]} ${outcome.label.toLowerCase()}`)
   return {
     day: day.day,
+    source: day,
     x,
     width,
     segments,
-    previous: index < weekStart.value,
+    previous,
     label: index === props.days.length - 1 ? 'Today' : String(date.getDate()),
     showLabel: index === props.days.length - 1 || (props.days.length - 1 - index) % 2 === 0,
-    title: `${date.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })} · ${parts.join(', ') || 'no finished runs'}`,
+    title: `${date.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })} · ${counts.join(', ') || 'no finished runs'}`,
   }
 }))
 const dividerX = computed(() => LEFT + weekStart.value * slot.value)
@@ -75,7 +85,8 @@ const dividerX = computed(() => LEFT + weekStart.value * slot.value)
 
 <template>
   <figure ref="figure" class="runs-chart">
-    <figcaption class="runs-chart-legend">
+    <figcaption class="runs-chart-legend" aria-live="polite">
+      <span class="legend-period">{{ legendLabel }}</span>
       <span v-for="total in totals" :key="total.key" :class="['legend-item', total.key]">
         <span class="legend-dot" />{{ total.label }}<strong>{{ total.count }}</strong>
       </span>
@@ -92,10 +103,10 @@ const dividerX = computed(() => LEFT + weekStart.value * slot.value)
         <text :x="dividerX - 8" :y="TOP + 4" text-anchor="end" dominant-baseline="hanging">Previous week</text>
         <text :x="dividerX + 8" :y="TOP + 4" dominant-baseline="hanging">This week</text>
       </g>
-      <g v-for="bar in bars" :key="bar.day" class="runs-chart-day" :class="{ previous: bar.previous }">
+      <g v-for="bar in bars" :key="bar.day" class="runs-chart-day" :class="{ previous: bar.previous }" @mouseenter="hovered = bar.source" @mouseleave="hovered = null">
         <title>{{ bar.title }}</title>
         <rect class="runs-chart-hit" :x="bar.x - (slot - bar.width) / 2" :y="TOP" :width="slot" :height="plotHeight" />
-        <rect v-for="segment in bar.segments" :key="segment.key" :class="segment.key" :x="bar.x" :y="segment.y" :width="bar.width" :height="Math.max(segment.height - 1, 1)" rx="2" />
+        <rect v-for="segment in bar.segments" :key="segment.key" :class="segment.key" :x="bar.x" :y="segment.y" :width="bar.width" :height="Math.max(segment.height - 2, 1)" rx="2" />
         <text v-if="bar.showLabel" :x="bar.x + bar.width / 2" :y="HEIGHT - 6" text-anchor="middle">{{ bar.label }}</text>
       </g>
     </svg>
