@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import type { Run } from '../src/types'
 
-import { formatLimit, accessLabel, accessNeedsAction, awaitsApproval, connectionUsageLine, countLabel, describeCron, formatDate, formatSeconds, healthHeadline, runsTrend, weekRange, jobOutcomes, spendTrend, formatRelative, formatScheduled, formatTime, utcTitle, zoneName, formatBytes, providerLabel, runStats, statusLabel, formatDuration, finishedBinding, formatSchedule, jobState, historyLabel, lastRunLine, titleFromSlug, typingBinding, kindLabel, expiresSoon, needsReconnect, sourceAuthLabel } from '../src/utils/format'
+import { formatLimit, accessLabel, accessNeedsAction, awaitsApproval, connectionUsageLine, countLabel, describeCron, formatDate, formatSeconds, healthHeadline, runsTrend, weekRange, jobOutcomes, spendTrend, formatRelative, formatScheduled, formatTime, utcTitle, zoneName, formatBytes, providerLabel, runStats, statusLabel, formatDuration, finishedBinding, formatSchedule, jobState, historyLabel, lastRunLine, titleFromSlug, typingBinding, kindLabel, expiresSoon, needsReconnect, sourceAuthLabel, jobStateLabel, withArticle } from '../src/utils/format'
 
 test('formatSchedule keeps cron and timezone visible', () => {
   assert.equal(formatSchedule('0 9 * * 1', 'Europe/Warsaw'), 'Mondays at 09:00 · Europe/Warsaw')
@@ -118,6 +118,10 @@ test('describeCron reads common schedules and leaves the rest alone', () => {
   assert.equal(describeCron('15 2 * * *'), 'Daily at 02:15')
   assert.equal(describeCron('5 * * * *'), 'Hourly at :05')
   assert.equal(describeCron('*/15 * * * *'), 'Every 15 minutes')
+  assert.equal(describeCron('0 */6 * * *'), 'Every 6 hours')
+  assert.equal(describeCron('30 */2 * * *'), 'Every 2 hours at :30')
+  assert.equal(describeCron('0 */1 * * *'), 'Every hour')
+  assert.equal(describeCron('0 */6 * * 1'), '0 */6 * * 1')
   assert.equal(describeCron('0 9 1 * *'), 'Monthly on day 1 at 09:00')
   assert.equal(describeCron('0 9 1 1,4,7,10 *'), 'Jan, Apr, Jul, Oct on day 1 at 09:00')
   assert.equal(describeCron('0 9 * 1 *'), '0 9 * 1 *')
@@ -296,4 +300,18 @@ test('a revoked or expired connection needs reconnecting, a new one does not', (
   assert.equal(needsReconnect({ status: 'expired' }), true)
   assert.equal(needsReconnect({ status: 'connected' }), false)
   assert.equal(needsReconnect(null), false)
+})
+
+test('jobStateLabel calls a switched-off schedule paused', () => {
+  assert.equal(jobStateLabel('disabled'), 'Paused')
+  assert.equal(jobStateLabel('enabled'), 'Enabled')
+  assert.equal(jobStateLabel('removed'), 'Removed from manifest')
+})
+
+test('withArticle picks a or an by sound', () => {
+  assert.equal(withArticle('MCP'), 'an MCP')
+  assert.equal(withArticle('API'), 'an API')
+  assert.equal(withArticle('Notification'), 'a Notification')
+  assert.equal(withArticle('Model provider'), 'a Model provider')
+  assert.equal(withArticle('HTTP API'), 'an HTTP API')
 })

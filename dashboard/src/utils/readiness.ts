@@ -9,16 +9,39 @@ export function waitingCapabilities(job: Pick<Job, 'capabilities'>): Capability[
   return job.capabilities.filter((capability) => capability.required && capability.grant_status !== 'approved')
 }
 
+/** Why a job in a paused repository cannot run. */
+export const PAUSED_REPOSITORY = 'Resume the repository to run its jobs.'
+
+/** "Connect and approve github first.", or '' when no required binding waits. */
+function approvalStep(waiting: Capability[]): string {
+  if (!waiting.length) return ''
+  const names = waiting.map((capability) => capability.binding).join(', ')
+  // Approving needs a connection, so a binding without one asks for that step.
+  const verb = waiting.some((capability) => capability.connection_id === null) ? 'Connect and approve' : 'Approve'
+  return `${verb} ${names} first.`
+}
+
 /** Why a job cannot be switched on yet, or '' when nothing blocks it. */
 export function enableBlocker(job: Pick<Job, 'enabled' | 'capabilities'> & Partial<Pick<Job, 'removed_at'>>): string {
   if (job.removed_at) return REMOVED_JOB
   if (job.enabled) return ''
   const waiting = waitingCapabilities(job)
-  if (!waiting.length) return ''
-  const names = waiting.map((capability) => capability.binding).join(', ')
-  // Approving needs a connection, so a binding without one asks for that step.
-  const verb = waiting.some((capability) => capability.connection_id === null) ? 'Connect and approve' : 'Approve'
-  return `${verb} ${names} first. Scheduled runs would fail without ${waiting.length === 1 ? 'it' : 'them'}.`
+  const step = approvalStep(waiting)
+  return step && `${step} Scheduled runs would fail without ${waiting.length === 1 ? 'it' : 'them'}.`
+}
+
+/**
+ * Why Run now would be refused, or '' when it would start.
+ * Checks what the server checks, in the same order, so a button never offers a run that fails.
+ */
+export function runBlocker(
+  job: Pick<Job, 'capabilities' | 'execution_problem' | 'removed_at'>,
+  repositoryEnabled: boolean,
+  execution: ExecutionStatus | null | undefined,
+): string {
+  if (job.removed_at) return REMOVED_JOB
+  if (!repositoryEnabled) return PAUSED_REPOSITORY
+  return runWarning(execution, job) || approvalStep(waitingCapabilities(job))
 }
 
 /** What to show while every run would fail, and where to fix it. */

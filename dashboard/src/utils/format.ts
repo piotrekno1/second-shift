@@ -94,6 +94,11 @@ export function describeCron(cron: string): string {
   }
   if (!/^\d+$/.test(minute)) return cron
   const mm = minute.padStart(2, '0')
+  const hourStep = /^\*\/(\d+)$/.exec(hour)
+  if (hourStep && dayOfMonth === '*' && month === '*' && dayOfWeek === '*') {
+    const every = hourStep[1] === '1' ? 'Every hour' : `Every ${hourStep[1]} hours`
+    return minute === '0' ? every : `${every} at :${mm}`
+  }
   if (month !== '*') {
     // Only "these months, on this day, at this time" reads well, as in a quarterly review.
     const months = month.split(',').map(Number)
@@ -127,6 +132,11 @@ export function jobState(job: { cron: string, enabled: boolean, removed_at?: str
   return job.enabled ? 'enabled' : 'disabled'
 }
 
+/** How a job's state reads in a pill. A paused job keeps its schedule and can still run by hand. */
+export function jobStateLabel(state: ReturnType<typeof jobState>): string {
+  return state === 'disabled' ? 'Paused' : statusLabel(state)
+}
+
 const STATUS_LABELS: Record<string, string> = {
   not_required: 'No access needed',
   manual: 'Manual only',
@@ -147,6 +157,13 @@ const KIND_LABELS: Record<string, string> = {
 /** How a binding or connection kind is named everywhere in the dashboard. */
 export function kindLabel(kind: string): string {
   return KIND_LABELS[kind] ?? kind.toUpperCase()
+}
+
+/** "an MCP", "a Notification". Acronyms are read letter by letter. */
+export function withArticle(label: string): string {
+  const acronym = /^[A-Z]{2,}\b/.test(label)
+  const vowelSound = acronym ? 'AEFHILMNORSX'.includes(label[0]) : /^[aeiou]/i.test(label)
+  return `${vowelSound ? 'an' : 'a'} ${label}`
 }
 
 /** A readable label for a status code such as "not_required". */

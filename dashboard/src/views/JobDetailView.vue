@@ -18,10 +18,10 @@ import { saveJobLimits } from '../services/settings'
 import { useAppStore } from '../stores/app'
 import type { Job, JobDetail, RunLimitUpdate } from '../types'
 import { Action } from '../utils/permissions'
-import { REMOVED_JOB, enableBlocker, runWarning } from '../utils/readiness'
+import { REMOVED_JOB, enableBlocker, runBlocker } from '../utils/readiness'
 import { renderMarkdown } from '../utils/markdown'
 import { splitFrontmatter } from '../utils/frontmatter'
-import { accessLabel, accessNeedsAction, countLabel, describeCron, formatDate, historyLabel, formatRelative, formatSchedule, formatScheduled, jobState, kindLabel, utcTitle } from '../utils/format'
+import { accessLabel, accessNeedsAction, countLabel, describeCron, formatDate, historyLabel, formatRelative, formatSchedule, formatScheduled, jobState, jobStateLabel, kindLabel, utcTitle } from '../utils/format'
 
 const route = useRoute()
 const router = useRouter()
@@ -131,7 +131,7 @@ useLiveRefresh(loadJob, () => (job.value?.recent_runs ?? []).some((run) => isRun
       <Button v-if="job && job.cron && !job.removed_at && app.can(Action.EnableJobs)" :label="job.enabled ? 'Pause schedule' : 'Resume schedule'" severity="secondary" outlined :disabled="Boolean(enableBlocker(job))" :title="enableBlocker(job) || undefined" :loading="action === 'toggle'" @click="toggleJob">
         <template #icon><AppIcon :name="job.enabled ? 'pause' : 'play'" /></template>
       </Button>
-      <Button class="main-action" v-if="job && app.can(Action.RunJobs)" label="Run now" :disabled="!job.repository_enabled || Boolean(job.removed_at)" :title="job.removed_at ? REMOVED_JOB : job.repository_enabled ? (runWarning(app.overview?.execution, job) || 'Start a run and open it') : 'Resume the repository to run its jobs'" :loading="action === 'run'" @click="runNow">
+      <Button class="main-action" v-if="job && app.can(Action.RunJobs)" label="Run now" :disabled="Boolean(runBlocker(job, job.repository_enabled, app.overview?.execution))" :title="runBlocker(job, job.repository_enabled, app.overview?.execution) || 'Start a run and open it'" :loading="action === 'run'" @click="runNow">
         <template #icon><AppIcon name="play" /></template>
       </Button>
     </PageHeader>
@@ -143,7 +143,7 @@ useLiveRefresh(loadJob, () => (job.value?.recent_runs ?? []).some((run) => isRun
       <ExecutionWarning />
 
       <section class="panel job-status-strip" :class="{ disabled: !job.enabled }">
-        <StatusPill :status="jobState(job)" />
+        <StatusPill :status="jobState(job)" :label="jobStateLabel(jobState(job))" />
         <div v-if="job.removed_at" class="job-status-item"><span>Removed {{ formatRelative(job.removed_at) }}</span><strong>{{ REMOVED_JOB }} Its runs stay in history.</strong></div>
         <div v-else-if="job.enabled" class="job-status-item">
           <span>Next run</span>
@@ -151,7 +151,7 @@ useLiveRefresh(loadJob, () => (job.value?.recent_runs ?? []).some((run) => isRun
           <small>{{ formatRelative(job.next_run_at) }}</small>
         </div>
         <div v-else-if="!job.cron" class="job-status-item"><span>No schedule</span><strong>{{ job.triggers.length ? 'Runs when a webhook or Run now starts it' : 'Runs only when you choose Run now' }}</strong></div>
-        <div v-else class="job-status-item"><span>Schedule paused</span><strong>{{ job.repository_enabled ? 'Run now still works. Resume the schedule for automatic runs.' : 'Resume the repository before starting runs or resuming this schedule.' }}</strong></div>
+        <div v-else class="job-status-item"><span>Schedule paused</span><strong>{{ !job.repository_enabled ? 'Resume the repository before starting runs or resuming this schedule.' : runBlocker(job, true, app.overview?.execution) ? 'Resume the schedule for automatic runs.' : 'Run now still works. Resume the schedule for automatic runs.' }}</strong></div>
         <div class="job-status-item">
           <span>Last run</span>
           <RouterLink v-if="lastRun" :to="`/runs/${lastRun.id}`" class="job-last-run" :title="`${formatDate(lastRun.scheduled_for)} · ${utcTitle(lastRun.scheduled_for)}`">

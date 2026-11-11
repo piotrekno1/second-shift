@@ -15,7 +15,7 @@ import { Action } from '../utils/permissions'
 import { countLabel, formatBytes, formatDate, formatTime, runStats, utcTitle, zoneName } from '../utils/format'
 import { renderMarkdown } from '../utils/markdown'
 import { runOutputLink } from '../utils/runOutputLink'
-import { runWarning } from '../utils/readiness'
+import { runBlocker } from '../utils/readiness'
 import { startedByLabel } from '../utils/triggers'
 import { errorMessage } from '../services/api'
 
@@ -37,6 +37,13 @@ let requestSerial = 0
 const runId = computed(() => Number(route.params.id))
 const active = computed(() => (run.value ? isRunActive(run.value.status) : false))
 // A delivery being retried can still change after the run has finished.
+// Why Run again would be refused. The job may be gone from the list, and then the server decides.
+const rerunBlocker = computed(() => {
+  const job = app.jobs.find((item) => item.id === run.value?.job_id)
+  if (!job) return ''
+  const repository = app.repositories.find((item) => item.id === job.repository_id)
+  return runBlocker(job, repository?.enabled ?? true, app.overview?.execution)
+})
 const changing = computed(() => active.value || Boolean(run.value?.deliveries.some(isDeliveryInProgress)))
 const DELIVERY_LABELS: Record<RunDelivery['status'], string> = { pending: 'Sending', retrying: 'Retrying', delivered: 'Delivered', skipped: 'Skipped', failed: 'Failed' }
 // Drafts and issues open on GitHub after the run, and always say what happened.
@@ -163,7 +170,7 @@ onUnmounted(stopPolling)
   <div class="page run-detail-page">
     <PageHeader compact :title="`Run #${runId}`" :description="subtitle" :parent="{ label: 'Runs', to: '/runs' }">
       <Button v-if="run?.job_id === null && run.status === 'queued' && app.can(Action.RunJobs)" label="Cancel task" severity="secondary" :loading="canceling" @click="cancel" />
-      <Button class="main-action" v-if="run && run.job_id !== null && !active && app.can(Action.RunJobs)" label="Run again" :title="runWarning(app.overview?.execution, app.jobs.find(job => job.id === run?.job_id)) || undefined" :loading="rerunning" @click="runAgain">
+      <Button class="main-action" v-if="run && run.job_id !== null && !active && app.can(Action.RunJobs)" label="Run again" :title="rerunBlocker || undefined" :disabled="Boolean(rerunBlocker)" :loading="rerunning" @click="runAgain">
         <template #icon><AppIcon name="replay" /></template>
       </Button>
     </PageHeader>

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 import type { Capability, ExecutionStatus } from '../src/types'
-import { REMOVED_JOB, approvalPending, enableBlocker, executionFix, runWarning, setupSteps, type SetupState } from '../src/utils/readiness'
+import { PAUSED_REPOSITORY, REMOVED_JOB, approvalPending, enableBlocker, executionFix, runBlocker, runWarning, setupSteps, type SetupState } from '../src/utils/readiness'
 
 function capability(binding: string, required: boolean, grant: Capability['grant_status']): Capability {
   return { id: 1, binding, kind: 'notification', requested_tools: [], required, grant_status: grant, connection_id: null, connection_name: null }
@@ -55,6 +55,16 @@ test('runWarning prefers the job, then the workspace', () => {
   assert.equal(runWarning(broken), 'The model provider OpenRouter has no model selected.')
   assert.equal(runWarning(status(), { execution_problem: 'Reconnect your subscription.' }), 'Reconnect your subscription.')
   assert.equal(runWarning(status(), { execution_problem: '' }), '')
+})
+
+test('runBlocker checks what the server checks, in its order', () => {
+  const ready = { capabilities: [capability('alerts', false, 'unconfigured')], execution_problem: '', removed_at: null }
+  assert.equal(runBlocker(ready, true, status()), '')
+  assert.equal(runBlocker({ ...ready, removed_at: '2026-11-07T10:00:00Z' }, false, status({ problem: 'No model.' })), REMOVED_JOB)
+  assert.equal(runBlocker(ready, false, status({ problem: 'No model.' })), PAUSED_REPOSITORY)
+  assert.equal(runBlocker(ready, true, status({ problem: 'No model.' })), 'No model.')
+  const waiting = { ...ready, capabilities: [capability('github', true, 'pending'), { ...capability('reports', true, 'approved'), connection_id: 2 }] }
+  assert.equal(runBlocker(waiting, true, status()), 'Connect and approve github first.')
 })
 
 test('approvalPending hides Approve once the chosen connection is approved', () => {

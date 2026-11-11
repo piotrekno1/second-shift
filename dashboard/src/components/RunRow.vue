@@ -68,6 +68,8 @@ function openRun(event: Event): void {
 .run-links > a { display: flex; align-items: center; gap: 4px; max-width: 100%; min-width: 0; }
 .run-links strong, .run-links > a > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .run-links .app-icon { flex: none; }
+/* These go to the job or repository, not the run, so they show it on hover. */
+.run-links > a:hover strong, .run-links > a:hover > span { text-decoration: underline; text-underline-offset: 3px; }
 /* Inside the job column, keep the failure badge red rather than the column's muted text. */
 .run-links .run-failure { margin-top: 2px; }
 .run-links .run-failure .failure-label { color: var(--danger); }
