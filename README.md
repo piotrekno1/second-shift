@@ -38,12 +38,23 @@ SecondShift is ready.
 Try it on this repository. SecondShift reviews its own documentation:
 
 1. Clone it: `git clone https://github.com/piotrekno1/second-shift.git`
-2. In **Repositories**, choose **Add local repository** and select the clone.
+2. In **Repositories**, choose **Add repository**, then **Local folder**, and
+   select the clone.
 3. In **Models**, add an API key or a Claude Code or Codex subscription.
 4. In **Jobs**, open **Documentation drift** and click **Run now**.
 
 For one-off work, open a repository, click **New task** and write what to do.
 To connect your coding agent, open **Connect your agent** in the account menu.
+
+### Try a skill from GitHub
+
+You can try a skill someone else published without writing any config. Open a
+repository, click **New task**, then **Skill from GitHub**, and paste a link to
+a `SKILL.md`, such as one from
+[anthropics/skills](https://github.com/anthropics/skills). SecondShift pins it
+to a commit, shows what it asks for, and mounts it read-only. The run works on
+your repository. If you like the result, click **Run again** or **Schedule this
+skill**. See [Try a skill from GitHub](docs/tasks.md#try-a-skill-from-github).
 
 ## The problem
 
@@ -121,7 +132,8 @@ issues on its behalf. The model is always isolated from keys.
 - *Webhooks* for events such as alerts, with signed requests and filters for
   resolved and repeated alerts.
 - *One-off tasks* from the dashboard or your coding agent, queued per
-  repository and optionally delayed.
+  repository and optionally delayed. A task can run a skill from any public
+  GitHub repository, pinned to a commit.
 
 **Output your team can act on.** Reports to Slack or any webhook, with retry.
 Files the agent saved, such as CSVs and images. GitHub issues, deduplicated and
