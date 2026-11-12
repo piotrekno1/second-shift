@@ -28,7 +28,8 @@ function search(event: AutoCompleteCompleteEvent): void {
 </script>
 
 <template>
-  <!-- With no models to suggest, opening on focus would only cover the fields above. -->
+  <!-- With no models to suggest, opening on focus would only cover the fields above.
+       Enter picks the highlighted match. It never submits the form around the picker. -->
   <AutoComplete
     v-model="selectedModels"
     class="model-picker"
@@ -42,9 +43,11 @@ function search(event: AutoCompleteCompleteEvent): void {
     :delay="100"
     :min-length="0"
     force-selection
+    auto-option-focus
     dropdown
     :complete-on-focus="options.length > 0"
     @complete="search"
+    @keydown.enter.prevent
   >
     <template #empty>No matching models.</template>
   </AutoComplete>
