@@ -236,7 +236,10 @@ listener, set the matching service URL so the worker can reach it.
 
 `secondshift up` reads the gateway and runner URLs from Django settings.
 Its web address comes from `SECONDSHIFT_HTTP_BIND`, with explicit `--host`
-and `--port` options taking precedence. Internal services must use HTTP on
-`localhost` or `127.0.0.1`.
+and `--port` options taking precedence. `--port` moves only the web app. The
+gateway and runner keep ports 8001 and 8002 unless you set
+`SECONDSHIFT_MODEL_GATEWAY_URL` and `SECONDSHIFT_RUNNER_SERVICE_URL`.
+`secondshift up` checks all three ports before it starts. Internal services
+must use HTTP on `localhost` or `127.0.0.1`.
 
 Public URLs can point through a proxy and do not set listen ports.

@@ -95,6 +95,7 @@ def start(
     parent.pop(AppEnv.HTTP_BIND, None)
     terminal.heading(f"SecondShift {version('secondshift')}")
     check_port(host, port)
+    check_service_ports()
     check_docker()
     terminal.done("Docker is ready")
     if not (settings.WEB_DIR / "index.html").exists():
@@ -209,7 +210,11 @@ def prepare_owner(host: str, email: str | None, password: str | None) -> None:
         )
 
 
-def check_port(host: str, port: int) -> None:
+def check_port(
+    host: str,
+    port: int,
+    hint: str = "Try secondshift up --port with an available port.",
+) -> None:
     try:
         addresses = socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)
         family, kind, protocol, _, address = addresses[0]
@@ -220,6 +225,20 @@ def check_port(host: str, port: int) -> None:
             listener.bind(address)
     except OSError as error:
         raise click.ClickException(
-            f"Couldn't listen on {host}:{port}: {error.strerror or error}. "
-            "Try secondshift up --port with an available port."
+            f"Couldn't listen on {host}:{port}: {error.strerror or error}. {hint}"
         ) from error
+
+
+def check_service_ports() -> None:
+    """--port moves only the web app. The gateway and runner keep their URLs."""
+    for name, url, variable in (
+        ("model gateway", settings.MODEL_GATEWAY_URL, AppEnv.MODEL_GATEWAY_URL),
+        ("runner", settings.RUNNER_SERVICE_URL, AppEnv.RUNNER_SERVICE_URL),
+    ):
+        check_port(
+            "127.0.0.1",
+            launcher.local_service_port(url),
+            f"The {name} needs this port. Another SecondShift may be running. "
+            f"To use another port, set {variable}, "
+            "for example to http://127.0.0.1:8202.",
+        )

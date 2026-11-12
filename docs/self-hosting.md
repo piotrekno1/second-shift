@@ -59,7 +59,7 @@ secondshift logs                    # Recent service logs
 secondshift logs --follow           # Stream logs until Ctrl+C
 secondshift logs --service worker   # Logs for one service
 secondshift up --debug              # Also print logs in the terminal
-secondshift up --port 8001          # Use another dashboard port
+secondshift up --port 8080          # Use another dashboard port
 ```
 
 Service logs live in `logs` inside the data folder printed at startup. Each
