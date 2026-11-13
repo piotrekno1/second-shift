@@ -16,13 +16,13 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4.4.0
         with:
           persist-credentials: false
           fetch-depth: 0
       - name: Require a commit on main
         run: git merge-base --is-ancestor HEAD origin/main
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v6.8.0
         with:
           python-version: '3.13'
           enable-cache: true
@@ -46,7 +46,7 @@ jobs:
       - run: uv sync --frozen
       - run: uv run ruff check .
       - run: uv run pytest
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4.4.0
         with:
           node-version: 24
           cache: npm
@@ -74,12 +74,12 @@ jobs:
         run: uv run --no-project python scripts/release_smoke/run.py dist/*.whl --diagnostics smoke-diagnostics
       - name: Keep smoke test diagnostics
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4.6.2
         with:
           name: smoke-diagnostics
           path: smoke-diagnostics
           if-no-files-found: ignore
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4.6.2
         with:
           name: release-wheel
           path: dist/*.whl
@@ -91,10 +91,10 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4.4.0
         with:
           persist-credentials: false
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v4.3.0
         with:
           name: release-wheel
           path: dist
