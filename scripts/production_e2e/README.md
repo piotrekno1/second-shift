@@ -43,6 +43,9 @@ It ends with the images it tested, their digests, and `Passed.`
 7. The edge and storage: plain HTTP only redirects to HTTPS, Caddy's
    certificate verifies against its own local CA and nothing else, and
    anonymous S3 listing and reads are refused.
+8. After setup and after the restore: each database login is refused by the
+   other database, and web and worker refuse to start without a required
+   credential, without printing any secret.
 
 The backup, restore and update steps run the bash blocks of the guide's
 "Update and back up" section, so the published commands are what is tested.
