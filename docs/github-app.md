@@ -224,7 +224,7 @@ account on the pull request and in the contributors list.
 
 Attribution is on for the App and off for a token, because a token posts as a
 person. To change it, open the connection's menu on **Connections** and choose
-**Say SecondShift opened pull requests** or **Stop mentioning SecondShift**.
+**Mention SecondShift** or **Don't mention SecondShift**.
 
 - When it is on, the branch is named `secondshift/run-<id>`. Pull request and
   issue descriptions end with a line naming the run. Commits carry

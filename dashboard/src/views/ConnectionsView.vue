@@ -244,7 +244,7 @@ function rowMenuFor(connection: Connection): MenuItem[] {
   if (editable(connection)) items.push({ label: needsReconnect(connection) ? 'Reconnect' : 'Edit', appIcon: 'pencil-outline', command: () => toggle({ mode: 'edit', id: connection.id }) })
   if (replaceable(connection)) items.push({ label: 'Replace token', appIcon: 'shield-key-outline', command: () => toggle({ mode: 'edit', id: connection.id }) })
   // GitHub sources: whether pull requests, issues and commits name SecondShift.
-  if (connection.kind === 'source' && canEdit.value) items.push({ label: connection.attribution ? 'Stop mentioning SecondShift' : 'Say SecondShift opened pull requests', appIcon: 'check-decagram-outline', command: () => setAttribution(connection, !connection.attribution) })
+  if (connection.kind === 'source' && canEdit.value) items.push({ label: connection.attribution ? "Don't mention SecondShift" : 'Mention SecondShift', appIcon: 'check-decagram-outline', command: () => setAttribution(connection, !connection.attribution) })
   const danger: MenuItem[] = []
   if (connection.status !== 'revoked' && app.can(Action.DisconnectConnections)) danger.push({ label: connection.auth === 'source' ? 'Turn off…' : 'Disconnect…', appIcon: 'power-plug-off-outline', danger: true, command: () => { confirmRevoke.value = connection.id; confirmDelete.value = null } })
   if (connection.status === 'revoked' && app.can(Action.DeleteConnections)) danger.push({ label: 'Delete…', appIcon: 'trash-can-outline', danger: true, command: () => { confirmDelete.value = connection.id; confirmRevoke.value = null } })
