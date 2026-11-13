@@ -25,6 +25,9 @@ FULL_NAME = "acme/e2e-fixture"
 USER_TOKEN = "gho_e2e_user_token"
 INSTALLATION_TOKEN = "ghs_e2e_installation_token"
 PERSONAL_TOKEN = "github_pat_" + "p" * 40
+PAT_OWNER_ID = 4242
+PAT_OWNER = "pat-owner"
+PAT_AUTHOR = f"{PAT_OWNER} <{PAT_OWNER_ID}+{PAT_OWNER}@users.noreply.github.com>"
 GIT_ROOT = Path("/srv/git")
 BARE = GIT_ROOT / f"{FULL_NAME}.git"
 WORK = Path("/srv/work")
@@ -159,7 +162,7 @@ class Handler(smoke.FakeServicesHandler):
             if self.headers.get("Authorization") != f"Bearer {PERSONAL_TOKEN}":
                 self.send_json(401, {"message": "Bad credentials"})
                 return
-            self.send_json(200, {"login": "pat-owner"})
+            self.send_json(200, {"id": PAT_OWNER_ID, "login": PAT_OWNER})
         elif path == "/user/installations":
             if self.headers.get("Authorization") != f"Bearer {USER_TOKEN}":
                 problems.append("installations listed without the user token")
@@ -203,7 +206,12 @@ class Handler(smoke.FakeServicesHandler):
             body = self.read_json()
             assert body["draft"] is True
             # A real git push must precede the API request.
-            git("rev-parse", f"refs/heads/{body['head']}", cwd=BARE)
+            branch = f"refs/heads/{body['head']}"
+            # The commit must name the token's owner, as GitHub would credit it.
+            author = git("log", "-1", "--format=%an <%ae>", branch, cwd=BARE)
+            if author != PAT_AUTHOR:
+                self.send_json(422, {"message": f"Commit author {author}"})
+                return
             self.send_json(
                 201,
                 {"number": 77, "html_url": f"https://github.com/{FULL_NAME}/pull/77"},
