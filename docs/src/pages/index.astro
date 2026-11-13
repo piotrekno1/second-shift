@@ -2,10 +2,11 @@
 const github = 'https://github.com/piotrekno1/second-shift';
 const site = 'https://second-shift.app/';
 const shareImage = new URL(shareImageAsset.src, site).href;
-const headline = 'Give agents the';
-const headlineAccent = 'busywork.';
+const headline = 'Give agents the work,';
+const headlineAccent = 'not the keys.';
+const lead = 'Unattended agent jobs for your team, defined in Git. Your service credentials never reach the agent.';
 const title = `SecondShift | ${headline} ${headlineAccent}`;
-const description = 'Define agent tasks in Git. SecondShift runs them in a sandbox with approved tools and delivers results to Slack, your coding agent, or GitHub. Open source and self-hosted.';
+const description = 'Unattended agent jobs for your team, defined in Git. The agent never holds your service credentials and calls only the tools an owner approved. Open source and self-hosted.';
 const quickstart = '/docs/quickstart/';
 const quickstartLabel = 'Try it locally →';
 const deployment = '/docs/production-deployment/';
@@ -232,7 +233,7 @@ const stackRows = [
           <div class="hero-copy">
             <p class="hero-wordmark"><img src="/secondshift-mark.svg" alt="" />SecondShift</p>
             <h1>{headline} <span class="hero-accent">{headlineAccent}</span></h1>
-            <p class="lead">Define your team’s agent tasks in Git. Run them on demand, on a schedule, or when an alert fires.</p>
+            <p class="lead">{lead}</p>
             <div class="actions">
               <a class="button" href={quickstart}>{quickstartLabel}</a>
               <a class="secondary-action" href={deployment}>Deploy for your team →</a>
@@ -293,8 +294,8 @@ const stackRows = [
             </li>
             <li>
               <div class="step-top"><span class="step-number">03</span><span class="step-label">SecondShift</span></div>
-              <h3>Run skills when you need them.</h3>
-              <p>Start a run yourself, set a schedule, or trigger it from an alert or webhook. Try a skill from any public GitHub repository before you schedule it. Your team can review the results, tool activity, and cost of every run.</p>
+              <h3>Let it run.</h3>
+              <p>Start a run yourself, set a schedule, or trigger it from an alert or webhook. Try a skill from any public GitHub repository in the sandbox before you schedule it. Your team can review the results, tool activity, and cost of every run.</p>
               <div class="step-links"><a href="/docs/architecture/">How execution works →</a><a href="/docs/tasks/#try-a-skill-from-github">Try a skill from GitHub →</a></div>
             </li>
           </ol>
