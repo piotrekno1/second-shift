@@ -14,6 +14,7 @@
 #   host.sh upgrade IMAGE      the guide's update commands
 #   host.sh images             the images tested and their digests
 #   host.sh logs [SERVICE...]
+#   host.sh diagnostics DIR    step and service logs, with configured secrets redacted
 #   host.sh destroy            remove everything, including the fake GitHub
 set -eu
 cd "$(dirname "$0")/../.."
@@ -311,6 +312,31 @@ pat-only)
   ;;
 images)
   cat "$STATE/images.txt"
+  ;;
+diagnostics)
+  out=$2
+  mkdir -p "$out.raw"
+  cp /var/log/e2e-*.log "$out.raw/" 2>/dev/null || true
+  cp "$STATE/images.txt" "$out.raw/" 2>/dev/null || true
+  if [ -f deploy/production/compose.env ]; then
+    load_env
+    dc ps -a > "$out.raw/services.txt" 2>&1 || true
+    dc logs --no-color --timestamps > "$out.raw/services.log" 2>&1 || true
+  fi
+  # Replace every configured password, key, token and secret, wherever it appears.
+  cat deploy/production/*.env 2>/dev/null |
+    grep -E '^[A-Z_]*(PASSWORD|KEY|TOKEN|SECRET)[A-Z_]*=.{8,}' |
+    cut -d= -f2- | sed 's/^"//; s/"$//' | sort -u > "$STATE/redact"
+  mkdir -p "$out"
+  for file in "$out.raw"/*; do
+    awk 'FILENAME == ARGV[1] { secret[++n] = $0; next }
+      { for (i = 1; i <= n; i++)
+          while ((at = index($0, secret[i])) > 0)
+            $0 = substr($0, 1, at - 1) "[redacted]" substr($0, at + length(secret[i]))
+        print }' "$STATE/redact" "$file" > "$out/$(basename "$file")"
+  done
+  rm -rf "$out.raw" "$STATE/redact"
+  ls -la "$out"
   ;;
 logs)
   load_env
