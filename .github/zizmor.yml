@@ -1,0 +1,5 @@
+rules:
+  # GitHub added the $/ syntax for same-repository workflows in July 2026.
+  # Release calls container.yml with ./ until we confirm $/ works there.
+  self-repository:
+    disable: true
