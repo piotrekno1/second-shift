@@ -11,6 +11,7 @@
 #   host.sh wipe               lose the server: volumes, config and runner data
 #   host.sh restore            the guide's restore commands, latest backup
 #   host.sh upgrade IMAGE      the guide's update commands
+#   host.sh images             the images tested and their digests
 #   host.sh logs [SERVICE...]
 #   host.sh destroy            remove everything, including the fake GitHub
 set -eu
@@ -21,20 +22,48 @@ mkdir -p "$STATE"
 
 step() { echo; echo "=== $*"; }
 
-e2e_image() {
-  # The release image plus trust in the test CA, built once per base image.
-  E2E_IMAGE="secondshift-e2e:$(echo "$SECONDSHIFT_IMAGE" | tr -c 'a-zA-Z0-9\n' '-')"
-  export E2E_IMAGE
-  docker image inspect "$E2E_IMAGE" >/dev/null 2>&1 ||
-    docker build -q -t "$E2E_IMAGE" --build-arg BASE="$SECONDSHIFT_IMAGE" \
-      -f "$E/Dockerfile.e2e" "$E" >/dev/null
+trust_test_ca() {
+  # The image runs as published. Web, gateway, worker and the driver trust the
+  # test CA through a mounted bundle: the image's own CA list plus the test CA.
+  name=$(echo "$SECONDSHIFT_IMAGE" | tr -c 'a-zA-Z0-9\n' '-')
+  E2E_CA_BUNDLE=$STATE/ca/$name.pem
+  if [ ! -s "$STATE/ca/$name.path" ]; then
+    mkdir -p "$STATE/ca"
+    docker run --rm "$SECONDSHIFT_IMAGE" \
+      python -c 'import certifi; print(certifi.where())' > "$STATE/ca/$name.path"
+    docker run --rm "$SECONDSHIFT_IMAGE" \
+      sh -c 'cat "$(python -c "import certifi; print(certifi.where())")"' > "$E2E_CA_BUNDLE"
+    cat "$E/certs/ca.pem" >> "$E2E_CA_BUNDLE"
+    # Public certificates only. The app runs as 10001 and setup uses umask 077.
+    chmod 644 "$E2E_CA_BUNDLE"
+  fi
+  E2E_CERTIFI=$(cat "$STATE/ca/$name.path")
+  export E2E_CA_BUNDLE E2E_CERTIFI
+}
+
+record_image() {
+  # Record what is under test and check every application service runs it.
+  id=$(docker image inspect --format '{{.Id}}' "$SECONDSHIFT_IMAGE")
+  digest=$(docker image inspect --format '{{join .RepoDigests " "}}' "$SECONDSHIFT_IMAGE")
+  for service in web gateway worker runner; do
+    running=$(docker inspect --format '{{.Image}}' "$(dc ps -q "$service")")
+    if [ "$running" != "$id" ]; then
+      echo "$service runs $running, not $SECONDSHIFT_IMAGE ($id)" >&2
+      exit 1
+    fi
+  done
+  {
+    echo "$1: $SECONDSHIFT_IMAGE"
+    echo "  digest: ${digest:-none, built locally}"
+    echo "  id: $id"
+  } | tee -a "$STATE/images.txt"
 }
 
 load_env() {
   # shellcheck disable=SC1091
   . deploy/production/compose.env
   export SECONDSHIFT_IMAGE
-  e2e_image
+  trust_test_ca
 }
 
 compose() {
@@ -91,7 +120,6 @@ setup)
   step "Test CA, fake-service certificate and GitHub App key"
   [ -f "$E/certs/ca.pem" ] || docker run --rm --user 0:0 -v "$PWD/$E:/out" \
     -w /out "$SECONDSHIFT_IMAGE" python /out/gen_secrets.py /out/certs >/dev/null
-  e2e_image
 
   step "Configuration, as in the deployment guide"
   umask 077
@@ -134,6 +162,7 @@ s#^ARTIFACT_READ_SECRET_ACCESS_KEY=.*#ARTIFACT_READ_SECRET_ACCESS_KEY=$ARTIFACT_
   migrate
   dc up -d --wait
   dc ps --format 'table {{.Service}}\t{{.Image}}\t{{.Status}}'
+  record_image deployed
   dc exec web python manage.py create_workspace "E2E team" | tee "$STATE/invite.txt"
   ;;
 drive)
@@ -142,7 +171,9 @@ drive)
   docker run --rm --network secondshift_default \
     -e S3_KEY="$ARTIFACT_ACCESS_KEY_ID" -e S3_SECRET="$ARTIFACT_SECRET_ACCESS_KEY" \
     -e S3_BUCKET="$ARTIFACT_BUCKET" \
-    -v "$PWD/$E:/e2e:ro" -v "$STATE/driver:/state" "$E2E_IMAGE" \
+    -v "$PWD/$E:/e2e:ro" -v "$STATE/driver:/state" \
+    -v "$E2E_CA_BUNDLE:/etc/ssl/certs/ca-certificates.crt:ro" \
+    -v "$E2E_CA_BUNDLE:$E2E_CERTIFI:ro" "$SECONDSHIFT_IMAGE" \
     python /e2e/drive.py "$2" "${3:-}"
   ;;
 invite-link)
@@ -190,6 +221,7 @@ restore)
   s3_copy upload "$backup/s3"
   BACKUP_OVERRIDE=$backup SECRETS_OVERRIDE=$secrets run_doc 3
   dc ps --format 'table {{.Service}}\t{{.Image}}\t{{.Status}}'
+  record_image restored
   ;;
 upgrade)
   load_env
@@ -198,6 +230,7 @@ upgrade)
   load_env
   run_doc 4
   dc ps --format 'table {{.Service}}\t{{.Image}}\t{{.Status}}'
+  record_image upgraded
   ;;
 agent-probe)
   load_env
@@ -225,6 +258,9 @@ pat-only)
   sh "$0" drive pat-only
   dc exec -T web python /scripts/production_e2e/pat_publish.py
   ;;
+images)
+  cat "$STATE/images.txt"
+  ;;
 logs)
   load_env
   shift
@@ -238,8 +274,6 @@ destroy)
   docker volume rm secondshift_fake_git >/dev/null 2>&1 || true
   rm -rf /srv/secondshift/runner deploy/production/*.env deploy/production/runner \
     "$E/certs" /srv/secondshift-backups /srv/secondshift-secrets "$STATE"
-  # These images trust the test CA that was just deleted.
-  docker images -q secondshift-e2e | xargs -r docker rmi -f >/dev/null
   ;;
 *)
   echo "Unknown step: $1" >&2
