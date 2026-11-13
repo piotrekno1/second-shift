@@ -111,13 +111,13 @@ jobs:
           Install uv and start Docker, then download the wheel below and run:
 
           \`\`\`bash
-          uvx --python 3.13 --from ./$wheel secondshift up
+          uvx --from ./$wheel secondshift up
           \`\`\`
 
           For a persistent installation:
 
           \`\`\`bash
-          uv tool install --force --python 3.13 ./$wheel
+          uv tool install --force ./$wheel
           secondshift up
           \`\`\`
           EOF
