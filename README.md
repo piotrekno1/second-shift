@@ -206,5 +206,5 @@ changed and what was tested.
 - [Agent subscriptions](docs/agent-subscriptions.md)
 - [MCP server](docs/mcp.md) and [vendor MCP servers](docs/mcp-recipes.md)
 - [Architecture](docs/architecture.md)
-- [How SecondShift compares](docs/comparisons.md)
+- [Alternatives](docs/comparisons.md)
 - [Contributing](CONTRIBUTING.md)
