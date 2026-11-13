@@ -103,7 +103,9 @@ The Release workflow rejects tags outside `main` or versions that do not match
 `pyproject.toml`. It runs backend and frontend checks, builds the dashboard and
 wheel, verifies bundled assets, and runs the release smoke test. It then
 publishes the wheel and installation instructions to a GitHub release. Alpha, beta and release candidate tags become prereleases.
-The workflow uses GitHub's built-in token. It does not publish to PyPI.
+It then uploads the same wheel to PyPI from the `pypi` environment with
+trusted publishing, so no PyPI token is stored. PyPI never accepts the same
+version twice.
 Use a new version and tag for each build. Do not move published tags.
 
 After publishing the wheel release, the release workflow calls **Publish container
@@ -258,14 +260,14 @@ as relative numbers, not production latency.
 If uv reports that its tool directory is missing from your `PATH`, run
 `uv tool update-shell` and restart your terminal.
 
-To upgrade an installed build, download the new release's wheel and run the
-following with its filename:
+To upgrade an installed build, run:
 
 ```bash
-uv tool install --force --python 3.13 ./secondshift-VERSION-py3-none-any.whl
+uv tool upgrade secondshift
 ```
 
-The release notes include the exact filename and installation commands.
+Each GitHub release also has the wheel, with installation commands in its
+notes.
 
 Alpha releases can replace their database migrations, so an upgrade between
 alphas may not start on an existing `~/.secondshift`. Back up that folder
