@@ -10,7 +10,6 @@ import ConnectionForm from '../components/ConnectionForm.vue'
 import DocsLink from '../components/DocsLink.vue'
 import GitHubTokenForm from '../components/GitHubTokenForm.vue'
 import SourceAccess from '../components/SourceAccess.vue'
-import AttributionSetting from '../components/AttributionSetting.vue'
 import PageHeader from '../components/PageHeader.vue'
 import ProviderIcon from '../components/ProviderIcon.vue'
 import StatusPill from '../components/StatusPill.vue'
@@ -244,6 +243,8 @@ function rowMenuFor(connection: Connection): MenuItem[] {
   if (test) items.push({ label: test, appIcon: connection.provider === 'webhook' ? 'send-outline' : 'refresh', command: () => sendTest(connection, `connection-${connection.id}`) })
   if (editable(connection)) items.push({ label: needsReconnect(connection) ? 'Reconnect' : 'Edit', appIcon: 'pencil-outline', command: () => toggle({ mode: 'edit', id: connection.id }) })
   if (replaceable(connection)) items.push({ label: 'Replace token', appIcon: 'shield-key-outline', command: () => toggle({ mode: 'edit', id: connection.id }) })
+  // GitHub sources: whether pull requests, issues and commits name SecondShift.
+  if (connection.kind === 'source' && canEdit.value) items.push({ label: connection.attribution ? 'Stop mentioning SecondShift' : 'Say SecondShift opened pull requests', appIcon: 'check-decagram-outline', command: () => setAttribution(connection, !connection.attribution) })
   const danger: MenuItem[] = []
   if (connection.status !== 'revoked' && app.can(Action.DisconnectConnections)) danger.push({ label: connection.auth === 'source' ? 'Turn off…' : 'Disconnect…', appIcon: 'power-plug-off-outline', danger: true, command: () => { confirmRevoke.value = connection.id; confirmDelete.value = null } })
   if (connection.status === 'revoked' && app.can(Action.DeleteConnections)) danger.push({ label: 'Delete…', appIcon: 'trash-can-outline', danger: true, command: () => { confirmDelete.value = connection.id; confirmRevoke.value = null } })
@@ -312,18 +313,14 @@ async function act(key: string, noticeKey: string, action: () => Promise<string>
   }
 }
 
-async function setAttribution(connection: Connection, attribution: boolean): Promise<void> {
-  const key = `connection-${connection.id}`
-  busy.value = `attribution-${connection.id}`
-  delete notices[key]
-  try {
+function setAttribution(connection: Connection, attribution: boolean): Promise<void> {
+  return act(`attribution-${connection.id}`, `connection-${connection.id}`, async () => {
     await updateAttribution(connection.id, attribution)
     await app.refresh()
-  } catch (error) {
-    notices[key] = { ok: false, text: errorMessage(error, 'Unable to save the setting') }
-  } finally {
-    busy.value = null
-  }
+    return attribution
+      ? 'Pull requests and issues now say SecondShift opened them.'
+      : 'Pull requests and issues no longer mention SecondShift. Branches are named after the job.'
+  }, 'Unable to save the setting')
 }
 
 function approve(need: CapabilityNeed): Promise<void> {
@@ -515,7 +512,6 @@ onMounted(async () => {
             <AppIcon :name="connection.last_check.ok ? 'check-circle-outline' : 'alert-circle-outline'" /> {{ connection.last_check.message }} <span class="check-age">{{ isWebhook(connection) ? 'Last delivery' : 'Checked' }} {{ formatRelative(connection.last_check.checked_at) }}</span>
           </p>
           <SourceAccess v-if="connection.kind === 'source' && connection.status === 'connected' && connection.last_check" :check="connection.last_check" />
-          <AttributionSetting v-if="connection.kind === 'source' && canEdit" :attribution="connection.attribution" :saving="busy === `attribution-${connection.id}`" @change="setAttribution(connection, $event)" />
           <OAuthScopeWarning :connection="connection" />
           <div v-if="confirmRevoke === connection.id" class="confirm-strip" role="alert">
             <span v-if="connection.auth === 'source'">Turning off GitHub tools blocks jobs that name <code>{{ connection.binding_key }}</code> until you turn them on again. Repository access stays as it is.</span>

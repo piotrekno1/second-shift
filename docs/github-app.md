@@ -222,9 +222,9 @@ Commits are authored by the account that pushes them. That is the App's bot,
 such as `secondshift-acme[bot]`, or the token's owner. GitHub credits that
 account on the pull request and in the contributors list.
 
-Each GitHub connection on **Connections** has **Say SecondShift opened pull
-requests and issues**. It is on for the App and off for a token, because a
-token posts as a person.
+Attribution is on for the App and off for a token, because a token posts as a
+person. To change it, open the connection's menu on **Connections** and choose
+**Say SecondShift opened pull requests** or **Stop mentioning SecondShift**.
 
 - When it is on, the branch is named `secondshift/run-<id>`. Pull request and
   issue descriptions end with a line naming the run. Commits carry
