@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 import type { Capability, Connection, ExecutionStatus } from '../src/types'
-import { PAUSED_REPOSITORY, REMOVED_JOB, approvalPending, enableBlocker, executionFix, runBlocker, runWarning, setupSteps, type SetupState } from '../src/utils/readiness'
+import { PAUSED_REPOSITORY, REMOVED_JOB, approvalPending, enableBlocker, executionFix, runBlocker, runWarning, setupSteps, sidebarNotes, type SetupState, type SidebarState } from '../src/utils/readiness'
 
 function capability(binding: string, required: boolean, grant: Capability['grant_status']): Capability {
   return { id: 1, binding, kind: 'notification', requested_tools: [], required, grant_status: grant, connection_id: null, connection_name: null }
@@ -172,4 +172,26 @@ test('people who cannot set things up are told who can, with no buttons', () => 
   const access = setupSteps(setup({ repositories: 1, accessProblem: 'Cannot reach owner/project.', canConnect: false }))!
   assert.equal(access[0]!.detail, 'Cannot reach owner/project. Ask a workspace owner to fix it.')
   assert.deepEqual(access[0]!.actions, [])
+})
+
+function sidebar(overrides: Partial<SidebarState> = {}): SidebarState {
+  return { inSetup: false, jobsAwaitingApproval: 0, brokenConnections: 0, bindingsToSetUp: 0, execution: status(), ...overrides }
+}
+
+test('the sidebar stays quiet while the setup checklist shows', () => {
+  const waiting = { jobsAwaitingApproval: 1, bindingsToSetUp: 2, brokenConnections: 1, execution: status({ problem: 'Choose a model.', chosen: false }) }
+  assert.deepEqual(sidebarNotes(sidebar({ ...waiting, inSetup: true })), { jobs: null, models: null, connections: null })
+  const after = sidebarNotes(sidebar(waiting))
+  assert.deepEqual(after.jobs, { text: '1 to approve', tone: 'warning' })
+  assert.deepEqual(after.models, { text: 'not set up', tone: 'warning' })
+})
+
+test('the sidebar says failing for broken connections and to set up for missing ones', () => {
+  assert.deepEqual(sidebarNotes(sidebar({ bindingsToSetUp: 2 })).connections, { text: '2 to set up', tone: 'warning' })
+  assert.deepEqual(sidebarNotes(sidebar({ bindingsToSetUp: 2, brokenConnections: 1 })).connections, { text: '1 failing', tone: 'danger' })
+  assert.deepEqual(sidebarNotes(sidebar()), { jobs: null, models: null, connections: null })
+})
+
+test('the sidebar calls a chosen model that stopped working failing', () => {
+  assert.deepEqual(sidebarNotes(sidebar({ execution: status({ problem: 'The key was rejected.' }) })).models, { text: 'failing', tone: 'danger' })
 })

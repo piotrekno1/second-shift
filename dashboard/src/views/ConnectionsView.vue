@@ -259,7 +259,7 @@ function hasMenu(connection: Connection): boolean {
   return rowMenuFor(connection).length > 0
 }
 const connectionsSubtitle = computed(() => {
-  // The sidebar's "to fix" count, spelled out. When nothing needs doing, say so.
+  // Everything the sidebar note sums up, spelled out. When nothing needs doing, say so.
   const waiting = app.needs.filter((need) => need.status === 'needs_approval').length
   const parts = [
     app.bindingsToSetUp ? `${countLabel(app.bindingsToSetUp, 'binding')} to set up` : '',
