@@ -10,6 +10,7 @@ from django.contrib.auth import get_user_model
 
 from secondshift.connections.models import Connection
 from secondshift.github import repos, rest
+from secondshift.github.authors import GitAuthor
 from secondshift.github.errors import GitHubError
 from secondshift.repositories import pull_requests
 from secondshift.repositories.mirrors import mirror_path
@@ -33,6 +34,10 @@ DRAFT = DraftPullRequest(
     message="Fix stale setup steps\n\n[skip ci]",
     committed_at=datetime(2026, 11, 3, 9, 0, tzinfo=UTC),
 )
+BOT = GitAuthor(
+    "secondshift-acme[bot]", "4242+secondshift-acme[bot]@users.noreply.github.com"
+)
+BOT_ACCOUNT = {"id": 4242, "login": "secondshift-acme[bot]"}
 
 
 def git(root: Path, *args: str) -> str:
@@ -76,15 +81,15 @@ def test_the_commit_is_the_patch_on_the_pinned_commit_and_is_repeatable(
     root, base, patch = source
     mirror = bare_mirror(root, tmp_path / "mirror.git")
 
-    first = commit_patch(mirror, base, patch, DRAFT)
-    second = commit_patch(mirror, base, patch, DRAFT)
+    first = commit_patch(mirror, base, patch, DRAFT, BOT)
+    second = commit_patch(mirror, base, patch, DRAFT, BOT)
 
     assert first == second
     assert git(mirror, "rev-parse", f"{first}^") == base
     assert git(mirror, "show", f"{first}:README.md") == "Run npm install."
     assert git(mirror, "show", f"{first}:NEW.md") == "added"
-    assert git(mirror, "log", "-1", "--format=%an <%ae>|%B", first) == (
-        "SecondShift <secondshift@users.noreply.github.com>|"
+    assert git(mirror, "log", "-1", "--format=%an <%ae>|%cn <%ce>|%B", first) == (
+        f"{BOT.name} <{BOT.email}>|{BOT.name} <{BOT.email}>|"
         "Fix stale setup steps\n\n[skip ci]"
     )
 
@@ -97,7 +102,7 @@ def test_a_patch_that_no_longer_applies_is_refused(
     patch.write_text(patch.read_text().replace("-Run npm ci.", "-Something else."))
 
     with pytest.raises(PublishError, match="no longer apply"):
-        commit_patch(mirror, base, patch, DRAFT)
+        commit_patch(mirror, base, patch, DRAFT, BOT)
 
 
 def github(
@@ -173,6 +178,7 @@ def test_github_reasons_are_shown_without_the_token(
 @pytest.fixture
 def repository(db: object, settings: Any, tmp_path: Path) -> Repository:
     settings.SOURCE_CACHE_ROOT = tmp_path / "cache"
+    settings.GITHUB_APP_SLUG = "secondshift-acme"
     owner = get_user_model().objects.create_user(username="owner")
     workspace: Workspace = create_workspace(name="Test", slug="test", owner=owner)
     connection = Connection.objects.create(
@@ -206,7 +212,11 @@ def test_publishing_pushes_with_a_write_token_and_opens_the_draft(
         "authenticated_git",
         lambda root, token, *args: pushes.append((token, *args)) or "",
     )
-    github(monkeypatch, httpx.Response(201, json=PULL))
+    seen = github(
+        monkeypatch,
+        httpx.Response(200, json=BOT_ACCOUNT),
+        httpx.Response(201, json=PULL),
+    )
 
     opened = publish_pull_request(repository, base, patch, DRAFT)
 
@@ -215,7 +225,10 @@ def test_publishing_pushes_with_a_write_token_and_opens_the_draft(
     [mint] = tokens.call_args_list
     assert mint.args[1:] == (42, {"contents": "write", "pull_requests": "write"})
     [push] = pushes
-    commit = commit_patch(mirror, base, patch, DRAFT)
+    # The App's bot is the author, so the commit credits the account that
+    # pushes it and opens the pull request.
+    assert seen[0].url.raw_path == b"/users/secondshift-acme%5Bbot%5D"
+    commit = commit_patch(mirror, base, patch, DRAFT, BOT)
     assert push == (
         "write-token",
         "push",
@@ -248,6 +261,7 @@ def test_a_commit_github_no_longer_has_is_named(
     root, _, patch = source
     bare_mirror(root, mirror_path(repository.pk))
     fake_github(monkeypatch, "acme/web", "t")
+    github(monkeypatch, httpx.Response(200, json=BOT_ACCOUNT))
 
     def gone(*args: Any) -> None:
         raise GitHubError("The commit 0000 is no longer available from GitHub.")
@@ -286,13 +300,20 @@ def test_a_token_repository_publishes_with_the_token(
         "authenticated_git",
         lambda root, token, *args: pushes.append(token) or "",
     )
-    seen = github(monkeypatch, httpx.Response(201, json=PULL))
+    seen = github(
+        monkeypatch,
+        httpx.Response(200, json={"id": 173, "login": "ada", "name": "Ada L"}),
+        httpx.Response(201, json=PULL),
+    )
 
     publish_pull_request(token_repository, base, patch, DRAFT)
 
     token = token_repository.github_connection.access_token
     assert pushes == [token]
-    assert seen[0].headers["Authorization"] == f"Bearer {token}"
+    assert [request.headers["Authorization"] for request in seen] == [
+        f"Bearer {token}"
+    ] * 2
+    assert seen[0].url.path == "/user"
 
 
 def test_a_refused_token_push_names_the_token_permission(
@@ -312,7 +333,60 @@ def test_a_refused_token_push_names_the_token_permission(
         raise GitHubError("Could not fetch the GitHub repository and branch.")
 
     monkeypatch.setattr(pull_requests, "authenticated_git", refuse)
+    github(monkeypatch, httpx.Response(200, json={"id": 173, "login": "ada"}))
 
     with pytest.raises(PublishError, match="Give the token Contents") as raised:
         publish_pull_request(token_repository, base, patch, DRAFT)
     assert token_repository.github_connection.access_token not in str(raised.value)
+
+
+def test_the_token_owners_address_is_the_commit_author(
+    token_repository: Repository,
+    source: tuple[Path, str, Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root, base, patch = source
+    mirror = bare_mirror(root, mirror_path(token_repository.pk))
+    monkeypatch.setattr(
+        repos,
+        "repository",
+        lambda token, repository_id: {"id": repository_id, "full_name": "acme/web"},
+    )
+    pushed: list[str] = []
+    monkeypatch.setattr(
+        pull_requests,
+        "authenticated_git",
+        lambda root, token, *args: pushed.append(args[-1].split(":")[0]) or "",
+    )
+    github(
+        monkeypatch,
+        httpx.Response(200, json={"id": 173, "login": "ada", "name": "Ada L"}),
+        httpx.Response(201, json=PULL),
+    )
+
+    publish_pull_request(token_repository, base, patch, DRAFT)
+
+    assert git(mirror, "log", "-1", "--format=%an <%ae>", pushed[0]) == (
+        "Ada L <173+ada@users.noreply.github.com>"
+    )
+
+
+def test_an_unknown_publishing_account_stops_before_the_push(
+    repository: Repository,
+    source: tuple[Path, str, Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root, base, patch = source
+    bare_mirror(root, mirror_path(repository.pk))
+    fake_github(monkeypatch, "acme/web", "write-token")
+    pushes: list[str] = []
+    monkeypatch.setattr(
+        pull_requests,
+        "authenticated_git",
+        lambda root, token, *args: pushes.append(token) or "",
+    )
+    github(monkeypatch, httpx.Response(404, json={"message": "Not Found"}))
+
+    with pytest.raises(PublishError, match="which account publishes"):
+        publish_pull_request(repository, base, patch, DRAFT)
+    assert pushes == []
