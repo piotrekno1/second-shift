@@ -168,6 +168,10 @@ s#^ARTIFACT_READ_SECRET_ACCESS_KEY=.*#ARTIFACT_READ_SECRET_ACCESS_KEY=$ARTIFACT_
 drive)
   load_env
   mkdir -p "$STATE/driver" && chown 10001:10001 "$STATE/driver"
+  # The driver trusts only Caddy's local CA, as a browser that installed it.
+  dc exec -T caddy cat /data/caddy/pki/authorities/local/root.crt \
+    > "$STATE/driver/caddy-root.pem"
+  chmod 644 "$STATE/driver/caddy-root.pem"
   docker run --rm --network secondshift_default \
     -e S3_KEY="$ARTIFACT_ACCESS_KEY_ID" -e S3_SECRET="$ARTIFACT_SECRET_ACCESS_KEY" \
     -e S3_BUCKET="$ARTIFACT_BUCKET" \
