@@ -141,9 +141,10 @@ capped per run. Draft pull requests on a `secondshift/run-<id>` branch. Jobs
 can read their own earlier reports, so a weekly review knows what it said last
 week.
 
-**Your choice of model.** Use an API key from a model provider, a local model,
-or a Claude Code or Codex subscription. Subscription logins can be capped per
-24 hours so overnight jobs don't use up the team's day.
+**Your choice of model.** Use an API key from a model provider, or a local
+model. You can also run jobs through the official Claude Code or Codex CLI,
+signed in with your own account. Check that your plan's terms cover it. For
+team jobs in production, use an API key.
 
 **Costs with a ceiling.** Each run has a token budget and a tool-call limit.
 The gateway cuts a run off when its budget is used.
