@@ -1,7 +1,7 @@
 [project]
 name = "secondshift"
 version = "0.1.0b11"
-description = "Scheduled agent tasks for your repositories, defined in Git."
+description = "Unattended agent jobs for your team, defined in Git."
 readme = "README.md"
 license = "Apache-2.0"
 requires-python = ">=3.13,<3.14"
