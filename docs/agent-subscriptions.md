@@ -4,6 +4,13 @@ SecondShift can run a workspace's jobs through Claude Code or Codex, using a
 person's own subscription instead of a model API key. It needs an agent image.
 Without one, nothing changes.
 
+## Plan terms
+
+SecondShift runs the official Claude Code or Codex CLI, signed in with the
+login you add. Each provider's terms decide what a plan allows. Check them
+before you run team jobs on a personal plan. For shared or production jobs,
+use an API key.
+
 ## Development
 
 Run `process-compose up`. Startup builds the `secondshift-agent:dev` image and
