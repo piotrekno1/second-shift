@@ -1,16 +1,18 @@
 # SecondShift
 
-**Give AI agents your team's recurring engineering work, without giving them
-your credentials.**
+**Unattended agent jobs for your team, without giving the agent your service
+credentials.**
 
-SecondShift runs agent jobs you define in your repository. Write a skill,
-commit it with its config, and review it like any other change. Each run is
-sandboxed, with no network and no secrets, and can use only the tools the
-workspace approved. Results land where your team already works, such as Slack,
-a GitHub issue or a draft PR.
+Define a job once in your repository. SecondShift runs it on a schedule, when
+an alert or other webhook arrives, or when anyone on the team asks from the
+dashboard or their coding agent. The agent works in a sandbox with no network
+and no service credentials. Every tool call goes through a broker that checks
+it against what a workspace owner approved. Results land where your team
+already works, such as Slack, a GitHub issue or a draft PR.
 
-Runs on your laptop with one command, or on your
-own server in production.
+Built for platform, security and SRE teams who want agents doing recurring
+work without handing them the keys. Runs on your laptop with one command, or
+on your own server in production.
 
 [Quick start](#quick-start) · [Skill catalog](examples/README.md) ·
 [Security model](docs/security-model.md) ·
@@ -46,15 +48,19 @@ Try it on this repository. SecondShift reviews its own documentation:
 For one-off work, open a repository, click **New task** and write what to do.
 To connect your coding agent, open **Connect your agent** in the account menu.
 
-### Try a skill from GitHub
+### Try a skill from GitHub in the sandbox
 
-You can try a skill someone else published without writing any config. Open a
-repository, click **New task**, then **Skill from GitHub**, and paste a link to
-a `SKILL.md`, such as one from
+A skill from the internet is someone else's instructions, and many come with
+scripts. Run one in your own coding agent and those scripts can reach whatever
+your machine can. In SecondShift its commands run in the sandbox, with no
+network and no credentials.
+
+Open a repository, click **New task**, then **Skill from GitHub**, and paste a
+link to a `SKILL.md`, such as one from
 [anthropics/skills](https://github.com/anthropics/skills). SecondShift pins it
-to a commit, shows what it asks for, and mounts it read-only. The run works on
-your repository. If you like the result, click **Run again** or **Schedule this
-skill**. See [Try a skill from GitHub](docs/tasks.md#try-a-skill-from-github).
+to a commit, shows what it asks for, and mounts it read-only. If you like the
+result, click **Run again** or **Schedule this skill**. See
+[Try a skill from GitHub](docs/tasks.md#try-a-skill-from-github).
 
 ## The problem
 
@@ -63,20 +69,30 @@ Check which docs went stale. Look into the alert that fired at 3am. Each time,
 someone writes the prompt again, waits for the answer and pays for the tokens.
 Often two people pay for the same answer.
 
-Automating it means letting agents run unattended. That is the hard part.
-
-- **Security.** It needs your keys and a shell. One prompt injection reaches
-  everything.
-- **Cost.** Token spend has no ceiling.
-- **Orchestration.** A cron job on someone's laptop, with no retries and no
-  record.
+Automating it means letting agents run unattended. The usual way is a cron
+workflow in CI. The agent runs on the runner that holds your keys, with open
+network access. One prompt injection in a log line or an issue reaches
+everything that runner can. Token spend has no ceiling, and each repository
+wires up its own workflow.
 
 So teams keep prompting by hand, or accept these risks.
 
 With SecondShift you define the work once. It runs on a schedule or when an
-event arrives, once for the whole team, with the controls you already expect
-for code. The latest result is already waiting in Slack, or in your coding
-agent over MCP.
+event arrives, once for the whole team. The agent never holds your service
+credentials, and it can call only the tools an owner approved. The latest result is
+already waiting in Slack, or in your coding agent over MCP.
+
+## Who it's for
+
+Platform, security and SRE teams at companies that already use agents and now
+want them to run unattended. SecondShift fits when:
+
+- your security review won't let an agent hold production credentials,
+- several teams want recurring jobs with one set of approvals and one record,
+- you need to choose the model or keep data on your own servers.
+
+For a few personal jobs, Claude Code scheduled tasks or a GitHub Actions
+workflow may be enough. See [Alternatives](docs/comparisons.md).
 
 ## How it works
 
