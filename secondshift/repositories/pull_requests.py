@@ -6,8 +6,9 @@ one push and one request. It never reaches the sandbox or the model.
 
 The commit is built in the control plane's mirror from the pinned commit and
 the run's stored patch, so publishing again never needs the agent or its
-sandbox. A fixed author, message and date give the same commit every time, so
-a retry pushes the same branch again instead of making a new one.
+sandbox. The author is the account that pushes: the App's bot, or the person
+who owns the token. With the same author, message and date, a retry makes the
+same commit and pushes the same branch again instead of making a new one.
 """
 
 import os
@@ -19,6 +20,7 @@ from pathlib import Path
 
 from secondshift.connections.models import Connection
 from secondshift.github import credentials, pulls
+from secondshift.github.authors import GitAuthor, app_author, token_author
 from secondshift.github.errors import GitHubError
 from secondshift.github.git import authenticated_git
 from secondshift.repositories.github_access import github_access
@@ -34,8 +36,6 @@ TOKEN_PUSH_HINT = (
     "else changed is refused too, and so are workflow files unless the token "
     "has Workflows write access."
 )
-AUTHOR_NAME = "SecondShift"
-AUTHOR_EMAIL = "secondshift@users.noreply.github.com"
 
 
 class PublishError(Exception):
@@ -79,6 +79,12 @@ def publish_pull_request(
             "GitHub refused write access. Give the GitHub App Contents and Pull "
             "requests write permission, then retry."
         ) from error
+    try:
+        author = (token_author if with_token else app_author)(access.token)
+    except GitHubError as error:
+        raise PublishError(
+            "GitHub did not say which account publishes the changes."
+        ) from error
     with locked_mirror(repository.pk) as mirror:
         if not has_commit(mirror, commit_sha):
             try:
@@ -86,7 +92,7 @@ def publish_pull_request(
             except GitHubError as error:
                 # These messages never contain the token.
                 raise PublishError(str(error)) from error
-        commit = commit_patch(mirror, commit_sha, patch, draft)
+        commit = commit_patch(mirror, commit_sha, patch, draft, author)
         try:
             authenticated_git(
                 mirror,
@@ -106,23 +112,37 @@ def publish_pull_request(
 
 
 def commit_patch(
-    mirror: Path, commit_sha: str, patch: Path, draft: DraftPullRequest
+    mirror: Path,
+    commit_sha: str,
+    patch: Path,
+    draft: DraftPullRequest,
+    author: GitAuthor,
 ) -> str:
     """Apply the patch to the pinned commit in a scratch index, and commit it."""
     with tempfile.TemporaryDirectory(prefix="secondshift-publish-") as folder:
         index = str(Path(folder) / "index")
-        git(mirror, index, draft, "read-tree", commit_sha)
+        git(mirror, index, draft, author, "read-tree", commit_sha)
         try:
-            git(mirror, index, draft, "apply", "--cached", "--binary", str(patch))
+            git(
+                mirror,
+                index,
+                draft,
+                author,
+                "apply",
+                "--cached",
+                "--binary",
+                str(patch),
+            )
         except PublishError as error:
             raise PublishError(
                 "The changes no longer apply to the run's commit."
             ) from error
-        tree = git(mirror, index, draft, "write-tree")
+        tree = git(mirror, index, draft, author, "write-tree")
         return git(
             mirror,
             index,
             draft,
+            author,
             "commit-tree",
             tree,
             "-p",
@@ -132,7 +152,9 @@ def commit_patch(
         )
 
 
-def git(mirror: Path, index: str, draft: DraftPullRequest, *args: str) -> str:
+def git(
+    mirror: Path, index: str, draft: DraftPullRequest, author: GitAuthor, *args: str
+) -> str:
     when = draft.committed_at.isoformat()
     environment = {
         "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
@@ -141,11 +163,11 @@ def git(mirror: Path, index: str, draft: DraftPullRequest, *args: str) -> str:
         "GIT_CONFIG_NOSYSTEM": "1",
         "GIT_CONFIG_GLOBAL": os.devnull,
         "GIT_INDEX_FILE": index,
-        "GIT_AUTHOR_NAME": AUTHOR_NAME,
-        "GIT_AUTHOR_EMAIL": AUTHOR_EMAIL,
+        "GIT_AUTHOR_NAME": author.name,
+        "GIT_AUTHOR_EMAIL": author.email,
         "GIT_AUTHOR_DATE": when,
-        "GIT_COMMITTER_NAME": AUTHOR_NAME,
-        "GIT_COMMITTER_EMAIL": AUTHOR_EMAIL,
+        "GIT_COMMITTER_NAME": author.name,
+        "GIT_COMMITTER_EMAIL": author.email,
         "GIT_COMMITTER_DATE": when,
     }
     try:
