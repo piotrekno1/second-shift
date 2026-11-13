@@ -9,7 +9,7 @@ import pytest
 from django.contrib.auth import get_user_model
 
 from secondshift.connections.models import Connection
-from secondshift.github import repos, rest
+from secondshift.github import app, repos, rest
 from secondshift.github.authors import GitAuthor
 from secondshift.github.errors import GitHubError
 from secondshift.repositories import pull_requests
@@ -38,6 +38,7 @@ BOT = GitAuthor(
     "secondshift-acme[bot]", "4242+secondshift-acme[bot]@users.noreply.github.com"
 )
 BOT_ACCOUNT = {"id": 4242, "login": "secondshift-acme[bot]"}
+APP = {"id": 7, "slug": "secondshift-acme"}
 
 
 def git(root: Path, *args: str) -> str:
@@ -118,6 +119,7 @@ def github(
     monkeypatch.setattr(
         rest, "client", lambda: httpx.Client(transport=httpx.MockTransport(handle))
     )
+    monkeypatch.setattr(app, "app_token", lambda: "app-jwt")
     return seen
 
 
@@ -178,7 +180,6 @@ def test_github_reasons_are_shown_without_the_token(
 @pytest.fixture
 def repository(db: object, settings: Any, tmp_path: Path) -> Repository:
     settings.SOURCE_CACHE_ROOT = tmp_path / "cache"
-    settings.GITHUB_APP_SLUG = "secondshift-acme"
     owner = get_user_model().objects.create_user(username="owner")
     workspace: Workspace = create_workspace(name="Test", slug="test", owner=owner)
     connection = Connection.objects.create(
@@ -214,6 +215,7 @@ def test_publishing_pushes_with_a_write_token_and_opens_the_draft(
     )
     seen = github(
         monkeypatch,
+        httpx.Response(200, json=APP),
         httpx.Response(200, json=BOT_ACCOUNT),
         httpx.Response(201, json=PULL),
     )
@@ -227,7 +229,7 @@ def test_publishing_pushes_with_a_write_token_and_opens_the_draft(
     [push] = pushes
     # The App's bot is the author, so the commit credits the account that
     # pushes it and opens the pull request.
-    assert seen[0].url.raw_path == b"/users/secondshift-acme%5Bbot%5D"
+    assert seen[1].url.raw_path == b"/users/secondshift-acme%5Bbot%5D"
     commit = commit_patch(mirror, base, patch, DRAFT, BOT)
     assert push == (
         "write-token",
@@ -261,7 +263,11 @@ def test_a_commit_github_no_longer_has_is_named(
     root, _, patch = source
     bare_mirror(root, mirror_path(repository.pk))
     fake_github(monkeypatch, "acme/web", "t")
-    github(monkeypatch, httpx.Response(200, json=BOT_ACCOUNT))
+    github(
+        monkeypatch,
+        httpx.Response(200, json=APP),
+        httpx.Response(200, json=BOT_ACCOUNT),
+    )
 
     def gone(*args: Any) -> None:
         raise GitHubError("The commit 0000 is no longer available from GitHub.")
@@ -367,7 +373,7 @@ def test_the_token_owners_address_is_the_commit_author(
     publish_pull_request(token_repository, base, patch, DRAFT)
 
     assert git(mirror, "log", "-1", "--format=%an <%ae>", pushed[0]) == (
-        "Ada L <173+ada@users.noreply.github.com>"
+        "ada <173+ada@users.noreply.github.com>"
     )
 
 
