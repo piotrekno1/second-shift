@@ -178,8 +178,9 @@ Then set `pull_request` to `true` when you submit the task.
 
 - The draft targets the branch the task ran on. A task pinned to a commit
   targets the followed branch.
-- The branch is named `secondshift/run-<id>`. The report becomes the pull
-  request description.
+- The branch is named `secondshift/run-<id>`, or after the task when the
+  GitHub connection hides [attribution](github-app.md#attribution). The report
+  becomes the pull request description.
 - The agent never gets the write token. SecondShift builds the commit from the
   stored patch after the sandbox stops, then pushes it.
 - A run that fails or changes nothing opens no pull request. Its delivery shows

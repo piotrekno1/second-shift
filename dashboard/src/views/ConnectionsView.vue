@@ -13,7 +13,7 @@ import SourceAccess from '../components/SourceAccess.vue'
 import PageHeader from '../components/PageHeader.vue'
 import ProviderIcon from '../components/ProviderIcon.vue'
 import StatusPill from '../components/StatusPill.vue'
-import { approveNeed, createMCPConnection, deleteConnection, revokeConnection, testConnection } from '../services/connections'
+import { approveNeed, createMCPConnection, deleteConnection, revokeConnection, testConnection, updateAttribution } from '../services/connections'
 import { useAppStore } from '../stores/app'
 import type { CapabilityNeed, Connection, Notice } from '../types'
 import { DocsPage } from '../utils/docs'
@@ -243,6 +243,8 @@ function rowMenuFor(connection: Connection): MenuItem[] {
   if (test) items.push({ label: test, appIcon: connection.provider === 'webhook' ? 'send-outline' : 'refresh', command: () => sendTest(connection, `connection-${connection.id}`) })
   if (editable(connection)) items.push({ label: needsReconnect(connection) ? 'Reconnect' : 'Edit', appIcon: 'pencil-outline', command: () => toggle({ mode: 'edit', id: connection.id }) })
   if (replaceable(connection)) items.push({ label: 'Replace token', appIcon: 'shield-key-outline', command: () => toggle({ mode: 'edit', id: connection.id }) })
+  // GitHub sources: whether pull requests, issues and commits name SecondShift.
+  if (connection.kind === 'source' && canEdit.value) items.push({ label: connection.attribution ? "Don't mention SecondShift" : 'Mention SecondShift', appIcon: 'check-decagram-outline', command: () => setAttribution(connection, !connection.attribution) })
   const danger: MenuItem[] = []
   if (connection.status !== 'revoked' && app.can(Action.DisconnectConnections)) danger.push({ label: connection.auth === 'source' ? 'Turn off…' : 'Disconnect…', appIcon: 'power-plug-off-outline', danger: true, command: () => { confirmRevoke.value = connection.id; confirmDelete.value = null } })
   if (connection.status === 'revoked' && app.can(Action.DeleteConnections)) danger.push({ label: 'Delete…', appIcon: 'trash-can-outline', danger: true, command: () => { confirmDelete.value = connection.id; confirmRevoke.value = null } })
@@ -309,6 +311,16 @@ async function act(key: string, noticeKey: string, action: () => Promise<string>
   } finally {
     busy.value = null
   }
+}
+
+function setAttribution(connection: Connection, attribution: boolean): Promise<void> {
+  return act(`attribution-${connection.id}`, `connection-${connection.id}`, async () => {
+    await updateAttribution(connection.id, attribution)
+    await app.refresh()
+    return attribution
+      ? 'Pull requests and issues now say SecondShift opened them.'
+      : 'Pull requests and issues no longer mention SecondShift. Branches are named after the job.'
+  }, 'Unable to save the setting')
 }
 
 function approve(need: CapabilityNeed): Promise<void> {

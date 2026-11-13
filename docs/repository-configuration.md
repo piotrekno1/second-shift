@@ -224,6 +224,8 @@ jobs:
 
 Each run then works on the followed branch, and the draft targets it. The
 branch is named `secondshift/run-<id>`, and the report becomes the description.
+When the GitHub connection hides [attribution](github-app.md#attribution), the
+branch is named after the job instead.
 A run that fails or changes nothing opens no pull request.
 
 The configuration only asks. A workspace owner allows pull requests in the

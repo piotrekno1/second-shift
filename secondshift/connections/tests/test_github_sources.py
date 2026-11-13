@@ -214,3 +214,68 @@ def test_a_revoked_token_source_is_disconnected(workspace: Workspace) -> None:
     revoked = source(workspace, status=Connection.Status.REVOKED)
     with pytest.raises(GitHubError, match="disconnected"):
         connection_source(revoked)
+
+
+def github_source(workspace: Workspace, auth: str) -> Connection:
+    return Connection.objects.create(
+        workspace=workspace,
+        provider=Connection.Provider.GITHUB,
+        kind=Connection.Kind.SOURCE,
+        auth_strategy=auth,
+        display_name="GitHub · ada",
+        external_account_id="token:ada"
+        if auth == Connection.AuthStrategy.API_KEY
+        else "99",
+    )
+
+
+def attribution(client: Client, connection: Connection, on: bool) -> Any:
+    return client.post(
+        f"/api/connections/{connection.pk}/attribution",
+        {"attribution": on},
+        content_type="application/json",
+    )
+
+
+@pytest.mark.parametrize(
+    ("auth", "shown"),
+    [(Connection.AuthStrategy.MANAGED, True), (Connection.AuthStrategy.API_KEY, False)],
+)
+def test_attribution_is_on_for_the_app_and_off_for_a_token(
+    owner_client: Client, workspace: Workspace, auth: str, shown: bool
+) -> None:
+    connection = github_source(workspace, auth)
+
+    [listed] = owner_client.get("/api/connections").json()
+
+    assert listed["id"] == connection.pk
+    assert listed["attribution"] is shown
+
+
+def test_owners_turn_attribution_on_for_a_token(
+    owner_client: Client, workspace: Workspace
+) -> None:
+    connection = github_source(workspace, Connection.AuthStrategy.API_KEY)
+
+    response = attribution(owner_client, connection, True)
+
+    assert response.status_code == 200
+    assert response.json()["attribution"] is True
+    connection.refresh_from_db()
+    assert connection.attribution is True
+    assert attribution(owner_client, connection, False).json()["attribution"] is False
+
+
+def test_attribution_is_only_for_github_sources(
+    owner_client: Client, workspace: Workspace
+) -> None:
+    webhook = Connection.objects.create(
+        workspace=workspace,
+        provider=Connection.Provider.WEBHOOK,
+        kind=Connection.Kind.NOTIFICATION,
+        display_name="Alerts",
+    )
+
+    assert attribution(owner_client, webhook, True).status_code == 404
+    webhook.refresh_from_db()
+    assert webhook.attribution is None

@@ -527,6 +527,8 @@ export interface Connection {
   available_tools: string[]
   /** Capability connections: whether each job's request waits for an owner. */
   require_approval: boolean
+  /** GitHub sources: whether pull requests, issues and commits name SecondShift. */
+  attribution: boolean
   /** Redacted delivery target (host only). Never the full URL. */
   target: string
   allowed_models: string[]

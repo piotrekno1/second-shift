@@ -67,6 +67,12 @@ class ConnectionSchema(Schema):
     offered_tools: list[OfferedToolSchema] = Field(default_factory=list)
     # Capability connections: whether each job's request waits for an owner.
     require_approval: bool = False
+    # GitHub sources: whether pull requests, issues and commits name SecondShift.
+    attribution: bool = False
+
+
+class AttributionSchema(Schema):
+    attribution: bool
 
 
 class WebhookConnectionCreateSchema(Schema):

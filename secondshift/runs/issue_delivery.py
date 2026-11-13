@@ -7,6 +7,7 @@ sandbox or the model.
 
 import logging
 
+from secondshift.connections.github import shows_attribution
 from secondshift.connections.models import Connection
 from secondshift.github import credentials
 from secondshift.github.errors import GitHubError
@@ -60,6 +61,9 @@ def skip_reason(run: Run, repository: Repository) -> str:
 
 
 def issue_body(run: Run, issue: RunIssue) -> str:
+    """The agent's text, and a footer when the connection shows attribution."""
+    if not shows_attribution(run.repository.github_connection):
+        return issue.body
     footer = f"Opened by SecondShift from run #{run.pk} at {run.commit_sha[:12]}."
     return f"{issue.body}\n\n---\n\n{footer}" if issue.body else footer
 

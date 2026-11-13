@@ -1,4 +1,5 @@
 from secondshift.connections.execution import recent_login_runs
+from secondshift.connections.github import is_github_source, shows_attribution
 from secondshift.connections.mcp.base import SOURCE_AUTH
 from secondshift.connections.mcp.oauth import requested_scopes
 from secondshift.connections.models import AgentConnection, Connection
@@ -80,6 +81,7 @@ def serialize_connection(
             for name, tool in sorted(connection.offered_tools.items())
         ],
         require_approval=connection.require_approval,
+        attribution=is_github_source(connection) and shows_attribution(connection),
         usage=None
         if usage is None
         else ConnectionUsageSchema(

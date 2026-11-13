@@ -29,7 +29,11 @@ from secondshift.connections.execution import (
     save_execution_preference,
     use_when_nothing_runs,
 )
-from secondshift.connections.github import connect_token_source
+from secondshift.connections.github import (
+    connect_token_source,
+    is_github_source,
+    set_attribution,
+)
 from secondshift.connections.http_api.connections import (
     create_api_connection,
     recheck_api_connection,
@@ -69,6 +73,7 @@ from secondshift.connections.schemas import (
     APIConnectionUpdateSchema,
     APISpecSchema,
     APISpecSummarySchema,
+    AttributionSchema,
     ConnectionSchema,
     ConnectionTestSchema,
     ExecutionConfigurationSchema,
@@ -183,6 +188,21 @@ def connect_github_token(
     except GitHubError as error:
         raise HttpError(422, str(error)) from error
     return serialize_connection(connection)
+
+
+@router.post(
+    "/connections/{connection_id}/attribution",
+    response=ConnectionSchema,
+    auth=django_auth,
+)
+def update_attribution(
+    request: HttpRequest, connection_id: int, payload: AttributionSchema
+) -> ConnectionSchema:
+    """Whether pull requests, issues and commits through this source name SecondShift."""
+    connection = owned_connection(request, connection_id, Action.EDIT_CONNECTIONS)
+    if not is_github_source(connection):
+        raise HttpError(404, "Not Found")
+    return serialize_connection(set_attribution(connection, payload.attribution))
 
 
 @router.post("/connections/mcp", response=ConnectionSchema, auth=django_auth)
