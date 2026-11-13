@@ -7,10 +7,16 @@ on a disposable host with gVisor, without real GitHub, model or S3 accounts:
 scripts/production_e2e/run.sh            # deploy the last release, upgrade to this tree
 scripts/production_e2e/run.sh --keep     # keep the test host afterwards
 scripts/production_e2e/run.sh --from ghcr.io/piotrekno1/second-shift:0.1.0b2
+scripts/production_e2e/run.sh --image ghcr.io/piotrekno1/second-shift:0.1.0b11
 ```
 
+`--image` tests one published image as it is, with no build and no upgrade
+step. Use a checkout of the same release, so the Compose file and the guide
+match the image.
+
 It needs Docker that can run privileged containers, and network access to pull
-images and gVisor. A run takes about five minutes and ends with `Passed.`
+images and gVisor. A run takes about five minutes on a laptop and eight on a GitHub-hosted runner.
+It ends with the images it tested, their digests, and `Passed.`
 
 ## What it checks
 
@@ -32,6 +38,8 @@ images and gVisor. A run takes about five minutes and ends with `Passed.`
 5. After the upgrade, a full restart, and a restore of a backup onto a wiped
    server: password sign-in, run history, artifacts, saved credentials and new
    runs all work.
+6. After deploying, upgrading and restoring, web, gateway, worker and runner
+   all run the image under test. Its digest is recorded.
 
 The backup, restore and update steps run the bash blocks of the guide's
 "Update and back up" section, so the published commands are what is tested.
@@ -57,9 +65,10 @@ dependencies:
   hosts to it.
 - The test network uses an address range that counts as public, so
   production's public-HTTPS rules for model providers and webhooks apply
-  unchanged. `gen_secrets.py` creates a test CA, and `Dockerfile.e2e` adds it
-  to the trusted certificates of web, gateway and worker. The application code
-  is unchanged.
+  unchanged. `gen_secrets.py` creates a test CA. `host.sh` adds it to a copy of
+  the image's CA list and mounts that over the trusted certificates of web,
+  gateway, worker and the driver. The image itself is unchanged, so the digest
+  under test is the published one.
 - `drive.py` uses the deployment over HTTPS like a browser and checks results.
 - `s3_copy.py` stands in for the S3 provider's tools when backing up the bucket.
 

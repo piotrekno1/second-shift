@@ -2,6 +2,7 @@
 # Test the production Compose deployment end to end on a disposable gVisor host.
 #
 #   scripts/production_e2e/run.sh [--from IMAGE] [--keep]
+#   scripts/production_e2e/run.sh --image IMAGE [--keep]
 #
 # Builds the image from this working tree, starts a privileged Docker-in-Docker
 # host with gVisor registered as runsc, deploys --from (default: the release
@@ -9,6 +10,9 @@
 # docs/production-deployment.md, then checks the first owner journey, an
 # upgrade to the working-tree image, a restart, and a backup restored onto a
 # wiped server. The host is removed afterwards unless the run fails or --keep.
+#
+# With --image, it tests that one published image as it is: no build and no
+# upgrade step.
 set -eu
 cd "$(dirname "$0")/../.."
 
@@ -17,11 +21,13 @@ UNDER_TEST=secondshift:e2e-under-test
 GVISOR_RELEASE=20261019
 FROM=$(sed -n 's/^SECONDSHIFT_IMAGE=//p' deploy/production/compose.env.example)
 KEEP=no
+ONLY=
 while [ $# -gt 0 ]; do
   case "$1" in
   --from) FROM=$2; shift 2 ;;
+  --image) ONLY=$2; FROM=$2; shift 2 ;;
   --keep) KEEP=yes; shift ;;
-  *) echo "Usage: $0 [--from IMAGE] [--keep]" >&2; exit 2 ;;
+  *) echo "Usage: $0 [--from IMAGE | --image IMAGE] [--keep]" >&2; exit 2 ;;
   esac
 done
 
@@ -49,8 +55,10 @@ if docker container inspect "$HOST" >/dev/null 2>&1; then
   exit 1
 fi
 
-echo "Building $UNDER_TEST from the working tree"
-docker build -q -t "$UNDER_TEST" . >/dev/null
+if [ -z "$ONLY" ]; then
+  echo "Building $UNDER_TEST from the working tree"
+  docker build -q -t "$UNDER_TEST" . >/dev/null
+fi
 
 echo "Starting the test host with gVisor $GVISOR_RELEASE"
 docker run -d --privileged --name "$HOST" docker:29-dind >/dev/null
@@ -69,8 +77,12 @@ on_host "docker run --rm --runtime=runsc hello-world >/dev/null 2>&1" || {
   exit 1
 }
 
-echo "Copying the checkout and $UNDER_TEST to the host"
-docker save "$UNDER_TEST" | docker exec -i "$HOST" docker load >/dev/null
+if [ -n "$ONLY" ]; then
+  echo "Copying the checkout to the host"
+else
+  echo "Copying the checkout and $UNDER_TEST to the host"
+  docker save "$UNDER_TEST" | docker exec -i "$HOST" docker load >/dev/null
+fi
 on_host "mkdir -p /opt/secondshift"
 # Skip files deleted from the working tree. This works with GNU tar and macOS bsdtar.
 git ls-files -z --cached --others --exclude-standard |
@@ -78,13 +90,19 @@ git ls-files -z --cached --others --exclude-standard |
   COPYFILE_DISABLE=1 tar --null -T - -cf - |
   docker exec -i "$HOST" tar -x -C /opt/secondshift
 
-echo "Deploying $FROM, then upgrading to $UNDER_TEST"
+if [ -n "$ONLY" ]; then
+  echo "Deploying $ONLY"
+else
+  echo "Deploying $FROM, then upgrading to $UNDER_TEST"
+fi
 echo
 step setup setup "$FROM"
 step first-owner drive first "\$(sh scripts/production_e2e/host.sh invite-link)"
-step backup-before-upgrade backup
-step upgrade upgrade "$UNDER_TEST"
-step after-upgrade drive after-restart
+if [ -z "$ONLY" ]; then
+  step backup-before-upgrade backup
+  step upgrade upgrade "$UNDER_TEST"
+  step after-upgrade drive after-restart
+fi
 step agent-storage agent-probe
 step restart restart
 step after-restart drive after-restart
@@ -95,6 +113,7 @@ step after-restore drive after-restart
 step pat-only pat-only
 
 echo
+on_host "cd /opt/secondshift && sh scripts/production_e2e/host.sh images"
 echo "Passed."
 if [ "$KEEP" = yes ]; then
   echo "The test host $HOST is kept. Remove it with: docker rm -f -v $HOST"

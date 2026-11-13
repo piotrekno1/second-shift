@@ -7,15 +7,21 @@ networks:
         - subnet: 45.86.200.0/24
 
 services:
-  # Web, gateway and worker also trust the test CA, to reach the fakes.
+  # Web, gateway and worker run the image unchanged. A mounted bundle makes
+  # them trust the test CA too, to reach the fakes. host.sh builds it.
   web:
-    image: ${E2E_IMAGE:?}
     volumes:
       - ./scripts:/scripts:ro
+      - ${E2E_CA_BUNDLE:?}:/etc/ssl/certs/ca-certificates.crt:ro
+      - ${E2E_CA_BUNDLE:?}:${E2E_CERTIFI:?}:ro
   gateway:
-    image: ${E2E_IMAGE:?}
+    volumes:
+      - ${E2E_CA_BUNDLE:?}:/etc/ssl/certs/ca-certificates.crt:ro
+      - ${E2E_CA_BUNDLE:?}:${E2E_CERTIFI:?}:ro
   worker:
-    image: ${E2E_IMAGE:?}
+    volumes:
+      - ${E2E_CA_BUNDLE:?}:/etc/ssl/certs/ca-certificates.crt:ro
+      - ${E2E_CA_BUNDLE:?}:${E2E_CERTIFI:?}:ro
 
   caddy:
     volumes:

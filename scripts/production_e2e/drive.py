@@ -203,7 +203,7 @@ def connect_github(client: Client) -> int:
     )
     check(
         "callback links the installation",
-        status == 302 and "github=connected" in headers.get("Location", ""),
+        status == 302 and headers.get("Location") == "/repositories/new?source=github",
         f"{status} {headers.get('Location')}",
     )
     available = client.json("GET", "/api/repositories/github/available")
