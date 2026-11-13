@@ -27,7 +27,7 @@ and a model API key or a Claude Code or Codex subscription. Start Docker, then
 run:
 
 ```bash
-uv tool install --python 3.13 secondshift
+uv tool install secondshift
 secondshift up
 ```
 

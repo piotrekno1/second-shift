@@ -8,7 +8,7 @@ You’ll run the documentation drift check included in the SecondShift repositor
 ## Install and start
 
 ```bash
-uv tool install --python 3.13 secondshift
+uv tool install secondshift
 secondshift up
 ```
 
