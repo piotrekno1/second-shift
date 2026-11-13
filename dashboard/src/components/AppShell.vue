@@ -10,6 +10,7 @@ import type { MenuItem } from 'primevue/menuitem'
 import { signOut } from '../services/api'
 import { DOCS_HOME_URL } from '../utils/docs'
 import { SIGN_IN_PATH } from '../utils/signIn'
+import { sidebarNotes } from '../utils/readiness'
 import { useAppStore } from '../stores/app'
 import InvitePrompt from './InvitePrompt.vue'
 import ShiftStatus from './ShiftStatus.vue'
@@ -26,17 +27,14 @@ const mobileOpen = ref(false)
 interface NavItem { label: string; to: string; icon: string; note: string; tone?: 'warning' | 'danger' }
 
 // Something waiting on the reader is said in words, so "1" is never read as a total.
-// Connections says what these add up to, so the two counts always match.
-const toFix = computed(() => app.brokenConnections + app.bindingsToSetUp)
-
-// Runs fail until something works. Nothing chosen waits on you. A broken choice is broken.
-// There is only ever one, so the note names its state instead of a count.
-// "failing" is the word Connections uses for a broken connection.
-const modelNote = computed(() => {
-  const execution = app.overview?.execution
-  if (!execution?.problem) return ''
-  return execution.chosen ? 'failing' : 'not set up'
-})
+// During first-time setup the Overview checklist says what to do, so these stay empty.
+const notes = computed(() => sidebarNotes({
+  inSetup: app.setupChecklist !== null,
+  jobsAwaitingApproval: app.jobsAwaitingApproval,
+  brokenConnections: app.brokenConnections,
+  bindingsToSetUp: app.bindingsToSetUp,
+  execution: app.overview?.execution,
+}))
 
 // Day-to-day pages first, then the ones you set up once.
 const groups = computed<{ label: string; items: NavItem[] }[]>(() => [
@@ -45,15 +43,15 @@ const groups = computed<{ label: string; items: NavItem[] }[]>(() => [
     items: [
       { label: 'Overview', to: '/', icon: 'view-dashboard-outline', note: '' },
       { label: 'Repositories', to: '/repositories', icon: 'source-repository', note: '' },
-      { label: 'Jobs', to: '/jobs', icon: 'calendar-clock-outline', note: app.jobsAwaitingApproval ? `${app.jobsAwaitingApproval} to approve` : '', tone: 'warning' },
+      { label: 'Jobs', to: '/jobs', icon: 'calendar-clock-outline', note: notes.value.jobs?.text ?? '', tone: notes.value.jobs?.tone },
       { label: 'Runs', to: '/runs', icon: 'play-circle-outline', note: '' },
     ],
   },
   {
     label: 'Setup',
     items: [
-      { label: 'Models', to: '/models', icon: 'creation-outline', note: modelNote.value, tone: app.overview?.execution?.chosen ? 'danger' : 'warning' },
-      { label: 'Connections', to: '/connections', icon: 'connection', note: toFix.value ? `${toFix.value} to fix` : '', tone: app.brokenConnections ? 'danger' : 'warning' },
+      { label: 'Models', to: '/models', icon: 'creation-outline', note: notes.value.models?.text ?? '', tone: notes.value.models?.tone },
+      { label: 'Connections', to: '/connections', icon: 'connection', note: notes.value.connections?.text ?? '', tone: notes.value.connections?.tone },
       { label: 'Settings', to: '/settings', icon: 'cog-outline', note: '' },
     ],
   },

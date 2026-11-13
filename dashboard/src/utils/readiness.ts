@@ -228,3 +228,37 @@ export function setupSteps(state: SetupState): SetupStep[] | null {
 export function connectionSetupQuery(job: Pick<Job, 'id' | 'name'>, capability: Pick<Capability, 'binding'>): Record<string, string> {
   return { binding: capability.binding, job: job.name, review: String(job.id) }
 }
+
+/** A sidebar note: a few words and how bad it is. */
+export interface SidebarNote {
+  text: string
+  tone: 'warning' | 'danger'
+}
+
+export interface SidebarState {
+  /** The Overview shows the first-time setup checklist. */
+  inSetup: boolean
+  jobsAwaitingApproval: number
+  brokenConnections: number
+  bindingsToSetUp: number
+  execution: ExecutionStatus | null | undefined
+}
+
+/**
+ * The sidebar's notes on Jobs, Models and Connections, or null where there is nothing to say.
+ * During first-time setup the Overview checklist is the one place that says what to do next,
+ * so the sidebar stays quiet. A broken connection is "failing". A binding with no connection
+ * yet is "to set up", the words the Connections page uses.
+ */
+export function sidebarNotes(state: SidebarState): Record<'jobs' | 'models' | 'connections', SidebarNote | null> {
+  if (state.inSetup) return { jobs: null, models: null, connections: null }
+  const problem = state.execution?.problem
+  return {
+    jobs: state.jobsAwaitingApproval ? { text: `${state.jobsAwaitingApproval} to approve`, tone: 'warning' } : null,
+    // There is only ever one model choice, so the note names its state instead of a count.
+    models: problem ? (state.execution?.chosen ? { text: 'failing', tone: 'danger' } : { text: 'not set up', tone: 'warning' }) : null,
+    connections: state.brokenConnections
+      ? { text: `${state.brokenConnections} failing`, tone: 'danger' }
+      : state.bindingsToSetUp ? { text: `${state.bindingsToSetUp} to set up`, tone: 'warning' } : null,
+  }
+}
