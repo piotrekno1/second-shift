@@ -10,6 +10,7 @@ import pytest
 from django.utils import timezone
 
 from secondshift.config.constants import RETRY_PULL_REQUEST_WORKFLOW, RunStart
+from secondshift.connections.models import Connection
 from secondshift.jobs.models import Job
 from secondshift.repositories.models import Repository
 from secondshift.repositories.pull_requests import (
@@ -96,7 +97,7 @@ def test_the_stored_patch_and_report_become_a_draft(
     assert draft.title == "Review"
     assert draft.body.startswith(REPORT)
     assert f"run #{run.pk}" in draft.body
-    assert draft.message.endswith("[skip ci]")
+    assert "[skip ci]" in draft.message.splitlines()
     assert draft.committed_at == run.finished_at
     published = delivery(run)
     assert published.status == RunDelivery.Status.DELIVERED
@@ -292,3 +293,89 @@ def test_the_job_page_says_whether_its_drafts_can_open(client: Any, db: object) 
         False,
         False,
     )
+
+
+def github_source(run: Run, auth: str, attribution: bool | None = None) -> None:
+    """Reach the run's repository through an App or a token connection."""
+    connection = Connection.objects.create(
+        workspace_id=run.repository.workspace_id,
+        provider=Connection.Provider.GITHUB,
+        kind=Connection.Kind.SOURCE,
+        auth_strategy=auth,
+        display_name="GitHub · ada",
+        external_account_id="token:ada"
+        if auth == Connection.AuthStrategy.API_KEY
+        else "99",
+        attribution=attribution,
+    )
+    Repository.objects.filter(pk=run.repository.pk).update(github_connection=connection)
+
+
+@pytest.mark.django_db
+def test_an_app_draft_names_secondshift(
+    run: Run, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    github_source(run, Connection.AuthStrategy.MANAGED)
+    fake = publisher(monkeypatch, OPENED)
+
+    workflows.publish_pull_request_step(run.pk)
+
+    draft = fake.calls[0][2]
+    assert draft.branch == f"secondshift/run-{run.pk}"
+    assert draft.body == (
+        f"{REPORT}\n\n---\n\nOpened by SecondShift from run #{run.pk} at {'a' * 12}."
+    )
+    assert draft.message == (
+        f"Review\n\n[skip ci]\n\nSecondShift-Run: {run.pk}\nSecondShift-Job: Review"
+    )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("auth", "attribution"),
+    [
+        (Connection.AuthStrategy.API_KEY, None),
+        (Connection.AuthStrategy.MANAGED, False),
+    ],
+)
+def test_without_attribution_nothing_names_secondshift(
+    run: Run, monkeypatch: pytest.MonkeyPatch, auth: str, attribution: bool | None
+) -> None:
+    github_source(run, auth, attribution)
+    fake = publisher(monkeypatch, OPENED)
+
+    workflows.publish_pull_request_step(run.pk)
+
+    draft = fake.calls[0][2]
+    # A personal token posts as a person, so by default the draft looks
+    # like theirs: a branch named after the title and the report alone.
+    assert draft.branch == f"review-{run.pk}"
+    assert draft.body == REPORT
+    assert draft.message == "Review\n\n[skip ci]"
+
+
+@pytest.mark.django_db
+def test_a_token_owner_can_name_secondshift(
+    run: Run, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    github_source(run, Connection.AuthStrategy.API_KEY, attribution=True)
+    fake = publisher(monkeypatch, OPENED)
+
+    workflows.publish_pull_request_step(run.pk)
+
+    draft = fake.calls[0][2]
+    assert draft.branch == f"secondshift/run-{run.pk}"
+    assert draft.message.endswith(f"SecondShift-Run: {run.pk}\nSecondShift-Job: Review")
+
+
+@pytest.mark.django_db
+def test_a_title_without_letters_still_names_the_branch(
+    run: Run, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    github_source(run, Connection.AuthStrategy.API_KEY)
+    Job.objects.filter(pk=run.job_id).update(name="🚀 !!")
+    fake = publisher(monkeypatch, OPENED)
+
+    workflows.publish_pull_request_step(run.pk)
+
+    assert fake.calls[0][2].branch == f"changes-{run.pk}"

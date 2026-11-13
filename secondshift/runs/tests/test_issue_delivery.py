@@ -6,6 +6,7 @@ import pytest
 from django.utils import timezone
 
 from secondshift.config.constants import MAX_RUN_ISSUES, RETRY_ISSUES_WORKFLOW, RunStart
+from secondshift.connections.models import Connection
 from secondshift.github.errors import GitHubError
 from secondshift.github.issues import Issue
 from secondshift.jobs.models import Job
@@ -16,7 +17,7 @@ from secondshift.runs.models import Run, RunDelivery, RunIssue
 from secondshift.runs.orchestration import workflows
 from secondshift.runs.reporting.notifications import run_report_payload
 from secondshift.runs.services import create_run
-from secondshift.runs.tests.test_publishing import queue  # noqa: F401
+from secondshift.runs.tests.test_publishing import github_source, queue  # noqa: F401
 from secondshift.runs.tests.test_workflows import execution_run
 from secondshift.workspaces.dao import workspace_owner
 
@@ -247,3 +248,11 @@ def test_the_job_and_run_pages_show_issues(
     assert job["issues_allowed"] is True
     assert [issue["number"] for issue in detail["issues"]] == [101, 7]
     assert detail["issues"][1]["already_open"] is True
+
+
+def test_a_token_issue_is_the_agents_text_alone(run: Run, github: GitHub) -> None:
+    github_source(run, Connection.AuthStrategy.API_KEY)
+
+    workflows.open_issues_step(run.pk)
+
+    assert github.opened == [("Flaky login test", "Steps")]

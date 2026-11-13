@@ -2,13 +2,20 @@
 
 Publishing reads only what the run stored: the pinned commit, the collected
 patch and the report. A retry repeats this without the agent or a sandbox.
+
+When the GitHub connection shows attribution, the branch, the description and
+the commit's trailers name SecondShift. When it does not, nothing does: the
+branch is named after the title and the description is the report alone.
 """
 
 import logging
 import tempfile
 from pathlib import Path
 
+from django.utils.text import slugify
+
 from secondshift.config.constants import MAX_CHANGES_BYTES
+from secondshift.connections.github import shows_attribution
 from secondshift.github.pulls import MAX_BODY_CHARS
 from secondshift.repositories.models import Repository
 from secondshift.repositories.pull_requests import (
@@ -29,6 +36,9 @@ from secondshift.runs.reporting.collection import plural
 logger = logging.getLogger(__name__)
 
 SKIP_CI = "[skip ci]"
+BRANCH_PREFIX = "secondshift/run-"
+# Long enough to read, short enough for a branch list.
+BRANCH_SLUG_CHARS = 40
 
 
 def record_pending_pull_request(run: Run) -> None:
@@ -77,24 +87,48 @@ def draft_for(run: Run) -> DraftPullRequest:
     report = ""
     if run.output_path:
         report, _ = read_text(run.output_path, MAX_BODY_CHARS)
-    footer = f"Opened by SecondShift from run #{run.pk} at {run.commit_sha[:12]}."
-    message = f"{title}\n\nSecondShift run #{run.pk}."
+    attribution = shows_attribution(run.repository.github_connection)
+    body = report.strip() or run.summary
+    paragraphs = [title]
     if not plan.run_ci:
         # CI waits for a person, because the patch has not been reviewed yet.
-        message = f"{message}\n\n{SKIP_CI}"
+        paragraphs.append(SKIP_CI)
+    if attribution:
+        body = f"{body}\n\n---\n\n{footer(run)}"
+        paragraphs.append(trailers(run))
     return DraftPullRequest(
-        branch=f"secondshift/run-{run.pk}",
+        branch=branch_name(run, attribution),
         base=plan.base,
         title=title,
-        body=f"{report.strip() or run.summary}\n\n---\n\n{footer}",
-        message=message,
+        body=body,
+        message="\n\n".join(paragraphs),
         # The same date on every attempt gives the same commit.
         committed_at=run.finished_at,
     )
 
 
+def footer(run: Run) -> str:
+    return f"Opened by SecondShift from run #{run.pk} at {run.commit_sha[:12]}."
+
+
+def trailers(run: Run) -> str:
+    """Git trailers, so tools can find the run behind a commit."""
+    lines = [f"SecondShift-Run: {run.pk}"]
+    if run.job is not None:
+        lines.append(f"SecondShift-Job: {run.job.name}")
+    return "\n".join(lines)
+
+
+def branch_name(run: Run, attribution: bool) -> str:
+    """The same name on every attempt, so a retry pushes the same branch."""
+    if attribution:
+        return f"{BRANCH_PREFIX}{run.pk}"
+    slug = slugify(run.display_name)[:BRANCH_SLUG_CHARS].strip("-") or "changes"
+    return f"{slug}-{run.pk}"
+
+
 def publish_run(run_id: int) -> None:
-    run = get_run(run_id, "job__repository", "task__repository")
+    run = get_run(run_id, "job", "task__repository__github_connection")
     delivery = pull_request_delivery(run)
     if delivery is None or delivery.status == RunDelivery.Status.DELIVERED:
         return

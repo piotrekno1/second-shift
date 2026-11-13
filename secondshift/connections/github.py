@@ -63,6 +63,33 @@ def connect_token_source(
     )
 
 
+def is_github_source(connection: Connection) -> bool:
+    return (
+        connection.provider == Connection.Provider.GITHUB
+        and connection.kind == Connection.Kind.SOURCE
+    )
+
+
+def shows_attribution(connection: Connection | None) -> bool:
+    """Whether what SecondShift publishes through this connection names it.
+
+    On by default for the App, whose bot already shows SecondShift's work.
+    Off by default for a personal token, which posts as a person who may
+    not want to say which tools they use.
+    """
+    if connection is None or not is_github_source(connection):
+        return True
+    if connection.attribution is not None:
+        return connection.attribution
+    return connection.auth_strategy != Connection.AuthStrategy.API_KEY
+
+
+def set_attribution(connection: Connection, attribution: bool) -> Connection:
+    connection.attribution = attribution
+    connection.save(update_fields=["attribution", "updated_at"])
+    return connection
+
+
 def usable_source(connection: Connection | None) -> bool:
     if not (
         connection

@@ -81,6 +81,9 @@ class Connection(models.Model):
     # Capability connections only. When off, a job that asks only for allowed
     # tools is approved without an owner, so merging the manifest is the review.
     require_approval = models.BooleanField(default=False)
+    # GitHub sources only. Whether pull requests, issues and commits say
+    # SecondShift made them. None keeps the default for the connection's kind.
+    attribution = models.BooleanField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
