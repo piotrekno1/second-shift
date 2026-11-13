@@ -142,3 +142,11 @@ jobs:
     uses: ./.github/workflows/container.yml
     with:
       tag: ${{ github.ref_name }}
+
+  production-smoke:
+    needs: container
+    permissions:
+      contents: read
+    uses: ./.github/workflows/production-smoke.yml
+    with:
+      tag: ${{ github.ref_name }}

@@ -18,6 +18,21 @@ It needs Docker that can run privileged containers, and network access to pull
 images and gVisor. A run takes about five minutes on a laptop and eight on a GitHub-hosted runner.
 It ends with the images it tested, their digests, and `Passed.`
 
+## In CI
+
+`.github/workflows/production-smoke.yml` runs `--image` on a GitHub-hosted
+runner. It checks out the release's own Compose file and guide, with the test
+from the workflow's commit on top. It runs:
+
+- after `release.yml` publishes a release image,
+- weekly against the newest release,
+- by hand from the Actions tab, with an optional release tag.
+
+The run summary shows the tested image and its digest. If a run fails,
+`host.sh diagnostics` saves the step and service logs as the
+`production-smoke-diagnostics` artifact, with every configured password, key,
+token and secret replaced by `[redacted]`. The test host is removed either way.
+
 ## What it checks
 
 1. A fresh deployment of `--from` (default: the release pinned in

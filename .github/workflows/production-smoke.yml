@@ -1,0 +1,88 @@
+name: Production smoke test
+
+# Deploys a published release image with compose.production.yaml on a
+# disposable gVisor host and uses it end to end, with fake GitHub, model and
+# S3 services. See scripts/production_e2e/README.md.
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to test, such as v0.1.0b11. Empty tests the newest release.
+        required: false
+        type: string
+  workflow_call:
+    inputs:
+      tag:
+        required: true
+        type: string
+  schedule:
+    # Weekly, so a change in a base image or a dependency shows up between releases.
+    - cron: '17 6 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Choose the release
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag=${RELEASE_TAG:-$(gh release list --exclude-drafts --limit 1 --json tagName --jq '.[0].tagName')}
+          [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+((a|b|rc)[0-9]+)?$ ]]
+          {
+            echo "tag=$tag"
+            echo "image=ghcr.io/${GITHUB_REPOSITORY,,}:${tag#v}"
+          } >> "$GITHUB_OUTPUT"
+      # The release's own Compose file and guide, with this commit's test.
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ steps.release.outputs.tag }}
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+          path: .harness
+      - name: Use this commit's test
+        run: |
+          rm -rf scripts/production_e2e
+          cp -R .harness/scripts/production_e2e scripts/
+          rm -rf .harness
+      - name: Test the published image
+        env:
+          IMAGE: ${{ steps.release.outputs.image }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          sh scripts/production_e2e/run.sh --image "$IMAGE" | tee production-smoke.log
+          {
+            echo "Tested \`$IMAGE\`:"
+            echo
+            echo '```'
+            grep -E '^(deployed|restored):|^  (digest|id):' production-smoke.log
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Collect redacted diagnostics
+        if: failure()
+        run: |
+          docker exec secondshift-e2e-host sh -c \
+            'cd /opt/secondshift && sh scripts/production_e2e/host.sh diagnostics /tmp/diagnostics' || true
+          docker cp secondshift-e2e-host:/tmp/diagnostics production-smoke-diagnostics || true
+      - name: Keep diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: production-smoke-diagnostics
+          path: production-smoke-diagnostics
+          if-no-files-found: ignore
+      - name: Remove the test host
+        if: always()
+        run: docker rm -f -v secondshift-e2e-host >/dev/null 2>&1 || true
