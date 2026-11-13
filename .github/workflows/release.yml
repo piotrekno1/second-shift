@@ -25,7 +25,9 @@ jobs:
       - uses: astral-sh/setup-uv@v6.8.0
         with:
           python-version: '3.13'
-          enable-cache: true
+          # The release builds from a clean install. A poisoned cache could
+          # change what ships.
+          enable-cache: false
       - name: Validate release version
         env:
           RELEASE_TAG: ${{ github.ref_name }}
@@ -49,8 +51,8 @@ jobs:
       - uses: actions/setup-node@v4.4.0
         with:
           node-version: 24
-          cache: npm
-          cache-dependency-path: dashboard/package-lock.json
+          # v4 ignores this and does not cache. v5 and later cache by default.
+          package-manager-cache: false
       - run: npm --prefix dashboard ci
       - run: npm --prefix dashboard run typecheck
       - run: npm --prefix dashboard run test
