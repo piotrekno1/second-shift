@@ -40,6 +40,12 @@ It ends with the images it tested, their digests, and `Passed.`
    runs all work.
 6. After deploying, upgrading and restoring, web, gateway, worker and runner
    all run the image under test. Its digest is recorded.
+7. The edge and storage: plain HTTP only redirects to HTTPS, Caddy's
+   certificate verifies against its own local CA and nothing else, and
+   anonymous S3 listing and reads are refused.
+8. After setup and after the restore: each database login is refused by the
+   other database, and web and worker refuse to start without a required
+   credential, without printing any secret.
 
 The backup, restore and update steps run the bash blocks of the guide's
 "Update and back up" section, so the published commands are what is tested.
@@ -70,6 +76,8 @@ dependencies:
   gateway, worker and the driver. The image itself is unchanged, so the digest
   under test is the published one.
 - `drive.py` uses the deployment over HTTPS like a browser and checks results.
+  It trusts only Caddy's local root, which `host.sh` copies out before each
+  drive.
 - `s3_copy.py` stands in for the S3 provider's tools when backing up the bucket.
 
 Not covered: real GitHub.com and model providers, Caddy's public

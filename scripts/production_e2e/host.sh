@@ -6,6 +6,7 @@
 #   host.sh setup IMAGE        fresh deployment of IMAGE, prints an invite link
 #   host.sh drive first LINK   first owner, GitHub import, runs, resync
 #   host.sh drive after-restart
+#   host.sh deployment-checks  database isolation and missing credentials
 #   host.sh restart            full compose down / up, volumes kept
 #   host.sh backup             the guide's backup commands
 #   host.sh wipe               lose the server: volumes, config and runner data
@@ -168,6 +169,10 @@ s#^ARTIFACT_READ_SECRET_ACCESS_KEY=.*#ARTIFACT_READ_SECRET_ACCESS_KEY=$ARTIFACT_
 drive)
   load_env
   mkdir -p "$STATE/driver" && chown 10001:10001 "$STATE/driver"
+  # The driver trusts only Caddy's local CA, as a browser that installed it.
+  dc exec -T caddy cat /data/caddy/pki/authorities/local/root.crt \
+    > "$STATE/driver/caddy-root.pem"
+  chmod 644 "$STATE/driver/caddy-root.pem"
   docker run --rm --network secondshift_default \
     -e S3_KEY="$ARTIFACT_ACCESS_KEY_ID" -e S3_SECRET="$ARTIFACT_SECRET_ACCESS_KEY" \
     -e S3_BUCKET="$ARTIFACT_BUCKET" \
@@ -175,6 +180,52 @@ drive)
     -v "$E2E_CA_BUNDLE:/etc/ssl/certs/ca-certificates.crt:ro" \
     -v "$E2E_CA_BUNDLE:$E2E_CERTIFI:ro" "$SECONDSHIFT_IMAGE" \
     python /e2e/drive.py "$2" "${3:-}"
+  ;;
+deployment-checks)
+  load_env
+  passed=0
+  pass() { echo "PASS  $1"; passed=$((passed + 1)); }
+  fail() { echo "FAIL  $1"; printf '%s\n' "$2" | tail -5; exit 1; }
+
+  step "Each database login reaches only its own database"
+  # The postgres container holds both passwords, so none is on a command line.
+  login() {
+    dc exec -T postgres sh -c "PGPASSWORD=\$$2 psql -h 127.0.0.1 -U $1 -d $3 \
+      -tAc 'select 1'" 2>&1
+  }
+  for pair in "secondshift APP_DATABASE_PASSWORD secondshift_runner" \
+    "secondshift_runner RUNNER_DATABASE_PASSWORD secondshift"; do
+    set -- $pair
+    if out=$(login "$1" "$2" "$1"); then pass "$1 opens its own database"; else
+      fail "$1 opens its own database" "$out"
+    fi
+    if out=$(login "$1" "$2" "$3"); then
+      fail "$1 is refused by $3" "$out"
+    elif echo "$out" | grep -q "permission denied for database"; then
+      pass "$1 is refused by $3"
+    else
+      fail "$1 is refused by $3" "$out"
+    fi
+  done
+
+  step "A missing credential stops the service without printing secrets"
+  for case in "web SECONDSHIFT_ENCRYPTION_KEY" "worker SECONDSHIFT_RUNNER_SERVICE_TOKEN"; do
+    set -- $case
+    grep -E '^SECONDSHIFT_[A-Z_]*(KEY|TOKEN|SECRET)=.' "deploy/production/$1.env" |
+      cut -d= -f2- > "$STATE/secret-values"
+    if out=$(dc run --rm --no-deps -e "$2=" "$1" python manage.py check 2>&1); then
+      fail "$1 refuses to start without $2" "$out"
+    elif echo "$out" | grep -qF -f "$STATE/secret-values"; then
+      fail "$1 prints no secrets when it refuses to start" "(output withheld)"
+    elif echo "$out" | grep -q "$2 must be set"; then
+      pass "$1 refuses to start without $2 and prints no secrets"
+    else
+      fail "$1 refuses to start without $2" "$out"
+    fi
+  done
+  rm -f "$STATE/secret-values"
+  echo
+  echo "$passed checks passed"
   ;;
 invite-link)
   grep -o 'https://[^ ]*/invite/[^ ]*' "$STATE/invite.txt"

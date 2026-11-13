@@ -17,13 +17,15 @@ import urllib.request
 from http.cookiejar import CookieJar
 from pathlib import Path
 from typing import Any
-from urllib.parse import parse_qs, urlencode, urlsplit
+from urllib.parse import parse_qs, quote, urlencode, urlsplit
 
 import boto3
 
 BASE = "https://secondshift.e2e.test"
 FAKE = "https://hooks.e2e.test"
 STATE = Path("/state/state.json")
+# host.sh copies Caddy's local root here before each drive.
+CADDY_ROOT = "/state/caddy-root.pem"
 EMAIL = "owner@e2e.test"
 PASSWORD = "e2e-Owner-password-" + "x" * 8
 REPOSITORY_ID = 9001
@@ -48,13 +50,11 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
 
 
 class Client:
-    """A browser session. Caddy's internal CA is not trusted, so skip verify."""
+    """A browser session that trusts only Caddy's local CA."""
 
     def __init__(self) -> None:
         self.cookies = CookieJar()
-        context = ssl.create_default_context()
-        context.check_hostname = False
-        context.verify_mode = ssl.CERT_NONE
+        context = ssl.create_default_context(cafile=CADDY_ROOT)
         handlers = [
             urllib.request.HTTPCookieProcessor(self.cookies),
             urllib.request.HTTPSHandler(context=context),
@@ -98,6 +98,40 @@ class Client:
         if not 200 <= status < 300:
             raise Failure(f"{method} {path} answered {status}: {content[:400]!r}")
         return json.loads(content) if content else None
+
+
+def status_of(url: str) -> tuple[int, str]:
+    """Status and Location of one request, without following redirects."""
+    try:
+        with urllib.request.build_opener(NoRedirect).open(url, timeout=10) as response:
+            return response.status, response.headers.get("Location", "")
+    except urllib.error.HTTPError as error:
+        return error.code, error.headers.get("Location", "")
+
+
+def edge_checks() -> None:
+    """Caddy serves HTTPS with its own CA and only redirects plain HTTP."""
+    try:
+        status_of(BASE + "/-/health/")
+        refused = False
+    except urllib.error.URLError as error:
+        refused = isinstance(error.reason, ssl.SSLCertVerificationError)
+    check("HTTPS is not trusted without Caddy's CA", refused)
+    host = urlsplit(BASE).hostname
+    status, location = status_of(f"http://{host}/-/health/")
+    check(
+        "HTTP redirects to HTTPS",
+        status in {301, 308} and location == BASE + "/-/health/",
+        f"{status} {location}",
+    )
+
+
+def anonymous_s3_checks(key: str) -> None:
+    bucket = os.environ["S3_BUCKET"]
+    status, _ = status_of(f"http://rustfs:9000/{bucket}/")
+    check("anonymous S3 listing is refused", status == 403, status)
+    status, _ = status_of(f"http://rustfs:9000/{bucket}/{quote(key)}")
+    check("anonymous S3 read is refused", status == 403, status)
 
 
 def fake_state() -> dict:
@@ -321,7 +355,7 @@ def check_report(client: Client, job_id: int, marker: str, commit: str) -> dict:
     )
     status, output, _ = client.raw("GET", f"/api/runs/{run['id']}/files/output")
     check(
-        "report reads the repository through gVisor",
+        "report reads the repository",
         status == 200 and marker in output.decode(),
         output[:200],
     )
@@ -337,6 +371,7 @@ def check_report(client: Client, job_id: int, marker: str, commit: str) -> dict:
 
 
 def first(link: str) -> None:
+    edge_checks()
     client = Client()
     status, _, _ = client.raw("GET", "/-/health/")
     check("public HTTPS health check", status == 200, status)
@@ -399,6 +434,7 @@ def first(link: str) -> None:
     )
     objects = bucket_objects()
     check("run artifacts are stored in S3", len(objects) >= 3, sorted(objects))
+    anonymous_s3_checks(sorted(objects)[0])
     check(
         "key absent from stored artifacts",
         all(api_key.encode() not in value for value in objects.values()),
@@ -424,6 +460,7 @@ def first(link: str) -> None:
 
 def after_restart() -> None:
     saved = json.loads(STATE.read_text())
+    edge_checks()
     client = Client()
     sign_in(client)
     for run_id in saved["runs"]:
@@ -440,6 +477,7 @@ def after_restart() -> None:
         status,
     )
     check("S3 objects survive restart", set(saved["objects"]) <= set(bucket_objects()))
+    anonymous_s3_checks(saved["objects"][0])
     check_report(client, saved["report_job"], saved["marker"], saved["head"])
     auth = fake_state()["model_auth"]
     check(

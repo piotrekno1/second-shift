@@ -97,6 +97,7 @@ else
 fi
 echo
 step setup setup "$FROM"
+step deployment deployment-checks
 step first-owner drive first "\$(sh scripts/production_e2e/host.sh invite-link)"
 if [ -z "$ONLY" ]; then
   step backup-before-upgrade backup
@@ -110,6 +111,7 @@ step backup backup
 step lose-the-server wipe
 step restore restore
 step after-restore drive after-restart
+step deployment-after-restore deployment-checks
 step pat-only pat-only
 
 echo
