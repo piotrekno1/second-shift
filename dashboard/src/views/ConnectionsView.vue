@@ -10,10 +10,11 @@ import ConnectionForm from '../components/ConnectionForm.vue'
 import DocsLink from '../components/DocsLink.vue'
 import GitHubTokenForm from '../components/GitHubTokenForm.vue'
 import SourceAccess from '../components/SourceAccess.vue'
+import AttributionSetting from '../components/AttributionSetting.vue'
 import PageHeader from '../components/PageHeader.vue'
 import ProviderIcon from '../components/ProviderIcon.vue'
 import StatusPill from '../components/StatusPill.vue'
-import { approveNeed, createMCPConnection, deleteConnection, revokeConnection, testConnection } from '../services/connections'
+import { approveNeed, createMCPConnection, deleteConnection, revokeConnection, testConnection, updateAttribution } from '../services/connections'
 import { useAppStore } from '../stores/app'
 import type { CapabilityNeed, Connection, Notice } from '../types'
 import { DocsPage } from '../utils/docs'
@@ -311,6 +312,20 @@ async function act(key: string, noticeKey: string, action: () => Promise<string>
   }
 }
 
+async function setAttribution(connection: Connection, attribution: boolean): Promise<void> {
+  const key = `connection-${connection.id}`
+  busy.value = `attribution-${connection.id}`
+  delete notices[key]
+  try {
+    await updateAttribution(connection.id, attribution)
+    await app.refresh()
+  } catch (error) {
+    notices[key] = { ok: false, text: errorMessage(error, 'Unable to save the setting') }
+  } finally {
+    busy.value = null
+  }
+}
+
 function approve(need: CapabilityNeed): Promise<void> {
   return act(`approve-${need.binding}`, need.binding, async () => {
     if (!need.connection) throw new Error('Connect this binding first.')
@@ -500,6 +515,7 @@ onMounted(async () => {
             <AppIcon :name="connection.last_check.ok ? 'check-circle-outline' : 'alert-circle-outline'" /> {{ connection.last_check.message }} <span class="check-age">{{ isWebhook(connection) ? 'Last delivery' : 'Checked' }} {{ formatRelative(connection.last_check.checked_at) }}</span>
           </p>
           <SourceAccess v-if="connection.kind === 'source' && connection.status === 'connected' && connection.last_check" :check="connection.last_check" />
+          <AttributionSetting v-if="connection.kind === 'source' && canEdit" :attribution="connection.attribution" :saving="busy === `attribution-${connection.id}`" @change="setAttribution(connection, $event)" />
           <OAuthScopeWarning :connection="connection" />
           <div v-if="confirmRevoke === connection.id" class="confirm-strip" role="alert">
             <span v-if="connection.auth === 'source'">Turning off GitHub tools blocks jobs that name <code>{{ connection.binding_key }}</code> until you turn them on again. Repository access stays as it is.</span>

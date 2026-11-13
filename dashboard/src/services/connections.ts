@@ -46,6 +46,10 @@ export function updateWebhook(connectionId: number, input: { display_name: strin
   return apiPost<Connection>(`/connections/${connectionId}/webhook`, input)
 }
 
+export function updateAttribution(connectionId: number, attribution: boolean): Promise<Connection> {
+  return apiPost<Connection>(`/connections/${connectionId}/attribution`, { attribution })
+}
+
 export function revokeConnection(connectionId: number): Promise<Connection> {
   return apiPost<Connection>(`/connections/${connectionId}/revoke`)
 }
