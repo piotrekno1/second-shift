@@ -28,7 +28,7 @@ jobs:
       revision: ${{ steps.release.outputs.revision }}
       image: ${{ steps.release.outputs.image }}
     steps:
-      - uses: actions/checkout@v4.4.0
+      - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
           fetch-depth: 0
@@ -68,7 +68,7 @@ jobs:
       contents: read
       packages: write
     steps:
-      - uses: actions/checkout@v4.4.0
+      - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
           ref: ${{ needs.prepare.outputs.revision }}
