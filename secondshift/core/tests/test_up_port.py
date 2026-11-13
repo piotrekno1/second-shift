@@ -1,11 +1,13 @@
 """Check how `secondshift up` decides whether its port is free."""
 
 import socket
+from typing import Any
 
 import djclick as click
 import pytest
 
-from secondshift.core.management.commands.up import check_port
+from secondshift.config.constants import AppEnv
+from secondshift.core.management.commands.up import check_port, check_service_ports
 
 HOST = "127.0.0.1"
 
@@ -41,3 +43,28 @@ def test_a_port_with_a_listener_is_refused() -> None:
 
         with pytest.raises(click.ClickException, match="Address already in use"):
             check_port(HOST, port)
+
+
+def test_a_busy_runner_port_names_its_setting(settings: Any) -> None:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as listener:
+        listener.bind((HOST, 0))
+        listener.listen(1)
+        port = listener.getsockname()[1]
+        settings.RUNNER_SERVICE_URL = f"http://{HOST}:{port}"
+        settings.MODEL_GATEWAY_URL = f"http://{HOST}:{free_port()}"
+
+        with pytest.raises(click.ClickException, match=AppEnv.RUNNER_SERVICE_URL):
+            check_service_ports()
+
+
+def test_free_service_ports_pass(settings: Any) -> None:
+    settings.RUNNER_SERVICE_URL = f"http://{HOST}:{free_port()}"
+    settings.MODEL_GATEWAY_URL = f"http://{HOST}:{free_port()}"
+
+    check_service_ports()
+
+
+def free_port() -> int:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
+        probe.bind((HOST, 0))
+        return probe.getsockname()[1]
