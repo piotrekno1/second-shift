@@ -14,7 +14,7 @@ import { useLiveRefresh } from '../composables/useLiveRefresh'
 import { isRunActive } from '../services/runs'
 import { useAppStore } from '../stores/app'
 import { agentCardDismissed, dismissAgentCard } from '../utils/agentSetup'
-import { setupSteps, waitingCapabilities } from '../utils/readiness'
+import { waitingCapabilities } from '../utils/readiness'
 import { Action } from '../utils/permissions'
 import {
   accessLabel, awaitsApproval, countLabel, formatCost, formatRelative, formatScheduled, healthHeadline, runsTrend, spendTrend, utcTitle, weekRange,
@@ -33,21 +33,7 @@ const missingConnection = computed(() => app.needs.find((need) => need.required 
 const executionBlocked = computed(() => Boolean(app.overview?.execution?.problem))
 const failing = computed(() => app.overview?.failing_jobs ?? [])
 // First-time setup replaces the single next step until a job is on the schedule or has run.
-const setup = computed(() => app.overview ? setupSteps({
-  repositories: app.repositories.length,
-  repositoryName: app.repositories.length === 1 ? app.repositories[0]!.display_name : '',
-  accessProblem: app.repositories.length
-    ? app.connections.find((connection) => connection.kind === 'source' && connection.status === 'connected' && connection.last_check?.ok === false)?.last_check?.message ?? ''
-    : '',
-  execution: app.overview.execution,
-  jobs: app.jobs.length,
-  enabledJobs: app.overview.enabled_jobs,
-  hasRuns: app.runs.length > 0,
-  canAddGitHub: app.can(Action.AddGitHubRepositories),
-  canAddLocal: app.canAddLocalRepositories,
-  canConnect: app.can(Action.AddConnections),
-  offerAgent: !app.overview.has_agent_token,
-}) : null)
+const setup = computed(() => app.setupChecklist)
 // A token made in the agent dialog takes the offer off the page.
 watch(() => agentConnection.visible, (visible) => { if (!visible) void app.refresh() })
 // After setup the agent can run jobs and read reports, so the offer changes. Closing it is remembered here.

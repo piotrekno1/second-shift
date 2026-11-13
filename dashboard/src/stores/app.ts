@@ -3,6 +3,7 @@ import { defineStore } from 'pinia'
 import { AuthenticationRequired, errorMessage } from '../services/api'
 import { signInUrl } from '../utils/signIn'
 import { awaitsApproval } from '../utils/format'
+import { setupSteps, type SetupStep } from '../utils/readiness'
 import { Action, allows } from '../utils/permissions'
 import { fetchCapabilityNeeds, fetchConnections, fetchMCPProviders } from '../services/connections'
 import { fetchPendingInvite } from '../services/invites'
@@ -62,6 +63,25 @@ export const useAppStore = defineStore('app', {
     /** Required bindings with no working connection yet. Approval waits are counted on Jobs. */
     bindingsToSetUp: (state): number =>
       state.needs.filter((need) => need.required && (need.status === 'missing' || need.status === 'unavailable')).length,
+    /**
+     * The first-time setup steps, or null once setup is done. The Overview shows them,
+     * and the sidebar keeps quiet while they show.
+     */
+    setupChecklist: (state): SetupStep[] | null => state.overview ? setupSteps({
+      repositories: state.repositories.length,
+      repositoryName: state.repositories.length === 1 ? state.repositories[0]!.display_name : '',
+      accessProblem: state.repositories.length
+        ? state.connections.find((connection) => connection.kind === 'source' && connection.status === 'connected' && connection.last_check?.ok === false)?.last_check?.message ?? ''
+        : '',
+      execution: state.overview.execution,
+      jobs: state.jobs.length,
+      enabledJobs: state.overview.enabled_jobs,
+      hasRuns: state.runs.length > 0,
+      canAddGitHub: allows(state.user, Action.AddGitHubRepositories),
+      canAddLocal: Boolean(state.user?.local_repositories_enabled) && allows(state.user, Action.AddLocalRepositories),
+      canConnect: allows(state.user, Action.AddConnections),
+      offerAgent: !state.overview.has_agent_token,
+    }) : null,
     mcpProvider: (state) => (key: string | undefined): MCPProviderInfo | undefined =>
       state.mcpProviders.find((provider) => provider.key === key),
   },
