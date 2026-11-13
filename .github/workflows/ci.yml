@@ -63,3 +63,17 @@ jobs:
           persist-credentials: false
       - run: gh extension install github/gh-actions-lock --pin v0.4.1
       - run: gh actions-lock --verify
+
+  # Audits workflows for security problems. Settings live in .github/zizmor.yml.
+  zizmor:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4.4.0
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v6.8.0
+        with:
+          enable-cache: false
+      - run: uvx zizmor@1.32.0 --format github .
