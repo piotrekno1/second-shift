@@ -49,17 +49,18 @@ application keys. Replace the example hostname with the same one in the env file
 
 ```bash
 dc() { docker compose --env-file deploy/production/compose.env -f compose.production.yaml "$@"; }
-docker pull ghcr.io/piotrekno1/second-shift:0.1.0b12
+image=$(sed -n 's/^SECONDSHIFT_IMAGE=//p' deploy/production/compose.env)
+docker pull "$image"
 docker run --rm --user "$(id -u):$(id -g)" \
   -v "$PWD/deploy/production:$PWD/deploy/production" \
-  -w "$PWD/deploy/production" ghcr.io/piotrekno1/second-shift:0.1.0b12 \
+  -w "$PWD/deploy/production" "$image" \
   python -m secondshift.config.container_env --hostname secondshift.example.com
 ```
 
 The published image supports Linux amd64 and arm64. All application services use
-the same image. `SECONDSHIFT_IMAGE` in `compose.env` pins the release. Use the
-same version in the configuration-generation command above. gVisor must still
-be installed on the Docker host.
+the same image. `SECONDSHIFT_IMAGE` in `compose.env` pins the release, and the
+commands above read it from there. Compose refuses to start without it. gVisor
+must still be installed on the Docker host.
 
 The generator creates private `web.env`, `gateway.env`, `worker.env` and
 `runner.env` files. Keep their keys and service settings. Compose overrides their

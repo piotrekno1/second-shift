@@ -7,7 +7,7 @@ on a disposable host with gVisor, without real GitHub, model or S3 accounts:
 scripts/production_e2e/run.sh            # deploy the last release, upgrade to this tree
 scripts/production_e2e/run.sh --keep     # keep the test host afterwards
 scripts/production_e2e/run.sh --from ghcr.io/piotrekno1/second-shift:0.1.0b2
-scripts/production_e2e/run.sh --image ghcr.io/piotrekno1/second-shift:0.1.0b12
+scripts/production_e2e/run.sh --image ghcr.io/piotrekno1/second-shift:VERSION
 ```
 
 `--image` tests one published image as it is, with no build and no upgrade
