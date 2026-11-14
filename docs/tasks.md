@@ -38,7 +38,7 @@ See the [local quickstart](https://second-shift.app/docs/quickstart/) for instal
    such as `.agents/skills/docs-drift/SKILL.md`. Add context in the focus field
    if this run needs a narrower scope. A skill supplies reusable instructions;
    the additional text applies only to this run. To use a skill from another
-   public repository, choose **Skill from GitHub**. See
+   repository, choose **Skill from GitHub**. See
    [Try a skill from GitHub](#try-a-skill-from-github).
 4. Open **Run settings** if you want a task name, another branch or commit, or a
    delayed start. The default branch is the one followed by the repository.
@@ -67,6 +67,8 @@ report deliveries that no longer have access.
 ## Try a skill from GitHub
 
 You can try a skill someone else publishes before you trust it with a schedule.
+The repository can be public, or private if a GitHub connection in this
+workspace can read it.
 
 1. Open a repository, choose **New task**, then **Skill from GitHub**.
 2. Paste a link to the skill on GitHub, such as
@@ -224,7 +226,7 @@ Replace `12` with your repository ID. To reuse a skill, add
 `"skill": ".agents/skills/docs-drift/SKILL.md"` inside `definition`. Add
 `revision` at the top level to choose a branch or full commit SHA.
 
-To try a skill from another public repository, call `inspect_skill` with its
+To try a skill from another repository, call `inspect_skill` with its
 `repository` and `path`. Then submit with `skill` set to that path and
 `skill_source` set to the repository and the returned `commit_sha`:
 

@@ -235,7 +235,7 @@ export interface Job {
   repository_id: number
   repository: string
   skill_path: string
-  /** Another public GitHub repository the skill comes from. Empty when it is in this one. */
+  /** Another GitHub repository the skill comes from. Empty when it is in this one. */
   skill_repository?: string
   cron: string
   timezone: string
@@ -478,7 +478,7 @@ export interface SkillNeed {
   detail: string
 }
 
-/** A skill from another public repository, pinned to a commit. */
+/** A skill from another repository, pinned to a commit. */
 export interface SkillInspection {
   repository: string
   path: string

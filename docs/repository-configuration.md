@@ -77,7 +77,7 @@ standard-library tests work without installing packages.
 | `jobs` | Yes | Mapping of job keys to job definitions. |
 | `jobs.<key>.name` | Yes | Display name in SecondShift. |
 | `jobs.<key>.skill` | Yes | Repository-relative path to a `SKILL.md` file. With `skill_source`, a path in that repository instead. |
-| `jobs.<key>.skill_source` | No | Another public GitHub repository that holds the skill: `repository` (`owner/name`) and `ref` (a full commit SHA). See [skills from another repository](#skills-from-another-repository). |
+| `jobs.<key>.skill_source` | No | Another GitHub repository that holds the skill: `repository` (`owner/name`) and `ref` (a full commit SHA). See [skills from another repository](#skills-from-another-repository). |
 | `jobs.<key>.schedule` | No | Cron schedule, such as `0 9 * * 1` for Monday at 09:00. Leave it out for a job that runs only with **Run now**. A tick is skipped while the job has a run that has not finished. |
 | `jobs.<key>.timezone` | No | IANA timezone, such as `Europe/Warsaw`. Defaults to `UTC`. |
 | `jobs.<key>.history` | No | How many of the job's own earlier runs each run starts with: their reports, and the files they saved. Up to the server's `SECONDSHIFT_JOB_HISTORY_MAX` (5 by default). Defaults to 0. See [run history](#run-history). |
@@ -95,8 +95,8 @@ requirements.
 
 ## Skills from another repository
 
-A job can run a skill that someone else publishes in a public GitHub
-repository. Name the repository and pin the commit you reviewed:
+A job can run a skill kept in another GitHub repository. Name the repository
+and pin the commit you reviewed:
 
 ```yaml
 version: 1
@@ -125,7 +125,15 @@ are allowed, at most 500 files and 20 MB. Links are refused.
 The skill's repository cannot grant itself anything. Its access comes from
 `requires` in this file, and an owner approves it as for any other job. Sync
 fetches the skill, so a missing repository, path or commit shows as a sync
-error. SecondShift reads public repositories only, without credentials.
+error.
+
+SecondShift reads a public repository without credentials. A private one is
+read through a GitHub connection in this workspace that can see it. That can
+be the GitHub App, if it is installed on the skill's repository, or a token
+that can read it. The private files are cached for this workspace only.
+SecondShift checks access again each time a run starts, so a removed
+connection stops the job. If the repository is renamed, update `repository`
+to the new name.
 
 To try a skill once before you schedule it, use a task. See
 [Try a skill from GitHub](tasks.md#try-a-skill-from-github). A server can turn

@@ -31,7 +31,7 @@ const named = computed(() => skill.value.repository && skill.value.path ? `${ski
 
 <template>
   <div class="page">
-    <PageHeader compact title="Try a skill" description="Run a skill from another public repository once, on one of your repositories." />
+    <PageHeader compact title="Try a skill" description="Run a skill from another repository once, on one of your repositories." />
     <div v-if="!app.can(Action.RunJobs)" class="panel empty-state"><AppIcon name="lock-outline" /><strong>Your role cannot start runs</strong><span>Ask a workspace owner to try this skill.</span></div>
     <div v-else-if="!repositories.length" class="panel empty-state">
       <AppIcon name="source-repository" /><strong>Add a repository first</strong><span>A skill runs on one of your repositories.</span>
