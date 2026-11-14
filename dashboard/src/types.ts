@@ -457,6 +457,8 @@ export interface RunDetail extends Run {
 export interface RunSkillSource {
   repository: string
   commit_sha: string
+  /** The skill folder's files, as `sha256:<hex>`. Empty for older runs. */
+  digest: string
   url: string
 }
 
@@ -483,6 +485,8 @@ export interface SkillInspection {
   repository: string
   path: string
   commit_sha: string
+  /** The skill folder's files, as `sha256:<hex>`. */
+  digest: string
   url: string
   name: string
   description: string

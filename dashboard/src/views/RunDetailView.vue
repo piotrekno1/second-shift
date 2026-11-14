@@ -152,6 +152,7 @@ const scheduleText = computed(() => {
     repository: source.repository,
     path: run.value.skill_path,
     commitSha: source.commit_sha,
+    digest: source.digest,
     // The run's access is not a binding list, so people add requires themselves.
     mcps: [],
   })

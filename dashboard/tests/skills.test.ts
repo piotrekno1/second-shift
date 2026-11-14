@@ -37,12 +37,20 @@ test('only ready needs with named tools are requested, and never as required', (
 
 test('a schedule draft pins the commit the run used', () => {
   const yaml = scheduleYaml({
-    name: 'Triage: new bugs', repository: 'acme/skills', path: 'skills/triage/SKILL.md', commitSha: 'a'.repeat(40),
+    name: 'Triage: new bugs', repository: 'acme/skills', path: 'skills/triage/SKILL.md', commitSha: 'a'.repeat(40), digest: `sha256:${'b'.repeat(64)}`,
     mcps: [{ binding: 'linear', tools: ['create_issue', 'list_issues'], required: false }],
   })
   assert.match(yaml, /^ {2}triage-new-bugs:$/m)
   assert.match(yaml, /^ {4}name: "Triage: new bugs"$/m)
   assert.match(yaml, new RegExp(`^ {6}ref: ${'a'.repeat(40)}$`, 'm'))
+  assert.match(yaml, new RegExp(`^ {6}digest: sha256:${'b'.repeat(64)}$`, 'm'))
   assert.match(yaml, /^ {10}tools: \[create_issue, list_issues\]$/m)
   assert.equal(jobKey('!!!'), 'skill')
+})
+
+test('a run from before digests leaves digest out', () => {
+  const yaml = scheduleYaml({
+    name: 'Triage', repository: 'acme/skills', path: 'skills/triage/SKILL.md', commitSha: 'a'.repeat(40), digest: '', mcps: [],
+  })
+  assert.doesNotMatch(yaml, /digest:/)
 })

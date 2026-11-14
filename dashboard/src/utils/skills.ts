@@ -49,6 +49,8 @@ export interface ScheduleDraft {
   repository: string
   path: string
   commitSha: string
+  /** The skill folder's files. Left out of the YAML when empty. */
+  digest: string
   mcps: TaskCapability[]
 }
 
@@ -68,6 +70,7 @@ export function scheduleYaml(draft: ScheduleDraft): string {
     '    skill_source:',
     `      repository: ${draft.repository}`,
     `      ref: ${draft.commitSha}`,
+    ...(draft.digest ? [`      digest: ${draft.digest}`] : []),
     '    schedule: "0 9 * * 1"',
   ]
   if (draft.mcps.length) {
