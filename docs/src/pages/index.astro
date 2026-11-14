@@ -139,6 +139,7 @@ const stackRows = [
       .workflow p { margin: 0 0 12px; color: #b5b5b5; font-size: 14px; line-height: 1.65; }
       .workflow a { color: #ffb454; font-size: 13px; }
       .workflow a:hover { text-decoration: underline; }
+      .workflow p a { font-size: inherit; }
       .workflow-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); list-style: none; padding: 0; margin: 0; gap: 30px; }
       .workflow-steps li { position: relative; min-width: 0; padding: 12px 0 4px; border-top: 1px solid #45413a; display: flex; flex-direction: column; }
       .step-top { display: flex; align-items: center; gap: 10px; }
@@ -188,8 +189,6 @@ const stackRows = [
       }
       .showcase { min-width: 0; margin: 0; }
       .showcase video { display: block; width: 100%; aspect-ratio: 16 / 9; border: 1px solid #373737; border-radius: 4px; background: #0d0d0d; object-fit: contain; box-shadow: 12px 12px 0 #222; }
-      .showcase figcaption { display: grid; gap: 3px; margin-top: 22px; color: #b5b5b5; font-size: 14px; line-height: 1.5; }
-      .showcase figcaption strong { color: #ededed; font-weight: 600; }
       .closing { padding-top: 24px; border-top: 1px solid #303030; }
       .closing h2 { margin: 0; font-size: 25px; font-weight: 500; letter-spacing: -.035em; }
       .closing .actions { margin-top: 12px; }
@@ -199,7 +198,6 @@ const stackRows = [
       .example-heading a { color: #a3a3a3; font-size: 13px; white-space: nowrap; }
       .example-heading a:hover { color: #ededed; }
       .example-links { display: flex; flex-wrap: wrap; gap: 6px 20px; }
-      .example-caption { margin: 14px 0 0; color: #b5b5b5; font-size: 14px; line-height: 1.6; }
       .files { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
       .file { min-width: 0; border: 1px solid #303030; border-radius: 8px; background: #191919; }
       .file-name { display: flex; align-items: center; gap: 10px; padding: 13px 17px; border-bottom: 1px solid #303030; color: #c4c4c4; font: 12px 'Geist Mono', ui-monospace, monospace; overflow-wrap: anywhere; }
@@ -220,7 +218,6 @@ const stackRows = [
         .hero-wordmark img { width: 28px; height: 28px; }
         .lead { margin-top: 16px; }
         .showcase video { box-shadow: 6px 7px 0 #222; }
-        .showcase figcaption { margin-top: 14px; }
         .stack-strip { gap: 8px; }
         .stack-row { gap: 8px; padding: 0 4px; }
         .stack-kind { width: 51px; font-size: 11px; }
@@ -263,15 +260,11 @@ const stackRows = [
             </div>
           </div>
           <figure class="showcase">
-            <video controls playsinline preload="metadata" poster={demoPoster.src} aria-describedby="demo-caption" aria-labelledby="demo-title">
+            <video controls playsinline preload="metadata" poster={demoPoster.src} aria-label="A scheduled security audit, from finding to GitHub issue and draft pull request">
               <source src="https://github.com/user-attachments/assets/69cbc92f-72f6-45fb-98ad-27b4b1056581" type="video/mp4" />
               <track kind="captions" src={demoCaptions} srclang="en" label="English" />
               <a href="https://github.com/user-attachments/assets/69cbc92f-72f6-45fb-98ad-27b4b1056581">Watch the product demo</a>
             </video>
-            <figcaption>
-              <strong id="demo-title">Security audit walkthrough</strong>
-              <span id="demo-caption">Follow a scheduled audit from a verified finding to a GitHub issue and a draft pull request.</span>
-            </figcaption>
           </figure>
         </div>
         <div class="stack-strip" aria-label="Services that work with SecondShift">
@@ -305,21 +298,21 @@ const stackRows = [
           <ol class="workflow-steps" role="list">
             <li>
               <div class="step-top"><span class="step-number">01</span><span class="step-label">Developers</span></div>
-              <h3>Write a skill.</h3>
-              <p>Use Codex, Claude Code, or OpenCode. Connect to SecondShift over MCP to discover allowed tools and validate your configuration. Review and merge in Git.</p>
+              <h3>Write or reuse a skill.</h3>
+              <p>A skill is a Markdown file of instructions for the agent. Write your own, or <a href="/docs/repository-configuration/#skills-from-another-repository">use one published on GitHub</a>, locked to the version you reviewed.</p>
               <a href="/docs/mcp/">Connect your coding agent →</a>
             </li>
             <li>
-              <div class="step-top"><span class="step-number">02</span><span class="step-label">Owners &amp; admins</span></div>
-              <h3>Approve its access.</h3>
-              <p>Owners choose the model: an API key, a local model, or the official Claude Code or Codex CLI signed in with your own account. They approve each job’s tools. Admins enable schedules. Skills cannot expand their own permissions.</p>
-              <div class="step-links"><a href="/docs/self-hosting/#who-controls-what">Roles and permissions →</a><a href="/docs/security-model/">Security model →</a></div>
+              <div class="step-top"><span class="step-number">02</span><span class="step-label">Workspace owners</span></div>
+              <h3>Approve the model and tools.</h3>
+              <p>Pick the model the job runs on and approve each tool it may call. A skill can never give itself more access.</p>
+              <a href="/docs/security-model/">See the security model →</a>
             </li>
             <li>
-              <div class="step-top"><span class="step-number">03</span><span class="step-label">SecondShift</span></div>
-              <h3>Let it run.</h3>
-              <p>Start a run yourself, set a schedule, or trigger it from an alert or webhook. Try a skill from any public GitHub repository in the sandbox before you schedule it. Your team can review the results, tool activity, and cost of every run.</p>
-              <div class="step-links"><a href="/docs/architecture/">How execution works →</a><a href="/docs/tasks/#try-a-skill-from-github">Try a skill from GitHub →</a></div>
+              <div class="step-top"><span class="step-number">03</span><span class="step-label">Your team</span></div>
+              <h3>Run it and read the result.</h3>
+              <p>Run it by hand, on a schedule, or when an alert fires. Each run shows its result, every tool call and what it cost.</p>
+              <a href="/docs/tasks/#try-a-skill-from-github">Try a skill from GitHub →</a>
             </li>
           </ol>
         </section>
@@ -351,14 +344,13 @@ Do not modify files.</code></pre>
   <span class="key">docs-drift:</span>
     <span class="key">name:</span> Documentation drift
     <span class="key">skill:</span> .agents/skills/docs-drift/SKILL.md
-    <span class="key">schedule:</span> "0 8 * * 1"
+    <span class="key">schedule:</span> "0 8 * * 1"  <span class="muted"># Mondays at 08:00</span>
     <span class="key">timezone:</span> UTC
-    <span class="key">history:</span> 1
-    <span class="key">notify:</span>
+    <span class="key">history:</span> 1  <span class="muted"># reads the last report</span>
+    <span class="key">notify:</span>  <span class="muted"># posts to Slack</span>
       - <span class="key">binding:</span> engineering-reports</code></pre>
             </div>
           </div>
-          <p class="example-caption">Runs every Monday at 08:00 UTC, reads last week’s report, and posts the result to Slack.</p>
         </section>
         <section class="closing" aria-labelledby="closing-title">
           <h2 id="closing-title">Try running your first skill</h2>
