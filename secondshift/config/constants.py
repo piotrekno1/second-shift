@@ -9,6 +9,8 @@ from urllib.parse import urlsplit
 
 # Git object formats supported by repository snapshots and execution plans.
 COMMIT_SHA_PATTERN = r"[0-9a-f]{40}|[0-9a-f]{64}"
+# A skill folder's files. See repositories.snapshots.folder_digest.
+SKILL_DIGEST_PATTERN = r"sha256:[0-9a-f]{64}"
 
 EXECUTE_RUN_WORKFLOW = "secondshift.execute_run"
 SCHEDULED_JOB_WORKFLOW = "secondshift.scheduled_job"

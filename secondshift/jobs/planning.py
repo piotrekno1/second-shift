@@ -284,6 +284,7 @@ def job_skill_source(job: Job) -> SkillSourcePlan | None:
     return SkillSourcePlan(
         repository=job.skill_source["repository"],
         commit_sha=job.skill_source["ref"],
+        digest=job.skill_source.get("digest", ""),
     )
 
 

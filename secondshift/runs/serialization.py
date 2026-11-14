@@ -234,6 +234,7 @@ def run_skill_source(run: Run) -> RunSkillSourceSchema | None:
     return RunSkillSourceSchema(
         repository=source.repository,
         commit_sha=source.commit_sha,
+        digest=source.digest,
         url=f"{GITHUB_BASE_URL}/{source.repository}/blob/"
         f"{source.commit_sha}/{job.skill_path}",
     )

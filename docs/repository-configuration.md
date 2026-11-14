@@ -77,7 +77,7 @@ standard-library tests work without installing packages.
 | `jobs` | Yes | Mapping of job keys to job definitions. |
 | `jobs.<key>.name` | Yes | Display name in SecondShift. |
 | `jobs.<key>.skill` | Yes | Repository-relative path to a `SKILL.md` file. With `skill_source`, a path in that repository instead. |
-| `jobs.<key>.skill_source` | No | Another GitHub repository that holds the skill: `repository` (`owner/name`) and `ref` (a full commit SHA). See [skills from another repository](#skills-from-another-repository). |
+| `jobs.<key>.skill_source` | No | Another GitHub repository that holds the skill: `repository` (`owner/name`), `ref` (a full commit SHA) and an optional `digest` of the skill's files. See [skills from another repository](#skills-from-another-repository). |
 | `jobs.<key>.schedule` | No | Cron schedule, such as `0 9 * * 1` for Monday at 09:00. Leave it out for a job that runs only with **Run now**. A tick is skipped while the job has a run that has not finished. |
 | `jobs.<key>.timezone` | No | IANA timezone, such as `Europe/Warsaw`. Defaults to `UTC`. |
 | `jobs.<key>.history` | No | How many of the job's own earlier runs each run starts with: their reports, and the files they saved. Up to the server's `SECONDSHIFT_JOB_HISTORY_MAX` (5 by default). Defaults to 0. See [run history](#run-history). |
@@ -107,6 +107,7 @@ jobs:
     skill_source:
       repository: acme/agent-skills
       ref: 4f2c1d0e8b7a6c5d4e3f2a1b0c9d8e7f6a5b4c3d
+      digest: sha256:9b1c7e0f3a2d5c4b6e8f0a1d3c5b7e9f2a4c6e8b0d1f3a5c7e9b2d4f6a8c0e1d
     schedule: "0 9 * * 1"
     requires:
       mcps:
@@ -116,6 +117,26 @@ jobs:
 
 `ref` must be a full commit SHA. A branch could change what runs without
 anyone reviewing it. To take a newer version, change the SHA in a commit.
+
+`digest` is optional. It is a SHA-256 of the files in the skill's folder.
+When it is set, sync fails if the files at `ref` do not match it. It records
+what you reviewed in a form that does not depend on Git. If you move `ref` to
+a newer commit and the skill's files did not change, the digest stays the
+same, so a reviewer can see that nothing in the skill changed. **Schedule this
+skill** on a task's run fills it in, and a mismatch error shows the digest the
+files have.
+
+To compute it yourself, run this in the skill's folder at that commit, then
+put `sha256:` before the result:
+
+```sh
+find . -type f | sed 's|^\./||' | LC_ALL=C sort \
+  | while IFS= read -r file; do shasum -a 256 "$file"; done \
+  | shasum -a 256 | cut -d' ' -f1
+```
+
+It hashes the line `shasum` prints for each file, sorted by path. Only file
+names and contents count, not file modes.
 
 The run still works on this repository. SecondShift fetches the skill's folder,
 the `SKILL.md` and the files beside it, at that commit. The sandbox reads it at

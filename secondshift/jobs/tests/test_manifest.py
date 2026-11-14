@@ -259,3 +259,34 @@ def test_subagents_cannot_pass_the_server_maximum(settings) -> None:
 def test_repository_jobs_require_a_skill_file() -> None:
     with pytest.raises(ValidationError):
         JobManifest.model_validate({"name": "A scheduled job"})
+
+
+SOURCED_JOB = f"""
+version: 1
+jobs:
+  triage:
+    name: Triage
+    skill: skills/triage/SKILL.md
+    skill_source:
+      repository: vendor/skills
+      ref: {"a" * 40}
+"""
+
+
+def test_a_job_without_a_digest_keeps_its_hash() -> None:
+    job = parse_manifest(SOURCED_JOB).jobs["triage"]
+
+    # The hash such a job had before digests existed. A change re-asks approval.
+    assert manifest_hash(job) == (
+        "c98d458b29d61c0f0398b95f073f33a2508b51ebae446b443420eb2aea243269"
+    )
+    with_digest = parse_manifest(f"{SOURCED_JOB}      digest: sha256:{'b' * 64}\n")
+    assert manifest_hash(with_digest.jobs["triage"]) != manifest_hash(job)
+
+
+@pytest.mark.parametrize(
+    "digest", ["b" * 64, f"sha1:{'b' * 40}", f"sha256:{'B' * 64}", "sha256:abc"]
+)
+def test_a_digest_must_be_a_sha256(digest: str) -> None:
+    with pytest.raises(ManifestError, match="digest"):
+        parse_manifest(f"{SOURCED_JOB}      digest: {digest}\n")

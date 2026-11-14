@@ -22,6 +22,7 @@ from secondshift.config.constants import (
     COMMIT_SHA_PATTERN,
     GITHUB_REPOSITORY_PATTERN,
     MAX_RUN_ISSUES,
+    SKILL_DIGEST_PATTERN,
     TriggerKind,
 )
 
@@ -126,6 +127,8 @@ class SkillSourceManifest(BaseModel):
     # A job pins a full commit SHA. A one-off task may name a branch or tag,
     # or leave it out for the default branch.
     ref: str | None = Field(default=None, min_length=1, max_length=200)
+    # The skill folder's files, as `sha256:<hex>`. Sync fails if they differ.
+    digest: str | None = Field(default=None, pattern=rf"^{SKILL_DIGEST_PATTERN}$")
 
     @property
     def pinned(self) -> bool:
@@ -360,5 +363,8 @@ def manifest_hash(job: JobManifest) -> str:
     if data["skill_source"] is None:
         # Jobs written before skill sources keep the hash they had.
         del data["skill_source"]
+    elif data["skill_source"]["digest"] is None:
+        # And jobs written before digests.
+        del data["skill_source"]["digest"]
     canonical = json.dumps(data, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(canonical.encode()).hexdigest()

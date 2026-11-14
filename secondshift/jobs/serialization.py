@@ -197,6 +197,7 @@ def serialize_inspection(inspection: SkillInspection) -> SkillInspectionSchema:
         repository=skill.repository,
         path=skill.path,
         commit_sha=skill.commit_sha,
+        digest=skill.digest,
         url=f"{GITHUB_BASE_URL}/{skill.repository}/blob/{skill.commit_sha}/{skill.path}",
         name=inspection.details.name,
         description=inspection.details.description,

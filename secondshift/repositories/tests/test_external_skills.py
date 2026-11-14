@@ -1,3 +1,4 @@
+import hashlib
 import io
 import os
 import subprocess
@@ -74,6 +75,53 @@ def test_the_default_branch_is_pinned_to_its_commit(
     assert skill.text.startswith("---\nname: triage")
     assert skill.file_count == 2
     assert skill.size_bytes > 0
+
+
+def folder_sha256(folder: Path) -> str:
+    """The digest as the docs compute it, from files on disk."""
+    files = sorted(
+        str(path.relative_to(folder)) for path in folder.rglob("*") if path.is_file()
+    )
+    listing = "".join(
+        f"{hashlib.sha256((folder / name).read_bytes()).hexdigest()}  {name}\n"
+        for name in files
+    )
+    return f"sha256:{hashlib.sha256(listing.encode()).hexdigest()}"
+
+
+def test_the_digest_hashes_the_skill_folder(workspace: Workspace, vendor: Path) -> None:
+    skill = resolve_external_skill(workspace.pk, REPOSITORY, PATH)
+
+    assert skill.digest == folder_sha256(vendor / "skills/triage")
+
+
+def test_the_digest_ignores_commits_outside_the_skill(
+    workspace: Workspace, vendor: Path, tmp_path: Path
+) -> None:
+    first = resolve_external_skill(workspace.pk, REPOSITORY, PATH)
+    (vendor / "README.md").write_text("Changed.\n")
+    run_git(vendor, "commit", "-am", "readme")
+    push(vendor, tmp_path / "github/vendor/skills.git")
+
+    second = resolve_external_skill(workspace.pk, REPOSITORY, PATH, "main")
+
+    assert second.commit_sha != first.commit_sha
+    assert second.digest == first.digest
+
+
+def test_a_different_digest_is_refused(workspace: Workspace, vendor: Path) -> None:
+    actual = resolve_external_skill(workspace.pk, REPOSITORY, PATH).digest
+
+    with pytest.raises(ExternalSkillError, match=f"has digest {actual}"):
+        resolve_external_skill(
+            workspace.pk, REPOSITORY, PATH, head(vendor), f"sha256:{'0' * 64}"
+        )
+    assert (
+        resolve_external_skill(
+            workspace.pk, REPOSITORY, PATH, head(vendor), actual
+        ).digest
+        == actual
+    )
 
 
 def test_branches_tags_and_commits_resolve(

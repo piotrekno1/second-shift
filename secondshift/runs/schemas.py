@@ -118,6 +118,8 @@ class RunSkillSourceSchema(Schema):
 
     repository: str
     commit_sha: str
+    # The skill folder's files, as `sha256:<hex>`. Empty for older runs.
+    digest: str
     url: str
 
 

@@ -195,6 +195,8 @@ class SkillInspectionSchema(Schema):
     repository: str
     path: str
     commit_sha: str
+    # The skill folder's files, as `sha256:<hex>`.
+    digest: str
     url: str
     name: str
     description: str

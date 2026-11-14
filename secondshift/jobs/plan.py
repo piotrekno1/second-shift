@@ -79,6 +79,8 @@ class SkillSourcePlan(Frozen):
 
     repository: str
     commit_sha: str
+    # The skill folder's files. Empty in plans made before digests.
+    digest: str = ""
 
 
 class JobPlan(Frozen):

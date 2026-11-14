@@ -14,6 +14,7 @@ from secondshift.repositories.models import Repository
 from secondshift.repositories.tests.test_external_skills import (
     PATH,
     REPOSITORY,
+    folder_sha256,
 )
 from secondshift.repositories.tests.test_external_skills import (
     vendor as vendor_fixture,
@@ -73,7 +74,11 @@ def test_a_branch_is_pinned_and_the_repository_keeps_its_own_commit(
 
     job = run.execution_plan["job"]
     assert job["skill_path"] == PATH
-    assert job["skill_source"] == {"repository": REPOSITORY, "commit_sha": head(vendor)}
+    assert job["skill_source"] == {
+        "repository": REPOSITORY,
+        "commit_sha": head(vendor),
+        "digest": folder_sha256(vendor / "skills/triage"),
+    }
     assert run.commit_sha == head(Path(repository.local_path))
     prompt = run_prompt(run)
     assert "Read /skill/SKILL.md with workspace_read_file" in prompt

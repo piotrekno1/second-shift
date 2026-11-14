@@ -8,6 +8,7 @@ so a retried run start sends exactly what the first attempt sent.
 """
 
 import gzip
+import hashlib
 import io
 import re
 import subprocess
@@ -96,16 +97,7 @@ def tree_entries(git_dir: Path, commit_sha: str, folder: str = "") -> list[TreeE
     return entries
 
 
-def write_snapshot(
-    git_dir: Path,
-    commit_sha: str,
-    output: IO[bytes],
-    folder: str = "",
-    limits: SnapshotLimits = REPOSITORY_LIMITS,
-) -> None:
-    """Write the commit's files, or one folder's, to `output` as a
-    reproducible .tar.gz."""
-    entries = tree_entries(git_dir, commit_sha, folder)
+def check_limits(entries: list[TreeEntry], limits: SnapshotLimits) -> None:
     if len(entries) > limits.files:
         raise SnapshotError(f"{limits.label} has more than {limits.files:,} files.")
     if sum(entry.size for entry in entries) > limits.unpacked_bytes:
@@ -119,6 +111,40 @@ def write_snapshot(
             f"{limits.label} may hold only regular files. Not allowed: "
             + ", ".join(links[:5])
         )
+
+
+def folder_digest(git_dir: Path, entries: list[TreeEntry]) -> str:
+    """One SHA-256 for a folder of regular files, as `sha256:<hex>`.
+
+    It hashes the lines `sha256sum` prints for each file, sorted by path, so
+    anyone can check it from a checkout without SecondShift. Only names and
+    contents count, not file modes. Raises SnapshotError for anything that
+    is not a regular file.
+    """
+    lines = []
+    with BlobReader(git_dir) as blobs:
+        for entry in entries:
+            if entry.mode not in REGULAR_FILE_MODES:
+                raise SnapshotError(f"{entry.path} is not a regular file.")
+            content = blobs.read(entry.object_id, entry.size)
+            path = entry.path.encode("utf-8", errors="surrogateescape")
+            lines.append(hashlib.sha256(content).hexdigest().encode() + b"  " + path)
+    lines.sort(key=lambda line: line[66:])
+    listing = b"".join(line + b"\n" for line in lines)
+    return f"sha256:{hashlib.sha256(listing).hexdigest()}"
+
+
+def write_snapshot(
+    git_dir: Path,
+    commit_sha: str,
+    output: IO[bytes],
+    folder: str = "",
+    limits: SnapshotLimits = REPOSITORY_LIMITS,
+) -> None:
+    """Write the commit's files, or one folder's, to `output` as a
+    reproducible .tar.gz."""
+    entries = tree_entries(git_dir, commit_sha, folder)
+    check_limits(entries, limits)
     limited = LimitedWriter(output, limits.snapshot_bytes, limits.label)
     with (
         gzip.GzipFile(

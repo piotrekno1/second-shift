@@ -139,11 +139,17 @@ def external_source(
         return None
     try:
         skill = resolve_external_skill(
-            workspace_id, source.repository, definition.skill, source.ref
+            workspace_id,
+            source.repository,
+            definition.skill,
+            source.ref,
+            source.digest,
         )
     except ExternalSkillError as error:
         raise RunRefused(str(error)) from error
-    return SkillSourcePlan(repository=skill.repository, commit_sha=skill.commit_sha)
+    return SkillSourcePlan(
+        repository=skill.repository, commit_sha=skill.commit_sha, digest=skill.digest
+    )
 
 
 def submit_skill(

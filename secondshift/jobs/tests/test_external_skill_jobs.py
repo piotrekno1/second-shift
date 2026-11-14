@@ -15,6 +15,7 @@ from secondshift.repositories.tests.conftest import (
 from secondshift.repositories.tests.test_external_skills import (
     PATH,
     REPOSITORY,
+    folder_sha256,
 )
 from secondshift.repositories.tests.test_external_skills import (
     vendor as vendor_fixture,
@@ -33,7 +34,7 @@ def head(path: Path) -> str:
     ).strip()
 
 
-def project(tmp_path: Path, ref: str) -> Path:
+def project(tmp_path: Path, ref: str, digest: str = "") -> Path:
     root = tmp_path / "project"
     root.mkdir()
     run_git(root, "init", "-b", "main")
@@ -50,6 +51,7 @@ jobs:
       repository: {REPOSITORY}
       ref: {ref}
 """.strip()
+        + (f"\n      digest: {digest}" if digest else "")
     )
     run_git(root, "add", ".")
     run_git(root, "commit", "-m", "Add SecondShift configuration")
@@ -77,6 +79,42 @@ def test_a_pinned_skill_syncs_and_plans(
     assert plan.job.skill_source is not None
     assert plan.job.skill_source.commit_sha == commit
     assert plan.job.sandbox_skill_path == "/skill/SKILL.md"
+
+
+def test_a_matching_digest_syncs_and_plans(
+    workspace: Workspace, vendor: Path, tmp_path: Path
+) -> None:
+    commit = head(vendor)
+    digest = folder_sha256(vendor / "skills/triage")
+
+    repository = attach_local_repository(
+        workspace, str(project(tmp_path, commit, digest))
+    )
+
+    assert repository.last_sync_error == ""
+    job = Job.objects.get(repository=repository)
+    assert job.skill_source == {
+        "repository": REPOSITORY,
+        "ref": commit,
+        "digest": digest,
+    }
+    plan = build_execution_plan(job)
+    assert plan.job.skill_source is not None
+    assert plan.job.skill_source.digest == digest
+
+
+def test_a_different_digest_is_a_sync_error(
+    workspace: Workspace, vendor: Path, tmp_path: Path
+) -> None:
+    root = project(tmp_path, head(vendor), f"sha256:{'0' * 64}")
+
+    repository = attach_local_repository(workspace, str(root))
+
+    assert (
+        f"has digest {folder_sha256(vendor / 'skills/triage')}"
+        in repository.last_sync_error
+    )
+    assert not Job.objects.exists()
 
 
 def test_a_branch_is_refused_so_nothing_unreviewed_runs(

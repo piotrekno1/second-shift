@@ -35,6 +35,8 @@ from secondshift.repositories.mirrors import has_commit
 from secondshift.repositories.snapshots import (
     SKILL_LIMITS,
     SnapshotError,
+    check_limits,
+    folder_digest,
     tree_entries,
 )
 from secondshift.repositories.sources import (
@@ -62,6 +64,8 @@ class ExternalSkill:
     text: str
     file_count: int
     size_bytes: int
+    # The skill folder's files, as `sha256:<hex>`. See folder_digest.
+    digest: str
 
 
 def check_reference(repository: str, path: str) -> None:
@@ -228,11 +232,16 @@ def require_enabled() -> None:
 
 
 def resolve_external_skill(
-    workspace_id: int, repository: str, path: str, ref: str | None = None
+    workspace_id: int,
+    repository: str,
+    path: str,
+    ref: str | None = None,
+    digest: str | None = None,
 ) -> ExternalSkill:
     """Fetch the skill at a branch, tag or commit, and pin it to a commit.
 
-    Without a ref, the repository's default branch is used.
+    Without a ref, the repository's default branch is used. With a digest,
+    the skill folder's files must match it.
     """
     require_enabled()
     check_reference(repository, path)
@@ -250,8 +259,15 @@ def resolve_external_skill(
             ) from error
         try:
             entries = tree_entries(mirror, commit, skill_folder(path))
+            check_limits(entries, SKILL_LIMITS)
+            found = folder_digest(mirror, entries)
         except SnapshotError as error:
             raise ExternalSkillError(str(error)) from error
+    if digest is not None and found != digest:
+        raise ExternalSkillError(
+            f"The skill folder of {path} in {repository} at {commit[:12]} has "
+            f"digest {found}, not {digest}."
+        )
     return ExternalSkill(
         repository=repository,
         path=path,
@@ -259,6 +275,7 @@ def resolve_external_skill(
         text=text,
         file_count=len(entries),
         size_bytes=sum(entry.size for entry in entries),
+        digest=found,
     )
 
 

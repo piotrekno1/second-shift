@@ -73,7 +73,11 @@ def read_committed_config(
         for job in manifest.jobs.values():
             if source := job.skill_source:
                 skills[skill_key(job)] = resolve_external_skill(
-                    workspace_id, source.repository, job.skill, source.ref
+                    workspace_id,
+                    source.repository,
+                    job.skill,
+                    source.ref,
+                    source.digest,
                 ).text
             else:
                 skills[skill_key(job)] = committed_file(root, revision, job.skill)

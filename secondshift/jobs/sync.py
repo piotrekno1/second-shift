@@ -84,7 +84,11 @@ def job_fields(
         "workspace_id": repository.workspace_id,
         "name": item.name,
         "skill_path": item.skill,
-        "skill_source": item.skill_source.model_dump() if item.skill_source else None,
+        "skill_source": (
+            item.skill_source.model_dump(exclude_none=True)
+            if item.skill_source
+            else None
+        ),
         "skill_text": skill[:MAX_SKILL_PREVIEW_CHARS],
         "skill_truncated": len(skill) > MAX_SKILL_PREVIEW_CHARS,
         "cron": item.schedule or "",
