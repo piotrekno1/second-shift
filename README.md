@@ -116,15 +116,21 @@ jobs:
       - binding: alerts-slack
 ```
 
-1. **Merge it.** SecondShift syncs the repository and finds the job.
-2. **Approve access.** The job asks for tools by name. A workspace owner
-   decides which connection provides them and can restrict their arguments.
-   The YAML never holds a credential, endpoint or token.
-3. **It runs.** On a schedule, from a webhook, or on demand. The agent works in
-   a networkless sandbox on a snapshot of the commit. Tool calls go through a
-   broker that checks each one against the approved plan.
-4. **It delivers.** SecondShift posts the report, opens the issues or the draft
-   pull request, and keeps the run's full record.
+1. **Write or reuse a skill.** A skill is a Markdown file of instructions for
+   the agent. Developers write their own, or
+   [use one published on GitHub](docs/repository-configuration.md#skills-from-another-repository),
+   locked to the version they reviewed. Once the YAML is merged, SecondShift
+   finds the job.
+2. **Approve the model and tools.** A workspace owner picks the model the job
+   runs on and approves each tool it may call. The job asks for tools by name.
+   The owner decides which connection provides them and can restrict their
+   arguments. The YAML never holds a credential, endpoint or token, and a skill
+   can never give itself more access.
+3. **Run it and read the result.** Your team runs it by hand, on a schedule, or
+   when an alert fires. The agent works in a networkless sandbox on a snapshot
+   of the commit. A broker checks each tool call against the approved plan.
+   SecondShift posts the report, or opens the issues or the draft pull request.
+   Each run shows its result, every tool call and what it cost.
 
 ## What you get
 
