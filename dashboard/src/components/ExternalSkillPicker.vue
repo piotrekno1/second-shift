@@ -75,7 +75,7 @@ onMounted(() => {
     <div class="task-field">
       <label for="external-skill-repository">GitHub repository</label>
       <InputText id="external-skill-repository" v-model="repository" required autofocus maxlength="300" spellcheck="false" autocomplete="off" placeholder="owner/name or a link to a SKILL.md" aria-describedby="external-skill-help" :disabled="disabled" @blur="readRepository" @paste="onPaste" />
-      <small id="external-skill-help">A public repository. Paste a GitHub link to fill in the path and branch.</small>
+      <small id="external-skill-help">A public repository, or a private one your GitHub connection can read. Paste a GitHub link to fill in the path and branch.</small>
     </div>
     <div class="external-skill-grid">
       <div class="task-field">

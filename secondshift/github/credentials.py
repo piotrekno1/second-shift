@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from secondshift.github import app
 
 READ = {"contents": "read"}
+METADATA_READ = {"metadata": "read"}
 WRITE = {"contents": "write", "pull_requests": "write"}
 ISSUES_WRITE = {"issues": "write"}
 
@@ -55,5 +56,5 @@ def read_token_for(
         name: "read" for name in wanted if granted.get(name) in {"read", "write"}
     }
     return app.installation_token(
-        source.installation_id, repository_id, permissions or {"metadata": "read"}
+        source.installation_id, repository_id, permissions or METADATA_READ
     )

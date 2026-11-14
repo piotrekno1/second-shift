@@ -168,7 +168,7 @@ def review_job_capability(
 def inspect_skill(
     request: HttpRequest, payload: SkillInspectionInput
 ) -> SkillInspectionSchema:
-    """Fetch a skill from another public repository and show what it needs."""
+    """Fetch a skill from another repository and show what it needs."""
     workspace = require(request, Action.RUN_JOBS)
     target = (
         repository_for_request(request, payload.repository_id)

@@ -18,6 +18,18 @@ def repository(token: str, repository_id: int) -> dict:
     return data
 
 
+def repository_by_name(token: str, full_name: str) -> dict:
+    """The repository with this name, if the token can see it."""
+    if not valid_name(full_name):
+        raise GitHubError("Invalid GitHub repository name.")
+    data = request_json("GET", f"{GITHUB_API_URL}/repos/{full_name}", token)
+    if not isinstance(data.get("id"), int) or not valid_name(
+        str(data.get("full_name", ""))
+    ):
+        raise GitHubError("Invalid GitHub repository.")
+    return data
+
+
 def branch_head(token: str, repository_id: int, branch: str) -> str:
     data = request_json(
         "GET",

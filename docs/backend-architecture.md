@@ -60,8 +60,11 @@ the revision to a full commit SHA first.
 
 ## Skills from another repository
 
-`repositories.external_skills` fetches a skill from another public GitHub
-repository without credentials and pins it to a commit. Its folder becomes a
+`repositories.external_skills` fetches a skill from another GitHub repository
+and pins it to a commit. A public repository is fetched without credentials
+into a shared cache. A private one is fetched with a token from the
+workspace's GitHub connections, into a cache keyed by workspace. GitHub decides
+which it is on every resolve and snapshot, never the cache. Its folder becomes a
 snapshot of its own. A job's `skill_source` must name a full commit SHA. A
 task may name a branch or tag, and submission pins it. The plan records the
 source in `JobPlan.skill_source`. The run uploads the skill snapshot beside the

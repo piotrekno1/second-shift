@@ -1,4 +1,4 @@
-"""Jobs whose skill is pinned in another public repository."""
+"""Jobs whose skill is pinned in another repository."""
 
 import subprocess
 from pathlib import Path

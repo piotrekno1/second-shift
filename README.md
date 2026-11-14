@@ -152,8 +152,9 @@ issues on its behalf. The model is always isolated from keys.
 - *Webhooks* for events such as alerts, with signed requests and filters for
   resolved and repeated alerts.
 - *One-off tasks* from the dashboard or your coding agent, queued per
-  repository and optionally delayed. A task can run a skill from any public
-  GitHub repository, pinned to a commit.
+  repository and optionally delayed. A task can run a skill from another
+  GitHub repository, public or reachable through your GitHub connection,
+  pinned to a commit.
 
 **Output your team can act on.** Reports to Slack or any webhook, with retry.
 Files the agent saved, such as CSVs and images. GitHub issues, deduplicated and

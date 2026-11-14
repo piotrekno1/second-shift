@@ -2,7 +2,7 @@ import { apiPost } from './api'
 import type { SkillInspection } from '../types'
 
 export interface SkillReference {
-  /** owner/name of a public GitHub repository. */
+  /** owner/name of a GitHub repository. */
   repository: string
   /** The SKILL.md path in that repository. */
   path: string

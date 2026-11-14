@@ -107,7 +107,7 @@ An ID from another workspace is reported as not found.
 | `list_runs` | `read` | `job_id?`, `repository_id?`, `status?`, `period?`, `page?`, `page_size?` | A page of runs, newest first, with status, times and token usage. Page size is at most 50. |
 | `get_run` | `read` | `run_id` | Status, events, model usage and the start of the output. |
 | `get_run_report` | `read` | `run_id` | The run's Markdown report. A report over 200 KB is cut and marked as cut. |
-| `inspect_skill` | `run` | `repository`, `path`, `ref?`, `repository_id?` | A skill from another public GitHub repository, pinned to a commit: its `SKILL.md` text and the MCP tools it names, each with its status in this workspace. |
+| `inspect_skill` | `run` | `repository`, `path`, `ref?`, `repository_id?` | A skill from another GitHub repository, pinned to a commit: its `SKILL.md` text and the MCP tools it names, each with its status in this workspace. |
 | `submit_task` | `run` | `repository_id`, `definition`, `idempotency_key`, `revision?`, `input?`, `not_before?`, `pull_request?` | The assignment ID, `run` details and whether a new run was accepted. |
 | `cancel_task` | `run` | `run_id` | Cancel an ad hoc task that has not started. |
 | `run_job` | `run` | `job_id` | The new run's ID and status. Poll `get_run` to follow it. |
@@ -158,7 +158,7 @@ To reuse a repository skill, include its committed path:
 }
 ```
 
-To run a skill from another public GitHub repository, set `definition.skill`
+To run a skill from another GitHub repository, set `definition.skill`
 to its path there and `definition.skill_source` to
 `{"repository": "owner/name", "ref": "<branch, tag or commit>"}`. Leave out
 `ref` for the default branch. The commit is pinned when the task is accepted.

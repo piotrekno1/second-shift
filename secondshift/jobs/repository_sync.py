@@ -55,7 +55,7 @@ class SyncError(Exception):
 
 
 def read_committed_config(
-    root: Path, revision: str, branch: str
+    workspace_id: int, root: Path, revision: str, branch: str
 ) -> tuple[RepositoryManifest, dict[str, str]]:
     """The manifest and its skills at a commit. Raises RepositoryConfigError."""
     try:
@@ -73,7 +73,7 @@ def read_committed_config(
         for job in manifest.jobs.values():
             if source := job.skill_source:
                 skills[skill_key(job)] = resolve_external_skill(
-                    source.repository, job.skill, source.ref
+                    workspace_id, source.repository, job.skill, source.ref
                 ).text
             else:
                 skills[skill_key(job)] = committed_file(root, revision, job.skill)
@@ -85,7 +85,7 @@ def read_committed_config(
 
 
 def inspect_local_repository(
-    raw_path: str, branch: str | None = None
+    workspace_id: int, raw_path: str, branch: str | None = None
 ) -> LocalRepositoryLocation:
     """Check the newest commit on a branch has a valid configuration.
 
@@ -93,7 +93,9 @@ def inspect_local_repository(
     what runs.
     """
     location = locate_local_repository(raw_path, branch)
-    read_committed_config(location.root, location.revision, location.branch)
+    read_committed_config(
+        workspace_id, location.root, location.revision, location.branch
+    )
     return location
 
 
@@ -109,7 +111,7 @@ def attach_local_repository(
     location = locate_local_repository(raw_path, branch)
     try:
         manifest, skills = read_committed_config(
-            location.root, location.revision, location.branch
+            workspace.pk, location.root, location.revision, location.branch
         )
         config_error = ""
     except RepositoryConfigError as error:
@@ -137,7 +139,10 @@ def sync_github_repository(repository: Repository) -> Repository:
     with fetched_branch(repository) as branch:
         try:
             manifest, skills = read_committed_config(
-                branch.mirror, branch.revision, repository.default_branch
+                repository.workspace_id,
+                branch.mirror,
+                branch.revision,
+                repository.default_branch,
             )
         except RepositoryConfigError as error:
             # Keep the last good sync. Runs go on using it.
