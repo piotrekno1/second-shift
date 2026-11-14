@@ -181,7 +181,7 @@ def inspect_external_skill(
 
     Raises ExternalSkillError, worded for the person who named it.
     """
-    skill = resolve_external_skill(repository_name, path, ref)
+    skill = resolve_external_skill(workspace.pk, repository_name, path, ref)
     return SkillInspection(
         skill=skill,
         details=skill_details(skill.text),

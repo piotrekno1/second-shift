@@ -1,9 +1,13 @@
-"""Skills from another public GitHub repository, pinned to one commit.
+"""Skills from another GitHub repository, pinned to one commit.
 
-A skill is a SKILL.md and the files in its folder. SecondShift fetches them
-without credentials, so only public repositories work. A run gets the folder
-at the pinned commit, mounted read-only at /skill. Nothing in the skill's
+A skill is a SKILL.md and the files in its folder. A run gets the folder at
+the pinned commit, mounted read-only at /skill. Nothing in the skill's
 repository can change how the sandbox runs or what it may reach.
+
+A public repository is fetched without credentials, and its cache is shared.
+A private one is fetched through a GitHub connection of the workspace that
+names it. Its cache belongs to that workspace, and access is checked again
+each time, so a lost connection stops it even when the files are cached.
 """
 
 import fcntl
@@ -20,8 +24,12 @@ from pathlib import Path, PurePosixPath
 from django.conf import settings
 
 from secondshift.config.constants import COMMIT_SHA_PATTERN, GITHUB_REPOSITORY_PATTERN
+from secondshift.connections.dao import connected_github_sources
+from secondshift.connections.github import can_check, connection_source
+from secondshift.github import credentials, repos
 from secondshift.github.errors import GitHubError
-from secondshift.github.git import public_git
+from secondshift.github.git import authenticated_git, public_git
+from secondshift.repositories.github_access import connection_access
 from secondshift.repositories.local import LocalRepositoryError, committed_file
 from secondshift.repositories.mirrors import has_commit
 from secondshift.repositories.snapshots import (
@@ -94,20 +102,70 @@ def check_ref(ref: str) -> None:
         raise ExternalSkillError("Give a branch, a tag or a full commit SHA.")
 
 
+@dataclass(frozen=True)
+class SkillReader:
+    """How one workspace reads one skill repository. Never stored or logged.
+
+    A public repository has no token and no workspace. A private one has the
+    token of the connection that reads it, and its cache is the workspace's.
+    """
+
+    repository: str
+    workspace_id: int | None = None
+    token: str | None = None
+
+    def git(self, mirror: Path, *arguments: str) -> str:
+        if self.token is None:
+            return public_git(mirror, *arguments)
+        return authenticated_git(mirror, self.token, *arguments)
+
+
+def skill_reader(workspace_id: int, repository: str) -> SkillReader:
+    """A connection that reads the repository when it is private.
+
+    GitHub decides whether it is private, never the cache. Connections that
+    cannot see the repository are skipped. Without one, it is read as public.
+    """
+    for connection in connected_github_sources(workspace_id):
+        if not can_check(connection):
+            continue
+        source = connection_source(connection)
+        try:
+            token = credentials.token_for(source, None, credentials.METADATA_READ)
+            metadata = repos.repository_by_name(token, repository)
+        except GitHubError:
+            continue
+        if not metadata.get("private"):
+            return SkillReader(repository)
+        if metadata["full_name"].lower() != repository.lower():
+            raise ExternalSkillError(
+                f"{repository} is now {metadata['full_name']}. Use its new name."
+            )
+        try:
+            access = connection_access(connection, metadata["id"])
+        except GitHubError:
+            continue
+        return SkillReader(repository, workspace_id, access.token)
+    return SkillReader(repository)
+
+
 def skill_folder(path: str) -> str:
     """The folder whose files a run gets. Empty for a SKILL.md at the root."""
     return posixpath.dirname(path)
 
 
-def cache_key(repository: str) -> str:
+def cache_key(reader: SkillReader, *parts: str) -> str:
+    """One name per repository, and per workspace for a private one."""
     # Repository names are case-insensitive on GitHub.
-    return hashlib.sha256(repository.lower().encode()).hexdigest()[:32]
+    scope = "public" if reader.workspace_id is None else str(reader.workspace_id)
+    name = "\0".join([scope, reader.repository.lower(), *parts])
+    return hashlib.sha256(name.encode()).hexdigest()[:32]
 
 
 @contextmanager
-def locked_skill_mirror(repository: str) -> Iterator[Path]:
+def locked_skill_mirror(reader: SkillReader) -> Iterator[Path]:
     """A bare mirror of the skill's repository, held under a lock."""
-    key = cache_key(repository)
+    key = cache_key(reader)
     path = skill_mirrors_root() / f"{key}.git"
     path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     locks = settings.SOURCE_CACHE_ROOT / "locks"
@@ -130,17 +188,19 @@ def clone_url(repository: str) -> str:
     return f"{settings.EXTERNAL_SKILLS_BASE_URL}/{repository}.git"
 
 
-def fetch(mirror: Path, repository: str, ref: str) -> str:
+def fetch(mirror: Path, reader: SkillReader, ref: str) -> str:
     """Fetch one branch, tag or commit and return its full commit SHA."""
+    repository = reader.repository
     try:
-        public_git(
+        reader.git(
             mirror, "fetch", "--no-tags", "--depth=1", "--", clone_url(repository), ref
         )
         commit = public_git(mirror, "rev-parse", "--verify", "FETCH_HEAD^{commit}")
     except GitHubError as error:
         raise ExternalSkillError(
-            f"Could not fetch {ref} from {repository}. Only public GitHub "
-            "repositories work, and the branch, tag or commit must exist."
+            f"Could not fetch {ref} from {repository}. The repository must be "
+            "public, or readable by a GitHub connection in this workspace. "
+            "The branch, tag or commit must exist."
         ) from error
     if not re.fullmatch(COMMIT_SHA_PATTERN, commit):
         raise ExternalSkillError(f"{repository} did not resolve to a full commit.")
@@ -149,12 +209,14 @@ def fetch(mirror: Path, repository: str, ref: str) -> str:
     return commit
 
 
-def mirrored_commit(mirror: Path, repository: str, ref: str) -> str:
+def mirrored_commit(mirror: Path, reader: SkillReader, ref: str) -> str:
     if re.fullmatch(COMMIT_SHA_PATTERN, ref) and has_commit(mirror, ref):
         return ref
-    commit = fetch(mirror, repository, ref)
+    commit = fetch(mirror, reader, ref)
     if re.fullmatch(COMMIT_SHA_PATTERN, ref) and commit != ref:
-        raise ExternalSkillError(f"{repository} did not return commit {ref[:12]}.")
+        raise ExternalSkillError(
+            f"{reader.repository} did not return commit {ref[:12]}."
+        )
     return commit
 
 
@@ -166,7 +228,7 @@ def require_enabled() -> None:
 
 
 def resolve_external_skill(
-    repository: str, path: str, ref: str | None = None
+    workspace_id: int, repository: str, path: str, ref: str | None = None
 ) -> ExternalSkill:
     """Fetch the skill at a branch, tag or commit, and pin it to a commit.
 
@@ -177,8 +239,9 @@ def resolve_external_skill(
     requested = ref or "HEAD"
     if ref is not None:
         check_ref(ref)
-    with locked_skill_mirror(repository) as mirror:
-        commit = mirrored_commit(mirror, repository, requested)
+    reader = skill_reader(workspace_id, repository)
+    with locked_skill_mirror(reader) as mirror:
+        commit = mirrored_commit(mirror, reader, requested)
         try:
             text = committed_file(mirror, commit, path)
         except LocalRepositoryError as error:
@@ -199,7 +262,9 @@ def resolve_external_skill(
     )
 
 
-def skill_snapshot(repository: str, path: str, commit_sha: str) -> SourceSnapshot:
+def skill_snapshot(
+    workspace_id: int, repository: str, path: str, commit_sha: str
+) -> SourceSnapshot:
     """The skill folder at a commit, as a snapshot a run can unpack.
 
     Built and cached if needed. Raises SnapshotError or ExternalSkillError.
@@ -208,14 +273,15 @@ def skill_snapshot(repository: str, path: str, commit_sha: str) -> SourceSnapsho
     check_reference(repository, path)
     if not re.fullmatch(COMMIT_SHA_PATTERN, commit_sha):
         raise SnapshotError("A full commit SHA is required.")
-    name = hashlib.sha256(f"{repository.lower()}\0{path}".encode()).hexdigest()[:32]
-    target = skill_snapshots_root() / f"{commit_sha}-{name}.tar.gz"
+    # Checked before the cache, so lost access stops a private skill.
+    reader = skill_reader(workspace_id, repository)
+    target = skill_snapshots_root() / f"{commit_sha}-{cache_key(reader, path)}.tar.gz"
     if target.exists():
         target.touch()
     else:
         target.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-        with locked_skill_mirror(repository) as mirror:
-            mirrored_commit(mirror, repository, commit_sha)
+        with locked_skill_mirror(reader) as mirror:
+            mirrored_commit(mirror, reader, commit_sha)
             write_atomically(
                 mirror, commit_sha, target, skill_folder(path), SKILL_LIMITS
             )

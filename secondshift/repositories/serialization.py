@@ -91,7 +91,7 @@ def validate_repository(repository: Repository) -> RepositoryValidationSchema:
         return validation_schema(repository, head, repository.last_sync_error)
     try:
         metadata = inspect_local_repository(
-            repository.local_path, repository.default_branch
+            repository.workspace_id, repository.local_path, repository.default_branch
         )
     except RepositoryConfigError as error:
         # The branch is readable, but its configuration is broken right now.

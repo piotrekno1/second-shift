@@ -15,6 +15,7 @@ from secondshift.repositories.local import git
 from secondshift.repositories.models import Repository
 from secondshift.repositories.tests.test_local import create_local_repository
 from secondshift.workspaces.dao import create_workspace
+from secondshift.workspaces.models import Workspace
 
 
 @pytest.mark.parametrize(
@@ -51,7 +52,9 @@ def test_local_repository_requires_origin_identity() -> None:
     assert github_repository_scope(repository) == "example/project"
 
 
-def test_inspection_records_sanitized_github_origin(tmp_path: Path) -> None:
+def test_inspection_records_sanitized_github_origin(
+    workspace: Workspace, tmp_path: Path
+) -> None:
     git(tmp_path, "init")
     git(tmp_path, "config", "user.email", "test@example.com")
     git(tmp_path, "config", "user.name", "Test")
@@ -69,11 +72,11 @@ def test_inspection_records_sanitized_github_origin(tmp_path: Path) -> None:
         "https://private-token@github.com/example/project.git",
     )
     assert (
-        inspect_local_repository(str(tmp_path)).clone_url
+        inspect_local_repository(workspace.pk, str(tmp_path)).clone_url
         == "https://github.com/example/project"
     )
     git(tmp_path, "remote", "remove", "origin")
-    assert inspect_local_repository(str(tmp_path)).clone_url == ""
+    assert inspect_local_repository(workspace.pk, str(tmp_path)).clone_url == ""
 
 
 @pytest.mark.django_db

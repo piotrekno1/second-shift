@@ -130,13 +130,17 @@ def pull_request_plan(
     )
 
 
-def external_source(definition: TaskManifest) -> SkillSourcePlan | None:
+def external_source(
+    workspace_id: int, definition: TaskManifest
+) -> SkillSourcePlan | None:
     """Pin a skill from another repository to the commit the run gets."""
     source = definition.skill_source
     if source is None or definition.skill is None:
         return None
     try:
-        skill = resolve_external_skill(source.repository, definition.skill, source.ref)
+        skill = resolve_external_skill(
+            workspace_id, source.repository, definition.skill, source.ref
+        )
     except ExternalSkillError as error:
         raise RunRefused(str(error)) from error
     return SkillSourcePlan(repository=skill.repository, commit_sha=skill.commit_sha)
@@ -156,7 +160,7 @@ def submit_skill(
         if existing := admission(repository, submission, fingerprint):
             return existing
     definition = submission.definition
-    source = external_source(definition)
+    source = external_source(repository.workspace_id, definition)
     try:
         commit = skill_commit(
             repository,

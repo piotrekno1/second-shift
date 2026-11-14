@@ -148,7 +148,12 @@ def prepare_source_step(run_id: int) -> None:
     )
     job = run.plan.job
     if source := job.skill_source:
-        skill_snapshot(source.repository, job.skill_path, source.commit_sha)
+        skill_snapshot(
+            repository.workspace_id,
+            source.repository,
+            job.skill_path,
+            source.commit_sha,
+        )
         add_event(
             run.pk,
             f"Fetched the skill {job.skill_path} from {source.repository} "
@@ -180,7 +185,10 @@ def start_runner_session_step(run_id: int) -> str:
     skill_sha256 = ""
     if source := plan.job.skill_source:
         skill = skill_snapshot(
-            source.repository, plan.job.skill_path, source.commit_sha
+            run.repository.workspace_id,
+            source.repository,
+            plan.job.skill_path,
+            source.commit_sha,
         )
         client.upload_source(skill.sha256, skill.path)
         skill_sha256 = skill.sha256
