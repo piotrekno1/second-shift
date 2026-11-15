@@ -119,6 +119,8 @@ MAX_OUTPUT_BYTES = 100 * 1024 * 1024
 MAX_HISTORY_FILES_BYTES = 48 * 1024 * 1024
 # Issues one run may open. A weekly review should file a few, not dozens.
 MAX_RUN_ISSUES = 10
+# Where a sandbox has the repository's files. Commands start here.
+SANDBOX_WORKSPACE_DIR = "/workspace"
 # Where a sandbox finds the folder for files it wants to hand back.
 SANDBOX_OUTPUTS_DIR = "/outputs"
 # Where a sandbox finds the files its job's earlier runs saved. Read-only.

@@ -4,6 +4,13 @@ import re
 from dataclasses import asdict, dataclass
 from pathlib import PurePosixPath
 
+from secondshift.config.constants import (
+    SANDBOX_HISTORY_DIR,
+    SANDBOX_OUTPUTS_DIR,
+    SANDBOX_SKILL_DIR,
+    SANDBOX_WORKSPACE_DIR,
+)
+
 
 class RunnerProtocolError(RuntimeError):
     pass
@@ -13,6 +20,9 @@ REPOSITORY_NAME = re.compile(r"^[A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)+$")
 COMMIT_SHA = re.compile(r"^[0-9a-f]{40,64}$")
 SESSION_KEY = re.compile(r"^[0-9a-f]{32}$")
 SOURCE_SHA256 = re.compile(r"^[0-9a-f]{64}$")
+# Folders beside the repository where a command may start. Their mounts, and
+# whether they are writable, stay fixed by the runner.
+COMMAND_FOLDERS = (SANDBOX_SKILL_DIR, SANDBOX_HISTORY_DIR, SANDBOX_OUTPUTS_DIR)
 
 
 @dataclass(frozen=True)
@@ -78,10 +88,21 @@ class CommandRequest:
         ):
             raise ValueError("argv must contain non-empty arguments")
         path = PurePosixPath(self.cwd)
-        if path.is_absolute() or ".." in path.parts:
-            raise ValueError("cwd must stay inside the workspace")
+        if ".." in path.parts or (
+            path.is_absolute()
+            and not any(path.is_relative_to(folder) for folder in COMMAND_FOLDERS)
+        ):
+            raise ValueError("cwd must stay inside the workspace or a sandbox folder")
         if not 1 <= self.timeout_seconds <= 900:
             raise ValueError("timeout_seconds must be between 1 and 900")
+
+    @property
+    def workdir(self) -> str:
+        """The command's folder in the sandbox."""
+        path = PurePosixPath(self.cwd)
+        if path.is_absolute():
+            return path.as_posix()
+        return (PurePosixPath(SANDBOX_WORKSPACE_DIR) / path).as_posix()
 
     @property
     def fingerprint(self) -> str:
