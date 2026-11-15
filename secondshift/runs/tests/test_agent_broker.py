@@ -108,6 +108,23 @@ def test_the_agent_is_told_how_to_fix_its_arguments(
     }
 
 
+def test_invalid_arguments_go_back_to_the_agent_without_their_values(
+    leased_run: tuple[Run, AgentLease, User],
+) -> None:
+    run, lease, _ = leased_run
+    run.execution_plan["agent"]["tools"] = ["workspace.run_command"]
+    run.save()
+
+    result = tool_result(lease, "workspace_run_command", {"argv": ["x" * 20_000]})
+
+    assert result["isError"] is True
+    text = result["content"][0]["text"]
+    assert text.startswith("Invalid tool arguments. argv.0: String should have at most")
+    assert "xxxx" not in text
+    lease.refresh_from_db()
+    assert lease.tool_calls == 0
+
+
 @pytest.mark.parametrize(
     "change", ["canceled", "disconnected", "removed_owner", "deadline", "revoked_lease"]
 )
@@ -237,5 +254,8 @@ def test_payload_tool_reads_only_the_leased_runs_payload(
     run.save(update_fields=["input_snapshot"])
     result = tool_result(lease, "trigger_payload", {})
     assert json.loads(result["content"][0]["text"])["body"] == "only this run"
-    with pytest.raises(ValueError):
-        tool_result(lease, "trigger_payload", {"path": "other-workspace/payload.txt"})
+    other = tool_result(
+        lease, "trigger_payload", {"path": "other-workspace/payload.txt"}
+    )
+    assert other["isError"] is True
+    assert "other-workspace" not in other["content"][0]["text"]

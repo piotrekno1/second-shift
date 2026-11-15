@@ -7,6 +7,7 @@ from typing import Any
 from django.db import transaction
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
+from pydantic import ValidationError
 from pydantic_ai import ModelRetry, RunContext, RunUsage, Tool, ToolFailed
 
 from secondshift.connections.agents import usable_agent_connection
@@ -75,6 +76,14 @@ def broker_tools(run: Run) -> dict[str, Tool[WorkspaceToolDeps]]:
     return {tool.name: tool for tool in (*tools, *external_tools(run))}
 
 
+def invalid_arguments(error: ValidationError) -> str:
+    problems = [
+        f"{'.'.join(str(part) for part in item['loc']) or 'arguments'}: {item['msg']}"
+        for item in error.errors(include_input=False)[:10]
+    ]
+    return "Invalid tool arguments. " + "; ".join(problems)
+
+
 def tool_result(
     lease: AgentLease, name: str, arguments: dict[str, Any]
 ) -> dict[str, Any]:
@@ -87,7 +96,15 @@ def tool_result(
         tool = broker_tools(run).get(name)
         if tool is None:
             raise AgentAccessError("This tool is not approved for the run.")
-        validated = tool.function_schema.validator.validate_python(arguments)
+        try:
+            validated = tool.function_schema.validator.validate_python(arguments)
+        except ValidationError as error:
+            # The model can fix its arguments. The values are left out, so a
+            # long argument is not sent back.
+            return {
+                "content": [{"type": "text", "text": invalid_arguments(error)}],
+                "isError": True,
+            }
         lease.tool_calls += 1
         lease.save(update_fields=["tool_calls"])
     # The broker numbers calls itself. Clients restart their request IDs when
