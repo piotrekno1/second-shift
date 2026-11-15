@@ -138,15 +138,13 @@ def test_the_prompt_states_the_runs_limits(make_run, backend, expected) -> None:
 @pytest.mark.parametrize(
     ("tools", "told"),
     [
-        (["workspace.read_file", "workspace.run_command"], True),
-        (["workspace.read_file"], False),
+        (["workspace.read_file", "workspace.write_file"], True),
+        (["workspace.read_file", "workspace.run_command"], False),
     ],
 )
-def test_the_prompt_says_where_the_command_tool_can_write(
-    make_run, tools, told
-) -> None:
+def test_the_prompt_says_how_to_write_files(make_run, tools, told) -> None:
     # Codex says its own sandbox is read-only, and models then refuse to write
-    # files even with workspace_run_command.
+    # files even with the broker's tools.
     run = make_run([])
     run.execution_plan = stored_plan(agent={"tools": tools})
 

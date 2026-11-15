@@ -106,10 +106,13 @@ def test_plan_contains_only_effective_approved_tools(db) -> None:
         "subagents": 0,
         "tools": [
             "mcp.observability.query_metrics",
+            "workspace.edit_file",
             "workspace.list_files",
             "workspace.read_file",
             "workspace.run_command",
+            "workspace.run_shell",
             "workspace.search_text",
+            "workspace.write_file",
         ],
     }
     assert plan["capabilities"][0]["effective_tools"] == ["query_metrics"]

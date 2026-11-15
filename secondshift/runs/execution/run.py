@@ -125,10 +125,11 @@ their results, and anything left unresolved."""
 # Codex starts with its own sandbox set to read-only, so its built-in tools
 # cannot touch the agent container. It then tells the model that it cannot
 # write files, and the model refuses to, even with the command tool.
-WRITE_NOTE = f"""The current folder and {SANDBOX_OUTPUTS_DIR} are writable. To create or
-change a file, use workspace_run_command, for example with python or tee. If your
-runtime says the filesystem is read-only, that applies only to its own built-in
-tools, which this run turns off. It does not apply to workspace_run_command."""
+WRITE_NOTE = f"""The current folder and {SANDBOX_OUTPUTS_DIR} are writable. Create or change
+files with workspace_write_file and workspace_edit_file. Run command lines with
+pipes, redirects or && with workspace_run_shell. If your runtime says the
+filesystem is read-only, that applies only to its own built-in tools, which this
+run turns off. It does not apply to these tools."""
 
 
 def subagent_limit(plan: ExecutionPlan) -> int:
@@ -165,7 +166,7 @@ def run_prompt(run: Run) -> str:
         prompt = f"{prompt}\n\n{PULL_REQUEST_NOTE}"
     if limit := issue_limit(plan):
         prompt = f"{prompt}\n\n{issues_note(limit)}"
-    if "workspace.run_command" in plan.agent.tools:
+    if "workspace.write_file" in plan.agent.tools:
         prompt = f"{prompt}\n\n{WRITE_NOTE}"
     prompt = f"{prompt}\n\n{ACCESS_NOTE}"
     backend = plan.execution.backend
