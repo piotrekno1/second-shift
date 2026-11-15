@@ -10,7 +10,7 @@ from pydantic_ai.exceptions import UsageLimitExceeded
 from pydantic_ai.messages import ModelMessage
 from pydantic_ai.toolsets import FunctionToolset
 
-from secondshift.config.constants import SANDBOX_SKILL_DIR
+from secondshift.config.constants import SANDBOX_OUTPUTS_DIR, SANDBOX_SKILL_DIR
 from secondshift.jobs.models import CapabilityRequest
 from secondshift.jobs.plan import ExecutionPlan, JobPlan
 from secondshift.runner.client import get_runner_client
@@ -122,6 +122,15 @@ pull request description, so say what changed and why, which checks you ran and
 their results, and anything left unresolved."""
 
 
+# Codex starts with its own sandbox set to read-only, so its built-in tools
+# cannot touch the agent container. It then tells the model that it cannot
+# write files, and the model refuses to, even with the command tool.
+WRITE_NOTE = f"""The current folder and {SANDBOX_OUTPUTS_DIR} are writable. To create or
+change a file, use workspace_run_command, for example with python or tee. If your
+runtime says the filesystem is read-only, that applies only to its own built-in
+tools, which this run turns off. It does not apply to workspace_run_command."""
+
+
 def subagent_limit(plan: ExecutionPlan) -> int:
     """How many sub-agents the run may start."""
     if not plan.execution.backend.starts_subagents:
@@ -156,6 +165,8 @@ def run_prompt(run: Run) -> str:
         prompt = f"{prompt}\n\n{PULL_REQUEST_NOTE}"
     if limit := issue_limit(plan):
         prompt = f"{prompt}\n\n{issues_note(limit)}"
+    if "workspace.run_command" in plan.agent.tools:
+        prompt = f"{prompt}\n\n{WRITE_NOTE}"
     prompt = f"{prompt}\n\n{ACCESS_NOTE}"
     backend = plan.execution.backend
     prompt = f"{prompt}\n\n{limits_note(plan, backend, run.started_at)}"

@@ -133,3 +133,23 @@ def test_the_prompt_states_the_runs_limits(make_run, backend, expected) -> None:
 
     assert f"This run's limits are {expected}" in prompt
     assert "It started at 21:18:16 UTC." in prompt
+
+
+@pytest.mark.parametrize(
+    ("tools", "told"),
+    [
+        (["workspace.read_file", "workspace.run_command"], True),
+        (["workspace.read_file"], False),
+    ],
+)
+def test_the_prompt_says_where_the_command_tool_can_write(
+    make_run, tools, told
+) -> None:
+    # Codex says its own sandbox is read-only, and models then refuse to write
+    # files even with workspace_run_command.
+    run = make_run([])
+    run.execution_plan = stored_plan(agent={"tools": tools})
+
+    prompt = run_prompt(run)
+
+    assert ("The current folder and /outputs are writable." in prompt) is told
