@@ -580,10 +580,7 @@ def revoke(request: HttpRequest, connection_id: int) -> ConnectionSchema:
 )
 def remove_connection(request: HttpRequest, connection_id: int) -> Status[None]:
     connection = owned_connection(request, connection_id, Action.DELETE_CONNECTIONS)
-    try:
-        delete_connection(connection)
-    except ConnectionConflict as error:
-        raise HttpError(409, str(error)) from error
+    delete_connection(connection)
     return Status(204, None)
 
 
