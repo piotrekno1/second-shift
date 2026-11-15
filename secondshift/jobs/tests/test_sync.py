@@ -411,8 +411,8 @@ jobs:
 
     assert job.open_issues == {"max": MAX_RUN_ISSUES, "labels": []}
     assert plan["issues"] == {"max": MAX_RUN_ISSUES, "labels": []}
-    # Issues need no file changes, so the run does not record them.
-    assert plan["runner"]["collect_changes"] is False
+    # Every run keeps its changes, whether or not it publishes them.
+    assert plan["runner"]["collect_changes"] is True
 
     path.write_text(path.read_text().replace("\n    open_issues: true", ""))
     job = Job.objects.get(pk=sync_manifest(repository, path)[0].pk)

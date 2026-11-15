@@ -126,7 +126,9 @@ their results, and anything left unresolved."""
 # cannot touch the agent container. It then tells the model that it cannot
 # write files, and the model refuses to, even with the command tool.
 WRITE_NOTE = f"""The current folder and {SANDBOX_OUTPUTS_DIR} are writable. Create or change
-files with workspace_write_file and workspace_edit_file. Run command lines with
+files with workspace_write_file and workspace_edit_file. Changes to repository
+files are kept as a patch that people review, so leave only the changes you
+mean to hand over, and remove scratch files. Run command lines with
 pipes, redirects or && with workspace_run_shell. If your runtime says the
 filesystem is read-only, that applies only to its own built-in tools, which this
 run turns off. It does not apply to these tools."""

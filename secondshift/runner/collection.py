@@ -2,8 +2,7 @@
 
 When a session that collects changes starts, the runner records the unpacked
 commit in a git folder beside the workspace, outside the sandbox's mounts, so
-the agent cannot change it. Recording costs one write per file, so only runs
-that publish changes ask for it. After the agent finishes, the runner stops the sandbox and compares the
+the agent cannot change it. After the agent finishes, the runner stops the sandbox and compares the
 workspace with that record. The result is one archive:
 
 - ``manifest.json`` describes the changes and the saved files
