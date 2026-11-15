@@ -41,6 +41,8 @@ bearer_token_env_var = "{BROKER_TOKEN_VAR}"
     private_file(
         outcomes.AUTH / "config.toml",
         f"""approval_policy = "never"
+# Codex's own tools are off and must not write to this container. The run
+# prompt tells the model that the broker's command tool can still write.
 sandbox_mode = "read-only"
 web_search = "disabled"
 
