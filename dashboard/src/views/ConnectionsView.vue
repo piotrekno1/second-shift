@@ -521,7 +521,8 @@ onMounted(async () => {
             <Button :label="connection.auth === 'source' ? 'Turn off' : 'Disconnect'" severity="danger" size="small" :loading="busy === `revoke-${connection.id}`" @click="disconnect(connection)" />
           </div>
           <div v-if="confirmDelete === connection.id" class="confirm-strip" role="alert">
-            <span>Deleting removes the connection. Jobs that used it go back to awaiting approval.</span>
+            <span v-if="connection.kind === 'source' && sourceRepositories(connection).length">Deleting also removes {{ repositoriesLine(connection) }} from SecondShift. Run history stays, and adding a repository again brings it back.</span>
+            <span v-else>Deleting removes the connection. Jobs that used it go back to awaiting approval.</span>
             <Button label="Cancel" severity="secondary" text size="small" @click="confirmDelete = null" />
             <Button label="Delete" severity="danger" size="small" :loading="busy === `delete-${connection.id}`" @click="remove(connection)" />
           </div>

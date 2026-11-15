@@ -1,5 +1,6 @@
 """Queries and writes on repositories."""
 
+from datetime import datetime
 from typing import Any
 
 from django.db.models import Q, QuerySet
@@ -50,9 +51,20 @@ def connection_repositories(connection: Connection) -> list[Repository]:
     )
 
 
-def has_repositories(connection: Connection) -> bool:
-    """Whether any repository, removed or not, uses this connection."""
-    return connection.repositories.exists()
+def release_connection_repositories(
+    connection: Connection, removed_at: datetime
+) -> None:
+    """Remove the connection's repositories and unlink every one of them.
+
+    The rows stay, so their runs keep their history. Adding a repository
+    again restores its row through whichever connection adds it.
+    """
+    Repository.objects.filter(
+        github_connection=connection, removed_at__isnull=True
+    ).update(enabled=False, removed_at=removed_at)
+    Repository.objects.filter(github_connection=connection).update(
+        github_connection=None
+    )
 
 
 def repositories_to_sync(include_local: bool) -> list[Repository]:

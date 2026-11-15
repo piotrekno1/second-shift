@@ -15,6 +15,7 @@ from secondshift.connections.models import Connection
 from secondshift.github import repos, rest
 from secondshift.github.errors import GitHubError
 from secondshift.jobs import autosync, repository_sync
+from secondshift.jobs.models import CapabilityRequest, Job, JobGrant
 from secondshift.repositories import github_sync
 from secondshift.repositories.github_access import github_access
 from secondshift.repositories.github_views import STATE_KEY
@@ -680,3 +681,105 @@ def test_unconfigured_app_opens_token_setup(owner_client: Any, settings: Any) ->
     assert response.status_code == 302
     assert response.url == "/repositories/new?source=github"
     assert STATE_KEY not in owner_client.session
+
+
+def add_job(repository: Repository) -> Job:
+    return Job.objects.create(
+        workspace=repository.workspace,
+        repository=repository,
+        key="health",
+        name="Health",
+        skill_path=".agents/skills/health/SKILL.md",
+        cron="0 9 * * 1",
+        config_hash="hash",
+        enabled=True,
+    )
+
+
+def test_deleting_a_github_source_removes_its_repositories_but_keeps_them(
+    workspace: Any, source_connection: Any, owner_client: Any
+) -> None:
+    active = Repository.objects.create(
+        workspace=workspace,
+        github_connection=source_connection,
+        full_name="owner/project",
+        external_id="7",
+        enabled=True,
+    )
+    removed_at = timezone.now()
+    removed = Repository.objects.create(
+        workspace=workspace,
+        github_connection=source_connection,
+        full_name="owner/old",
+        external_id="8",
+        removed_at=removed_at,
+    )
+    job = add_job(active)
+
+    response = owner_client.delete(f"/api/connections/{source_connection.pk}")
+
+    assert response.status_code == 204
+    assert not Connection.objects.filter(pk=source_connection.pk).exists()
+    active.refresh_from_db()
+    assert active.removed_at is not None
+    assert active.enabled is False
+    assert active.github_connection is None
+    removed.refresh_from_db()
+    assert removed.removed_at == removed_at
+    assert removed.github_connection is None
+    job.refresh_from_db()
+    assert job.enabled is False
+
+
+def test_a_repository_added_again_after_its_source_was_deleted_keeps_its_history(
+    workspace: Any,
+    source_connection: Any,
+    owner_client: Any,
+    github_metadata: None,
+    monkeypatch: Any,
+) -> None:
+    repository = Repository.objects.create(
+        workspace=workspace,
+        github_connection=source_connection,
+        full_name="owner/project",
+        external_id="7",
+        enabled=True,
+    )
+    job = add_job(repository)
+    capability = CapabilityRequest.objects.create(
+        job=job, binding="engineering-alerts", kind="notification"
+    )
+    webhook = Connection.objects.create(
+        workspace=workspace,
+        provider=Connection.Provider.WEBHOOK,
+        kind=Connection.Kind.NOTIFICATION,
+        display_name="Alerts",
+    )
+    grant = JobGrant.objects.create(
+        capability_request=capability,
+        connection=webhook,
+        status=JobGrant.Status.APPROVED,
+    )
+    assert (
+        owner_client.delete(f"/api/connections/{source_connection.pk}").status_code
+        == 204
+    )
+    reconnected = Connection.objects.create(
+        workspace=workspace,
+        provider=Connection.Provider.GITHUB,
+        kind=Connection.Kind.SOURCE,
+        auth_strategy=Connection.AuthStrategy.MANAGED,
+        external_account_id="43",
+        display_name="GitHub",
+    )
+    monkeypatch.setattr(repository_sync, "sync_github_repository", lambda row: row)
+
+    restored = repository_sync.attach_github_repository(workspace, reconnected, 7, "")
+
+    assert restored.pk == repository.pk
+    assert restored.removed_at is None
+    assert restored.github_connection == reconnected
+    assert list(restored.jobs.all()) == [job]
+    grant.refresh_from_db()
+    assert grant.status == JobGrant.Status.APPROVED
+    assert grant.connection == webhook
