@@ -9,22 +9,10 @@ import pytest
 from secondshift.jobs.models import Job
 from secondshift.jobs.planning import build_execution_plan
 from secondshift.jobs.repository_sync import attach_local_repository
-from secondshift.repositories.tests.conftest import (
-    workspace as workspace_fixture,
-)
-from secondshift.repositories.tests.test_external_skills import (
-    PATH,
-    REPOSITORY,
-)
-from secondshift.repositories.tests.test_external_skills import (
-    vendor as vendor_fixture,
-)
-from secondshift.repositories.tests.test_local import run_git
+from secondshift.repositories.tests.fixtures import PATH, REPOSITORY, run_git
 from secondshift.workspaces.models import Workspace
 
 pytestmark = pytest.mark.django_db
-vendor = vendor_fixture
-workspace = workspace_fixture
 
 
 def head(path: Path) -> str:

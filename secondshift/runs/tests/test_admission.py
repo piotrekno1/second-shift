@@ -24,20 +24,11 @@ from secondshift.runs.orchestration import dbos_runtime, dispatch, workflows
 from secondshift.runs.queue import cancel_queued_task
 from secondshift.runs.services import RunRefused
 from secondshift.runs.tests.test_submissions import (
-    owner as owner_fixture,
-)
-from secondshift.runs.tests.test_submissions import (
-    repository as repository_fixture,
-)
-from secondshift.runs.tests.test_submissions import (
     start,
     submission,
 )
 from secondshift.workspaces.dao import create_workspace
 from secondshift.workspaces.models import WorkspaceMembership
-
-owner = owner_fixture
-repository = repository_fixture
 
 pytestmark = pytest.mark.django_db(transaction=True)
 

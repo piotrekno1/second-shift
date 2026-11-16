@@ -9,17 +9,11 @@ from secondshift.connections import agents as agent_logins
 from secondshift.connections.agents import save_agent_connection
 from secondshift.connections.execution import choose_execution, workspace_execution
 from secondshift.connections.models import AgentConnection
-from secondshift.connections.tests.test_agent_connections import (
-    TOKEN,
-)
-from secondshift.connections.tests.test_agent_connections import (
-    agent_login as agent_login_fixture,
-)
+from secondshift.connections.tests.fixtures import TOKEN
 from secondshift.runner.tests.fakes import agent_runner
 from secondshift.runner_protocol.sessions import RunnerProtocolError
 from secondshift.workspaces.models import Workspace, WorkspaceMembership
 
-agent_login = agent_login_fixture
 pytestmark = pytest.mark.django_db
 
 

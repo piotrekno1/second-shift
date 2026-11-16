@@ -21,11 +21,11 @@ from secondshift.repositories.github_access import github_access
 from secondshift.repositories.github_views import STATE_KEY
 from secondshift.repositories.mirrors import SYNCED_REF, mirror_path
 from secondshift.repositories.models import Repository
+from secondshift.repositories.tests.fixtures import run_git
 from secondshift.repositories.tests.github_fakes import fake_github
 from secondshift.repositories.tests.test_local import (
     commit_configuration,
     create_local_repository,
-    run_git,
 )
 from secondshift.workspaces.dao import create_workspace
 from secondshift.workspaces.models import WorkspaceMembership

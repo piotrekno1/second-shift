@@ -6,20 +6,8 @@ from django.test import Client
 
 from secondshift.connections.models import Connection
 from secondshift.jobs.skill_needs import requested_mcps, skill_details, skill_needs
-from secondshift.repositories.tests.conftest import (
-    workspace as workspace_fixture,
-)
-from secondshift.repositories.tests.test_external_skills import (
-    PATH,
-    REPOSITORY,
-)
-from secondshift.repositories.tests.test_external_skills import (
-    vendor as vendor_fixture,
-)
+from secondshift.repositories.tests.fixtures import PATH, REPOSITORY
 from secondshift.workspaces.models import Workspace
-
-workspace = workspace_fixture
-vendor = vendor_fixture
 
 SKILL = """---
 name: triage

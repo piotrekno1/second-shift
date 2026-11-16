@@ -10,7 +10,7 @@ from secondshift.repositories import skill_source
 from secondshift.repositories.github_access import GitHubAccess
 from secondshift.repositories.local import LocalRepositoryError
 from secondshift.repositories.models import Repository
-from secondshift.repositories.tests.test_local import run_git
+from secondshift.repositories.tests.fixtures import run_git
 
 
 @dataclass(frozen=True)

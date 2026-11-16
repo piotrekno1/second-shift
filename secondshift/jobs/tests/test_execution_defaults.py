@@ -9,7 +9,6 @@ from django.db import IntegrityError, connection, transaction
 from django.db.models import RestrictedError
 from django.test import Client
 from django.test.utils import CaptureQueriesContext
-from django.utils import timezone
 
 from secondshift.config.api import api
 from secondshift.connections.execution import (
@@ -20,23 +19,14 @@ from secondshift.connections.execution import (
     workspace_execution,
 )
 from secondshift.connections.models import AgentConnection, Connection
-from secondshift.connections.tests.test_agent_connections import (
-    TOKEN,
-)
-from secondshift.connections.tests.test_agent_connections import (
-    agent_login as agent_login_fixture,
-)
+from secondshift.connections.tests.fixtures import TOKEN
 from secondshift.jobs.models import Job
 from secondshift.jobs.planning import build_execution_plan
 from secondshift.jobs.serialization import serialize_workspace_jobs
-from secondshift.repositories.models import Repository
 from secondshift.runner_protocol.agents import AgentBackend
-from secondshift.runs.constants import RunStart
-from secondshift.runs.dao import create_task
 from secondshift.runs.models import Run
-from secondshift.workspaces.models import Workspace, WorkspaceMembership
+from secondshift.workspaces.models import WorkspaceMembership
 
-agent_login = agent_login_fixture
 CODEX_AUTH = {
     "tokens": {
         key: f"test-{key}"
@@ -44,38 +34,6 @@ CODEX_AUTH = {
     }
 }
 pytestmark = pytest.mark.django_db
-
-
-@pytest.fixture
-def agent_run(
-    agent_login: tuple[Workspace, AgentConnection, User],
-) -> tuple[Run, User]:
-    """A running job whose workspace default is a Claude Code login."""
-    workspace, login, owner = agent_login
-    workspace.default_agent_connection = login
-    workspace.save(update_fields=["default_agent_connection"])
-    repository = Repository.objects.create(
-        workspace=workspace, full_name="example/agents", config_sha="a" * 40
-    )
-    job = Job.objects.create(
-        workspace=workspace,
-        repository=repository,
-        key="review",
-        name="Review",
-        skill_path="SKILL.md",
-        config_hash="abc",
-    )
-    run = Run.objects.create(
-        task=create_task(repository=job.repository),
-        started_by=RunStart.SCHEDULE,
-        job=job,
-        commit_sha="a" * 40,
-        scheduled_for=timezone.now(),
-        started_at=timezone.now(),
-        status=Run.Status.RUNNING,
-        execution_plan=build_execution_plan(job).stored(),
-    )
-    return run, owner
 
 
 def model_workspace(run: Run) -> Job:

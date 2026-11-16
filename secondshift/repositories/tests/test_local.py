@@ -14,17 +14,9 @@ from secondshift.repositories.local import (
 )
 from secondshift.repositories.models import Repository
 from secondshift.repositories.serialization import validate_repository
+from secondshift.repositories.tests.fixtures import run_git
 from secondshift.workspaces.dao import create_workspace
 from secondshift.workspaces.models import Workspace, WorkspaceMembership
-
-
-def run_git(path: Path, *arguments: str) -> None:
-    subprocess.run(
-        ["git", "-C", str(path), *arguments],
-        check=True,
-        capture_output=True,
-        text=True,
-    )
 
 
 def create_local_repository(path: Path) -> Path:

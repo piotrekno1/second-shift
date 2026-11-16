@@ -18,19 +18,11 @@ from secondshift.repositories.external_skills import (
     resolve_external_skill,
     skill_snapshot,
 )
-from secondshift.repositories.tests.test_external_skills import (
-    PATH,
-    REPOSITORY,
-)
-from secondshift.repositories.tests.test_external_skills import (
-    vendor as vendor_fixture,
-)
-from secondshift.repositories.tests.test_local import run_git
+from secondshift.repositories.tests.fixtures import PATH, REPOSITORY, run_git
 from secondshift.workspaces.dao import create_workspace
 from secondshift.workspaces.models import Workspace
 
 pytestmark = pytest.mark.django_db
-vendor = vendor_fixture
 
 PRIVATE = "acme/private-skills"
 TOKEN = "github_pat_" + "a" * 40
