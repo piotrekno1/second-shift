@@ -8,7 +8,7 @@ from secondshift.jobs.repository_sync import (
     RepositoryConfigError,
     inspect_local_repository,
 )
-from secondshift.repositories.github_access import github_access
+from secondshift.repositories.github.access import github_access
 from secondshift.repositories.local import (
     LocalRepositoryError,
 )

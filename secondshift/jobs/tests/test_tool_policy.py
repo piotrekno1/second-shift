@@ -1,6 +1,6 @@
 import pytest
 
-from secondshift.jobs.plan import ExecutionPlan
+from secondshift.jobs.execution_plan import ExecutionPlan
 from secondshift.jobs.tests.plans import CAPABILITY, stored_plan
 from secondshift.jobs.tool_policy import (
     LOCAL_TOOLS,

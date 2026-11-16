@@ -16,13 +16,13 @@
 Apps depend on each other in one direction: config, github, workspaces,
 connections, repositories, jobs, gateway, runs, triggers, mcp_server, core. A
 domain module imports only apps before its own. The HTTP and composition files
-(`api.py`, `schemas.py`, `serialization.py`, `admin.py`, `urls.py`, management
+(`api.py` or an `api/` package, `schemas.py`, `serialization.py`, `admin.py`, `urls.py`, management
 commands and MCP tools) may import any app.
 
 `secondshift/github` is a plain package, not an app. It holds GitHub App
 credentials, tokens, the REST client, git transport and repository lookups. It
 takes plain values and imports no Django apps. Its own ruff configuration
-enforces that. `repositories.github_access` turns a repository and its source
+enforces that. `repositories.github.access` turns a repository and its source
 connection into a token and a checked identity for each operation.
 
 `secondshift/runner_protocol` is a plain package, not an app. It holds what
@@ -44,7 +44,8 @@ parses the result, so a value can never add a setting. The runner starts the ima
 outcomes and usage it reports. `agent/build.py` builds the image on this
 machine for `secondshift up` and development.
 
-Each HTTP app uses `api.py` for endpoints, `schemas.py` for its contracts and
+Each HTTP app uses `api.py` for endpoints, or an `api/` package with one module
+per area, like `connections/api/`. `schemas.py` holds its contracts and
 `serialization.py` for response builders. `config/api.py` composes the public
 routers. Every query on an app's models lives in that app's `dao.py`.
 `core/tests/test_dao_boundary.py` checks this.
@@ -66,7 +67,7 @@ transactions.
 
 ## The execution plan
 
-`jobs.plan.ExecutionPlan` is the frozen policy for one run. The planner builds
+`jobs.execution_plan.ExecutionPlan` is the frozen policy for one run. The planner builds
 it once from server-owned settings, grants and connections, and the run stores
 it. Runs, brokers and pages read it through `Run.plan`. It never holds
 credentials.

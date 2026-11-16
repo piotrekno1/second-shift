@@ -16,22 +16,10 @@ from secondshift.connections.agents import (
     validate_agent_auth,
 )
 from secondshift.connections.models import AgentConnection, AgentCredentialCleanup
+from secondshift.connections.tests.fixtures import TOKEN
 from secondshift.runner_protocol.sessions import RunnerProtocolError
 from secondshift.workspaces.dao import create_workspace
 from secondshift.workspaces.models import Workspace, WorkspaceMembership
-
-TOKEN = "sk-ant-oat01-test-subscription-token"
-IMAGE = "example/ss-agent@sha256:" + "a" * 64
-
-
-@pytest.fixture
-def agent_login(settings: Any) -> tuple[Workspace, AgentConnection, User]:
-    settings.AGENT_IMAGE = IMAGE
-    settings.AGENT_BROKER_URL = "http://gateway:8001/gateway/agent/mcp"
-    owner = get_user_model().objects.create_user(username="agent-owner")
-    workspace = create_workspace(name="Agents", slug="agents", owner=owner)
-    login = save_agent_connection(workspace, owner, "claude_code", "Personal", TOKEN)
-    return workspace, login, owner
 
 
 def runner_cleanup(

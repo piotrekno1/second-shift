@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from secondshift.jobs.plan import ExecutionPlan
+from secondshift.jobs.execution_plan import ExecutionPlan
 from secondshift.runner_protocol.agents import AgentBackend
 
 BASE: dict[str, Any] = {

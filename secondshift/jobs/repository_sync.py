@@ -15,7 +15,7 @@ from secondshift.github.errors import GitHubError
 from secondshift.jobs.automatic_grants import approve_waiting
 from secondshift.jobs.dao import reopen_github_mcp_grants, repository_active_requests
 from secondshift.jobs.manifest import RepositoryManifest, parse_manifest, skill_key
-from secondshift.jobs.sync import sync_jobs
+from secondshift.jobs.manifest_sync import sync_jobs
 from secondshift.repositories.dao import (
     get_repository_with_connection,
     restore_repository_fields,
@@ -25,8 +25,8 @@ from secondshift.repositories.external_skills import (
     ExternalSkillError,
     resolve_external_skill,
 )
-from secondshift.repositories.github_access import connection_access
-from secondshift.repositories.github_sync import (
+from secondshift.repositories.github.access import connection_access
+from secondshift.repositories.github.sync import (
     fetched_branch,
     record_synced_revision,
     save_attached_repository,

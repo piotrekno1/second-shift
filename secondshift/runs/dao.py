@@ -11,8 +11,8 @@ from django.db.models.functions import Coalesce, TruncDate
 from secondshift.agent.image.outcomes import CACHE_READ_DIVISOR
 from secondshift.connections.models import Connection
 from secondshift.jobs.dao import active_jobs
+from secondshift.jobs.execution_plan import ExecutionPlan
 from secondshift.jobs.models import Job
-from secondshift.jobs.plan import ExecutionPlan
 from secondshift.runner_protocol.agents import AgentBackend
 from secondshift.runs.models import (
     AgentLease,

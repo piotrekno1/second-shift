@@ -7,7 +7,8 @@ from django.test import Client, override_settings
 
 from secondshift.jobs.autosync import sync_moved_repositories
 from secondshift.jobs.repository_sync import attach_local_repository
-from secondshift.repositories.tests.test_local import create_local_repository, run_git
+from secondshift.repositories.tests.fixtures import run_git
+from secondshift.repositories.tests.test_local import create_local_repository
 from secondshift.workspaces.models import Workspace
 
 

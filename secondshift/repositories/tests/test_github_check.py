@@ -11,8 +11,8 @@ from secondshift.connections.models import Connection
 from secondshift.github import app, permissions
 from secondshift.github.errors import GitHubError
 from secondshift.github.tokens import TokenOwner
-from secondshift.repositories import github_check
-from secondshift.repositories.github_access import GitHubAccess
+from secondshift.repositories.github import check as github_check
+from secondshift.repositories.github.access import GitHubAccess
 from secondshift.repositories.models import Repository
 from secondshift.workspaces.models import Workspace
 

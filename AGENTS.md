@@ -39,7 +39,9 @@ docker build .
 - Each app owns its HTTP surface: `api.py` defines endpoints, `schemas.py`
   defines request/response/query schemas, and `serialization.py` builds
   responses when needed. Import shared schemas directly, never through API
-  modules. `secondshift/config/api.py` composes the public app routers.
+  modules. `secondshift/config/api.py` composes the public app routers. When
+  one app's endpoints grow too many, `api` becomes a package with one module
+  per area, like `connections/api/`. Its `__init__.py` composes their routers.
 - Domain ownership: `repositories` owns source access, `jobs` owns definitions
   and approval policy, `runs` owns execution and history, `connections` owns
   credentials and provider adapters, and `runner` owns sandbox sessions.

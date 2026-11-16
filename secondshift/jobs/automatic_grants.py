@@ -19,7 +19,7 @@ from secondshift.jobs.dao import (
     save_grant_reviews,
 )
 from secondshift.jobs.models import CapabilityRequest, JobGrant
-from secondshift.repositories.github import repository_ref
+from secondshift.repositories.github.scope import repository_ref
 from secondshift.repositories.models import Repository
 
 

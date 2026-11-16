@@ -10,7 +10,7 @@ from secondshift.github.errors import GitHubError
 from secondshift.github.issues import Issue
 from secondshift.jobs.manifest import MAX_RUN_ISSUES
 from secondshift.jobs.models import Job
-from secondshift.repositories.github_access import GitHubAccess
+from secondshift.repositories.github.access import GitHubAccess
 from secondshift.repositories.models import Repository
 from secondshift.runs import deliveries, issue_delivery
 from secondshift.runs.constants import RETRY_ISSUES_WORKFLOW, RunStart

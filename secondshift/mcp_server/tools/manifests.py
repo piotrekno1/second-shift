@@ -5,9 +5,9 @@ from dataclasses import asdict
 from thin_mcp import EmptyToolArguments, ToolContext
 
 from secondshift.connections.catalog import workspace_catalog
+from secondshift.jobs.capability_needs import capability_needs
 from secondshift.jobs.drafts import check_draft
 from secondshift.jobs.manifest import ManifestError
-from secondshift.jobs.needs import capability_needs
 from secondshift.mcp_server.schemas import (
     BindingListResult,
     BindingSchema,

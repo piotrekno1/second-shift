@@ -7,12 +7,10 @@ from django.test import Client
 from django.utils import timezone
 
 from secondshift.connections.models import AgentConnection
-from secondshift.connections.tests.test_agent_connections import TOKEN, runner_cleanup
-from secondshift.connections.tests.test_agent_connections import (
-    agent_login as agent_login_fixture,
-)
+from secondshift.connections.tests.fixtures import TOKEN
+from secondshift.connections.tests.test_agent_connections import runner_cleanup
 from secondshift.jobs.models import Job
-from secondshift.jobs.planning import build_execution_plan
+from secondshift.jobs.planner import build_execution_plan
 from secondshift.repositories.models import Repository
 from secondshift.runs.constants import RunStart
 from secondshift.runs.dao import create_run_record, create_task
@@ -28,7 +26,6 @@ from secondshift.runs.services import (
 )
 from secondshift.workspaces.models import Workspace, WorkspaceMembership
 
-agent_login = agent_login_fixture
 pytestmark = pytest.mark.django_db
 
 

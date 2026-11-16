@@ -6,8 +6,7 @@ from urllib.parse import quote, unquote
 from django.conf import settings
 
 from secondshift.connections.models import Connection
-from secondshift.jobs.models import Job
-from secondshift.jobs.plan import (
+from secondshift.jobs.execution_plan import (
     AgentPlan,
     ExecutionChoice,
     ExecutionPlan,
@@ -16,6 +15,7 @@ from secondshift.jobs.plan import (
     RepositoryPlan,
     RunnerPlan,
 )
+from secondshift.jobs.models import Job
 from secondshift.repositories.models import Repository
 from secondshift.runner_protocol.agents import AgentBackend
 from secondshift.runs.constants import RunStart

@@ -8,15 +8,7 @@ from django.contrib.auth.models import User
 
 from secondshift.connections.agents import AgentConnectionError, sign_in_refused
 from secondshift.connections.models import AgentConnection
-from secondshift.connections.tests.test_agent_connections import (
-    TOKEN,
-)
-from secondshift.connections.tests.test_agent_connections import (
-    agent_login as agent_login_fixture,
-)
-from secondshift.jobs.tests.test_execution_defaults import (
-    agent_run as agent_run_fixture,
-)
+from secondshift.connections.tests.fixtures import TOKEN
 from secondshift.runner.agent_credentials import (
     decrypt_agent_auth,
 )
@@ -27,8 +19,6 @@ from secondshift.runs.execution.cli_agent import execute_cli_step
 from secondshift.runs.models import AgentLease, Run, RunEvent, RunFailure
 from secondshift.runs.serialization import serialize_run, serialize_run_detail
 
-agent_login = agent_login_fixture
-agent_run = agent_run_fixture
 pytestmark = pytest.mark.django_db
 
 

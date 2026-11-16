@@ -9,25 +9,16 @@ from django.test import Client
 
 from secondshift.jobs.models import Job
 from secondshift.repositories.models import Repository
-from secondshift.repositories.tests.test_external_skills import PATH, REPOSITORY
-from secondshift.repositories.tests.test_external_skills import (
-    vendor as vendor_fixture,
-)
+from secondshift.repositories.tests.fixtures import PATH, REPOSITORY
 from secondshift.runs.constants import RunStart
 from secondshift.runs.models import Run, Task
 from secondshift.runs.submissions import SkillSubmission, submit_skill
-from secondshift.runs.tests.test_submissions import SKILL
-from secondshift.runs.tests.test_submissions import owner as owner_fixture
-from secondshift.runs.tests.test_submissions import queued as queued_fixture
-from secondshift.runs.tests.test_submissions import (
-    repository as repository_fixture,
-)
+from secondshift.runs.tests.fixtures import SKILL
 
-pytestmark = pytest.mark.django_db(transaction=True)
-owner = owner_fixture
-queued = queued_fixture
-repository = repository_fixture
-vendor = vendor_fixture
+pytestmark = [
+    pytest.mark.django_db(transaction=True),
+    pytest.mark.usefixtures("queued"),
+]
 
 
 def submit(repository: Repository, owner: User, definition: dict[str, Any]) -> Run:

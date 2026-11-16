@@ -23,8 +23,8 @@ from secondshift.github import credentials, pulls
 from secondshift.github.authors import GitAuthor, app_author, token_author
 from secondshift.github.errors import GitHubError
 from secondshift.github.git import authenticated_git
-from secondshift.repositories.github_access import github_access
-from secondshift.repositories.github_sync import fetch_github_commit
+from secondshift.repositories.github.access import github_access
+from secondshift.repositories.github.sync import fetch_github_commit
 from secondshift.repositories.mirrors import has_commit, locked_mirror
 from secondshift.repositories.models import Repository
 

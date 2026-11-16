@@ -8,7 +8,7 @@ from secondshift.config.api import api
 from secondshift.core.signin import sign_in
 from secondshift.core.views import password_reset
 from secondshift.mcp_server.api import api as mcp_api
-from secondshift.repositories.github_views import github_callback, github_start
+from secondshift.repositories.github.views import github_callback, github_start
 from secondshift.workspaces.views import open_invite
 
 

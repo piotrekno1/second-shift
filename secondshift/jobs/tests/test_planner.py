@@ -5,10 +5,10 @@ from django.contrib.auth import get_user_model
 
 from secondshift.connections.execution import choose_execution
 from secondshift.connections.models import Connection
-from secondshift.jobs import planning
+from secondshift.jobs import planner
 from secondshift.jobs.manifest import TaskManifest
 from secondshift.jobs.models import CapabilityRequest, Job, JobGrant
-from secondshift.jobs.planning import build_execution_plan
+from secondshift.jobs.planner import build_execution_plan
 from secondshift.jobs.readiness import readiness_problems
 from secondshift.repositories.models import Repository
 from secondshift.runner_protocol.agents import AgentBackend
@@ -283,9 +283,9 @@ def test_plan_caps_subagents_at_the_server_maximum(db, settings) -> None:
 def test_codex_runs_plan_no_subagents(db, monkeypatch, backend, planned) -> None:
     job = create_job(db)
     job.subagents = 2
-    selection = planning.workspace_execution(job.workspace)
+    selection = planner.workspace_execution(job.workspace)
     monkeypatch.setattr(
-        planning,
+        planner,
         "workspace_execution",
         lambda workspace: replace(selection, backend=backend),
     )
@@ -297,7 +297,7 @@ def test_a_task_can_start_subagents(db) -> None:
     job = create_job(db)
     definition = TaskManifest(name="Audit", subagents=1)
 
-    plan = planning.build_skill_execution_plan(
+    plan = planner.build_skill_execution_plan(
         job.repository, definition, key="audit", commit_sha="a" * 40
     ).stored()
 

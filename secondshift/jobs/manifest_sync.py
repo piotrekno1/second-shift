@@ -12,6 +12,7 @@ from django.db import models, transaction
 from django.utils import timezone
 
 from secondshift.connections.dao import bound_connections
+from secondshift.jobs.argument_rules import kept_rules
 from secondshift.jobs.automatic_grants import automatic_approval
 from secondshift.jobs.dao import (
     create_capability_requests,
@@ -31,7 +32,6 @@ from secondshift.jobs.manifest import (
 )
 from secondshift.jobs.models import CapabilityRequest, Job, JobGrant
 from secondshift.jobs.scheduling import next_occurrence
-from secondshift.jobs.tool_rules import kept_rules
 from secondshift.repositories.models import Repository
 
 # How much of a skill file a job keeps for people to read in the dashboard.
