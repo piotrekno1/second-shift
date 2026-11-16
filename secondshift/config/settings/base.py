@@ -433,7 +433,7 @@ RUNNER_SERVICE_TOKEN = env.str(AppEnv.RUNNER_SERVICE_TOKEN, default="")
 # The trusted agent orchestrator calls this internal gateway. Command sandboxes
 # always use --network=none and never receive its run-scoped token.
 MODEL_GATEWAY_URL = env.str(
-    "SECONDSHIFT_MODEL_GATEWAY_URL",
+    AppEnv.MODEL_GATEWAY_URL,
     default=LOCAL_GATEWAY_URL if SINGLE_HOST else "",
 )
 RUN_TIMEOUT_SECONDS, RUN_TIMEOUT_SECONDS_CEILING = run_limit(
