@@ -7,7 +7,12 @@ import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
 import ApprovalSetting from './ApprovalSetting.vue'
 import ProviderIcon from './ProviderIcon.vue'
-import { createMCPConnection, inspectMCPServer, startMCPSignIn, updateMCPConnection } from '../services/connections'
+import {
+  createMCPConnection,
+  inspectMCPServer,
+  startMCPSignIn,
+  updateMCPConnection,
+} from '../services/connections'
 import { useAppStore } from '../stores/app'
 import type { Connection, MCPServerInfo, Notice } from '../types'
 import { countLabel, finishedBinding, needsReconnect, typingBinding } from '../utils/format'
@@ -25,13 +30,15 @@ const props = defineProps<{
   /** Edit or reconnect this connection instead of creating one. */
   connection?: Connection
 }>()
-const emit = defineEmits<{ done: [notice: Notice, binding: string], cancel: [] }>()
+const emit = defineEmits<{ done: [notice: Notice, binding: string]; cancel: [] }>()
 const app = useAppStore()
 const editing = computed(() => Boolean(props.connection))
 const reconnecting = computed(() => needsReconnect(props.connection))
 const providerKey = ref(props.connection?.provider ?? app.mcpProviders[0]?.key ?? '')
 const provider = computed(() => app.mcpProvider(providerKey.value))
-const binding = ref(props.connection?.binding_key ?? props.binding ?? provider.value?.default_binding ?? '')
+const binding = ref(
+  props.connection?.binding_key ?? props.binding ?? provider.value?.default_binding ?? '',
+)
 const name = ref(props.connection?.display_name ?? provider.value?.label ?? '')
 const token = ref('')
 const settings = ref<Record<string, string>>({ ...(props.connection?.settings ?? {}) })
@@ -48,19 +55,32 @@ const supportsToken = computed(() => provider.value?.auth_methods.includes('toke
 const supportsSource = computed(() => provider.value?.auth_methods.includes('source') ?? false)
 const signedIn = computed(() => props.connection?.auth === 'oauth')
 // GitHub can borrow the token of each repository's own GitHub connection.
-const hasGitHubSource = computed(() => app.connections.some((item) => item.provider === 'github' && item.kind === 'source' && item.status === 'connected'))
+const hasGitHubSource = computed(() =>
+  app.connections.some(
+    (item) => item.provider === 'github' && item.kind === 'source' && item.status === 'connected',
+  ),
+)
 // A token cannot be narrowed per call, so say what each call really gets.
 const sourceHint = computed(() => {
-  const sources = app.connections.filter((item) => item.provider === 'github' && item.kind === 'source' && item.status === 'connected')
-  if (!sources.some((item) => item.auth === 'token')) return "Each call gets a read-only token for the run's repository only."
-  if (sources.every((item) => item.auth === 'token')) return 'Each call uses the token its repository was added with, with everything that token can do.'
-  return "App repositories get a read-only token for that repository only. Token repositories use the whole token."
+  const sources = app.connections.filter(
+    (item) => item.provider === 'github' && item.kind === 'source' && item.status === 'connected',
+  )
+  if (!sources.some((item) => item.auth === 'token'))
+    return "Each call gets a read-only token for the run's repository only."
+  if (sources.every((item) => item.auth === 'token'))
+    return 'Each call uses the token its repository was added with, with everything that token can do.'
+  return 'App repositories get a read-only token for that repository only. Token repositories use the whole token.'
 })
-const borrowSource = ref(props.connection ? props.connection.auth === 'source' : hasGitHubSource.value)
+const borrowSource = ref(
+  props.connection ? props.connection.auth === 'source' : hasGitHubSource.value,
+)
 /** A new connection to a server that may offer sign-in: check it first. */
-const needsCheck = computed(() => !editing.value && supportsOAuth.value && supportsToken.value && server.value === null)
+const needsCheck = computed(
+  () => !editing.value && supportsOAuth.value && supportsToken.value && server.value === null,
+)
 const mode = computed<'oauth' | 'token' | 'source'>(() => {
-  if (editing.value) return signedIn.value ? 'oauth' : props.connection?.auth === 'source' ? 'source' : 'token'
+  if (editing.value)
+    return signedIn.value ? 'oauth' : props.connection?.auth === 'source' ? 'source' : 'token'
   if (supportsSource.value && borrowSource.value) return 'source'
   if (!supportsToken.value) return 'oauth'
   if (!supportsOAuth.value) return 'token'
@@ -73,7 +93,10 @@ const toolFilter = ref('')
 const shownTools = computed(() => {
   const query = toolFilter.value.trim().toLowerCase()
   if (!query) return offeredTools.value
-  return offeredTools.value.filter((tool) => tool.name.toLowerCase().includes(query) || tool.description.toLowerCase().includes(query))
+  return offeredTools.value.filter(
+    (tool) =>
+      tool.name.toLowerCase().includes(query) || tool.description.toLowerCase().includes(query),
+  )
 })
 const heading = computed(() => {
   const label = provider.value?.label ?? ''
@@ -83,13 +106,16 @@ const heading = computed(() => {
 const submitLabel = computed(() => {
   if (needsCheck.value) return 'Check server'
   if (mode.value === 'oauth' && (!editing.value || reconnecting.value)) return 'Sign in'
-  return editing.value && !reconnecting.value ? 'Save and check tools' : 'Connect and discover tools'
+  return editing.value && !reconnecting.value
+    ? 'Save and check tools'
+    : 'Connect and discover tools'
 })
 
 // Follow the chosen provider's defaults until the user types their own.
 watch(provider, (next, previous) => {
   if (!next) return
-  if (!props.binding && (!binding.value || binding.value === previous?.default_binding)) binding.value = next.default_binding
+  if (!props.binding && (!binding.value || binding.value === previous?.default_binding))
+    binding.value = next.default_binding
   if (!name.value || name.value === previous?.label) name.value = next.label
   settings.value = {}
   server.value = null
@@ -101,7 +127,13 @@ watch(binding, (value) => {
   if (shaped !== value) binding.value = shaped
 })
 // A different server needs a new check.
-watch(settings, () => { if (!editing.value) server.value = null }, { deep: true })
+watch(
+  settings,
+  () => {
+    if (!editing.value) server.value = null
+  },
+  { deep: true },
+)
 
 function iconFor(key: string): string {
   return PROVIDER_ICONS[key] ?? 'server-network'
@@ -110,11 +142,17 @@ function iconFor(key: string): string {
 function cardDetail(key: string): string {
   const item = app.mcpProvider(key)
   if (!item) return ''
-  return item.owner_selects_tools ? 'Sign-in or token' : countLabel(item.tools.length, 'read-only tool')
+  return item.owner_selects_tools
+    ? 'Sign-in or token'
+    : countLabel(item.tools.length, 'read-only tool')
 }
 
 function cleanSettings(): Record<string, string> {
-  return Object.fromEntries(Object.entries(settings.value).map(([key, value]) => [key, value.trim()]).filter(([, value]) => value))
+  return Object.fromEntries(
+    Object.entries(settings.value)
+      .map(([key, value]) => [key, value.trim()])
+      .filter(([, value]) => value),
+  )
 }
 
 function toggle(list: string[], value: string): string[] {
@@ -124,14 +162,23 @@ function toggle(list: string[], value: string): string[] {
 async function checkServer(): Promise<void> {
   if (!provider.value) return
   server.value = await inspectMCPServer(provider.value.key, cleanSettings())
-  scopes.value = server.value.scopes.filter((scope) => /read/i.test(scope) && !RISKY_SCOPE.test(scope))
+  scopes.value = server.value.scopes.filter(
+    (scope) => /read/i.test(scope) && !RISKY_SCOPE.test(scope),
+  )
 }
 
 async function signIn(): Promise<void> {
   if (!provider.value) return
   const url = props.connection
     ? await startMCPSignIn({ provider: provider.value.key, connection_id: props.connection.id })
-    : await startMCPSignIn({ provider: provider.value.key, binding_key: binding.value, display_name: name.value, settings: cleanSettings(), scopes: scopes.value, require_approval: requireApproval.value })
+    : await startMCPSignIn({
+        provider: provider.value.key,
+        binding_key: binding.value,
+        display_name: name.value,
+        settings: cleanSettings(),
+        scopes: scopes.value,
+        require_approval: requireApproval.value,
+      })
   // The server sends the browser back to Connections when sign-in finishes.
   window.location.assign(url)
 }
@@ -147,12 +194,32 @@ async function save(): Promise<void> {
         tools: chooseTools ? tools.value : undefined,
         require_approval: requireApproval.value,
       })
-    : await createMCPConnection({ provider: provider.value.key, binding_key: binding.value, display_name: name.value, token: mode.value === 'source' ? '' : token.value, settings: cleanSettings(), require_approval: requireApproval.value, auth: mode.value === 'source' ? 'source' : 'token' })
+    : await createMCPConnection({
+        provider: provider.value.key,
+        binding_key: binding.value,
+        display_name: name.value,
+        token: mode.value === 'source' ? '' : token.value,
+        settings: cleanSettings(),
+        require_approval: requireApproval.value,
+        auth: mode.value === 'source' ? 'source' : 'token',
+      })
   token.value = ''
   await app.refresh()
   const verb = reconnecting.value ? 'Reconnected' : editing.value ? 'Saved' : 'Connected'
-  const next = provider.value.owner_selects_tools && !editing.value ? ' Choose which tools jobs may use under Edit.' : requireApproval.value ? ' Review job approvals before running.' : ''
-  emit('done', { ok: true, text: `${verb} ${provider.value.label}. ${countLabel(connection.available_tools.length, 'tool')} enabled.${next}` }, connection.binding_key)
+  const next =
+    provider.value.owner_selects_tools && !editing.value
+      ? ' Choose which tools jobs may use under Edit.'
+      : requireApproval.value
+        ? ' Review job approvals before running.'
+        : ''
+  emit(
+    'done',
+    {
+      ok: true,
+      text: `${verb} ${provider.value.label}. ${countLabel(connection.available_tools.length, 'tool')} enabled.${next}`,
+    },
+    connection.binding_key,
+  )
 }
 
 async function submit(): Promise<void> {
@@ -175,9 +242,21 @@ async function submit(): Promise<void> {
 <template>
   <form class="need-setup-fields" @submit.prevent="submit">
     <div v-if="!editing" class="mcp-provider-grid" role="radiogroup" aria-label="MCP server">
-      <button v-for="item in app.mcpProviders" :key="item.key" type="button" role="radio" class="mcp-provider-card" :class="{ active: providerKey === item.key }" :aria-checked="providerKey === item.key" @click="providerKey = item.key">
+      <button
+        v-for="item in app.mcpProviders"
+        :key="item.key"
+        type="button"
+        role="radio"
+        class="mcp-provider-card"
+        :class="{ active: providerKey === item.key }"
+        :aria-checked="providerKey === item.key"
+        @click="providerKey = item.key"
+      >
         <ProviderIcon :provider="item.key" :fallback="iconFor(item.key)" />
-        <span><strong>{{ item.label }}</strong><small>{{ cardDetail(item.key) }}</small></span>
+        <span
+          ><strong>{{ item.label }}</strong
+          ><small>{{ cardDetail(item.key) }}</small></span
+        >
       </button>
     </div>
 
@@ -186,68 +265,176 @@ async function submit(): Promise<void> {
         <h3>{{ heading }}</h3>
         <p>{{ provider.description }}</p>
       </div>
-      <label><span>Binding</span><InputText v-model="binding" :disabled="editing || Boolean(props.binding)" required pattern="[a-z0-9]+(-[a-z0-9]+)*" maxlength="120" autocomplete="off" spellcheck="false" @blur="binding = finishedBinding(binding)" /><small>The name jobs use to ask for this connection, as <code>binding: {{ binding || 'my-service' }}</code> in <code>.secondshift.yaml</code>. Lowercase, with dashes.</small></label>
-      <label><span>Display name</span><InputText v-model.trim="name" required maxlength="200" /></label>
-      <label v-for="setting in provider.settings" :key="setting.key" :class="{ 'need-setup-wide': provider.owner_selects_tools }">
+      <label
+        ><span>Binding</span
+        ><InputText
+          v-model="binding"
+          :disabled="editing || Boolean(props.binding)"
+          required
+          pattern="[a-z0-9]+(-[a-z0-9]+)*"
+          maxlength="120"
+          autocomplete="off"
+          spellcheck="false"
+          @blur="binding = finishedBinding(binding)"
+        /><small
+          >The name jobs use to ask for this connection, as
+          <code>binding: {{ binding || 'my-service' }}</code> in <code>.secondshift.yaml</code>.
+          Lowercase, with dashes.</small
+        ></label
+      >
+      <label
+        ><span>Display name</span><InputText v-model.trim="name" required maxlength="200"
+      /></label>
+      <label
+        v-for="setting in provider.settings"
+        :key="setting.key"
+        :class="{ 'need-setup-wide': provider.owner_selects_tools }"
+      >
         <span>{{ setting.label }}<template v-if="!setting.required"> (optional)</template></span>
-        <InputText v-model.trim="settings[setting.key]" :required="setting.required" :pattern="setting.pattern" :placeholder="setting.placeholder" :disabled="signedIn" autocomplete="off" spellcheck="false" maxlength="200" />
+        <InputText
+          v-model.trim="settings[setting.key]"
+          :required="setting.required"
+          :pattern="setting.pattern"
+          :placeholder="setting.placeholder"
+          :disabled="signedIn"
+          autocomplete="off"
+          spellcheck="false"
+          maxlength="200"
+        />
         <small>{{ signedIn ? 'Sign in again to change the server.' : setting.help }}</small>
       </label>
 
       <fieldset v-if="mode === 'oauth' && !editing && server" class="need-setup-wide mcp-choice">
         <legend>Access to request</legend>
-        <p v-if="!server.scopes.length" class="mcp-choice-note">The server lists no scopes. It decides what to grant.</p>
+        <p v-if="!server.scopes.length" class="mcp-choice-note">
+          The server lists no scopes. It decides what to grant.
+        </p>
         <label v-for="scope in server.scopes" :key="scope" class="mcp-choice-item">
-          <input type="checkbox" :checked="scopes.includes(scope)" @change="scopes = toggle(scopes, scope)">
+          <input
+            type="checkbox"
+            :checked="scopes.includes(scope)"
+            @change="scopes = toggle(scopes, scope)"
+          />
           <code>{{ scope }}</code>
           <span v-if="RISKY_SCOPE.test(scope)" class="mcp-flag">May allow changes</span>
         </label>
-        <small>The selected scopes are required. Sign-in fails if any are missing; additional scopes appear as a warning on the connection.</small>
+        <small
+          >The selected scopes are required. Sign-in fails if any are missing; additional scopes
+          appear as a warning on the connection.</small
+        >
       </fieldset>
 
       <fieldset v-if="supportsSource && !editing" class="need-setup-wide mcp-choice">
         <legend>Credentials</legend>
         <label class="mcp-choice-item">
-          <input v-model="borrowSource" type="radio" name="mcp-credentials" :value="true" :disabled="!hasGitHubSource">
-          <span>Use each repository's GitHub connection<template v-if="!hasGitHubSource"> · connect GitHub on the Repositories page first</template></span>
+          <input
+            v-model="borrowSource"
+            type="radio"
+            name="mcp-credentials"
+            :value="true"
+            :disabled="!hasGitHubSource"
+          />
+          <span
+            >Use each repository's GitHub connection<template v-if="!hasGitHubSource">
+              · connect GitHub on the Repositories page first</template
+            ></span
+          >
         </label>
         <label class="mcp-choice-item">
-          <input v-model="borrowSource" type="radio" name="mcp-credentials" :value="false">
+          <input v-model="borrowSource" type="radio" name="mcp-credentials" :value="false" />
           <span>Paste a token for this connection</span>
         </label>
-        <small v-if="mode === 'source'">{{ sourceHint }} <DocsLink :page="DocsPage.GitHubAccess" section="github-tools">How it works</DocsLink></small>
+        <small v-if="mode === 'source'"
+          >{{ sourceHint }}
+          <DocsLink :page="DocsPage.GitHubAccess" section="github-tools"
+            >How it works</DocsLink
+          ></small
+        >
       </fieldset>
-      <p v-if="editing && mode === 'source'" class="need-setup-wide mcp-choice-note">Uses each repository's GitHub connection. No token is stored here.</p>
+      <p v-if="editing && mode === 'source'" class="need-setup-wide mcp-choice-note">
+        Uses each repository's GitHub connection. No token is stored here.
+      </p>
       <label v-if="showToken" class="need-setup-wide">
         <span>{{ provider.token_label }}</span>
-        <InputText v-model="token" type="password" :required="tokenRequired" :placeholder="tokenRequired ? undefined : 'Leave blank to keep the current token'" autocomplete="new-password" maxlength="2000" />
-        <small><a v-if="provider.setup_url" :href="provider.setup_url" target="_blank" rel="noopener noreferrer">Create a token on {{ provider.label }}</a><template v-if="provider.setup_url">. </template>{{ provider.setup_help }}</small>
+        <InputText
+          v-model="token"
+          type="password"
+          :required="tokenRequired"
+          :placeholder="tokenRequired ? undefined : 'Leave blank to keep the current token'"
+          autocomplete="new-password"
+          maxlength="2000"
+        />
+        <small
+          ><a
+            v-if="provider.setup_url"
+            :href="provider.setup_url"
+            target="_blank"
+            rel="noopener noreferrer"
+            >Create a token on {{ provider.label }}</a
+          ><template v-if="provider.setup_url">. </template>{{ provider.setup_help }}</small
+        >
       </label>
-      <p v-if="!editing && server && !server.oauth" class="need-setup-wide mcp-choice-note">This server does not offer sign-in. Use a bearer token.</p>
+      <p v-if="!editing && server && !server.oauth" class="need-setup-wide mcp-choice-note">
+        This server does not offer sign-in. Use a bearer token.
+      </p>
       <p v-if="!editing && server?.oauth" class="need-setup-wide mcp-choice-note">
-        <button type="button" class="link-button" @click="useToken = !useToken">{{ useToken ? 'Sign in instead' : 'Use a token instead' }}</button>
+        <button type="button" class="link-button" @click="useToken = !useToken">
+          {{ useToken ? 'Sign in instead' : 'Use a token instead' }}
+        </button>
       </p>
 
-      <fieldset v-if="editing && provider.owner_selects_tools && offeredTools.length" class="need-setup-wide mcp-choice">
+      <fieldset
+        v-if="editing && provider.owner_selects_tools && offeredTools.length"
+        class="need-setup-wide mcp-choice"
+      >
         <legend>Tools jobs may use · {{ tools.length }} of {{ offeredTools.length }}</legend>
         <div class="mcp-tool-toolbar">
-          <InputText v-model="toolFilter" type="search" placeholder="Filter tools" aria-label="Filter tools" autocomplete="off" spellcheck="false" />
-          <button type="button" class="link-button" @click="tools = offeredTools.filter((tool) => tool.read_only).map((tool) => tool.name)">Read-only</button>
+          <InputText
+            v-model="toolFilter"
+            type="search"
+            placeholder="Filter tools"
+            aria-label="Filter tools"
+            autocomplete="off"
+            spellcheck="false"
+          />
+          <button
+            type="button"
+            class="link-button"
+            @click="tools = offeredTools.filter((tool) => tool.read_only).map((tool) => tool.name)"
+          >
+            Read-only
+          </button>
           <button type="button" class="link-button" @click="tools = []">None</button>
         </div>
         <div class="mcp-tool-grid">
-          <label v-for="tool in shownTools" :key="tool.name" class="mcp-choice-item" :title="tool.description">
-            <input type="checkbox" :checked="tools.includes(tool.name)" @change="tools = toggle(tools, tool.name)">
+          <label
+            v-for="tool in shownTools"
+            :key="tool.name"
+            class="mcp-choice-item"
+            :title="tool.description"
+          >
+            <input
+              type="checkbox"
+              :checked="tools.includes(tool.name)"
+              @change="tools = toggle(tools, tool.name)"
+            />
             <code>{{ tool.name }}</code>
-            <span v-if="!tool.read_only" class="mcp-flag" title="Not marked read-only">May change data</span>
+            <span v-if="!tool.read_only" class="mcp-flag" title="Not marked read-only"
+              >May change data</span
+            >
           </label>
           <p v-if="!shownTools.length" class="mcp-choice-note">No tools match.</p>
         </div>
         <small>The server labels its own tools. SecondShift cannot check what they do.</small>
       </fieldset>
       <p v-if="editing && signedIn && !reconnecting" class="need-setup-wide mcp-choice-note">
-        Signed in with {{ connection?.scopes?.length ? connection.scopes.join(', ') : 'the server\'s default access' }}.
-        <button type="button" class="link-button" :disabled="saving" @click="signIn">Sign in again</button>
+        Signed in with
+        {{
+          connection?.scopes?.length ? connection.scopes.join(', ') : "the server's default access"
+        }}.
+        <button type="button" class="link-button" :disabled="saving" @click="signIn">
+          Sign in again
+        </button>
       </p>
     </template>
     <p v-else class="need-notice need-setup-wide">No MCP servers are available.</p>
@@ -256,8 +443,22 @@ async function submit(): Promise<void> {
 
     <p v-if="error" class="need-notice need-setup-wide">{{ error }}</p>
     <div class="need-setup-footer">
-      <small><AppIcon name="lock-outline" /> Tokens are encrypted at rest and stay outside command sandboxes. <DocsLink :page="DocsPage.SecurityModel" section="where-secrets-live">Where secrets live</DocsLink></small>
-      <div class="need-actions"><Button label="Cancel" severity="secondary" text size="small" @click="emit('cancel')" /><Button type="submit" :label="submitLabel" :loading="saving" :disabled="!provider" /></div>
+      <small
+        ><AppIcon name="lock-outline" /> Tokens are encrypted at rest and stay outside command
+        sandboxes.
+        <DocsLink :page="DocsPage.SecurityModel" section="where-secrets-live"
+          >Where secrets live</DocsLink
+        ></small
+      >
+      <div class="need-actions">
+        <Button
+          label="Cancel"
+          severity="secondary"
+          text
+          size="small"
+          @click="emit('cancel')"
+        /><Button type="submit" :label="submitLabel" :loading="saving" :disabled="!provider" />
+      </div>
     </div>
   </form>
 </template>

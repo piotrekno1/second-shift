@@ -31,12 +31,28 @@ async function act(action: () => Promise<unknown>, reload: boolean): Promise<voi
     <section class="invite-prompt" role="status">
       <AppIcon name="account-plus-outline" />
       <div>
-        <strong>Join {{ app.pendingInvite.workspace_name }} as {{ statusLabel(app.pendingInvite.role) }}?</strong>
-        <span v-if="app.pendingInvite.invited_by">{{ app.pendingInvite.invited_by }} invited you.</span>
+        <strong
+          >Join {{ app.pendingInvite.workspace_name }} as
+          {{ statusLabel(app.pendingInvite.role) }}?</strong
+        >
+        <span v-if="app.pendingInvite.invited_by"
+          >{{ app.pendingInvite.invited_by }} invited you.</span
+        >
         <span v-if="error" class="invite-prompt-error">{{ error }}</span>
       </div>
-      <Button label="Not now" severity="secondary" text :disabled="busy" @click="act(dismissPendingInvite, false)" />
-      <Button class="main-action" :label="`Join ${app.pendingInvite.workspace_name}`" :loading="busy" @click="act(acceptPendingInvite, true)" />
+      <Button
+        label="Not now"
+        severity="secondary"
+        text
+        :disabled="busy"
+        @click="act(dismissPendingInvite, false)"
+      />
+      <Button
+        class="main-action"
+        :label="`Join ${app.pendingInvite.workspace_name}`"
+        :loading="busy"
+        @click="act(acceptPendingInvite, true)"
+      />
     </section>
   </div>
 </template>

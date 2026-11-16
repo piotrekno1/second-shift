@@ -6,7 +6,7 @@ import Dialog from 'primevue/dialog'
 import { useLocalDirectoriesStore } from '../stores/localDirectories'
 
 const props = defineProps<{ path: string }>()
-const emit = defineEmits<{ choose: [path: string], close: [] }>()
+const emit = defineEmits<{ choose: [path: string]; close: [] }>()
 const directories = useLocalDirectoriesStore()
 // Let Dialog finish closing so it can restore focus before the parent unmounts it.
 const visible = ref(true)
@@ -24,7 +24,9 @@ function chooseDirectory(): void {
   visible.value = false
 }
 
-onMounted(() => { void directories.load(props.path) })
+onMounted(() => {
+  void directories.load(props.path)
+})
 onUnmounted(directories.reset)
 </script>
 
@@ -45,12 +47,15 @@ onUnmounted(directories.reset)
         severity="secondary"
         text
         :disabled="!directories.listing?.parent || directories.loading"
-        @click="navigate(directories.listing?.parent ?? '')">
-          <template #icon><AppIcon name="arrow-up" /></template>
-        </Button>
+        @click="navigate(directories.listing?.parent ?? '')"
+      >
+        <template #icon><AppIcon name="arrow-up" /></template>
+      </Button>
       <div ref="currentPath" tabindex="-1" aria-live="polite">
         <span class="directory-label">Current folder</span>
-        <code>{{ directories.listing?.path ?? (directories.loading ? 'Loading…' : path || 'Home') }}</code>
+        <code>{{
+          directories.listing?.path ?? (directories.loading ? 'Loading…' : path || 'Home')
+        }}</code>
       </div>
     </div>
     <p v-if="directories.error" class="directory-error" role="alert">{{ directories.error }}</p>
@@ -69,19 +74,26 @@ onUnmounted(directories.reset)
         <span>{{ folder.name }}</span>
         <AppIcon aria-hidden="true" name="chevron-right" class="directory-chevron" />
       </button>
-      <p v-if="!directories.loading && directories.listing?.directories.length === 0" class="directory-message">
-        <AppIcon aria-hidden="true" name="folder-open-outline" /> No subfolders. You can select this folder.
+      <p
+        v-if="!directories.loading && directories.listing?.directories.length === 0"
+        class="directory-message"
+      >
+        <AppIcon aria-hidden="true" name="folder-open-outline" /> No subfolders. You can select this
+        folder.
       </p>
     </nav>
     <template #footer>
-      <span class="directory-count">{{ directories.listing ? `${directories.listing.directories.length} folders` : '' }}</span>
+      <span class="directory-count">{{
+        directories.listing ? `${directories.listing.directories.length} folders` : ''
+      }}</span>
       <Button label="Cancel" severity="secondary" outlined @click="visible = false" />
       <Button
         label="Use this folder"
         :disabled="!directories.listing || directories.loading"
-        @click="chooseDirectory">
-          <template #icon><AppIcon name="check" /></template>
-        </Button>
+        @click="chooseDirectory"
+      >
+        <template #icon><AppIcon name="check" /></template>
+      </Button>
     </template>
   </Dialog>
 </template>
@@ -95,7 +107,7 @@ onUnmounted(directories.reset)
   border-radius: var(--radius-lg);
   background: var(--night-900);
   color: var(--ink);
-  box-shadow: 0 28px 90px rgba(0, 0, 0, .5);
+  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.5);
 }
 .local-directory-picker .p-dialog-header {
   padding: 24px 24px 8px;
@@ -103,7 +115,7 @@ onUnmounted(directories.reset)
 .local-directory-picker .p-dialog-title {
   font-family: var(--font-sans);
   font-size: var(--text-lg);
-  letter-spacing: -.025em;
+  letter-spacing: -0.025em;
 }
 .local-directory-picker .p-dialog-content {
   padding: 0 24px 20px;
@@ -150,7 +162,7 @@ onUnmounted(directories.reset)
   padding: 4px;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  background: rgba(0, 0, 0, .45);
+  background: rgba(0, 0, 0, 0.45);
   scrollbar-width: thin;
   scrollbar-color: var(--night-750) transparent;
 }

@@ -29,10 +29,14 @@ export function triggerRules(trigger: JobTrigger): string[] {
   const rules: string[] = []
   const skip = Object.entries(trigger.skip_when)
   if (skip.length) {
-    rules.push(`Ignores requests where ${skip.map(([field, value]) => `${field} is ${value}`).join(' and ')}.`)
+    rules.push(
+      `Ignores requests where ${skip.map(([field, value]) => `${field} is ${value}`).join(' and ')}.`,
+    )
   }
   if (trigger.repeat_key) {
-    rules.push(`Ignores a request with the same ${trigger.repeat_key} while its run is going, and for ${trigger.repeat_window} after.`)
+    rules.push(
+      `Ignores a request with the same ${trigger.repeat_key} while its run is going, and for ${trigger.repeat_window} after.`,
+    )
   }
   return rules
 }
@@ -48,10 +52,15 @@ export function eventOutcome(event: TriggerEvent): { status: string; label: stri
 }
 
 /** Read the runs-per-hour field. Empty means the server default. */
-export function parseRunsPerHour(draft: string, maximum: number): { value: number | null; problem: string } {
+export function parseRunsPerHour(
+  draft: string,
+  maximum: number,
+): { value: number | null; problem: string } {
   const text = draft.trim()
   if (!text) return { value: null, problem: '' }
-  if (!/^\d+$/.test(text) || Number(text) < 1) return { value: null, problem: 'Enter a whole number of at least 1.' }
-  if (Number(text) > maximum) return { value: null, problem: `This server allows at most ${maximum}.` }
+  if (!/^\d+$/.test(text) || Number(text) < 1)
+    return { value: null, problem: 'Enter a whole number of at least 1.' }
+  if (Number(text) > maximum)
+    return { value: null, problem: `This server allows at most ${maximum}.` }
   return { value: Number(text), problem: '' }
 }

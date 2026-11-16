@@ -2,7 +2,14 @@
 import AppIcon from './AppIcon.vue'
 import { computed } from 'vue'
 import type { Run } from '../types'
-import { formatCost, formatDate, formatSeconds, jobOutcomes, runSeconds, statusLabel } from '../utils/format'
+import {
+  formatCost,
+  formatDate,
+  formatSeconds,
+  jobOutcomes,
+  runSeconds,
+  statusLabel,
+} from '../utils/format'
 
 // Recent runs, newest first (as the API returns them).
 const props = defineProps<{ runs: Run[] }>()
@@ -25,15 +32,24 @@ function describe(run: Run): string {
   const parts = [`#${run.id}`, statusLabel(run.status), formatDate(run.scheduled_for)]
   const duration = runSeconds(run)
   if (duration !== null) parts.push(formatSeconds(duration))
-  if (run.model_cost_usd !== null) parts.push(formatCost(run.model_cost_usd, run.model_cost_partial))
+  if (run.model_cost_usd !== null)
+    parts.push(formatCost(run.model_cost_usd, run.model_cost_partial))
   if (run.failure) parts.push(`${run.failure.label}: ${run.failure.reason}`)
   return parts.join(' · ')
 }
 
-interface Bar { id: number; path: string; x: number; title: string }
+interface Bar {
+  id: number
+  path: string
+  x: number
+  title: string
+}
 
 // Columns grow from one baseline with a rounded data end and a square base.
-function bars(values: (number | null)[], label: (value: number) => string): { width: number; items: Bar[] } {
+function bars(
+  values: (number | null)[],
+  label: (value: number) => string,
+): { width: number; items: Bar[] } {
   const runs = outcomes.value.chronological
   const max = Math.max(...values.map((value) => value ?? 0), 0)
   const items: Bar[] = []
@@ -51,20 +67,44 @@ function bars(values: (number | null)[], label: (value: number) => string): { wi
 
 // Bars match the tiles: successful runs only, in their place on the run timeline.
 const successful = (run: Run): boolean => run.status === 'succeeded'
-const durationBars = computed(() => bars(outcomes.value.chronological.map((run) => (successful(run) ? runSeconds(run) : null)), formatSeconds))
-const costBars = computed(() => bars(outcomes.value.chronological.map((run) => (successful(run) ? run.model_cost_usd : null)), (value) => formatCost(value)))
-const rateText = computed(() => (outcomes.value.successRate === null ? '—' : `${Math.round(outcomes.value.successRate * 100)}%`))
+const durationBars = computed(() =>
+  bars(
+    outcomes.value.chronological.map((run) => (successful(run) ? runSeconds(run) : null)),
+    formatSeconds,
+  ),
+)
+const costBars = computed(() =>
+  bars(
+    outcomes.value.chronological.map((run) => (successful(run) ? run.model_cost_usd : null)),
+    (value) => formatCost(value),
+  ),
+)
+const rateText = computed(() =>
+  outcomes.value.successRate === null ? '—' : `${Math.round(outcomes.value.successRate * 100)}%`,
+)
 </script>
 
 <template>
   <section class="panel run-outcomes" aria-label="Recent outcomes">
     <div class="panel-heading">
-      <div><h2>Outcomes</h2><p>{{ runs.length === 1 ? 'The last run' : `The last ${runs.length} runs, oldest first` }}. Open a run for details.</p></div>
+      <div>
+        <h2>Outcomes</h2>
+        <p>
+          {{ runs.length === 1 ? 'The last run' : `The last ${runs.length} runs, oldest first` }}.
+          Open a run for details.
+        </p>
+      </div>
     </div>
 
     <ol class="outcome-strip">
       <li v-for="run in outcomes.chronological" :key="run.id">
-        <RouterLink :to="`/runs/${run.id}`" class="outcome-mark" :class="run.status" :title="describe(run)" :aria-label="describe(run)">
+        <RouterLink
+          :to="`/runs/${run.id}`"
+          class="outcome-mark"
+          :class="run.status"
+          :title="describe(run)"
+          :aria-label="describe(run)"
+        >
           <AppIcon :name="ICONS[run.status]" :spin="run.status === 'running'" />
         </RouterLink>
       </li>
@@ -78,8 +118,18 @@ const rateText = computed(() => (outcomes.value.successRate === null ? '—' : `
       </div>
       <div class="outcome-tile">
         <span>Median duration <em>· successful runs</em></span>
-        <strong>{{ outcomes.medianSeconds === null ? '—' : formatSeconds(outcomes.medianSeconds) }}</strong>
-        <svg v-if="durationBars.items.length" class="sparkline" :viewBox="`0 0 ${durationBars.width} ${HEIGHT}`" :width="durationBars.width" :height="HEIGHT" role="img" aria-label="Duration per run">
+        <strong>{{
+          outcomes.medianSeconds === null ? '—' : formatSeconds(outcomes.medianSeconds)
+        }}</strong>
+        <svg
+          v-if="durationBars.items.length"
+          class="sparkline"
+          :viewBox="`0 0 ${durationBars.width} ${HEIGHT}`"
+          :width="durationBars.width"
+          :height="HEIGHT"
+          role="img"
+          aria-label="Duration per run"
+        >
           <g v-for="bar in durationBars.items" :key="bar.id">
             <title>{{ bar.title }}</title>
             <rect :x="bar.x" y="0" :width="BAR" :height="HEIGHT" fill="transparent" />
@@ -89,8 +139,18 @@ const rateText = computed(() => (outcomes.value.successRate === null ? '—' : `
       </div>
       <div class="outcome-tile">
         <span>Average cost <em>· successful runs</em></span>
-        <strong>{{ outcomes.averageCostUsd === null ? '—' : formatCost(outcomes.averageCostUsd) }}</strong>
-        <svg v-if="costBars.items.length" class="sparkline" :viewBox="`0 0 ${costBars.width} ${HEIGHT}`" :width="costBars.width" :height="HEIGHT" role="img" aria-label="Cost per run">
+        <strong>{{
+          outcomes.averageCostUsd === null ? '—' : formatCost(outcomes.averageCostUsd)
+        }}</strong>
+        <svg
+          v-if="costBars.items.length"
+          class="sparkline"
+          :viewBox="`0 0 ${costBars.width} ${HEIGHT}`"
+          :width="costBars.width"
+          :height="HEIGHT"
+          role="img"
+          aria-label="Cost per run"
+        >
           <g v-for="bar in costBars.items" :key="bar.id">
             <title>{{ bar.title }}</title>
             <rect :x="bar.x" y="0" :width="BAR" :height="HEIGHT" fill="transparent" />

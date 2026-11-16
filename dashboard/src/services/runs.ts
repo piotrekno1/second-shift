@@ -1,5 +1,13 @@
 import { ApiError, apiGet, apiPost, apiText } from './api'
-import type { Run, RunDelivery, RunDetail, RunFileName, RunPage, RunQuery, TaskSubmissionResult } from '../types'
+import type {
+  Run,
+  RunDelivery,
+  RunDetail,
+  RunFileName,
+  RunPage,
+  RunQuery,
+  TaskSubmissionResult,
+} from '../types'
 
 export function runQueryString(query: RunQuery): string {
   const params = new URLSearchParams()
@@ -49,9 +57,10 @@ export async function startJobRun(jobId: number): Promise<RunNowResult> {
     const run = await apiPost<Run>(`/jobs/${jobId}/run`)
     return { id: run.id, started: true }
   } catch (error) {
-    const runId = error instanceof ApiError && error.status === 409
-      ? (error.payload as { run_id?: unknown } | null)?.run_id
-      : undefined
+    const runId =
+      error instanceof ApiError && error.status === 409
+        ? (error.payload as { run_id?: unknown } | null)?.run_id
+        : undefined
     if (typeof runId === 'number') return { id: runId, started: false }
     throw error
   }
@@ -59,7 +68,9 @@ export async function startJobRun(jobId: number): Promise<RunNowResult> {
 
 /** Submit a task run's task again, as it was first submitted. */
 export async function runTaskAgain(runId: number, idempotencyKey: string): Promise<RunNowResult> {
-  const result = await apiPost<TaskSubmissionResult>(`/runs/${runId}/again`, { idempotency_key: idempotencyKey })
+  const result = await apiPost<TaskSubmissionResult>(`/runs/${runId}/again`, {
+    idempotency_key: idempotencyKey,
+  })
   return { id: result.run.id, started: result.started }
 }
 

@@ -13,6 +13,8 @@ const fix = computed(() => executionFix(app.overview?.execution))
   <p v-if="fix" class="page-warning">
     <AppIcon name="alert-outline" />
     <span>{{ fix.text }}</span>
-    <RouterLink :to="fix.to" class="primary-action">{{ fix.action }} <AppIcon name="arrow-right" /></RouterLink>
+    <RouterLink :to="fix.to" class="primary-action"
+      >{{ fix.action }} <AppIcon name="arrow-right"
+    /></RouterLink>
   </p>
 </template>

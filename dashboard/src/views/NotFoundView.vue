@@ -5,7 +5,11 @@ import PageHeader from '../components/PageHeader.vue'
 
 <template>
   <div class="page">
-    <PageHeader compact title="Page not found" description="The link may be wrong, or the page was removed." />
+    <PageHeader
+      compact
+      title="Page not found"
+      description="The link may be wrong, or the page was removed."
+    />
     <div class="panel empty-state">
       <AppIcon name="alert-outline" />
       <strong>Nothing here</strong>

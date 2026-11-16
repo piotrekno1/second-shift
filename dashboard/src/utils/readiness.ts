@@ -6,7 +6,9 @@ export const REMOVED_JOB = 'This job is no longer in .secondshift.yaml. Add it b
 
 /** The required capabilities the job still waits on: not approved yet. */
 export function waitingCapabilities(job: Pick<Job, 'capabilities'>): Capability[] {
-  return job.capabilities.filter((capability) => capability.required && capability.grant_status !== 'approved')
+  return job.capabilities.filter(
+    (capability) => capability.required && capability.grant_status !== 'approved',
+  )
 }
 
 /** Why a job in a paused repository cannot run. */
@@ -17,17 +19,23 @@ function approvalStep(waiting: Capability[]): string {
   if (!waiting.length) return ''
   const names = waiting.map((capability) => capability.binding).join(', ')
   // Approving needs a connection, so a binding without one asks for that step.
-  const verb = waiting.some((capability) => capability.connection_id === null) ? 'Connect and approve' : 'Approve'
+  const verb = waiting.some((capability) => capability.connection_id === null)
+    ? 'Connect and approve'
+    : 'Approve'
   return `${verb} ${names} first.`
 }
 
 /** Why a job cannot be switched on yet, or '' when nothing blocks it. */
-export function enableBlocker(job: Pick<Job, 'enabled' | 'capabilities'> & Partial<Pick<Job, 'removed_at'>>): string {
+export function enableBlocker(
+  job: Pick<Job, 'enabled' | 'capabilities'> & Partial<Pick<Job, 'removed_at'>>,
+): string {
   if (job.removed_at) return REMOVED_JOB
   if (job.enabled) return ''
   const waiting = waitingCapabilities(job)
   const step = approvalStep(waiting)
-  return step && `${step} Scheduled runs would fail without ${waiting.length === 1 ? 'it' : 'them'}.`
+  return (
+    step && `${step} Scheduled runs would fail without ${waiting.length === 1 ? 'it' : 'them'}.`
+  )
 }
 
 /** The server's words for an approved binding whose connection stopped working. */
@@ -45,7 +53,8 @@ function connectionStep(capabilities: Capability[], connections: Connection[]): 
   for (const capability of capabilities) {
     if (!capability.required || capability.grant_status !== 'approved') continue
     const connection = connections.find((item) => item.id === capability.connection_id)
-    if (connection && connection.status !== 'connected') return `${capability.binding} ${CONNECTION_PROBLEMS[connection.status]}.`
+    if (connection && connection.status !== 'connected')
+      return `${capability.binding} ${CONNECTION_PROBLEMS[connection.status]}.`
     if (capability.access && !capability.access.ok) return `${capability.binding} ${UNREACHABLE}.`
   }
   return ''
@@ -63,9 +72,11 @@ export function runBlocker(
 ): string {
   if (job.removed_at) return REMOVED_JOB
   if (!repositoryEnabled) return PAUSED_REPOSITORY
-  return runWarning(execution, job)
-    || approvalStep(waitingCapabilities(job))
-    || connectionStep(job.capabilities, connections)
+  return (
+    runWarning(execution, job) ||
+    approvalStep(waitingCapabilities(job)) ||
+    connectionStep(job.capabilities, connections)
+  )
 }
 
 /** What to show while every run would fail, and where to fix it. */
@@ -85,21 +96,39 @@ export function executionFix(execution: ExecutionStatus | null | undefined): Exe
     }
   }
   if (!execution.chosen) {
-    return { text: `Runs will fail. ${execution.problem}`, action: 'Choose what runs jobs', to: { path: '/models' } }
+    return {
+      text: `Runs will fail. ${execution.problem}`,
+      action: 'Choose what runs jobs',
+      to: { path: '/models' },
+    }
   }
   if (execution.fix_connection_id !== null) {
-    return { text: `Runs will fail. ${execution.problem}`, action: 'Fix the provider', to: { path: '/models', query: { connection: String(execution.fix_connection_id) } } }
+    return {
+      text: `Runs will fail. ${execution.problem}`,
+      action: 'Fix the provider',
+      to: { path: '/models', query: { connection: String(execution.fix_connection_id) } },
+    }
   }
-  return { text: `Runs will fail. ${execution.problem}`, action: 'Open models', to: { path: '/models' } }
+  return {
+    text: `Runs will fail. ${execution.problem}`,
+    action: 'Open models',
+    to: { path: '/models' },
+  }
 }
 
 /** A warning for a run button while the run would fail, or ''. */
-export function runWarning(execution: ExecutionStatus | null | undefined, job?: Pick<Job, 'execution_problem'>): string {
+export function runWarning(
+  execution: ExecutionStatus | null | undefined,
+  job?: Pick<Job, 'execution_problem'>,
+): string {
   return job?.execution_problem || execution?.problem || ''
 }
 
 /** Approving again only makes sense when the chosen connection changed. */
-export function approvalPending(capability: Pick<Capability, 'grant_status' | 'connection_id'>, selected: number | null): boolean {
+export function approvalPending(
+  capability: Pick<Capability, 'grant_status' | 'connection_id'>,
+  selected: number | null,
+): boolean {
   return capability.grant_status !== 'approved' || selected !== capability.connection_id
 }
 
@@ -110,7 +139,7 @@ export interface SetupStep {
   detail: string
   done: boolean
   /** The first is the main action. Only the current step shows them. */
-  actions: { label: string, to: RouteLocationRaw, icon: string }[]
+  actions: { label: string; to: RouteLocationRaw; icon: string }[]
   /** A quiet offer to let a coding agent write the configuration, or null. */
   agentHint: AgentHint | null
 }
@@ -141,18 +170,31 @@ export interface SetupState {
 }
 
 function codeStep(state: SetupState): SetupStep {
-  const step: SetupStep = { key: 'code', title: 'Add your code', detail: '', done: false, actions: [], agentHint: null }
+  const step: SetupStep = {
+    key: 'code',
+    title: 'Add your code',
+    detail: '',
+    done: false,
+    actions: [],
+    agentHint: null,
+  }
   if (state.accessProblem) {
     step.detail = state.accessProblem
-    if (state.canConnect) step.actions.push({ label: 'Check access', to: { path: '/connections' }, icon: 'shield-key-outline' })
+    if (state.canConnect)
+      step.actions.push({
+        label: 'Check access',
+        to: { path: '/connections' },
+        icon: 'shield-key-outline',
+      })
     else step.detail += ' Ask a workspace owner to fix it.'
     return step
   }
   if (state.repositories > 0) {
     step.done = true
-    step.detail = state.repositories === 1 && state.repositoryName
-      ? `${state.repositoryName} is connected.`
-      : `${state.repositories} repositories are connected.`
+    step.detail =
+      state.repositories === 1 && state.repositoryName
+        ? `${state.repositoryName} is connected.`
+        : `${state.repositories} repositories are connected.`
     return step
   }
   // People who cannot add repositories get one clear line instead of buttons.
@@ -161,15 +203,26 @@ function codeStep(state: SetupState): SetupStep {
     return step
   }
   // Without a .secondshift.yaml there is nothing to add. A coding agent can draft and check one.
-  if (state.offerAgent) step.agentHint = { lead: 'No .secondshift.yaml yet?', link: 'Let your coding agent write one' }
-  const github = { label: 'Connect GitHub', to: { path: '/repositories/new', query: { source: 'github' } }, icon: 'github' }
+  if (state.offerAgent)
+    step.agentHint = { lead: 'No .secondshift.yaml yet?', link: 'Let your coding agent write one' }
+  const github = {
+    label: 'Connect GitHub',
+    to: { path: '/repositories/new', query: { source: 'github' } },
+    icon: 'github',
+  }
   if (state.canAddLocal) {
     // On a local install a folder on disk is the quickest start. GitHub adds draft pull requests.
-    step.detail = 'Pick a Git repository with a .secondshift.yaml. Connect GitHub instead if jobs should open draft pull requests.'
-    step.actions.push({ label: 'Add local repository', to: { path: '/repositories/new', query: { source: 'local' } }, icon: 'folder-open-outline' })
+    step.detail =
+      'Pick a Git repository with a .secondshift.yaml. Connect GitHub instead if jobs should open draft pull requests.'
+    step.actions.push({
+      label: 'Add local repository',
+      to: { path: '/repositories/new', query: { source: 'local' } },
+      icon: 'folder-open-outline',
+    })
     if (state.canAddGitHub) step.actions.push(github)
   } else {
-    step.detail = 'Choose GitHub repositories with a .secondshift.yaml. SecondShift lists their jobs.'
+    step.detail =
+      'Choose GitHub repositories with a .secondshift.yaml. SecondShift lists their jobs.'
     if (state.canAddGitHub) step.actions.push(github)
   }
   return step
@@ -181,18 +234,30 @@ function runnerStep(state: SetupState): SetupStep {
     key: 'runner',
     title: 'Choose what runs jobs',
     detail: done
-      ? (state.execution?.label ? `${state.execution.label} runs jobs.` : 'Ready to run jobs.')
+      ? state.execution?.label
+        ? `${state.execution.label} runs jobs.`
+        : 'Ready to run jobs.'
       : state.canConnect
         ? 'Add a model API key, or connect a Claude Code or Codex subscription.'
         : 'Ask a workspace owner to set up a model.',
     done,
-    actions: done || !state.canConnect ? [] : [{ label: 'Set up a model', to: { path: '/models' }, icon: 'creation-outline' }],
+    actions:
+      done || !state.canConnect
+        ? []
+        : [{ label: 'Set up a model', to: { path: '/models' }, icon: 'creation-outline' }],
     agentHint: null,
   }
 }
 
 function jobStep(state: SetupState): SetupStep {
-  const step: SetupStep = { key: 'job', title: 'Run your first job', detail: '', done: state.enabledJobs > 0 || state.hasRuns, actions: [], agentHint: null }
+  const step: SetupStep = {
+    key: 'job',
+    title: 'Run your first job',
+    detail: '',
+    done: state.enabledJobs > 0 || state.hasRuns,
+    actions: [],
+    agentHint: null,
+  }
   if (step.done) {
     step.detail = state.enabledJobs > 0 ? 'A job is on the schedule.' : 'A job has run.'
     return step
@@ -203,7 +268,11 @@ function jobStep(state: SetupState): SetupStep {
   }
   if (state.jobs === 0) {
     step.detail = 'Add a job to .secondshift.yaml, then resync the repository.'
-    step.actions.push({ label: 'Open repositories', to: { path: '/repositories' }, icon: 'arrow-right' })
+    step.actions.push({
+      label: 'Open repositories',
+      to: { path: '/repositories' },
+      icon: 'arrow-right',
+    })
     if (state.offerAgent) step.agentHint = { lead: '', link: 'Let your coding agent write a job' }
     return step
   }
@@ -225,7 +294,10 @@ export function setupSteps(state: SetupState): SetupStep[] | null {
 }
 
 /** Connections opens the binding's form, then links back to the job's access review. */
-export function connectionSetupQuery(job: Pick<Job, 'id' | 'name'>, capability: Pick<Capability, 'binding'>): Record<string, string> {
+export function connectionSetupQuery(
+  job: Pick<Job, 'id' | 'name'>,
+  capability: Pick<Capability, 'binding'>,
+): Record<string, string> {
   return { binding: capability.binding, job: job.name, review: String(job.id) }
 }
 
@@ -250,15 +322,25 @@ export interface SidebarState {
  * so the sidebar stays quiet. A broken connection is "failing". A binding with no connection
  * yet is "to set up", the words the Connections page uses.
  */
-export function sidebarNotes(state: SidebarState): Record<'jobs' | 'models' | 'connections', SidebarNote | null> {
+export function sidebarNotes(
+  state: SidebarState,
+): Record<'jobs' | 'models' | 'connections', SidebarNote | null> {
   if (state.inSetup) return { jobs: null, models: null, connections: null }
   const problem = state.execution?.problem
   return {
-    jobs: state.jobsAwaitingApproval ? { text: `${state.jobsAwaitingApproval} to approve`, tone: 'warning' } : null,
+    jobs: state.jobsAwaitingApproval
+      ? { text: `${state.jobsAwaitingApproval} to approve`, tone: 'warning' }
+      : null,
     // There is only ever one model choice, so the note names its state instead of a count.
-    models: problem ? (state.execution?.chosen ? { text: 'failing', tone: 'danger' } : { text: 'not set up', tone: 'warning' }) : null,
+    models: problem
+      ? state.execution?.chosen
+        ? { text: 'failing', tone: 'danger' }
+        : { text: 'not set up', tone: 'warning' }
+      : null,
     connections: state.brokenConnections
       ? { text: `${state.brokenConnections} failing`, tone: 'danger' }
-      : state.bindingsToSetUp ? { text: `${state.bindingsToSetUp} to set up`, tone: 'warning' } : null,
+      : state.bindingsToSetUp
+        ? { text: `${state.bindingsToSetUp} to set up`, tone: 'warning' }
+        : null,
   }
 }

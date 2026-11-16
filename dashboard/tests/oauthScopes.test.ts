@@ -5,7 +5,13 @@ import { additionalOAuthScopes } from '../src/utils/oauthScopes'
 import type { Connection } from '../src/types'
 
 function connection(values: Partial<Connection> = {}): Connection {
-  return { auth: 'oauth', status: 'connected', requested_scopes: ['grafana:read'], scopes: ['grafana:read'], ...values } as Connection
+  return {
+    auth: 'oauth',
+    status: 'connected',
+    requested_scopes: ['grafana:read'],
+    scopes: ['grafana:read'],
+    ...values,
+  } as Connection
 }
 
 test('shows all additional scopes without changing the actual grant', () => {
@@ -16,11 +22,16 @@ test('shows all additional scopes without changing the actual grant', () => {
 
 test('no warning for the requested scopes or legacy connections without a baseline', () => {
   assert.deepEqual(additionalOAuthScopes(connection()), [])
-  assert.deepEqual(additionalOAuthScopes(connection({ requested_scopes: undefined, scopes: ['read', 'write'] })), [])
+  assert.deepEqual(
+    additionalOAuthScopes(connection({ requested_scopes: undefined, scopes: ['read', 'write'] })),
+    [],
+  )
 })
 
 test('an empty requirement still warns about every granted scope', () => {
-  assert.deepEqual(additionalOAuthScopes(connection({ requested_scopes: [], scopes: ['read'] })), ['read'])
+  assert.deepEqual(additionalOAuthScopes(connection({ requested_scopes: [], scopes: ['read'] })), [
+    'read',
+  ])
 })
 
 test('new refresh permissions appear and removed permissions disappear', () => {

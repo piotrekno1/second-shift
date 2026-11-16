@@ -10,7 +10,10 @@ test('closing the picker ignores an outstanding directory response', async () =>
   const store = useLocalDirectoriesStore()
   const originalFetch = globalThis.fetch
   let finish!: (response: Response) => void
-  globalThis.fetch = () => new Promise((resolve) => { finish = resolve })
+  globalThis.fetch = () =>
+    new Promise((resolve) => {
+      finish = resolve
+    })
   try {
     const pending = store.load('/projects')
     assert.equal(store.loading, true)
@@ -20,7 +23,9 @@ test('closing the picker ignores an outstanding directory response', async () =>
     assert.equal(store.listing, null)
     assert.equal(store.loading, false)
     assert.equal(store.error, null)
-  } finally { globalThis.fetch = originalFetch }
+  } finally {
+    globalThis.fetch = originalFetch
+  }
 })
 
 test('a newer navigation wins when responses arrive out of order', async () => {
@@ -28,7 +33,10 @@ test('a newer navigation wins when responses arrive out of order', async () => {
   const store = useLocalDirectoriesStore()
   const originalFetch = globalThis.fetch
   const responses: ((response: Response) => void)[] = []
-  globalThis.fetch = () => new Promise((resolve) => { responses.push(resolve) })
+  globalThis.fetch = () =>
+    new Promise((resolve) => {
+      responses.push(resolve)
+    })
   try {
     const first = store.load('/old')
     const second = store.load('/projects')
@@ -38,9 +46,10 @@ test('a newer navigation wins when responses arrive out of order', async () => {
     await first
     assert.equal(store.listing?.path, '/projects')
     assert.equal(store.loading, false)
-  } finally { globalThis.fetch = originalFetch }
+  } finally {
+    globalThis.fetch = originalFetch
+  }
 })
-
 
 test('failed navigation preserves the last folder and allows recovery', async () => {
   setActivePinia(createPinia())
@@ -49,7 +58,8 @@ test('failed navigation preserves the last folder and allows recovery', async ()
   try {
     globalThis.fetch = async () => Response.json(listing)
     await store.load('/projects')
-    globalThis.fetch = async () => Response.json({ detail: 'Unable to read /projects/private.' }, { status: 422 })
+    globalThis.fetch = async () =>
+      Response.json({ detail: 'Unable to read /projects/private.' }, { status: 422 })
     await store.load('/projects/private')
     assert.equal(store.listing?.path, '/projects')
     assert.equal(store.listing?.parent, '/')
@@ -60,5 +70,7 @@ test('failed navigation preserves the last folder and allows recovery', async ()
     await store.load('/')
     assert.equal(store.listing?.path, '/')
     assert.equal(store.error, null)
-  } finally { globalThis.fetch = originalFetch }
+  } finally {
+    globalThis.fetch = originalFetch
+  }
 })

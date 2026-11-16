@@ -21,6 +21,10 @@ export function setJobEnabled(jobId: number, enabled: boolean): Promise<Job> {
   return apiPost<Job>(`/jobs/${jobId}/enabled`, { enabled })
 }
 
-export function reviewGrant(jobId: number, capabilityId: number, review: GrantReview): Promise<Job> {
+export function reviewGrant(
+  jobId: number,
+  capabilityId: number,
+  review: GrantReview,
+): Promise<Job> {
   return apiPost<Job>(`/jobs/${jobId}/capabilities/${capabilityId}/grant`, review)
 }

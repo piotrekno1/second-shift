@@ -30,14 +30,12 @@ async function handleSignOut(): Promise<void> {
       <span class="eyebrow">No workspace</span>
       <h1>You are not in a workspace yet</h1>
       <p v-if="app.user?.can_create_workspace">
-        You are signed in as <strong>{{ app.user?.email }}</strong>. Create a
-        workspace for your team, or ask an owner of an existing one for an
-        invite link.
+        You are signed in as <strong>{{ app.user?.email }}</strong>. Create a workspace for your
+        team, or ask an owner of an existing one for an invite link.
       </p>
       <p v-else>
-        You are signed in as <strong>{{ app.user?.email }}</strong>. Ask a
-        workspace owner for an invite link. Open it while signed in here and
-        you can join.
+        You are signed in as <strong>{{ app.user?.email }}</strong>. Ask a workspace owner for an
+        invite link. Open it while signed in here and you can join.
       </p>
       <CreateWorkspaceForm v-if="app.user?.can_create_workspace" class="no-workspace-create" />
       <Button label="Sign out" severity="secondary" :loading="signingOut" @click="handleSignOut">

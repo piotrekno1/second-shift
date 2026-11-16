@@ -1,6 +1,15 @@
 import { defineStore } from 'pinia'
 import { useAppStore } from './app'
-import { checkAgent, connectAgent, disconnectAgent, fetchAgentConfiguration, fetchAgentConnections, selectWorkspaceAgent, setAgentRunLimit, type AgentLoginInput } from '../services/agents'
+import {
+  checkAgent,
+  connectAgent,
+  disconnectAgent,
+  fetchAgentConfiguration,
+  fetchAgentConnections,
+  selectWorkspaceAgent,
+  setAgentRunLimit,
+  type AgentLoginInput,
+} from '../services/agents'
 import type { AgentConfiguration, AgentConnection } from '../types'
 
 export const useAgentsStore = defineStore('agents', {
@@ -11,7 +20,10 @@ export const useAgentsStore = defineStore('agents', {
   }),
   actions: {
     async refresh(): Promise<void> {
-      const [configuration, connections] = await Promise.all([fetchAgentConfiguration(), fetchAgentConnections()])
+      const [configuration, connections] = await Promise.all([
+        fetchAgentConfiguration(),
+        fetchAgentConnections(),
+      ])
       this.enabled = configuration.enabled
       this.configuration = configuration
       this.connections = connections
@@ -33,12 +45,15 @@ export const useAgentsStore = defineStore('agents', {
     },
     async setRunLimit(id: number, maxRunsPerDay: number | null): Promise<void> {
       const updated = await setAgentRunLimit(id, maxRunsPerDay)
-      this.connections = this.connections.map(item => item.id === id ? updated : item)
+      this.connections = this.connections.map((item) => (item.id === id ? updated : item))
       await useAppStore().refresh()
     },
     async disconnect(id: number): Promise<void> {
-      try { await disconnectAgent(id) }
-      finally { await Promise.all([this.refresh(), useAppStore().refresh()]) }
+      try {
+        await disconnectAgent(id)
+      } finally {
+        await Promise.all([this.refresh(), useAppStore().refresh()])
+      }
     },
   },
 })

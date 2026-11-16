@@ -26,8 +26,20 @@ async function create(): Promise<void> {
 <template>
   <form class="create-workspace" @submit.prevent="create">
     <div class="create-workspace-row">
-      <InputText v-model="name" maxlength="160" placeholder="Workspace name, e.g. Platform team" aria-label="Workspace name" autofocus />
-      <Button class="main-action" type="submit" label="Create workspace" :loading="busy" :disabled="!name.trim()">
+      <InputText
+        v-model="name"
+        maxlength="160"
+        placeholder="Workspace name, e.g. Platform team"
+        aria-label="Workspace name"
+        autofocus
+      />
+      <Button
+        class="main-action"
+        type="submit"
+        label="Create workspace"
+        :loading="busy"
+        :disabled="!name.trim()"
+      >
         <template #icon><AppIcon name="plus" /></template>
       </Button>
     </div>

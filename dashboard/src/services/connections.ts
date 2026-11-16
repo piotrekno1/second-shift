@@ -1,5 +1,15 @@
 import { apiDelete, apiGet, apiPost } from './api'
-import type { APISpecSummary, CapabilityNeed, Connection, ConnectionTest, Job, MCPProviderInfo, MCPServerInfo, ModelProvider, WebhookSample } from '../types'
+import type {
+  APISpecSummary,
+  CapabilityNeed,
+  Connection,
+  ConnectionTest,
+  Job,
+  MCPProviderInfo,
+  MCPServerInfo,
+  ModelProvider,
+  WebhookSample,
+} from '../types'
 
 export function fetchConnections(): Promise<Connection[]> {
   return apiGet<Connection[]>('/connections')
@@ -34,15 +44,23 @@ export interface ModelProviderInput {
   is_default?: boolean
 }
 
-export function createModelProvider(input: ModelProviderInput & { provider: ModelProvider }): Promise<Connection> {
+export function createModelProvider(
+  input: ModelProviderInput & { provider: ModelProvider },
+): Promise<Connection> {
   return apiPost<Connection>('/connections/model', input)
 }
 
-export function updateModelProvider(connectionId: number, input: ModelProviderInput): Promise<Connection> {
+export function updateModelProvider(
+  connectionId: number,
+  input: ModelProviderInput,
+): Promise<Connection> {
   return apiPost<Connection>(`/connections/${connectionId}/model`, input)
 }
 
-export function updateWebhook(connectionId: number, input: { display_name: string, url?: string, require_approval?: boolean }): Promise<Connection> {
+export function updateWebhook(
+  connectionId: number,
+  input: { display_name: string; url?: string; require_approval?: boolean },
+): Promise<Connection> {
   return apiPost<Connection>(`/connections/${connectionId}/webhook`, input)
 }
 
@@ -64,7 +82,9 @@ export function testConnection(connectionId: number): Promise<ConnectionTest> {
 
 /** Approves every job still waiting on this binding. Denied grants stay denied. */
 export async function approveNeed(need: CapabilityNeed, connectionId: number): Promise<void> {
-  const pending = need.jobs.filter((job) => job.grant_status === 'pending' || job.grant_status === 'unconfigured')
+  const pending = need.jobs.filter(
+    (job) => job.grant_status === 'pending' || job.grant_status === 'unconfigured',
+  )
   for (const job of pending) {
     // allowed_tools is omitted so each job is granted exactly the tools it requested.
     await apiPost<Job>(`/jobs/${job.job_id}/capabilities/${job.capability_id}/grant`, {
@@ -74,12 +94,24 @@ export async function approveNeed(need: CapabilityNeed, connectionId: number): P
   }
 }
 
-export function updateMCPConnection(connectionId: number, input: { display_name?: string, token?: string, settings?: Record<string, string>, tools?: string[], require_approval?: boolean }): Promise<Connection> {
+export function updateMCPConnection(
+  connectionId: number,
+  input: {
+    display_name?: string
+    token?: string
+    settings?: Record<string, string>
+    tools?: string[]
+    require_approval?: boolean
+  },
+): Promise<Connection> {
   return apiPost<Connection>(`/connections/${connectionId}/mcp`, input)
 }
 
 /** Whether a server offers sign-in, and which scopes it lists. */
-export function inspectMCPServer(provider: string, settings: Record<string, string>): Promise<MCPServerInfo> {
+export function inspectMCPServer(
+  provider: string,
+  settings: Record<string, string>,
+): Promise<MCPServerInfo> {
   return apiPost<MCPServerInfo>('/connections/mcp/inspect', { provider, settings })
 }
 
@@ -105,7 +137,15 @@ export function fetchMCPProviders(): Promise<MCPProviderInfo[]> {
   return apiGet<MCPProviderInfo[]>('/connections/mcp-providers')
 }
 
-export function createMCPConnection(input: { provider: string, binding_key: string, display_name: string, token: string, settings: Record<string, string>, require_approval: boolean, auth?: 'token' | 'source' }): Promise<Connection> {
+export function createMCPConnection(input: {
+  provider: string
+  binding_key: string
+  display_name: string
+  token: string
+  settings: Record<string, string>
+  require_approval: boolean
+  auth?: 'token' | 'source'
+}): Promise<Connection> {
   return apiPost<Connection>('/connections/mcp', input)
 }
 
@@ -132,10 +172,25 @@ export function createAPIConnection(input: APIConnectionInput): Promise<Connecti
   return apiPost<Connection>('/connections/api', input)
 }
 
-export function updateAPIConnection(connectionId: number, input: { display_name?: string, token?: string, base_url?: string, operations?: string[], require_approval?: boolean }): Promise<Connection> {
+export function updateAPIConnection(
+  connectionId: number,
+  input: {
+    display_name?: string
+    token?: string
+    base_url?: string
+    operations?: string[]
+    require_approval?: boolean
+  },
+): Promise<Connection> {
   return apiPost<Connection>(`/connections/${connectionId}/api`, input)
 }
 
-export function discoverModels(input: ModelProviderInput & { provider: ModelProvider }, connectionId?: number): Promise<string[]> {
-  return apiPost<string[]>(connectionId ? `/connections/${connectionId}/model/models` : '/connections/model/models', input)
+export function discoverModels(
+  input: ModelProviderInput & { provider: ModelProvider },
+  connectionId?: number,
+): Promise<string[]> {
+  return apiPost<string[]>(
+    connectionId ? `/connections/${connectionId}/model/models` : '/connections/model/models',
+    input,
+  )
 }

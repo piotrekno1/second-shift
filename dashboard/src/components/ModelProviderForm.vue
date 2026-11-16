@@ -7,25 +7,35 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
 import ModelPicker from './ModelPicker.vue'
-import { createModelProvider, discoverModels, testConnection, updateModelProvider } from '../services/connections'
+import {
+  createModelProvider,
+  discoverModels,
+  testConnection,
+  updateModelProvider,
+} from '../services/connections'
 import { useAppStore } from '../stores/app'
 import type { Connection, ModelProvider, Notice } from '../types'
 import { errorMessage } from '../services/api'
 
 const props = defineProps<{ connection?: Connection }>()
-const emit = defineEmits<{ done: [notice: Notice, binding: string], cancel: [] }>()
+const emit = defineEmits<{ done: [notice: Notice, binding: string]; cancel: [] }>()
 
-const providerOptions: { id: ModelProvider, help: string }[] = [
+const providerOptions: { id: ModelProvider; help: string }[] = [
   { id: 'anthropic', help: 'Claude models through the Anthropic API.' },
   { id: 'openai', help: 'Models through the OpenAI API.' },
   { id: 'openrouter', help: 'Models from many providers through OpenRouter. No base URL needed.' },
-  { id: 'openai_compatible', help: 'Ollama, vLLM or a company gateway that speaks the OpenAI API.' },
+  {
+    id: 'openai_compatible',
+    help: 'Ollama, vLLM or a company gateway that speaks the OpenAI API.',
+  },
 ]
 
 const app = useAppStore()
 const editing = computed(() => Boolean(props.connection))
 const reconnecting = computed(() => needsReconnect(props.connection))
-const provider = ref<ModelProvider>((props.connection?.provider as ModelProvider | undefined) ?? 'anthropic')
+const provider = ref<ModelProvider>(
+  (props.connection?.provider as ModelProvider | undefined) ?? 'anthropic',
+)
 const displayName = ref(props.connection?.display_name ?? '')
 const apiKey = ref('')
 const baseUrl = ref('')
@@ -38,23 +48,45 @@ const compatible = computed(() => provider.value === 'openai_compatible')
 const keyRequired = computed(() => (!editing.value && !compatible.value) || reconnecting.value)
 const modelList = computed(() => allowedModels.value)
 const availableModels = ref<string[]>(props.connection?.available_models ?? [])
-const modelSuggestions = computed(() => [...new Set([...availableModels.value, ...allowedModels.value, ...(defaultModel.value ? [defaultModel.value] : [])])].sort())
+const modelSuggestions = computed(() =>
+  [
+    ...new Set([
+      ...availableModels.value,
+      ...allowedModels.value,
+      ...(defaultModel.value ? [defaultModel.value] : []),
+    ]),
+  ].sort(),
+)
 const loadingModels = ref(false)
 const modelError = ref<string | null>(null)
-const discoveryReady = computed(() => (!keyRequired.value || Boolean(apiKey.value.trim())) && (!compatible.value || editing.value || Boolean(baseUrl.value.trim())))
+const discoveryReady = computed(
+  () =>
+    (!keyRequired.value || Boolean(apiKey.value.trim())) &&
+    (!compatible.value || editing.value || Boolean(baseUrl.value.trim())),
+)
 let discoveryVersion = 0
-watch([provider, apiKey, baseUrl, discoveryReady], (_values, previous, onCleanup) => {
+watch(
+  [provider, apiKey, baseUrl, discoveryReady],
+  (_values, previous, onCleanup) => {
+    discoveryVersion++
+    if (previous) availableModels.value = []
+    modelError.value = null
+    loadingModels.value = false
+    if (!discoveryReady.value || saving.value) return
+    const timer = setTimeout(() => {
+      void loadModels()
+    }, 400)
+    onCleanup(() => clearTimeout(timer))
+  },
+  { immediate: true },
+)
+onBeforeUnmount(() => {
   discoveryVersion++
-  if (previous) availableModels.value = []
-  modelError.value = null
-  loadingModels.value = false
-  if (!discoveryReady.value || saving.value) return
-  const timer = setTimeout(() => { void loadModels() }, 400)
-  onCleanup(() => clearTimeout(timer))
-}, { immediate: true })
-onBeforeUnmount(() => { discoveryVersion++ })
+})
 // A save error is about the values tried. Editing them makes it out of date.
-watch([provider, apiKey, baseUrl], () => { error.value = null })
+watch([provider, apiKey, baseUrl], () => {
+  error.value = null
+})
 watch(provider, () => {
   allowedModels.value = []
   defaultModel.value = ''
@@ -64,24 +96,35 @@ async function loadModels(): Promise<void> {
   loadingModels.value = true
   modelError.value = null
   try {
-    const models = await discoverModels({
-      provider: provider.value,
-      api_key: apiKey.value.trim() || undefined,
-      base_url: baseUrl.value.trim() || undefined,
-    }, props.connection?.id)
+    const models = await discoverModels(
+      {
+        provider: provider.value,
+        api_key: apiKey.value.trim() || undefined,
+        base_url: baseUrl.value.trim() || undefined,
+      },
+      props.connection?.id,
+    )
     if (version === discoveryVersion) availableModels.value = models
   } catch (failure) {
-    if (version === discoveryVersion) modelError.value = errorMessage(failure, 'Unable to load models')
+    if (version === discoveryVersion)
+      modelError.value = errorMessage(failure, 'Unable to load models')
   } finally {
     if (version === discoveryVersion) loadingModels.value = false
   }
 }
-const defaultOutsideAllowed = computed(() => Boolean((defaultModel.value ?? '').trim() && modelList.value.length && !modelList.value.includes((defaultModel.value ?? '').trim())))
-const canSubmit = computed(() =>
-  (!keyRequired.value || apiKey.value.trim() !== '')
-  && (!compatible.value || editing.value || baseUrl.value.trim() !== '')
-  && !defaultOutsideAllowed.value
-  && allowedModels.value.length <= 100,
+const defaultOutsideAllowed = computed(() =>
+  Boolean(
+    (defaultModel.value ?? '').trim() &&
+    modelList.value.length &&
+    !modelList.value.includes((defaultModel.value ?? '').trim()),
+  ),
+)
+const canSubmit = computed(
+  () =>
+    (!keyRequired.value || apiKey.value.trim() !== '') &&
+    (!compatible.value || editing.value || baseUrl.value.trim() !== '') &&
+    !defaultOutsideAllowed.value &&
+    allowedModels.value.length <= 100,
 )
 
 async function submit(): Promise<void> {
@@ -97,22 +140,24 @@ async function submit(): Promise<void> {
     }
     const saved = props.connection
       ? await updateModelProvider(props.connection.id, {
-        ...fields,
-        api_key: apiKey.value.trim() || undefined,
-        base_url: compatible.value && baseUrl.value.trim() ? baseUrl.value.trim() : undefined,
-      })
+          ...fields,
+          api_key: apiKey.value.trim() || undefined,
+          base_url: compatible.value && baseUrl.value.trim() ? baseUrl.value.trim() : undefined,
+        })
       : await createModelProvider({
-        ...fields,
-        provider: provider.value,
-        api_key: apiKey.value.trim(),
-        base_url: baseUrl.value.trim(),
-      })
+          ...fields,
+          provider: provider.value,
+          api_key: apiKey.value.trim(),
+          base_url: baseUrl.value.trim(),
+        })
     apiKey.value = ''
     const result = await testConnection(saved.id)
     const verb = editing.value ? (reconnecting.value ? 'Reconnected' : 'Saved') : 'Connected'
     notice = {
       ok: result.ok,
-      text: result.ok ? result.message.replace(/^Connected/, verb) : `${verb}, but the check failed: ${result.message}`,
+      text: result.ok
+        ? result.message.replace(/^Connected/, verb)
+        : `${verb}, but the check failed: ${result.message}`,
     }
   } catch (submitError) {
     error.value = errorMessage(submitError, 'Unable to save the model provider')
@@ -127,54 +172,153 @@ async function submit(): Promise<void> {
 <template>
   <form class="need-setup-fields" @submit.prevent="submit">
     <div class="need-setup-copy">
-      <h3>{{ editing ? (reconnecting ? 'Reconnect model provider' : 'Edit model provider') : 'Connect a model provider' }}</h3>
-      <p>The key stays on the server. Runs can use only the models you allow. The provider sees the code a run reads. <DocsLink :page="DocsPage.SecurityModel" section="remaining-risks">Security model</DocsLink></p>
+      <h3>
+        {{
+          editing
+            ? reconnecting
+              ? 'Reconnect model provider'
+              : 'Edit model provider'
+            : 'Connect a model provider'
+        }}
+      </h3>
+      <p>
+        The key stays on the server. Runs can use only the models you allow. The provider sees the
+        code a run reads.
+        <DocsLink :page="DocsPage.SecurityModel" section="remaining-risks">Security model</DocsLink>
+      </p>
     </div>
 
-    <div v-if="!editing" class="need-setup-type need-setup-wide" role="radiogroup" aria-label="Provider">
-      <button v-for="option in providerOptions" :key="option.id" type="button" role="radio" :aria-checked="provider === option.id" :class="{ active: provider === option.id }" :title="option.help" @click="provider = option.id">
+    <div
+      v-if="!editing"
+      class="need-setup-type need-setup-wide"
+      role="radiogroup"
+      aria-label="Provider"
+    >
+      <button
+        v-for="option in providerOptions"
+        :key="option.id"
+        type="button"
+        role="radio"
+        :aria-checked="provider === option.id"
+        :class="{ active: provider === option.id }"
+        :title="option.help"
+        @click="provider = option.id"
+      >
         {{ providerLabel(option.id) }}
       </button>
     </div>
 
     <label>
       <span>Name</span>
-      <InputText v-model="displayName" name="provider-name" autocomplete="off" maxlength="200" :placeholder="providerLabel(provider)" />
+      <InputText
+        v-model="displayName"
+        name="provider-name"
+        autocomplete="off"
+        maxlength="200"
+        :placeholder="providerLabel(provider)"
+      />
     </label>
     <label>
       <span>API key</span>
-      <InputText v-model="apiKey" type="password" name="provider-api-key" :required="keyRequired" autocomplete="new-password" data-1p-ignore data-lpignore="true" data-bwignore spellcheck="false" :placeholder="editing && !reconnecting ? 'Leave blank to keep the current key' : (compatible ? 'Optional for local servers' : 'Paste the API key')" />
+      <InputText
+        v-model="apiKey"
+        type="password"
+        name="provider-api-key"
+        :required="keyRequired"
+        autocomplete="new-password"
+        data-1p-ignore
+        data-lpignore="true"
+        data-bwignore
+        spellcheck="false"
+        :placeholder="
+          editing && !reconnecting
+            ? 'Leave blank to keep the current key'
+            : compatible
+              ? 'Optional for local servers'
+              : 'Paste the API key'
+        "
+      />
     </label>
     <label v-if="compatible" class="need-setup-wide">
       <span>Base URL</span>
-      <InputText v-model="baseUrl" type="url" :required="!editing" autocomplete="off" spellcheck="false" :placeholder="editing ? `Leave blank to keep ${connection?.target}` : 'http://localhost:11434/v1'" />
+      <InputText
+        v-model="baseUrl"
+        type="url"
+        :required="!editing"
+        autocomplete="off"
+        spellcheck="false"
+        :placeholder="
+          editing ? `Leave blank to keep ${connection?.target}` : 'http://localhost:11434/v1'
+        "
+      />
       <small>Include <code>/v1</code>. Production requires a public HTTPS address.</small>
     </label>
     <div v-if="modelError" class="need-setup-wide model-discovery">
       <p class="field-error" role="alert">{{ modelError }}</p>
-      <Button type="button" label="Retry loading models" severity="secondary" size="small" :disabled="!discoveryReady" @click="loadModels">
+      <Button
+        type="button"
+        label="Retry loading models"
+        severity="secondary"
+        size="small"
+        :disabled="!discoveryReady"
+        @click="loadModels"
+      >
         <template #icon><AppIcon name="refresh" /></template>
       </Button>
     </div>
     <div class="model-field">
       <label for="allowed-models">Allowed models</label>
-      <ModelPicker v-model="allowedModels" input-id="allowed-models" :options="modelSuggestions" multiple placeholder="Search and select models" :loading="loadingModels" />
-      <small v-if="!allowedModels.length || allowedModels.length > 100" :class="{ 'field-error': allowedModels.length > 100 }">{{ allowedModels.length > 100 ? 'Choose up to 100 models.' : 'Choose multiple models, or leave empty to allow any model.' }}</small>
+      <ModelPicker
+        v-model="allowedModels"
+        input-id="allowed-models"
+        :options="modelSuggestions"
+        multiple
+        placeholder="Search and select models"
+        :loading="loadingModels"
+      />
+      <small
+        v-if="!allowedModels.length || allowedModels.length > 100"
+        :class="{ 'field-error': allowedModels.length > 100 }"
+        >{{
+          allowedModels.length > 100
+            ? 'Choose up to 100 models.'
+            : 'Choose multiple models, or leave empty to allow any model.'
+        }}</small
+      >
     </div>
     <div class="model-field">
       <label for="default-model">Default model</label>
-      <ModelPicker v-model="defaultModel" input-id="default-model" :options="modelList.length ? modelList : modelSuggestions" placeholder="Search and select a model" :loading="loadingModels" />
-      <small v-if="defaultOutsideAllowed" class="field-error">Must be one of the allowed models.</small>
+      <ModelPicker
+        v-model="defaultModel"
+        input-id="default-model"
+        :options="modelList.length ? modelList : modelSuggestions"
+        placeholder="Search and select a model"
+        :loading="loadingModels"
+      />
+      <small v-if="defaultOutsideAllowed" class="field-error"
+        >Must be one of the allowed models.</small
+      >
       <small v-else-if="!defaultModel">Used when a job doesn’t choose a model.</small>
     </div>
 
     <!-- Discovery often refuses the same values first. Say it once, next to the field. -->
     <p v-if="error && error !== modelError" class="need-notice need-setup-wide">{{ error }}</p>
     <div class="need-setup-footer">
-      <small><AppIcon name="lock-outline" /> The key is encrypted at rest and never shown again. <DocsLink :page="DocsPage.SecurityModel" section="where-secrets-live">Where secrets live</DocsLink></small>
+      <small
+        ><AppIcon name="lock-outline" /> The key is encrypted at rest and never shown again.
+        <DocsLink :page="DocsPage.SecurityModel" section="where-secrets-live"
+          >Where secrets live</DocsLink
+        ></small
+      >
       <div class="need-actions">
         <Button label="Cancel" severity="secondary" text size="small" @click="emit('cancel')" />
-        <Button class="main-action" type="submit" :label="editing ? 'Save and check' : 'Connect and check'" :loading="saving" :disabled="!canSubmit">
+        <Button
+          class="main-action"
+          type="submit"
+          :label="editing ? 'Save and check' : 'Connect and check'"
+          :loading="saving"
+          :disabled="!canSubmit"
+        >
           <template #icon><AppIcon name="check" /></template>
         </Button>
       </div>
@@ -183,9 +327,32 @@ async function submit(): Promise<void> {
 </template>
 
 <style scoped>
-.model-field { display: grid; min-width: 0; align-content: start; gap: 8px; }
-.model-field small { color: var(--muted); font-size: var(--text-xs); line-height: 1.5; }
-.model-field small.field-error { color: var(--danger); }
-.model-discovery { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 16px 0; border-top: 1px solid var(--border); }
-.model-discovery .field-error { flex-basis: 100%; margin: 0; color: var(--danger); font-size: var(--text-xs); }
+.model-field {
+  display: grid;
+  min-width: 0;
+  align-content: start;
+  gap: 8px;
+}
+.model-field small {
+  color: var(--muted);
+  font-size: var(--text-xs);
+  line-height: 1.5;
+}
+.model-field small.field-error {
+  color: var(--danger);
+}
+.model-discovery {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 0;
+  border-top: 1px solid var(--border);
+}
+.model-discovery .field-error {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--danger);
+  font-size: var(--text-xs);
+}
 </style>

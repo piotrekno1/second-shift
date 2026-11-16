@@ -1,12 +1,24 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { isDeliveryInProgress, isRunActive, retryDelivery, runChangesUrl, runFileUrl, runQueryString, savedFileUrl, startJobRun } from '../src/services/runs'
+import {
+  isDeliveryInProgress,
+  isRunActive,
+  retryDelivery,
+  runChangesUrl,
+  runFileUrl,
+  runQueryString,
+  savedFileUrl,
+  startJobRun,
+} from '../src/services/runs'
 import type { RunDelivery } from '../src/types'
 
 test('runQueryString omits empty filters and the first page', () => {
   assert.equal(runQueryString({}), '')
-  assert.equal(runQueryString({ q: '  ', status: '', job_id: null, period: null, sort: 'newest', page: 1 }), '')
+  assert.equal(
+    runQueryString({ q: '  ', status: '', job_id: null, period: null, sort: 'newest', page: 1 }),
+    '',
+  )
 })
 
 test('runQueryString adds the period and a non-default sort', () => {
@@ -15,7 +27,14 @@ test('runQueryString adds the period and a non-default sort', () => {
 
 test('runQueryString encodes search, filters and paging', () => {
   assert.equal(
-    runQueryString({ q: 'health #4', status: 'failed', job_id: 3, repository_id: 7, page: 2, page_size: 25 }),
+    runQueryString({
+      q: 'health #4',
+      status: 'failed',
+      job_id: 3,
+      repository_id: 7,
+      page: 2,
+      page_size: 25,
+    }),
     '?q=health+%234&status=failed&job_id=3&repository_id=7&page=2&page_size=25',
   )
 })
@@ -32,10 +51,15 @@ test('runFileUrl points at the authenticated file endpoint', () => {
   assert.equal(runFileUrl(10, 'input', true), '/api/runs/10/files/input?download=true')
 })
 
-async function withResponse(status: number, body: unknown, check: () => Promise<void>): Promise<void> {
+async function withResponse(
+  status: number,
+  body: unknown,
+  check: () => Promise<void>,
+): Promise<void> {
   const originalFetch = globalThis.fetch
   const originalDocument = globalThis.document
-  globalThis.fetch = async () => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
+  globalThis.fetch = async () =>
+    new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
   Object.defineProperty(globalThis, 'document', { value: { cookie: '' }, configurable: true })
   try {
     await check()
@@ -52,20 +76,32 @@ test('startJobRun returns the new run', async () => {
 })
 
 test('startJobRun returns the run still in progress instead of failing', async () => {
-  await withResponse(409, { detail: 'This job already has a queued or running run.', run_id: 11 }, async () => {
-    assert.deepEqual(await startJobRun(3), { id: 11, started: false })
-  })
+  await withResponse(
+    409,
+    { detail: 'This job already has a queued or running run.', run_id: 11 },
+    async () => {
+      assert.deepEqual(await startJobRun(3), { id: 11, started: false })
+    },
+  )
 })
 
 test('startJobRun still fails when the job cannot run', async () => {
-  await withResponse(409, { detail: 'Enable the repository before running its jobs.' }, async () => {
-    await assert.rejects(startJobRun(3), { message: 'Enable the repository before running its jobs.' })
-  })
+  await withResponse(
+    409,
+    { detail: 'Enable the repository before running its jobs.' },
+    async () => {
+      await assert.rejects(startJobRun(3), {
+        message: 'Enable the repository before running its jobs.',
+      })
+    },
+  )
 })
 
 test('isDeliveryInProgress is true while a delivery waits to be sent or retried', () => {
   assert.deepEqual(
-    (['pending', 'retrying', 'delivered', 'skipped', 'failed'] as const).map((status) => isDeliveryInProgress({ status } as RunDelivery)),
+    (['pending', 'retrying', 'delivered', 'skipped', 'failed'] as const).map((status) =>
+      isDeliveryInProgress({ status } as RunDelivery),
+    ),
     [true, true, false, false, false],
   )
 })
@@ -77,6 +113,9 @@ test('retryDelivery reports why a delivery cannot be retried', async () => {
 })
 
 test('savedFileUrl keeps folders and encodes each part of the name', () => {
-  assert.equal(savedFileUrl(3, 'charts/q3 trend.png'), '/api/runs/3/saved-files/charts/q3%20trend.png')
+  assert.equal(
+    savedFileUrl(3, 'charts/q3 trend.png'),
+    '/api/runs/3/saved-files/charts/q3%20trend.png',
+  )
   assert.equal(runChangesUrl(3, true), '/api/runs/3/changes?download=true')
 })

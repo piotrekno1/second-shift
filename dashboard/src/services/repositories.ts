@@ -21,16 +21,29 @@ export function syncRepository(repositoryId: number): Promise<RepositoryDetail> 
   return apiPost<RepositoryDetail>(`/repositories/${repositoryId}/resync`)
 }
 
-export function setRepositoryEnabled(repositoryId: number, enabled: boolean): Promise<RepositoryDetail> {
+export function setRepositoryEnabled(
+  repositoryId: number,
+  enabled: boolean,
+): Promise<RepositoryDetail> {
   return apiPost<RepositoryDetail>(`/repositories/${repositoryId}/enabled`, { enabled })
 }
 
-export function setRepositoryAutoSync(repositoryId: number, enabled: boolean): Promise<RepositoryDetail> {
+export function setRepositoryAutoSync(
+  repositoryId: number,
+  enabled: boolean,
+): Promise<RepositoryDetail> {
   return apiPost<RepositoryDetail>(`/repositories/${repositoryId}/auto-sync`, { enabled })
 }
 
-export function savePullRequestSettings(repositoryId: number, allow: boolean, runCi: boolean): Promise<RepositoryDetail> {
-  return apiPost<RepositoryDetail>(`/repositories/${repositoryId}/pull-requests`, { allow, run_ci: runCi })
+export function savePullRequestSettings(
+  repositoryId: number,
+  allow: boolean,
+  runCi: boolean,
+): Promise<RepositoryDetail> {
+  return apiPost<RepositoryDetail>(`/repositories/${repositoryId}/pull-requests`, {
+    allow,
+    run_ci: runCi,
+  })
 }
 
 export function saveIssueSettings(repositoryId: number, allow: boolean): Promise<RepositoryDetail> {

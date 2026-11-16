@@ -23,13 +23,26 @@ const doneCount = computed(() => props.steps.filter((step) => step.done).length)
       <li
         v-for="(step, index) in steps"
         :key="step.key"
-        :class="{ done: step.done, current: index === current, upcoming: !step.done && index !== current }"
+        :class="{
+          done: step.done,
+          current: index === current,
+          upcoming: !step.done && index !== current,
+        }"
         :aria-current="index === current ? 'step' : undefined"
       >
-        <span class="setup-mark"><AppIcon v-if="step.done" name="check" /><template v-else>{{ index + 1 }}</template></span>
+        <span class="setup-mark"
+          ><AppIcon v-if="step.done" name="check" /><template v-else>{{
+            index + 1
+          }}</template></span
+        >
         <div class="setup-copy">
           <strong>{{ step.title }}</strong><span>{{ step.detail }}</span>
-          <span v-if="index === current && step.agentHint" class="setup-hint">{{ step.agentHint.lead }} <button type="button" class="link-button" @click="agentConnection.visible = true">{{ step.agentHint.link }}</button></span>
+          <span v-if="index === current && step.agentHint" class="setup-hint"
+            >{{ step.agentHint.lead }}
+            <button type="button" class="link-button" @click="agentConnection.visible = true">
+              {{ step.agentHint.link }}
+            </button></span
+          >
         </div>
         <div v-if="index === current && step.actions.length" class="setup-actions">
           <RouterLink
@@ -37,7 +50,8 @@ const doneCount = computed(() => props.steps.filter((step) => step.done).length)
             :key="action.label"
             :to="action.to"
             :class="actionIndex === 0 ? 'primary-action' : 'secondary-action'"
-          ><AppIcon :name="action.icon" /> {{ action.label }}</RouterLink>
+            ><AppIcon :name="action.icon" /> {{ action.label }}</RouterLink
+          >
         </div>
       </li>
     </ol>

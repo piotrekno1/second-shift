@@ -1,6 +1,11 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { connectGitHubToken, githubRepositories, githubBranches, importGitHubRepository } from '../services/githubRepositories'
+import {
+  connectGitHubToken,
+  githubRepositories,
+  githubBranches,
+  importGitHubRepository,
+} from '../services/githubRepositories'
 import { errorMessage } from '../services/api'
 import type { GitHubSource } from '../types'
 
@@ -44,7 +49,9 @@ export const useGitHubRepositoriesStore = defineStore('githubRepositories', () =
       error.value = status.error || null
     } catch (caught) {
       error.value = errorMessage(caught, 'Unable to load GitHub repositories')
-    } finally { loading.value = false }
+    } finally {
+      loading.value = false
+    }
   }
 
   async function importRepository(source: GitHubSource, branch: string) {
@@ -75,7 +82,24 @@ export const useGitHubRepositoriesStore = defineStore('githubRepositories', () =
     }
   }
 
-  function clearTokenError(): void { tokenError.value = null }
+  function clearTokenError(): void {
+    tokenError.value = null
+  }
 
-  return { clearTokenError, sources, error, importing, loading, branches, branchesLoading, branchesError, connecting, tokenError, load, loadBranches, importRepository, connectToken }
+  return {
+    clearTokenError,
+    sources,
+    error,
+    importing,
+    loading,
+    branches,
+    branchesLoading,
+    branchesError,
+    connecting,
+    tokenError,
+    load,
+    loadBranches,
+    importRepository,
+    connectToken,
+  }
 })

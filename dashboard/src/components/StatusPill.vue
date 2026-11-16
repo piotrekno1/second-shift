@@ -6,4 +6,6 @@ const props = defineProps<{ status: string; label?: string }>()
 const text = computed(() => props.label ?? statusLabel(props.status))
 </script>
 
-<template><span class="status-pill" :class="status">{{ text }}</span></template>
+<template>
+  <span class="status-pill" :class="status">{{ text }}</span>
+</template>

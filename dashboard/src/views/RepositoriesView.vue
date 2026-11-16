@@ -19,33 +19,62 @@ const list = useListQuery()
 const canAdd = computed(() => app.canAddLocalRepositories || app.can(Action.AddGitHubRepositories))
 
 type RepositoryState = '' | 'enabled' | 'disabled' | 'local' | 'github'
-const REPOSITORY_STATES: { value: RepositoryState, label: string, matches: (repository: Repository) => boolean }[] = [
+const REPOSITORY_STATES: {
+  value: RepositoryState
+  label: string
+  matches: (repository: Repository) => boolean
+}[] = [
   { value: '', label: 'All', matches: () => true },
   { value: 'enabled', label: 'Active', matches: (repository) => repository.enabled },
   { value: 'disabled', label: 'Paused', matches: (repository) => !repository.enabled },
   { value: 'local', label: 'Local', matches: (repository) => repository.source_type === 'local' },
-  { value: 'github', label: 'GitHub', matches: (repository) => repository.source_type === 'github' },
+  {
+    value: 'github',
+    label: 'GitHub',
+    matches: (repository) => repository.source_type === 'github',
+  },
 ]
 const search = computed(() => list.text('q'))
 // The GitHub account a repository syncs through. Connections links here for accounts with many repositories.
 const accountFilter = computed(() => list.number('account'))
-const accountOptions = computed(() => app.connections
-  .filter((connection) => connection.kind === 'source' && connection.provider === 'github')
-  .map((connection) => ({ value: connection.id, label: connection.display_name.replace(/^GitHub · /, '') })))
-const state = computed<RepositoryState>(() => REPOSITORY_STATES.find((item) => item.value === list.text('state'))?.value ?? '')
+const accountOptions = computed(() =>
+  app.connections
+    .filter((connection) => connection.kind === 'source' && connection.provider === 'github')
+    .map((connection) => ({
+      value: connection.id,
+      label: connection.display_name.replace(/^GitHub · /, ''),
+    })),
+)
+const state = computed<RepositoryState>(
+  () => REPOSITORY_STATES.find((item) => item.value === list.text('state'))?.value ?? '',
+)
 const searchedRepositories = computed(() => {
   const needle = search.value.toLowerCase()
-  return app.repositories.filter((repository) =>
-    (accountFilter.value === null || repository.github_connection_id === accountFilter.value) && (!needle || [repository.display_name, repository.full_name, repository.local_path ?? '']
-      .some((field) => field.toLowerCase().includes(needle))),
+  return app.repositories.filter(
+    (repository) =>
+      (accountFilter.value === null || repository.github_connection_id === accountFilter.value) &&
+      (!needle ||
+        [repository.display_name, repository.full_name, repository.local_path ?? ''].some((field) =>
+          field.toLowerCase().includes(needle),
+        )),
   )
 })
 // Source chips only help when both sources are present.
-const stateOptions = computed(() => REPOSITORY_STATES
-  .map((item) => ({ value: item.value, label: item.label, count: searchedRepositories.value.filter(item.matches).length }))
-  .filter((item) => !['local', 'github'].includes(item.value) || new Set(app.repositories.map((repository) => repository.source_type)).size > 1 || state.value === item.value))
+const stateOptions = computed(() =>
+  REPOSITORY_STATES.map((item) => ({
+    value: item.value,
+    label: item.label,
+    count: searchedRepositories.value.filter(item.matches).length,
+  })).filter(
+    (item) =>
+      !['local', 'github'].includes(item.value) ||
+      new Set(app.repositories.map((repository) => repository.source_type)).size > 1 ||
+      state.value === item.value,
+  ),
+)
 const visibleRepositories = computed(() => {
-  const matches = REPOSITORY_STATES.find((item) => item.value === state.value)?.matches ?? (() => true)
+  const matches =
+    REPOSITORY_STATES.find((item) => item.value === state.value)?.matches ?? (() => true)
   return searchedRepositories.value.filter(matches)
 })
 const filtered = computed(() => Boolean(search.value || state.value || accountFilter.value))
@@ -64,29 +93,80 @@ const repositoriesSubtitle = computed(() => {
 <template>
   <div class="page">
     <PageHeader compact title="Repositories" :description="repositoriesSubtitle">
-      <RouterLink v-if="canAdd && app.repositories.length" to="/repositories/new" class="primary-action"><AppIcon name="plus" /> Add repository</RouterLink>
+      <RouterLink
+        v-if="canAdd && app.repositories.length"
+        to="/repositories/new"
+        class="primary-action"
+        ><AppIcon name="plus" /> Add repository</RouterLink
+      >
     </PageHeader>
     <div v-if="app.repositories.length > 1 || accountFilter" class="list-toolbar">
-      <SearchInput :model-value="search" placeholder="Search repositories" @update:model-value="list.update({ q: $event })" />
-      <Select v-if="accountOptions.length > 1 || accountFilter" :model-value="accountFilter" :options="accountOptions" option-label="label" option-value="value" placeholder="All GitHub accounts" show-clear class="list-select" aria-label="GitHub account" @update:model-value="list.update({ account: $event })" />
-      <FilterChips :model-value="state" :options="stateOptions" label="Repository state" @update:model-value="list.update({ state: $event })" />
+      <SearchInput
+        :model-value="search"
+        placeholder="Search repositories"
+        @update:model-value="list.update({ q: $event })"
+      />
+      <Select
+        v-if="accountOptions.length > 1 || accountFilter"
+        :model-value="accountFilter"
+        :options="accountOptions"
+        option-label="label"
+        option-value="value"
+        placeholder="All GitHub accounts"
+        show-clear
+        class="list-select"
+        aria-label="GitHub account"
+        @update:model-value="list.update({ account: $event })"
+      />
+      <FilterChips
+        :model-value="state"
+        :options="stateOptions"
+        label="Repository state"
+        @update:model-value="list.update({ state: $event })"
+      />
     </div>
     <section v-if="visibleRepositories.length" class="panel table-panel">
       <div class="data-list">
-        <RouterLink v-for="repository in visibleRepositories" :key="repository.id" :to="`/repositories/${repository.id}`" class="repository-row">
-          <span class="row-glyph"><AppIcon :name="repository.source_type === 'local' ? 'folder-outline' : 'github'" /></span>
+        <RouterLink
+          v-for="repository in visibleRepositories"
+          :key="repository.id"
+          :to="`/repositories/${repository.id}`"
+          class="repository-row"
+        >
+          <span class="row-glyph"
+            ><AppIcon :name="repository.source_type === 'local' ? 'folder-outline' : 'github'"
+          /></span>
           <!-- The full path is long and shown on the repository page, so the row keeps it in a tooltip. -->
           <div class="repository-row-main" :title="repository.local_path ?? undefined">
             <strong>{{ repository.display_name }}</strong>
-            <span>{{ repository.source_type === 'local' ? 'Local' : 'GitHub' }} · {{ repository.default_branch }}</span>
+            <span
+              >{{ repository.source_type === 'local' ? 'Local' : 'GitHub' }} ·
+              {{ repository.default_branch }}</span
+            >
           </div>
           <span v-if="!repository.revision" class="repository-row-jobs">No jobs</span>
-          <span v-else class="repository-row-jobs">{{ countLabel(repository.job_count, 'job') }}</span>
-          <span v-if="repository.last_synced_at" class="repository-row-sync" :title="`${formatDate(repository.last_synced_at)} · ${utcTitle(repository.last_synced_at)}`">Synced {{ formatRelative(repository.last_synced_at) }}</span>
+          <span v-else class="repository-row-jobs">{{
+            countLabel(repository.job_count, 'job')
+          }}</span>
+          <span
+            v-if="repository.last_synced_at"
+            class="repository-row-sync"
+            :title="`${formatDate(repository.last_synced_at)} · ${utcTitle(repository.last_synced_at)}`"
+            >Synced {{ formatRelative(repository.last_synced_at) }}</span
+          >
           <span v-else class="repository-row-sync">Not synced</span>
           <!-- Active means little while no valid .secondshift.yaml has synced, so that comes first. -->
-          <StatusPill v-if="repository.enabled && !repository.revision" status="warning" label="Needs config" title="No valid .secondshift.yaml has synced yet" />
-          <StatusPill v-else :status="repository.enabled ? 'enabled' : 'disabled'" :label="repository.enabled ? 'Active' : 'Paused'" />
+          <StatusPill
+            v-if="repository.enabled && !repository.revision"
+            status="warning"
+            label="Needs config"
+            title="No valid .secondshift.yaml has synced yet"
+          />
+          <StatusPill
+            v-else
+            :status="repository.enabled ? 'enabled' : 'disabled'"
+            :label="repository.enabled ? 'Active' : 'Paused'"
+          />
           <AppIcon name="chevron-right" class="row-chevron" />
         </RouterLink>
       </div>
@@ -94,14 +174,21 @@ const repositoriesSubtitle = computed(() => {
     <section v-else-if="app.repositories.length && filtered" class="card-grid">
       <article class="panel empty-state wide">
         <AppIcon name="filter-remove-outline" /><strong>No repositories match these filters</strong>
-        <Button label="Clear filters" severity="secondary" text size="small" @click="list.update({ q: null, state: null, account: null })" />
+        <Button
+          label="Clear filters"
+          severity="secondary"
+          text
+          size="small"
+          @click="list.update({ q: null, state: null, account: null })"
+        />
       </article>
     </section>
     <!-- With nothing added yet, the page is the add flow. -->
     <AddRepositoryFlow v-else-if="!app.repositories.length && canAdd" />
     <section v-else-if="!app.repositories.length" class="card-grid">
       <article class="panel empty-state wide">
-        <AppIcon name="source-branch-plus" /><strong>No repositories yet</strong><span>Workspace owners add repositories.</span>
+        <AppIcon name="source-branch-plus" /><strong>No repositories yet</strong
+        ><span>Workspace owners add repositories.</span>
       </article>
     </section>
   </div>

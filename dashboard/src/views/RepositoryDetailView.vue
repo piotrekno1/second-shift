@@ -22,7 +22,7 @@ import {
   syncRepository,
 } from '../services/repositories'
 import { useAppStore } from '../stores/app'
-import type { Capability, Job, RepositoryDetail } from '../types'
+import type { RepositoryDetail } from '../types'
 import { Action } from '../utils/permissions'
 import { countLabel, formatDate, formatRelative, jobState, utcTitle } from '../utils/format'
 
@@ -46,20 +46,33 @@ const detailedJobs = computed(() => {
   const jobIds = new Set(repository.value?.jobs.map((job) => job.id) ?? [])
   return app.jobs.filter((job) => jobIds.has(job.id))
 })
-const requiredReviews = computed(() => detailedJobs.value.flatMap((job) =>
-  waitingCapabilities(job).map((capability) => ({ job, capability })),
-))
-const optionalSetups = computed(() => detailedJobs.value.flatMap((job) =>
-  job.capabilities
-    .filter((capability) => !capability.required && capability.grant_status === 'unconfigured')
-    .map((capability) => ({ job, capability })),
-))
-const readyDisabledJobs = computed(() => detailedJobs.value.filter((job) =>
-  jobState(job) === 'disabled' && (job.grant_status === 'approved' || job.grant_status === 'not_required'),
-))
+const requiredReviews = computed(() =>
+  detailedJobs.value.flatMap((job) =>
+    waitingCapabilities(job).map((capability) => ({ job, capability })),
+  ),
+)
+const optionalSetups = computed(() =>
+  detailedJobs.value.flatMap((job) =>
+    job.capabilities
+      .filter((capability) => !capability.required && capability.grant_status === 'unconfigured')
+      .map((capability) => ({ job, capability })),
+  ),
+)
+const readyDisabledJobs = computed(() =>
+  detailedJobs.value.filter(
+    (job) =>
+      jobState(job) === 'disabled' &&
+      (job.grant_status === 'approved' || job.grant_status === 'not_required'),
+  ),
+)
 // No commit has synced yet, so there is no valid .secondshift.yaml to read jobs from.
 const needsConfig = computed(() => !repository.value?.revision)
-const setupComplete = computed(() => !needsConfig.value && requiredReviews.value.length === 0 && readyDisabledJobs.value.length === 0)
+const setupComplete = computed(
+  () =>
+    !needsConfig.value &&
+    requiredReviews.value.length === 0 &&
+    readyDisabledJobs.value.length === 0,
+)
 const repositorySubtitle = computed(() => {
   const item = repository.value
   if (!item) return loading.value ? 'Loading repository…' : 'This repository could not be loaded'
@@ -67,15 +80,12 @@ const repositorySubtitle = computed(() => {
   return `${source} · ${item.default_branch} · ${countLabel(item.jobs.length, 'job')}`
 })
 
-
 async function enableReadyJobs(): Promise<void> {
   if (!readyDisabledJobs.value.length) return
   action.value = 'enable-jobs'
   error.value = null
   try {
-    await Promise.all(readyDisabledJobs.value.map((job) =>
-      setJobEnabled(job.id, true),
-    ))
+    await Promise.all(readyDisabledJobs.value.map((job) => setJobEnabled(job.id, true)))
     await Promise.all([app.refresh(), loadRepository()])
   } catch (enableError) {
     error.value = errorMessage(enableError, 'Unable to enable jobs')
@@ -180,7 +190,8 @@ const autoSyncLabel = computed(() => {
 })
 const autoSyncHelp = computed(() => {
   if (!repository.value?.auto_sync) return 'Press Resync to apply new commits.'
-  if (!repository.value.server_syncs) return 'Whoever runs this server has turned background sync off.'
+  if (!repository.value.server_syncs)
+    return 'Whoever runs this server has turned background sync off.'
   return `New commits on ${repository.value.default_branch} apply within minutes.`
 })
 
@@ -209,7 +220,9 @@ async function copyPath(): Promise<void> {
   if (!repository.value?.local_path) return
   await navigator.clipboard.writeText(repository.value.local_path)
   copied.value = true
-  window.setTimeout(() => { copied.value = false }, 1600)
+  window.setTimeout(() => {
+    copied.value = false
+  }, 1600)
 }
 
 onMounted(loadRepository)
@@ -224,52 +237,156 @@ onMounted(loadRepository)
       :parent="{ label: 'Repositories', to: '/repositories' }"
     >
       <template v-if="repository">
-        <Button v-if="repository.enabled && app.can(Action.RunJobs)" label="New task" @click="showTaskForm = !showTaskForm">
+        <Button
+          v-if="repository.enabled && app.can(Action.RunJobs)"
+          label="New task"
+          @click="showTaskForm = !showTaskForm"
+        >
           <template #icon><AppIcon name="play" /></template>
         </Button>
-        <Button v-if="app.can(Action.ResyncRepositories)" label="Resync" severity="secondary" outlined :loading="action === 'resync'" title="Import the committed manifest and skill definitions" @click="resyncRepository">
+        <Button
+          v-if="app.can(Action.ResyncRepositories)"
+          label="Resync"
+          severity="secondary"
+          outlined
+          :loading="action === 'resync'"
+          title="Import the committed manifest and skill definitions"
+          @click="resyncRepository"
+        >
           <template #icon><AppIcon name="refresh" /></template>
         </Button>
-        <Button v-if="app.can(Action.ChangeRepositoryState)" :label="repository.enabled ? 'Pause repository' : 'Resume repository'" severity="secondary" outlined :loading="action === 'toggle'" :disabled="action !== null" title="Pausing blocks scheduled jobs and new manual runs. Runs already in progress continue." @click="toggleRepository">
+        <Button
+          v-if="app.can(Action.ChangeRepositoryState)"
+          :label="repository.enabled ? 'Pause repository' : 'Resume repository'"
+          severity="secondary"
+          outlined
+          :loading="action === 'toggle'"
+          :disabled="action !== null"
+          title="Pausing blocks scheduled jobs and new manual runs. Runs already in progress continue."
+          @click="toggleRepository"
+        >
           <template #icon><AppIcon :name="repository.enabled ? 'pause' : 'play'" /></template>
         </Button>
-        <Button label="More" severity="secondary" text aria-label="More repository actions" aria-haspopup="true" aria-controls="repository-actions-menu" :loading="action === 'validate'" @click="repositoryMenu?.toggle($event)" />
-        <Menu id="repository-actions-menu" ref="repositoryMenu" :model="repositoryActions" popup class="row-menu">
-          <template #item="{ item, props }"><a v-bind="props.action" class="row-menu-item"><AppIcon :name="item.appIcon" />{{ item.label }}</a></template>
+        <Button
+          label="More"
+          severity="secondary"
+          text
+          aria-label="More repository actions"
+          aria-haspopup="true"
+          aria-controls="repository-actions-menu"
+          :loading="action === 'validate'"
+          @click="repositoryMenu?.toggle($event)"
+        />
+        <Menu
+          id="repository-actions-menu"
+          ref="repositoryMenu"
+          :model="repositoryActions"
+          popup
+          class="row-menu"
+        >
+          <template #item="{ item, props }"
+            ><a v-bind="props.action" class="row-menu-item"
+              ><AppIcon :name="item.appIcon" />{{ item.label }}</a
+            ></template
+          >
         </Menu>
       </template>
     </PageHeader>
 
-    <div v-if="loading" class="panel empty-state"><AppIcon name="loading" spin /><strong>Inspecting repository</strong></div>
-    <div v-else-if="!repository" class="panel empty-state"><AppIcon name="alert-outline" /><strong>Repository unavailable</strong><span>{{ error }}</span></div>
+    <div v-if="loading" class="panel empty-state">
+      <AppIcon name="loading" spin /><strong>Inspecting repository</strong>
+    </div>
+    <div v-else-if="!repository" class="panel empty-state">
+      <AppIcon name="alert-outline" /><strong>Repository unavailable</strong
+      ><span>{{ error }}</span>
+    </div>
     <template v-else>
       <p v-if="error" class="page-error">{{ error }}</p>
       <section v-if="!repository.enabled" class="panel repository-alert warning" role="status">
         <AppIcon name="pause" />
         <div>
           <strong>Repository paused</strong>
-          <span>Scheduled jobs and new manual runs are blocked. Runs already in progress continue. Resuming preserves each job’s schedule setting.</span>
+          <span
+            >Scheduled jobs and new manual runs are blocked. Runs already in progress continue.
+            Resuming preserves each job’s schedule setting.</span
+          >
         </div>
-        <Button v-if="app.can(Action.ChangeRepositoryState)" label="Resume repository" severity="secondary" outlined :loading="action === 'toggle'" :disabled="action !== null" @click="toggleRepository">
+        <Button
+          v-if="app.can(Action.ChangeRepositoryState)"
+          label="Resume repository"
+          severity="secondary"
+          outlined
+          :loading="action === 'toggle'"
+          :disabled="action !== null"
+          @click="toggleRepository"
+        >
           <template #icon><AppIcon name="play" /></template>
         </Button>
       </section>
-      <TaskSubmissionForm v-if="showTaskForm && repository.enabled && app.can(Action.RunJobs)" :repository-id="repositoryId" :repository-name="repository.display_name" :default-branch="repository.default_branch" :allows-pull-requests="repository.allow_pull_requests" @cancel="showTaskForm = false" />
+      <TaskSubmissionForm
+        v-if="showTaskForm && repository.enabled && app.can(Action.RunJobs)"
+        :repository-id="repositoryId"
+        :repository-name="repository.display_name"
+        :default-branch="repository.default_branch"
+        :allows-pull-requests="repository.allow_pull_requests"
+        @cancel="showTaskForm = false"
+      />
 
-      <section v-if="!setupComplete || justAdded" class="panel repository-setup" :class="{ complete: setupComplete }">
-        <div class="setup-status-icon"><AppIcon :name="setupComplete ? 'check-decagram-outline' : 'progress-check'" /></div>
+      <section
+        v-if="!setupComplete || justAdded"
+        class="panel repository-setup"
+        :class="{ complete: setupComplete }"
+      >
+        <div class="setup-status-icon">
+          <AppIcon :name="setupComplete ? 'check-decagram-outline' : 'progress-check'" />
+        </div>
         <div class="setup-copy">
-          <h2>{{ setupComplete ? (justAdded ? 'Repository added and ready' : 'This repository is ready') : 'Finish setup' }}</h2>
+          <h2>
+            {{
+              setupComplete
+                ? justAdded
+                  ? 'Repository added and ready'
+                  : 'This repository is ready'
+                : 'Finish setup'
+            }}
+          </h2>
           <p v-if="needsConfig">
-            Commit a valid <code>{{ repository.config_path }}</code> to {{ repository.default_branch }} to define its jobs.
-            {{ repository.auto_sync && repository.server_syncs ? 'It is picked up within minutes.' : 'Then press Resync.' }}
+            Commit a valid <code>{{ repository.config_path }}</code> to
+            {{ repository.default_branch }} to define its jobs.
+            {{
+              repository.auto_sync && repository.server_syncs
+                ? 'It is picked up within minutes.'
+                : 'Then press Resync.'
+            }}
           </p>
-          <p v-if="needsConfig && repository.validation.status !== 'valid'" class="setup-problem" :class="repository.validation.status">{{ repository.validation.message }}</p>
-          <p v-else-if="requiredReviews.length">Approve access for {{ countLabel(requiredReviews.length, 'required binding') }} before its jobs can run.</p>
-          <p v-else-if="readyDisabledJobs.length">Access is ready. Enable {{ countLabel(readyDisabledJobs.length, 'job') }} to start its schedule.</p>
+          <p
+            v-if="needsConfig && repository.validation.status !== 'valid'"
+            class="setup-problem"
+            :class="repository.validation.status"
+          >
+            {{ repository.validation.message }}
+          </p>
+          <p v-else-if="requiredReviews.length">
+            Approve access for {{ countLabel(requiredReviews.length, 'required binding') }} before
+            its jobs can run.
+          </p>
+          <p v-else-if="readyDisabledJobs.length">
+            Access is ready. Enable {{ countLabel(readyDisabledJobs.length, 'job') }} to start its
+            schedule.
+          </p>
           <p v-else>All required access is resolved and every ready job is enabled.</p>
           <small v-if="optionalSetups.length && app.can(Action.AddConnections)">
-            Optional: <RouterLink :to="{ path: '/connections', query: connectionSetupQuery(optionalSetups[0].job, optionalSetups[0].capability) }" class="need-job">connect {{ optionalSetups[0].capability.binding }}</RouterLink><template v-if="optionalSetups.length > 1"> and {{ optionalSetups.length - 1 }} more</template>. Jobs run without it.
+            Optional:
+            <RouterLink
+              :to="{
+                path: '/connections',
+                query: connectionSetupQuery(optionalSetups[0].job, optionalSetups[0].capability),
+              }"
+              class="need-job"
+              >connect {{ optionalSetups[0].capability.binding }}</RouterLink
+            ><template v-if="optionalSetups.length > 1">
+              and {{ optionalSetups.length - 1 }} more</template
+            >. Jobs run without it.
           </small>
         </div>
         <div class="repository-setup-actions">
@@ -277,15 +394,17 @@ onMounted(loadRepository)
             v-if="requiredReviews[0] && app.can(Action.ReviewCapabilities)"
             :to="{ path: '/jobs', query: { review: String(requiredReviews[0].job.id) } }"
             class="primary-action"
-          ><AppIcon name="shield-key-outline" /> Review access</RouterLink>
+            ><AppIcon name="shield-key-outline" /> Review access</RouterLink
+          >
           <Button
             v-else-if="readyDisabledJobs.length && app.can(Action.EnableJobs)"
             class="main-action"
             :label="`Enable ${countLabel(readyDisabledJobs.length, 'job')}`"
             :loading="action === 'enable-jobs'"
-            @click="enableReadyJobs">
-              <template #icon><AppIcon name="play" /></template>
-            </Button>
+            @click="enableReadyJobs"
+          >
+            <template #icon><AppIcon name="play" /></template>
+          </Button>
         </div>
       </section>
 
@@ -293,81 +412,221 @@ onMounted(loadRepository)
         <AppIcon name="source-commit" />
         <div>
           <strong>New commits since the last sync</strong>
-          <span>Job runs still use <code>{{ repository.validation.synced_revision.slice(0, 7) }}</code>; the repository is at <code>{{ repository.validation.current_revision?.slice(0, 7) }}</code>.</span>
+          <span
+            >Job runs still use
+            <code>{{ repository.validation.synced_revision.slice(0, 7) }}</code>; the repository is
+            at <code>{{ repository.validation.current_revision?.slice(0, 7) }}</code>.</span
+          >
         </div>
-        <Button v-if="app.can(Action.ResyncRepositories)" label="Resync" size="small" :loading="action === 'resync'" @click="resyncRepository">
+        <Button
+          v-if="app.can(Action.ResyncRepositories)"
+          label="Resync"
+          size="small"
+          :loading="action === 'resync'"
+          @click="resyncRepository"
+        >
           <template #icon><AppIcon name="refresh" /></template>
         </Button>
       </section>
       <!-- Without a synced config, Finish setup already shows the problem. -->
-      <section v-else-if="repository.validation.status !== 'valid' && !needsConfig" class="panel repository-alert" :class="repository.validation.status">
-        <AppIcon :name="repository.validation.status === 'warning' ? 'alert-outline' : 'close-octagon-outline'" />
-        <div><strong>{{ repository.validation.status === 'warning' ? 'Check this repository' : 'Repository needs attention' }}</strong><span>{{ repository.validation.message }}</span></div>
+      <section
+        v-else-if="repository.validation.status !== 'valid' && !needsConfig"
+        class="panel repository-alert"
+        :class="repository.validation.status"
+      >
+        <AppIcon
+          :name="
+            repository.validation.status === 'warning' ? 'alert-outline' : 'close-octagon-outline'
+          "
+        />
+        <div>
+          <strong>{{
+            repository.validation.status === 'warning'
+              ? 'Check this repository'
+              : 'Repository needs attention'
+          }}</strong><span>{{ repository.validation.message }}</span>
+        </div>
       </section>
 
       <section class="panel repository-info-card">
         <div class="panel-heading">
           <h2>Source</h2>
           <div class="repository-statuses">
-            <StatusPill :status="repository.validation.status" :title="repository.validation.message" />
-            <StatusPill :status="repository.enabled ? 'enabled' : 'disabled'" :label="repository.enabled ? 'Active' : 'Paused'" />
+            <StatusPill
+              :status="repository.validation.status"
+              :title="repository.validation.message"
+            />
+            <StatusPill
+              :status="repository.enabled ? 'enabled' : 'disabled'"
+              :label="repository.enabled ? 'Active' : 'Paused'"
+            />
           </div>
         </div>
         <dl class="repository-metadata compact-grid">
-          <div v-if="repository.local_path" class="full-row"><dt>Path</dt><dd><code>{{ repository.local_path }}</code><button class="copy-button" type="button" :aria-label="copied ? 'Copied' : 'Copy path'" @click="copyPath"><AppIcon :name="copied ? 'check' : 'content-copy'" /></button></dd></div>
-          <div><dt>Branch</dt><dd>{{ repository.default_branch }}</dd></div>
+          <div v-if="repository.local_path" class="full-row">
+            <dt>Path</dt>
+            <dd>
+              <code>{{ repository.local_path }}</code><button
+                class="copy-button"
+                type="button"
+                :aria-label="copied ? 'Copied' : 'Copy path'"
+                @click="copyPath"
+              >
+                <AppIcon :name="copied ? 'check' : 'content-copy'" />
+              </button>
+            </dd>
+          </div>
+          <div>
+            <dt>Branch</dt>
+            <dd>{{ repository.default_branch }}</dd>
+          </div>
           <div>
             <dt>Auto-sync</dt>
             <dd class="auto-sync" :title="autoSyncHelp">
               <span>{{ autoSyncLabel }}</span>
-              <button v-if="app.can(Action.ChangeRepositoryState)" type="button" class="link-button" :disabled="action === 'auto-sync'" @click="toggleAutoSync">{{ repository.auto_sync ? 'Turn off' : 'Turn on' }}</button>
+              <button
+                v-if="app.can(Action.ChangeRepositoryState)"
+                type="button"
+                class="link-button"
+                :disabled="action === 'auto-sync'"
+                @click="toggleAutoSync"
+              >
+                {{ repository.auto_sync ? 'Turn off' : 'Turn on' }}
+              </button>
             </dd>
           </div>
           <div v-if="repository.can_open_pull_requests" id="draft-pull-requests">
             <dt>Draft pull requests</dt>
-            <dd class="auto-sync" title="Jobs and tasks can push a secondshift/run branch and open a draft. The GitHub App or token needs Contents and Pull requests write access.">
+            <dd
+              class="auto-sync"
+              title="Jobs and tasks can push a secondshift/run branch and open a draft. The GitHub App or token needs Contents and Pull requests write access."
+            >
               <span>{{ repository.allow_pull_requests ? 'On' : 'Off' }}</span>
-              <button v-if="app.can(Action.AllowPullRequests)" type="button" class="link-button" :disabled="action === 'pull-requests'" @click="setPullRequests(!repository.allow_pull_requests, false)">{{ repository.allow_pull_requests ? 'Turn off' : 'Turn on' }}</button>
+              <button
+                v-if="app.can(Action.AllowPullRequests)"
+                type="button"
+                class="link-button"
+                :disabled="action === 'pull-requests'"
+                @click="setPullRequests(!repository.allow_pull_requests, false)"
+              >
+                {{ repository.allow_pull_requests ? 'Turn off' : 'Turn on' }}
+              </button>
             </dd>
           </div>
           <div v-if="repository.can_open_pull_requests && repository.allow_pull_requests">
             <dt>CI on drafts</dt>
-            <dd class="auto-sync" :title="repository.pull_request_ci ? 'CI runs on the first push. Only for repositories you trust.' : 'The first push skips CI. Push a commit after review to run it.'">
+            <dd
+              class="auto-sync"
+              :title="
+                repository.pull_request_ci
+                  ? 'CI runs on the first push. Only for repositories you trust.'
+                  : 'The first push skips CI. Push a commit after review to run it.'
+              "
+            >
               <span>{{ repository.pull_request_ci ? 'Runs at once' : 'After review' }}</span>
-              <button v-if="app.can(Action.AllowPullRequests)" type="button" class="link-button" :disabled="action === 'pull-requests'" @click="setPullRequests(true, !repository.pull_request_ci)">{{ repository.pull_request_ci ? 'Wait for review' : 'Run at once' }}</button>
+              <button
+                v-if="app.can(Action.AllowPullRequests)"
+                type="button"
+                class="link-button"
+                :disabled="action === 'pull-requests'"
+                @click="setPullRequests(true, !repository.pull_request_ci)"
+              >
+                {{ repository.pull_request_ci ? 'Wait for review' : 'Run at once' }}
+              </button>
             </dd>
           </div>
           <div v-if="repository.can_open_pull_requests" id="issues">
             <dt>Issues</dt>
-            <dd class="auto-sync" title="Jobs with issues: true can open the issues their agent proposes. The GitHub App or token needs Issues write access.">
+            <dd
+              class="auto-sync"
+              title="Jobs with issues: true can open the issues their agent proposes. The GitHub App or token needs Issues write access."
+            >
               <span>{{ repository.allow_issues ? 'On' : 'Off' }}</span>
-              <button v-if="app.can(Action.AllowIssues)" type="button" class="link-button" :disabled="action === 'issues'" @click="setIssues(!repository.allow_issues)">{{ repository.allow_issues ? 'Turn off' : 'Turn on' }}</button>
+              <button
+                v-if="app.can(Action.AllowIssues)"
+                type="button"
+                class="link-button"
+                :disabled="action === 'issues'"
+                @click="setIssues(!repository.allow_issues)"
+              >
+                {{ repository.allow_issues ? 'Turn off' : 'Turn on' }}
+              </button>
             </dd>
           </div>
-          <div><dt>Synced commit</dt><dd><code>{{ repository.revision.slice(0, 12) || '—' }}</code></dd></div>
-          <div><dt>Manifest</dt><dd><code>{{ repository.config_path }}</code></dd></div>
-          <div><dt>Last synced</dt><dd :title="`${formatDate(repository.last_synced_at)} · ${utcTitle(repository.last_synced_at)}`">{{ formatRelative(repository.last_synced_at) }}</dd></div>
+          <div>
+            <dt>Synced commit</dt>
+            <dd>
+              <code>{{ repository.revision.slice(0, 12) || '—' }}</code>
+            </dd>
+          </div>
+          <div>
+            <dt>Manifest</dt>
+            <dd>
+              <code>{{ repository.config_path }}</code>
+            </dd>
+          </div>
+          <div>
+            <dt>Last synced</dt>
+            <dd
+              :title="`${formatDate(repository.last_synced_at)} · ${utcTitle(repository.last_synced_at)}`"
+            >
+              {{ formatRelative(repository.last_synced_at) }}
+            </dd>
+          </div>
         </dl>
       </section>
 
       <section class="panel repository-jobs-panel">
-        <div class="panel-heading"><div><h2>Discovered jobs</h2><p>Read from <code>{{ repository.config_path }}</code> at the synced commit.</p></div><RouterLink to="/jobs">All jobs</RouterLink></div>
+        <div class="panel-heading">
+          <div>
+            <h2>Discovered jobs</h2>
+            <p>
+              Read from <code>{{ repository.config_path }}</code> at the synced commit.
+            </p>
+          </div>
+          <RouterLink to="/jobs">All jobs</RouterLink>
+        </div>
         <!-- The same rows as the Jobs page, so a job looks and acts the same in both places. -->
         <JobList v-if="detailedJobs.length" :jobs="detailedJobs" />
-        <div v-else class="empty-state compact"><AppIcon name="calendar-search" /><strong>No jobs discovered</strong></div>
+        <div v-else class="empty-state compact">
+          <AppIcon name="calendar-search" /><strong>No jobs discovered</strong>
+        </div>
       </section>
       <section v-if="app.can(Action.RemoveRepositories)" class="repository-danger">
-        <span v-if="confirmRemove">Remove {{ repository.display_name }} from SecondShift? Its jobs stop running; run history is kept.</span>
-        <Button :label="confirmRemove ? 'Confirm remove' : 'Remove repository'" severity="danger" :text="!confirmRemove" size="small" :loading="action === 'remove'" @click="removeRepository">
+        <span v-if="confirmRemove"
+          >Remove {{ repository.display_name }} from SecondShift? Its jobs stop running; run history
+          is kept.</span
+        >
+        <Button
+          :label="confirmRemove ? 'Confirm remove' : 'Remove repository'"
+          severity="danger"
+          :text="!confirmRemove"
+          size="small"
+          :loading="action === 'remove'"
+          @click="removeRepository"
+        >
           <template #icon><AppIcon name="trash-can-outline" /></template>
         </Button>
-        <Button v-if="confirmRemove" label="Cancel" severity="secondary" text size="small" @click="confirmRemove = false" />
+        <Button
+          v-if="confirmRemove"
+          label="Cancel"
+          severity="secondary"
+          text
+          size="small"
+          @click="confirmRemove = false"
+        />
       </section>
     </template>
   </div>
 </template>
 
 <style scoped>
-.repository-page :deep(.page-actions) { flex: none; flex-wrap: wrap; align-items: center; }
-.repository-page :deep(.page-actions .p-button) { white-space: nowrap; }
+.repository-page :deep(.page-actions) {
+  flex: none;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.repository-page :deep(.page-actions .p-button) {
+  white-space: nowrap;
+}
 </style>
