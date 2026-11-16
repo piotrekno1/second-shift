@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "prepare:content": "node scripts/prepare-content.mjs",
-    "dev": "npm run prepare:content && ASTRO_TELEMETRY_DISABLED=1 astro dev --host 127.0.0.1 --port 4321",
+    "dev": "npm run prepare:content && ASTRO_TELEMETRY_DISABLED=1 astro dev --force --host 127.0.0.1 --port 4321",
     "build": "npm run prepare:content && ASTRO_TELEMETRY_DISABLED=1 astro build",
     "preview": "ASTRO_TELEMETRY_DISABLED=1 astro preview --host 127.0.0.1 --port 4321"
   },
