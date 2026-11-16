@@ -6,6 +6,7 @@ import httpx
 from django.conf import settings
 
 from secondshift.connections.checks import record_check
+from secondshift.connections.credential_store import Secret, has_secret, read_secret
 from secondshift.connections.models import Connection
 from secondshift.connections.outbound import (
     OutboundUrlError,
@@ -48,14 +49,13 @@ def deliver_webhook(connection: Connection, payload: dict[str, Any]) -> WebhookD
 
 
 def post_webhook(connection: Connection, payload: dict[str, Any]) -> WebhookDelivery:
-    if (
-        connection.provider != Connection.Provider.WEBHOOK
-        or not connection.delivery_url
+    if connection.provider != Connection.Provider.WEBHOOK or not has_secret(
+        connection, Secret.DELIVERY_URL
     ):
         return WebhookDelivery(False, None, "This connection has no webhook URL.")
     try:
         # Validated again at send time: DNS answers can change after saving.
-        url = validate_webhook_url(connection.delivery_url)
+        url = validate_webhook_url(read_secret(connection, Secret.DELIVERY_URL))
     except WebhookError as error:
         return WebhookDelivery(False, None, str(error))
     try:

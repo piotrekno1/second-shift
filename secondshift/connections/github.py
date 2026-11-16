@@ -1,5 +1,6 @@
 """GitHub source connections: how a workspace reaches its repositories."""
 
+from secondshift.connections.credential_store import Secret, has_secret, read_secret
 from secondshift.connections.dao import save_github_source
 from secondshift.connections.models import Connection
 from secondshift.github import credentials
@@ -100,8 +101,8 @@ def usable_source(connection: Connection | None) -> bool:
         return False
     if connection.auth_strategy == Connection.AuthStrategy.MANAGED:
         return True
-    return connection.auth_strategy == Connection.AuthStrategy.API_KEY and bool(
-        connection.access_token
+    return connection.auth_strategy == Connection.AuthStrategy.API_KEY and has_secret(
+        connection, Secret.TOKEN
     )
 
 
@@ -120,4 +121,4 @@ def connection_source(connection: Connection | None) -> credentials.Source:
         return credentials.AppInstallation(connection.external_account_id)
     if connection.current_status == Connection.Status.EXPIRED:
         raise GitHubError("The GitHub token expired. Enter a new one.")
-    return credentials.PersonalToken(connection.access_token)
+    return credentials.PersonalToken(read_secret(connection, Secret.TOKEN))

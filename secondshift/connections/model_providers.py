@@ -11,6 +11,7 @@ from django.conf import settings
 from django.db import transaction
 
 from secondshift.connections.checks import record_check
+from secondshift.connections.credential_store import Secret, read_secret
 from secondshift.connections.models import Connection
 from secondshift.connections.outbound import (
     OutboundUrlError,
@@ -206,7 +207,7 @@ def check_default_model(connection: Connection) -> None:
 
 def list_anthropic_models(connection: Connection) -> list[str]:
     client = anthropic.Anthropic(
-        api_key=connection.access_token,
+        api_key=read_secret(connection, Secret.TOKEN),
         base_url=base_url(connection),
         max_retries=0,
         timeout=settings.OUTBOUND_TIMEOUT_SECONDS,
@@ -218,8 +219,8 @@ def list_anthropic_models(connection: Connection) -> list[str]:
 def list_openai_models(connection: Connection) -> list[str]:
     url = validate_outbound_url(f"{base_url(connection)}/models", "base URL")
     headers = {"Accept": "application/json"}
-    if connection.access_token:
-        headers["Authorization"] = f"Bearer {connection.access_token}"
+    if token := read_secret(connection, Secret.TOKEN):
+        headers["Authorization"] = f"Bearer {token}"
     with outbound_sync_client() as client:
         response = client.get(url, headers=headers)
     if response.status_code in {401, 403}:
@@ -276,7 +277,7 @@ def call_failure(status_code: int, model: str, detail: str) -> str:
 
 def call_anthropic(connection: Connection, model: str) -> str | None:
     client = anthropic.Anthropic(
-        api_key=connection.access_token,
+        api_key=read_secret(connection, Secret.TOKEN),
         base_url=base_url(connection),
         max_retries=0,
         timeout=settings.OUTBOUND_TIMEOUT_SECONDS,
@@ -311,8 +312,8 @@ def call_openai_family(connection: Connection, model: str) -> str | None:
         }
     url = validate_outbound_url(f"{base_url(connection)}/{path}", "base URL")
     headers = {"Accept": "application/json", "Content-Type": "application/json"}
-    if connection.access_token:
-        headers["Authorization"] = f"Bearer {connection.access_token}"
+    if token := read_secret(connection, Secret.TOKEN):
+        headers["Authorization"] = f"Bearer {token}"
     with outbound_sync_client() as client:
         response = client.post(url, json=body, headers=headers)
     if response.status_code == 200:

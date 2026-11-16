@@ -19,6 +19,7 @@ from asgiref.sync import sync_to_async
 from django.conf import settings
 from django.http import HttpRequest, HttpResponse, StreamingHttpResponse
 
+from secondshift.connections.credential_store import Secret, read_secret
 from secondshift.connections.model_providers import (
     ModelFamily,
     api_root,
@@ -116,11 +117,12 @@ def upstream_headers(
     for name in ROUTES[family].forwarded_headers:
         if value := request.headers.get(name):
             headers[name] = value
+    token = read_secret(connection, Secret.TOKEN)
     if family == ModelFamily.ANTHROPIC:
         headers.setdefault("anthropic-version", ANTHROPIC_VERSION)
-        headers["x-api-key"] = connection.access_token
-    elif connection.access_token:
-        headers["Authorization"] = f"Bearer {connection.access_token}"
+        headers["x-api-key"] = token
+    elif token:
+        headers["Authorization"] = f"Bearer {token}"
     return headers
 
 
