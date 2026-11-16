@@ -10,7 +10,6 @@ from unittest.mock import Mock
 import pytest
 from pydantic import ValidationError
 
-from secondshift.config.constants import AgentBackend
 from secondshift.core.launcher import services
 from secondshift.runner import agents
 from secondshift.runner.agent_credentials import (
@@ -19,10 +18,11 @@ from secondshift.runner.agent_credentials import (
     provisioning_public_key,
 )
 from secondshift.runner.agent_image import agent, claude, codex, outcomes
-from secondshift.runner.agent_protocol import AgentCheckInput, AgentInput
 from secondshift.runner.agents import agent_command, require_agent_configuration
 from secondshift.runner.models import RunnerSession
 from secondshift.runner.services import DockerRunnerService, sandbox_flags
+from secondshift.runner_protocol.agents import AgentBackend
+from secondshift.runner_protocol.schemas import AgentCheckInput, AgentInput
 from secondshift.runner_protocol.sessions import RunnerProtocolError
 
 TOKEN = "sk-ant-oat01-test-subscription-token"

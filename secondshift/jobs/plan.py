@@ -10,7 +10,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict
 
-from secondshift.config.constants import AgentBackend
+from secondshift.runner_protocol.agents import AgentBackend
 from secondshift.runner_protocol.sandbox import SANDBOX_SKILL_DIR
 from secondshift.workspaces.limits import RunLimit
 

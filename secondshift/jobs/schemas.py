@@ -4,8 +4,8 @@ from typing import Annotated, Any, Literal
 from ninja import Schema
 from pydantic import ConfigDict, Field
 
-from secondshift.config.constants import AgentBackend
 from secondshift.connections.schemas import ConnectionSchema
+from secondshift.runner_protocol.agents import AgentBackend
 from secondshift.runs.schemas import RunSchema
 from secondshift.workspaces.schemas import LimitSchema
 

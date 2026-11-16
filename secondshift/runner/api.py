@@ -6,7 +6,6 @@ from ninja import NinjaAPI, Status
 from ninja.security import HttpBearer
 
 from secondshift.runner.agent_credentials import provisioning_public_key
-from secondshift.runner.agent_protocol import AgentCheckInput, AgentInput, AgentOutput
 from secondshift.runner.agents import (
     check_agent,
     execute_agent,
@@ -21,6 +20,7 @@ from secondshift.runner.schemas import (
 )
 from secondshift.runner.services import get_runner_service
 from secondshift.runner.sources import has_source, receive_source
+from secondshift.runner_protocol.schemas import AgentCheckInput, AgentInput, AgentOutput
 from secondshift.runner_protocol.sessions import (
     CommandRequest,
     RunnerProtocolError,

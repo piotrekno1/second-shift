@@ -12,7 +12,6 @@ from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 
 from secondshift.config.api import api
-from secondshift.config.constants import AgentBackend
 from secondshift.connections.execution import (
     NOTHING_CHOSEN,
     choose_execution,
@@ -31,6 +30,7 @@ from secondshift.jobs.models import Job
 from secondshift.jobs.planning import build_execution_plan
 from secondshift.jobs.serialization import serialize_workspace_jobs
 from secondshift.repositories.models import Repository
+from secondshift.runner_protocol.agents import AgentBackend
 from secondshift.runs.constants import RunStart
 from secondshift.runs.dao import create_task
 from secondshift.runs.models import Run

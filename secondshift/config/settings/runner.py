@@ -20,9 +20,9 @@ from secondshift.config.constants import (
     Environment,
     SandboxRuntime,
     Service,
-    local_agent_broker_url,
 )
 from secondshift.config.logging import logging_config
+from secondshift.runner_protocol.agents import local_agent_broker_url
 
 env = Env()
 # On a single host the runner shares the data folder, but reads only runner.env

@@ -17,9 +17,9 @@ from secondshift.runner.agent_credentials import (
 )
 from secondshift.runner.agent_image import agent, claude, outcomes, subagent_hook
 from secondshift.runner.agent_image.subagent_hook import WORKER
-from secondshift.runner.agent_protocol import AgentInput
 from secondshift.runner.models import RunnerSession
 from secondshift.runner.tests.test_agents import BROKER, IMAGE, TOKEN
+from secondshift.runner_protocol.schemas import AgentInput
 
 
 @pytest.fixture

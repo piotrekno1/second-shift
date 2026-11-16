@@ -1,4 +1,4 @@
-from secondshift.config.constants import AgentBackend
+from secondshift.runner_protocol.agents import AgentBackend
 
 
 def test_each_backend_states_what_its_runs_can_do() -> None:

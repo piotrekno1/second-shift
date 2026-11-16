@@ -8,7 +8,6 @@ from django.contrib.auth import get_user_model
 from django.utils import timezone
 from pydantic import ValidationError
 
-from secondshift.config.constants import AgentBackend
 from secondshift.connections.execution import choose_execution
 from secondshift.connections.models import Connection
 from secondshift.jobs.automatic_grants import approves_automatically
@@ -18,6 +17,7 @@ from secondshift.jobs.models import CapabilityRequest, Job, JobGrant
 from secondshift.jobs.planning import build_execution_plan, build_skill_execution_plan
 from secondshift.jobs.sync import sync_jobs
 from secondshift.repositories.models import Repository
+from secondshift.runner_protocol.agents import AgentBackend
 from secondshift.runs.models import Run, Task
 from secondshift.workspaces.dao import create_workspace
 

@@ -10,7 +10,6 @@ from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 
-from secondshift.config.constants import AgentBackend
 from secondshift.connections.agents import (
     product_name,
     sign_in_refused,
@@ -23,6 +22,7 @@ from secondshift.connections.dao import (
     usable_models,
 )
 from secondshift.connections.models import AgentConnection, Connection
+from secondshift.runner_protocol.agents import AgentBackend
 from secondshift.workspaces.models import Workspace
 
 # Choice keys name one model key or one login, for example "model:3" or "agent:7".

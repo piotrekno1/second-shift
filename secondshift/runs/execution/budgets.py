@@ -20,8 +20,9 @@ from pydantic_ai.messages import ModelMessage, ModelResponse, TextPart, ToolCall
 from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.usage import RunUsage
 
-from secondshift.config.constants import TOKEN_BUDGET_MESSAGE, AgentBackend
+from secondshift.config.constants import TOKEN_BUDGET_MESSAGE
 from secondshift.jobs.plan import ExecutionPlan
+from secondshift.runner_protocol.agents import AgentBackend
 from secondshift.runs.models import RunFailure
 from secondshift.runs.reporting.failures import StageFailure
 from secondshift.workspaces.limits import RunLimit, raise_hint

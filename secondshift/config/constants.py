@@ -7,28 +7,15 @@ sides enforce live here. A name only one app uses belongs in that app.
 """
 
 from enum import StrEnum
-from urllib.parse import urlsplit
 
 ENVIRONMENT_VAR = "SECONDSHIFT_ENV"
 SETTINGS_MODULE_VAR = "DJANGO_SETTINGS_MODULE"
 SERVICE_VAR = "SECONDSHIFT_SERVICE"
 
 
-# How agent containers reach services on the Docker host.
-HOST_ALIAS = "host.docker.internal"
 # `secondshift up` builds this tag from the installed package.
 LOCAL_AGENT_TAG = "secondshift-agent:local"
 LOCAL_GATEWAY_URL = "http://127.0.0.1:8001"
-
-
-# The gateway's MCP endpoint for subscription agents. Deploy files spell it out too.
-AGENT_BROKER_PATH = "gateway/agent/mcp"
-
-
-def local_agent_broker_url(gateway_url: str) -> str:
-    """The gateway's agent broker, as agent containers on this host reach it."""
-    port = urlsplit(gateway_url).port or 80
-    return f"http://{HOST_ALIAS}:{port}/{AGENT_BROKER_PATH}"
 
 
 class ArtifactStorage(StrEnum):
@@ -142,27 +129,3 @@ DEFAULT_SANDBOX_IMAGE = (
 
 # The repository file that lists jobs, at the repository root.
 MANIFEST_FILE = ".secondshift.yaml"
-
-
-class AgentBackend(StrEnum):
-    """Who runs the agent: SecondShift's own loop, or a subscription CLI."""
-
-    PYDANTIC = "pydantic"
-    CLAUDE_CODE = "claude_code"
-    CODEX = "codex"
-
-    @property
-    def uses_model_api(self) -> bool:
-        """Runs call a model provider through SecondShift's gateway. The CLIs
-        call their provider directly with the subscription login."""
-        return self is AgentBackend.PYDANTIC
-
-    @property
-    def starts_subagents(self) -> bool:
-        """Runs can start sub-agents when the job allows them."""
-        return self is not AgentBackend.CODEX
-
-    @property
-    def limits_model_calls(self) -> bool:
-        """Runs stop at the run's model-call limit."""
-        return self is not AgentBackend.CODEX

@@ -6,7 +6,7 @@ import httpx
 from django.conf import settings
 
 from secondshift.runner.agent_credentials import encrypt_agent_auth
-from secondshift.runner.agent_protocol import AgentCheckInput, AgentInput, AgentOutput
+from secondshift.runner_protocol.schemas import AgentCheckInput, AgentInput, AgentOutput
 from secondshift.runner_protocol.sessions import (
     CommandRequest,
     CommandResult,
