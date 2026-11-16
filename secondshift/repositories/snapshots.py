@@ -16,6 +16,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import IO
 
+from secondshift.git import commands
+from secondshift.git.commands import GitError
 from secondshift.runner_protocol.sandbox import (
     COMMIT_SHA_PATTERN,
     MAX_SOURCE_FILES,
@@ -185,8 +187,10 @@ class BlobReader:
         self.process: subprocess.Popen[bytes] | None = None
 
     def __enter__(self) -> "BlobReader":
+        prepared = commands.invocation(self.git_dir, ["cat-file", "--batch"])
         self.process = subprocess.Popen(
-            ["git", "-C", str(self.git_dir), "cat-file", "--batch"],
+            prepared.command,
+            env=prepared.environment,
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL,
@@ -228,14 +232,8 @@ class BlobReader:
 
 def run_git_bytes(git_dir: Path, *arguments: str) -> bytes:
     try:
-        completed = subprocess.run(
-            ["git", "-C", str(git_dir), *arguments],
-            capture_output=True,
-            check=False,
-            timeout=120,
-        )
-    except subprocess.TimeoutExpired as error:
-        raise SnapshotError("Git timed out while reading the commit.") from error
-    if completed.returncode:
-        raise SnapshotError("Git could not read the commit.")
-    return completed.stdout
+        return commands.output_bytes(git_dir, *arguments)
+    except GitError as error:
+        if error.timed_out:
+            raise SnapshotError("Git timed out while reading the commit.") from error
+        raise SnapshotError("Git could not read the commit.") from error
