@@ -8,12 +8,12 @@ from django.db import transaction
 from django.db.models import Count, Exists, F, OuterRef, Q, QuerySet, Subquery, Sum
 from django.db.models.functions import Coalesce, TruncDate
 
-from secondshift.config.constants import AgentBackend
+from secondshift.agent.image.outcomes import CACHE_READ_DIVISOR
 from secondshift.connections.models import Connection
 from secondshift.jobs.dao import active_jobs
 from secondshift.jobs.models import Job
 from secondshift.jobs.plan import ExecutionPlan
-from secondshift.runner.agent_image.outcomes import CACHE_READ_DIVISOR
+from secondshift.runner_protocol.agents import AgentBackend
 from secondshift.runs.models import (
     AgentLease,
     Run,

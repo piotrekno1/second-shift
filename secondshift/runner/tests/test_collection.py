@@ -12,7 +12,7 @@ from secondshift.runner.collection import (
     record_baseline,
     record_workspace_commit,
 )
-from secondshift.runner.protocol import RunnerProtocolError
+from secondshift.runner_protocol.sessions import RunnerProtocolError
 
 
 @pytest.fixture

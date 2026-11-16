@@ -1,6 +1,6 @@
 import pytest
 
-from secondshift.runner.protocol import (
+from secondshift.runner_protocol.sessions import (
     CommandRequest,
     RunnerSessionSpec,
 )
@@ -59,6 +59,16 @@ def test_session_key_must_be_lowercase_hex(session_key: str) -> None:
             image="secondshift-runner:test",
             source_sha256="d" * 64,
         )
+
+
+@pytest.mark.parametrize("commit_sha", ["a" * 39, "a" * 41, "a" * 63, "A" * 40])
+def test_commit_sha_must_be_a_full_sha1_or_sha256(commit_sha: str) -> None:
+    with pytest.raises(ValueError, match="commit_sha"):
+        RunnerSessionSpec(**{**spec().__dict__, "commit_sha": commit_sha})
+
+
+def test_a_sha256_commit_is_accepted() -> None:
+    assert RunnerSessionSpec(**{**spec().__dict__, "commit_sha": "a" * 64})
 
 
 @pytest.mark.parametrize("skill_sha256", ["../x", "E" * 64, "e" * 63, "/etc"])

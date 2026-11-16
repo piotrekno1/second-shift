@@ -1,10 +1,13 @@
+"""The session and command specs the control plane sends to the runner."""
+
 import hashlib
 import json
 import re
 from dataclasses import asdict, dataclass
 from pathlib import PurePosixPath
 
-from secondshift.config.constants import (
+from secondshift.runner_protocol.sandbox import (
+    COMMIT_SHA_PATTERN,
     SANDBOX_HISTORY_DIR,
     SANDBOX_OUTPUTS_DIR,
     SANDBOX_SKILL_DIR,
@@ -17,7 +20,7 @@ class RunnerProtocolError(RuntimeError):
 
 
 REPOSITORY_NAME = re.compile(r"^[A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)+$")
-COMMIT_SHA = re.compile(r"^[0-9a-f]{40,64}$")
+COMMIT_SHA = re.compile(COMMIT_SHA_PATTERN)
 SESSION_KEY = re.compile(r"^[0-9a-f]{32}$")
 SOURCE_SHA256 = re.compile(r"^[0-9a-f]{64}$")
 # Folders beside the repository where a command may start. Their mounts, and

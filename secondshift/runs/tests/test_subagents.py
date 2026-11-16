@@ -13,8 +13,8 @@ from pydantic_ai.messages import (
 )
 from pydantic_ai.models.function import AgentInfo, FunctionModel
 
-from secondshift.config.constants import AgentBackend
-from secondshift.runner.agent_image.subagent_hook import WORKER
+from secondshift.agent.image.claude.subagent_hook import WORKER
+from secondshift.runner_protocol.agents import AgentBackend
 from secondshift.runs.execution.run import (
     WORKSPACE_AGENT,
     execute_agent_run,

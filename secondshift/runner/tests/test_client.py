@@ -3,8 +3,8 @@ from collections.abc import Callable
 import httpx
 import pytest
 
-from secondshift.runner.client import HttpRunnerClient
-from secondshift.runner.protocol import CommandRequest, RunnerProtocolError
+from secondshift.runner_protocol.client import HttpRunnerClient
+from secondshift.runner_protocol.sessions import CommandRequest, RunnerProtocolError
 
 Handler = Callable[[httpx.Request], httpx.Response]
 

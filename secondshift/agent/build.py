@@ -8,7 +8,7 @@ from pathlib import Path
 
 from secondshift.config.constants import LOCAL_AGENT_TAG
 
-AGENT_IMAGE_DIR = Path(__file__).parent / "agent_image"
+AGENT_IMAGE_DIR = Path(__file__).parent / "image"
 BUILD_SECONDS = 1800
 
 
@@ -34,7 +34,7 @@ def build_agent_image(tag: str = LOCAL_AGENT_TAG) -> str:
     so Docker never uploads the rest of the installed packages.
     """
     with tempfile.TemporaryDirectory(prefix="secondshift-agent-") as context:
-        target = Path(context) / "secondshift" / "runner" / "agent_image"
+        target = Path(context) / "secondshift" / "agent" / "image"
         shutil.copytree(
             AGENT_IMAGE_DIR, target, ignore=shutil.ignore_patterns("__pycache__")
         )

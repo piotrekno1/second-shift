@@ -12,9 +12,12 @@ from pathlib import Path
 
 from django.conf import settings
 
-from secondshift.config.constants import MAX_HISTORY_FILES_BYTES, SANDBOX_HISTORY_DIR
 from secondshift.jobs.models import Job
-from secondshift.runner.collection import safe_output_name
+from secondshift.runner_protocol.collection import safe_output_name
+from secondshift.runner_protocol.sandbox import (
+    MAX_HISTORY_FILES_BYTES,
+    SANDBOX_HISTORY_DIR,
+)
 from secondshift.runs.artifacts import artifact_storage
 from secondshift.runs.dao import job_runs_by_id, succeeded_run_ids
 from secondshift.runs.inputs import HistoryFile, HistoryFiles

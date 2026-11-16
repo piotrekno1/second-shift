@@ -1,37 +1,21 @@
 """Names shared across process and app boundaries.
 
 The runner's settings must never import the control plane's settings, which
-read its keys. The runner never imports control plane apps either. Settings
-names, env vars that one module writes and another reads, and limits both
-sides enforce live here. A name only one app uses belongs in that app.
+read its keys. Settings names, and env vars that one module writes and another
+reads, live here. What the runner and the control plane agree on lives in
+secondshift/runner_protocol. A name only one app uses belongs in that app.
 """
 
 from enum import StrEnum
-from urllib.parse import urlsplit
-
-# Git object formats supported by repository snapshots and execution plans.
-COMMIT_SHA_PATTERN = r"[0-9a-f]{40}|[0-9a-f]{64}"
 
 ENVIRONMENT_VAR = "SECONDSHIFT_ENV"
 SETTINGS_MODULE_VAR = "DJANGO_SETTINGS_MODULE"
 SERVICE_VAR = "SECONDSHIFT_SERVICE"
 
 
-# How agent containers reach services on the Docker host.
-HOST_ALIAS = "host.docker.internal"
 # `secondshift up` builds this tag from the installed package.
 LOCAL_AGENT_TAG = "secondshift-agent:local"
 LOCAL_GATEWAY_URL = "http://127.0.0.1:8001"
-
-
-# The gateway's MCP endpoint for subscription agents. Deploy files spell it out too.
-AGENT_BROKER_PATH = "gateway/agent/mcp"
-
-
-def local_agent_broker_url(gateway_url: str) -> str:
-    """The gateway's agent broker, as agent containers on this host reach it."""
-    port = urlsplit(gateway_url).port or 80
-    return f"http://{HOST_ALIAS}:{port}/{AGENT_BROKER_PATH}"
 
 
 class ArtifactStorage(StrEnum):
@@ -80,27 +64,6 @@ class AppEnv(StrEnum):
 
 GITHUB_HOST = "github.com"
 GITHUB_BASE_URL = f"https://{GITHUB_HOST}"
-# Limits for the files of one commit that a run gets. The control plane checks
-# them while it builds a snapshot, and the runner checks them again.
-MAX_SOURCE_SNAPSHOT_BYTES = 64 * 1024 * 1024
-MAX_SOURCE_UNPACKED_BYTES = 1024 * 1024 * 1024
-MAX_SOURCE_FILES = 200_000
-# Limits for what a run leaves behind: the agent's file changes, and the files
-# it saves in /outputs. The runner applies them, and the control plane again.
-MAX_CHANGES_BYTES = 20 * 1024 * 1024
-MAX_OUTPUT_FILES = 100
-MAX_OUTPUT_BYTES = 100 * 1024 * 1024
-# Earlier runs' saved files that one run gets back. Uploaded like a snapshot,
-# so it stays under that limit even when the files do not compress.
-MAX_HISTORY_FILES_BYTES = 48 * 1024 * 1024
-# Where a sandbox has the repository's files. Commands start here.
-SANDBOX_WORKSPACE_DIR = "/workspace"
-# Where a sandbox finds the folder for files it wants to hand back.
-SANDBOX_OUTPUTS_DIR = "/outputs"
-# Where a sandbox finds the files its job's earlier runs saved. Read-only.
-SANDBOX_HISTORY_DIR = "/history"
-# Where a sandbox finds a skill from another repository. Read-only.
-SANDBOX_SKILL_DIR = "/skill"
 # The model gateway refuses a run past its token budget with this message.
 TOKEN_BUDGET_MESSAGE = "This run has used its token budget."
 
@@ -166,27 +129,3 @@ DEFAULT_SANDBOX_IMAGE = (
 
 # The repository file that lists jobs, at the repository root.
 MANIFEST_FILE = ".secondshift.yaml"
-
-
-class AgentBackend(StrEnum):
-    """Who runs the agent: SecondShift's own loop, or a subscription CLI."""
-
-    PYDANTIC = "pydantic"
-    CLAUDE_CODE = "claude_code"
-    CODEX = "codex"
-
-    @property
-    def uses_model_api(self) -> bool:
-        """Runs call a model provider through SecondShift's gateway. The CLIs
-        call their provider directly with the subscription login."""
-        return self is AgentBackend.PYDANTIC
-
-    @property
-    def starts_subagents(self) -> bool:
-        """Runs can start sub-agents when the job allows them."""
-        return self is not AgentBackend.CODEX
-
-    @property
-    def limits_model_calls(self) -> bool:
-        """Runs stop at the run's model-call limit."""
-        return self is not AgentBackend.CODEX

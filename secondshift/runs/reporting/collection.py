@@ -1,4 +1,4 @@
-from secondshift.config.constants import MAX_CHANGES_BYTES
+from secondshift.runner_protocol.sandbox import MAX_CHANGES_BYTES
 from secondshift.runs.outputs import RunOutputs
 
 

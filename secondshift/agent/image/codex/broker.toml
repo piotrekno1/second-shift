@@ -1,0 +1,11 @@
+
+[mcp_servers.secondshift]
+# The broker enforces the run's approved tools. Unattended runs cannot
+# answer a second approval prompt from the CLI.
+default_tools_approval_mode = "approve"
+# Without the broker the run has no tools. Wait for it, and fail the run
+# if it never answers, instead of letting the model report missing tools.
+required = true
+startup_timeout_sec = $startup_timeout
+url = $url
+bearer_token_env_var = $token_var

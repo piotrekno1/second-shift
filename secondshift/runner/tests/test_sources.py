@@ -10,7 +10,6 @@ import pytest
 from django.test import Client
 
 from secondshift.runner import sources
-from secondshift.runner.protocol import RunnerProtocolError
 from secondshift.runner.sources import (
     has_source,
     receive_source,
@@ -18,6 +17,7 @@ from secondshift.runner.sources import (
     sweep_sources,
     unpack_source,
 )
+from secondshift.runner_protocol.sessions import RunnerProtocolError
 
 
 def archive(*members: tuple[tarfile.TarInfo, bytes | None]) -> bytes:
