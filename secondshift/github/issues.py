@@ -3,9 +3,8 @@
 from dataclasses import dataclass
 from typing import Any
 
-from secondshift.config.constants import GITHUB_API_URL
 from secondshift.github.errors import GitHubError
-from secondshift.github.rest import parsed, reason, send
+from secondshift.github.rest import GITHUB_API_URL, parsed, reason, send
 
 # GitHub refuses a longer title or body.
 MAX_TITLE_CHARS = 256

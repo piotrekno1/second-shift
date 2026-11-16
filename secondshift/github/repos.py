@@ -2,10 +2,9 @@
 
 from urllib.parse import quote
 
-from secondshift.config.constants import GITHUB_API_URL
 from secondshift.github.errors import GitHubError
 from secondshift.github.identity import valid_name
-from secondshift.github.rest import paginated, request_json
+from secondshift.github.rest import GITHUB_API_URL, paginated, request_json
 
 
 def repository(token: str, repository_id: int) -> dict:

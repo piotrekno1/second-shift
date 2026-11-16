@@ -12,10 +12,9 @@ retry then builds the same commit as the attempt before it.
 from dataclasses import dataclass
 from urllib.parse import quote
 
-from secondshift.config.constants import GITHUB_API_URL
 from secondshift.github import app
 from secondshift.github.errors import GitHubError
-from secondshift.github.rest import request_json
+from secondshift.github.rest import GITHUB_API_URL, request_json
 
 NOREPLY_DOMAIN = "users.noreply.github.com"
 BOT_SUFFIX = "[bot]"

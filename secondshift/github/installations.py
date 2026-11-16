@@ -9,13 +9,14 @@ from urllib.parse import urlencode
 
 from django.conf import settings
 
-from secondshift.config.constants import (
-    GITHUB_API_URL,
-    GITHUB_BASE_URL,
-    GITHUB_OAUTH_URL,
-)
+from secondshift.config.constants import GITHUB_BASE_URL
 from secondshift.github.errors import GitHubError
-from secondshift.github.rest import paginated, request_json
+from secondshift.github.rest import (
+    GITHUB_API_URL,
+    GITHUB_OAUTH_URL,
+    paginated,
+    request_json,
+)
 
 
 @dataclass(frozen=True)

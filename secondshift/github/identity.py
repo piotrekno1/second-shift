@@ -7,8 +7,9 @@ from secondshift.config.constants import (
     GITHUB_BASE_URL,
     GITHUB_HOST,
     GITHUB_REPOSITORY_PATTERN,
-    GITHUB_SSH_PREFIX,
 )
+
+GITHUB_SSH_PREFIX = f"git@{GITHUB_HOST}:"
 
 
 def github_remote_name(remote: str) -> str | None:

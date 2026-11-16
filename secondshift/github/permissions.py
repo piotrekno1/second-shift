@@ -7,8 +7,7 @@ probed without writing, so it is never reported for a token.
 
 from urllib.parse import quote
 
-from secondshift.config.constants import GITHUB_API_URL
-from secondshift.github.rest import send
+from secondshift.github.rest import GITHUB_API_URL, send
 
 # The feature each permission serves, as GitHub names them.
 SYNC = ("contents",)

@@ -1,9 +1,9 @@
 import httpx
 import pytest
 
-from secondshift.config.constants import GITHUB_API_URL, GITHUB_OAUTH_URL
 from secondshift.github import rest
 from secondshift.github.errors import GitHubError
+from secondshift.github.rest import GITHUB_API_URL, GITHUB_OAUTH_URL
 
 
 def serve(monkeypatch: pytest.MonkeyPatch, handle: object) -> list[httpx.Request]:

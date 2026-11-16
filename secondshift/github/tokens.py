@@ -7,12 +7,11 @@ from datetime import UTC, datetime
 import httpx
 
 from secondshift.config.constants import (
-    GITHUB_API_URL,
     GITHUB_FINE_GRAINED_TOKEN_PATTERN,
     GITHUB_TOKEN_HINT,
 )
 from secondshift.github.errors import GitHubError
-from secondshift.github.rest import send
+from secondshift.github.rest import GITHUB_API_URL, send
 
 # GitHub sends a token's expiry with every response it answers with that token.
 EXPIRY_HEADER = "github-authentication-token-expiration"
