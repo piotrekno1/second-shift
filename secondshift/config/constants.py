@@ -80,10 +80,6 @@ class AppEnv(StrEnum):
 
 GITHUB_HOST = "github.com"
 GITHUB_BASE_URL = f"https://{GITHUB_HOST}"
-GITHUB_REPOSITORY_PATTERN = r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+"
-# Fine-grained tokens are limited to chosen repositories. Classic tokens are not.
-GITHUB_FINE_GRAINED_TOKEN_PATTERN = r"github_pat_[A-Za-z0-9_]+"
-GITHUB_TOKEN_HINT = "Enter a fine-grained GitHub token. It starts with github_pat_."
 # Limits for the files of one commit that a run gets. The control plane checks
 # them while it builds a snapshot, and the runner checks them again.
 MAX_SOURCE_SNAPSHOT_BYTES = 64 * 1024 * 1024

@@ -18,11 +18,8 @@ from pydantic import (
 )
 from pydantic_core import ErrorDetails
 
-from secondshift.config.constants import (
-    COMMIT_SHA_PATTERN,
-    GITHUB_REPOSITORY_PATTERN,
-    TriggerKind,
-)
+from secondshift.config.constants import COMMIT_SHA_PATTERN, TriggerKind
+from secondshift.github.identity import GITHUB_REPOSITORY_PATTERN
 
 # Issues one run may open. A weekly review should file a few, not dozens.
 MAX_RUN_ISSUES = 10

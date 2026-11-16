@@ -3,12 +3,9 @@
 import re
 from urllib.parse import urlsplit
 
-from secondshift.config.constants import (
-    GITHUB_BASE_URL,
-    GITHUB_HOST,
-    GITHUB_REPOSITORY_PATTERN,
-)
+from secondshift.config.constants import GITHUB_BASE_URL, GITHUB_HOST
 
+GITHUB_REPOSITORY_PATTERN = r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+"
 GITHUB_SSH_PREFIX = f"git@{GITHUB_HOST}:"
 
 

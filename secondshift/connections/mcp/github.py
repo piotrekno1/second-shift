@@ -4,12 +4,7 @@ import re
 from enum import StrEnum
 from typing import Any
 
-from secondshift.config.constants import (
-    GITHUB_BASE_URL,
-    GITHUB_FINE_GRAINED_TOKEN_PATTERN,
-    GITHUB_REPOSITORY_PATTERN,
-    GITHUB_TOKEN_HINT,
-)
+from secondshift.config.constants import GITHUB_BASE_URL
 from secondshift.connections.access import AccessReason
 from secondshift.connections.dao import connected_github_sources
 from secondshift.connections.github import connection_source, usable_source
@@ -24,6 +19,11 @@ from secondshift.connections.models import Connection
 from secondshift.connections.repository_ref import RepositoryRef
 from secondshift.github import credentials
 from secondshift.github.errors import GitHubError
+from secondshift.github.identity import GITHUB_REPOSITORY_PATTERN
+from secondshift.github.tokens import (
+    GITHUB_FINE_GRAINED_TOKEN_PATTERN,
+    GITHUB_TOKEN_HINT,
+)
 from secondshift.workspaces.models import Workspace
 
 GITHUB_MCP_URL = "https://api.githubcopilot.com/mcp/readonly"
