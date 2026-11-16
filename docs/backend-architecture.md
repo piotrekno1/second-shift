@@ -32,7 +32,14 @@ layout of a collected archive, the gateway's agent broker path, the runner's
 HTTP client, and encryption to the runner's provisioning key. It imports
 neither side, so both settings modules can use it too. The runner imports no
 control plane code. The control plane reaches the runner only through this
-package and the few modules `core/tests/test_runner_boundary.py` lists.
+package. `core/tests/test_runner_boundary.py` checks this.
+
+`secondshift/agent` is a plain package for the agent image, the container that
+runs a subscription CLI for one run. `agent/image` holds the files the image
+ships. They use only the standard library, because the image has nothing else
+installed. The runner starts the image, and the control plane reads the
+outcomes and usage it reports. `agent/build.py` builds the image on this
+machine for `secondshift up` and development.
 
 Each HTTP app uses `api.py` for endpoints, `schemas.py` for its contracts and
 `serialization.py` for response builders. `config/api.py` composes the public

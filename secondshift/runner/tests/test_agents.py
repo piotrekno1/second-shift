@@ -10,13 +10,13 @@ from unittest.mock import Mock
 import pytest
 from pydantic import ValidationError
 
+from secondshift.agent.image import agent, claude, codex, outcomes
 from secondshift.core.launcher import services
 from secondshift.runner import agents
 from secondshift.runner.agent_credentials import (
     decrypt_agent_auth,
     provisioning_public_key,
 )
-from secondshift.runner.agent_image import agent, claude, codex, outcomes
 from secondshift.runner.agents import agent_command, require_agent_configuration
 from secondshift.runner.models import RunnerSession
 from secondshift.runner.services import DockerRunnerService, sandbox_flags
@@ -36,7 +36,7 @@ def test_agent_container_configuration_is_server_owned(
     settings.AGENT_NETWORK = "ss-agent-egress"
     settings.RUNNER_RUNTIME = "runsc"
     command = agent_command("run-1", tmp_path / "auth", IMAGE)
-    assert command[-3:] == [IMAGE, "-m", "secondshift.runner.agent_image.agent"]
+    assert command[-3:] == [IMAGE, "-m", "secondshift.agent.image.agent"]
     assert "--network=ss-agent-egress" in command
     assert "--add-host=host.docker.internal:host-gateway" in command
     assert "--runtime" in command and "runsc" in command

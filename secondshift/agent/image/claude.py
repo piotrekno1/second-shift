@@ -6,8 +6,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from secondshift.runner.agent_image import outcomes
-from secondshift.runner.agent_image.outcomes import (
+from secondshift.agent.image import outcomes
+from secondshift.agent.image.outcomes import (
     AUTH_FILES,
     MAX_REPORT_CHARS,
     TOKEN_KEYS,
@@ -17,7 +17,7 @@ from secondshift.runner.agent_image.outcomes import (
     numbers,
     private_file,
 )
-from secondshift.runner.agent_image.subagent_hook import AGENT_TOOLS, WORKER
+from secondshift.agent.image.subagent_hook import AGENT_TOOLS, WORKER
 
 # How Claude Code names the same counts in its per-model usage.
 MODEL_USAGE_KEYS = {

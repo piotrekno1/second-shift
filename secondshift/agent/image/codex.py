@@ -3,8 +3,8 @@
 import json
 from typing import Any
 
-from secondshift.runner.agent_image import outcomes
-from secondshift.runner.agent_image.outcomes import (
+from secondshift.agent.image import outcomes
+from secondshift.agent.image.outcomes import (
     MAX_REPORT_CHARS,
     AgentConfig,
     Outcome,

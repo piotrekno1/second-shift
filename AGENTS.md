@@ -44,7 +44,8 @@ docker build .
   and approval policy, `runs` owns execution and history, `connections` owns
   credentials and provider adapters, and `runner` owns sandbox sessions.
   The runner and the control plane meet only through `runner_protocol`.
-  `core/tests/test_runner_boundary.py` checks this. See `docs/backend-architecture.md` for boundaries and migration history.
+  The agent image lives in `secondshift/agent` and uses only the standard
+  library. `core/tests/test_runner_boundary.py` checks both. See `docs/backend-architecture.md` for boundaries and migration history.
 - Each app keeps every query on its models in `dao.py`, named for what it
   does. Other modules, in the same app or another, call those helpers. They
   never use a model manager or query through a reverse relation. Reading a

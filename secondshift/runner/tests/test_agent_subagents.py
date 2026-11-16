@@ -10,10 +10,10 @@ from unittest.mock import Mock
 
 import pytest
 
+from secondshift.agent.image import agent, claude, outcomes, subagent_hook
+from secondshift.agent.image.subagent_hook import WORKER
 from secondshift.runner import agents
 from secondshift.runner.agent_credentials import provisioning_public_key
-from secondshift.runner.agent_image import agent, claude, outcomes, subagent_hook
-from secondshift.runner.agent_image.subagent_hook import WORKER
 from secondshift.runner.models import RunnerSession
 from secondshift.runner.tests.test_agents import BROKER, IMAGE, TOKEN
 from secondshift.runner_protocol.credentials import encrypt_agent_auth

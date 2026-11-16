@@ -14,9 +14,9 @@ import sys
 from collections.abc import Callable
 from typing import Any
 
-from secondshift.runner.agent_image.claude import claude, read_claude
-from secondshift.runner.agent_image.codex import codex, read_codex
-from secondshift.runner.agent_image.outcomes import (
+from secondshift.agent.image.claude import claude, read_claude
+from secondshift.agent.image.codex import codex, read_codex
+from secondshift.agent.image.outcomes import (
     AgentConfig,
     AgentOutcome,
     Outcome,

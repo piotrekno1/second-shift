@@ -8,7 +8,7 @@ from typing import Literal
 from ninja import Schema
 from pydantic import ConfigDict, Field, SecretStr
 
-from secondshift.runner.agent_image.outcomes import AgentOutcome
+from secondshift.agent.image.outcomes import AgentOutcome
 from secondshift.runner_protocol.agents import AgentBackend
 
 

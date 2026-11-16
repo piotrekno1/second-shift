@@ -10,7 +10,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates
     rm -rf /var/lib/apt/lists/* && mkdir -p /opt/secondshift
 COPY --from=cli-build /usr/local/ /usr/local/
 # Every module, so a new backend file is never left out of the image.
-COPY secondshift/runner/agent_image/*.py /opt/secondshift/secondshift/runner/agent_image/
+COPY secondshift/agent/image/*.py /opt/secondshift/secondshift/agent/image/
 ENV PYTHONPATH=/opt/secondshift
 USER 10001:10001
-ENTRYPOINT ["python3", "-m", "secondshift.runner.agent_image.agent"]
+ENTRYPOINT ["python3", "-m", "secondshift.agent.image.agent"]
