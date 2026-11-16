@@ -18,7 +18,7 @@ import { useLiveRefresh } from '../composables/useLiveRefresh'
 import { isRunActive, startJobRun } from '../services/runs'
 import { saveJobLimits } from '../services/settings'
 import { useAppStore } from '../stores/app'
-import type { Job, JobDetail, RunLimitUpdate } from '../types'
+import type { JobDetail, RunLimitUpdate } from '../types'
 import { DocsPage } from '../utils/docs'
 import { Action } from '../utils/permissions'
 import { REMOVED_JOB, enableBlocker, runBlocker } from '../utils/readiness'
@@ -134,7 +134,7 @@ useLiveRefresh(loadJob, () => (job.value?.recent_runs ?? []).some((run) => isRun
       <Button v-if="job && job.cron && !job.removed_at && app.can(Action.EnableJobs)" :label="job.enabled ? 'Pause schedule' : 'Resume schedule'" severity="secondary" outlined :disabled="Boolean(enableBlocker(job))" :title="enableBlocker(job) || undefined" :loading="action === 'toggle'" @click="toggleJob">
         <template #icon><AppIcon :name="job.enabled ? 'pause' : 'play'" /></template>
       </Button>
-      <Button class="main-action" v-if="job && app.can(Action.RunJobs)" label="Run now" :disabled="Boolean(runBlocker(job, job.repository_enabled, app.overview?.execution, app.connections))" :title="runBlocker(job, job.repository_enabled, app.overview?.execution, app.connections) || 'Start a run and open it'" :loading="action === 'run'" @click="runNow">
+      <Button v-if="job && app.can(Action.RunJobs)" class="main-action" label="Run now" :disabled="Boolean(runBlocker(job, job.repository_enabled, app.overview?.execution, app.connections))" :title="runBlocker(job, job.repository_enabled, app.overview?.execution, app.connections) || 'Start a run and open it'" :loading="action === 'run'" @click="runNow">
         <template #icon><AppIcon name="play" /></template>
       </Button>
     </PageHeader>
@@ -203,8 +203,9 @@ useLiveRefresh(loadJob, () => (job.value?.recent_runs ?? []).some((run) => isRun
                 <div v-for="field in skill.fields" :key="field.key"><dt>{{ field.key }}</dt><dd>{{ field.value }}</dd></div>
               </dl>
               <div ref="skillFrame" class="job-skill-frame" :class="{ expanded: skillExpanded, clipped: skillOverflows && !skillExpanded }">
-                <!-- eslint-disable-next-line vue/no-v-html -- sanitized by renderMarkdown -->
+                <!-- eslint-disable vue/no-v-html -- sanitized by renderMarkdown -->
                 <article v-if="skillView === 'rendered'" class="markdown-body job-skill-body" v-html="renderedSkill" />
+                <!-- eslint-enable vue/no-v-html -->
                 <pre v-else class="run-output job-skill-body">{{ job.skill_text }}</pre>
               </div>
               <button v-if="skillOverflows || skillExpanded" type="button" class="job-skill-toggle" :aria-expanded="skillExpanded" @click="skillExpanded = !skillExpanded">

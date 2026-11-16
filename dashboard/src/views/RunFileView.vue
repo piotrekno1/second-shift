@@ -58,8 +58,9 @@ watch([runId, name], load, { immediate: true })
     <div v-if="loading" class="panel empty-state"><AppIcon name="loading" spin /><strong>Loading file</strong></div>
     <div v-else-if="error" class="panel empty-state"><AppIcon name="file-alert-outline" /><strong>File unavailable</strong><span>{{ error }}</span></div>
     <section v-else class="panel run-file-panel">
-      <!-- eslint-disable-next-line vue/no-v-html -- sanitized by renderMarkdown -->
+      <!-- eslint-disable vue/no-v-html -- sanitized by renderMarkdown -->
       <article v-if="view === 'rendered'" class="markdown-body" v-html="rendered" />
+      <!-- eslint-enable vue/no-v-html -->
       <pre v-else class="run-output run-output-full">{{ content }}</pre>
     </section>
   </div>

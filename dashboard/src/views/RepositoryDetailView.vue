@@ -22,7 +22,7 @@ import {
   syncRepository,
 } from '../services/repositories'
 import { useAppStore } from '../stores/app'
-import type { Capability, Job, RepositoryDetail } from '../types'
+import type { RepositoryDetail } from '../types'
 import { Action } from '../utils/permissions'
 import { countLabel, formatDate, formatRelative, jobState, utcTitle } from '../utils/format'
 

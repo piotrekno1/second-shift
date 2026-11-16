@@ -1,5 +1,5 @@
 import { apiPost } from './api'
-import type { Run, TaskSubmissionResult } from '../types'
+import type { TaskSubmissionResult } from '../types'
 
 export interface TaskCapability {
   binding: string

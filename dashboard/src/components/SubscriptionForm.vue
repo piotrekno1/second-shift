@@ -19,6 +19,11 @@ const auth = ref('')
 const busy = ref(false)
 const error = ref('')
 
+function chooseBackend(id: AgentConnection['backend']): void {
+  backend.value = id
+  auth.value = ''
+}
+
 async function connect(): Promise<void> {
   busy.value = true
   error.value = ''
@@ -48,7 +53,7 @@ async function connect(): Promise<void> {
       <p v-else>Run <code>codex login</code> with file storage, then paste the contents of <code>~/.codex/auth.json</code>.</p>
     </div>
     <div v-if="!login" class="need-setup-type need-setup-wide" role="radiogroup" aria-label="Subscription">
-      <button v-for="(label, id) in SUBSCRIPTION_NAMES" :key="id" type="button" role="radio" :aria-checked="backend === id" :class="{ active: backend === id }" :disabled="busy" @click="backend = id; auth = ''">
+      <button v-for="(label, id) in SUBSCRIPTION_NAMES" :key="id" type="button" role="radio" :aria-checked="backend === id" :class="{ active: backend === id }" :disabled="busy" @click="chooseBackend(id)">
         {{ label }}
       </button>
     </div>

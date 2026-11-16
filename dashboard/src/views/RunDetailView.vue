@@ -208,7 +208,7 @@ onUnmounted(stopPolling)
       <Button v-if="run?.job_id === null && run.skill_source && !active" label="Schedule this skill" severity="secondary" @click="scheduling = true">
         <template #icon><AppIcon name="calendar-clock-outline" /></template>
       </Button>
-      <Button class="main-action" v-if="run && !active && app.can(Action.RunJobs)" label="Run again" :title="rerunBlocker || undefined" :disabled="Boolean(rerunBlocker)" :loading="rerunning" @click="runAgain">
+      <Button v-if="run && !active && app.can(Action.RunJobs)" class="main-action" label="Run again" :title="rerunBlocker || undefined" :disabled="Boolean(rerunBlocker)" :loading="rerunning" @click="runAgain">
         <template #icon><AppIcon name="replay" /></template>
       </Button>
     </PageHeader>
@@ -242,8 +242,9 @@ onUnmounted(stopPolling)
         <div class="run-main">
           <details v-if="run.submission_input" class="panel task-input-panel" :open="active">
             <summary><span>{{ run.skill_path ? 'Additional instructions' : 'Task instructions' }}</span><span class="task-instructions-meta">{{ run.skill_path ? 'For this run' : 'Written task' }}<AppIcon name="chevron-right" /></span></summary>
-            <!-- eslint-disable-next-line vue/no-v-html -- sanitized by renderMarkdown -->
+            <!-- eslint-disable vue/no-v-html -- sanitized by renderMarkdown -->
             <article class="markdown-body task-instructions" v-html="taskInstructionsHtml" />
+            <!-- eslint-enable vue/no-v-html -->
           </details>
           <section v-if="run.access_needs?.length" class="panel job-runs-panel run-access-panel">
             <div class="panel-heading"><div><h2>Access it asked for</h2><p>The agent said it needed these and this run did not have them. Nothing was granted.</p></div></div>
@@ -276,8 +277,9 @@ onUnmounted(stopPolling)
               </div>
             </div>
             <template v-if="run.output_excerpt">
-              <!-- eslint-disable-next-line vue/no-v-html -- sanitized by renderMarkdown -->
+              <!-- eslint-disable vue/no-v-html -- sanitized by renderMarkdown -->
               <article ref="reportElement" class="markdown-body run-report" :class="{ collapsed: reportOverflows && !reportExpanded }" v-html="reportHtml" />
+              <!-- eslint-enable vue/no-v-html -->
               <button v-if="reportOverflows" type="button" class="run-report-toggle" @click="reportExpanded = !reportExpanded">
                 {{ reportExpanded ? 'Show less' : 'Show full report' }} <AppIcon :name="reportExpanded ? 'chevron-up' : 'chevron-down'" />
               </button>

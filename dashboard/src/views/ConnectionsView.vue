@@ -291,10 +291,6 @@ function pendingJobs(need: CapabilityNeed): number {
   return need.jobs.filter((job) => job.grant_status === 'pending' || job.grant_status === 'unconfigured').length
 }
 
-function needAccessLine(need: CapabilityNeed): string {
-  return need.jobs.map((job) => `${job.job_name} → ${job.access?.ok ? job.access.scope : 'unavailable'}`).join(' · ')
-}
-
 function formDone(notice: Notice, binding: string): void {
   const connection = app.connections.find((item) => item.binding_key === binding)
   const key = openForm.value?.mode === 'need' ? binding : `connection-${connection?.id ?? binding}`
@@ -392,7 +388,7 @@ onMounted(async () => {
       <Button label="Refresh" severity="secondary" text :loading="busy === 'refresh'" @click="checkAgain">
         <template #icon><AppIcon name="refresh" /></template>
       </Button>
-      <Button class="main-action" v-if="canEdit" label="Add connection" @click="toggle({ mode: 'add' })">
+      <Button v-if="canEdit" class="main-action" label="Add connection" @click="toggle({ mode: 'add' })">
         <template #icon><AppIcon name="plus" /></template>
       </Button>
     </PageHeader>

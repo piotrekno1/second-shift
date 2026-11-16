@@ -37,6 +37,6 @@ onUnmounted(() => {
 <template>
   <IconField class="search-input">
     <InputIcon><AppIcon name="magnify" /></InputIcon>
-    <InputText maxlength="200" v-model="draft" type="search" :placeholder="placeholder" :aria-label="placeholder" autocomplete="off" spellcheck="false" @input="schedule" @keydown.esc="clear" />
+    <InputText v-model="draft" maxlength="200" type="search" :placeholder="placeholder" :aria-label="placeholder" autocomplete="off" spellcheck="false" @input="schedule" @keydown.esc="clear" />
   </IconField>
 </template>
