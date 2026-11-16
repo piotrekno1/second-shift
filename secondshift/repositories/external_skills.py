@@ -23,7 +23,6 @@ from pathlib import Path, PurePosixPath
 
 from django.conf import settings
 
-from secondshift.config.constants import COMMIT_SHA_PATTERN
 from secondshift.connections.dao import connected_github_sources
 from secondshift.connections.github import can_check, connection_source
 from secondshift.github import credentials, repos
@@ -45,6 +44,7 @@ from secondshift.repositories.sources import (
     skill_snapshots_root,
     write_atomically,
 )
+from secondshift.runner_protocol.sandbox import COMMIT_SHA_PATTERN
 
 SKILL_FILE = "SKILL.md"
 # Branch and tag names a person may give. Git checks them again.

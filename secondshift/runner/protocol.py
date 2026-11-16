@@ -4,7 +4,7 @@ import re
 from dataclasses import asdict, dataclass
 from pathlib import PurePosixPath
 
-from secondshift.config.constants import (
+from secondshift.runner_protocol.sandbox import (
     SANDBOX_HISTORY_DIR,
     SANDBOX_OUTPUTS_DIR,
     SANDBOX_SKILL_DIR,

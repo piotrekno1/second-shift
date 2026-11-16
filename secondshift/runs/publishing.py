@@ -14,7 +14,6 @@ from pathlib import Path
 
 from django.utils.text import slugify
 
-from secondshift.config.constants import MAX_CHANGES_BYTES
 from secondshift.connections.github import shows_attribution
 from secondshift.github.pulls import MAX_BODY_CHARS
 from secondshift.repositories.models import Repository
@@ -23,6 +22,7 @@ from secondshift.repositories.pull_requests import (
     PublishError,
     publish_pull_request,
 )
+from secondshift.runner_protocol.sandbox import MAX_CHANGES_BYTES
 from secondshift.runs.artifacts import artifact_storage, read_text
 from secondshift.runs.dao import (
     create_delivery,

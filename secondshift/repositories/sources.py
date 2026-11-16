@@ -18,7 +18,6 @@ from pathlib import Path
 
 from django.conf import settings
 
-from secondshift.config.constants import COMMIT_SHA_PATTERN
 from secondshift.repositories.dao import active_repository_ids
 from secondshift.repositories.github_access import github_access
 from secondshift.repositories.github_sync import fetch_github_commit
@@ -30,6 +29,7 @@ from secondshift.repositories.snapshots import (
     SnapshotLimits,
     write_snapshot,
 )
+from secondshift.runner_protocol.sandbox import COMMIT_SHA_PATTERN
 
 COMMIT_SHA = re.compile(COMMIT_SHA_PATTERN)
 # A skill from another repository that no run used for this long is removed.

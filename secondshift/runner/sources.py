@@ -15,12 +15,12 @@ from typing import IO
 
 from django.conf import settings
 
-from secondshift.config.constants import (
+from secondshift.runner.protocol import RunnerProtocolError
+from secondshift.runner_protocol.sandbox import (
     MAX_SOURCE_FILES,
     MAX_SOURCE_SNAPSHOT_BYTES,
     MAX_SOURCE_UNPACKED_BYTES,
 )
-from secondshift.runner.protocol import RunnerProtocolError
 
 SOURCE_SHA256 = re.compile(r"[0-9a-f]{64}")
 SOURCE_MAX_AGE_SECONDS = 60 * 60
