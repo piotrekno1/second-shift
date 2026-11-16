@@ -3,7 +3,7 @@ import secrets
 from django.db import models
 from encrypted_model_fields.fields import EncryptedTextField
 
-from secondshift.config.constants import TriggerKind
+from secondshift.jobs.manifest import TriggerKind
 from secondshift.jobs.models import Job
 from secondshift.runs.models import Run
 

@@ -12,7 +12,7 @@ from pydantic_ai.messages import ModelMessage, ModelResponse, TextPart, ToolCall
 from pydantic_ai.models.function import AgentInfo, FunctionModel
 from pydantic_ai.toolsets import FunctionToolset
 
-from secondshift.config.constants import TOKEN_BUDGET_MESSAGE
+from secondshift.gateway.proxy import TOKEN_BUDGET_MESSAGE
 from secondshift.jobs.tests.plans import stored_plan
 from secondshift.jobs.tool_policy import LOCAL_TOOLS
 from secondshift.runner_protocol.sessions import CommandResult

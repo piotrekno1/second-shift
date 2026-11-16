@@ -6,8 +6,8 @@ from ninja import Router, Status
 from ninja.errors import HttpError
 from ninja.security import django_auth
 
-from secondshift.config.constants import TriggerKind
 from secondshift.jobs.access import job_for_request
+from secondshift.jobs.manifest import TriggerKind
 from secondshift.triggers.dao import trigger_for_url
 from secondshift.triggers.schemas import (
     TriggerChangeSchema,

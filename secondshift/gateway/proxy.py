@@ -19,8 +19,11 @@ from asgiref.sync import sync_to_async
 from django.conf import settings
 from django.http import HttpRequest, HttpResponse, StreamingHttpResponse
 
-from secondshift.config.constants import TOKEN_BUDGET_MESSAGE, ModelFamily
-from secondshift.connections.model_providers import api_root, provider_family
+from secondshift.connections.model_providers import (
+    ModelFamily,
+    api_root,
+    provider_family,
+)
 from secondshift.connections.models import Connection
 from secondshift.connections.outbound import (
     OutboundUrlError,
@@ -34,6 +37,8 @@ from secondshift.gateway.tokens import aauthenticate, request_token
 logger = logging.getLogger(__name__)
 
 ANTHROPIC_VERSION = "2023-06-01"
+# The gateway refuses a run past its token budget with this message.
+TOKEN_BUDGET_MESSAGE = "This run has used its token budget."
 
 
 @dataclass(frozen=True)

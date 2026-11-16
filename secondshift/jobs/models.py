@@ -1,10 +1,9 @@
 from django.core.exceptions import ValidationError
 from django.db import models
 
-from secondshift.config.constants import MANIFEST_FILE
 from secondshift.connections.models import Connection
 from secondshift.jobs.manifest import OpenIssuesManifest, WebhookManifest
-from secondshift.repositories.models import Repository
+from secondshift.repositories.models import MANIFEST_FILE, Repository
 from secondshift.workspaces.models import RunLimitOverrides, Workspace
 
 # Why a job removed from the manifest cannot run or be resumed.

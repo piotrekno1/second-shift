@@ -12,8 +12,7 @@ from datetime import timedelta
 from django.conf import settings
 from django.utils import timezone
 
-from secondshift.config.constants import TriggerKind
-from secondshift.jobs.manifest import WebhookManifest, duration_seconds
+from secondshift.jobs.manifest import TriggerKind, WebhookManifest, duration_seconds
 from secondshift.jobs.models import JOB_REMOVED, Job
 from secondshift.runs.constants import RunStart
 from secondshift.runs.dao import run_for_repeat_key, started_run_count

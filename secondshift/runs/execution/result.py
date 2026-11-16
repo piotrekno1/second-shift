@@ -4,11 +4,12 @@ from typing import Any, Self
 
 from pydantic import BaseModel, ConfigDict
 
-from secondshift.config.constants import SUMMARY_MAX_CHARS
 from secondshift.runs.artifacts import StoredOutput, store_run_text
 from secondshift.runs.models import Run, RunFailure
 from secondshift.runs.reporting.failures import StageFailure
 
+# How much of a report a run keeps as its summary. Webhooks send the summary.
+SUMMARY_MAX_CHARS = 4_000
 FULL_REPORT_NOTE = "\n[... full report stored as a run artifact ...]"
 
 

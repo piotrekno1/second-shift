@@ -7,9 +7,12 @@ from pydantic_ai.models.openai import OpenAIChatModel, OpenAIResponsesModel
 from pydantic_ai.providers.anthropic import AnthropicProvider
 from pydantic_ai.providers.openai import OpenAIProvider
 
-from secondshift.config.constants import ModelFamily
 from secondshift.connections.dao import connected_model
-from secondshift.connections.model_providers import model_provider, provider_family
+from secondshift.connections.model_providers import (
+    ModelFamily,
+    model_provider,
+    provider_family,
+)
 from secondshift.connections.models import Connection
 from secondshift.gateway.dao import revoke_run_tokens
 from secondshift.gateway.tokens import issue_token
