@@ -18,7 +18,7 @@ from secondshift.github import app, credentials, permissions
 from secondshift.github.errors import GitHubError
 from secondshift.github.tokens import inspect_token
 from secondshift.repositories.dao import connection_repositories
-from secondshift.repositories.github_access import (
+from secondshift.repositories.github.access import (
     GitHubAccess,
     github_access,
 )

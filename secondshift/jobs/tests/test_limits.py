@@ -11,8 +11,8 @@ from secondshift.gateway.models import RunToken
 from secondshift.jobs.limits import effective_limits
 from secondshift.jobs.manifest import RepositoryManifest
 from secondshift.jobs.models import Job
-from secondshift.jobs.planning import build_execution_plan
-from secondshift.jobs.tests.test_planning import create_job
+from secondshift.jobs.planner import build_execution_plan
+from secondshift.jobs.tests.test_planner import create_job
 from secondshift.runs.constants import RunStart
 from secondshift.runs.dao import create_task
 from secondshift.runs.execution.budgets import Budget, budget_failure, budget_reason

@@ -27,9 +27,9 @@ from secondshift.connections.http_api.spec import (
 from secondshift.connections.models import Connection
 from secondshift.connections.services import connection_target
 from secondshift.jobs.models import CapabilityRequest, Job, JobGrant
-from secondshift.jobs.planning import build_execution_plan
+from secondshift.jobs.planner import build_execution_plan
 from secondshift.jobs.serialization import serialize_job
-from secondshift.repositories.github import repository_ref
+from secondshift.repositories.github.scope import repository_ref
 from secondshift.repositories.models import Repository
 from secondshift.runs.constants import RunStart
 from secondshift.runs.dao import create_task

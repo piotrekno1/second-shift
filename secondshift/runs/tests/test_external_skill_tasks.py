@@ -10,13 +10,7 @@ from django.contrib.auth.models import User
 
 from secondshift.mcp_server.tests.test_job_tools import call, error_text, token
 from secondshift.repositories.models import Repository
-from secondshift.repositories.tests.test_external_skills import (
-    PATH,
-    REPOSITORY,
-)
-from secondshift.repositories.tests.test_external_skills import (
-    vendor as vendor_fixture,
-)
+from secondshift.repositories.tests.fixtures import PATH, REPOSITORY
 from secondshift.runner_protocol.sessions import CommandResult
 from secondshift.runs.constants import RunStart
 from secondshift.runs.execution import run as execution
@@ -29,21 +23,11 @@ from secondshift.runs.orchestration.workflows import (
 from secondshift.runs.serialization import serialize_run_detail
 from secondshift.runs.services import RunRefused
 from secondshift.runs.submissions import SkillSubmission, submit_skill
-from secondshift.runs.tests.test_submissions import (
-    owner as owner_fixture,
-)
-from secondshift.runs.tests.test_submissions import (
-    queued as queued_fixture,
-)
-from secondshift.runs.tests.test_submissions import (
-    repository as repository_fixture,
-)
 
-pytestmark = pytest.mark.django_db(transaction=True)
-owner = owner_fixture
-queued = queued_fixture
-repository = repository_fixture
-vendor = vendor_fixture
+pytestmark = [
+    pytest.mark.django_db(transaction=True),
+    pytest.mark.usefixtures("queued"),
+]
 
 
 def start(repository: Repository, owner: User, ref: str | None = "main") -> Run:

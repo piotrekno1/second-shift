@@ -10,7 +10,7 @@ from secondshift.connections.dao import create_connection
 from secondshift.connections.models import Connection
 from secondshift.github.identity import clone_url
 from secondshift.jobs.dao import create_job
-from secondshift.jobs.planning import build_execution_plan
+from secondshift.jobs.planner import build_execution_plan
 from secondshift.repositories.dao import create_repository
 from secondshift.runs.constants import RunStart
 from secondshift.runs.dao import add_event, create_run_record, create_task

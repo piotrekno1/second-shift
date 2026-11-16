@@ -19,7 +19,7 @@ from secondshift.jobs.repository_sync import (
 from secondshift.jobs.scheduling import restart_schedules
 from secondshift.repositories.access import repository_for_request
 from secondshift.repositories.dao import active_repositories_with_jobs
-from secondshift.repositories.github_sync import (
+from secondshift.repositories.github.sync import (
     GitHubRepositoryExistsError,
     available_github_sources,
     repository_branches,

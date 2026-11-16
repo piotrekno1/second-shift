@@ -21,7 +21,7 @@ from secondshift.jobs.schemas import (
     ToolInputSchema,
 )
 from secondshift.jobs.skill_needs import MAX_INSPECTED_CHARS, SkillInspection
-from secondshift.repositories.github import repository_ref
+from secondshift.repositories.github.scope import repository_ref
 from secondshift.repositories.models import Repository
 from secondshift.runs.dao import (
     job_with_last_run,

@@ -9,13 +9,11 @@ from secondshift.connections.execution import workspace_execution, workspace_mod
 from secondshift.connections.external import EXTERNAL_KINDS
 from secondshift.connections.model_providers import provider_family
 from secondshift.connections.models import Connection
+from secondshift.jobs.argument_rules import ToolRules, broken_rules, kept_rules
 from secondshift.jobs.automatic_grants import approves_automatically
 from secondshift.jobs.capabilities import RequestedCapability, manifest_capabilities
 from secondshift.jobs.dao import job_requests_with_grants
-from secondshift.jobs.limits import effective_limits
-from secondshift.jobs.manifest import JobManifest, TaskManifest, manifest_hash
-from secondshift.jobs.models import Job, JobGrant
-from secondshift.jobs.plan import (
+from secondshift.jobs.execution_plan import (
     AgentPlan,
     CapabilityPlan,
     ExecutionChoice,
@@ -31,9 +29,11 @@ from secondshift.jobs.plan import (
     RunnerPlan,
     SkillSourcePlan,
 )
+from secondshift.jobs.limits import effective_limits
+from secondshift.jobs.manifest import JobManifest, TaskManifest, manifest_hash
+from secondshift.jobs.models import Job, JobGrant
 from secondshift.jobs.tool_policy import plan_tools
-from secondshift.jobs.tool_rules import ToolRules, broken_rules, kept_rules
-from secondshift.repositories.github import repository_ref
+from secondshift.repositories.github.scope import repository_ref
 from secondshift.repositories.models import Repository
 from secondshift.runner_protocol.sandbox import COMMIT_SHA_PATTERN
 from secondshift.workspaces.limits import RunLimit, workspace_limits

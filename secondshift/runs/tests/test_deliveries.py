@@ -13,8 +13,8 @@ from django.test import Client
 from secondshift.connections import webhooks
 from secondshift.connections.models import Connection
 from secondshift.jobs.models import JobGrant
-from secondshift.jobs.planning import build_execution_plan
-from secondshift.jobs.tests.test_needs import (
+from secondshift.jobs.planner import build_execution_plan
+from secondshift.jobs.tests.test_capability_needs import (
     alerts_webhook,
     make_job,
     notify_request,

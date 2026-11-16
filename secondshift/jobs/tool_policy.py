@@ -1,7 +1,7 @@
 from collections.abc import Sequence
 from dataclasses import dataclass
 
-from secondshift.jobs.plan import CapabilityPlan, ExecutionPlan
+from secondshift.jobs.execution_plan import CapabilityPlan, ExecutionPlan
 
 LOCAL_TOOLS = (
     "workspace.list_files",

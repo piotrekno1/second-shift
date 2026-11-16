@@ -12,7 +12,7 @@ from secondshift.connections.models import Connection
 from secondshift.github import credentials
 from secondshift.github.errors import GitHubError
 from secondshift.github.issues import open_issue, open_issue_titled
-from secondshift.repositories.github_access import github_access
+from secondshift.repositories.github.access import github_access
 from secondshift.repositories.models import Repository
 from secondshift.runs.dao import (
     create_delivery,

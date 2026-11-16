@@ -1,8 +1,8 @@
 from pathlib import Path
 
 from secondshift.jobs.manifest import load_manifest
+from secondshift.jobs.manifest_sync import sync_jobs
 from secondshift.jobs.models import Job
-from secondshift.jobs.sync import sync_jobs
 from secondshift.repositories.models import Repository
 
 

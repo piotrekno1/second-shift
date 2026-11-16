@@ -7,7 +7,7 @@ Ad hoc runs need a connection that grants access without review.
 from secondshift.connections.dao import auto_approved_connection
 from secondshift.connections.models import Connection
 from secondshift.jobs.dao import approved_tool_grant
-from secondshift.jobs.plan import CapabilityPlan
+from secondshift.jobs.execution_plan import CapabilityPlan
 from secondshift.runs.models import Run
 
 

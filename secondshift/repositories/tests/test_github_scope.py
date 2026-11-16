@@ -10,7 +10,7 @@ from secondshift.jobs.repository_sync import (
     attach_local_repository,
     inspect_local_repository,
 )
-from secondshift.repositories.github import github_repository_scope
+from secondshift.repositories.github.scope import github_repository_scope
 from secondshift.repositories.local import git
 from secondshift.repositories.models import Repository
 from secondshift.repositories.tests.test_local import create_local_repository

@@ -16,16 +16,16 @@ from secondshift.github import repos, rest
 from secondshift.github.errors import GitHubError
 from secondshift.jobs import autosync, repository_sync
 from secondshift.jobs.models import CapabilityRequest, Job, JobGrant
-from secondshift.repositories import github_sync
-from secondshift.repositories.github_access import github_access
-from secondshift.repositories.github_views import STATE_KEY
+from secondshift.repositories.github import sync as github_sync
+from secondshift.repositories.github.access import github_access
+from secondshift.repositories.github.views import STATE_KEY
 from secondshift.repositories.mirrors import SYNCED_REF, mirror_path
 from secondshift.repositories.models import Repository
+from secondshift.repositories.tests.fixtures import run_git
 from secondshift.repositories.tests.github_fakes import fake_github
 from secondshift.repositories.tests.test_local import (
     commit_configuration,
     create_local_repository,
-    run_git,
 )
 from secondshift.workspaces.dao import create_workspace
 from secondshift.workspaces.models import WorkspaceMembership
@@ -134,7 +134,7 @@ def test_available_repositories_enforces_workspace(
     owner_client: Any, source_connection: Any, app_settings: Any, monkeypatch: Any
 ) -> None:
     monkeypatch.setattr(
-        "secondshift.repositories.github_sync.installation_repositories",
+        "secondshift.repositories.github.sync.installation_repositories",
         lambda installation: [
             {"id": 7, "full_name": "owner/project", "default_branch": "main"}
         ],

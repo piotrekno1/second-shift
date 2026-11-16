@@ -3,7 +3,7 @@ import pytest
 from secondshift.connections.models import Connection
 from secondshift.jobs.grants import GrantError, decide_grant
 from secondshift.jobs.models import CapabilityRequest, Job, JobGrant
-from secondshift.jobs.tests.test_planning import create_job
+from secondshift.jobs.tests.test_planner import create_job
 from secondshift.workspaces.dao import workspace_owner
 
 APPROVED = JobGrant.Status.APPROVED

@@ -7,9 +7,9 @@ from django.db import transaction
 from django.utils import timezone
 
 from secondshift.jobs.dao import lock_job
+from secondshift.jobs.execution_plan import ExecutionPlan
 from secondshift.jobs.models import JOB_REMOVED, Job
-from secondshift.jobs.plan import ExecutionPlan
-from secondshift.jobs.planning import build_execution_plan
+from secondshift.jobs.planner import build_execution_plan
 from secondshift.jobs.readiness import execution_problems
 from secondshift.runs.artifacts import store_run_payload
 from secondshift.runs.constants import RunStart

@@ -21,7 +21,7 @@ from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.usage import RunUsage
 
 from secondshift.gateway.proxy import TOKEN_BUDGET_MESSAGE
-from secondshift.jobs.plan import ExecutionPlan
+from secondshift.jobs.execution_plan import ExecutionPlan
 from secondshift.runner_protocol.agents import AgentBackend
 from secondshift.runs.models import RunFailure
 from secondshift.runs.reporting.failures import StageFailure

@@ -7,7 +7,7 @@ from secondshift.connections.external import EXTERNAL_KINDS, external_access
 from secondshift.connections.models import Connection
 from secondshift.jobs.dao import workspace_requests
 from secondshift.jobs.models import CapabilityRequest, JobGrant
-from secondshift.repositories.github import repository_ref
+from secondshift.repositories.github.scope import repository_ref
 from secondshift.repositories.models import Repository
 from secondshift.workspaces.models import Workspace
 

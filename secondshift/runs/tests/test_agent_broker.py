@@ -12,12 +12,6 @@ from pydantic_ai import ModelRetry, RunContext, Tool
 
 from secondshift.connections import agents as agent_logins
 from secondshift.connections.models import AgentConnection, AgentCredentialCleanup
-from secondshift.connections.tests.test_agent_connections import (
-    agent_login as agent_login_fixture,
-)
-from secondshift.jobs.tests.test_execution_defaults import (
-    agent_run as agent_run_fixture,
-)
 from secondshift.runner_protocol.sessions import CommandResult, RunnerProtocolError
 from secondshift.runs.artifacts import store_run_payload
 from secondshift.runs.execution.agent_broker import (
@@ -30,8 +24,6 @@ from secondshift.runs.execution.deadlines import RunTimedOut
 from secondshift.runs.models import AgentLease, Run
 from secondshift.workspaces.models import WorkspaceMembership
 
-agent_login = agent_login_fixture
-agent_run = agent_run_fixture
 pytestmark = pytest.mark.django_db
 
 

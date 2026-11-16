@@ -7,9 +7,9 @@ from django.db import DatabaseError, IntegrityError, connection
 from django.db.migrations.executor import MigrationExecutor
 from django.utils import timezone
 
+from secondshift.jobs.execution_plan import ExecutionPlan
 from secondshift.jobs.models import Job
-from secondshift.jobs.plan import ExecutionPlan
-from secondshift.jobs.planning import build_execution_plan
+from secondshift.jobs.planner import build_execution_plan
 from secondshift.jobs.tests.plans import stored_plan
 from secondshift.repositories.models import Repository
 from secondshift.runs.constants import RunStart

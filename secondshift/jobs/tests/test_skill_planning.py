@@ -13,9 +13,9 @@ from secondshift.connections.models import Connection
 from secondshift.jobs.automatic_grants import approves_automatically
 from secondshift.jobs.capabilities import RequestedCapability
 from secondshift.jobs.manifest import JobManifest, RepositoryManifest, manifest_hash
+from secondshift.jobs.manifest_sync import sync_jobs
 from secondshift.jobs.models import CapabilityRequest, Job, JobGrant
-from secondshift.jobs.planning import build_execution_plan, build_skill_execution_plan
-from secondshift.jobs.sync import sync_jobs
+from secondshift.jobs.planner import build_execution_plan, build_skill_execution_plan
 from secondshift.repositories.models import Repository
 from secondshift.runner_protocol.agents import AgentBackend
 from secondshift.runs.models import Run, Task

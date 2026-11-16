@@ -13,9 +13,9 @@ from django.utils import timezone
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
 
 from secondshift.github.errors import GitHubError
+from secondshift.jobs.execution_plan import PullRequestPlan, SkillSourcePlan
 from secondshift.jobs.manifest import TaskManifest
-from secondshift.jobs.plan import PullRequestPlan, SkillSourcePlan
-from secondshift.jobs.planning import build_skill_execution_plan
+from secondshift.jobs.planner import build_skill_execution_plan
 from secondshift.jobs.readiness import execution_problems
 from secondshift.repositories.dao import lock_repository
 from secondshift.repositories.external_skills import (

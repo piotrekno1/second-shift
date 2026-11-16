@@ -1,8 +1,8 @@
 """Why a job cannot run yet, in plain words."""
 
+from secondshift.jobs.execution_plan import ExecutionPlan, PlanReason
 from secondshift.jobs.models import Job
-from secondshift.jobs.plan import ExecutionPlan, PlanReason
-from secondshift.jobs.planning import build_execution_plan
+from secondshift.jobs.planner import build_execution_plan
 from secondshift.repositories.models import Repository
 
 MISMATCH = "is approved for a connection that does not match"

@@ -17,8 +17,8 @@ from secondshift.connections.dao import connections_by_binding
 from secondshift.connections.models import Connection
 from secondshift.jobs.automatic_grants import approves_automatically
 from secondshift.jobs.capabilities import RequestedCapability
+from secondshift.jobs.capability_needs import NeedStatus, connection_problem
 from secondshift.jobs.models import CapabilityRequest
-from secondshift.jobs.needs import NeedStatus, connection_problem
 from secondshift.repositories.external_skills import (
     ExternalSkill,
     resolve_external_skill,

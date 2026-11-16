@@ -19,8 +19,8 @@ from pathlib import Path
 from django.conf import settings
 
 from secondshift.repositories.dao import active_repository_ids
-from secondshift.repositories.github_access import github_access
-from secondshift.repositories.github_sync import fetch_github_commit
+from secondshift.repositories.github.access import github_access
+from secondshift.repositories.github.sync import fetch_github_commit
 from secondshift.repositories.mirrors import has_commit, locked_mirror
 from secondshift.repositories.models import Repository
 from secondshift.repositories.snapshots import (

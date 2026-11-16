@@ -12,7 +12,7 @@ from pydantic_ai import ModelRetry, RunContext, Tool
 from pydantic_ai.tools import ToolDefinition
 
 from secondshift.github.issues import MAX_TITLE_CHARS, same_title
-from secondshift.jobs.plan import ExecutionPlan
+from secondshift.jobs.execution_plan import ExecutionPlan
 from secondshift.runs.dao import (
     create_issue_proposal,
     proposed_issue,

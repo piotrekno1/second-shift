@@ -1,4 +1,4 @@
-from secondshift.jobs.plan import ExecutionPlan
+from secondshift.jobs.execution_plan import ExecutionPlan
 from secondshift.runs.migration_helpers import normalized_plan_v1
 
 FALLBACK = {

@@ -8,7 +8,7 @@ from django.core.management import call_command
 from secondshift.connections.models import Connection
 from secondshift.core.management.commands import dev_reset_db
 from secondshift.jobs.models import Job
-from secondshift.repositories.github import repository_ref
+from secondshift.repositories.github.scope import repository_ref
 from secondshift.repositories.models import Repository
 from secondshift.runs.models import Run, RunEvent
 
