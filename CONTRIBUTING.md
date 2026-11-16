@@ -205,20 +205,14 @@ only database identifiers. Decrypted secrets never enter DBOS state.
 
 ## Verification
 
-Run backend checks from the repository root:
+Run every check CI runs from the repository root:
 
 ```bash
-uv run pytest
-uv run ruff check .
+make check            # or make check-backend, make check-frontend
 ```
 
-Run frontend checks:
-
-```bash
-npm --prefix dashboard run typecheck
-npm --prefix dashboard run test
-npm --prefix dashboard run build
-```
+`make fix` applies what the linters can fix and formats the Python and
+dashboard code.
 
 Use focused tests while making changes, then run the full checks before
 submitting. Generate Django migrations with `makemigrations`. Do not hand-edit
