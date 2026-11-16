@@ -14,17 +14,12 @@ SECONDSHIFT_ENV=dev uv run python manage.py dev_reset_db --yes
 uv run python manage.py runserver
 uv run secondshift up   # the installed single-machine mode (SECONDSHIFT_ENV=local)
 uv run python manage.py run_dbos_worker
-uv run pytest
-uv run pytest secondshift/benchmarks -o python_files='bench_*.py'
-uv run ruff check .
-uv run ruff format .
+uv run pytest path/to/tests   # focused tests while working
+make check                    # every check CI runs
+make fix                      # lint fixes and formatting, Python and dashboard
 
 cd dashboard && npm install
 cd dashboard && npm run dev
-cd dashboard && npm run lint
-cd dashboard && npm run format
-cd dashboard && npm run typecheck
-cd dashboard && npm run test
 cd dashboard && npm run build
 
 process-compose up
@@ -82,8 +77,9 @@ docker build .
 
 ## Verification
 
-- Backend: focused pytest, then the full pytest suite and `ruff check`.
-- Frontend: `npm run lint`, `npm run format:check`, `npm run typecheck`, and
-  `npm run test`. Add `npm run build` when routes or bootstrapping change.
+- Run focused tests while working, then `make check` before pushing. It runs
+  what CI runs: ruff, pytest, the benchmark query budgets, and the dashboard
+  lint, format check, typecheck, tests and build. `make check-backend` and
+  `make check-frontend` run one side.
 - Runner changes require tests showing repository input cannot alter runtime
   flags, mounts, or secret bindings.
