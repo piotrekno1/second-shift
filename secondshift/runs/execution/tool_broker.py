@@ -13,7 +13,7 @@ from secondshift.connections.external import Authorization, external_kind
 from secondshift.connections.mcp.base import CustomMCPToolError
 from secondshift.jobs.tool_policy import AuthorizedTool, resolve_tool
 from secondshift.jobs.tool_rules import ToolRuleViolation, apply_rules
-from secondshift.repositories.github import repository_ref
+from secondshift.repositories.github.scope import repository_ref
 from secondshift.runs.dao import add_event, get_run
 from secondshift.runs.execution.consent import approved_connection
 from secondshift.runs.models import Run

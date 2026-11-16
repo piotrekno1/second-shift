@@ -6,7 +6,7 @@ from pathlib import Path
 from django.conf import settings
 
 from secondshift.github.git import authenticated_git
-from secondshift.repositories.github_access import github_access
+from secondshift.repositories.github.access import github_access
 from secondshift.repositories.local import committed_file, git
 from secondshift.repositories.mirrors import locked_mirror
 from secondshift.repositories.models import Repository

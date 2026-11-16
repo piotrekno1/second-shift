@@ -17,7 +17,7 @@ from secondshift.repositories.dao import (
     lock_or_create_github_repository,
     lock_repository,
 )
-from secondshift.repositories.github_access import (
+from secondshift.repositories.github.access import (
     GitHubAccess,
     connection_access,
     github_access,

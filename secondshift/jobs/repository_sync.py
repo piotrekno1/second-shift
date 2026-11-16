@@ -25,8 +25,8 @@ from secondshift.repositories.external_skills import (
     ExternalSkillError,
     resolve_external_skill,
 )
-from secondshift.repositories.github_access import connection_access
-from secondshift.repositories.github_sync import (
+from secondshift.repositories.github.access import connection_access
+from secondshift.repositories.github.sync import (
     fetched_branch,
     record_synced_revision,
     save_attached_repository,

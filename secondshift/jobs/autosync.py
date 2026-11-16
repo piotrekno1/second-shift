@@ -18,8 +18,8 @@ from secondshift.github.app import configured
 from secondshift.github.errors import GitHubError
 from secondshift.jobs.repository_sync import sync_repository
 from secondshift.repositories.dao import repositories_to_sync, set_sync_error
-from secondshift.repositories.github_access import github_access
-from secondshift.repositories.github_check import check_after_failure
+from secondshift.repositories.github.access import github_access
+from secondshift.repositories.github.check import check_after_failure
 from secondshift.repositories.local import (
     LocalRepositoryError,
     branch_revision,

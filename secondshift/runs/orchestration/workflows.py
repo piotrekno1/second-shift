@@ -15,7 +15,7 @@ from secondshift.jobs.readiness import execution_problems
 from secondshift.jobs.scheduling import next_occurrence
 from secondshift.repositories.dao import lock_repository
 from secondshift.repositories.external_skills import skill_snapshot
-from secondshift.repositories.github_access import github_access
+from secondshift.repositories.github.access import github_access
 from secondshift.repositories.models import Repository
 from secondshift.repositories.sources import source_snapshot
 from secondshift.runner_protocol.client import get_runner_client

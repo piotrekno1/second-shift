@@ -22,7 +22,7 @@ from secondshift.repositories.dao import (
     connection_repositories,
     release_connection_repositories,
 )
-from secondshift.repositories.github import repository_ref
+from secondshift.repositories.github.scope import repository_ref
 
 
 class GrantError(Exception):

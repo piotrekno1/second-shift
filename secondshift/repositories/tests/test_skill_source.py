@@ -7,7 +7,7 @@ from unittest.mock import Mock
 import pytest
 
 from secondshift.repositories import skill_source
-from secondshift.repositories.github_access import GitHubAccess
+from secondshift.repositories.github.access import GitHubAccess
 from secondshift.repositories.local import LocalRepositoryError
 from secondshift.repositories.models import Repository
 from secondshift.repositories.tests.fixtures import run_git

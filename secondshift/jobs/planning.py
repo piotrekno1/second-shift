@@ -33,7 +33,7 @@ from secondshift.jobs.plan import (
 )
 from secondshift.jobs.tool_policy import plan_tools
 from secondshift.jobs.tool_rules import ToolRules, broken_rules, kept_rules
-from secondshift.repositories.github import repository_ref
+from secondshift.repositories.github.scope import repository_ref
 from secondshift.repositories.models import Repository
 from secondshift.runner_protocol.sandbox import COMMIT_SHA_PATTERN
 from secondshift.workspaces.limits import RunLimit, workspace_limits

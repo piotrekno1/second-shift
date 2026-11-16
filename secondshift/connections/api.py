@@ -110,7 +110,7 @@ from secondshift.connections.webhooks import (
 from secondshift.github.errors import GitHubError
 from secondshift.jobs.automatic_grants import approve_waiting_for, set_require_approval
 from secondshift.jobs.grants import delete_connection
-from secondshift.repositories.github_check import check_source
+from secondshift.repositories.github.check import check_source
 from secondshift.runs.execution.result import SUMMARY_MAX_CHARS
 from secondshift.runs.reporting.connection_usage import (
     ConnectionUsage,

@@ -22,7 +22,7 @@ commands and MCP tools) may import any app.
 `secondshift/github` is a plain package, not an app. It holds GitHub App
 credentials, tokens, the REST client, git transport and repository lookups. It
 takes plain values and imports no Django apps. Its own ruff configuration
-enforces that. `repositories.github_access` turns a repository and its source
+enforces that. `repositories.github.access` turns a repository and its source
 connection into a token and a checked identity for each operation.
 
 `secondshift/runner_protocol` is a plain package, not an app. It holds what

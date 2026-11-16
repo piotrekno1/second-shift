@@ -29,7 +29,7 @@ from secondshift.github import credentials, repos
 from secondshift.github.errors import GitHubError
 from secondshift.github.git import authenticated_git, public_git
 from secondshift.github.identity import GITHUB_REPOSITORY_PATTERN
-from secondshift.repositories.github_access import connection_access
+from secondshift.repositories.github.access import connection_access
 from secondshift.repositories.local import LocalRepositoryError, committed_file
 from secondshift.repositories.mirrors import has_commit
 from secondshift.repositories.snapshots import (
