@@ -10,6 +10,10 @@ gateway, and runner use separate settings and database credentials. The runner
 does not receive provider keys, OAuth credentials, encrypted connection data, or
 the control-plane database URL.
 
+The specs, schemas, paths and limits this API shares with the control plane
+live in `secondshift/runner_protocol`. The runner imports no control plane
+code.
+
 Its API is deliberately narrow:
 
 - `HEAD /v1/sources/{sha256}` asks whether a source snapshot is already here

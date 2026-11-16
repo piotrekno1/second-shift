@@ -7,7 +7,7 @@
 | `triggers` | Job triggers, their secrets, the public endpoint that starts runs, received requests |
 | `runs` | Tasks, runs, their events, agent execution, durable workflows, recovery, artifacts, retention, report delivery |
 | `connections` | Connection lifecycle, encrypted credentials, OAuth sign-ins, GitHub source connections, adapters for MCP, HTTP APIs, models and webhooks, outbound HTTP rules |
-| `runner` | The isolated service's sandbox sessions, runtime enforcement, command execution, its protocol and client |
+| `runner` | The isolated service's sandbox sessions, runtime enforcement, command execution and its client |
 | `gateway` | Model proxy, run tokens, model usage |
 | `mcp_server` | The `/mcp` endpoint, MCP tool adapters, tool call audit and rate limit |
 | `workspaces` | Membership, workspace selection, authorization, API tokens and workspace settings |
@@ -24,6 +24,16 @@ credentials, tokens, the REST client, git transport and repository lookups. It
 takes plain values and imports no Django apps. Its own ruff configuration
 enforces that. `repositories.github_access` turns a repository and its source
 connection into a token and a checked identity for each operation.
+
+`secondshift/runner_protocol` is a plain package, not an app. It holds what
+the runner and the control plane agree on: session and command specs, agent
+requests and results, agent backends, sandbox paths and size limits, the
+layout of a collected archive, and the gateway's agent broker path. It imports
+neither side, so both settings modules can use it too. The runner imports no
+control plane code. The control plane imports the runner only through its
+client and the few modules `core/tests/test_runner_boundary.py` lists. The
+agent image's `outcomes.py` stays in `runner/agent_image`, because the image
+ships it on its own with only the standard library.
 
 Each HTTP app uses `api.py` for endpoints, `schemas.py` for its contracts and
 `serialization.py` for response builders. `config/api.py` composes the public

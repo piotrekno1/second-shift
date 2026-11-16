@@ -43,7 +43,8 @@ docker build .
 - Domain ownership: `repositories` owns source access, `jobs` owns definitions
   and approval policy, `runs` owns execution and history, `connections` owns
   credentials and provider adapters, and `runner` owns sandbox sessions.
-  See `docs/backend-architecture.md` for boundaries and migration history.
+  The runner and the control plane meet only through `runner_protocol`.
+  `core/tests/test_runner_boundary.py` checks this. See `docs/backend-architecture.md` for boundaries and migration history.
 - Each app keeps every query on its models in `dao.py`, named for what it
   does. Other modules, in the same app or another, call those helpers. They
   never use a model manager or query through a reverse relation. Reading a
@@ -56,9 +57,10 @@ docker build .
 - No magic strings for names used in more than one place. A name one app
   uses lives in that app, next to the code that uses it.
   `secondshift/config/constants.py` holds only names that cross a process or
-  app boundary: settings and launcher names, env vars that one module writes
-  and another reads, and limits and paths the runner and control plane must
-  agree on. An env var read in one settings module is written inline there.
+  app boundary: settings and launcher names, and env vars that one module
+  writes and another reads. What the runner and control plane must agree on
+  lives in `secondshift/runner_protocol`. An env var read in one settings
+  module is written inline there.
 - Every Python function has type hints.
 - Never log, serialize, or return decrypted secret values.
 - Repository configuration may name logical capabilities, but may never contain

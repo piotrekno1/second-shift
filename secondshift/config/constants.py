@@ -1,9 +1,9 @@
 """Names shared across process and app boundaries.
 
 The runner's settings must never import the control plane's settings, which
-read its keys. The runner never imports control plane apps either. Settings
-names, env vars that one module writes and another reads, and limits both
-sides enforce live here. A name only one app uses belongs in that app.
+read its keys. Settings names, and env vars that one module writes and another
+reads, live here. What the runner and the control plane agree on lives in
+secondshift/runner_protocol. A name only one app uses belongs in that app.
 """
 
 from enum import StrEnum
