@@ -157,9 +157,7 @@ def execute_locked_agent(session_id: str, request: AgentInput) -> AgentOutput:
         "prompt": request.prompt,
         "max_turns": request.max_turns,
         "token_budget": request.token_budget,
-        "subagents": request.subagents
-        if request.backend.starts_subagents
-        else 0,
+        "subagents": request.subagents if request.backend.starts_subagents else 0,
     }
     return run_agent_container(
         agent_name(session_id),
