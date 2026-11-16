@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import { fetchRuns } from '../services/runs'
 import { useAppStore } from '../stores/app'
 import AppIcon from './AppIcon.vue'
+import { RAIL_QUERY, useMediaQuery } from '../composables/useMediaQuery'
 
 // Compact links at the foot of the sidebar for each active run status.
 // Check often while something is active, so a short run is not missed.
@@ -53,6 +54,11 @@ watch(
 )
 
 const active = computed(() => running.value + queued.value)
+// The rail shows only the dot or icon, so each link names itself on hover.
+const rail = useMediaQuery(RAIL_QUERY)
+function railTitle(text: string): string | undefined {
+  return rail.value ? text : undefined
+}
 </script>
 
 <template>
@@ -61,6 +67,7 @@ const active = computed(() => running.value + queued.value)
       v-if="running"
       :to="{ path: '/runs', query: { status: 'running' } }"
       class="shift-activity live"
+      :title="railTitle(`${running} running`)"
     >
       <span class="shift-dot" aria-hidden="true" />
       <span>{{ running }} running</span>
@@ -69,11 +76,17 @@ const active = computed(() => running.value + queued.value)
       v-if="queued"
       :to="{ path: '/runs', query: { status: 'queued' } }"
       class="shift-activity"
+      :title="railTitle(`${queued} queued`)"
     >
       <AppIcon name="clock-outline" />
       <span>{{ queued }} queued</span>
     </RouterLink>
-    <RouterLink v-if="!active" to="/runs" class="shift-activity idle">
+    <RouterLink
+      v-if="!active"
+      to="/runs"
+      class="shift-activity idle"
+      :title="railTitle('No active runs')"
+    >
       <span class="shift-dot" aria-hidden="true" />
       <span>No active runs</span>
     </RouterLink>
@@ -126,6 +139,28 @@ const active = computed(() => running.value + queued.value)
 }
 .shift-activity.idle {
   color: var(--muted);
+}
+/* In the rail each status is its dot or icon, centred in the marker column. */
+@media (min-width: 801px) and (max-width: 1100px) {
+  .shift-status {
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+    padding: 0;
+  }
+  .shift-activity {
+    justify-content: center;
+    width: var(--marker);
+    gap: 0;
+  }
+  .shift-activity > span:not(.shift-dot) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   .shift-activity.live .shift-dot {
