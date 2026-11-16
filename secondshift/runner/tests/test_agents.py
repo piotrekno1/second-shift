@@ -11,6 +11,7 @@ from pydantic import ValidationError
 
 from secondshift.agent.image.claude.subagent_hook import WORKER
 from secondshift.core.launcher import services
+from secondshift.docker.commands import DockerError
 from secondshift.runner import agents
 from secondshift.runner.agent_credentials import (
     decrypt_agent_auth,
@@ -101,7 +102,7 @@ def test_local_runner_runs_the_exact_image_behind_its_tag(
     monkeypatch.setattr(
         agents,
         "resolve_image_id",
-        Mock(side_effect=subprocess.CalledProcessError(1, [])),
+        Mock(side_effect=DockerError("docker image failed.")),
     )
     with pytest.raises(RunnerProtocolError, match="isn't built"):
         require_agent_configuration()

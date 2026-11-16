@@ -5,12 +5,13 @@ share one, and deleting it only costs a full fetch the next time.
 """
 
 import fcntl
-import subprocess
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 
 from django.conf import settings
+
+from secondshift.git import commands
 
 # The commit the repository last synced. It keeps that commit's objects in the
 # mirror. Older commits are kept only until Git's own cleanup removes them.
@@ -31,20 +32,12 @@ def locked_mirror(repository_id: int) -> Iterator[Path]:
     with (locks / f"{repository_id}.lock").open("a+b") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
         if not path.exists():
-            subprocess.run(
-                ["git", "init", "--quiet", "--bare", str(path)],
-                check=True,
-                capture_output=True,
-                timeout=30,
-            )
+            commands.output(None, "init", "--quiet", "--bare", str(path), timeout=30)
         yield path
 
 
 def has_commit(mirror: Path, commit_sha: str) -> bool:
-    completed = subprocess.run(
-        ["git", "-C", str(mirror), "cat-file", "-e", f"{commit_sha}^{{commit}}"],
-        capture_output=True,
-        check=False,
-        timeout=30,
+    completed = commands.run(
+        mirror, "cat-file", "-e", f"{commit_sha}^{{commit}}", timeout=30
     )
     return completed.returncode == 0
