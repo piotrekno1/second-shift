@@ -25,17 +25,17 @@ from secondshift.runner.dao import (
     set_session_status,
 )
 from secondshift.runner.models import RunnerCommand, RunnerSession
-from secondshift.runner.protocol import (
-    CommandRequest,
-    CommandResult,
-    RunnerProtocolError,
-    RunnerSessionSpec,
-)
 from secondshift.runner.sources import sweep_sources, unpack_source
 from secondshift.runner_protocol.sandbox import (
     SANDBOX_HISTORY_DIR,
     SANDBOX_OUTPUTS_DIR,
     SANDBOX_SKILL_DIR,
+)
+from secondshift.runner_protocol.sessions import (
+    CommandRequest,
+    CommandResult,
+    RunnerProtocolError,
+    RunnerSessionSpec,
 )
 
 TRUNCATION_MARKER = b"\n[... command output truncated by SecondShift ...]\n"

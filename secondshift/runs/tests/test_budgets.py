@@ -15,7 +15,7 @@ from pydantic_ai.toolsets import FunctionToolset
 from secondshift.config.constants import TOKEN_BUDGET_MESSAGE
 from secondshift.jobs.tests.plans import stored_plan
 from secondshift.jobs.tool_policy import LOCAL_TOOLS
-from secondshift.runner.protocol import CommandResult
+from secondshift.runner_protocol.sessions import CommandResult
 from secondshift.runs.execution.budgets import FINISH_INSTRUCTIONS, PARTIAL_REPORT_NOTE
 from secondshift.runs.execution.result import AgentResult
 from secondshift.runs.execution.run import (

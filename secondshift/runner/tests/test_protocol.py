@@ -1,6 +1,6 @@
 import pytest
 
-from secondshift.runner.protocol import (
+from secondshift.runner_protocol.sessions import (
     CommandRequest,
     RunnerSessionSpec,
 )

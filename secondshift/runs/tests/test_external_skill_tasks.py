@@ -17,7 +17,7 @@ from secondshift.repositories.tests.test_external_skills import (
 from secondshift.repositories.tests.test_external_skills import (
     vendor as vendor_fixture,
 )
-from secondshift.runner.protocol import CommandResult
+from secondshift.runner_protocol.sessions import CommandResult
 from secondshift.runs.constants import RunStart
 from secondshift.runs.execution import run as execution
 from secondshift.runs.execution.run import capture_run_input_step, run_prompt

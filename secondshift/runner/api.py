@@ -13,11 +13,6 @@ from secondshift.runner.agents import (
     remove_agent_credentials,
 )
 from secondshift.runner.dao import has_sessions
-from secondshift.runner.protocol import (
-    CommandRequest,
-    RunnerProtocolError,
-    RunnerSessionSpec,
-)
 from secondshift.runner.schemas import (
     CommandInput,
     CommandOutput,
@@ -26,6 +21,11 @@ from secondshift.runner.schemas import (
 )
 from secondshift.runner.services import get_runner_service
 from secondshift.runner.sources import has_source, receive_source
+from secondshift.runner_protocol.sessions import (
+    CommandRequest,
+    RunnerProtocolError,
+    RunnerSessionSpec,
+)
 
 
 class RunnerBearer(HttpBearer):

@@ -13,13 +13,13 @@ from pydantic_ai.tools import ToolDefinition
 
 from secondshift.jobs.tool_policy import LOCAL_TOOLS
 from secondshift.runner.client import get_runner_client
-from secondshift.runner.protocol import CommandRequest, CommandResult
 from secondshift.runner_protocol.sandbox import (
     SANDBOX_HISTORY_DIR,
     SANDBOX_OUTPUTS_DIR,
     SANDBOX_SKILL_DIR,
     SANDBOX_WORKSPACE_DIR,
 )
+from secondshift.runner_protocol.sessions import CommandRequest, CommandResult
 from secondshift.runs.execution.deadlines import (
     check_deadline,
 )

@@ -20,7 +20,7 @@ from secondshift.connections.models import AgentConnection, AgentCredentialClean
 from secondshift.runner.agent_image.outcomes import AgentOutcome
 from secondshift.runner.agent_protocol import AgentCheckInput
 from secondshift.runner.client import get_runner_client
-from secondshift.runner.protocol import RunnerProtocolError
+from secondshift.runner_protocol.sessions import RunnerProtocolError
 from secondshift.workspaces.dao import is_owner
 from secondshift.workspaces.models import Workspace
 

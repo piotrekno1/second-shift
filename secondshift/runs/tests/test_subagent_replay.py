@@ -12,7 +12,7 @@ from dbos import DBOS, SetWorkflowID
 from pydantic_ai.messages import ModelMessage, ModelResponse, TextPart, ToolCallPart
 from pydantic_ai.models.function import AgentInfo, FunctionModel
 
-from secondshift.runner.protocol import CommandRequest, CommandResult
+from secondshift.runner_protocol.sessions import CommandRequest, CommandResult
 from secondshift.runs.execution.run import execute_agent_run
 from secondshift.runs.execution.subagents import TOOL_NAME
 from secondshift.runs.models import Run, RunEvent

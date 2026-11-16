@@ -7,7 +7,7 @@ from django.utils import timezone
 from secondshift.jobs.models import Job
 from secondshift.jobs.tests.plans import CAPABILITY, stored_plan
 from secondshift.repositories.models import Repository
-from secondshift.runner.protocol import CommandResult
+from secondshift.runner_protocol.sessions import CommandResult
 from secondshift.runs.constants import RunStart
 from secondshift.runs.dao import create_task
 from secondshift.runs.execution.run import render_run_input, run_prompt

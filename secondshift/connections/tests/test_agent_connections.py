@@ -16,7 +16,7 @@ from secondshift.connections.agents import (
     validate_agent_auth,
 )
 from secondshift.connections.models import AgentConnection, AgentCredentialCleanup
-from secondshift.runner.protocol import RunnerProtocolError
+from secondshift.runner_protocol.sessions import RunnerProtocolError
 from secondshift.workspaces.dao import create_workspace
 from secondshift.workspaces.models import Workspace, WorkspaceMembership
 

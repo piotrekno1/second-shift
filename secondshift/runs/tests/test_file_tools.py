@@ -7,7 +7,7 @@ import pytest
 from pydantic_ai import ModelRetry, RunContext, RunUsage
 from pydantic_ai.models.test import TestModel
 
-from secondshift.runner.protocol import CommandResult
+from secondshift.runner_protocol.sessions import CommandResult
 from secondshift.runs.execution.workspace_tools import (
     MAX_WRITE_BYTES,
     WorkspaceToolDeps,

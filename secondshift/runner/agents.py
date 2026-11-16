@@ -26,8 +26,8 @@ from secondshift.runner.agent_image.outcomes import (
 from secondshift.runner.agent_protocol import AgentCheckInput, AgentInput, AgentOutput
 from secondshift.runner.dao import is_session_active
 from secondshift.runner.images import resolve_image_id
-from secondshift.runner.protocol import CommandRequest, RunnerProtocolError
 from secondshift.runner.services import DockerRunnerService, agent_name, sandbox_flags
+from secondshift.runner_protocol.sessions import CommandRequest, RunnerProtocolError
 
 # A login check asks for one short answer, with no tools.
 CHECK_PROMPT = "Reply with the single word OK."

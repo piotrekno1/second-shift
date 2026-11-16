@@ -25,12 +25,12 @@ import tarfile
 from pathlib import Path, PurePosixPath
 from typing import IO, Any
 
-from secondshift.runner.protocol import RunnerProtocolError
 from secondshift.runner_protocol.sandbox import (
     MAX_CHANGES_BYTES,
     MAX_OUTPUT_BYTES,
     MAX_OUTPUT_FILES,
 )
+from secondshift.runner_protocol.sessions import RunnerProtocolError
 
 BASELINE_DIR = "baseline.git"
 # The repository the sandbox sees, inside the workspace.

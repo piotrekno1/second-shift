@@ -19,8 +19,8 @@ from secondshift.repositories.github_access import github_access
 from secondshift.repositories.models import Repository
 from secondshift.repositories.sources import source_snapshot
 from secondshift.runner.client import get_runner_client
-from secondshift.runner.protocol import RunnerSessionSpec
 from secondshift.runner_protocol.sandbox import SANDBOX_SKILL_DIR
+from secondshift.runner_protocol.sessions import RunnerSessionSpec
 from secondshift.runs.artifacts import read_output_excerpt, store_collection
 from secondshift.runs.constants import (
     EXECUTE_RUN_WORKFLOW,

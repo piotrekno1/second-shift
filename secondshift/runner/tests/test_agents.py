@@ -22,8 +22,8 @@ from secondshift.runner.agent_image import agent, claude, codex, outcomes
 from secondshift.runner.agent_protocol import AgentCheckInput, AgentInput
 from secondshift.runner.agents import agent_command, require_agent_configuration
 from secondshift.runner.models import RunnerSession
-from secondshift.runner.protocol import RunnerProtocolError
 from secondshift.runner.services import DockerRunnerService, sandbox_flags
+from secondshift.runner_protocol.sessions import RunnerProtocolError
 
 TOKEN = "sk-ant-oat01-test-subscription-token"
 IMAGE = "example/ss-agent@sha256:" + "a" * 64

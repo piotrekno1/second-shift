@@ -1,3 +1,5 @@
+"""The session and command specs the control plane sends to the runner."""
+
 import hashlib
 import json
 import re
