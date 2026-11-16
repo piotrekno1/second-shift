@@ -116,7 +116,6 @@ SANDBOX_SKILL_DIR = "/skill"
 MAX_SKILL_FILES = 500
 MAX_SKILL_UNPACKED_BYTES = 20 * 1024 * 1024
 MAX_SKILL_SNAPSHOT_BYTES = 10 * 1024 * 1024
-GITHUB_MCP_URL = "https://api.githubcopilot.com/mcp/readonly"
 # The model gateway refuses a run past its token budget with this message.
 TOKEN_BUDGET_MESSAGE = "This run has used its token budget."
 
@@ -136,46 +135,6 @@ class ModelFamily(StrEnum):
 
 # How much of a report a run keeps as its summary. Webhooks send the summary.
 SUMMARY_MAX_CHARS = 4_000
-
-
-class GitHubMCPTool(StrEnum):
-    """Read tools for pull requests, commits, and Actions runs.
-
-    Actions tools that trigger runs, list artifacts, or return download links
-    are left out or blocked by method.
-    """
-
-    SEARCH_PULL_REQUESTS = "search_pull_requests"
-    PULL_REQUEST_READ = "pull_request_read"
-    LIST_COMMITS = "list_commits"
-    GET_COMMIT = "get_commit"
-    ACTIONS_LIST = "actions_list"
-    ACTIONS_GET = "actions_get"
-    GET_JOB_LOGS = "get_job_logs"
-
-
-GITHUB_MCP_TOOLS = tuple(GitHubMCPTool)
-
-SENTRY_MCP_URL = "https://mcp.sentry.dev/mcp"
-# Sentry organization and project slugs.
-SENTRY_SLUG_PATTERN = r"[a-z0-9][a-z0-9_\-]{0,63}"
-
-
-class SentryMCPTool(StrEnum):
-    """Read tools for errors, issues, and traces.
-
-    The search tools pass their query to Sentry's own search agent. Replays,
-    logs, and profiles are left out because they often hold personal data.
-    """
-
-    FIND_PROJECTS = "find_projects"
-    SEARCH_ISSUES = "search_issues"
-    SEARCH_ERRORS = "search_errors"
-    SEARCH_TRACES = "search_traces"
-    GET_SENTRY_RESOURCE = "get_sentry_resource"
-
-
-SENTRY_MCP_TOOLS = tuple(SentryMCPTool)
 
 
 class Environment(StrEnum):

@@ -8,7 +8,6 @@ import httpx
 import pytest
 from django.contrib.auth import get_user_model
 
-from secondshift.config.constants import GITHUB_MCP_URL
 from secondshift.connections.external import MCPKind
 from secondshift.connections.mcp import github as github_mcp
 from secondshift.connections.mcp.base import SOURCE_AUTH, MCPError
@@ -16,6 +15,7 @@ from secondshift.connections.mcp.client import (
     create_mcp_connection,
     update_mcp_connection,
 )
+from secondshift.connections.mcp.github import GITHUB_MCP_URL
 from secondshift.connections.models import Connection
 from secondshift.connections.repository_ref import RepositoryRef
 from secondshift.connections.serialization import serialize_connection

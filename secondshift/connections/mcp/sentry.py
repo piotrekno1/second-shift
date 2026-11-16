@@ -1,13 +1,8 @@
 """Sentry's hosted MCP server, limited to one organization or project."""
 
+from enum import StrEnum
 from typing import Any
 
-from secondshift.config.constants import (
-    SENTRY_MCP_TOOLS,
-    SENTRY_MCP_URL,
-    SENTRY_SLUG_PATTERN,
-    SentryMCPTool,
-)
 from secondshift.connections.access import AccessReason
 from secondshift.connections.mcp.base import (
     MCPArgumentError,
@@ -18,6 +13,27 @@ from secondshift.connections.mcp.base import (
 )
 from secondshift.connections.models import Connection
 from secondshift.connections.repository_ref import RepositoryRef
+
+SENTRY_MCP_URL = "https://mcp.sentry.dev/mcp"
+# Sentry organization and project slugs.
+SENTRY_SLUG_PATTERN = r"[a-z0-9][a-z0-9_\-]{0,63}"
+
+
+class SentryMCPTool(StrEnum):
+    """Read tools for errors, issues, and traces.
+
+    The search tools pass their query to Sentry's own search agent. Replays,
+    logs, and profiles are left out because they often hold personal data.
+    """
+
+    FIND_PROJECTS = "find_projects"
+    SEARCH_ISSUES = "search_issues"
+    SEARCH_ERRORS = "search_errors"
+    SEARCH_TRACES = "search_traces"
+    GET_SENTRY_RESOURCE = "get_sentry_resource"
+
+
+SENTRY_MCP_TOOLS = tuple(SentryMCPTool)
 
 ORGANIZATION = "organization"
 PROJECT = "project"

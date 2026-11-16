@@ -8,7 +8,6 @@ import pytest
 from django.contrib.auth import get_user_model
 from django.test import Client
 
-from secondshift.config.constants import GITHUB_MCP_TOOLS, GITHUB_MCP_URL
 from secondshift.connections.mcp.base import MCPError, MCPRequestError
 from secondshift.connections.mcp.client import (
     create_mcp_connection,
@@ -18,6 +17,8 @@ from secondshift.connections.mcp.client import (
     validate_tool_schema,
 )
 from secondshift.connections.mcp.github import (
+    GITHUB_MCP_TOOLS,
+    GITHUB_MCP_URL,
     github_tool_error,
     narrowed_github_schema,
     scoped_github_arguments,
