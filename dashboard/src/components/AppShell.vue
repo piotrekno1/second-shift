@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import AppIcon from './AppIcon.vue'
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Menu from 'primevue/menu'
 import Dialog from 'primevue/dialog'
@@ -12,6 +12,7 @@ import { DOCS_HOME_URL } from '../utils/docs'
 import { SIGN_IN_PATH } from '../utils/signIn'
 import { sidebarNotes } from '../utils/readiness'
 import { useAppStore } from '../stores/app'
+import { DRAWER_QUERY, RAIL_QUERY, useMediaQuery } from '../composables/useMediaQuery'
 import InvitePrompt from './InvitePrompt.vue'
 import ShiftStatus from './ShiftStatus.vue'
 import WorkspaceSwitcher from './WorkspaceSwitcher.vue'
@@ -22,6 +23,10 @@ const route = useRoute()
 const router = useRouter()
 const app = useAppStore()
 const mobileOpen = ref(false)
+const drawer = useMediaQuery(DRAWER_QUERY)
+const rail = useMediaQuery(RAIL_QUERY)
+const sidebar = ref<HTMLElement | null>(null)
+const menuButton = ref<HTMLButtonElement | null>(null)
 
 // A note's dot says how bad it is: danger when something is broken, warning when it waits on you.
 interface NavItem {
@@ -95,17 +100,35 @@ const current = computed(() =>
 )
 
 // The drawer on small screens closes on navigation, on Escape and on a tap outside it.
+// It also closes when the window grows past the drawer layout.
 watch(
   () => route.fullPath,
   () => {
     mobileOpen.value = false
   },
 )
+watch(drawer, (isDrawer) => {
+  if (!isDrawer) mobileOpen.value = false
+})
+// Opening the drawer moves focus into it, so the keyboard lands on the links.
+watch(mobileOpen, async (open) => {
+  if (!open) return
+  await nextTick()
+  sidebar.value?.querySelector<HTMLElement>('nav a')?.focus()
+})
 function closeOnEscape(event: KeyboardEvent): void {
-  if (event.key === 'Escape') mobileOpen.value = false
+  if (event.key !== 'Escape' || !mobileOpen.value) return
+  mobileOpen.value = false
+  menuButton.value?.focus()
 }
 onMounted(() => window.addEventListener('keydown', closeOnEscape))
 onBeforeUnmount(() => window.removeEventListener('keydown', closeOnEscape))
+
+// The rail shows icons only, so each link names itself on hover.
+function railTitle(item: NavItem): string | undefined {
+  if (!rail.value) return undefined
+  return item.note ? `${item.label}: ${item.note}` : item.label
+}
 
 const initial = computed(() => (app.user?.email ?? 'S').slice(0, 1).toUpperCase())
 // The part before the @ reads as a name. The full address is in the menu.
@@ -145,6 +168,7 @@ async function handleSignOut(): Promise<void> {
         }}</strong></RouterLink
       >
       <button
+        ref="menuButton"
         class="mobile-menu"
         type="button"
         :aria-label="mobileOpen ? 'Close navigation' : 'Open navigation'"
@@ -156,7 +180,14 @@ async function handleSignOut(): Promise<void> {
       </button>
     </header>
     <div v-if="mobileOpen" class="mobile-backdrop" aria-hidden="true" @click="mobileOpen = false" />
-    <aside id="sidebar" class="sidebar" :class="{ open: mobileOpen }">
+    <!-- A closed drawer is off screen, so it is inert: Tab skips its links. -->
+    <aside
+      id="sidebar"
+      ref="sidebar"
+      class="sidebar"
+      :class="{ open: mobileOpen }"
+      :inert="drawer && !mobileOpen"
+    >
       <WorkspaceSwitcher />
 
       <nav aria-label="Primary navigation">
@@ -168,6 +199,7 @@ async function handleSignOut(): Promise<void> {
             :to="item.to"
             :class="{ active: current?.to === item.to }"
             :aria-current="current?.to === item.to ? 'page' : undefined"
+            :title="railTitle(item)"
             @click="mobileOpen = false"
           >
             <AppIcon :name="item.icon" />

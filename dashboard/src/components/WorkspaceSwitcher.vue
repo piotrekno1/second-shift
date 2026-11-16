@@ -67,6 +67,7 @@ onMounted(async () => {
     class="workspace-switcher"
     :class="{ 'is-open': menuOpen }"
     aria-label="Switch workspace"
+    :title="app.user?.workspace_name ?? undefined"
     aria-haspopup="menu"
     :aria-expanded="menuOpen"
     aria-controls="workspace-menu"
@@ -80,7 +81,11 @@ onMounted(async () => {
     v-else
     to="/"
     class="workspace-switcher static"
-    :title="roleLabel ? `${app.user?.workspace_name} · ${roleLabel}` : undefined"
+    :title="
+      roleLabel
+        ? `${app.user?.workspace_name} · ${roleLabel}`
+        : (app.user?.workspace_name ?? undefined)
+    "
   >
     <img src="/secondshift-mark.svg" alt="" class="brand-mark" />
     <strong class="workspace-name">{{ app.user?.workspace_name }}</strong>
