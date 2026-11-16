@@ -3,8 +3,8 @@
 from django.urls import path
 from health_check.views import HealthCheckView
 
-from secondshift.config.constants import AGENT_BROKER_PATH
 from secondshift.gateway.views import model_gateway
+from secondshift.runner_protocol.agents import AGENT_BROKER_PATH
 from secondshift.runs.execution.agent_broker import agent_mcp
 
 urlpatterns = [

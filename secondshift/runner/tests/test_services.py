@@ -4,12 +4,12 @@ from unittest.mock import Mock
 import pytest
 
 from secondshift.runner.models import RunnerCommand, RunnerSession
-from secondshift.runner.protocol import (
+from secondshift.runner.services import DockerRunnerService, RunnerConfigurationError
+from secondshift.runner_protocol.sessions import (
     CommandRequest,
     RunnerProtocolError,
     RunnerSessionSpec,
 )
-from secondshift.runner.services import DockerRunnerService, RunnerConfigurationError
 
 
 def active_session(tmp_path: Path) -> RunnerSession:

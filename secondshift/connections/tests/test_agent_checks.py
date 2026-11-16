@@ -15,8 +15,8 @@ from secondshift.connections.tests.test_agent_connections import (
 from secondshift.connections.tests.test_agent_connections import (
     agent_login as agent_login_fixture,
 )
-from secondshift.runner.protocol import RunnerProtocolError
 from secondshift.runner.tests.fakes import agent_runner
+from secondshift.runner_protocol.sessions import RunnerProtocolError
 from secondshift.workspaces.models import Workspace, WorkspaceMembership
 
 agent_login = agent_login_fixture

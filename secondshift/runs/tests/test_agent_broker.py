@@ -18,7 +18,7 @@ from secondshift.connections.tests.test_agent_connections import (
 from secondshift.jobs.tests.test_execution_defaults import (
     agent_run as agent_run_fixture,
 )
-from secondshift.runner.protocol import CommandResult, RunnerProtocolError
+from secondshift.runner_protocol.sessions import CommandResult, RunnerProtocolError
 from secondshift.runs.artifacts import store_run_payload
 from secondshift.runs.execution.agent_broker import (
     AgentAccessError,

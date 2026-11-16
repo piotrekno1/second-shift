@@ -1,5 +1,5 @@
+from secondshift.agent.image.outcomes import cache_reads, usage_budget
 from secondshift.config.constants import GITHUB_BASE_URL
-from secondshift.runner.agent_image.outcomes import cache_reads, usage_budget
 from secondshift.runs.dao import run_events
 from secondshift.runs.deliveries import retryable
 from secondshift.runs.models import Run, RunDelivery, RunFailure

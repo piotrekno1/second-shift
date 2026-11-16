@@ -4,7 +4,7 @@ from typing import Any
 import httpx
 
 from secondshift.runner.agent_credentials import provisioning_public_key
-from secondshift.runner.client import HttpRunnerClient
+from secondshift.runner_protocol.client import HttpRunnerClient
 
 
 def agent_runner(

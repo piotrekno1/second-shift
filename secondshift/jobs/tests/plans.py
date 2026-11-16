@@ -2,8 +2,8 @@
 
 from typing import Any
 
-from secondshift.config.constants import AgentBackend
 from secondshift.jobs.plan import ExecutionPlan
+from secondshift.runner_protocol.agents import AgentBackend
 
 BASE: dict[str, Any] = {
     "execution": {

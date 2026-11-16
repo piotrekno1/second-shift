@@ -1,16 +1,20 @@
-"""The control plane sends only fixed agent choices, never Docker options."""
+"""Agent requests the control plane sends the runner, and what comes back.
+
+The control plane sends only fixed agent choices, never Docker options.
+"""
 
 from typing import Literal
 
 from ninja import Schema
 from pydantic import ConfigDict, Field, SecretStr
 
-from secondshift.runner.agent_image.outcomes import AgentOutcome
+from secondshift.agent.image.outcomes import AgentOutcome
+from secondshift.runner_protocol.agents import AgentBackend
 
 
 class AgentInput(Schema):
     model_config = ConfigDict(extra="forbid")
-    backend: Literal["claude_code", "codex"]
+    backend: Literal[AgentBackend.CLAUDE_CODE, AgentBackend.CODEX]
     credential_key: str = Field(pattern=r"^[0-9a-f]{32}$")
     auth: SecretStr = Field(max_length=64000, exclude=True)
     broker_token: SecretStr = Field(max_length=200, exclude=True)
@@ -26,7 +30,7 @@ class AgentCheckInput(Schema):
     """A login check. The runner owns the prompt and every limit."""
 
     model_config = ConfigDict(extra="forbid")
-    backend: Literal["claude_code", "codex"]
+    backend: Literal[AgentBackend.CLAUDE_CODE, AgentBackend.CODEX]
     credential_key: str = Field(pattern=r"^[0-9a-f]{32}$")
     auth: SecretStr = Field(max_length=64000, exclude=True)
 

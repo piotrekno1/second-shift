@@ -7,7 +7,7 @@ from pydantic_ai.exceptions import ModelHTTPError
 from secondshift.connections.errors import ExternalRequestError, ExternalToolError
 from secondshift.github.errors import GitHubError
 from secondshift.jobs.tool_rules import ToolRuleViolation
-from secondshift.runner.protocol import RunnerProtocolError
+from secondshift.runner_protocol.sessions import RunnerProtocolError
 from secondshift.runs.models import Run, RunFailure
 
 STAGE_FAILURES: dict[str, str] = {

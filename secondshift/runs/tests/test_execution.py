@@ -15,7 +15,7 @@ from secondshift.jobs.models import Job
 from secondshift.jobs.tests.plans import CAPABILITY, stored_plan
 from secondshift.jobs.tool_policy import LOCAL_TOOLS
 from secondshift.repositories.models import Repository
-from secondshift.runner.protocol import (
+from secondshift.runner_protocol.sessions import (
     CommandRequest,
     CommandResult,
 )

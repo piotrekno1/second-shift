@@ -36,11 +36,11 @@ from secondshift.config.constants import (
     Environment,
     SandboxRuntime,
     Service,
-    local_agent_broker_url,
 )
 from secondshift.config.first_run import write_generated_env
 from secondshift.config.logging import logging_config
 from secondshift.config.static_storage import immutable_static_file
+from secondshift.runner_protocol.agents import local_agent_broker_url
 
 # The secondshift package, and the checkout that contains it.
 PACKAGE_DIR = Path(__file__).resolve().parents[2]

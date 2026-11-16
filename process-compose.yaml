@@ -22,7 +22,7 @@ processes:
 
   agent_image:
     description: Build the pinned Claude Code and Codex development agent image
-    command: docker build -f secondshift/runner/agent_image/Dockerfile -t secondshift-agent:dev .
+    command: docker build -f secondshift/agent/image/Dockerfile -t secondshift-agent:dev .
 
   initialize:
     description: Initialize the control plane, development workspace, and runner

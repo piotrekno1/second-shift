@@ -1,0 +1,7 @@
+{
+  $worker: {
+    "description": "Does one task with this run's tools, starting fresh.",
+    "prompt": $prompt,
+    "tools": [$tools]
+  }
+}

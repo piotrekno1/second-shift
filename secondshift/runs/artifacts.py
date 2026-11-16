@@ -16,18 +16,18 @@ from django.conf import settings
 from django.core.files.base import ContentFile, File
 from django.core.files.storage import FileSystemStorage, Storage, storages
 
-from secondshift.config.constants import (
-    MAX_CHANGES_BYTES,
-    MAX_OUTPUT_BYTES,
-    MAX_OUTPUT_FILES,
-)
-from secondshift.runner.collection import (
+from secondshift.runner_protocol.collection import (
     CHANGES_NAME,
     MANIFEST_NAME,
     MAX_LISTED_CHANGES,
     OUTPUTS_DIR,
     HashingReader,
     safe_output_name,
+)
+from secondshift.runner_protocol.sandbox import (
+    MAX_CHANGES_BYTES,
+    MAX_OUTPUT_BYTES,
+    MAX_OUTPUT_FILES,
 )
 from secondshift.runs.inputs import Payload
 from secondshift.runs.models import Run

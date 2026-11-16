@@ -11,8 +11,8 @@ import subprocess
 import sys
 from collections.abc import Callable
 
+from secondshift.agent.build import build_agent_image, resolve_image_id
 from secondshift.config.constants import LOCAL_AGENT_TAG
-from secondshift.runner.images import build_agent_image, resolve_image_id
 
 
 class AgentSetupError(Exception):

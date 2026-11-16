@@ -82,7 +82,7 @@ build the separate agent image from the same checkout as the application. On a
 single server, an immutable local image ID is sufficient:
 
 ```bash
-docker build -f secondshift/runner/agent_image/Dockerfile \
+docker build -f secondshift/agent/image/Dockerfile \
   -t secondshift-agent:production .
 docker image inspect --format '{{.Id}}' secondshift-agent:production
 ```

@@ -3,8 +3,8 @@
 import os
 import sys
 
+from secondshift.agent.build import resolve_image_id
 from secondshift.config.constants import AppEnv
-from secondshift.runner.images import resolve_image_id
 
 
 def main() -> None:

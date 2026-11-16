@@ -16,7 +16,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import IO
 
-from secondshift.config.constants import (
+from secondshift.runner_protocol.sandbox import (
+    COMMIT_SHA_PATTERN,
     MAX_SOURCE_FILES,
     MAX_SOURCE_SNAPSHOT_BYTES,
     MAX_SOURCE_UNPACKED_BYTES,
@@ -30,7 +31,7 @@ MAX_SKILL_SNAPSHOT_BYTES = 10 * 1024 * 1024
 REGULAR_FILE_MODES = {"100644": 0o644, "100755": 0o755}
 SYMLINK_MODE = "120000"
 SUBMODULE_MODE = "160000"
-COMMIT_SHA = re.compile(r"[0-9a-f]{40}|[0-9a-f]{64}")
+COMMIT_SHA = re.compile(COMMIT_SHA_PATTERN)
 
 
 class SnapshotError(RuntimeError):

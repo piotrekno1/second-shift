@@ -7,7 +7,7 @@
 | `triggers` | Job triggers, their secrets, the public endpoint that starts runs, received requests |
 | `runs` | Tasks, runs, their events, agent execution, durable workflows, recovery, artifacts, retention, report delivery |
 | `connections` | Connection lifecycle, encrypted credentials, OAuth sign-ins, GitHub source connections, adapters for MCP, HTTP APIs, models and webhooks, outbound HTTP rules |
-| `runner` | The isolated service's sandbox sessions, runtime enforcement, command execution, its protocol and client |
+| `runner` | The isolated service's sandbox sessions, runtime enforcement, command execution and its client |
 | `gateway` | Model proxy, run tokens, model usage |
 | `mcp_server` | The `/mcp` endpoint, MCP tool adapters, tool call audit and rate limit |
 | `workspaces` | Membership, workspace selection, authorization, API tokens and workspace settings |
@@ -24,6 +24,25 @@ credentials, tokens, the REST client, git transport and repository lookups. It
 takes plain values and imports no Django apps. Its own ruff configuration
 enforces that. `repositories.github_access` turns a repository and its source
 connection into a token and a checked identity for each operation.
+
+`secondshift/runner_protocol` is a plain package, not an app. It holds what
+the runner and the control plane agree on: session and command specs, agent
+requests and results, agent backends, sandbox paths and size limits, the
+layout of a collected archive, the gateway's agent broker path, the runner's
+HTTP client, and encryption to the runner's provisioning key. It imports
+neither side, so both settings modules can use it too. The runner imports no
+control plane code. The control plane reaches the runner only through this
+package. `core/tests/test_runner_boundary.py` checks this.
+
+`secondshift/agent` is a plain package for the agent image, the container that
+runs a subscription CLI for one run. `agent/image` holds the files the image
+ships. They use only the standard library, because the image has nothing else
+installed. Each CLI has its own package, `image/claude` and `image/codex`, with
+its command, its event reader and its config files. Config files are real
+files. `outcomes.fill_template` puts each run value in as a JSON literal and
+parses the result, so a value can never add a setting. The runner starts the image, and the control plane reads the
+outcomes and usage it reports. `agent/build.py` builds the image on this
+machine for `secondshift up` and development.
 
 Each HTTP app uses `api.py` for endpoints, `schemas.py` for its contracts and
 `serialization.py` for response builders. `config/api.py` composes the public

@@ -8,14 +8,8 @@ from pathlib import Path
 from django.conf import settings
 from django.db import IntegrityError, transaction
 
-from secondshift.config.constants import (
-    SANDBOX_HISTORY_DIR,
-    SANDBOX_OUTPUTS_DIR,
-    SANDBOX_SKILL_DIR,
-    SandboxRuntime,
-)
+from secondshift.config.constants import SandboxRuntime
 from secondshift.runner.collection import (
-    OUTPUTS_DIR,
     collect,
     record_baseline,
     record_workspace_commit,
@@ -30,13 +24,19 @@ from secondshift.runner.dao import (
     set_session_status,
 )
 from secondshift.runner.models import RunnerCommand, RunnerSession
-from secondshift.runner.protocol import (
+from secondshift.runner.sources import sweep_sources, unpack_source
+from secondshift.runner_protocol.collection import OUTPUTS_DIR
+from secondshift.runner_protocol.sandbox import (
+    SANDBOX_HISTORY_DIR,
+    SANDBOX_OUTPUTS_DIR,
+    SANDBOX_SKILL_DIR,
+)
+from secondshift.runner_protocol.sessions import (
     CommandRequest,
     CommandResult,
     RunnerProtocolError,
     RunnerSessionSpec,
 )
-from secondshift.runner.sources import sweep_sources, unpack_source
 
 TRUNCATION_MARKER = b"\n[... command output truncated by SecondShift ...]\n"
 # Beside the workspace: the files earlier runs of the job saved.

@@ -26,8 +26,8 @@ from pydantic_ai.messages import ModelResponse
 from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.toolsets import FunctionToolset
 
-from secondshift.config.constants import AgentBackend
-from secondshift.runner.agent_image.subagent_hook import WORKER
+from secondshift.agent.image.claude.subagent_hook import WORKER
+from secondshift.runner_protocol.agents import AgentBackend
 from secondshift.runs.dao import (
     add_event,
     get_run,

@@ -13,21 +13,18 @@ from pathlib import Path
 
 from django.conf import settings
 
-from secondshift.config.constants import (
-    HOST_ALIAS,
-    AgentBackend,
-)
-from secondshift.runner.agent_credentials import decrypt_agent_auth
-from secondshift.runner.agent_image.outcomes import (
+from secondshift.agent.build import resolve_image_id
+from secondshift.agent.image.outcomes import (
     AUTH_FILES,
     AgentConfig,
     AgentOutcome,
 )
-from secondshift.runner.agent_protocol import AgentCheckInput, AgentInput, AgentOutput
+from secondshift.runner.agent_credentials import decrypt_agent_auth
 from secondshift.runner.dao import is_session_active
-from secondshift.runner.images import resolve_image_id
-from secondshift.runner.protocol import CommandRequest, RunnerProtocolError
 from secondshift.runner.services import DockerRunnerService, agent_name, sandbox_flags
+from secondshift.runner_protocol.agents import HOST_ALIAS
+from secondshift.runner_protocol.schemas import AgentCheckInput, AgentInput, AgentOutput
+from secondshift.runner_protocol.sessions import CommandRequest, RunnerProtocolError
 
 # A login check asks for one short answer, with no tools.
 CHECK_PROMPT = "Reply with the single word OK."
@@ -94,7 +91,7 @@ def agent_command(session_id: str, auth_path: Path, image: str) -> list[str]:
         "--entrypoint=python3",
         image,
         "-m",
-        "secondshift.runner.agent_image.agent",
+        "secondshift.agent.image.agent",
     ]
 
 
@@ -160,9 +157,7 @@ def execute_locked_agent(session_id: str, request: AgentInput) -> AgentOutput:
         "prompt": request.prompt,
         "max_turns": request.max_turns,
         "token_budget": request.token_budget,
-        "subagents": request.subagents
-        if AgentBackend(request.backend).starts_subagents
-        else 0,
+        "subagents": request.subagents if request.backend.starts_subagents else 0,
     }
     return run_agent_container(
         agent_name(session_id),

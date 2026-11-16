@@ -8,11 +8,11 @@ from dbos import DBOS
 from django.utils import timezone
 from pydantic import ValidationError
 
+from secondshift.agent.image.outcomes import AgentOutcome
 from secondshift.connections.agents import AgentConnectionError, check_agent_connection
 from secondshift.connections.models import AgentConnection
-from secondshift.runner.agent_image.outcomes import AgentOutcome
-from secondshift.runner.agent_protocol import AgentInput
-from secondshift.runner.client import get_runner_client
+from secondshift.runner_protocol.client import get_runner_client
+from secondshift.runner_protocol.schemas import AgentInput
 from secondshift.runs.dao import (
     add_event,
     create_lease,

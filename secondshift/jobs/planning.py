@@ -4,9 +4,6 @@ from dataclasses import dataclass, field
 
 from django.conf import settings
 
-from secondshift.config.constants import (
-    COMMIT_SHA_PATTERN,
-)
 from secondshift.connections.dao import connection_for_binding, connections_by_binding
 from secondshift.connections.execution import workspace_execution, workspace_model
 from secondshift.connections.external import EXTERNAL_KINDS
@@ -38,6 +35,7 @@ from secondshift.jobs.tool_policy import plan_tools
 from secondshift.jobs.tool_rules import ToolRules, broken_rules, kept_rules
 from secondshift.repositories.github import repository_ref
 from secondshift.repositories.models import Repository
+from secondshift.runner_protocol.sandbox import COMMIT_SHA_PATTERN
 from secondshift.workspaces.limits import RunLimit, workspace_limits
 from secondshift.workspaces.models import Workspace
 

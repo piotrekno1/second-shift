@@ -12,7 +12,6 @@ from django.db import transaction
 from django.utils import timezone
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
 
-from secondshift.config.constants import COMMIT_SHA_PATTERN
 from secondshift.github.errors import GitHubError
 from secondshift.jobs.manifest import TaskManifest
 from secondshift.jobs.plan import PullRequestPlan, SkillSourcePlan
@@ -26,6 +25,7 @@ from secondshift.repositories.external_skills import (
 from secondshift.repositories.local import LocalRepositoryError
 from secondshift.repositories.models import Repository
 from secondshift.repositories.skill_source import SkillSourceError, skill_commit
+from secondshift.runner_protocol.sandbox import COMMIT_SHA_PATTERN
 from secondshift.runs.constants import RunStart
 from secondshift.runs.dao import (
     active_task_count,

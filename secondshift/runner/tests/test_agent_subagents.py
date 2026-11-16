@@ -10,16 +10,17 @@ from unittest.mock import Mock
 
 import pytest
 
+from secondshift.agent.image import agent, outcomes
+from secondshift.agent.image.claude import command as claude
+from secondshift.agent.image.claude import events as claude_events
+from secondshift.agent.image.claude import subagent_hook
+from secondshift.agent.image.claude.subagent_hook import WORKER
 from secondshift.runner import agents
-from secondshift.runner.agent_credentials import (
-    encrypt_agent_auth,
-    provisioning_public_key,
-)
-from secondshift.runner.agent_image import agent, claude, outcomes, subagent_hook
-from secondshift.runner.agent_image.subagent_hook import WORKER
-from secondshift.runner.agent_protocol import AgentInput
+from secondshift.runner.agent_credentials import provisioning_public_key
 from secondshift.runner.models import RunnerSession
 from secondshift.runner.tests.test_agents import BROKER, IMAGE, TOKEN
+from secondshift.runner_protocol.credentials import encrypt_agent_auth
+from secondshift.runner_protocol.schemas import AgentInput
 
 
 @pytest.fixture
@@ -37,7 +38,7 @@ def option(argv: list[str], name: str) -> str:
 def test_a_run_with_subagents_gets_only_the_server_owned_worker(
     container: Path,
 ) -> None:
-    argv, _ = claude.claude(BROKER | {"subagents": 2})
+    argv, _ = claude.start(BROKER | {"subagents": 2})
 
     assert option(argv, "--tools") == "Task"
     # The worker is the only sub-agent type, and it has only the broker's tools.
@@ -68,7 +69,7 @@ def test_without_subagents_claude_has_no_tools_of_its_own(
     container: Path, config: dict[str, Any]
 ) -> None:
     # A login check has no broker, so it never gets sub-agents.
-    argv, _ = claude.claude(config | {"max_turns": 1})
+    argv, _ = claude.start(config | {"max_turns": 1})
 
     assert option(argv, "--tools") == ""
     assert "--agents" not in argv and "--settings" not in argv
@@ -166,7 +167,7 @@ def handback(call_id: str) -> dict[str, Any]:
 def read(events: list[dict[str, Any]], subagents: int = 2, max_turns: int = 20):
     outcome = outcomes.Outcome(max_replies=max_turns, max_subagents=subagents)
     for event in events:
-        claude.read_claude(event, outcome)
+        claude_events.read(event, outcome)
         if outcome.reason:
             break
     return outcome
@@ -247,7 +248,7 @@ def test_subagent_replies_count_toward_the_runs_turns() -> None:
 def test_runs_without_subagents_keep_claude_codes_turn_limit() -> None:
     outcome = outcomes.Outcome()
     for number in range(50):
-        claude.read_claude(reply(f"m{number}"), outcome)
+        claude_events.read(reply(f"m{number}"), outcome)
 
     assert outcome.reason == "" and outcome.subagents == {}
 
@@ -266,7 +267,7 @@ def test_the_turn_limit_stops_the_cli_mid_run(monkeypatch) -> None:
         (
             sys.executable,
             lambda config: ([sys.executable, "-c", script], {}),
-            claude.read_claude,
+            claude_events.read,
         ),
     )
     started = time.monotonic()
