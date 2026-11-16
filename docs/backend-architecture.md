@@ -66,7 +66,7 @@ transactions.
 
 ## The execution plan
 
-`jobs.plan.ExecutionPlan` is the frozen policy for one run. The planner builds
+`jobs.execution_plan.ExecutionPlan` is the frozen policy for one run. The planner builds
 it once from server-owned settings, grants and connections, and the run stores
 it. Runs, brokers and pages read it through `Run.plan`. It never holds
 credentials.

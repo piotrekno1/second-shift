@@ -7,8 +7,8 @@ from typing import Any
 from pydantic_ai import ModelRetry, RunContext, Tool, ToolFailed
 
 from secondshift.connections.errors import ExternalRequestError, ToolArgumentError
+from secondshift.jobs.argument_rules import narrow_schema
 from secondshift.jobs.tool_policy import authorized_tools
-from secondshift.jobs.tool_rules import narrow_schema
 from secondshift.runs.execution.deadlines import (
     check_deadline,
 )

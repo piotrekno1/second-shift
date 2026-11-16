@@ -6,8 +6,8 @@ from django.db import models
 from django.utils import timezone
 
 from secondshift.connections.models import Connection
+from secondshift.jobs.execution_plan import ExecutionPlan
 from secondshift.jobs.models import Job
-from secondshift.jobs.plan import ExecutionPlan
 from secondshift.repositories.models import Repository
 from secondshift.runs.constants import RunStart
 from secondshift.runs.inputs import RunInput

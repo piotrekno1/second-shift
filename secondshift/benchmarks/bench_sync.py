@@ -7,8 +7,8 @@ from secondshift.benchmarks.bench_manifest import manifest_text
 from secondshift.benchmarks.seed import make_workspace, query_budget
 from secondshift.connections.models import Connection
 from secondshift.jobs.manifest import RepositoryManifest, parse_manifest
+from secondshift.jobs.manifest_sync import sync_jobs
 from secondshift.jobs.models import Job, JobGrant
-from secondshift.jobs.sync import sync_jobs
 from secondshift.repositories.models import Repository
 
 pytestmark = pytest.mark.django_db

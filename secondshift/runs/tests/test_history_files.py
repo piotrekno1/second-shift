@@ -8,8 +8,8 @@ from django.core.files.base import ContentFile
 from django.utils import timezone
 from pydantic_ai import ModelRetry
 
+from secondshift.jobs.execution_plan import ExecutionPlan
 from secondshift.jobs.models import Job
-from secondshift.jobs.plan import ExecutionPlan
 from secondshift.jobs.tests.plans import stored_plan
 from secondshift.repositories.models import Repository
 from secondshift.repositories.sources import SourceSnapshot

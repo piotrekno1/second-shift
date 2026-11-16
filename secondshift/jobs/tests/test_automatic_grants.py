@@ -11,8 +11,8 @@ from secondshift.connections.models import Connection
 from secondshift.jobs.automatic_grants import set_require_approval
 from secondshift.jobs.grants import decide_grant
 from secondshift.jobs.manifest import parse_manifest
+from secondshift.jobs.manifest_sync import sync_jobs
 from secondshift.jobs.models import CapabilityRequest, JobGrant
-from secondshift.jobs.sync import sync_jobs
 from secondshift.repositories.models import Repository
 from secondshift.workspaces.dao import create_workspace
 from secondshift.workspaces.models import Workspace, WorkspaceMembership

@@ -6,18 +6,18 @@ from django.utils import timezone
 
 from secondshift.connections.external import external_access
 from secondshift.connections.models import Connection
+from secondshift.jobs.argument_rules import (
+    ToolRuleError,
+    ToolRules,
+    kept_rules,
+    validate_rules,
+)
 from secondshift.jobs.dao import (
     disable_repository_jobs,
     find_grant,
     release_connection_grants,
 )
 from secondshift.jobs.models import CapabilityRequest, JobGrant
-from secondshift.jobs.tool_rules import (
-    ToolRuleError,
-    ToolRules,
-    kept_rules,
-    validate_rules,
-)
 from secondshift.repositories.dao import (
     connection_repositories,
     release_connection_repositories,

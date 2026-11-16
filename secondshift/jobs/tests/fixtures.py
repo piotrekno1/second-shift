@@ -4,7 +4,7 @@ from django.utils import timezone
 
 from secondshift.connections.models import AgentConnection
 from secondshift.jobs.models import Job
-from secondshift.jobs.planning import build_execution_plan
+from secondshift.jobs.planner import build_execution_plan
 from secondshift.repositories.models import Repository
 from secondshift.runs.constants import RunStart
 from secondshift.runs.dao import create_task

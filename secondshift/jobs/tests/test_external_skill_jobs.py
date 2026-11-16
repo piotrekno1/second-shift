@@ -7,7 +7,7 @@ from typing import Any
 import pytest
 
 from secondshift.jobs.models import Job
-from secondshift.jobs.planning import build_execution_plan
+from secondshift.jobs.planner import build_execution_plan
 from secondshift.jobs.repository_sync import attach_local_repository
 from secondshift.repositories.tests.fixtures import PATH, REPOSITORY, run_git
 from secondshift.workspaces.models import Workspace

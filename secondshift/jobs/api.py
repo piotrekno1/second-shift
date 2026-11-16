@@ -7,11 +7,11 @@ from ninja.security import django_auth
 from secondshift.connections.dao import workspace_connections
 from secondshift.connections.serialization import serialize_connection
 from secondshift.jobs.access import job_for_request
+from secondshift.jobs.capability_needs import capability_needs
 from secondshift.jobs.dao import job_requests
 from secondshift.jobs.grants import GrantError, decide_grant
 from secondshift.jobs.models import JOB_REMOVED
-from secondshift.jobs.needs import capability_needs
-from secondshift.jobs.planning import build_execution_plan
+from secondshift.jobs.planner import build_execution_plan
 from secondshift.jobs.readiness import execution_problems
 from secondshift.jobs.scheduling import restart_schedules
 from secondshift.jobs.schemas import (

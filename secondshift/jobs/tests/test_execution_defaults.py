@@ -21,7 +21,7 @@ from secondshift.connections.execution import (
 from secondshift.connections.models import AgentConnection, Connection
 from secondshift.connections.tests.fixtures import TOKEN
 from secondshift.jobs.models import Job
-from secondshift.jobs.planning import build_execution_plan
+from secondshift.jobs.planner import build_execution_plan
 from secondshift.jobs.serialization import serialize_workspace_jobs
 from secondshift.runner_protocol.agents import AgentBackend
 from secondshift.runs.models import Run

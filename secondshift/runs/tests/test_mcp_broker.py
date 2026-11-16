@@ -25,7 +25,7 @@ from secondshift.connections.tests.test_github_mcp import mcp_http as imported_m
 from secondshift.connections.webhooks import deliver_webhook
 from secondshift.jobs.manifest import load_manifest
 from secondshift.jobs.models import CapabilityRequest, Job, JobGrant
-from secondshift.jobs.planning import build_execution_plan
+from secondshift.jobs.planner import build_execution_plan
 from secondshift.jobs.tests.plans import CAPABILITY
 from secondshift.jobs.tool_policy import ToolPolicyError
 from secondshift.repositories.models import Repository

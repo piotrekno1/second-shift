@@ -6,8 +6,8 @@ from pydantic_ai.exceptions import ModelHTTPError
 from secondshift.connections.errors import ExternalToolError
 from secondshift.connections.mcp.base import MCPRequestError
 from secondshift.github.errors import GitHubError
+from secondshift.jobs.argument_rules import ToolRuleViolation
 from secondshift.jobs.tests.plans import CAPABILITY, MODEL, stored_plan
-from secondshift.jobs.tool_rules import ToolRuleViolation
 from secondshift.runner_protocol.sessions import RunnerProtocolError
 from secondshift.runs.constants import RunStart
 from secondshift.runs.migration_helpers import failure_from_summary_v1
