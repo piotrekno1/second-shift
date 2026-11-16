@@ -5,7 +5,8 @@ from typing import Any
 
 import pytest
 
-from secondshift.runner.collection import OUTPUTS_DIR, collect, record_baseline
+from secondshift.runner.collection import collect, record_baseline
+from secondshift.runner_protocol.collection import OUTPUTS_DIR
 from secondshift.runs.artifacts import (
     CollectionError,
     artifact_storage,

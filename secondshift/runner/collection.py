@@ -15,16 +15,23 @@ Git runs here with no system, global or repository settings that the
 workspace could supply, and never runs hooks, filters or external diff tools.
 """
 
-import hashlib
 import io
 import json
 import os
 import stat
 import subprocess
 import tarfile
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 from typing import IO, Any
 
+from secondshift.runner_protocol.collection import (
+    CHANGES_NAME,
+    MANIFEST_NAME,
+    MAX_LISTED_CHANGES,
+    OUTPUTS_DIR,
+    HashingReader,
+    safe_output_name,
+)
 from secondshift.runner_protocol.sandbox import (
     MAX_CHANGES_BYTES,
     MAX_OUTPUT_BYTES,
@@ -37,12 +44,7 @@ BASELINE_DIR = "baseline.git"
 WORKSPACE_GIT_DIR = ".git"
 GIT_NAME = "SecondShift"
 GIT_EMAIL = "runner@secondshift.invalid"
-OUTPUTS_DIR = "outputs"
 COLLECTION_FILE = "collection.tar.gz"
-MANIFEST_NAME = "manifest.json"
-CHANGES_NAME = "changes.patch"
-# A long list of names helps nobody. The patch itself holds every path.
-MAX_LISTED_CHANGES = 1000
 GIT_TIMEOUT_SECONDS = 300
 NO_CHANGES = {
     "file_count": 0,
@@ -265,17 +267,6 @@ def output_problem(path: Path, relative: str, count: int, total: int) -> str:
     return ""
 
 
-def safe_output_name(name: str) -> bool:
-    """A relative path of plain parts, safe to use as a storage path."""
-    path = PurePosixPath(name)
-    return (
-        0 < len(name) <= 255
-        and not path.is_absolute()
-        and all(part not in {"", ".", ".."} for part in path.parts)
-        and all(char.isprintable() and char != "\\" for char in name)
-    )
-
-
 def add_file(archive: tarfile.TarFile, path: Path, name: str) -> tuple[int, str]:
     """Add one regular file under a fixed owner and mode. Links are refused."""
     descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
@@ -289,19 +280,6 @@ def add_file(archive: tarfile.TarFile, path: Path, name: str) -> tuple[int, str]
         reader = HashingReader(stream)
         archive.addfile(member, reader)
         return info.st_size, reader.digest.hexdigest()
-
-
-class HashingReader:
-    """Passes a stream to tarfile and keeps the SHA-256 of what it read."""
-
-    def __init__(self, stream: IO[bytes]) -> None:
-        self.stream = stream
-        self.digest = hashlib.sha256()
-
-    def read(self, size: int = -1) -> bytes:
-        chunk = self.stream.read(size)
-        self.digest.update(chunk)
-        return chunk
 
 
 def add_bytes(archive: tarfile.TarFile, name: str, content: bytes) -> None:

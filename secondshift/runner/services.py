@@ -10,7 +10,6 @@ from django.db import IntegrityError, transaction
 
 from secondshift.config.constants import SandboxRuntime
 from secondshift.runner.collection import (
-    OUTPUTS_DIR,
     collect,
     record_baseline,
     record_workspace_commit,
@@ -26,6 +25,7 @@ from secondshift.runner.dao import (
 )
 from secondshift.runner.models import RunnerCommand, RunnerSession
 from secondshift.runner.sources import sweep_sources, unpack_source
+from secondshift.runner_protocol.collection import OUTPUTS_DIR
 from secondshift.runner_protocol.sandbox import (
     SANDBOX_HISTORY_DIR,
     SANDBOX_OUTPUTS_DIR,

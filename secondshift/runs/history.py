@@ -13,7 +13,7 @@ from pathlib import Path
 from django.conf import settings
 
 from secondshift.jobs.models import Job
-from secondshift.runner.collection import safe_output_name
+from secondshift.runner_protocol.collection import safe_output_name
 from secondshift.runner_protocol.sandbox import (
     MAX_HISTORY_FILES_BYTES,
     SANDBOX_HISTORY_DIR,

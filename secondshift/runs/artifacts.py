@@ -16,7 +16,7 @@ from django.conf import settings
 from django.core.files.base import ContentFile, File
 from django.core.files.storage import FileSystemStorage, Storage, storages
 
-from secondshift.runner.collection import (
+from secondshift.runner_protocol.collection import (
     CHANGES_NAME,
     MANIFEST_NAME,
     MAX_LISTED_CHANGES,
