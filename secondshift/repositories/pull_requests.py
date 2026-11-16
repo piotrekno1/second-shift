@@ -11,14 +11,14 @@ who owns the token. With the same author, message and date, a retry makes the
 same commit and pushes the same branch again instead of making a new one.
 """
 
-import os
-import subprocess
 import tempfile
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
 from secondshift.connections.models import Connection
+from secondshift.git import commands
+from secondshift.git.commands import GitError
 from secondshift.github import credentials, pulls
 from secondshift.github.authors import GitAuthor, app_author, token_author
 from secondshift.github.errors import GitHubError
@@ -157,11 +157,6 @@ def git(
 ) -> str:
     when = draft.committed_at.isoformat()
     environment = {
-        "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
-        "HOME": str(mirror),
-        "LC_ALL": "C",
-        "GIT_CONFIG_NOSYSTEM": "1",
-        "GIT_CONFIG_GLOBAL": os.devnull,
         "GIT_INDEX_FILE": index,
         "GIT_AUTHOR_NAME": author.name,
         "GIT_AUTHOR_EMAIL": author.email,
@@ -171,19 +166,9 @@ def git(
         "GIT_COMMITTER_DATE": when,
     }
     try:
-        result = subprocess.run(
-            ["git", "-C", str(mirror), "-c", "core.hooksPath=/dev/null", *args],
-            env=environment,
-            capture_output=True,
-            text=True,
-            timeout=120,
-            check=False,
-        )
-    except (OSError, subprocess.TimeoutExpired) as error:
+        return commands.output(mirror, *args, extra_environment=environment)
+    except GitError as error:
         raise PublishError("The commit could not be built.") from error
-    if result.returncode:
-        raise PublishError("The commit could not be built.")
-    return result.stdout.strip()
 
 
 def open_draft(

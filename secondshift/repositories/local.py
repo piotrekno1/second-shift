@@ -1,11 +1,12 @@
 import hashlib
 import logging
 import posixpath
-import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
 from secondshift.config.constants import GITHUB_BASE_URL
+from secondshift.git import commands
+from secondshift.git.commands import GitError
 from secondshift.repositories.dao import local_repository, save_local_repository
 from secondshift.repositories.github.scope import github_remote_name
 from secondshift.repositories.models import (
@@ -39,25 +40,14 @@ FILE_MODES = {"100644", "100755"}
 
 def git(root: Path, *arguments: str) -> str:
     try:
-        completed = subprocess.run(
-            ["git", "-C", str(root), *arguments],
-            capture_output=True,
-            check=False,
-            text=True,
-            timeout=10,
-        )
-    except subprocess.TimeoutExpired as error:
-        raise LocalRepositoryError("Git took too long to answer.") from error
-    if completed.returncode:
+        return commands.output(root, *arguments, timeout=10)
+    except GitError as error:
+        if error.timed_out:
+            raise LocalRepositoryError("Git took too long to answer.") from error
         # Git's own output can name folders on this machine, so it stays in
         # the server log. Only owners may see local paths.
-        logger.info(
-            "git %s failed: %s",
-            arguments[0] if arguments else "",
-            completed.stderr.strip() or completed.stdout.strip(),
-        )
-        raise LocalRepositoryError("Git could not inspect the repository.")
-    return completed.stdout.strip()
+        logger.info("git %s failed: %s", error.command, error.stderr)
+        raise LocalRepositoryError("Git could not inspect the repository.") from error
 
 
 def committed_file(root: Path, revision: str, path: str) -> str:

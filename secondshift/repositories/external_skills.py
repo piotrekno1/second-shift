@@ -15,7 +15,6 @@ import hashlib
 import os
 import posixpath
 import re
-import subprocess
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -25,6 +24,7 @@ from django.conf import settings
 
 from secondshift.connections.dao import connected_github_sources
 from secondshift.connections.github import can_check, connection_source
+from secondshift.git import commands
 from secondshift.github import credentials, repos
 from secondshift.github.errors import GitHubError
 from secondshift.github.git import authenticated_git, public_git
@@ -93,12 +93,7 @@ def check_ref(ref: str) -> None:
         or "@{" in ref
     ):
         raise ExternalSkillError("Give a branch, a tag or a full commit SHA.")
-    completed = subprocess.run(
-        ["git", "check-ref-format", f"refs/heads/{ref}"],
-        capture_output=True,
-        check=False,
-        timeout=10,
-    )
+    completed = commands.run(None, "check-ref-format", f"refs/heads/{ref}", timeout=10)
     if completed.returncode:
         raise ExternalSkillError("Give a branch, a tag or a full commit SHA.")
 
@@ -174,12 +169,7 @@ def locked_skill_mirror(reader: SkillReader) -> Iterator[Path]:
     with (locks / f"skill-{key}.lock").open("a+b") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
         if not path.exists():
-            subprocess.run(
-                ["git", "init", "--quiet", "--bare", str(path)],
-                check=True,
-                capture_output=True,
-                timeout=30,
-            )
+            commands.output(None, "init", "--quiet", "--bare", str(path), timeout=30)
         # Mark it used, so cache cleanup keeps it.
         os.utime(path)
         yield path
