@@ -1,0 +1,7 @@
+# Commits that only reformat code. git blame skips them when you run
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs
+# GitHub reads this file without any setup.
+
+# Format the dashboard with Prettier (#341). The squash also holds the lint
+# config and a few small fixes, but nearly every line is formatting.
+c1a8bcec0537f74598f2827abf0de11f9379ff6c
