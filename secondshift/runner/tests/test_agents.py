@@ -14,7 +14,6 @@ from secondshift.core.launcher import services
 from secondshift.runner import agents
 from secondshift.runner.agent_credentials import (
     decrypt_agent_auth,
-    encrypt_agent_auth,
     provisioning_public_key,
 )
 from secondshift.runner.agent_image import agent, claude, codex, outcomes
@@ -22,6 +21,7 @@ from secondshift.runner.agents import agent_command, require_agent_configuration
 from secondshift.runner.models import RunnerSession
 from secondshift.runner.services import DockerRunnerService, sandbox_flags
 from secondshift.runner_protocol.agents import AgentBackend
+from secondshift.runner_protocol.credentials import encrypt_agent_auth
 from secondshift.runner_protocol.schemas import AgentCheckInput, AgentInput
 from secondshift.runner_protocol.sessions import RunnerProtocolError
 

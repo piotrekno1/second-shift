@@ -12,7 +12,7 @@ from pydantic_ai.toolsets import FunctionToolset
 
 from secondshift.jobs.models import CapabilityRequest
 from secondshift.jobs.plan import ExecutionPlan, JobPlan
-from secondshift.runner.client import get_runner_client
+from secondshift.runner_protocol.client import get_runner_client
 from secondshift.runner_protocol.sandbox import SANDBOX_OUTPUTS_DIR, SANDBOX_SKILL_DIR
 from secondshift.runner_protocol.sessions import CommandRequest, CommandResult
 from secondshift.runs.artifacts import (

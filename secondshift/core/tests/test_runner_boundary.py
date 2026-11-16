@@ -1,7 +1,8 @@
 """The runner and the control plane meet only through runner_protocol.
 
 The runner never imports control plane apps. The control plane reaches the
-runner through its client and a few modules listed here. runner_protocol
+runner through runner_protocol, which holds its client, and a few modules
+listed here. runner_protocol
 imports neither side, apart from the agent image's outcomes, which the image
 ships on its own with only the standard library.
 """
@@ -20,8 +21,6 @@ RUNNER_IMPORTS = ("secondshift.runner", "secondshift.runner_protocol")
 RUNNER_SHARED = {"secondshift.config.constants"}
 # What the control plane may import from the runner.
 CONTROL_PLANE_IMPORTS = {
-    # The HTTP client for the runner's API.
-    "secondshift.runner.client",
     # `secondshift up` builds the agent image on this machine.
     "secondshift.runner.images",
     AGENT_OUTCOMES,

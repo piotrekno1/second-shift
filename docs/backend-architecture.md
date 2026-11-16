@@ -28,12 +28,11 @@ connection into a token and a checked identity for each operation.
 `secondshift/runner_protocol` is a plain package, not an app. It holds what
 the runner and the control plane agree on: session and command specs, agent
 requests and results, agent backends, sandbox paths and size limits, the
-layout of a collected archive, and the gateway's agent broker path. It imports
+layout of a collected archive, the gateway's agent broker path, the runner's
+HTTP client, and encryption to the runner's provisioning key. It imports
 neither side, so both settings modules can use it too. The runner imports no
-control plane code. The control plane imports the runner only through its
-client and the few modules `core/tests/test_runner_boundary.py` lists. The
-agent image's `outcomes.py` stays in `runner/agent_image`, because the image
-ships it on its own with only the standard library.
+control plane code. The control plane reaches the runner only through this
+package and the few modules `core/tests/test_runner_boundary.py` lists.
 
 Each HTTP app uses `api.py` for endpoints, `schemas.py` for its contracts and
 `serialization.py` for response builders. `config/api.py` composes the public

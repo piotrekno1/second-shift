@@ -1,4 +1,7 @@
-"""Encrypt login provisioning to the runner's own key, separate from app keys."""
+"""The runner's own key for login provisioning, separate from app keys.
+
+The control plane encrypts to its public key with runner_protocol.credentials.
+"""
 
 import base64
 import json
@@ -7,19 +10,12 @@ import tempfile
 from pathlib import Path
 
 from cryptography.fernet import Fernet, InvalidToken
-from cryptography.hazmat.primitives import hashes, serialization
-from cryptography.hazmat.primitives.asymmetric import padding, rsa
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
 from django.conf import settings
 
+from secondshift.runner_protocol.credentials import key_padding
 from secondshift.runner_protocol.sessions import RunnerProtocolError
-
-
-def key_padding() -> padding.OAEP:
-    return padding.OAEP(
-        mgf=padding.MGF1(algorithm=hashes.SHA256()),
-        algorithm=hashes.SHA256(),
-        label=None,
-    )
 
 
 def runner_private_key() -> rsa.RSAPrivateKey:
@@ -60,19 +56,6 @@ def provisioning_public_key() -> str:
             serialization.PublicFormat.SubjectPublicKeyInfo,
         )
         .decode()
-    )
-
-
-def encrypt_agent_auth(public_key: str, auth: str) -> str:
-    key = serialization.load_pem_public_key(public_key.encode())
-    if not isinstance(key, rsa.RSAPublicKey):
-        raise RunnerProtocolError("Invalid agent provisioning public key.")
-    envelope_key = Fernet.generate_key()
-    return json.dumps(
-        {
-            "key": base64.b64encode(key.encrypt(envelope_key, key_padding())).decode(),
-            "data": Fernet(envelope_key).encrypt(auth.encode()).decode(),
-        }
     )
 
 
