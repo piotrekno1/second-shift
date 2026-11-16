@@ -1,17 +1,10 @@
 """GitHub's hosted MCP server: read-only tools, one repository per job."""
 
 import re
+from enum import StrEnum
 from typing import Any
 
-from secondshift.config.constants import (
-    GITHUB_BASE_URL,
-    GITHUB_FINE_GRAINED_TOKEN_PATTERN,
-    GITHUB_MCP_TOOLS,
-    GITHUB_MCP_URL,
-    GITHUB_REPOSITORY_PATTERN,
-    GITHUB_TOKEN_HINT,
-    GitHubMCPTool,
-)
+from secondshift.config.constants import GITHUB_BASE_URL
 from secondshift.connections.access import AccessReason
 from secondshift.connections.dao import connected_github_sources
 from secondshift.connections.github import connection_source, usable_source
@@ -26,7 +19,33 @@ from secondshift.connections.models import Connection
 from secondshift.connections.repository_ref import RepositoryRef
 from secondshift.github import credentials
 from secondshift.github.errors import GitHubError
+from secondshift.github.identity import GITHUB_REPOSITORY_PATTERN
+from secondshift.github.tokens import (
+    GITHUB_FINE_GRAINED_TOKEN_PATTERN,
+    GITHUB_TOKEN_HINT,
+)
 from secondshift.workspaces.models import Workspace
+
+GITHUB_MCP_URL = "https://api.githubcopilot.com/mcp/readonly"
+
+
+class GitHubMCPTool(StrEnum):
+    """Read tools for pull requests, commits, and Actions runs.
+
+    Actions tools that trigger runs, list artifacts, or return download links
+    are left out or blocked by method.
+    """
+
+    SEARCH_PULL_REQUESTS = "search_pull_requests"
+    PULL_REQUEST_READ = "pull_request_read"
+    LIST_COMMITS = "list_commits"
+    GET_COMMIT = "get_commit"
+    ACTIONS_LIST = "actions_list"
+    ACTIONS_GET = "actions_get"
+    GET_JOB_LOGS = "get_job_logs"
+
+
+GITHUB_MCP_TOOLS = tuple(GitHubMCPTool)
 
 # Search text is written by the model. A short limit keeps it a search.
 GITHUB_SEARCH_QUERY_MAX_CHARS = 256

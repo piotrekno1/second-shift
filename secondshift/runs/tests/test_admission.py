@@ -13,11 +13,11 @@ from django.test import Client
 from django.utils import timezone
 from pydantic import ValidationError
 
-from secondshift.config.constants import RunStart
 from secondshift.jobs.models import Job
 from secondshift.jobs.tests.plans import stored_plan
 from secondshift.mcp_server.tests.test_job_tools import call, token
 from secondshift.repositories.models import Repository
+from secondshift.runs.constants import RunStart
 from secondshift.runs.dao import create_task
 from secondshift.runs.models import Run, RunEvent, Task
 from secondshift.runs.orchestration import dbos_runtime, dispatch, workflows

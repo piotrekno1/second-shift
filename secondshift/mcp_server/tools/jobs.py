@@ -2,7 +2,6 @@
 
 from thin_mcp import ToolContext, ToolExecutionError
 
-from secondshift.config.constants import RunStart
 from secondshift.jobs.access import job_for_request
 from secondshift.jobs.dao import active_jobs_with_grants
 from secondshift.jobs.readiness import readiness_problems
@@ -16,6 +15,7 @@ from secondshift.mcp_server.schemas import (
     RunStartResult,
 )
 from secondshift.mcp_server.tools_registry import call_request, register_tool
+from secondshift.runs.constants import RunStart
 from secondshift.runs.services import RunInProgress, RunRefused, start_manual_run
 from secondshift.workspaces.access import Action, current_workspace, require
 

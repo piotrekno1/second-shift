@@ -10,8 +10,8 @@ from collections.abc import Collection, Mapping
 from django.db import transaction
 from django.utils import timezone
 
-from secondshift.config.constants import RunSandbox
 from secondshift.gateway.dao import revoke_run_tokens
+from secondshift.runs.constants import RunSandbox
 from secondshift.runs.dao import lock_run_in
 from secondshift.runs.models import Run, RunFailure
 

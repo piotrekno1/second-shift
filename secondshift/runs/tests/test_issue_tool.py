@@ -5,8 +5,9 @@ import pytest
 from pydantic_ai import ModelRetry, RunContext, RunUsage
 from pydantic_ai.models.test import TestModel
 
-from secondshift.config.constants import MAX_RUN_ISSUES, RunStart
+from secondshift.jobs.manifest import MAX_RUN_ISSUES
 from secondshift.jobs.models import Job
+from secondshift.runs.constants import RunStart
 from secondshift.runs.execution.agent_broker import broker_tools
 from secondshift.runs.execution.issues import TOOL_NAME, issue_tool, propose_issue
 from secondshift.runs.execution.run import run_prompt

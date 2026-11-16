@@ -5,11 +5,11 @@ from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
-from secondshift.config.constants import RunStart
 from secondshift.connections.models import Connection
 from secondshift.jobs.models import Job
 from secondshift.jobs.plan import ExecutionPlan
 from secondshift.repositories.models import Repository
+from secondshift.runs.constants import RunStart
 from secondshift.runs.inputs import RunInput
 from secondshift.runs.outputs import RunOutputs
 

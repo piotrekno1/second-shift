@@ -11,7 +11,6 @@ from django.utils import timezone
 from pydantic_ai import ModelRetry, RunContext, RunUsage
 from pydantic_ai.models.test import TestModel
 
-from secondshift.config.constants import RunStart
 from secondshift.jobs.models import Job
 from secondshift.jobs.tests.plans import CAPABILITY, stored_plan
 from secondshift.jobs.tool_policy import LOCAL_TOOLS
@@ -20,6 +19,7 @@ from secondshift.runner.protocol import (
     CommandRequest,
     CommandResult,
 )
+from secondshift.runs.constants import RunStart
 from secondshift.runs.dao import create_task
 from secondshift.runs.execution.run import WORKSPACE_AGENT, execute_agent_run
 from secondshift.runs.execution.workspace_tools import (

@@ -6,12 +6,12 @@ from django.contrib.auth import get_user_model
 from django.utils import timezone
 from pydantic import ValidationError
 
-from secondshift.config.constants import RunSandbox, RunStart
 from secondshift.jobs.models import Job
 from secondshift.jobs.tests.plans import stored_plan
 from secondshift.repositories.models import Repository
 from secondshift.repositories.sources import SourceSnapshot
 from secondshift.runner.protocol import RunnerSessionSpec
+from secondshift.runs.constants import RunSandbox, RunStart
 from secondshift.runs.dao import create_task
 from secondshift.runs.models import Run, RunEvent
 from secondshift.runs.orchestration import workflows

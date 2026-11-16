@@ -15,7 +15,6 @@ from django.test import Client
 from django.utils import timezone
 from pydantic import ValidationError
 
-from secondshift.config.constants import RunStart
 from secondshift.connections.errors import ExternalToolError
 from secondshift.connections.execution import choose_execution
 from secondshift.connections.models import AgentConnection, Connection
@@ -26,6 +25,7 @@ from secondshift.mcp_server.tests.test_job_tools import call, error_text, token
 from secondshift.repositories.local import committed_file, git
 from secondshift.repositories.models import Repository
 from secondshift.runs.artifacts import artifact_storage, store_run_text
+from secondshift.runs.constants import RunStart
 from secondshift.runs.execution.agent_broker import run_connection
 from secondshift.runs.execution.model_gateway import issue_run_token
 from secondshift.runs.execution.run import (

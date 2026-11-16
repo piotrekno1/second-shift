@@ -4,8 +4,8 @@ import pytest
 from pydantic_ai import ModelRetry, RunContext, RunUsage
 from pydantic_ai.models.test import TestModel
 
-from secondshift.config.constants import RunStart
 from secondshift.jobs.models import Job
+from secondshift.runs.constants import RunStart
 from secondshift.runs.execution.access_needs import (
     MAX_SERVICES,
     TOOL_NAME,

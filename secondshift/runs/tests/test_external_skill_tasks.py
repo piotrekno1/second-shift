@@ -8,7 +8,6 @@ from unittest.mock import Mock
 import pytest
 from django.contrib.auth.models import User
 
-from secondshift.config.constants import RunStart
 from secondshift.mcp_server.tests.test_job_tools import call, error_text, token
 from secondshift.repositories.models import Repository
 from secondshift.repositories.tests.test_external_skills import (
@@ -19,6 +18,7 @@ from secondshift.repositories.tests.test_external_skills import (
     vendor as vendor_fixture,
 )
 from secondshift.runner.protocol import CommandResult
+from secondshift.runs.constants import RunStart
 from secondshift.runs.execution import run as execution
 from secondshift.runs.execution.run import capture_run_input_step, run_prompt
 from secondshift.runs.models import Run, Task

@@ -3,13 +3,12 @@ from pathlib import Path
 import pytest
 from django.contrib.auth import get_user_model
 
-from secondshift.config.constants import MAX_RUN_ISSUES, MAX_SKILL_PREVIEW_CHARS
 from secondshift.connections.models import Connection
-from secondshift.jobs.manifest import parse_manifest
+from secondshift.jobs.manifest import MAX_RUN_ISSUES, parse_manifest
 from secondshift.jobs.models import CapabilityRequest, Job, JobGrant
 from secondshift.jobs.planning import build_execution_plan
 from secondshift.jobs.scheduling import next_occurrence
-from secondshift.jobs.sync import sync_jobs
+from secondshift.jobs.sync import MAX_SKILL_PREVIEW_CHARS, sync_jobs
 from secondshift.jobs.tests.disk import sync_manifest
 from secondshift.repositories.models import Repository
 from secondshift.runs.orchestration.schedules import desired_schedules

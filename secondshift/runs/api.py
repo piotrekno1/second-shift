@@ -5,11 +5,11 @@ from ninja import Query, Router, Status
 from ninja.errors import HttpError
 from ninja.security import django_auth
 
-from secondshift.config.constants import RunStart
 from secondshift.jobs.access import job_for_request
 from secondshift.repositories.access import repository_for_request
 from secondshift.runs.access import run_for_request
 from secondshift.runs.artifacts import artifact_storage
+from secondshift.runs.constants import RunStart
 from secondshift.runs.deliveries import DeliveryQueueUnavailable, retry_delivery
 from secondshift.runs.models import RunDelivery
 from secondshift.runs.queue import cancel_queued_task

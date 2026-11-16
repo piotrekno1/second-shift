@@ -7,12 +7,12 @@ from django.contrib.auth import get_user_model
 from pydantic_ai import RunContext, RunUsage
 from pydantic_ai.models.test import TestModel
 
-from secondshift.config.constants import RunStart
 from secondshift.connections.execution import choose_execution
 from secondshift.connections.models import Connection
 from secondshift.jobs.models import Job
 from secondshift.repositories.models import Repository
 from secondshift.runs.artifacts import artifact_storage, run_payload
+from secondshift.runs.constants import RunStart
 from secondshift.runs.execution.payload import payload_tool, read_payload
 from secondshift.runs.execution.run import fenced, render_run_input, run_prompt
 from secondshift.runs.execution.workspace_tools import WorkspaceToolDeps

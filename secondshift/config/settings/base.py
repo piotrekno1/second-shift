@@ -199,7 +199,7 @@ DATABASE_URL = env.str(
 DATABASES = {
     "default": {
         **env.db_url_config(DATABASE_URL),
-        "CONN_MAX_AGE": env.int(AppEnv.DB_CONN_MAX_AGE_SECONDS, default=60),
+        "CONN_MAX_AGE": env.int("SECONDSHIFT_DB_CONN_MAX_AGE_SECONDS", default=60),
         "CONN_HEALTH_CHECKS": True,
     }
 }
@@ -224,7 +224,7 @@ CACHES = {
 
 DBOS_SYSTEM_DATABASE_URL = sqlalchemy_url(
     env.str(
-        AppEnv.WORKFLOW_DATABASE_URL,
+        "SECONDSHIFT_WORKFLOW_DATABASE_URL",
         default=DEFAULT_WORKFLOW_DATABASE_URL,
     )
 )
@@ -309,10 +309,10 @@ AUTHENTICATION_BACKENDS = [
 ]
 
 # Email goes out only through EMAIL_URL, e.g. smtp://user:pass@host:587.
-EMAIL_URL = env.str(AppEnv.EMAIL_URL, default="")
-DEFAULT_FROM_EMAIL = env.str(AppEnv.FROM_EMAIL, default="webmaster@localhost")
+EMAIL_URL = env.str("SECONDSHIFT_EMAIL_URL", default="")
+DEFAULT_FROM_EMAIL = env.str("SECONDSHIFT_FROM_EMAIL", default="webmaster@localhost")
 if EMAIL_URL:
-    globals().update(env.email_url(AppEnv.EMAIL_URL))
+    globals().update(env.email_url_config(EMAIL_URL))
 elif SINGLE_HOST:
     # One person at the terminal reads them there.
     EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
@@ -389,16 +389,16 @@ LOCAL_REPOSITORIES_ENABLED = SINGLE_HOST and env.bool(
 # repository and the snapshots runs get. Both are caches. Deleting them only
 # costs a fetch from the source again.
 SOURCE_CACHE_ROOT = Path(
-    env.str(AppEnv.SOURCE_CACHE_ROOT, default=str(DATA_DIR / "sources"))
+    env.str("SECONDSHIFT_SOURCE_CACHE_ROOT", default=str(DATA_DIR / "sources"))
 ).resolve()
 # Tasks and jobs may run skills from other public GitHub repositories.
-EXTERNAL_SKILLS_ENABLED = env.bool(AppEnv.EXTERNAL_SKILLS_ENABLED, default=True)
+EXTERNAL_SKILLS_ENABLED = env.bool("SECONDSHIFT_EXTERNAL_SKILLS_ENABLED", default=True)
 # Where skills from other repositories are fetched from. Tests point it at a
 # local folder. Only public repositories are read, without credentials.
 EXTERNAL_SKILLS_BASE_URL = GITHUB_BASE_URL
 # Snapshots past this size are removed, oldest first.
 SOURCE_CACHE_MAX_BYTES = env.int(
-    AppEnv.SOURCE_CACHE_MAX_BYTES, default=2 * 1024 * 1024 * 1024
+    "SECONDSHIFT_SOURCE_CACHE_MAX_BYTES", default=2 * 1024 * 1024 * 1024
 )
 # Run limits. These are the defaults. A workspace owner can choose other values
 # for the workspace or a job, up to the *_CEILING maximums. Repository manifests

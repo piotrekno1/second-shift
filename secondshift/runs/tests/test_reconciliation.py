@@ -6,10 +6,10 @@ from dbos import DBOSClient
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 
-from secondshift.config.constants import RunStart
 from secondshift.jobs.models import Job
 from secondshift.jobs.tests.plans import stored_plan
 from secondshift.repositories.models import Repository
+from secondshift.runs.constants import RunStart
 from secondshift.runs.dao import create_task
 from secondshift.runs.models import Run
 from secondshift.runs.orchestration.reconciliation import reconcile_terminal_workflows

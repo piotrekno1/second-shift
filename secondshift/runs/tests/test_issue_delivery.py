@@ -5,14 +5,15 @@ from typing import Any
 import pytest
 from django.utils import timezone
 
-from secondshift.config.constants import MAX_RUN_ISSUES, RETRY_ISSUES_WORKFLOW, RunStart
 from secondshift.connections.models import Connection
 from secondshift.github.errors import GitHubError
 from secondshift.github.issues import Issue
+from secondshift.jobs.manifest import MAX_RUN_ISSUES
 from secondshift.jobs.models import Job
 from secondshift.repositories.github_access import GitHubAccess
 from secondshift.repositories.models import Repository
 from secondshift.runs import deliveries, issue_delivery
+from secondshift.runs.constants import RETRY_ISSUES_WORKFLOW, RunStart
 from secondshift.runs.models import Run, RunDelivery, RunIssue
 from secondshift.runs.orchestration import workflows
 from secondshift.runs.reporting.notifications import run_report_payload

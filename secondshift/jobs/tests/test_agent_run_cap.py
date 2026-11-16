@@ -6,7 +6,6 @@ from django.contrib.auth.models import User
 from django.test import Client
 from django.utils import timezone
 
-from secondshift.config.constants import RunStart
 from secondshift.connections.models import AgentConnection
 from secondshift.connections.tests.test_agent_connections import TOKEN, runner_cleanup
 from secondshift.connections.tests.test_agent_connections import (
@@ -15,6 +14,7 @@ from secondshift.connections.tests.test_agent_connections import (
 from secondshift.jobs.models import Job
 from secondshift.jobs.planning import build_execution_plan
 from secondshift.repositories.models import Repository
+from secondshift.runs.constants import RunStart
 from secondshift.runs.dao import create_run_record, create_task
 from secondshift.runs.models import Run
 from secondshift.runs.orchestration.workflows import (

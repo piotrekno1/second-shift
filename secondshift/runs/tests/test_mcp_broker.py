@@ -12,10 +12,10 @@ from pydantic_ai import Agent, ModelRetry, ToolFailed, capture_run_messages
 from pydantic_ai.messages import ModelRequest, ToolReturnPart
 from pydantic_ai.models.test import TestModel
 
-from secondshift.config.constants import GITHUB_MCP_URL, RunStart
 from secondshift.connections.errors import ExternalToolError
 from secondshift.connections.execution import choose_execution
 from secondshift.connections.mcp.base import MCPError, MCPRequestError
+from secondshift.connections.mcp.github import GITHUB_MCP_URL
 from secondshift.connections.models import Connection
 from secondshift.connections.tests.test_github_mcp import (
     TOOL_SCHEMAS,
@@ -29,6 +29,7 @@ from secondshift.jobs.planning import build_execution_plan
 from secondshift.jobs.tests.plans import CAPABILITY
 from secondshift.jobs.tool_policy import ToolPolicyError
 from secondshift.repositories.models import Repository
+from secondshift.runs.constants import RunStart
 from secondshift.runs.dao import create_task
 from secondshift.runs.execution.external_tools import external_tools
 from secondshift.runs.execution.run import WORKSPACE_AGENT, execute_agent_run

@@ -6,7 +6,7 @@ from dbos import EnqueueOptions
 from django.conf import settings
 from django.db import transaction
 
-from secondshift.config.constants import (
+from secondshift.runs.constants import (
     RETRY_ISSUES_WORKFLOW,
     RETRY_NOTIFICATION_WORKFLOW,
     RETRY_PULL_REQUEST_WORKFLOW,

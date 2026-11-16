@@ -7,12 +7,12 @@ from django.contrib.auth.models import AbstractUser
 from django.test import Client
 from django.utils import timezone
 
-from secondshift.config.constants import RunStart
 from secondshift.connections.execution import NOTHING_CHOSEN, choose_execution
 from secondshift.connections.models import Connection
 from secondshift.jobs.models import JOB_REMOVED, CapabilityRequest, Job, JobGrant
 from secondshift.jobs.tests.plans import stored_plan
 from secondshift.repositories.models import Repository
+from secondshift.runs.constants import RunStart
 from secondshift.runs.dao import create_task
 from secondshift.runs.models import Run, Task
 from secondshift.workspaces.dao import create_workspace

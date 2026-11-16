@@ -3,8 +3,8 @@
 from dbos import DBOSClient
 from django.conf import settings
 
-from secondshift.config.constants import SCHEDULED_JOB_WORKFLOW
 from secondshift.jobs.dao import schedulable_jobs
+from secondshift.runs.constants import SCHEDULED_JOB_WORKFLOW
 from secondshift.runs.orchestration.dbos_runtime import new_dbos_client
 
 SCHEDULE_PREFIX = "secondshift-job-"

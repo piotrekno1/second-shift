@@ -6,13 +6,13 @@ from django.contrib.auth.models import User
 from django.db import transaction
 from django.utils import timezone
 
-from secondshift.config.constants import RunStart
 from secondshift.jobs.dao import lock_job
 from secondshift.jobs.models import JOB_REMOVED, Job
 from secondshift.jobs.plan import ExecutionPlan
 from secondshift.jobs.planning import build_execution_plan
 from secondshift.jobs.readiness import execution_problems
 from secondshift.runs.artifacts import store_run_payload
+from secondshift.runs.constants import RunStart
 from secondshift.runs.dao import (
     add_event,
     create_run_record,

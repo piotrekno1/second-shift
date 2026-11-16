@@ -10,7 +10,6 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 from django.test import Client
 
-from secondshift.config.constants import RETRY_NOTIFICATION_WORKFLOW, RunStart
 from secondshift.connections import webhooks
 from secondshift.connections.models import Connection
 from secondshift.jobs.models import JobGrant
@@ -23,6 +22,7 @@ from secondshift.jobs.tests.test_needs import (
 )
 from secondshift.repositories.models import Repository
 from secondshift.runs import deliveries
+from secondshift.runs.constants import RETRY_NOTIFICATION_WORKFLOW, RunStart
 from secondshift.runs.dao import create_task
 from secondshift.runs.models import Run, RunDelivery
 from secondshift.runs.orchestration import workflows

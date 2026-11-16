@@ -13,7 +13,6 @@ from django.test import Client
 from django.urls import Resolver404, resolve
 from django.utils import timezone
 
-from secondshift.config.constants import RunStart
 from secondshift.connections.execution import choose_execution
 from secondshift.connections.models import Connection
 from secondshift.connections.tests.test_outbound import refuse_private_answers
@@ -31,6 +30,7 @@ from secondshift.gateway.views import model_gateway
 from secondshift.jobs.models import Job
 from secondshift.jobs.tests.plans import stored_plan
 from secondshift.repositories.models import Repository
+from secondshift.runs.constants import RunStart
 from secondshift.runs.dao import create_task
 from secondshift.runs.execution.model_gateway import issue_run_token
 from secondshift.runs.models import Run

@@ -5,8 +5,8 @@ from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 
-from secondshift.config.constants import EXECUTE_RUN_WORKFLOW
 from secondshift.repositories.dao import lock_repository
+from secondshift.runs.constants import EXECUTE_RUN_WORKFLOW
 from secondshift.runs.dao import (
     add_event,
     add_event_once,

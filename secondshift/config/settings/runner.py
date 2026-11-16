@@ -52,13 +52,15 @@ RUNNER_WORK_ROOT = Path(
 ).resolve()
 RUNNER_WORK_ROOT.mkdir(parents=True, exist_ok=True, mode=0o700)
 RUNNER_DATABASE_URL = env.str(
-    AppEnv.RUNNER_DATABASE_URL,
+    "SECONDSHIFT_RUNNER_DATABASE_URL",
     default=f"sqlite:///{RUNNER_WORK_ROOT / 'runner.sqlite3'}",
 )
 DATABASES = {
     "default": {
         **env.db_url_config(RUNNER_DATABASE_URL),
-        "CONN_MAX_AGE": env.int(AppEnv.RUNNER_DB_CONN_MAX_AGE_SECONDS, default=60),
+        "CONN_MAX_AGE": env.int(
+            "SECONDSHIFT_RUNNER_DB_CONN_MAX_AGE_SECONDS", default=60
+        ),
         "CONN_HEALTH_CHECKS": True,
     }
 }

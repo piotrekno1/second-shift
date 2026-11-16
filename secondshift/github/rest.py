@@ -7,9 +7,13 @@ from typing import Any
 
 import httpx
 
-from secondshift.config.constants import GITHUB_API_VERSION
+from secondshift.config.constants import GITHUB_BASE_URL
 from secondshift.github.errors import GitHubError
 
+GITHUB_API_URL = "https://api.github.com"
+GITHUB_OAUTH_URL = f"{GITHUB_BASE_URL}/login/oauth"
+# The REST API version every request asks for.
+GITHUB_API_VERSION = "2022-11-28"
 PAGE_SIZE = 100
 MAX_PAGES = 100
 TIMEOUT_SECONDS = 30
