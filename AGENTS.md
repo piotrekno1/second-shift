@@ -53,9 +53,12 @@ docker build .
   `core/tests/test_dao_boundary.py` checks this and lists the exceptions.
 - No leading underscores in names. Use them only to override a library's own
   private attribute.
-- No magic strings for names used in more than one place. Shared names
-  (environments, services, sandbox runtimes, the default image) live in
-  `secondshift/config/constants.py` as `StrEnum`s or constants.
+- No magic strings for names used in more than one place. A name one app
+  uses lives in that app, next to the code that uses it.
+  `secondshift/config/constants.py` holds only names that cross a process or
+  app boundary: settings and launcher names, env vars that one module writes
+  and another reads, and limits and paths the runner and control plane must
+  agree on. An env var read in one settings module is written inline there.
 - Every Python function has type hints.
 - Never log, serialize, or return decrypted secret values.
 - Repository configuration may name logical capabilities, but may never contain

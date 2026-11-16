@@ -1,7 +1,9 @@
-"""Names shared by the settings modules, entry points and the launcher.
+"""Names shared across process and app boundaries.
 
 The runner's settings must never import the control plane's settings, which
-read its keys. Values both need live here instead.
+read its keys. The runner never imports control plane apps either. Settings
+names, env vars that one module writes and another reads, and limits both
+sides enforce live here. A name only one app uses belongs in that app.
 """
 
 from enum import StrEnum
