@@ -16,6 +16,7 @@ permissions:
   contents: read
 
 jobs:
+  # Both jobs run the Makefile targets, so a local make check matches CI.
   backend:
     runs-on: ubuntu-latest
     steps:
@@ -27,16 +28,10 @@ jobs:
           python-version: "3.13"
           enable-cache: true
       - run: uv sync --frozen
-      - run: uv run ruff check .
-      - run: uv run pytest
-      - name: Benchmark query budgets
-        run: uv run pytest secondshift/benchmarks -o python_files='bench_*.py' --benchmark-disable
+      - run: make check-backend
 
   frontend:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: dashboard
     steps:
       - uses: actions/checkout@v7.0.1
         with:
@@ -46,12 +41,8 @@ jobs:
           node-version: 24
           cache: npm
           cache-dependency-path: dashboard/package-lock.json
-      - run: npm ci
-      - run: npm run lint
-      - run: npm run format:check
-      - run: npm run typecheck
-      - run: npm run test
-      - run: npm run build
+      - run: npm --prefix dashboard ci
+      - run: make check-frontend
 
   # Fails if a workflow uses an action that is missing from actions.lock.
   # Run gh actions-lock after adding or changing an action.

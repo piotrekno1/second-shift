@@ -46,17 +46,15 @@ jobs:
               raise SystemExit(f'Tag {tag} must match project version {version}')
           PY
       - run: uv sync --frozen
-      - run: uv run ruff check .
-      - run: uv run pytest
       - uses: actions/setup-node@v7.1.0
         with:
           node-version: 24
           # v4 ignores this and does not cache. v5 and later cache by default.
           package-manager-cache: false
       - run: npm --prefix dashboard ci
-      - run: npm --prefix dashboard run typecheck
-      - run: npm --prefix dashboard run test
-      - run: npm --prefix dashboard run build
+      # The same checks as CI. check-frontend also builds the dashboard the
+      # wheel bundles.
+      - run: make check
       - run: uv build --wheel
       - name: Verify bundled dashboard
         run: |
