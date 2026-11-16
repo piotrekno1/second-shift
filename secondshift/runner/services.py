@@ -14,7 +14,12 @@ from secondshift.config.constants import (
     SANDBOX_SKILL_DIR,
     SandboxRuntime,
 )
-from secondshift.runner.collection import OUTPUTS_DIR, collect, record_baseline
+from secondshift.runner.collection import (
+    OUTPUTS_DIR,
+    collect,
+    record_baseline,
+    record_workspace_commit,
+)
 from secondshift.runner.dao import (
     complete_command,
     create_command,
@@ -186,7 +191,7 @@ class DockerRunnerService:
         outputs: Path,
     ) -> None:
         """Unpack the commit, any earlier files and any skill from another
-        repository, record the commit if asked, and start the container."""
+        repository, record the commit, and start the container."""
         unpack_source(spec.source_sha256, workspace)
         history = workspace.parent / HISTORY_DIR
         if spec.history_sha256:
@@ -196,6 +201,7 @@ class DockerRunnerService:
             unpack_source(spec.skill_sha256, skill)
         if spec.collect_changes:
             record_baseline(workspace.parent, workspace)
+        record_workspace_commit(workspace, spec.repository, spec.commit_sha)
         self.prepare_workspace_permissions(workspace)
         self.prepare_workspace_permissions(outputs)
         self.prepare_workspace_permissions(history)
@@ -384,6 +390,12 @@ class DockerRunnerService:
             "--env=HOME=/tmp",
             # Skills that run Python must not leave bytecode in the repository.
             "--env=PYTHONDONTWRITEBYTECODE=1",
+            # Docker Desktop shows bind-mounted files under another owner, and
+            # git then refuses the workspace's repository. The agent owns every
+            # file in the sandbox anyway, so git's ownership check adds nothing.
+            "--env=GIT_CONFIG_COUNT=1",
+            "--env=GIT_CONFIG_KEY_0=safe.directory",
+            "--env=GIT_CONFIG_VALUE_0=/workspace",
             spec.image,
             "sleep",
             "infinity",
