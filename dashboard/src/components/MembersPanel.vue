@@ -9,7 +9,10 @@ import { errorMessage } from '../services/api'
 
 const props = defineProps<{ canManage: boolean }>()
 
-const roleOptions = ['owner', 'admin', 'member'].map((value) => ({ label: statusLabel(value), value }))
+const roleOptions = ['owner', 'admin', 'member'].map((value) => ({
+  label: statusLabel(value),
+  value,
+}))
 const members = ref<Member[]>([])
 const confirming = ref<number | null>(null)
 const error = ref<string | null>(null)

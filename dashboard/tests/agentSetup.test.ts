@@ -15,14 +15,22 @@ test('all clients use the current instance, bearer token and workspace name', ()
 test('Cursor config is valid JSON and targets the personal config file', () => {
   const setup = agentSetup('cursor', 'acme', 'https://shift.example.com', 'ss_example')
   assert.deepEqual(JSON.parse(setup.content), {
-    mcpServers: { 'secondshift-acme': { url: 'https://shift.example.com/mcp', headers: { Authorization: 'Bearer ss_example' } } },
+    mcpServers: {
+      'secondshift-acme': {
+        url: 'https://shift.example.com/mcp',
+        headers: { Authorization: 'Bearer ss_example' },
+      },
+    },
   })
   assert.ok(setup.instruction.includes('~/.cursor/mcp.json'))
 })
 
 test('Codex uses TOML HTTP headers and the personal config file', () => {
   const setup = agentSetup('codex', 'acme', 'https://shift.example.com', 'ss_example')
-  assert.equal(setup.content, '[mcp_servers.secondshift-acme]\nurl = "https://shift.example.com/mcp"\nhttp_headers = { Authorization = "Bearer ss_example" }')
+  assert.equal(
+    setup.content,
+    '[mcp_servers.secondshift-acme]\nurl = "https://shift.example.com/mcp"\nhttp_headers = { Authorization = "Bearer ss_example" }',
+  )
   assert.ok(setup.instruction.includes('~/.codex/config.toml'))
 })
 
@@ -34,7 +42,12 @@ test('other clients get the transport and separate header name and value', () =>
 
 test('closing the agent card is remembered per person and workspace', () => {
   const items = new Map<string, string>()
-  const storage = { getItem: (key: string) => items.get(key) ?? null, setItem: (key: string, value: string) => { items.set(key, value) } }
+  const storage = {
+    getItem: (key: string) => items.get(key) ?? null,
+    setItem: (key: string, value: string) => {
+      items.set(key, value)
+    },
+  }
   assert.equal(agentCardDismissed(storage, 'a@x.dev', 'acme'), false)
   dismissAgentCard(storage, 'a@x.dev', 'acme')
   assert.equal(agentCardDismissed(storage, 'a@x.dev', 'acme'), true)
@@ -43,7 +56,14 @@ test('closing the agent card is remembered per person and workspace', () => {
 })
 
 test('storage that refuses access never breaks the card', () => {
-  const broken = { getItem: (): string | null => { throw new Error('denied') }, setItem: (): void => { throw new Error('denied') } }
+  const broken = {
+    getItem: (): string | null => {
+      throw new Error('denied')
+    },
+    setItem: (): void => {
+      throw new Error('denied')
+    },
+  }
   assert.equal(agentCardDismissed(broken, 'a@x.dev', 'acme'), false)
   assert.doesNotThrow(() => dismissAgentCard(broken, 'a@x.dev', 'acme'))
 })

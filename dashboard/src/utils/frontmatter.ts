@@ -1,5 +1,5 @@
 export interface Frontmatter {
-  fields: { key: string, value: string }[]
+  fields: { key: string; value: string }[]
   body: string
 }
 

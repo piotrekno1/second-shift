@@ -10,8 +10,17 @@ const app = useAppStore()
 
 <template>
   <div class="page">
-    <PageHeader compact title="Add repository" description="Jobs come from the repository's .secondshift.yaml." :parent="{ label: 'Repositories', to: '/repositories' }" />
-    <AddRepositoryFlow v-if="app.canAddLocalRepositories || app.can(Action.AddGitHubRepositories)" />
-    <div v-else class="panel empty-state"><AppIcon name="lock-outline" /><strong>Workspace owners add repositories</strong></div>
+    <PageHeader
+      compact
+      title="Add repository"
+      description="Jobs come from the repository's .secondshift.yaml."
+      :parent="{ label: 'Repositories', to: '/repositories' }"
+    />
+    <AddRepositoryFlow
+      v-if="app.canAddLocalRepositories || app.can(Action.AddGitHubRepositories)"
+    />
+    <div v-else class="panel empty-state">
+      <AppIcon name="lock-outline" /><strong>Workspace owners add repositories</strong>
+    </div>
   </div>
 </template>

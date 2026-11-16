@@ -11,7 +11,10 @@ export interface SkillReference {
 }
 
 /** Fetch a skill from another repository, pin it and read what it needs. */
-export function inspectSkill(reference: SkillReference, repositoryId?: number): Promise<SkillInspection> {
+export function inspectSkill(
+  reference: SkillReference,
+  repositoryId?: number,
+): Promise<SkillInspection> {
   return apiPost<SkillInspection>('/skills/inspect', {
     repository: reference.repository,
     path: reference.path,

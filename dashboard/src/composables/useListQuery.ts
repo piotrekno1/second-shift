@@ -27,7 +27,8 @@ export function useListQuery() {
     }
     if (!('page' in patch)) delete query.page
     for (const [key, value] of Object.entries(patch)) {
-      if (value === null || value === undefined || value === '' || (key === 'page' && value === 1)) delete query[key]
+      if (value === null || value === undefined || value === '' || (key === 'page' && value === 1))
+        delete query[key]
       else query[key] = String(value)
     }
     void router.replace({ query })

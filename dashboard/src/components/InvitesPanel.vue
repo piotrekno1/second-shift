@@ -27,7 +27,9 @@ const confirming = ref<number | null>(null)
 const revoking = ref<number | null>(null)
 const NOTE_LIMIT = 160
 // An error about the last try goes once the note or role is changed.
-watch([note, role], () => { error.value = null })
+watch([note, role], () => {
+  error.value = null
+})
 
 async function load(): Promise<void> {
   try {
@@ -85,17 +87,38 @@ onMounted(load)
 <template>
   <div class="invites">
     <form class="invite-form" @submit.prevent="create">
-      <Select v-model="role" :options="roleOptions" option-label="label" option-value="value" aria-label="Role" class="invite-role" />
-      <InputText v-model="note" :maxlength="NOTE_LIMIT" placeholder="Who is it for? (optional)" aria-label="Who the invite is for" />
+      <Select
+        v-model="role"
+        :options="roleOptions"
+        option-label="label"
+        option-value="value"
+        aria-label="Role"
+        class="invite-role"
+      />
+      <InputText
+        v-model="note"
+        :maxlength="NOTE_LIMIT"
+        placeholder="Who is it for? (optional)"
+        aria-label="Who the invite is for"
+      />
       <Button type="submit" label="Create invite link" :loading="busy" :disabled="busy">
         <template #icon><AppIcon name="link" /></template>
       </Button>
     </form>
 
     <div v-if="created" class="invite-link" role="status">
-      <span>Send this link to <bdi>{{ created.note || 'the person you are inviting' }}</bdi>. It works once and expires {{ formatRelative(created.expires_at) }}. This is the only time it is shown.</span>
+      <span
+        >Send this link to <bdi>{{ created.note || 'the person you are inviting' }}</bdi>. It works
+        once and expires {{ formatRelative(created.expires_at) }}. This is the only time it is
+        shown.</span
+      >
       <code>{{ created.link }}</code>
-      <Button :label="copied ? 'Copied' : 'Copy link'" severity="secondary" size="small" @click="copyLink">
+      <Button
+        :label="copied ? 'Copied' : 'Copy link'"
+        severity="secondary"
+        size="small"
+        @click="copyLink"
+      >
         <template #icon><AppIcon :name="copied ? 'check' : 'content-copy'" /></template>
       </Button>
     </div>
@@ -107,14 +130,37 @@ onMounted(load)
         <span class="avatar small"><AppIcon name="email-outline" /></span>
         <span class="member-email">
           <bdi>{{ invite.note || 'Invite link' }}</bdi>
-          <small>Expires {{ formatRelative(invite.expires_at) }}<template v-if="invite.created_by"> · from {{ invite.created_by }}</template></small>
+          <small
+            >Expires {{ formatRelative(invite.expires_at)
+            }}<template v-if="invite.created_by"> · from {{ invite.created_by }}</template></small
+          >
         </span>
         <span class="status-pill">{{ statusLabel(invite.role) }}</span>
         <span v-if="confirming === invite.id" class="invite-confirm">
-          <Button label="Keep" severity="secondary" text size="small" :disabled="revoking === invite.id" @click="confirming = null" />
-          <Button label="Revoke link" severity="danger" size="small" :loading="revoking === invite.id" @click="revoke(invite)" />
+          <Button
+            label="Keep"
+            severity="secondary"
+            text
+            size="small"
+            :disabled="revoking === invite.id"
+            @click="confirming = null"
+          />
+          <Button
+            label="Revoke link"
+            severity="danger"
+            size="small"
+            :loading="revoking === invite.id"
+            @click="revoke(invite)"
+          />
         </span>
-        <Button v-else label="Revoke" severity="secondary" text size="small" @click="confirming = invite.id" />
+        <Button
+          v-else
+          label="Revoke"
+          severity="secondary"
+          text
+          size="small"
+          @click="confirming = invite.id"
+        />
       </li>
     </ul>
   </div>

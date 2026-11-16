@@ -30,8 +30,9 @@ test('apiGet keeps authorization details on a forbidden response', async () => {
     await assert.rejects(
       apiGet('/repositories/local/directories'),
       (error) =>
-        error instanceof Error && !(error instanceof AuthenticationRequired)
-        && error.message === 'You do not have permission to add local repositories.',
+        error instanceof Error &&
+        !(error instanceof AuthenticationRequired) &&
+        error.message === 'You do not have permission to add local repositories.',
     )
   } finally {
     globalThis.fetch = originalFetch
@@ -40,14 +41,20 @@ test('apiGet keeps authorization details on a forbidden response', async () => {
 
 test('apiGet turns field validation errors into sentences', async () => {
   const originalFetch = globalThis.fetch
-  mockResponse(422, { detail: [
-    { loc: ['body', 'payload', 'display_name'], msg: 'String should have at most 200 characters' },
-    { loc: ['body', 'payload', 'max_runs'], msg: 'Input should be greater than 0' },
-    { loc: ['query', 'q'], msg: 'String should have at most 200 characters' },
-  ] })
+  mockResponse(422, {
+    detail: [
+      {
+        loc: ['body', 'payload', 'display_name'],
+        msg: 'String should have at most 200 characters',
+      },
+      { loc: ['body', 'payload', 'max_runs'], msg: 'Input should be greater than 0' },
+      { loc: ['query', 'q'], msg: 'String should have at most 200 characters' },
+    ],
+  })
   try {
     await assert.rejects(apiGet('/settings'), {
-      message: 'Display name should have at most 200 characters. Max runs should be greater than 0. The search should have at most 200 characters.',
+      message:
+        'Display name should have at most 200 characters. Max runs should be greater than 0. The search should have at most 200 characters.',
     })
   } finally {
     globalThis.fetch = originalFetch

@@ -7,7 +7,9 @@ import type { ConnectionCheck } from '../types'
 const props = defineProps<{ check: ConnectionCheck }>()
 
 const features = computed(() => props.check.features ?? [])
-const gaps = computed(() => !props.check.ok || features.value.some((feature) => feature.ok === false))
+const gaps = computed(
+  () => !props.check.ok || features.value.some((feature) => feature.ok === false),
+)
 
 function icon(ok: boolean | null): string {
   if (ok === null) return 'minus'
@@ -17,14 +19,25 @@ function icon(ok: boolean | null): string {
 
 <template>
   <!-- When every check passes, the details stay folded so the row stays short. -->
-  <component :is="gaps ? 'div' : 'details'" v-if="features.length || (gaps && check.fix_url)" class="source-access-wrap">
+  <component
+    :is="gaps ? 'div' : 'details'"
+    v-if="features.length || (gaps && check.fix_url)"
+    class="source-access-wrap"
+  >
     <summary v-if="!gaps">What it can do</summary>
     <ul class="source-access">
-      <li v-for="feature in features" :key="feature.feature" :class="{ ok: feature.ok === true, gap: feature.ok === false }">
-        <AppIcon :name="icon(feature.ok)" /><strong>{{ feature.label }}</strong><span>{{ feature.message }}</span>
+      <li
+        v-for="feature in features"
+        :key="feature.feature"
+        :class="{ ok: feature.ok === true, gap: feature.ok === false }"
+      >
+        <AppIcon :name="icon(feature.ok)" /><strong>{{ feature.label }}</strong
+        ><span>{{ feature.message }}</span>
       </li>
       <li v-if="gaps && check.fix_url" class="source-access-fix">
-        <a :href="check.fix_url" target="_blank" rel="noopener noreferrer">Fix access on GitHub <AppIcon name="open-in-new" /></a>
+        <a :href="check.fix_url" target="_blank" rel="noopener noreferrer"
+          >Fix access on GitHub <AppIcon name="open-in-new"
+        /></a>
         <span>then check access again.</span>
       </li>
     </ul>

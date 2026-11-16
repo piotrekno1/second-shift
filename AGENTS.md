@@ -21,6 +21,8 @@ uv run ruff format .
 
 cd dashboard && npm install
 cd dashboard && npm run dev
+cd dashboard && npm run lint
+cd dashboard && npm run format
 cd dashboard && npm run typecheck
 cd dashboard && npm run test
 cd dashboard && npm run build
@@ -81,7 +83,7 @@ docker build .
 ## Verification
 
 - Backend: focused pytest, then the full pytest suite and `ruff check`.
-- Frontend: `npm run typecheck`, `npm run test`, and `npm run build` when routes
-  or bootstrapping change.
+- Frontend: `npm run lint`, `npm run format:check`, `npm run typecheck`, and
+  `npm run test`. Add `npm run build` when routes or bootstrapping change.
 - Runner changes require tests showing repository input cannot alter runtime
   flags, mounts, or secret bindings.

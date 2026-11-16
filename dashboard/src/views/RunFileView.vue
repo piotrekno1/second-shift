@@ -26,7 +26,9 @@ const name = computed<RunFileName>(() => (route.params.name === 'input' ? 'input
 // Only the report's links point at files this run saved.
 const rendered = computed(() => {
   if (content.value === null) return ''
-  return name.value === 'output' ? renderMarkdown(content.value, (href) => runOutputLink(href, runId.value)) : renderMarkdown(content.value)
+  return name.value === 'output'
+    ? renderMarkdown(content.value, (href) => runOutputLink(href, runId.value))
+    : renderMarkdown(content.value)
 })
 
 async function load(): Promise<void> {
@@ -47,19 +49,45 @@ watch([runId, name], load, { immediate: true })
 
 <template>
   <div class="page">
-    <PageHeader compact :title="LABELS[name]" :description="DESCRIPTIONS[name]" :parent="{ label: `Run #${runId}`, to: `/runs/${runId}` }">
+    <PageHeader
+      compact
+      :title="LABELS[name]"
+      :description="DESCRIPTIONS[name]"
+      :parent="{ label: `Run #${runId}`, to: `/runs/${runId}` }"
+    >
       <div class="segmented" role="group" aria-label="File view">
-        <button type="button" :class="{ active: view === 'rendered' }" :aria-pressed="view === 'rendered'" @click="view = 'rendered'">Rendered</button>
-        <button type="button" :class="{ active: view === 'raw' }" :aria-pressed="view === 'raw'" @click="view = 'raw'">Raw</button>
+        <button
+          type="button"
+          :class="{ active: view === 'rendered' }"
+          :aria-pressed="view === 'rendered'"
+          @click="view = 'rendered'"
+        >
+          Rendered
+        </button>
+        <button
+          type="button"
+          :class="{ active: view === 'raw' }"
+          :aria-pressed="view === 'raw'"
+          @click="view = 'raw'"
+        >
+          Raw
+        </button>
       </div>
-      <a :href="runFileUrl(runId, name, true)" class="secondary-action" download><AppIcon name="download" /> Download</a>
+      <a :href="runFileUrl(runId, name, true)" class="secondary-action" download
+        ><AppIcon name="download" /> Download</a
+      >
     </PageHeader>
 
-    <div v-if="loading" class="panel empty-state"><AppIcon name="loading" spin /><strong>Loading file</strong></div>
-    <div v-else-if="error" class="panel empty-state"><AppIcon name="file-alert-outline" /><strong>File unavailable</strong><span>{{ error }}</span></div>
+    <div v-if="loading" class="panel empty-state">
+      <AppIcon name="loading" spin /><strong>Loading file</strong>
+    </div>
+    <div v-else-if="error" class="panel empty-state">
+      <AppIcon name="file-alert-outline" /><strong>File unavailable</strong><span>{{ error }}</span>
+    </div>
     <section v-else class="panel run-file-panel">
-      <!-- eslint-disable-next-line vue/no-v-html -- sanitized by renderMarkdown -->
+      <!-- eslint-disable vue/no-v-html -- sanitized by renderMarkdown -->
       <article v-if="view === 'rendered'" class="markdown-body" v-html="rendered" />
+      <!-- eslint-enable vue/no-v-html -->
       <pre v-else class="run-output run-output-full">{{ content }}</pre>
     </section>
   </div>

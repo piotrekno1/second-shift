@@ -32,20 +32,27 @@ async function saveLimits(values: RunLimitUpdate): Promise<void> {
   }
 }
 
-const subtitle = computed(() => (data.value ? `${data.value.workspace_name ?? 'Workspace'} workspace` : 'Loading settings…'))
+const subtitle = computed(() =>
+  data.value ? `${data.value.workspace_name ?? 'Workspace'} workspace` : 'Loading settings…',
+)
 // Environment variable names help whoever runs the server, not the people using it.
 const isOperator = computed(() => app.user?.can_use_admin ?? false)
 // The deployment is part of the server settings, so it leads that section.
 const serverGroups = computed(() => {
   if (!data.value) return []
-  const deployment = { title: 'Deployment', items: [{ label: 'Environment', value: data.value.environment, help: '', env: '' }] }
+  const deployment = {
+    title: 'Deployment',
+    items: [{ label: 'Environment', value: data.value.environment, help: '', env: '' }],
+  }
   return [deployment, ...data.value.groups]
 })
 
 async function copy(env: string): Promise<void> {
   await navigator.clipboard.writeText(env)
   copied.value = env
-  window.setTimeout(() => { if (copied.value === env) copied.value = null }, 1600)
+  window.setTimeout(() => {
+    if (copied.value === env) copied.value = null
+  }, 1600)
 }
 
 onMounted(async () => {
@@ -65,7 +72,10 @@ onMounted(async () => {
     <template v-else-if="data">
       <section class="panel settings-members">
         <div class="panel-heading">
-          <div><h2>Members</h2><p>People join with an invite link.</p></div>
+          <div>
+            <h2>Members</h2>
+            <p>People join with an invite link.</p>
+          </div>
         </div>
         <MembersPanel :can-manage="canManageMembers" />
         <InvitesPanel v-if="canInvite" />
@@ -84,7 +94,14 @@ onMounted(async () => {
 
       <section class="panel server-settings">
         <div class="panel-heading">
-          <div><h2>Server</h2><p>Set by whoever runs this server<template v-if="isOperator">, through environment variables. Changes apply after a restart</template>. Workspaces and repositories cannot change them.</p></div>
+          <div>
+            <h2>Server</h2>
+            <p>
+              Set by whoever runs this server<template v-if="isOperator"
+                >, through environment variables. Changes apply after a restart</template
+              >. Workspaces and repositories cannot change them.
+            </p>
+          </div>
         </div>
         <section v-for="group in serverGroups" :key="group.title" class="server-group">
           <h3>{{ group.title }}</h3>
@@ -93,7 +110,13 @@ onMounted(async () => {
               <dt>{{ item.label }}</dt>
               <dd>
                 <strong>{{ item.value }}</strong><small v-if="item.help">{{ item.help }}</small>
-                <button v-if="isOperator && item.env" type="button" class="env-chip" :title="`Copy ${item.env}`" @click="copy(item.env)">
+                <button
+                  v-if="isOperator && item.env"
+                  type="button"
+                  class="env-chip"
+                  :title="`Copy ${item.env}`"
+                  @click="copy(item.env)"
+                >
                   <AppIcon :name="copied === item.env ? 'check' : 'content-copy'" /> {{ item.env }}
                 </button>
               </dd>
@@ -103,9 +126,12 @@ onMounted(async () => {
       </section>
 
       <p class="quiet-line">
-        <AppIcon name="file-code-outline" /> Jobs, schedules and the access they need are defined in each repository's <code>.secondshift.yaml</code>.
+        <AppIcon name="file-code-outline" /> Jobs, schedules and the access they need are defined in
+        each repository's <code>.secondshift.yaml</code>.
       </p>
     </template>
-    <div v-else class="panel empty-state"><AppIcon name="loading" spin /><strong>Loading settings</strong></div>
+    <div v-else class="panel empty-state">
+      <AppIcon name="loading" spin /><strong>Loading settings</strong>
+    </div>
   </div>
 </template>

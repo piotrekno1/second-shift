@@ -11,7 +11,17 @@ import { fetchJobs } from '../services/jobs'
 import { fetchRepositories } from '../services/repositories'
 import { fetchOverview, fetchUser } from '../services/overview'
 import { fetchRuns } from '../services/runs'
-import type { CapabilityNeed, Connection, Job, MCPProviderInfo, Overview, PendingInvite, Repository, Run, User } from '../types'
+import type {
+  CapabilityNeed,
+  Connection,
+  Job,
+  MCPProviderInfo,
+  Overview,
+  PendingInvite,
+  Repository,
+  Run,
+  User,
+} from '../types'
 
 const RECENT_RUNS = 6
 
@@ -50,53 +60,78 @@ export const useAppStore = defineStore('app', {
   }),
   getters: {
     /** Whether the person's role in the current workspace allows the action. */
-    can: (state) => (action: Action): boolean => allows(state.user, action),
+    can:
+      (state) =>
+      (action: Action): boolean =>
+        allows(state.user, action),
     /** The server must allow local repositories and the role must allow adding them. */
     canAddLocalRepositories: (state): boolean =>
-      Boolean(state.user?.local_repositories_enabled) && allows(state.user, Action.AddLocalRepositories),
+      Boolean(state.user?.local_repositories_enabled) &&
+      allows(state.user, Action.AddLocalRepositories),
     /** Jobs whose access no one has decided on yet, so they cannot run. */
     jobsAwaitingApproval: (state): number =>
       state.jobs.filter((job) => awaitsApproval(job.grant_status)).length,
     /** Connections that are not working: disconnected, or their last check failed. Model providers count on Models. */
     brokenConnections: (state): number =>
-      state.connections.filter((connection) => connection.kind !== 'model' && (connection.status !== 'connected' || connection.last_check?.ok === false)).length,
+      state.connections.filter(
+        (connection) =>
+          connection.kind !== 'model' &&
+          (connection.status !== 'connected' || connection.last_check?.ok === false),
+      ).length,
     /** Required bindings with no working connection yet. Approval waits are counted on Jobs. */
     bindingsToSetUp: (state): number =>
-      state.needs.filter((need) => need.required && (need.status === 'missing' || need.status === 'unavailable')).length,
+      state.needs.filter(
+        (need) => need.required && (need.status === 'missing' || need.status === 'unavailable'),
+      ).length,
     /**
      * The first-time setup steps, or null once setup is done. The Overview shows them,
      * and the sidebar keeps quiet while they show.
      */
-    setupChecklist: (state): SetupStep[] | null => state.overview ? setupSteps({
-      repositories: state.repositories.length,
-      repositoryName: state.repositories.length === 1 ? state.repositories[0]!.display_name : '',
-      accessProblem: state.repositories.length
-        ? state.connections.find((connection) => connection.kind === 'source' && connection.status === 'connected' && connection.last_check?.ok === false)?.last_check?.message ?? ''
-        : '',
-      execution: state.overview.execution,
-      jobs: state.jobs.length,
-      enabledJobs: state.overview.enabled_jobs,
-      hasRuns: state.runs.length > 0,
-      canAddGitHub: allows(state.user, Action.AddGitHubRepositories),
-      canAddLocal: Boolean(state.user?.local_repositories_enabled) && allows(state.user, Action.AddLocalRepositories),
-      canConnect: allows(state.user, Action.AddConnections),
-      offerAgent: !state.overview.has_agent_token,
-    }) : null,
-    mcpProvider: (state) => (key: string | undefined): MCPProviderInfo | undefined =>
-      state.mcpProviders.find((provider) => provider.key === key),
+    setupChecklist: (state): SetupStep[] | null =>
+      state.overview
+        ? setupSteps({
+            repositories: state.repositories.length,
+            repositoryName:
+              state.repositories.length === 1 ? state.repositories[0]!.display_name : '',
+            accessProblem: state.repositories.length
+              ? (state.connections.find(
+                  (connection) =>
+                    connection.kind === 'source' &&
+                    connection.status === 'connected' &&
+                    connection.last_check?.ok === false,
+                )?.last_check?.message ?? '')
+              : '',
+            execution: state.overview.execution,
+            jobs: state.jobs.length,
+            enabledJobs: state.overview.enabled_jobs,
+            hasRuns: state.runs.length > 0,
+            canAddGitHub: allows(state.user, Action.AddGitHubRepositories),
+            canAddLocal:
+              Boolean(state.user?.local_repositories_enabled) &&
+              allows(state.user, Action.AddLocalRepositories),
+            canConnect: allows(state.user, Action.AddConnections),
+            offerAgent: !state.overview.has_agent_token,
+          })
+        : null,
+    mcpProvider:
+      (state) =>
+      (key: string | undefined): MCPProviderInfo | undefined =>
+        state.mcpProviders.find((provider) => provider.key === key),
   },
   actions: {
     includeRecentRun(run: Run): void {
-      this.runs = [run, ...this.runs.filter(item => item.id !== run.id)].slice(0, RECENT_RUNS)
+      this.runs = [run, ...this.runs.filter((item) => item.id !== run.id)].slice(0, RECENT_RUNS)
     },
     async initialize(): Promise<void> {
       try {
         this.user = await fetchUser()
         this.authenticated = true
         // Without a workspace there is nothing to load but an invite to join one.
-        await Promise.all(this.user.workspace_slug
-          ? [this.refresh(), this.loadMCPProviders(), this.loadPendingInvite()]
-          : [this.loadPendingInvite()])
+        await Promise.all(
+          this.user.workspace_slug
+            ? [this.refresh(), this.loadMCPProviders(), this.loadPendingInvite()]
+            : [this.loadPendingInvite()],
+        )
       } catch (error) {
         if (error instanceof AuthenticationRequired) {
           this.authenticated = false

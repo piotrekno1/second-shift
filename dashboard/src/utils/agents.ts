@@ -19,7 +19,10 @@ export function parseRunCap(draft: string): ParsedRunCap {
   if (!text) return { value: null, problem: null }
   const value = Number(text)
   if (!Number.isInteger(value) || value < 1 || value > MAX_RUN_CAP) {
-    return { value: null, problem: `Enter a whole number from 1 to ${MAX_RUN_CAP}, or leave it empty for no limit.` }
+    return {
+      value: null,
+      problem: `Enter a whole number from 1 to ${MAX_RUN_CAP}, or leave it empty for no limit.`,
+    }
   }
   return { value, problem: null }
 }

@@ -2,7 +2,45 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import type { Run } from '../src/types'
 
-import { formatLimit, accessLabel, accessNeedsAction, awaitsApproval, connectionUsageLine, countLabel, describeCron, formatDate, formatSeconds, healthHeadline, runsTrend, weekRange, jobOutcomes, spendTrend, formatRelative, formatScheduled, formatTime, utcTitle, zoneName, formatBytes, providerLabel, runStats, statusLabel, formatDuration, finishedBinding, formatSchedule, jobState, historyLabel, lastRunLine, titleFromSlug, typingBinding, kindLabel, expiresSoon, needsReconnect, sourceAuthLabel, jobStateLabel, withArticle } from '../src/utils/format'
+import {
+  formatLimit,
+  accessLabel,
+  accessNeedsAction,
+  awaitsApproval,
+  connectionUsageLine,
+  countLabel,
+  describeCron,
+  formatDate,
+  formatSeconds,
+  healthHeadline,
+  runsTrend,
+  weekRange,
+  jobOutcomes,
+  spendTrend,
+  formatRelative,
+  formatScheduled,
+  formatTime,
+  utcTitle,
+  zoneName,
+  formatBytes,
+  providerLabel,
+  runStats,
+  statusLabel,
+  formatDuration,
+  finishedBinding,
+  formatSchedule,
+  jobState,
+  historyLabel,
+  lastRunLine,
+  titleFromSlug,
+  typingBinding,
+  kindLabel,
+  expiresSoon,
+  needsReconnect,
+  sourceAuthLabel,
+  jobStateLabel,
+  withArticle,
+} from '../src/utils/format'
 
 test('formatSchedule keeps cron and timezone visible', () => {
   assert.equal(formatSchedule('0 9 * * 1', 'Europe/Warsaw'), 'Mondays at 09:00 · Europe/Warsaw')
@@ -52,12 +90,22 @@ test('runStats lists duration, tokens, cost and turns in order', () => {
     model_requests: 4,
     max_turns: 12,
   }
-  assert.deepEqual(runStats(base).map((stat) => stat.text), ['7s', '5.1K tok', '$0.0008', '4/12 turns'])
+  assert.deepEqual(
+    runStats(base).map((stat) => stat.text),
+    ['7s', '5.1K tok', '$0.0008', '4/12 turns'],
+  )
   assert.equal(runStats(base)[1].title, '4.8K input · 300 output tokens')
   assert.equal(runStats({ ...base, model_requests: 11 })[3].warn, true)
   assert.equal(runStats({ ...base, model_cost_partial: true })[2].text, '≥$0.0008')
   assert.deepEqual(
-    runStats({ ...base, started_at: null, model_tokens: 0, model_cost_usd: null, model_requests: 0, max_turns: null }),
+    runStats({
+      ...base,
+      started_at: null,
+      model_tokens: 0,
+      model_cost_usd: null,
+      model_requests: 0,
+      max_turns: null,
+    }),
     [],
   )
 })
@@ -76,18 +124,32 @@ test('runStats shows tokens against the run budget', () => {
   }
   const [tokens] = runStats({ ...base, token_budget: 2_000_000 })
   assert.equal(tokens.text, '12.3K / 2M budget')
-  assert.equal(tokens.title, '12K input · 300 output tokens. 12,300 of 2,000,000 budget tokens used')
+  assert.equal(
+    tokens.title,
+    '12K input · 300 output tokens. 12,300 of 2,000,000 budget tokens used',
+  )
   assert.equal(tokens.warn, false)
-  assert.equal(runStats({ ...base, model_tokens: 1_700_000, token_budget: 2_000_000 })[0].warn, true)
+  assert.equal(
+    runStats({ ...base, model_tokens: 1_700_000, token_budget: 2_000_000 })[0].warn,
+    true,
+  )
   assert.equal(runStats({ ...base, token_budget: null })[0].text, '12.3K tok')
 })
 
 test('runStats counts cached input as a tenth toward the budget', () => {
   const cached = {
-    started_at: null, finished_at: null, model_cost_usd: null, model_cost_partial: false,
-    model_requests: 0, max_turns: null, token_budget: 2_000_000,
-    model_tokens: 700_000, model_input_tokens: 688_000, model_output_tokens: 12_000,
-    model_cache_read_tokens: 598_000, model_budget_tokens: 161_800,
+    started_at: null,
+    finished_at: null,
+    model_cost_usd: null,
+    model_cost_partial: false,
+    model_requests: 0,
+    max_turns: null,
+    token_budget: 2_000_000,
+    model_tokens: 700_000,
+    model_input_tokens: 688_000,
+    model_output_tokens: 12_000,
+    model_cache_read_tokens: 598_000,
+    model_budget_tokens: 161_800,
   }
   const [tokens] = runStats(cached)
   assert.equal(tokens.text, '161.8K / 2M budget')
@@ -96,7 +158,12 @@ test('runStats counts cached input as a tenth toward the budget', () => {
     '90K input · 598K cached input · 12K output tokens. 161,800 of 2,000,000 budget tokens used. Cached input counts as a tenth',
   )
   // All tokens are past 80% of the budget, but the budget count is not.
-  const busy = { ...cached, model_tokens: 1_900_000, model_input_tokens: 1_888_000, model_cache_read_tokens: 1_700_000 }
+  const busy = {
+    ...cached,
+    model_tokens: 1_900_000,
+    model_input_tokens: 1_888_000,
+    model_cache_read_tokens: 1_700_000,
+  }
   assert.equal(runStats({ ...busy, model_budget_tokens: 370_000 })[0].warn, false)
   assert.equal(runStats({ ...busy, model_budget_tokens: 1_600_000 })[0].warn, true)
 })
@@ -134,9 +201,19 @@ test('status, access and provider labels are readable', () => {
   assert.equal(statusLabel('not_required'), 'No access needed')
   assert.equal(statusLabel('succeeded'), 'Succeeded')
   assert.equal(accessLabel('pending'), 'Needs approval')
-  assert.deepEqual(['pending', 'denied', 'approved', 'not_required'].map(accessNeedsAction), [true, true, false, false])
+  assert.deepEqual(['pending', 'denied', 'approved', 'not_required'].map(accessNeedsAction), [
+    true,
+    true,
+    false,
+    false,
+  ])
   // Only an undecided job counts as waiting. A denied one keeps its pill but is not counted.
-  assert.deepEqual(['pending', 'denied', 'approved', 'not_required'].map(awaitsApproval), [true, false, false, false])
+  assert.deepEqual(['pending', 'denied', 'approved', 'not_required'].map(awaitsApproval), [
+    true,
+    false,
+    false,
+    false,
+  ])
   assert.equal(providerLabel('openai_compatible'), 'OpenAI-compatible')
   assert.equal(providerLabel('something_new'), 'Something new')
 })
@@ -155,14 +232,20 @@ test('scheduled times use the job zone and add the viewer clock when it differs'
   // 26 Oct is after the switch from summer to winter time in Warsaw.
   const next = '2026-10-26T08:00:00Z'
   assert.equal(formatScheduled(next, 'Europe/Warsaw', 'Europe/Warsaw'), 'Mon 26 Oct, 09:00 CET')
-  assert.equal(formatScheduled(next, 'Europe/Warsaw', 'America/New_York'), 'Mon 26 Oct, 09:00 CET · 04:00 your time')
+  assert.equal(
+    formatScheduled(next, 'Europe/Warsaw', 'America/New_York'),
+    'Mon 26 Oct, 09:00 CET · 04:00 your time',
+  )
   assert.equal(formatScheduled(null, 'Europe/Warsaw'), 'Not scheduled')
 })
 
 test('lastRunLine says how the newest run went and when', () => {
   const now = Date.parse('2026-10-23T12:00:00Z')
   assert.equal(lastRunLine(null, now), 'Never run')
-  assert.equal(lastRunLine({ status: 'failed', at: '2026-10-23T10:00:00Z' }, now), 'Last run failed 2 hours ago')
+  assert.equal(
+    lastRunLine({ status: 'failed', at: '2026-10-23T10:00:00Z' }, now),
+    'Last run failed 2 hours ago',
+  )
   assert.equal(lastRunLine({ status: 'running', at: '2026-10-23T11:59:00Z' }, now), 'Running now')
 })
 
@@ -179,16 +262,40 @@ test('weekRange names the seven days ending today', () => {
   assert.equal(weekRange(new Date(2026, 10, 2)), '27 Oct – 2 Nov')
 })
 
-function run(id: number, status: Run['status'], durationSeconds: number | null, cost: number | null): Run {
+function run(
+  id: number,
+  status: Run['status'],
+  durationSeconds: number | null,
+  cost: number | null,
+): Run {
   const start = Date.parse('2026-10-23T08:00:00Z')
   return {
-    id, job_id: 1, job: 'Review', repository_id: 1, repository: 'demo', status,
-    scheduled_for: new Date(start).toISOString(), started_by: 'schedule',
+    id,
+    job_id: 1,
+    job: 'Review',
+    repository_id: 1,
+    repository: 'demo',
+    status,
+    scheduled_for: new Date(start).toISOString(),
+    started_by: 'schedule',
     started_at: durationSeconds === null ? null : new Date(start).toISOString(),
-    finished_at: durationSeconds === null ? null : new Date(start + durationSeconds * 1000).toISOString(),
-    summary: '', plan_ready: true, commit_sha: 'abc', model: null, max_turns: 24, token_budget: null,
-    model_requests: 1, model_input_tokens: 0, model_output_tokens: 0, failure: null,
-    has_input: false, has_output: false, model_tokens: 0, model_cost_usd: cost, model_cost_partial: false,
+    finished_at:
+      durationSeconds === null ? null : new Date(start + durationSeconds * 1000).toISOString(),
+    summary: '',
+    plan_ready: true,
+    commit_sha: 'abc',
+    model: null,
+    max_turns: 24,
+    token_budget: null,
+    model_requests: 1,
+    model_input_tokens: 0,
+    model_output_tokens: 0,
+    failure: null,
+    has_input: false,
+    has_output: false,
+    model_tokens: 0,
+    model_cost_usd: cost,
+    model_cost_partial: false,
   }
 }
 
@@ -206,23 +313,45 @@ test('jobOutcomes summarizes finished runs and keeps active ones out of the rate
   assert.equal(outcomes.medianSeconds, 40)
   assert.ok(Math.abs((outcomes.averageCostUsd ?? 0) - 0.015) < 1e-9)
   assert.ok(Math.abs(outcomes.totalCostUsd - 0.03) < 1e-9)
-  assert.deepEqual(outcomes.chronological.map((item) => item.id), [1, 2, 3, 4, 5])
+  assert.deepEqual(
+    outcomes.chronological.map((item) => item.id),
+    [1, 2, 3, 4, 5],
+  )
   assert.equal(jobOutcomes([]).successRate, null)
   assert.equal(formatSeconds(125), '2m 5s')
 })
 
 test('spendTrend and healthHeadline read naturally', () => {
-  assert.deepEqual(spendTrend(0.14, 0.1), { delta: '↑ 40%', detail: 'vs previous week', good: false })
-  assert.deepEqual(spendTrend(0.08, 0.1), { delta: '↓ 20%', detail: 'vs previous week', good: true })
-  assert.deepEqual(spendTrend(0.1, 0.1), { delta: '', detail: 'Same as previous week', good: false })
-  assert.deepEqual(spendTrend(0.1, 0), { delta: '', detail: 'No spend the week before', good: false })
+  assert.deepEqual(spendTrend(0.14, 0.1), {
+    delta: '↑ 40%',
+    detail: 'vs previous week',
+    good: false,
+  })
+  assert.deepEqual(spendTrend(0.08, 0.1), {
+    delta: '↓ 20%',
+    detail: 'vs previous week',
+    good: true,
+  })
+  assert.deepEqual(spendTrend(0.1, 0.1), {
+    delta: '',
+    detail: 'Same as previous week',
+    good: false,
+  })
+  assert.deepEqual(spendTrend(0.1, 0), {
+    delta: '',
+    detail: 'No spend the week before',
+    good: false,
+  })
   assert.deepEqual(spendTrend(0, 0), { delta: '', detail: 'No model spend yet', good: false })
   assert.deepEqual(runsTrend(12, 10), { delta: '↑ 20%', detail: 'vs previous week', good: false })
   assert.deepEqual(runsTrend(8, 10), { delta: '↓ 20%', detail: 'vs previous week', good: false })
   assert.deepEqual(runsTrend(3, 0), { delta: '', detail: 'No runs the week before', good: false })
   assert.equal(healthHeadline(['Weekly review'], 1, null), 'Weekly review is failing.')
   assert.equal(healthHeadline(['A', 'B'], 2, null), '2 jobs are failing.')
-  assert.equal(healthHeadline([], 1, 'Mon 26 Oct, 09:00 CET'), 'All jobs passing. Next shift Mon 26 Oct, 09:00 CET.')
+  assert.equal(
+    healthHeadline([], 1, 'Mon 26 Oct, 09:00 CET'),
+    'All jobs passing. Next shift Mon 26 Oct, 09:00 CET.',
+  )
   assert.equal(healthHeadline([], 0, null), 'No job is enabled yet.')
 })
 
@@ -232,9 +361,22 @@ test('connectionUsageLine says what uses a connection and what it cost', () => {
   assert.equal(connectionUsageLine(null, 'model', now), '')
   assert.equal(connectionUsageLine(usage, 'source', now), 'Imports and syncs repositories')
   assert.equal(connectionUsageLine(usage, 'model', now), 'Not used yet')
-  assert.equal(connectionUsageLine({ ...usage, last_used_at: '2026-10-13T12:00:00Z' }, 'model', now), 'Not used this week · last used last week')
   assert.equal(
-    connectionUsageLine({ ...usage, runs_7d: 3, spend_7d_usd: 0.11, spend_partial: true, last_used_at: '2026-10-23T10:00:00Z' }, 'model', now),
+    connectionUsageLine({ ...usage, last_used_at: '2026-10-13T12:00:00Z' }, 'model', now),
+    'Not used this week · last used last week',
+  )
+  assert.equal(
+    connectionUsageLine(
+      {
+        ...usage,
+        runs_7d: 3,
+        spend_7d_usd: 0.11,
+        spend_partial: true,
+        last_used_at: '2026-10-23T10:00:00Z',
+      },
+      'model',
+      now,
+    ),
     '3 runs · ≥$0.11 this week · last used 2 hours ago',
   )
   assert.equal(connectionUsageLine(usage, 'notification', now), 'No job uses it yet')
@@ -257,7 +399,10 @@ test('a job without a schedule reads as manual only', () => {
   assert.equal(statusLabel('webhook'), 'On webhook')
   assert.equal(jobState({ cron: '0 9 * * 1', enabled: false }), 'disabled')
   assert.equal(jobState({ cron: '0 9 * * 1', enabled: true }), 'enabled')
-  assert.equal(jobState({ cron: '0 9 * * 1', enabled: false, removed_at: '2026-11-07T10:00:00Z' }), 'removed')
+  assert.equal(
+    jobState({ cron: '0 9 * * 1', enabled: false, removed_at: '2026-11-07T10:00:00Z' }),
+    'removed',
+  )
   assert.equal(statusLabel('removed'), 'Removed from manifest')
 })
 
@@ -269,13 +414,21 @@ test('kindLabel and statusLabel use the same words on every page', () => {
 
 test('runStats distinguishes CLI-reported usage, zero and unavailable usage', () => {
   const base = {
-    started_at: null, finished_at: null,
-    model_tokens: 123, model_input_tokens: 120, model_output_tokens: 3,
-    model_cost_usd: null, model_cost_partial: false,
-    model_requests: 0, max_turns: null,
+    started_at: null,
+    finished_at: null,
+    model_tokens: 123,
+    model_input_tokens: 120,
+    model_output_tokens: 3,
+    model_cost_usd: null,
+    model_cost_partial: false,
+    model_requests: 0,
+    max_turns: null,
     model_usage_source: 'agent' as const,
   }
-  assert.deepEqual(runStats(base).map(stat => stat.text), ['123 tok reported'])
+  assert.deepEqual(
+    runStats(base).map((stat) => stat.text),
+    ['123 tok reported'],
+  )
   assert.equal(runStats(base)[0].title, 'CLI-reported: 120 input · 3 output tokens')
   assert.equal(runStats({ ...base, model_tokens: 0 })[0].text, '0 tok reported')
   assert.equal(runStats({ ...base, model_tokens: null })[0].text, 'Usage unavailable')

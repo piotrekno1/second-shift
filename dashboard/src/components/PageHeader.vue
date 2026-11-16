@@ -6,7 +6,7 @@ defineProps<{
   title: string
   aside?: string
   description: string
-  parent?: { label: string, to: string }
+  parent?: { label: string; to: string }
   compact?: boolean
 }>()
 </script>
@@ -17,7 +17,9 @@ defineProps<{
       <nav v-if="parent" class="crumbs" aria-label="Breadcrumb">
         <RouterLink :to="parent.to">{{ parent.label }}</RouterLink><span aria-hidden="true">/</span>
       </nav>
-      <h1>{{ title }}<span v-if="aside" class="title-aside">{{ aside }}</span></h1>
+      <h1>
+        {{ title }}<span v-if="aside" class="title-aside">{{ aside }}</span>
+      </h1>
       <p>{{ description }}</p>
     </div>
     <div class="page-actions"><slot /></div>

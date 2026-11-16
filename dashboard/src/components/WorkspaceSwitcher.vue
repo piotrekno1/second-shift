@@ -33,7 +33,13 @@ const items = computed<MenuItem[]>(() => {
   return [
     ...choices,
     { separator: true },
-    { label: 'New workspace', icon: 'plus', command: () => { creating.value = true } },
+    {
+      label: 'New workspace',
+      icon: 'plus',
+      command: () => {
+        creating.value = true
+      },
+    },
   ]
 })
 
@@ -70,23 +76,49 @@ onMounted(async () => {
     <strong class="workspace-name">{{ app.user?.workspace_name }}</strong>
     <AppIcon name="unfold-more-horizontal" />
   </button>
-  <RouterLink v-else to="/" class="workspace-switcher static" :title="roleLabel ? `${app.user?.workspace_name} · ${roleLabel}` : undefined">
+  <RouterLink
+    v-else
+    to="/"
+    class="workspace-switcher static"
+    :title="roleLabel ? `${app.user?.workspace_name} · ${roleLabel}` : undefined"
+  >
     <img src="/secondshift-mark.svg" alt="" class="brand-mark" />
     <strong class="workspace-name">{{ app.user?.workspace_name }}</strong>
   </RouterLink>
-  <Menu id="workspace-menu" ref="menu" :model="items" popup class="row-menu workspace-menu" @show="menuOpen = true" @hide="menuOpen = false">
+  <Menu
+    id="workspace-menu"
+    ref="menu"
+    :model="items"
+    popup
+    class="row-menu workspace-menu"
+    @show="menuOpen = true"
+    @hide="menuOpen = false"
+  >
     <template #start><div class="menu-heading">Workspaces</div></template>
     <template #item="{ item, props }">
-      <a v-bind="props.action" class="row-menu-item workspace-option" :aria-current="item.current ? 'true' : undefined">
-        <span v-if="item.workspaceRole" class="avatar small" aria-hidden="true">{{ item.initials }}</span>
+      <a
+        v-bind="props.action"
+        class="row-menu-item workspace-option"
+        :aria-current="item.current ? 'true' : undefined"
+      >
+        <span v-if="item.workspaceRole" class="avatar small" aria-hidden="true">{{
+          item.initials
+        }}</span>
         <AppIcon v-else name="plus" />
         <span class="workspace-option-name">{{ item.label }}</span>
-        <small v-if="item.workspaceRole" class="workspace-option-role">{{ item.workspaceRole }}</small>
+        <small v-if="item.workspaceRole" class="workspace-option-role">{{
+          item.workspaceRole
+        }}</small>
         <AppIcon v-if="item.current" name="check" class="workspace-current-check" />
       </a>
     </template>
   </Menu>
-  <Dialog v-model:visible="creating" modal header="New workspace" :style="{ width: 'min(480px, calc(100vw - 32px))' }">
+  <Dialog
+    v-model:visible="creating"
+    modal
+    header="New workspace"
+    :style="{ width: 'min(480px, calc(100vw - 32px))' }"
+  >
     <p class="dialog-lead">You will own it and can invite people from its Settings page.</p>
     <CreateWorkspaceForm />
   </Dialog>

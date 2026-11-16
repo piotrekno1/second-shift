@@ -13,16 +13,18 @@ const props = defineProps<{
 const model = defineModel<string | string[] | null>({ required: true })
 // Render both modes identically. Single selection keeps only the latest chip.
 const selectedModels = computed<string[]>({
-  get: () => Array.isArray(model.value) ? model.value : model.value ? [model.value] : [],
-  set: (values) => { model.value = props.multiple ? values : values.at(-1) ?? '' },
+  get: () => (Array.isArray(model.value) ? model.value : model.value ? [model.value] : []),
+  set: (values) => {
+    model.value = props.multiple ? values : (values.at(-1) ?? '')
+  },
 })
 const suggestions = ref<string[]>([])
 
 function search(event: AutoCompleteCompleteEvent): void {
   const query = event.query.trim().toLowerCase()
   const selected = selectedModels.value
-  suggestions.value = props.options.filter((option) =>
-    option.toLowerCase().includes(query) && !selected.includes(option),
+  suggestions.value = props.options.filter(
+    (option) => option.toLowerCase().includes(query) && !selected.includes(option),
   )
 }
 </script>
@@ -56,31 +58,113 @@ function search(event: AutoCompleteCompleteEvent): void {
 <style>
 /* The overlay is teleported to body, so these styles intentionally stay global. */
 .model-picker.p-autocomplete {
-  width: 100%; min-width: 0; min-height: 42px; align-items: stretch;
-  border: 1px solid var(--border); border-radius: var(--radius-md);
-  background: var(--white-6); color: var(--ink);
-  text-transform: none; letter-spacing: normal; font-size: var(--text-xs);
+  width: 100%;
+  min-width: 0;
+  min-height: 42px;
+  align-items: stretch;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--white-6);
+  color: var(--ink);
+  text-transform: none;
+  letter-spacing: normal;
+  font-size: var(--text-xs);
 }
-.model-picker.p-autocomplete:hover { border-color: var(--ink); }
-.model-picker.p-autocomplete:focus-within { border-color: var(--ink); box-shadow: 0 0 0 2px var(--white-18); }
+.model-picker.p-autocomplete:hover {
+  border-color: var(--ink);
+}
+.model-picker.p-autocomplete:focus-within {
+  border-color: var(--ink);
+  box-shadow: 0 0 0 2px var(--white-18);
+}
 .need-setup .model-picker .p-autocomplete-input,
 .model-picker .p-autocomplete-input-multiple {
-  flex: 1; width: 0; min-width: 0; min-height: 40px; margin: 0; padding: 8px 12px;
-  border: 0; border-radius: 8px 0 0 8px; background: transparent;
-  box-shadow: none; outline: none; color: var(--ink); font: inherit;
+  flex: 1;
+  width: 0;
+  min-width: 0;
+  min-height: 40px;
+  margin: 0;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 8px 0 0 8px;
+  background: transparent;
+  box-shadow: none;
+  outline: none;
+  color: var(--ink);
+  font: inherit;
 }
-.model-picker .p-autocomplete-input-multiple { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
-.model-picker .p-autocomplete-input-multiple input { width: 100%; min-width: 80px; padding: 0; color: var(--ink); background: transparent; font: inherit; }
-.model-picker input::placeholder { color: var(--muted); opacity: 1; }
-.model-picker .p-autocomplete-input-chip { flex: 1; min-width: 80px; }
-.model-picker .p-chip { max-width: 100%; padding: 4px 8px; border-radius: var(--radius-sm); color: var(--ink); background: var(--white-12); font-size: var(--text-xs); line-height: 18px; }
-.model-picker .p-chip-label { overflow-wrap: anywhere; }
-.model-picker .p-autocomplete-dropdown { width: 36px; border: 0; border-radius: 0 8px 8px 0; background: transparent; color: var(--muted); }
-.model-picker .p-autocomplete-dropdown:hover { background: var(--white-12); color: var(--ink); }
-.model-picker-overlay.p-autocomplete-overlay { border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--night-800); color: var(--ink); box-shadow: var(--shadow); text-transform: none; letter-spacing: normal; }
-.model-picker-overlay .p-autocomplete-option { min-height: 40px; padding: 8px 12px; color: var(--ink); font-size: var(--text-xs); }
+.model-picker .p-autocomplete-input-multiple {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.model-picker .p-autocomplete-input-multiple input {
+  width: 100%;
+  min-width: 80px;
+  padding: 0;
+  color: var(--ink);
+  background: transparent;
+  font: inherit;
+}
+.model-picker input::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
+.model-picker .p-autocomplete-input-chip {
+  flex: 1;
+  min-width: 80px;
+}
+.model-picker .p-chip {
+  max-width: 100%;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  background: var(--white-12);
+  font-size: var(--text-xs);
+  line-height: 18px;
+}
+.model-picker .p-chip-label {
+  overflow-wrap: anywhere;
+}
+.model-picker .p-autocomplete-dropdown {
+  width: 36px;
+  border: 0;
+  border-radius: 0 8px 8px 0;
+  background: transparent;
+  color: var(--muted);
+}
+.model-picker .p-autocomplete-dropdown:hover {
+  background: var(--white-12);
+  color: var(--ink);
+}
+.model-picker-overlay.p-autocomplete-overlay {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--night-800);
+  color: var(--ink);
+  box-shadow: var(--shadow);
+  text-transform: none;
+  letter-spacing: normal;
+}
+.model-picker-overlay .p-autocomplete-option {
+  min-height: 40px;
+  padding: 8px 12px;
+  color: var(--ink);
+  font-size: var(--text-xs);
+}
 .model-picker-overlay .p-autocomplete-option:hover,
-.model-picker-overlay .p-autocomplete-option.p-focus { background: var(--white-12); color: var(--ink); }
-.model-picker-overlay .p-autocomplete-option-selected { background: var(--white-12); color: var(--ink); }
-.model-picker-overlay .p-autocomplete-empty-message { padding: 12px; color: var(--muted); font-size: var(--text-xs); }
+.model-picker-overlay .p-autocomplete-option.p-focus {
+  background: var(--white-12);
+  color: var(--ink);
+}
+.model-picker-overlay .p-autocomplete-option-selected {
+  background: var(--white-12);
+  color: var(--ink);
+}
+.model-picker-overlay .p-autocomplete-empty-message {
+  padding: 12px;
+  color: var(--muted);
+  font-size: var(--text-xs);
+}
 </style>

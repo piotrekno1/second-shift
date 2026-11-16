@@ -5,7 +5,7 @@ export interface FilterOption {
   count?: number
 }
 
-defineProps<{ modelValue: string, options: FilterOption[], label: string }>()
+defineProps<{ modelValue: string; options: FilterOption[]; label: string }>()
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
 </script>
 
