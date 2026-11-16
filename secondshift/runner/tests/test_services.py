@@ -94,6 +94,9 @@ def test_container_flags_are_server_owned(settings, tmp_path: Path) -> None:
     assert [part for part in command if part.startswith("--env")] == [
         "--env=HOME=/tmp",
         "--env=PYTHONDONTWRITEBYTECODE=1",
+        "--env=GIT_CONFIG_COUNT=1",
+        "--env=GIT_CONFIG_KEY_0=safe.directory",
+        "--env=GIT_CONFIG_VALUE_0=/workspace",
     ]
     assert command[-3:] == ["secondshift-runner:test", "sleep", "infinity"]
 
@@ -346,6 +349,9 @@ def test_the_baseline_is_recorded_only_when_the_spec_asks(
     DockerRunnerService().start(spec)
 
     assert bool(recorded) is collect_changes
+    # The sandbox's own repository is there either way.
+    workspace = tmp_path / "sessions" / spec.session_id / "workspace"
+    assert (workspace / ".git" / "HEAD").is_file()
     session = RunnerSession.objects.get(session_id=spec.session_id)
     assert session.collect_changes is collect_changes
     # A retry that asks differently is a different session, and is refused.

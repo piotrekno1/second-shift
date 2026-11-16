@@ -99,8 +99,11 @@ them. Repositories can never choose the image. A custom image must:
   `HOME=/tmp` and the repository mounted at `/workspace`
 - contain no credentials, Docker client or SecondShift code.
 
-Git is not needed in the image: the runner checks out the commit itself. Pin
-custom images by digest (`name@sha256:…`) so a pushed tag can't change what runs.
+The runner checks out the commit itself, so the image needs no git to run
+skills. The workspace holds a git repository with one commit of those files and
+no earlier history. The default image has no git, so add it to a custom image
+if skills run `git status` or `git diff`. Pin custom images by digest
+(`name@sha256:…`) so a pushed tag can't change what runs.
 
 Self-hosting the control plane does not by itself keep repository content local:
 the configured model provider receives the context sent to it. An

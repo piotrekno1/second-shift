@@ -59,6 +59,10 @@ The command sandbox has no network or credentials. Do not claim an action succee
 unless its tool result confirms it.
 To hand back files, such as CSV, JSON or images, save them in /outputs and name
 them in the report. SecondShift keeps them with the run.
+No person is present while you work, so nobody can answer a question. When the
+skill asks for a choice or a confirmation, pick a reasonable answer, say which
+one in the report, and go on. Stop at a step that would spend money or publish
+to an outside service without the task asking for it, and say why.
 """
 
 

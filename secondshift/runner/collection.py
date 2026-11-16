@@ -2,8 +2,10 @@
 
 When a session that collects changes starts, the runner records the unpacked
 commit in a git folder beside the workspace, outside the sandbox's mounts, so
-the agent cannot change it. After the agent finishes, the runner stops the sandbox and compares the
-workspace with that record. The result is one archive:
+the agent cannot change it. The sandbox gets its own repository in the
+workspace, with one commit of the same files, which the agent may change as it
+likes. After the agent finishes, the runner stops the sandbox and compares the
+workspace with the baseline. The result is one archive:
 
 - ``manifest.json`` describes the changes and the saved files
 - ``changes.patch`` is a binary-safe git diff, if anything changed
@@ -31,6 +33,10 @@ from secondshift.config.constants import (
 from secondshift.runner.protocol import RunnerProtocolError
 
 BASELINE_DIR = "baseline.git"
+# The repository the sandbox sees, inside the workspace.
+WORKSPACE_GIT_DIR = ".git"
+GIT_NAME = "SecondShift"
+GIT_EMAIL = "runner@secondshift.invalid"
 OUTPUTS_DIR = "outputs"
 COLLECTION_FILE = "collection.tar.gz"
 MANIFEST_NAME = "manifest.json"
@@ -48,13 +54,12 @@ NO_CHANGES = {
 
 
 def git(
-    session_root: Path,
+    git_dir: Path,
     workspace: Path,
     *args: str,
     stdout: IO[bytes] | None = None,
     work_tree: bool = True,
 ) -> subprocess.CompletedProcess[bytes]:
-    git_dir = session_root / BASELINE_DIR
     command = [
         "git",
         # The workspace belongs to the sandbox user, not to the runner.
@@ -79,10 +84,10 @@ def git(
         "LC_ALL": "C",
         "GIT_CONFIG_NOSYSTEM": "1",
         "GIT_CONFIG_GLOBAL": os.devnull,
-        "GIT_AUTHOR_NAME": "SecondShift",
-        "GIT_AUTHOR_EMAIL": "runner@secondshift.invalid",
-        "GIT_COMMITTER_NAME": "SecondShift",
-        "GIT_COMMITTER_EMAIL": "runner@secondshift.invalid",
+        "GIT_AUTHOR_NAME": GIT_NAME,
+        "GIT_AUTHOR_EMAIL": GIT_EMAIL,
+        "GIT_COMMITTER_NAME": GIT_NAME,
+        "GIT_COMMITTER_EMAIL": GIT_EMAIL,
     }
     try:
         return subprocess.run(
@@ -105,22 +110,52 @@ def require_git(result: subprocess.CompletedProcess[bytes]) -> None:
 
 def record_baseline(session_root: Path, workspace: Path) -> None:
     """Commit the unpacked files, before the sandbox can change them."""
-    git_dir = session_root / BASELINE_DIR
-    git_dir.mkdir(mode=0o700)
-    require_git(
-        git(session_root, workspace, "init", "--quiet", "--bare", work_tree=False)
-    )
+    baseline = session_root / BASELINE_DIR
+    baseline.mkdir(mode=0o700)
+    require_git(git(baseline, workspace, "init", "--quiet", "--bare", work_tree=False))
     # Forced, so a committed file that matches .gitignore is compared too.
-    require_git(git(session_root, workspace, "add", "--all", "--force", "."))
+    require_git(git(baseline, workspace, "add", "--all", "--force", "."))
     require_git(
         git(
-            session_root,
+            baseline,
             workspace,
             "commit",
             "--quiet",
             "--no-verify",
             "--allow-empty",
             "--message=Run baseline",
+        )
+    )
+
+
+def record_workspace_commit(workspace: Path, repository: str, commit_sha: str) -> None:
+    """Give the sandbox a git repository with one commit of the unpacked files.
+
+    Skills run git status, git diff and git rev-parse to check their work.
+    The commit has no parents, so nothing the files no longer show, such as a
+    deleted secret, reaches the sandbox. The agent may change this repository
+    as it likes. Its changes are still collected against the baseline, which
+    it cannot reach.
+    """
+    repository_dir = workspace / WORKSPACE_GIT_DIR
+    # Snapshots never hold .git. A link here must not be followed.
+    if repository_dir.exists() or repository_dir.is_symlink():
+        raise RunnerProtocolError("The run's source files may not hold a .git folder.")
+    # Without a work tree option, the config names no host path, so git finds
+    # the files from /workspace in the sandbox.
+    require_git(git(repository_dir, workspace, "init", "--quiet", work_tree=False))
+    for name, value in (("user.name", GIT_NAME), ("user.email", GIT_EMAIL)):
+        require_git(git(repository_dir, workspace, "config", name, value))
+    require_git(git(repository_dir, workspace, "add", "--all", "--force", "."))
+    require_git(
+        git(
+            repository_dir,
+            workspace,
+            "commit",
+            "--quiet",
+            "--no-verify",
+            "--allow-empty",
+            f"--message={repository} at {commit_sha}",
         )
     )
 
@@ -156,9 +191,10 @@ def collect(session_root: Path, workspace: Path) -> Path:
 
 def compare(session_root: Path, workspace: Path, patch_path: Path) -> dict[str, Any]:
     """Write the changes since the baseline, if they fit, and describe them."""
+    baseline = session_root / BASELINE_DIR
     # Not forced: new files that match .gitignore, such as build output, stay out.
-    require_git(git(session_root, workspace, "add", "--all", "."))
-    names = git(session_root, workspace, "diff", "--cached", "--name-only", "-z")
+    require_git(git(baseline, workspace, "add", "--all", "."))
+    names = git(baseline, workspace, "diff", "--cached", "--name-only", "-z")
     require_git(names)
     paths = [
         item.decode(errors="replace") for item in names.stdout.split(b"\0") if item
@@ -166,7 +202,7 @@ def compare(session_root: Path, workspace: Path, patch_path: Path) -> dict[str, 
     with patch_path.open("wb") as stream:
         require_git(
             git(
-                session_root,
+                baseline,
                 workspace,
                 "diff",
                 "--cached",

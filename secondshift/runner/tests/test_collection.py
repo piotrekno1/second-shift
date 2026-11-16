@@ -7,7 +7,12 @@ from pathlib import Path
 import pytest
 
 from secondshift.runner import collection
-from secondshift.runner.collection import collect, record_baseline
+from secondshift.runner.collection import (
+    collect,
+    record_baseline,
+    record_workspace_commit,
+)
+from secondshift.runner.protocol import RunnerProtocolError
 
 
 @pytest.fixture
@@ -210,3 +215,58 @@ def test_a_session_without_a_baseline_still_returns_saved_files(
     assert manifest["changes"] == collection.NO_CHANGES
     assert collection.CHANGES_NAME not in contents
     assert contents["outputs/report.csv"] == b"a\n"
+
+
+def sandbox_git(workspace: Path, *args: str) -> str:
+    """Git as the agent runs it, from the workspace with no other settings."""
+    return subprocess.run(
+        ["git", *args],
+        cwd=workspace,
+        env={"PATH": "/usr/bin:/bin:/usr/local/bin:/opt/homebrew/bin", "HOME": "/"},
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout
+
+
+def test_the_sandbox_gets_one_clean_commit_of_the_files(
+    session: tuple[Path, Path],
+) -> None:
+    workspace = session[1]
+
+    record_workspace_commit(workspace, "example/project", "a" * 40)
+
+    assert sandbox_git(workspace, "status", "--porcelain") == ""
+    assert sandbox_git(workspace, "rev-list", "--count", "HEAD") == "1\n"
+    assert sandbox_git(workspace, "log", "-1", "--format=%s") == (
+        f"example/project at {'a' * 40}\n"
+    )
+    # Even a file that matches .gitignore is committed, as in the real commit.
+    assert "kept.log" in sandbox_git(workspace, "ls-files")
+    # Moving the folder, as the sandbox's mount does, keeps it working.
+    assert "worktree" not in (workspace / ".git" / "config").read_text()
+
+
+def test_the_agents_own_commits_still_reach_the_patch(
+    session: tuple[Path, Path],
+) -> None:
+    root, workspace = session
+    record_workspace_commit(workspace, "example/project", "a" * 40)
+    (workspace / "README.md").write_text("committed by the agent\n")
+    sandbox_git(workspace, "commit", "--quiet", "-am", "Agent commit")
+
+    manifest, contents = read_archive(collect(root, workspace))
+
+    assert manifest["changes"]["files"] == ["README.md"]
+    assert b"committed by the agent" in contents[collection.CHANGES_NAME]
+
+
+def test_an_existing_git_folder_is_refused(tmp_path: Path) -> None:
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    (workspace / ".git").symlink_to(tmp_path / "elsewhere")
+
+    with pytest.raises(RunnerProtocolError, match="may not hold a"):
+        record_workspace_commit(workspace, "example/project", "a" * 40)
+
+    assert not (tmp_path / "elsewhere").exists()
