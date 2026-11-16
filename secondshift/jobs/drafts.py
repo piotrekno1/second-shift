@@ -10,14 +10,13 @@ from dataclasses import dataclass, field
 
 import yaml
 
-from secondshift.config.constants import MANIFEST_FILE
 from secondshift.connections.dao import connections_by_binding
 from secondshift.connections.models import Connection
 from secondshift.jobs.dao import find_request
 from secondshift.jobs.manifest import JobManifest, ManifestError, parse_manifest
 from secondshift.jobs.models import CapabilityRequest, JobGrant
 from secondshift.jobs.needs import NeedStatus, connection_problem
-from secondshift.repositories.models import Repository
+from secondshift.repositories.models import MANIFEST_FILE, Repository
 from secondshift.workspaces.models import Workspace
 
 NEW_ACCESS_DETAIL = "Connected. An owner approves it after the manifest is synced."

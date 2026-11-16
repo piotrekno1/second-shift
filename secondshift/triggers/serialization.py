@@ -1,7 +1,6 @@
 from django.conf import settings
 
-from secondshift.config.constants import TriggerKind
-from secondshift.jobs.manifest import WebhookManifest
+from secondshift.jobs.manifest import TriggerKind, WebhookManifest
 from secondshift.jobs.models import Job
 from secondshift.triggers.dao import recent_events
 from secondshift.triggers.models import JobTrigger

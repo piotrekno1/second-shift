@@ -64,25 +64,6 @@ class AppEnv(StrEnum):
 
 GITHUB_HOST = "github.com"
 GITHUB_BASE_URL = f"https://{GITHUB_HOST}"
-# The model gateway refuses a run past its token budget with this message.
-TOKEN_BUDGET_MESSAGE = "This run has used its token budget."
-
-
-class TriggerKind(StrEnum):
-    """Events a repository may ask to start a job. Never a URL or a secret."""
-
-    WEBHOOK = "webhook"
-
-
-class ModelFamily(StrEnum):
-    """The API shape a model provider speaks. Names the gateway's URL path."""
-
-    ANTHROPIC = "anthropic"
-    OPENAI = "openai"
-
-
-# How much of a report a run keeps as its summary. Webhooks send the summary.
-SUMMARY_MAX_CHARS = 4_000
 
 
 class Environment(StrEnum):
@@ -126,6 +107,3 @@ DEFAULT_SANDBOX_IMAGE = (
     "python:3.13-slim"
     "@sha256:57b29a7c050c4e679e4bea572e14b3965cf4b5839de2da49d55e49ffc4024f39"
 )
-
-# The repository file that lists jobs, at the repository root.
-MANIFEST_FILE = ".secondshift.yaml"

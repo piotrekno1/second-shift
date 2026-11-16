@@ -5,7 +5,7 @@ from dataclasses import asdict, dataclass, field
 from typing import Any
 
 from secondshift.agent.image.outcomes import budget_count
-from secondshift.config.constants import ModelFamily
+from secondshift.connections.model_providers import ModelFamily
 from secondshift.gateway.dao import aadd_used_tokens, acreate_model_usage
 from secondshift.gateway.models import RunToken
 from secondshift.gateway.pricing import request_cost

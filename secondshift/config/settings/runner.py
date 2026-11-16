@@ -127,12 +127,14 @@ AGENT_IMAGE = env.str(AppEnv.AGENT_IMAGE, default=LOCAL_AGENT_TAG if LOCAL else 
 AGENT_IMAGE_TAGS_ALLOWED = LOCAL
 AGENT_RESOLV_CONF = env.str(AppEnv.AGENT_RESOLV_CONF, default="")
 AGENT_NETWORK = env.str(AppEnv.AGENT_NETWORK, default="bridge")
+# On one machine, agent containers reach the gateway on the Docker host.
+SINGLE_HOST = os.environ.get(ENVIRONMENT_VAR) in {Environment.DEV, Environment.LOCAL}
 AGENT_BROKER_URL = env.str(
     AppEnv.AGENT_BROKER_URL,
     default=local_agent_broker_url(
         env.str(AppEnv.MODEL_GATEWAY_URL, default=LOCAL_GATEWAY_URL)
     )
-    if LOCAL
+    if SINGLE_HOST
     else "",
 )
 

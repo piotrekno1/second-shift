@@ -3,7 +3,7 @@ from datetime import datetime
 from ninja import Schema
 from pydantic import Field
 
-from secondshift.config.constants import TriggerKind
+from secondshift.jobs.manifest import TriggerKind
 
 
 class TriggerEventSchema(Schema):
