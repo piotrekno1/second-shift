@@ -57,8 +57,10 @@ class GitError(Exception):
         *,
         timed_out: bool = False,
     ) -> None:
-        command = arguments[0] if arguments else "git"
-        super().__init__(f"git {command} {'timed out' if timed_out else 'failed'}.")
+        # The first argument that is not an option, so no path reaches the message.
+        command = next((item for item in arguments if not item.startswith("-")), "")
+        outcome = "timed out" if timed_out else "failed"
+        super().__init__(" ".join(filter(None, ("git", command, outcome))) + ".")
         self.command = command
         # None when git timed out or could not start.
         self.returncode = returncode

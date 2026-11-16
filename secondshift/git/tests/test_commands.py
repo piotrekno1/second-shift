@@ -149,3 +149,10 @@ def test_output_can_go_to_a_file(tmp_path: Path) -> None:
 
     assert result.returncode == 0
     assert destination.read_text() == "Change\n"
+
+
+def test_the_message_names_the_command_but_no_path(tmp_path: Path) -> None:
+    with pytest.raises(GitError) as caught:
+        commands.output(tmp_path, f"--git-dir={tmp_path}/missing", "status")
+
+    assert str(caught.value) == "git status failed."

@@ -24,6 +24,8 @@ import tarfile
 from pathlib import Path
 from typing import IO, Any
 
+from secondshift.git import commands
+from secondshift.git.commands import GitError
 from secondshift.runner_protocol.collection import (
     CHANGES_NAME,
     MANIFEST_NAME,
@@ -46,6 +48,18 @@ GIT_NAME = "SecondShift"
 GIT_EMAIL = "runner@secondshift.invalid"
 COLLECTION_FILE = "collection.tar.gz"
 GIT_TIMEOUT_SECONDS = 300
+GIT_SETTINGS = (
+    # The workspace belongs to the sandbox user, not to the runner.
+    "safe.directory=*",
+    "core.autocrlf=false",
+    "core.symlinks=true",
+)
+GIT_AUTHOR = {
+    "GIT_AUTHOR_NAME": GIT_NAME,
+    "GIT_AUTHOR_EMAIL": GIT_EMAIL,
+    "GIT_COMMITTER_NAME": GIT_NAME,
+    "GIT_COMMITTER_EMAIL": GIT_EMAIL,
+}
 NO_CHANGES = {
     "file_count": 0,
     "files": [],
@@ -62,46 +76,21 @@ def git(
     stdout: IO[bytes] | None = None,
     work_tree: bool = True,
 ) -> subprocess.CompletedProcess[bytes]:
-    command = [
-        "git",
-        # The workspace belongs to the sandbox user, not to the runner.
-        "-c",
-        "safe.directory=*",
-        "-c",
-        "core.hooksPath=/dev/null",
-        "-c",
-        "core.fsmonitor=false",
-        "-c",
-        "core.autocrlf=false",
-        "-c",
-        "core.symlinks=true",
-        f"--git-dir={git_dir}",
-        # git init refuses a work tree. Every other command compares one.
-        *([f"--work-tree={workspace}"] if work_tree else []),
-        *args,
-    ]
-    environment = {
-        "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
-        "HOME": str(git_dir),
-        "LC_ALL": "C",
-        "GIT_CONFIG_NOSYSTEM": "1",
-        "GIT_CONFIG_GLOBAL": os.devnull,
-        "GIT_AUTHOR_NAME": GIT_NAME,
-        "GIT_AUTHOR_EMAIL": GIT_EMAIL,
-        "GIT_COMMITTER_NAME": GIT_NAME,
-        "GIT_COMMITTER_EMAIL": GIT_EMAIL,
-    }
     try:
-        return subprocess.run(
-            command,
-            cwd=workspace,
-            env=environment,
-            stdout=stdout if stdout is not None else subprocess.PIPE,
-            stderr=subprocess.PIPE,
+        return commands.run(
+            workspace,
+            f"--git-dir={git_dir}",
+            # git init refuses a work tree. Every other command compares one.
+            *([f"--work-tree={workspace}"] if work_tree else []),
+            *args,
+            settings=GIT_SETTINGS,
+            extra_environment=GIT_AUTHOR,
+            # Never the workspace, whose files the sandbox chose.
+            home=git_dir,
             timeout=GIT_TIMEOUT_SECONDS,
-            check=False,
+            stdout=stdout,
         )
-    except (OSError, subprocess.TimeoutExpired) as error:
+    except GitError as error:
         raise RunnerProtocolError("The runner could not compare the files.") from error
 
 
