@@ -15,8 +15,6 @@ SETTINGS_MODULE_VAR = "DJANGO_SETTINGS_MODULE"
 SERVICE_VAR = "SECONDSHIFT_SERVICE"
 
 
-GUNICORN_CONFIG = "python:secondshift.config.gunicorn"
-
 # How agent containers reach services on the Docker host.
 HOST_ALIAS = "host.docker.internal"
 # `secondshift up` builds this tag from the installed package.
@@ -97,8 +95,6 @@ MAX_OUTPUT_BYTES = 100 * 1024 * 1024
 # Earlier runs' saved files that one run gets back. Uploaded like a snapshot,
 # so it stays under that limit even when the files do not compress.
 MAX_HISTORY_FILES_BYTES = 48 * 1024 * 1024
-# Issues one run may open. A weekly review should file a few, not dozens.
-MAX_RUN_ISSUES = 10
 # Where a sandbox has the repository's files. Commands start here.
 SANDBOX_WORKSPACE_DIR = "/workspace"
 # Where a sandbox finds the folder for files it wants to hand back.
@@ -107,10 +103,6 @@ SANDBOX_OUTPUTS_DIR = "/outputs"
 SANDBOX_HISTORY_DIR = "/history"
 # Where a sandbox finds a skill from another repository. Read-only.
 SANDBOX_SKILL_DIR = "/skill"
-# Limits for a skill from another repository: its SKILL.md and the files beside it.
-MAX_SKILL_FILES = 500
-MAX_SKILL_UNPACKED_BYTES = 20 * 1024 * 1024
-MAX_SKILL_SNAPSHOT_BYTES = 10 * 1024 * 1024
 # The model gateway refuses a run past its token budget with this message.
 TOKEN_BUDGET_MESSAGE = "This run has used its token budget."
 
@@ -176,9 +168,6 @@ DEFAULT_SANDBOX_IMAGE = (
 
 # The repository file that lists jobs, at the repository root.
 MANIFEST_FILE = ".secondshift.yaml"
-
-# How much of a skill file a job keeps for people to read in the dashboard.
-MAX_SKILL_PREVIEW_CHARS = 200_000
 
 
 class AgentBackend(StrEnum):

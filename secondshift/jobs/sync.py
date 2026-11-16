@@ -11,7 +11,6 @@ from dataclasses import dataclass
 from django.db import models, transaction
 from django.utils import timezone
 
-from secondshift.config.constants import MAX_SKILL_PREVIEW_CHARS
 from secondshift.connections.dao import bound_connections
 from secondshift.jobs.automatic_grants import automatic_approval
 from secondshift.jobs.dao import (
@@ -34,6 +33,9 @@ from secondshift.jobs.models import CapabilityRequest, Job, JobGrant
 from secondshift.jobs.scheduling import next_occurrence
 from secondshift.jobs.tool_rules import kept_rules
 from secondshift.repositories.models import Repository
+
+# How much of a skill file a job keeps for people to read in the dashboard.
+MAX_SKILL_PREVIEW_CHARS = 200_000
 
 
 @dataclass(frozen=True)

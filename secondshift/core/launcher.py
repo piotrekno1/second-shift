@@ -22,7 +22,6 @@ from django.conf import settings
 
 from secondshift.config.constants import (
     ENVIRONMENT_VAR,
-    GUNICORN_CONFIG,
     RUNNER_SETTINGS,
     SERVICE_VAR,
     SETTINGS_MODULE_VAR,
@@ -52,6 +51,7 @@ RUNNER_ENV_NAMES = {
 }
 RUNNER_ENV_PREFIXES = ("DOCKER_", "SECONDSHIFT_RUNNER_")
 STOP_SECONDS = 15
+GUNICORN_CONFIG = "python:secondshift.config.gunicorn"
 
 
 @dataclass(frozen=True)

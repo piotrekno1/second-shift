@@ -17,14 +17,16 @@ from pathlib import Path
 from typing import IO
 
 from secondshift.config.constants import (
-    MAX_SKILL_FILES,
-    MAX_SKILL_SNAPSHOT_BYTES,
-    MAX_SKILL_UNPACKED_BYTES,
     MAX_SOURCE_FILES,
     MAX_SOURCE_SNAPSHOT_BYTES,
     MAX_SOURCE_UNPACKED_BYTES,
 )
 
+# Limits for a skill from another repository: its SKILL.md and the files
+# beside it.
+MAX_SKILL_FILES = 500
+MAX_SKILL_UNPACKED_BYTES = 20 * 1024 * 1024
+MAX_SKILL_SNAPSHOT_BYTES = 10 * 1024 * 1024
 REGULAR_FILE_MODES = {"100644": 0o644, "100755": 0o755}
 SYMLINK_MODE = "120000"
 SUBMODULE_MODE = "160000"

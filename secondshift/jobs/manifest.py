@@ -21,9 +21,11 @@ from pydantic_core import ErrorDetails
 from secondshift.config.constants import (
     COMMIT_SHA_PATTERN,
     GITHUB_REPOSITORY_PATTERN,
-    MAX_RUN_ISSUES,
     TriggerKind,
 )
+
+# Issues one run may open. A weekly review should file a few, not dozens.
+MAX_RUN_ISSUES = 10
 
 
 class CapabilityManifest(BaseModel):
