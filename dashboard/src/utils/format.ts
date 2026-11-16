@@ -35,22 +35,38 @@ export function formatRelative(value: string | null, now = Date.now()): string {
   const seconds = Math.round((Date.parse(value) - now) / 1000)
   if (Math.abs(seconds) < 45) return 'just now'
   const units: [Intl.RelativeTimeFormatUnit, number][] = [
-    ['year', 31_536_000], ['month', 2_592_000], ['week', 604_800],
-    ['day', 86_400], ['hour', 3_600], ['minute', 60],
+    ['year', 31_536_000],
+    ['month', 2_592_000],
+    ['week', 604_800],
+    ['day', 86_400],
+    ['hour', 3_600],
+    ['minute', 60],
   ]
   const [unit, size] = units.find(([, length]) => Math.abs(seconds) >= length) ?? ['minute', 60]
-  return new Intl.RelativeTimeFormat('en', { numeric: 'auto' }).format(Math.round(seconds / size), unit)
+  return new Intl.RelativeTimeFormat('en', { numeric: 'auto' }).format(
+    Math.round(seconds / size),
+    unit,
+  )
 }
 
 function clock(value: string, timeZone: string): string {
-  return new Intl.DateTimeFormat(LOCALE, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone }).format(new Date(value))
+  return new Intl.DateTimeFormat(LOCALE, {
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+    timeZone,
+  }).format(new Date(value))
 }
 
 /**
  * A scheduled time in the job's own timezone, so it matches the schedule
  * ("Mondays at 09:00"). Viewers elsewhere also get their local clock time.
  */
-export function formatScheduled(value: string | null, jobTimeZone: string, viewerZone = viewerTimeZone()): string {
+export function formatScheduled(
+  value: string | null,
+  jobTimeZone: string,
+  viewerZone = viewerTimeZone(),
+): string {
   if (!value) return 'Not scheduled'
   const scheduled = new Intl.DateTimeFormat(LOCALE, {
     weekday: 'short',
@@ -66,9 +82,30 @@ export function formatScheduled(value: string | null, jobTimeZone: string, viewe
   return local === clock(value, jobTimeZone) ? scheduled : `${scheduled} · ${local} your time`
 }
 
-const DAY_NAMES = ['Sundays', 'Mondays', 'Tuesdays', 'Wednesdays', 'Thursdays', 'Fridays', 'Saturdays']
+const DAY_NAMES = [
+  'Sundays',
+  'Mondays',
+  'Tuesdays',
+  'Wednesdays',
+  'Thursdays',
+  'Fridays',
+  'Saturdays',
+]
 const SHORT_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-const SHORT_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+const SHORT_MONTHS = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+]
 
 function expandDays(field: string): number[] | null {
   const days = new Set<number>()
@@ -110,7 +147,8 @@ export function describeCron(cron: string): string {
   if (!/^\d+$/.test(hour)) return cron
   const time = `${hour.padStart(2, '0')}:${mm}`
   if (dayOfMonth === '*' && dayOfWeek === '*') return `Daily at ${time}`
-  if (dayOfWeek === '*' && /^\d+$/.test(dayOfMonth)) return `Monthly on day ${dayOfMonth} at ${time}`
+  if (dayOfWeek === '*' && /^\d+$/.test(dayOfMonth))
+    return `Monthly on day ${dayOfMonth} at ${time}`
   if (dayOfMonth !== '*') return cron
   const days = expandDays(dayOfWeek)
   if (!days) return cron
@@ -121,12 +159,21 @@ export function describeCron(cron: string): string {
 }
 
 /** A job without a schedule starts from a webhook when it has one, and otherwise only with Run now. */
-export function formatSchedule(cron: string, timezone: string, triggers: readonly string[] = []): string {
+export function formatSchedule(
+  cron: string,
+  timezone: string,
+  triggers: readonly string[] = [],
+): string {
   if (!cron) return triggers.length ? 'On webhook' : 'Manual only'
   return `${describeCron(cron)} · ${timezone}`
 }
 
-export function jobState(job: { cron: string, enabled: boolean, removed_at?: string | null, triggers?: readonly string[] }): 'enabled' | 'disabled' | 'manual' | 'webhook' | 'removed' {
+export function jobState(job: {
+  cron: string
+  enabled: boolean
+  removed_at?: string | null
+  triggers?: readonly string[]
+}): 'enabled' | 'disabled' | 'manual' | 'webhook' | 'removed' {
   if (job.removed_at) return 'removed'
   if (!job.cron) return job.triggers?.length ? 'webhook' : 'manual'
   return job.enabled ? 'enabled' : 'disabled'
@@ -174,7 +221,10 @@ export function statusLabel(status: string): string {
 
 /** Job-level access status, worded for a pill next to "Enabled". */
 export function accessLabel(status: string): string {
-  return { pending: 'Needs approval', approved: 'Access approved', denied: 'Access denied' }[status] ?? statusLabel(status)
+  return (
+    { pending: 'Needs approval', approved: 'Access approved', denied: 'Access denied' }[status] ??
+    statusLabel(status)
+  )
 }
 
 /** Whether a job's access status needs someone to act. */
@@ -227,12 +277,20 @@ export function formatDuration(start: string | null, end: string | null, now = D
 
 /** "11:59:41", for timelines whose heading names the zone. */
 export function formatTime(value: string, timeZone?: string): string {
-  return new Intl.DateTimeFormat(LOCALE, { hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23', timeZone }).format(new Date(value))
+  return new Intl.DateTimeFormat(LOCALE, {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+    timeZone,
+  }).format(new Date(value))
 }
 
 /** Short name of a zone at a moment, e.g. "CEST" or "GMT-4". */
 export function zoneName(value: string, timeZone?: string): string {
-  const parts = new Intl.DateTimeFormat(LOCALE, { timeZoneName: 'short', timeZone }).formatToParts(new Date(value))
+  const parts = new Intl.DateTimeFormat(LOCALE, { timeZoneName: 'short', timeZone }).formatToParts(
+    new Date(value),
+  )
   return parts.find((part) => part.type === 'timeZoneName')?.value ?? ''
 }
 
@@ -244,7 +302,9 @@ export function formatBytes(bytes: number | null): string {
 }
 
 export function formatTokens(tokens: number): string {
-  return new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(tokens)
+  return new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(
+    tokens,
+  )
 }
 
 export function formatCost(costUsd: number, partial = false): string {
@@ -261,9 +321,22 @@ export interface RunStat {
 
 type RunStatSource = Pick<
   Run,
-  'started_at' | 'finished_at' | 'model_tokens' | 'model_input_tokens' | 'model_output_tokens'
-  | 'model_cost_usd' | 'model_cost_partial' | 'model_requests' | 'max_turns'
-> & Partial<Pick<Run, 'token_budget' | 'model_usage_source' | 'model_cache_read_tokens' | 'model_budget_tokens'>>
+  | 'started_at'
+  | 'finished_at'
+  | 'model_tokens'
+  | 'model_input_tokens'
+  | 'model_output_tokens'
+  | 'model_cost_usd'
+  | 'model_cost_partial'
+  | 'model_requests'
+  | 'max_turns'
+> &
+  Partial<
+    Pick<
+      Run,
+      'token_budget' | 'model_usage_source' | 'model_cache_read_tokens' | 'model_budget_tokens'
+    >
+  >
 
 /** Comparable numbers for one run, in a fixed order, for list rows. */
 export function runStats(run: RunStatSource, now = Date.now()): RunStat[] {
@@ -300,7 +373,11 @@ export function runStats(run: RunStatSource, now = Date.now()): RunStat[] {
     })
   }
   if (agentUsage && run.model_tokens == null) {
-    stats.push({ key: 'tokens', text: 'Usage unavailable', title: 'The CLI did not report token usage' })
+    stats.push({
+      key: 'tokens',
+      text: 'Usage unavailable',
+      title: 'The CLI did not report token usage',
+    })
   }
   if (run.model_cost_usd !== null) {
     stats.push({
@@ -314,7 +391,9 @@ export function runStats(run: RunStatSource, now = Date.now()): RunStat[] {
     stats.push({
       key: 'turns',
       text: `${run.model_requests}${limit} turns`,
-      title: run.max_turns ? `${run.model_requests} of ${run.max_turns} allowed model calls` : 'Model calls',
+      title: run.max_turns
+        ? `${run.model_requests} of ${run.max_turns} allowed model calls`
+        : 'Model calls',
       warn: Boolean(run.max_turns && run.model_requests >= run.max_turns * 0.8),
     })
   }
@@ -325,7 +404,8 @@ export function runStats(run: RunStatSource, now = Date.now()): RunStat[] {
 export function weekRange(now: Date): string {
   const start = new Date(now)
   start.setDate(now.getDate() - 6)
-  const month = (date: Date): string => new Intl.DateTimeFormat(LOCALE, { month: 'short' }).format(date)
+  const month = (date: Date): string =>
+    new Intl.DateTimeFormat(LOCALE, { month: 'short' }).format(date)
   if (month(start) === month(now)) return `${start.getDate()}–${now.getDate()} ${month(now)}`
   return `${start.getDate()} ${month(start)} – ${now.getDate()} ${month(now)}`
 }
@@ -352,16 +432,24 @@ export function runSeconds(run: Pick<Run, 'started_at' | 'finished_at'>): number
 
 /** Headline numbers for a job from its recent runs (newest first, as the API sends them). */
 export function jobOutcomes(runs: Run[]): JobOutcomes {
-  const finished = runs.filter((run) => run.status === 'succeeded' || run.status === 'failed' || run.status === 'canceled')
+  const finished = runs.filter(
+    (run) => run.status === 'succeeded' || run.status === 'failed' || run.status === 'canceled',
+  )
   const successful = finished.filter((run) => run.status === 'succeeded')
   const succeeded = successful.length
   // Duration and cost describe a real run of the skill, so failed runs
   // (often stopped in seconds) would only distort them.
-  const durations = successful.map(runSeconds).filter((value): value is number => value !== null).sort((a, b) => a - b)
+  const durations = successful
+    .map(runSeconds)
+    .filter((value): value is number => value !== null)
+    .sort((a, b) => a - b)
   const middle = Math.floor(durations.length / 2)
-  const median = durations.length === 0
-    ? null
-    : durations.length % 2 ? durations[middle] : (durations[middle - 1] + durations[middle]) / 2
+  const median =
+    durations.length === 0
+      ? null
+      : durations.length % 2
+        ? durations[middle]
+        : (durations[middle - 1] + durations[middle]) / 2
   const totalCostUsd = runs.reduce((sum, run) => sum + (run.model_cost_usd ?? 0), 0)
   const priced = successful.filter((run) => run.model_cost_usd !== null)
   const successfulCost = priced.reduce((sum, run) => sum + (run.model_cost_usd ?? 0), 0)
@@ -405,11 +493,21 @@ export interface Trend {
   good: boolean
 }
 
-function weekTrend(current: number, previous: number, none: string, noneBefore: string, lowerIsBetter: boolean): Trend {
+function weekTrend(
+  current: number,
+  previous: number,
+  none: string,
+  noneBefore: string,
+  lowerIsBetter: boolean,
+): Trend {
   if (previous === 0) return { delta: '', detail: current === 0 ? none : noneBefore, good: false }
   const change = Math.round(((current - previous) / previous) * 100)
   if (change === 0) return { delta: '', detail: 'Same as previous week', good: false }
-  return { delta: `${change > 0 ? '↑' : '↓'} ${Math.abs(change)}%`, detail: 'vs previous week', good: lowerIsBetter && change < 0 }
+  return {
+    delta: `${change > 0 ? '↑' : '↓'} ${Math.abs(change)}%`,
+    detail: 'vs previous week',
+    good: lowerIsBetter && change < 0,
+  }
 }
 
 /** Less spend for the same work is better. */
@@ -423,7 +521,11 @@ export function runsTrend(current: number, previous: number): Trend {
 }
 
 /** One line that says whether anything needs the reader, without repeating the stat cards. */
-export function healthHeadline(failingJobs: string[], enabledJobs: number, nextRun: string | null): string {
+export function healthHeadline(
+  failingJobs: string[],
+  enabledJobs: number,
+  nextRun: string | null,
+): string {
   if (failingJobs.length === 1) return `${failingJobs[0]} is failing.`
   if (failingJobs.length > 1) return `${failingJobs.length} jobs are failing.`
   if (enabledJobs === 0) return 'No job is enabled yet.'
@@ -431,7 +533,7 @@ export function healthHeadline(failingJobs: string[], enabledJobs: number, nextR
 }
 
 /** A job's newest run in a few words, for the jobs list. */
-export function lastRunLine(run: { status: string, at: string } | null, now = Date.now()): string {
+export function lastRunLine(run: { status: string; at: string } | null, now = Date.now()): string {
   if (!run) return 'Never run'
   if (run.status === 'running') return 'Running now'
   if (run.status === 'queued') return 'Run queued'
@@ -439,12 +541,19 @@ export function lastRunLine(run: { status: string, at: string } | null, now = Da
 }
 
 /** One quiet line on how a connection is used, so it's clear before anyone disconnects it. */
-export function connectionUsageLine(usage: ConnectionUsage | null | undefined, kind: string, now = Date.now()): string {
+export function connectionUsageLine(
+  usage: ConnectionUsage | null | undefined,
+  kind: string,
+  now = Date.now(),
+): string {
   // A source connection is how repositories are imported and synced, not something jobs call.
   if (kind === 'source') return 'Imports and syncs repositories'
   if (!usage) return ''
   if (kind === 'model') {
-    if (usage.runs_7d === 0) return usage.last_used_at ? `Not used this week · last used ${formatRelative(usage.last_used_at, now)}` : 'Not used yet'
+    if (usage.runs_7d === 0)
+      return usage.last_used_at
+        ? `Not used this week · last used ${formatRelative(usage.last_used_at, now)}`
+        : 'Not used yet'
     return `${countLabel(usage.runs_7d, 'run')} · ${formatCost(usage.spend_7d_usd, usage.spend_partial)} this week · last used ${formatRelative(usage.last_used_at, now)}`
   }
   return usage.jobs ? `Used by ${countLabel(usage.jobs, 'job')}` : 'No job uses it yet'

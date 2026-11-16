@@ -15,12 +15,16 @@ const brand = computed(() => brandIcons[props.name ?? ''])
     viewBox="0 0 24 24"
     aria-hidden="true"
     focusable="false"
-  ><component :is="tag" v-for="([tag, attrs], index) in line" :key="index" v-bind="attrs" /></svg>
+  >
+    <component :is="tag" v-for="([tag, attrs], index) in line" :key="index" v-bind="attrs" />
+  </svg>
   <svg
     v-else-if="brand || name === 'blank'"
     class="app-icon logo"
     viewBox="0 0 24 24"
     aria-hidden="true"
     focusable="false"
-  ><path :d="brand" /></svg>
+  >
+    <path :d="brand" />
+  </svg>
 </template>

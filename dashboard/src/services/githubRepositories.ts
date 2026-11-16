@@ -5,14 +5,26 @@ import type { Connection, GitHubAppStatus, GitHubSource, Repository } from '../t
 export const GITHUB_TOKENS_URL = 'https://github.com/settings/personal-access-tokens'
 
 // Metadata read access is always included, so it is not listed.
-const READ_PERMISSIONS = { contents: 'read', pull_requests: 'read', actions: 'read', statuses: 'read' }
-const WRITE_PERMISSIONS = { ...READ_PERMISSIONS, contents: 'write', pull_requests: 'write', issues: 'write' }
+const READ_PERMISSIONS = {
+  contents: 'read',
+  pull_requests: 'read',
+  actions: 'read',
+  statuses: 'read',
+}
+const WRITE_PERMISSIONS = {
+  ...READ_PERMISSIONS,
+  contents: 'write',
+  pull_requests: 'write',
+  issues: 'write',
+}
 
 /** GitHub's new-token form, filled in with what SecondShift needs. The owner still picks repositories. */
 export function newTokenUrl(drafts: boolean = false): string {
   const params = new URLSearchParams({
     name: 'SecondShift',
-    description: drafts ? 'SecondShift: sync, GitHub tools, draft pull requests and issues.' : 'SecondShift: sync and read-only GitHub tools.',
+    description: drafts
+      ? 'SecondShift: sync, GitHub tools, draft pull requests and issues.'
+      : 'SecondShift: sync and read-only GitHub tools.',
     expires_in: '90',
     ...(drafts ? WRITE_PERMISSIONS : READ_PERMISSIONS),
   })
@@ -32,10 +44,18 @@ export function importGitHubRepository(source: GitHubSource, branch: string): Pr
 }
 
 export function githubBranches(source: GitHubSource): Promise<string[]> {
-  return apiGet<string[]>(`/repositories/github/${source.connection_id}/${source.repository_id}/branches`)
+  return apiGet<string[]>(
+    `/repositories/github/${source.connection_id}/${source.repository_id}/branches`,
+  )
 }
 
 /** Reach repositories with a fine-grained personal access token, or replace a connection's token. */
-export function connectGitHubToken(token: string, connectionId: number | null = null): Promise<Connection> {
-  return apiPost<Connection>('/connections/github-token', connectionId === null ? { token } : { token, connection_id: connectionId })
+export function connectGitHubToken(
+  token: string,
+  connectionId: number | null = null,
+): Promise<Connection> {
+  return apiPost<Connection>(
+    '/connections/github-token',
+    connectionId === null ? { token } : { token, connection_id: connectionId },
+  )
 }

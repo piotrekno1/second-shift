@@ -16,7 +16,12 @@ const confirming = ref<number | null>(null)
 const revoking = ref<number | null>(null)
 
 const agentConnection = useAgentConnectionStore()
-watch(() => agentConnection.visible, (visible) => { if (!visible) void load() })
+watch(
+  () => agentConnection.visible,
+  (visible) => {
+    if (!visible) void load()
+  },
+)
 
 async function load(): Promise<void> {
   error.value = null
@@ -52,32 +57,70 @@ onMounted(load)
   <section class="panel api-tokens">
     <div class="panel-heading">
       <div>
-        <h2>API tokens <span v-if="tokens.length" class="heading-count">{{ tokens.length }}</span></h2>
-        <p>Create and revoke tokens for coding agents and other MCP clients. Each token works in one workspace, within your permissions.</p>
+        <h2>
+          API tokens <span v-if="tokens.length" class="heading-count">{{ tokens.length }}</span>
+        </h2>
+        <p>
+          Create and revoke tokens for coding agents and other MCP clients. Each token works in one
+          workspace, within your permissions.
+        </p>
       </div>
-      <Button label="Create API token" @click="agentConnection.visible = true"><template #icon><AppIcon name="plus" /></template></Button>
+      <Button label="Create API token" @click="agentConnection.visible = true"
+        ><template #icon><AppIcon name="plus" /></template
+      ></Button>
     </div>
 
     <ul v-if="tokens.length" class="member-list token-list">
       <li v-for="token in tokens" :key="token.id">
         <span class="avatar small"><AppIcon name="key-variant" /></span>
         <span class="member-email">
-          <bdi>{{ token.name }}</bdi><span class="default-badge">{{ token.scope === 'run' ? 'Run' : 'Read' }}</span>
+          <bdi>{{ token.name }}</bdi><span class="default-badge">{{
+            token.scope === 'run' ? 'Run' : 'Read'
+          }}</span>
           <small>
-            <template v-if="workspaces.length > 1"><bdi>{{ token.workspace_name }}</bdi> · </template>
-            <span :title="formatDate(token.expires_at)">Expires {{ formatRelative(token.expires_at) }}</span> ·
-            <span v-if="token.last_used_at" :title="formatDate(token.last_used_at)">Used {{ formatRelative(token.last_used_at) }}</span>
+            <template v-if="workspaces.length > 1"
+              ><bdi>{{ token.workspace_name }}</bdi> ·
+            </template>
+            <span :title="formatDate(token.expires_at)"
+              >Expires {{ formatRelative(token.expires_at) }}</span
+            >
+            ·
+            <span v-if="token.last_used_at" :title="formatDate(token.last_used_at)"
+              >Used {{ formatRelative(token.last_used_at) }}</span
+            >
             <template v-else>Not used yet</template>
           </small>
         </span>
         <span v-if="confirming === token.id" class="invite-confirm">
-          <Button label="Keep" severity="secondary" text size="small" :disabled="revoking === token.id" @click="confirming = null" />
-          <Button label="Revoke token" severity="danger" size="small" :loading="revoking === token.id" @click="revoke(token)" />
+          <Button
+            label="Keep"
+            severity="secondary"
+            text
+            size="small"
+            :disabled="revoking === token.id"
+            @click="confirming = null"
+          />
+          <Button
+            label="Revoke token"
+            severity="danger"
+            size="small"
+            :loading="revoking === token.id"
+            @click="revoke(token)"
+          />
         </span>
-        <Button v-else label="Revoke" severity="secondary" text size="small" @click="confirming = token.id" />
+        <Button
+          v-else
+          label="Revoke"
+          severity="secondary"
+          text
+          size="small"
+          @click="confirming = token.id"
+        />
       </li>
     </ul>
-    <p v-else-if="loaded" class="token-empty">No API tokens yet. Create a token to give your agent access to SecondShift.</p>
+    <p v-else-if="loaded" class="token-empty">
+      No API tokens yet. Create a token to give your agent access to SecondShift.
+    </p>
 
     <p v-if="error" class="page-error">{{ error }}</p>
   </section>

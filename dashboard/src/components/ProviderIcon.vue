@@ -18,6 +18,8 @@ const path = computed(() => BRAND_PATHS[props.provider])
 </script>
 
 <template>
-  <svg v-if="path" class="provider-icon" viewBox="0 0 24 24" role="img" aria-hidden="true"><path :d="path" /></svg>
-  <AppIcon v-else  :name="fallback" aria-hidden="true" />
+  <svg v-if="path" class="provider-icon" viewBox="0 0 24 24" role="img" aria-hidden="true">
+    <path :d="path" />
+  </svg>
+  <AppIcon v-else :name="fallback" aria-hidden="true" />
 </template>

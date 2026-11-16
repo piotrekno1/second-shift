@@ -3,8 +3,24 @@ import test from 'node:test'
 import type { RunLimitItem } from '../src/types'
 import { limitChanges, limitDraft, parseLimitDraft } from '../src/utils/limits'
 
-function item(key: RunLimitItem['key'], unit: RunLimitItem['unit'], override: number | null, minimum: number, maximum: number): RunLimitItem {
-  return { key, label: key, help: '', unit, value: override ?? minimum, override, inherited: minimum, minimum, maximum }
+function item(
+  key: RunLimitItem['key'],
+  unit: RunLimitItem['unit'],
+  override: number | null,
+  minimum: number,
+  maximum: number,
+): RunLimitItem {
+  return {
+    key,
+    label: key,
+    help: '',
+    unit,
+    value: override ?? minimum,
+    override,
+    inherited: minimum,
+    minimum,
+    maximum,
+  }
 }
 
 const turns = item('max_turns', 'count', null, 1, 100)
@@ -31,7 +47,10 @@ test('only whole numbers within the bounds are accepted', () => {
 
 test('limitChanges sends only what changed', () => {
   assert.deepEqual(limitChanges([turns, time], { max_turns: '', timeout_seconds: '30' }), {})
-  assert.deepEqual(limitChanges([turns, time], { max_turns: '40', timeout_seconds: '' }), { max_turns: 40, timeout_seconds: null })
+  assert.deepEqual(limitChanges([turns, time], { max_turns: '40', timeout_seconds: '' }), {
+    max_turns: 40,
+    timeout_seconds: null,
+  })
   assert.deepEqual(limitChanges([turns, time], { max_turns: '400', timeout_seconds: '30' }), {})
 })
 

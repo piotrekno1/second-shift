@@ -4,14 +4,22 @@ import { createPinia, setActivePinia } from 'pinia'
 import { useGitHubRepositoriesStore } from '../src/stores/githubRepositories'
 import { newTokenUrl } from '../src/services/githubRepositories'
 
-const source = { connection_id: 1, repository_id: 7, full_name: 'owner/project', default_branch: 'main' }
+const source = {
+  connection_id: 1,
+  repository_id: 7,
+  full_name: 'owner/project',
+  default_branch: 'main',
+}
 
 test('changing repository ignores an earlier branch response', async () => {
   setActivePinia(createPinia())
   const store = useGitHubRepositoriesStore()
   const originalFetch = globalThis.fetch
   const responses: ((response: Response) => void)[] = []
-  globalThis.fetch = () => new Promise((resolve) => { responses.push(resolve) })
+  globalThis.fetch = () =>
+    new Promise((resolve) => {
+      responses.push(resolve)
+    })
   try {
     const old = store.loadBranches(source)
     const current = store.loadBranches({ ...source, repository_id: 8 })
@@ -21,7 +29,9 @@ test('changing repository ignores an earlier branch response', async () => {
     await old
     assert.deepEqual(store.branches, ['main', 'release'])
     assert.equal(store.branchesLoading, false)
-  } finally { globalThis.fetch = originalFetch }
+  } finally {
+    globalThis.fetch = originalFetch
+  }
 })
 
 test('branch loading failures can be retried and clearing selection cancels a pending response', async () => {
@@ -29,7 +39,8 @@ test('branch loading failures can be retried and clearing selection cancels a pe
   const store = useGitHubRepositoriesStore()
   const originalFetch = globalThis.fetch
   try {
-    globalThis.fetch = async () => Response.json({ detail: 'Check GitHub access.' }, { status: 422 })
+    globalThis.fetch = async () =>
+      Response.json({ detail: 'Check GitHub access.' }, { status: 422 })
     await store.loadBranches(source)
     assert.equal(store.branchesError, 'Check GitHub access.')
     assert.equal(store.branchesLoading, false)
@@ -38,17 +49,22 @@ test('branch loading failures can be retried and clearing selection cancels a pe
     assert.deepEqual(store.branches, ['main'])
     assert.equal(store.branchesError, null)
     let finish!: (response: Response) => void
-    globalThis.fetch = () => new Promise((resolve) => { finish = resolve })
+    globalThis.fetch = () =>
+      new Promise((resolve) => {
+        finish = resolve
+      })
     const pending = store.loadBranches(source)
     await store.loadBranches(null)
     finish(Response.json(['main']))
     await pending
     assert.deepEqual(store.branches, [])
     assert.equal(store.branchesLoading, false)
-  } finally { globalThis.fetch = originalFetch }
+  } finally {
+    globalThis.fetch = originalFetch
+  }
 })
 
-test('a refused token shows GitHub\'s reason and is not kept', async () => {
+test("a refused token shows GitHub's reason and is not kept", async () => {
   setActivePinia(createPinia())
   const store = useGitHubRepositoriesStore()
   const originalFetch = globalThis.fetch
@@ -58,7 +74,10 @@ test('a refused token shows GitHub\'s reason and is not kept', async () => {
   try {
     globalThis.fetch = async (_url, init) => {
       bodies.push(String(init?.body))
-      return Response.json({ detail: 'GitHub refused this token. It may have expired.' }, { status: 422 })
+      return Response.json(
+        { detail: 'GitHub refused this token. It may have expired.' },
+        { status: 422 },
+      )
     }
     assert.equal(await store.connectToken('  github_pat_secret  '), false)
     assert.equal(store.tokenError, 'GitHub refused this token. It may have expired.')
@@ -77,7 +96,10 @@ test('the new-token link fills in read-only permissions unless drafts need write
   const read = new URL(newTokenUrl()).searchParams
   assert.equal(read.get('name'), 'SecondShift')
   assert.equal(read.get('expires_in'), '90')
-  assert.deepEqual(['contents', 'pull_requests', 'actions', 'statuses'].map((name) => read.get(name)), ['read', 'read', 'read', 'read'])
+  assert.deepEqual(
+    ['contents', 'pull_requests', 'actions', 'statuses'].map((name) => read.get(name)),
+    ['read', 'read', 'read', 'read'],
+  )
   assert.equal(read.get('workflows'), null)
   assert.equal(read.get('issues'), null)
   const write = new URL(newTokenUrl(true)).searchParams

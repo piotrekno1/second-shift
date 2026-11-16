@@ -5,18 +5,24 @@ import IconField from 'primevue/iconfield'
 import InputIcon from 'primevue/inputicon'
 import InputText from 'primevue/inputtext'
 
-const props = withDefaults(defineProps<{ modelValue: string, placeholder?: string, delay?: number }>(), {
-  placeholder: 'Search',
-  delay: 250,
-})
+const props = withDefaults(
+  defineProps<{ modelValue: string; placeholder?: string; delay?: number }>(),
+  {
+    placeholder: 'Search',
+    delay: 250,
+  },
+)
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
 
 const draft = ref(props.modelValue)
 let timer: number | null = null
 
-watch(() => props.modelValue, (value) => {
-  if (value !== draft.value.trim()) draft.value = value
-})
+watch(
+  () => props.modelValue,
+  (value) => {
+    if (value !== draft.value.trim()) draft.value = value
+  },
+)
 
 function schedule(): void {
   if (timer !== null) window.clearTimeout(timer)
@@ -37,6 +43,16 @@ onUnmounted(() => {
 <template>
   <IconField class="search-input">
     <InputIcon><AppIcon name="magnify" /></InputIcon>
-    <InputText v-model="draft" maxlength="200" type="search" :placeholder="placeholder" :aria-label="placeholder" autocomplete="off" spellcheck="false" @input="schedule" @keydown.esc="clear" />
+    <InputText
+      v-model="draft"
+      maxlength="200"
+      type="search"
+      :placeholder="placeholder"
+      :aria-label="placeholder"
+      autocomplete="off"
+      spellcheck="false"
+      @input="schedule"
+      @keydown.esc="clear"
+    />
   </IconField>
 </template>

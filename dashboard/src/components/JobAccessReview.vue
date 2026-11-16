@@ -19,11 +19,14 @@ import { approvalPending, connectionSetupQuery } from '../utils/readiness'
 import { sameRules } from '../utils/toolRules'
 import { accessLabel, kindLabel, withArticle } from '../utils/format'
 
-const props = withDefaults(defineProps<{
-  job: Job
-  /** The job page has its own panel heading, so it leaves this one out. */
-  heading?: boolean
-}>(), { heading: true })
+const props = withDefaults(
+  defineProps<{
+    job: Job
+    /** The job page has its own panel heading, so it leaves this one out. */
+    heading?: boolean
+  }>(),
+  { heading: true },
+)
 const emit = defineEmits<{ reviewed: [] }>()
 
 const app = useAppStore()
@@ -34,18 +37,21 @@ const action = ref<string | null>(null)
 const error = ref<string | null>(null)
 
 function matchingConnections(capability: Capability): Connection[] {
-  return app.connections.filter((connection) =>
-    connection.kind === capability.kind
-    && connection.binding_key === capability.binding
-    && connection.status === 'connected',
+  return app.connections.filter(
+    (connection) =>
+      connection.kind === capability.kind &&
+      connection.binding_key === capability.binding &&
+      connection.status === 'connected',
   )
 }
 
 function selectedConnection(capability: Capability): number | null {
-  return connectionSelections[capability.id]
-    ?? capability.connection_id
-    ?? matchingConnections(capability)[0]?.id
-    ?? null
+  return (
+    connectionSelections[capability.id] ??
+    capability.connection_id ??
+    matchingConnections(capability)[0]?.id ??
+    null
+  )
 }
 
 function chooseConnection(capabilityId: number, connectionId: number): void {
@@ -66,15 +72,19 @@ function reviewNeeded(capability: Capability): boolean {
 
 function approveLabel(capability: Capability): string {
   if (capability.grant_status !== 'approved') return 'Approve'
-  return approvalPending(capability, selectedConnection(capability)) ? 'Approve change' : 'Save restrictions'
+  return approvalPending(capability, selectedConnection(capability))
+    ? 'Approve change'
+    : 'Save restrictions'
 }
 
 function ruleTools(capability: Capability): string[] {
   return capability.requested_tools.filter((tool) => capability.tool_inputs?.[tool])
 }
 
-
-async function reviewCapability(capability: Capability, decision: 'approved' | 'denied'): Promise<void> {
+async function reviewCapability(
+  capability: Capability,
+  decision: 'approved' | 'denied',
+): Promise<void> {
   const connectionId = selectedConnection(capability)
   if (decision === 'approved' && !connectionId) {
     error.value = `Connect the ${capability.binding} binding before reviewing it.`
@@ -103,22 +113,56 @@ async function reviewCapability(capability: Capability, decision: 'approved' | '
 <template>
   <div class="job-access-review">
     <div v-if="heading" class="job-review-heading">
-      <div><h3>Access review</h3><p>This job asks for these bindings. Choose a connection for each binding, then approve it. <span class="review-links"><RouterLink :to="`/jobs/${job.id}#skill`" class="review-skill-link">Read the skill first</RouterLink> · <DocsLink :page="DocsPage.SecurityModel" section="who-grants-what" class="review-skill-link">How access works</DocsLink></span></p></div>
+      <div>
+        <h3>Access review</h3>
+        <p>
+          This job asks for these bindings. Choose a connection for each binding, then approve it.
+          <span class="review-links"
+            ><RouterLink :to="`/jobs/${job.id}#skill`" class="review-skill-link"
+              >Read the skill first</RouterLink
+            >
+            ·
+            <DocsLink
+              :page="DocsPage.SecurityModel"
+              section="who-grants-what"
+              class="review-skill-link"
+              >How access works</DocsLink
+            ></span
+          >
+        </p>
+      </div>
     </div>
     <p v-if="error" class="page-error">{{ error }}</p>
     <div v-for="capability in job.capabilities" :key="capability.id" class="capability-review-row">
       <div class="capability-summary">
         <strong>{{ capability.binding }}</strong>
-        <span>{{ kindLabel(capability.kind) }} · {{ capability.required ? 'Required' : 'Optional' }}</span>
+        <span
+          >{{ kindLabel(capability.kind) }} ·
+          {{ capability.required ? 'Required' : 'Optional' }}</span
+        >
         <small v-if="capability.requested_tools.length" class="requested-tools">
           <span v-for="tool in capability.requested_tools" :key="tool">
-            {{ tool }}<span v-if="capability.changing_tools?.includes(tool)" class="mcp-flag" title="The service does not mark this as read-only">May change data</span>
+            {{ tool
+            }}<span
+              v-if="capability.changing_tools?.includes(tool)"
+              class="mcp-flag"
+              title="The service does not mark this as read-only"
+              >May change data</span
+            >
           </span>
         </small>
         <small v-else>No tool list. It can use the whole connection</small>
-        <div v-if="ruleTools(capability).length && (app.can(Action.ReviewCapabilities) || Object.keys(draftRules(capability)).length)" class="tool-rule-grid">
+        <div
+          v-if="
+            ruleTools(capability).length &&
+            (app.can(Action.ReviewCapabilities) || Object.keys(draftRules(capability)).length)
+          "
+          class="tool-rule-grid"
+        >
           <div v-for="tool in ruleTools(capability)" :key="tool" class="tool-rule-tool">
-            <code v-if="app.can(Action.ReviewCapabilities) || draftRules(capability)[tool]">{{ tool }}</code>
+            <code v-if="app.can(Action.ReviewCapabilities) || draftRules(capability)[tool]">{{
+              tool
+            }}</code>
             <ToolRulesEditor
               :tool="tool"
               :input="capability.tool_inputs![tool]"
@@ -128,7 +172,9 @@ async function reviewCapability(capability: Capability, decision: 'approved' | '
             />
           </div>
         </div>
-        <small v-if="capability.access" :class="{ 'field-error': !capability.access?.ok }">{{ capability.access?.text }}</small>
+        <small v-if="capability.access" :class="{ 'field-error': !capability.access?.ok }">{{
+          capability.access?.text
+        }}</small>
       </div>
       <Select
         v-if="matchingConnections(capability).length && app.can(Action.ReviewCapabilities)"
@@ -141,17 +187,49 @@ async function reviewCapability(capability: Capability, decision: 'approved' | '
         @update:model-value="chooseConnection(capability.id, $event)"
       />
       <div v-else-if="!matchingConnections(capability).length" class="connection-required">
-        <strong>No workspace connection matches <code>{{ capability.binding }}</code>.</strong>
-        <small>Create {{ withArticle(kindLabel(capability.kind)) }} connection with this binding name, then come back to approve it.</small>
-        <RouterLink v-if="app.can(Action.AddConnections)" :to="{ path: '/connections', query: connectionSetupQuery(job, capability) }" class="secondary-action connection-setup-action">
+        <strong
+          >No workspace connection matches <code>{{ capability.binding }}</code>.</strong
+        >
+        <small
+          >Create {{ withArticle(kindLabel(capability.kind)) }} connection with this binding name,
+          then come back to approve it.</small
+        >
+        <RouterLink
+          v-if="app.can(Action.AddConnections)"
+          :to="{ path: '/connections', query: connectionSetupQuery(job, capability) }"
+          class="secondary-action connection-setup-action"
+        >
           <AppIcon name="link-plus" /> Set up {{ capability.binding }}
         </RouterLink>
       </div>
       <!-- The box above already says a binding is not connected. -->
-      <StatusPill v-if="matchingConnections(capability).length" :status="capability.grant_status" :label="accessLabel(capability.grant_status)" />
+      <StatusPill
+        v-if="matchingConnections(capability).length"
+        :status="capability.grant_status"
+        :label="accessLabel(capability.grant_status)"
+      />
       <div v-if="app.can(Action.ReviewCapabilities)" class="review-actions">
-        <Button :label="capability.grant_status === 'approved' ? 'Revoke' : 'Deny'" severity="danger" text size="small" :loading="action === `denied-${capability.id}`" @click="reviewCapability(capability, 'denied')" />
-        <Button v-if="reviewNeeded(capability)" :label="approveLabel(capability)" size="small" :disabled="!selectedConnection(capability) || capability.access?.ok === false" :title="selectedConnection(capability) ? 'Approve this connection and scope' : 'Set up a matching connection first'" :loading="action === `approved-${capability.id}`" @click="reviewCapability(capability, 'approved')">
+        <Button
+          :label="capability.grant_status === 'approved' ? 'Revoke' : 'Deny'"
+          severity="danger"
+          text
+          size="small"
+          :loading="action === `denied-${capability.id}`"
+          @click="reviewCapability(capability, 'denied')"
+        />
+        <Button
+          v-if="reviewNeeded(capability)"
+          :label="approveLabel(capability)"
+          size="small"
+          :disabled="!selectedConnection(capability) || capability.access?.ok === false"
+          :title="
+            selectedConnection(capability)
+              ? 'Approve this connection and scope'
+              : 'Set up a matching connection first'
+          "
+          :loading="action === `approved-${capability.id}`"
+          @click="reviewCapability(capability, 'approved')"
+        >
           <template #icon><AppIcon name="check" /></template>
         </Button>
       </div>

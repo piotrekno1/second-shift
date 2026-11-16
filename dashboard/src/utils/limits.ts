@@ -38,7 +38,10 @@ export function parseLimitDraft(
 }
 
 /** Only the limits whose value changed, ready to save. */
-export function limitChanges(items: RunLimitItem[], drafts: Record<string, string>): RunLimitUpdate {
+export function limitChanges(
+  items: RunLimitItem[],
+  drafts: Record<string, string>,
+): RunLimitUpdate {
   const changes: RunLimitUpdate = {}
   for (const item of items) {
     const parsed = parseLimitDraft(item, drafts[item.key] ?? '')

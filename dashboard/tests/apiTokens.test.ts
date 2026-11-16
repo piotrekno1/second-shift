@@ -4,9 +4,18 @@ import test from 'node:test'
 import { defaultExpiry, expiryOptions, setupCommand } from '../src/utils/apiTokens'
 
 test('offers presets under the limit and the limit itself', () => {
-  assert.deepEqual(expiryOptions(90).map((option) => option.value), [7, 30, 90])
-  assert.deepEqual(expiryOptions(14).map((option) => option.value), [7, 14])
-  assert.deepEqual(expiryOptions(365).map((option) => option.value), [7, 30, 90, 365])
+  assert.deepEqual(
+    expiryOptions(90).map((option) => option.value),
+    [7, 30, 90],
+  )
+  assert.deepEqual(
+    expiryOptions(14).map((option) => option.value),
+    [7, 14],
+  )
+  assert.deepEqual(
+    expiryOptions(365).map((option) => option.value),
+    [7, 30, 90, 365],
+  )
   assert.deepEqual(expiryOptions(1), [{ label: '1 day', value: 1 }])
 })
 

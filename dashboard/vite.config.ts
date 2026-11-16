@@ -10,12 +10,27 @@ export default defineConfig(({ command }) => ({
     port: 5173,
     proxy: {
       '/api': { target: process.env.VITE_PROXY_API ?? 'http://localhost:8000', changeOrigin: true },
-      '/static': { target: process.env.VITE_PROXY_API ?? 'http://localhost:8000', changeOrigin: true },
-      '/accounts': { target: process.env.VITE_PROXY_API ?? 'http://localhost:8000', changeOrigin: true },
+      '/static': {
+        target: process.env.VITE_PROXY_API ?? 'http://localhost:8000',
+        changeOrigin: true,
+      },
+      '/accounts': {
+        target: process.env.VITE_PROXY_API ?? 'http://localhost:8000',
+        changeOrigin: true,
+      },
       '/mcp': { target: process.env.VITE_PROXY_API ?? 'http://localhost:8000', changeOrigin: true },
-      '/invite/': { target: process.env.VITE_PROXY_API ?? 'http://localhost:8000', changeOrigin: true },
-      '/sign-in/': { target: process.env.VITE_PROXY_API ?? 'http://localhost:8000', changeOrigin: true },
-      '/github/': { target: process.env.VITE_PROXY_API ?? 'http://localhost:8000', changeOrigin: true },
+      '/invite/': {
+        target: process.env.VITE_PROXY_API ?? 'http://localhost:8000',
+        changeOrigin: true,
+      },
+      '/sign-in/': {
+        target: process.env.VITE_PROXY_API ?? 'http://localhost:8000',
+        changeOrigin: true,
+      },
+      '/github/': {
+        target: process.env.VITE_PROXY_API ?? 'http://localhost:8000',
+        changeOrigin: true,
+      },
       '/-/': { target: process.env.VITE_PROXY_API ?? 'http://localhost:8000', changeOrigin: true },
     },
   },

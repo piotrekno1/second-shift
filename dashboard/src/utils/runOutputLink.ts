@@ -13,6 +13,11 @@ export function runOutputLink(href: string, runId: number): string {
   } catch {
     return href
   }
-  if (!name || name.split('/').some((part) => !part || part === '.' || part === '..') || UNSAFE_NAME_CHARACTERS.test(name)) return href
+  if (
+    !name ||
+    name.split('/').some((part) => !part || part === '.' || part === '..') ||
+    UNSAFE_NAME_CHARACTERS.test(name)
+  )
+    return href
   return savedFileUrl(runId, name)
 }

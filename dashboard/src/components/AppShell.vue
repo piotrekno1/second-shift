@@ -24,17 +24,25 @@ const app = useAppStore()
 const mobileOpen = ref(false)
 
 // A note's dot says how bad it is: danger when something is broken, warning when it waits on you.
-interface NavItem { label: string; to: string; icon: string; note: string; tone?: 'warning' | 'danger' }
+interface NavItem {
+  label: string
+  to: string
+  icon: string
+  note: string
+  tone?: 'warning' | 'danger'
+}
 
 // Something waiting on the reader is said in words, so "1" is never read as a total.
 // During first-time setup the Overview checklist says what to do, so these stay empty.
-const notes = computed(() => sidebarNotes({
-  inSetup: app.setupChecklist !== null,
-  jobsAwaitingApproval: app.jobsAwaitingApproval,
-  brokenConnections: app.brokenConnections,
-  bindingsToSetUp: app.bindingsToSetUp,
-  execution: app.overview?.execution,
-}))
+const notes = computed(() =>
+  sidebarNotes({
+    inSetup: app.setupChecklist !== null,
+    jobsAwaitingApproval: app.jobsAwaitingApproval,
+    brokenConnections: app.brokenConnections,
+    bindingsToSetUp: app.bindingsToSetUp,
+    execution: app.overview?.execution,
+  }),
+)
 
 // Day-to-day pages first, then the ones you set up once.
 const groups = computed<{ label: string; items: NavItem[] }[]>(() => [
@@ -43,26 +51,56 @@ const groups = computed<{ label: string; items: NavItem[] }[]>(() => [
     items: [
       { label: 'Overview', to: '/', icon: 'view-dashboard-outline', note: '' },
       { label: 'Repositories', to: '/repositories', icon: 'source-repository', note: '' },
-      { label: 'Jobs', to: '/jobs', icon: 'calendar-clock-outline', note: notes.value.jobs?.text ?? '', tone: notes.value.jobs?.tone },
+      {
+        label: 'Jobs',
+        to: '/jobs',
+        icon: 'calendar-clock-outline',
+        note: notes.value.jobs?.text ?? '',
+        tone: notes.value.jobs?.tone,
+      },
       { label: 'Runs', to: '/runs', icon: 'play-circle-outline', note: '' },
     ],
   },
   {
     label: 'Setup',
     items: [
-      { label: 'Models', to: '/models', icon: 'creation-outline', note: notes.value.models?.text ?? '', tone: notes.value.models?.tone },
-      { label: 'Connections', to: '/connections', icon: 'connection', note: notes.value.connections?.text ?? '', tone: notes.value.connections?.tone },
+      {
+        label: 'Models',
+        to: '/models',
+        icon: 'creation-outline',
+        note: notes.value.models?.text ?? '',
+        tone: notes.value.models?.tone,
+      },
+      {
+        label: 'Connections',
+        to: '/connections',
+        icon: 'connection',
+        note: notes.value.connections?.text ?? '',
+        tone: notes.value.connections?.tone,
+      },
       { label: 'Settings', to: '/settings', icon: 'cog-outline', note: '' },
     ],
   },
 ])
 
 // The section a page belongs to, so /runs/12 still marks Runs.
-const current = computed(() => groups.value.flatMap((group) => group.items).find((item) =>
-  item.to === '/' ? route.path === '/' : route.path === item.to || route.path.startsWith(`${item.to}/`)))
+const current = computed(() =>
+  groups.value
+    .flatMap((group) => group.items)
+    .find((item) =>
+      item.to === '/'
+        ? route.path === '/'
+        : route.path === item.to || route.path.startsWith(`${item.to}/`),
+    ),
+)
 
 // The drawer on small screens closes on navigation, on Escape and on a tap outside it.
-watch(() => route.fullPath, () => { mobileOpen.value = false })
+watch(
+  () => route.fullPath,
+  () => {
+    mobileOpen.value = false
+  },
+)
 function closeOnEscape(event: KeyboardEvent): void {
   if (event.key === 'Escape') mobileOpen.value = false
 }
@@ -77,7 +115,12 @@ const accountOpen = ref(false)
 const accountItems = computed<MenuItem[]>(() => [
   { label: 'API tokens', appIcon: 'key-variant', command: () => void router.push('/account') },
   { label: 'Docs', appIcon: 'book-open-variant-outline', url: DOCS_HOME_URL, target: '_blank' },
-  { label: 'Sign out', appIcon: 'logout', disabled: signingOut.value, command: () => void handleSignOut() },
+  {
+    label: 'Sign out',
+    appIcon: 'logout',
+    disabled: signingOut.value,
+    command: () => void handleSignOut(),
+  },
 ])
 const signingOut = ref(false)
 
@@ -96,8 +139,19 @@ async function handleSignOut(): Promise<void> {
 <template>
   <div class="app-shell">
     <header class="mobile-bar">
-      <RouterLink to="/" class="mobile-brand"><img src="/secondshift-mark.svg" alt="" /><strong>{{ app.user?.workspace_name ?? 'SecondShift' }}</strong></RouterLink>
-      <button class="mobile-menu" type="button" :aria-label="mobileOpen ? 'Close navigation' : 'Open navigation'" :aria-expanded="mobileOpen" aria-controls="sidebar" @click="mobileOpen = !mobileOpen">
+      <RouterLink to="/" class="mobile-brand"
+        ><img src="/secondshift-mark.svg" alt="" /><strong>{{
+          app.user?.workspace_name ?? 'SecondShift'
+        }}</strong></RouterLink
+      >
+      <button
+        class="mobile-menu"
+        type="button"
+        :aria-label="mobileOpen ? 'Close navigation' : 'Open navigation'"
+        :aria-expanded="mobileOpen"
+        aria-controls="sidebar"
+        @click="mobileOpen = !mobileOpen"
+      >
         <AppIcon :name="mobileOpen ? 'close' : 'menu'" />
       </button>
     </header>
@@ -139,15 +193,42 @@ async function handleSignOut(): Promise<void> {
           <span class="account-name">{{ accountName }}</span>
           <AppIcon name="unfold-more-horizontal" />
         </button>
-        <Menu id="account-menu" ref="accountMenu" :model="accountItems" popup class="row-menu account-menu" @show="accountOpen = true" @hide="accountOpen = false">
-          <template #start><div class="account-menu-heading">Signed in as<strong>{{ app.user?.email }}</strong></div></template>
+        <Menu
+          id="account-menu"
+          ref="accountMenu"
+          :model="accountItems"
+          popup
+          class="row-menu account-menu"
+          @show="accountOpen = true"
+          @hide="accountOpen = false"
+        >
+          <template #start
+            ><div class="account-menu-heading">
+              Signed in as<strong>{{ app.user?.email }}</strong>
+            </div></template
+          >
           <template #item="{ item, props }">
-            <a v-bind="props.action" :href="item.url" :target="item.target" :rel="item.url ? 'noopener noreferrer' : undefined" class="row-menu-item"><AppIcon :name="item.appIcon" /> {{ item.label }}</a>
+            <a
+              v-bind="props.action"
+              :href="item.url"
+              :target="item.target"
+              :rel="item.url ? 'noopener noreferrer' : undefined"
+              class="row-menu-item"
+              ><AppIcon :name="item.appIcon" /> {{ item.label }}</a
+            >
           </template>
         </Menu>
       </div>
     </aside>
-    <Dialog v-model:visible="agentConnection.visible" modal header="Create API token" class="agent-dialog" :draggable="false" :closable="!creatingAgentToken" :close-on-escape="!creatingAgentToken">
+    <Dialog
+      v-model:visible="agentConnection.visible"
+      modal
+      header="Create API token"
+      class="agent-dialog"
+      :draggable="false"
+      :closable="!creatingAgentToken"
+      :close-on-escape="!creatingAgentToken"
+    >
       <AgentTokenSetup v-if="agentConnection.visible" @busy="creatingAgentToken = $event" />
     </Dialog>
     <main>

@@ -21,7 +21,7 @@ export interface ModelRow {
   /** Why it cannot run jobs, or who may choose it. '' when nothing is wrong. */
   problem: string
   /** The last check, for a provider or a login. */
-  lastCheck: { ok: boolean, message: string, checked_at: string } | null
+  lastCheck: { ok: boolean; message: string; checked_at: string } | null
   connection?: Connection
   login?: AgentConnection
 }
@@ -42,12 +42,16 @@ function modelSummary(connection: Connection): string {
  * A failed check says what went wrong in its own short words. The server's
  * problem text names the provider or login for other pages, so the row uses this.
  */
-function failedCheck(connected: boolean, check: { ok: boolean, message: string } | null): string {
+function failedCheck(connected: boolean, check: { ok: boolean; message: string } | null): string {
   return connected && check?.ok === false ? check.message : ''
 }
 
 /** Model providers and logins in one list. What runs jobs comes first. */
-export function modelRows(connections: Connection[], logins: AgentConnection[], configuration: AgentConfiguration | null): ModelRow[] {
+export function modelRows(
+  connections: Connection[],
+  logins: AgentConnection[],
+  configuration: AgentConfiguration | null,
+): ModelRow[] {
   const choices = new Map((configuration?.choices ?? []).map((choice) => [choice.key, choice]))
   const selected = configuration?.selected ?? ''
   const rows: ModelRow[] = []
@@ -55,17 +59,30 @@ export function modelRows(connections: Connection[], logins: AgentConnection[], 
     if (connection.kind !== 'model') continue
     const key = `model:${connection.id}`
     const choice = choices.get(key)
-    const problem = failedCheck(connection.status === 'connected', connection.last_check)
-      || choice?.problem || (connection.status === 'connected' ? '' : DISCONNECTED)
-    rows.push({ key, name: connection.display_name, provider: connection.provider, summary: modelSummary(connection), chosen: key === selected, choosable: Boolean(choice && !choice.disabled), problem, lastCheck: connection.last_check, connection })
+    const problem =
+      failedCheck(connection.status === 'connected', connection.last_check) ||
+      choice?.problem ||
+      (connection.status === 'connected' ? '' : DISCONNECTED)
+    rows.push({
+      key,
+      name: connection.display_name,
+      provider: connection.provider,
+      summary: modelSummary(connection),
+      chosen: key === selected,
+      choosable: Boolean(choice && !choice.disabled),
+      problem,
+      lastCheck: connection.last_check,
+      connection,
+    })
   }
   for (const login of logins) {
     const key = `agent:${login.id}`
     const choice = choices.get(key)
-    const problem = failedCheck(login.connected, login.last_check)
-      || choice?.problem
-      || (!login.connected ? DISCONNECTED : '')
-      || (login.can_manage ? '' : 'Only the person who saved this login can choose it.')
+    const problem =
+      failedCheck(login.connected, login.last_check) ||
+      choice?.problem ||
+      (!login.connected ? DISCONNECTED : '') ||
+      (login.can_manage ? '' : 'Only the person who saved this login can choose it.')
     rows.push({
       key,
       name: login.display_name,

@@ -25,16 +25,32 @@ const app = useAppStore()
 const route = useRoute()
 const router = useRouter()
 const github = useGitHubRepositoriesStore()
-const { sources: githubSources, error: githubError, importing, loading: githubLoading } = storeToRefs(github)
+const {
+  sources: githubSources,
+  error: githubError,
+  importing,
+  loading: githubLoading,
+} = storeToRefs(github)
 
 type Source = 'github' | 'local'
 const canLocal = computed(() => app.canAddLocalRepositories)
 const canGitHub = computed(() => app.can(Action.AddGitHubRepositories))
 const githubConfigured = computed(() => Boolean(app.user?.github_app_configured))
-const githubSourceConnections = computed(() => app.connections.filter((connection) => connection.provider === 'github' && connection.kind === 'source' && connection.status === 'connected'))
+const githubSourceConnections = computed(() =>
+  app.connections.filter(
+    (connection) =>
+      connection.provider === 'github' &&
+      connection.kind === 'source' &&
+      connection.status === 'connected',
+  ),
+)
 const githubConnected = computed(() => githubSourceConnections.value.length > 0)
-const hasAppSource = computed(() => githubSourceConnections.value.some((connection) => connection.auth === 'app'))
-const hasTokenSource = computed(() => githubSourceConnections.value.some((connection) => connection.auth === 'token'))
+const hasAppSource = computed(() =>
+  githubSourceConnections.value.some((connection) => connection.auth === 'app'),
+)
+const hasTokenSource = computed(() =>
+  githubSourceConnections.value.some((connection) => connection.auth === 'token'),
+)
 
 // GitHub comes first once it is connected. Before that, a local install starts from a folder.
 const sourceChoices = computed<Source[]>(() => {
@@ -44,7 +60,9 @@ const sourceChoices = computed<Source[]>(() => {
   return canLocal.value && !githubConnected.value ? choices.reverse() : choices
 })
 const requested = route.query.source
-const source = ref<Source | undefined>(sourceChoices.value.find((choice) => choice === requested) ?? sourceChoices.value[0])
+const source = ref<Source | undefined>(
+  sourceChoices.value.find((choice) => choice === requested) ?? sourceChoices.value[0],
+)
 
 // GitHub: connect once, then pick from a list.
 const connectingAnother = ref(route.query.connect === '1')
@@ -52,19 +70,37 @@ const showConnect = computed(() => !githubConnected.value || connectingAnother.v
 // The token form is long, so it opens on request. Without a GitHub App it is the only way.
 const useToken = ref(!githubConfigured.value)
 // Connected, but GitHub refused to list anything, so the list cannot help.
-const githubBroken = computed(() => Boolean(githubError.value) && !githubSources.value.length && !githubLoading.value)
+const githubBroken = computed(
+  () => Boolean(githubError.value) && !githubSources.value.length && !githubLoading.value,
+)
 function connectWithToken(): void {
   connectingAnother.value = true
   useToken.value = true
 }
-const appInstallUrl = computed(() => hasAppSource.value ? '/github/connect/?install=1' : '/github/connect/')
+const appInstallUrl = computed(() =>
+  hasAppSource.value ? '/github/connect/?install=1' : '/github/connect/',
+)
 const search = ref('')
-const options = computed(() => githubSources.value
-  .filter((item) => !app.repositories.some((repository) => repository.source_type === 'github' && repository.full_name === item.full_name))
-  .map((item) => ({ ...item, key: `${item.connection_id}:${item.repository_id}`, account: accountName(item.connection_id) })))
+const options = computed(() =>
+  githubSources.value
+    .filter(
+      (item) =>
+        !app.repositories.some(
+          (repository) =>
+            repository.source_type === 'github' && repository.full_name === item.full_name,
+        ),
+    )
+    .map((item) => ({
+      ...item,
+      key: `${item.connection_id}:${item.repository_id}`,
+      account: accountName(item.connection_id),
+    })),
+)
 const visibleOptions = computed(() => {
   const needle = search.value.trim().toLowerCase()
-  return needle ? options.value.filter((item) => item.full_name.toLowerCase().includes(needle)) : options.value
+  return needle
+    ? options.value.filter((item) => item.full_name.toLowerCase().includes(needle))
+    : options.value
 })
 // The row whose branch is being changed, and the row being imported.
 const branchRow = ref<string | null>(null)
@@ -74,7 +110,10 @@ const importingRow = ref<string | null>(null)
 /** With several GitHub connections, name the one each repository comes through. */
 function accountName(connectionId: number): string {
   if (githubSourceConnections.value.length < 2) return ''
-  return githubSourceConnections.value.find((connection) => connection.id === connectionId)?.display_name ?? ''
+  return (
+    githubSourceConnections.value.find((connection) => connection.id === connectionId)
+      ?.display_name ?? ''
+  )
 }
 
 function chooseBranch(item: GitHubSource & { key: string }): void {
@@ -132,9 +171,23 @@ function chooseDirectory(path: string): void {
 
 <template>
   <section v-if="source" class="panel add-repository">
-    <div v-if="sourceChoices.length > 1" class="segmented add-repository-source" role="group" aria-label="Where the repository is">
-      <button v-for="choice in sourceChoices" :key="choice" type="button" :class="{ active: source === choice }" :aria-pressed="source === choice" @click="source = choice">
-        <AppIcon :name="choice === 'github' ? 'github' : 'folder-outline'" />{{ choice === 'github' ? 'GitHub' : 'Local folder' }}
+    <div
+      v-if="sourceChoices.length > 1"
+      class="segmented add-repository-source"
+      role="group"
+      aria-label="Where the repository is"
+    >
+      <button
+        v-for="choice in sourceChoices"
+        :key="choice"
+        type="button"
+        :class="{ active: source === choice }"
+        :aria-pressed="source === choice"
+        @click="source = choice"
+      >
+        <AppIcon :name="choice === 'github' ? 'github' : 'folder-outline'" />{{
+          choice === 'github' ? 'GitHub' : 'Local folder'
+        }}
       </button>
     </div>
 
@@ -143,38 +196,88 @@ function chooseDirectory(path: string): void {
         <h2>Connect GitHub</h2>
         <p>SecondShift reads jobs from the repositories you choose, and only those.</p>
         <div v-if="githubConfigured" class="add-repository-option">
-          <div><strong>GitHub App <span class="mcp-flag ok">Recommended</span></strong><span>You choose repositories on GitHub, then come back here to import them.</span></div>
+          <div>
+            <strong>GitHub App <span class="mcp-flag ok">Recommended</span></strong
+            ><span>You choose repositories on GitHub, then come back here to import them.</span>
+          </div>
           <Button class="main-action" label="Connect GitHub" as="a" :href="appInstallUrl">
             <template #icon><AppIcon name="github" /></template>
           </Button>
         </div>
         <div class="add-repository-option" :class="{ open: useToken }">
-          <div><strong>Personal access token</strong><span>{{ githubConfigured ? 'For an organization where you cannot install apps. Stored encrypted.' : 'This server has no GitHub App, so connect with a fine-grained token. Stored encrypted.' }}</span></div>
-          <Button v-if="!useToken" label="Use a token" severity="secondary" outlined @click="useToken = true">
+          <div>
+            <strong>Personal access token</strong
+            ><span>{{
+              githubConfigured
+                ? 'For an organization where you cannot install apps. Stored encrypted.'
+                : 'This server has no GitHub App, so connect with a fine-grained token. Stored encrypted.'
+            }}</span>
+          </div>
+          <Button
+            v-if="!useToken"
+            label="Use a token"
+            severity="secondary"
+            outlined
+            @click="useToken = true"
+          >
             <template #icon><AppIcon name="key-variant" /></template>
           </Button>
           <GitHubTokenForm v-else @connected="tokenConnected" />
         </div>
-        <button v-if="githubConnected" type="button" class="link-button" @click="connectingAnother = false">Back to your repositories</button>
+        <button
+          v-if="githubConnected"
+          type="button"
+          class="link-button"
+          @click="connectingAnother = false"
+        >
+          Back to your repositories
+        </button>
       </div>
 
       <div v-else class="add-repository-github">
         <SearchInput v-if="options.length > 6" v-model="search" placeholder="Search repositories" />
         <div v-if="githubBroken" class="add-repository-problem" role="alert">
           <AppIcon name="alert-outline" />
-          <div><strong>GitHub did not list your repositories</strong><span>{{ githubError }}</span></div>
+          <div>
+            <strong>GitHub did not list your repositories</strong><span>{{ githubError }}</span>
+          </div>
           <div class="add-repository-problem-actions">
-            <Button v-if="hasAppSource && githubConfigured" label="Reconnect GitHub App" size="small" as="a" :href="appInstallUrl" />
-            <Button label="Use a token" severity="secondary" outlined size="small" @click="connectWithToken" />
+            <Button
+              v-if="hasAppSource && githubConfigured"
+              label="Reconnect GitHub App"
+              size="small"
+              as="a"
+              :href="appInstallUrl"
+            />
+            <Button
+              label="Use a token"
+              severity="secondary"
+              outlined
+              size="small"
+              @click="connectWithToken"
+            />
           </div>
         </div>
-        <div v-else-if="githubLoading" class="empty-state compact"><AppIcon name="loading" spin /><strong>Loading your GitHub repositories</strong></div>
-        <div v-else-if="visibleOptions.length" class="data-list add-repository-list" :aria-busy="importing">
+        <div v-else-if="githubLoading" class="empty-state compact">
+          <AppIcon name="loading" spin /><strong>Loading your GitHub repositories</strong>
+        </div>
+        <div
+          v-else-if="visibleOptions.length"
+          class="data-list add-repository-list"
+          :aria-busy="importing"
+        >
           <div v-for="item in visibleOptions" :key="item.key" class="add-repository-row">
             <AppIcon name="github" class="add-repository-glyph" />
             <div class="add-repository-name">
               <strong>{{ item.full_name }}</strong>
-              <span>{{ item.account ? `${item.account} · ` : '' }}{{ branchRow === item.key ? 'Choose the branch SecondShift reads jobs from' : `Follows ${item.default_branch}, the default branch` }}</span>
+              <span
+                >{{ item.account ? `${item.account} · ` : ''
+                }}{{
+                  branchRow === item.key
+                    ? 'Choose the branch SecondShift reads jobs from'
+                    : `Follows ${item.default_branch}, the default branch`
+                }}</span
+              >
             </div>
             <Select
               v-if="branchRow === item.key"
@@ -188,14 +291,27 @@ function chooseDirectory(path: string): void {
               :aria-label="`Branch for ${item.full_name}`"
               class="add-repository-branch"
             />
-            <button v-else type="button" class="link-button add-repository-other" :disabled="importing" title="Read jobs from a branch other than the default" @click="chooseBranch(item)">Change branch</button>
+            <button
+              v-else
+              type="button"
+              class="link-button add-repository-other"
+              :disabled="importing"
+              title="Read jobs from a branch other than the default"
+              @click="chooseBranch(item)"
+            >
+              Change branch
+            </button>
             <Button
               class="add-repository-import"
               :label="importingRow === item.key ? undefined : 'Import'"
               :aria-label="importingRow === item.key ? 'Importing' : 'Import'"
               size="small"
               :loading="importingRow === item.key"
-              :disabled="importing || (branchRow === item.key && (github.branchesLoading || !github.branches.includes(branch)))"
+              :disabled="
+                importing ||
+                (branchRow === item.key &&
+                  (github.branchesLoading || !github.branches.includes(branch)))
+              "
               @click="importSource(item)"
             />
           </div>
@@ -205,17 +321,31 @@ function chooseDirectory(path: string): void {
           <strong v-if="search">No repositories match</strong>
           <strong v-else-if="githubSources.length">Every repository you shared is imported</strong>
           <strong v-else>GitHub shares no repositories yet</strong>
-          <span v-if="!search">Give SecondShift access to more repositories on GitHub, then come back.</span>
+          <span v-if="!search"
+            >Give SecondShift access to more repositories on GitHub, then come back.</span
+          >
         </div>
-        <p v-if="branchRow && github.branchesError" class="form-error" role="alert">{{ github.branchesError }}</p>
+        <p v-if="branchRow && github.branchesError" class="form-error" role="alert">
+          {{ github.branchesError }}
+        </p>
         <p v-if="githubError && !githubBroken" class="form-error" role="alert">{{ githubError }}</p>
         <!-- The problem box already offers these. -->
         <div v-if="!githubBroken" class="add-repository-footer">
           <span>Schedules stay off until you review the imported jobs.</span>
           <span class="add-repository-links">
-            <a v-if="hasAppSource && githubConfigured" href="/github/connect/?install=1">Missing a repository? Manage access <AppIcon name="open-in-new" /></a>
-            <a v-if="hasTokenSource" :href="GITHUB_TOKENS_URL" target="_blank" rel="noopener noreferrer">Edit your token's repositories <AppIcon name="open-in-new" /></a>
-            <button type="button" class="link-button" @click="connectingAnother = true">Add a token or another account</button>
+            <a v-if="hasAppSource && githubConfigured" href="/github/connect/?install=1"
+              >Missing a repository? Manage access <AppIcon name="open-in-new"
+            /></a>
+            <a
+              v-if="hasTokenSource"
+              :href="GITHUB_TOKENS_URL"
+              target="_blank"
+              rel="noopener noreferrer"
+              >Edit your token's repositories <AppIcon name="open-in-new"
+            /></a>
+            <button type="button" class="link-button" @click="connectingAnother = true">
+              Add a token or another account
+            </button>
           </span>
         </div>
       </div>
@@ -223,19 +353,48 @@ function chooseDirectory(path: string): void {
 
     <form v-else class="add-repository-local" @submit.prevent="addLocal">
       <h2>Add a local Git repository</h2>
-      <p>Jobs are read from its committed <code>.secondshift.yaml</code>. You can add it before the file exists.</p>
+      <p>
+        Jobs are read from its committed <code>.secondshift.yaml</code>. You can add it before the
+        file exists.
+      </p>
       <div class="add-repository-path">
-        <InputText v-model="localPath" aria-label="Local repository path" placeholder="/Users/you/Projects/my-repository" autofocus />
-        <Button type="button" severity="secondary" outlined aria-label="Browse directories" :aria-expanded="browsing" aria-controls="local-directory-picker" aria-haspopup="dialog" title="Browse directories" @click="browsing = true">
+        <InputText
+          v-model="localPath"
+          aria-label="Local repository path"
+          placeholder="/Users/you/Projects/my-repository"
+          autofocus
+        />
+        <Button
+          type="button"
+          severity="secondary"
+          outlined
+          aria-label="Browse directories"
+          :aria-expanded="browsing"
+          aria-controls="local-directory-picker"
+          aria-haspopup="dialog"
+          title="Browse directories"
+          @click="browsing = true"
+        >
           <template #icon><AppIcon name="folder-open-outline" /></template>
         </Button>
-        <Button class="main-action" type="submit" label="Add repository" :loading="saving" :disabled="!localPath.trim()">
+        <Button
+          class="main-action"
+          type="submit"
+          label="Add repository"
+          :loading="saving"
+          :disabled="!localPath.trim()"
+        >
           <template #icon><AppIcon name="check" /></template>
         </Button>
       </div>
       <p v-if="localError" class="form-error">{{ localError }}</p>
     </form>
     <!-- Outside the form, so the picker's buttons never submit it. -->
-    <LocalDirectoryPicker v-if="browsing" :path="localPath" @choose="chooseDirectory" @close="browsing = false" />
+    <LocalDirectoryPicker
+      v-if="browsing"
+      :path="localPath"
+      @choose="chooseDirectory"
+      @close="browsing = false"
+    />
   </section>
 </template>

@@ -13,9 +13,9 @@ export interface TaskSubmission {
     name: string
     skill?: string | null
     /** Another public GitHub repository the skill is in. */
-    skill_source?: { repository: string, ref: string | null } | null
-    requires: { mcps: TaskCapability[], apis: TaskCapability[] }
-    notify: { binding: string, required: boolean }[]
+    skill_source?: { repository: string; ref: string | null } | null
+    requires: { mcps: TaskCapability[]; apis: TaskCapability[] }
+    notify: { binding: string; required: boolean }[]
   }
   revision: string | null
   input: string

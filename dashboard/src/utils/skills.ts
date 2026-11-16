@@ -28,7 +28,11 @@ export function parseSkillReference(text: string): Partial<SkillReference> | nul
   if (parts.length < 2) return null
   const repository = `${parts[0]}/${parts[1].replace(/\.git$/, '')}`
   if (parts.length >= 4 && (parts[2] === 'blob' || parts[2] === 'tree')) {
-    return { repository, ref: parts[3], path: parts.length > 4 ? skillPath(parts.slice(4)) : SKILL_FILE }
+    return {
+      repository,
+      ref: parts[3],
+      path: parts.length > 4 ? skillPath(parts.slice(4)) : SKILL_FILE,
+    }
   }
   return { repository }
 }
@@ -40,8 +44,8 @@ function skillPath(parts: string[]): string {
 /** The requires a task gets for needs it can use: what the skill names and the connection has. */
 export function readyCapabilities(inspection: SkillInspection): TaskCapability[] {
   return inspection.needs
-    .filter(need => need.status === 'ready' && need.tools.length)
-    .map(need => ({ binding: need.binding, tools: [...need.tools], required: false }))
+    .filter((need) => need.status === 'ready' && need.tools.length)
+    .map((need) => ({ binding: need.binding, tools: [...need.tools], required: false }))
 }
 
 export interface ScheduleDraft {
@@ -54,7 +58,13 @@ export interface ScheduleDraft {
 
 /** A job key: lowercase words joined by hyphens. */
 export function jobKey(name: string): string {
-  return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'skill'
+  return (
+    name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 60) || 'skill'
+  )
 }
 
 /** A .secondshift.yaml entry that schedules the skill at the commit the run used. */
@@ -73,7 +83,10 @@ export function scheduleYaml(draft: ScheduleDraft): string {
   if (draft.mcps.length) {
     lines.push('    requires:', '      mcps:')
     for (const capability of draft.mcps) {
-      lines.push(`        - binding: ${capability.binding}`, `          tools: [${capability.tools.join(', ')}]`)
+      lines.push(
+        `        - binding: ${capability.binding}`,
+        `          tools: [${capability.tools.join(', ')}]`,
+      )
     }
   }
   return `${lines.join('\n')}\n`

@@ -71,7 +71,7 @@ export interface WorkspaceSettings {
   workspace_slug: string | null
   environment: string
   sandbox: string
-  groups: { title: string, items: SettingValue[] }[]
+  groups: { title: string; items: SettingValue[] }[]
   /** Run limits for the whole workspace. Each job can choose its own. */
   limits: RunLimitItem[]
   can_edit_limits: boolean
@@ -247,7 +247,7 @@ export interface Job {
   grant_status: 'approved' | 'pending' | 'denied' | 'not_required'
   capabilities: Capability[]
   /** The newest run, finished or not. */
-  last_run: { id: number, status: Run['status'], at: string } | null
+  last_run: { id: number; status: Run['status']; at: string } | null
   /** Trigger kinds the configuration names, such as "webhook". */
   triggers: TriggerKind[]
 }
@@ -265,7 +265,7 @@ export interface JobDetail extends Job {
   /** An owner allows pull requests for the repository, so drafts open. */
   pull_requests_allowed: boolean
   /** The configuration asks to open the issues each run proposes. Null when it does not. */
-  open_issues: { labels: string[], max: number } | null
+  open_issues: { labels: string[]; max: number } | null
   /** An owner allows issues for the repository, so they open. */
   issues_allowed: boolean
   repository_revision: string
