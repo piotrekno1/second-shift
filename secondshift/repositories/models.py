@@ -6,6 +6,8 @@ from django.db import models
 from secondshift.connections.models import Connection
 from secondshift.workspaces.models import Workspace
 
+# The repository file that lists jobs, at the repository root.
+MANIFEST_FILE = ".secondshift.yaml"
 SYNC_ERROR_MAX_CHARS = 500
 
 
@@ -46,7 +48,7 @@ class Repository(models.Model):
     pull_request_ci = models.BooleanField(default=False)
     # Jobs may open the issues their agent proposes. Owners decide.
     allow_issues = models.BooleanField(default=False)
-    config_path = models.CharField(max_length=255, default=".secondshift.yaml")
+    config_path = models.CharField(max_length=255, default=MANIFEST_FILE)
     # The commit runs use. It moves only when a sync succeeds.
     config_sha = models.CharField(max_length=64, blank=True)
     # The newest commit a sync read, even if its configuration was invalid.

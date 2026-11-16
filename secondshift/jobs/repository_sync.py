@@ -10,7 +10,6 @@ from pathlib import Path
 import yaml
 from django.db import transaction
 
-from secondshift.config.constants import MANIFEST_FILE
 from secondshift.connections.models import Connection
 from secondshift.github.errors import GitHubError
 from secondshift.jobs.automatic_grants import approve_waiting
@@ -39,7 +38,7 @@ from secondshift.repositories.local import (
     locate_local_repository,
     save_local_location,
 )
-from secondshift.repositories.models import Repository
+from secondshift.repositories.models import MANIFEST_FILE, Repository
 from secondshift.workspaces.models import Workspace
 
 

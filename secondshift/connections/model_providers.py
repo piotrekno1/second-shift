@@ -2,6 +2,7 @@ import difflib
 import logging
 import re
 from dataclasses import dataclass
+from enum import StrEnum
 from typing import Any
 
 import anthropic
@@ -9,7 +10,6 @@ import httpx
 from django.conf import settings
 from django.db import transaction
 
-from secondshift.config.constants import ModelFamily
 from secondshift.connections.checks import record_check
 from secondshift.connections.models import Connection
 from secondshift.connections.outbound import (
@@ -21,6 +21,13 @@ from secondshift.connections.outbound import (
 from secondshift.workspaces.models import Workspace
 
 logger = logging.getLogger(__name__)
+
+
+class ModelFamily(StrEnum):
+    """The API shape a model provider speaks. Names the gateway's URL path."""
+
+    ANTHROPIC = "anthropic"
+    OPENAI = "openai"
 
 
 @dataclass(frozen=True)

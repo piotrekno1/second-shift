@@ -5,7 +5,8 @@ from urllib.parse import urlsplit
 
 # How agent containers reach services on the Docker host.
 HOST_ALIAS = "host.docker.internal"
-# The gateway's MCP endpoint for subscription agents. Deploy files spell it out too.
+# The gateway's MCP endpoint for subscription agents. compose.production.yaml
+# spells it out too, and a test checks the two match.
 AGENT_BROKER_PATH = "gateway/agent/mcp"
 
 

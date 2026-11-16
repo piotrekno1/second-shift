@@ -9,7 +9,6 @@ from ninja import Router, Status
 from ninja.errors import HttpError
 from ninja.security import django_auth
 
-from secondshift.config.constants import SUMMARY_MAX_CHARS
 from secondshift.connections.agents import (
     AgentConnectionError,
     check_agent_connection,
@@ -112,6 +111,7 @@ from secondshift.github.errors import GitHubError
 from secondshift.jobs.automatic_grants import approve_waiting_for, set_require_approval
 from secondshift.jobs.grants import delete_connection
 from secondshift.repositories.github_check import check_source
+from secondshift.runs.execution.result import SUMMARY_MAX_CHARS
 from secondshift.runs.reporting.connection_usage import (
     ConnectionUsage,
     connection_usage,

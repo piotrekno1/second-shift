@@ -5,10 +5,14 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-from secondshift.config.constants import GITHUB_BASE_URL, MANIFEST_FILE
+from secondshift.config.constants import GITHUB_BASE_URL
 from secondshift.repositories.dao import local_repository, save_local_repository
 from secondshift.repositories.github import github_remote_name
-from secondshift.repositories.models import SYNC_ERROR_MAX_CHARS, Repository
+from secondshift.repositories.models import (
+    MANIFEST_FILE,
+    SYNC_ERROR_MAX_CHARS,
+    Repository,
+)
 from secondshift.workspaces.models import Workspace
 
 logger = logging.getLogger(__name__)

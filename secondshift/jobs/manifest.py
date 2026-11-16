@@ -1,6 +1,7 @@
 import hashlib
 import json
 import re
+from enum import StrEnum
 from pathlib import Path, PurePosixPath
 from typing import Annotated, ClassVar, Self
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
@@ -18,12 +19,17 @@ from pydantic import (
 )
 from pydantic_core import ErrorDetails
 
-from secondshift.config.constants import TriggerKind
 from secondshift.github.identity import GITHUB_REPOSITORY_PATTERN
 from secondshift.runner_protocol.sandbox import COMMIT_SHA_PATTERN
 
 # Issues one run may open. A weekly review should file a few, not dozens.
 MAX_RUN_ISSUES = 10
+
+
+class TriggerKind(StrEnum):
+    """Events a repository may ask to start a job. Never a URL or a secret."""
+
+    WEBHOOK = "webhook"
 
 
 class CapabilityManifest(BaseModel):

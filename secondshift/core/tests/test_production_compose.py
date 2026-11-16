@@ -5,6 +5,8 @@ from typing import Any
 
 import yaml
 
+from secondshift.runner_protocol.agents import AGENT_BROKER_PATH
+
 ROOT = Path(__file__).resolve().parents[3]
 
 
@@ -23,6 +25,13 @@ def test_only_gateway_joins_the_agent_network() -> None:
             "AGENT_GATEWAY_ADDRESS"
             in services[role]["environment"]["SECONDSHIFT_AGENT_BROKER_URL"]
         )
+
+
+def test_agents_reach_the_broker_at_the_gateways_route() -> None:
+    services = production_services()
+    for role in ("web", "worker", "gateway", "runner"):
+        url = services[role]["environment"]["SECONDSHIFT_AGENT_BROKER_URL"]
+        assert url.endswith(f":8001/{AGENT_BROKER_PATH}")
 
 
 def test_gateway_artifacts_are_read_only_and_runner_has_no_store() -> None:

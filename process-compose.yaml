@@ -40,7 +40,6 @@ processes:
     environment:
       - SECONDSHIFT_SERVICE=runner
       - SECONDSHIFT_AGENT_IMAGE=secondshift-agent:dev
-      - SECONDSHIFT_AGENT_BROKER_URL=http://host.docker.internal:8001/gateway/agent/mcp
       - SECONDSHIFT_AGENT_NETWORK=bridge
       - SECONDSHIFT_HTTP_BIND=127.0.0.1:8002
       - SECONDSHIFT_HTTP_PROCESSES=1
@@ -57,7 +56,6 @@ processes:
     environment:
       - SECONDSHIFT_SERVICE=web
       - SECONDSHIFT_AGENT_IMAGE=secondshift-agent:dev
-      - SECONDSHIFT_AGENT_BROKER_URL=http://host.docker.internal:8001/gateway/agent/mcp
       - SECONDSHIFT_AGENT_NETWORK=bridge
       - SECONDSHIFT_HTTP_BIND=127.0.0.1:8000
     depends_on:
@@ -72,7 +70,6 @@ processes:
     environment:
       - SECONDSHIFT_SERVICE=gateway
       - SECONDSHIFT_AGENT_IMAGE=secondshift-agent:dev
-      - SECONDSHIFT_AGENT_BROKER_URL=http://host.docker.internal:8001/gateway/agent/mcp
       - SECONDSHIFT_AGENT_NETWORK=bridge
       - SECONDSHIFT_HTTP_GRACEFUL_TIMEOUT_SECONDS=600
       - SECONDSHIFT_HTTP_BIND=0.0.0.0:8001
@@ -88,7 +85,6 @@ processes:
     environment:
       - SECONDSHIFT_SERVICE=worker
       - SECONDSHIFT_AGENT_IMAGE=secondshift-agent:dev
-      - SECONDSHIFT_AGENT_BROKER_URL=http://host.docker.internal:8001/gateway/agent/mcp
       - SECONDSHIFT_AGENT_NETWORK=bridge
     depends_on:
       initialize:
