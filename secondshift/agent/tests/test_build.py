@@ -3,39 +3,8 @@ from unittest.mock import Mock
 
 import pytest
 
-from secondshift.agent.build import (
-    AGENT_IMAGE_DIR,
-    build_agent_image,
-    resolve_image_id,
-)
-
-
-def test_resolves_mutable_tag_to_immutable_id(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    image_id = "sha256:" + "a" * 64
-    run = Mock(return_value=Mock(stdout=image_id + "\n"))
-    monkeypatch.setattr("secondshift.agent.build.subprocess.run", run)
-    assert resolve_image_id("secondshift-agent:dev") == image_id
-    assert run.call_args.args[0] == [
-        "docker",
-        "image",
-        "inspect",
-        "--format",
-        "{{.Id}}",
-        "secondshift-agent:dev",
-    ]
-
-
-def test_rejects_unexpected_inspection_output(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr(
-        "secondshift.agent.build.subprocess.run",
-        Mock(return_value=Mock(stdout="latest")),
-    )
-    with pytest.raises(ValueError, match="immutable"):
-        resolve_image_id("secondshift-agent:dev")
+from secondshift.agent.build import AGENT_IMAGE_DIR, build_agent_image
+from secondshift.docker import commands
 
 
 def test_agent_image_builds_from_only_the_packaged_agent_files(
@@ -53,9 +22,9 @@ def test_agent_image_builds_from_only_the_packaged_agent_files(
                 for path in context.rglob("*")
                 if path.is_file()
             )
-        return Mock(stdout=image_id)
+        return Mock(returncode=0, stdout=image_id)
 
-    monkeypatch.setattr("secondshift.agent.build.subprocess.run", run)
+    monkeypatch.setattr(commands.subprocess, "run", run)
 
     assert build_agent_image() == image_id
     assert seen["files"] == [

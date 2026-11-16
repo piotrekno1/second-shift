@@ -13,12 +13,12 @@ from pathlib import Path
 
 from django.conf import settings
 
-from secondshift.agent.build import resolve_image_id
 from secondshift.agent.image.outcomes import (
     AUTH_FILES,
     AgentConfig,
     AgentOutcome,
 )
+from secondshift.docker.commands import DockerError, resolve_image_id
 from secondshift.runner.agent_credentials import decrypt_agent_auth
 from secondshift.runner.dao import is_session_active
 from secondshift.runner.services import DockerRunnerService, agent_name, sandbox_flags
@@ -44,7 +44,7 @@ def require_agent_configuration() -> str:
             raise RunnerProtocolError("The agent image must be pinned by digest.")
         try:
             image = resolve_image_id(image)
-        except (subprocess.SubprocessError, OSError, ValueError) as error:
+        except DockerError as error:
             raise RunnerProtocolError(
                 "The agent image isn't built. Restart SecondShift to build it."
             ) from error

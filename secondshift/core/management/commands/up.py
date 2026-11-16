@@ -13,6 +13,7 @@ from django.core.management import call_command
 from secondshift.config.constants import AppEnv, Environment, Service
 from secondshift.core import launcher, local_agents, local_output, terminal
 from secondshift.core.signin import SIGN_IN_LINK_SECONDS, sign_in_url
+from secondshift.docker import commands as docker
 from secondshift.workspaces.owners import (
     ensure_owner,
     get_owner,
@@ -159,13 +160,7 @@ def is_loopback(host: str) -> bool:
 
 
 def check_docker() -> None:
-    try:
-        result = subprocess.run(
-            ["docker", "info"], capture_output=True, timeout=15, check=False
-        )
-    except (FileNotFoundError, subprocess.TimeoutExpired):
-        result = None
-    if result is None or result.returncode:
+    if not docker.available():
         raise click.ClickException(
             "Docker isn't running. Skills run in Docker sandboxes. "
             "Start Docker and try again."

@@ -47,8 +47,9 @@ docker build .
   credentials and provider adapters, and `runner` owns sandbox sessions.
   The runner and the control plane meet only through `runner_protocol`.
   The agent image lives in `secondshift/agent` and uses only the standard
-  library. Server code runs git through `secondshift.git.commands`, which
-  imports nothing else from SecondShift.
+  library. Server code runs git through `secondshift.git.commands`. Shared
+  Docker questions live in `secondshift.docker.commands`. Neither imports
+  anything else from SecondShift.
   `core/tests/test_runner_boundary.py` checks these imports. See `docs/backend-architecture.md` for boundaries and migration history.
 - Each app keeps every query on its models in `dao.py`, named for what it
   does. Other modules, in the same app or another, call those helpers. They

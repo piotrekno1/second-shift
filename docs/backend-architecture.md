@@ -33,6 +33,13 @@ their own error. The package imports nothing else from SecondShift, so the
 runner and the control plane may both use it. `core/tests/test_runner_boundary.py`
 checks this.
 
+`secondshift/docker` is a plain package, not an app. It answers the questions
+several parts ask Docker: whether it runs, whether it is Docker Desktop, and
+which image ID a tag names. It also builds the agent image. A failure raises
+`DockerError`. The runner still builds its sandbox command lines itself, next
+to the checks that keep repository input out of them. Like `git`, the package
+imports nothing else from SecondShift.
+
 `secondshift/runner_protocol` is a plain package, not an app. It holds what
 the runner and the control plane agree on: session and command specs, agent
 requests and results, agent backends, sandbox paths and size limits, the
