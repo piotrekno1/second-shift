@@ -3,7 +3,8 @@
 The runner never imports control plane apps, and the control plane never
 imports the runner. They meet through runner_protocol, which imports neither.
 The agent image is a third part. Its files use only the standard library,
-because the image has nothing else installed.
+because the image has nothing else installed. The git package is a library
+that every part may use, so it imports no other part.
 """
 
 import ast
@@ -25,8 +26,10 @@ ALLOWED = {
         "secondshift.runner",
         "secondshift.runner_protocol",
         "secondshift.agent",
+        "secondshift.git",
     ),
     "agent": ("secondshift.agent",),
+    "git": ("secondshift.git",),
 }
 # config starts every process, so it imports each one's entry point.
 NOT_CONTROL_PLANE = {*ALLOWED, "config"}
