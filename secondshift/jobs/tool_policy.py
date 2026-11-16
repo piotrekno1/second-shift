@@ -8,6 +8,9 @@ LOCAL_TOOLS = (
     "workspace.read_file",
     "workspace.search_text",
     "workspace.run_command",
+    "workspace.run_shell",
+    "workspace.write_file",
+    "workspace.edit_file",
 )
 EXTERNAL_KINDS = {"api", "mcp"}
 

@@ -17,7 +17,19 @@ def spec() -> RunnerSessionSpec:
     )
 
 
-@pytest.mark.parametrize("cwd", ["/workspace", "../other", "src/../../other"])
+@pytest.mark.parametrize(
+    "cwd",
+    [
+        "/workspace",
+        "/",
+        "/etc",
+        "/auth",
+        "/skillset",
+        "/skill/../etc",
+        "../other",
+        "src/../../other",
+    ],
+)
 def test_command_working_directory_cannot_escape_workspace(cwd: str) -> None:
     with pytest.raises(ValueError, match="inside the workspace"):
         CommandRequest("call-1", ("pwd",), cwd=cwd)
@@ -59,3 +71,20 @@ def test_a_skill_archive_must_be_named_by_its_sha256(skill_sha256: str) -> None:
 def test_history_archive_must_be_named_by_its_sha256(history_sha256: str) -> None:
     with pytest.raises(ValueError, match="history_sha256"):
         RunnerSessionSpec(**{**spec().__dict__, "history_sha256": history_sha256})
+
+
+@pytest.mark.parametrize(
+    ("cwd", "workdir"),
+    [
+        (".", "/workspace"),
+        ("src/app", "/workspace/src/app"),
+        ("/skill", "/skill"),
+        ("/skill/scripts", "/skill/scripts"),
+        ("/history", "/history"),
+        ("/outputs/charts", "/outputs/charts"),
+    ],
+)
+def test_commands_start_in_the_workspace_or_a_sandbox_folder(
+    cwd: str, workdir: str
+) -> None:
+    assert CommandRequest("call-1", ("pwd",), cwd=cwd).workdir == workdir

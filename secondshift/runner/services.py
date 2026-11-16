@@ -215,14 +215,11 @@ class DockerRunnerService:
             return cached
         session = get_session(session_id)
         timeout = min(request.timeout_seconds, settings.RUNNER_COMMAND_TIMEOUT_SECONDS)
-        workdir = "/workspace"
-        if request.cwd != ".":
-            workdir += f"/{request.cwd}"
         command = [
             "docker",
             "exec",
             "--workdir",
-            workdir,
+            request.workdir,
             session.container_name,
             *request.argv,
         ]
