@@ -104,7 +104,8 @@ class RepositoryPlan(Frozen):
 class RunnerPlan(Frozen):
     image: str
     network_policy: Literal["none"]
-    # Only runs that publish the agent's changes need them recorded.
+    # Whether the runner records the agent's file changes. Every new plan
+    # does. Plans stored before that may not.
     collect_changes: bool
 
 

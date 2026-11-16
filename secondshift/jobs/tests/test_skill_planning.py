@@ -249,7 +249,7 @@ def test_workspace_limits_and_server_sandbox_policy_are_frozen(
     assert result["runner"] == {
         "image": "server-owned-image",
         "network_policy": "none",
-        "collect_changes": False,
+        "collect_changes": True,
     }
     repository.workspace.default_model_connection.allowed_models.append("new-model")
     assert result["model"]["allowed_models"] == ["claude-opus-5-5"]

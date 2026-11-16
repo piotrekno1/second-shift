@@ -268,7 +268,9 @@ def compile_execution_plan(
         runner=RunnerPlan(
             image=settings.RUNNER_IMAGE,
             network_policy="none",
-            collect_changes=pull_request is not None,
+            # Every run keeps its changes for review. Pull requests only
+            # decide whether they are published.
+            collect_changes=True,
         ),
         pull_request=pull_request,
         issues=issues,

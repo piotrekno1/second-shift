@@ -617,13 +617,14 @@ def test_a_task_at_a_commit_targets_the_followed_branch(
     assert run.execution_plan["pull_request"]["base"] == "main"
 
 
-def test_other_tasks_neither_record_changes_nor_mention_pull_requests(
+def test_other_tasks_keep_changes_but_never_mention_pull_requests(
     github_repository: Repository, owner: User
 ) -> None:
     run = start(github_repository, owner)
 
     assert run.execution_plan["pull_request"] is None
-    assert run.execution_plan["runner"]["collect_changes"] is False
+    # The changes stay with the run for review. Nothing publishes them.
+    assert run.execution_plan["runner"]["collect_changes"] is True
     assert not run.deliveries.exists()
     assert PULL_REQUEST_NOTE not in run_prompt(run)
 
