@@ -7,6 +7,7 @@ from ninja.errors import HttpError
 from ninja.security import django_auth
 
 from secondshift.connections.api.shared import owned_connection
+from secondshift.connections.credential_store import Secret, read_secret
 from secondshift.connections.execution import apply_model_default
 from secondshift.connections.model_providers import (
     CheckFailed,
@@ -66,7 +67,7 @@ def refresh_model_provider_models(
             ),
             access_token=payload.api_key.strip()
             if payload.api_key and payload.api_key.strip()
-            else connection.access_token,
+            else read_secret(connection, Secret.TOKEN),
         )
         return fetch_models(preview)
     except (ModelProviderError, CheckFailed) as error:

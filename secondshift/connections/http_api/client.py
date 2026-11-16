@@ -9,6 +9,7 @@ from urllib.parse import quote, urlencode
 import anyio
 from django.conf import settings
 
+from secondshift.connections.credential_store import Secret, has_secret, read_secret
 from secondshift.connections.http_api.spec import (
     BODY,
     APIArgumentError,
@@ -109,7 +110,7 @@ def validate_api_connection(connection: Connection) -> None:
         connection.kind != Connection.Kind.API
         or connection.provider != Connection.Provider.API
         or connection.status != Connection.Status.CONNECTED
-        or not connection.access_token
+        or not has_secret(connection, Secret.TOKEN)
         or not connection.endpoint_url
         or connection.token_expired
     ):
@@ -118,8 +119,9 @@ def validate_api_connection(connection: Connection) -> None:
 
 async def send(connection: Connection, request: APIRequest) -> dict[str, Any]:
     """Status and body. No token, exception text, or redirect target leaks."""
+    token = read_secret(connection, Secret.TOKEN)
     headers = {
-        **auth_header(connection.settings, connection.access_token),
+        **auth_header(connection.settings, token),
         "Accept": "application/json, text/plain;q=0.5",
     }
     try:
@@ -142,9 +144,7 @@ async def send(connection: Connection, request: APIRequest) -> dict[str, Any]:
             "body": "The API redirected. SecondShift does not follow redirects.",
         }
     content_type = response.headers.get("content-type", "").split(";")[0].strip()
-    text = raw.decode("utf-8", errors="replace").replace(
-        connection.access_token, "[redacted]"
-    )
+    text = raw.decode("utf-8", errors="replace").replace(token, "[redacted]")
     body: Any
     if content_type == "application/json" or content_type.endswith("+json"):
         try:

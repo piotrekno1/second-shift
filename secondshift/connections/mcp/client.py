@@ -13,6 +13,7 @@ from jsonschema import Draft202012Validator
 from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
 
+from secondshift.connections.credential_store import Secret, has_secret, read_secret
 from secondshift.connections.dao import binding_taken
 from secondshift.connections.mcp.base import (
     SOURCE_AUTH,
@@ -56,7 +57,7 @@ def validate_mcp_connection(connection: Connection) -> MCPProvider:
         or connection.auth_strategy
         not in {AUTH_STRATEGIES[method] for method in provider.auth_methods}
         or connection.status != Connection.Status.CONNECTED
-        or (not borrows_source(connection) and not connection.access_token)
+        or (not borrows_source(connection) and not has_secret(connection, Secret.TOKEN))
         or connection.token_expired
     ):
         raise MCPError(f"This {provider.label} MCP connection is unavailable.")
@@ -79,7 +80,9 @@ async def mcp_request(
     A connection that borrows a source passes the token it minted for the call.
     """
     provider = validate_mcp_connection(connection)
-    secret = token if borrows_source(connection) else connection.access_token
+    secret = (
+        token if borrows_source(connection) else read_secret(connection, Secret.TOKEN)
+    )
     if not secret:
         raise MCPError(f"This {provider.label} MCP connection is unavailable.")
     try:
@@ -298,7 +301,9 @@ def apply_credentials(
         if not re.fullmatch(provider.token_pattern, token):
             raise MCPError(provider.token_hint)
         connection.access_token = token
-    elif connection.status == Connection.Status.REVOKED or not connection.access_token:
+    elif connection.status == Connection.Status.REVOKED or not has_secret(
+        connection, Secret.TOKEN
+    ):
         raise MCPError("Enter a new token to reconnect.")
 
 

@@ -6,6 +6,7 @@ from typing import Any
 
 from django.db import IntegrityError, transaction
 
+from secondshift.connections.credential_store import Secret, has_secret
 from secondshift.connections.dao import binding_taken
 from secondshift.connections.http_api.client import (
     AUTH_TYPES,
@@ -147,8 +148,8 @@ def update_api_connection(
         if not re.fullmatch(TOKEN_PATTERN, token):
             raise APIError("Enter the credential without spaces.")
         connection.access_token = token
-    elif (
-        connection.status != Connection.Status.CONNECTED or not connection.access_token
+    elif connection.status != Connection.Status.CONNECTED or not has_secret(
+        connection, Secret.TOKEN
     ):
         raise APIError("Enter a new credential to reconnect.")
     if display_name is not None:
