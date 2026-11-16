@@ -5,13 +5,14 @@ from django.conf import settings
 from django.core.management import call_command
 from django.utils import timezone
 
-from secondshift.config.constants import RunStart, SandboxRuntime
+from secondshift.config.constants import SandboxRuntime
 from secondshift.connections.dao import create_connection
 from secondshift.connections.models import Connection
 from secondshift.github.identity import clone_url
 from secondshift.jobs.dao import create_job
 from secondshift.jobs.planning import build_execution_plan
 from secondshift.repositories.dao import create_repository
+from secondshift.runs.constants import RunStart
 from secondshift.runs.dao import add_event, create_run_record, create_task
 from secondshift.runs.models import Run
 from secondshift.workspaces.dao import get_workspace_by_slug

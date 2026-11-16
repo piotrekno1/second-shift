@@ -9,7 +9,6 @@ from django.contrib.auth import get_user_model
 from django.test import Client
 from django.utils import timezone
 
-from secondshift.config.constants import RunStart
 from secondshift.connections.errors import ExternalToolError
 from secondshift.connections.execution import choose_execution
 from secondshift.connections.external import external_access
@@ -32,6 +31,7 @@ from secondshift.jobs.planning import build_execution_plan
 from secondshift.jobs.serialization import serialize_job
 from secondshift.repositories.github import repository_ref
 from secondshift.repositories.models import Repository
+from secondshift.runs.constants import RunStart
 from secondshift.runs.dao import create_task
 from secondshift.runs.execution.external_tools import external_tools
 from secondshift.runs.execution.tool_broker import call_external_tool_step

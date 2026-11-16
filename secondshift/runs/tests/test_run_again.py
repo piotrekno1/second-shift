@@ -7,13 +7,13 @@ import pytest
 from django.contrib.auth.models import User
 from django.test import Client
 
-from secondshift.config.constants import RunStart
 from secondshift.jobs.models import Job
 from secondshift.repositories.models import Repository
 from secondshift.repositories.tests.test_external_skills import PATH, REPOSITORY
 from secondshift.repositories.tests.test_external_skills import (
     vendor as vendor_fixture,
 )
+from secondshift.runs.constants import RunStart
 from secondshift.runs.models import Run, Task
 from secondshift.runs.submissions import SkillSubmission, submit_skill
 from secondshift.runs.tests.test_submissions import SKILL

@@ -6,11 +6,11 @@ from django.contrib.auth import get_user_model
 from django.test import Client
 from django.utils import timezone
 
-from secondshift.config.constants import RunStart
 from secondshift.gateway.models import ModelUsage
 from secondshift.jobs.models import Job
 from secondshift.jobs.tests.plans import MODEL, stored_plan
 from secondshift.repositories.models import Repository
+from secondshift.runs.constants import RunStart
 from secondshift.runs.dao import create_task
 from secondshift.runs.models import Run, RunFailure
 from secondshift.workspaces.dao import create_workspace, workspace_owner

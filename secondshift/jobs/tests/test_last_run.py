@@ -2,8 +2,8 @@ import pytest
 from django.test import Client
 from django.utils import timezone
 
-from secondshift.config.constants import RunStart
 from secondshift.jobs.tests.plans import stored_plan
+from secondshift.runs.constants import RunStart
 from secondshift.runs.dao import create_task
 from secondshift.runs.models import Run
 from secondshift.runs.tests.test_run_queries import make_job, make_workspace

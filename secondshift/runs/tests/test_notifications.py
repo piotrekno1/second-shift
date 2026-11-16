@@ -3,10 +3,10 @@ from typing import Any
 
 import pytest
 
-from secondshift.config.constants import RunStart
 from secondshift.jobs.models import Job
 from secondshift.jobs.tests.plans import stored_plan
 from secondshift.repositories.models import Repository
+from secondshift.runs.constants import RunStart
 from secondshift.runs.models import Run, Task
 from secondshift.runs.reporting.notifications import run_report_payload
 

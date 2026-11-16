@@ -10,11 +10,11 @@ from django.contrib.auth.models import AbstractUser
 from django.db import connection
 from django.test.utils import CaptureQueriesContext
 
-from secondshift.config.constants import RunStart
 from secondshift.gateway.models import ModelUsage
 from secondshift.jobs.models import Job
 from secondshift.jobs.tests.plans import stored_plan
 from secondshift.repositories.models import Repository
+from secondshift.runs.constants import RunStart
 from secondshift.runs.models import Run, Task
 from secondshift.workspaces.dao import create_workspace, workspace_owner
 from secondshift.workspaces.models import Workspace

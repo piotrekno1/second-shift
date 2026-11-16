@@ -10,12 +10,6 @@ from urllib.parse import urlsplit
 # Git object formats supported by repository snapshots and execution plans.
 COMMIT_SHA_PATTERN = r"[0-9a-f]{40}|[0-9a-f]{64}"
 
-EXECUTE_RUN_WORKFLOW = "secondshift.execute_run"
-SCHEDULED_JOB_WORKFLOW = "secondshift.scheduled_job"
-RETRY_NOTIFICATION_WORKFLOW = "secondshift.retry_notification"
-RETRY_PULL_REQUEST_WORKFLOW = "secondshift.retry_pull_request"
-RETRY_ISSUES_WORKFLOW = "secondshift.retry_issues"
-
 ENVIRONMENT_VAR = "SECONDSHIFT_ENV"
 SETTINGS_MODULE_VAR = "DJANGO_SETTINGS_MODULE"
 SERVICE_VAR = "SECONDSHIFT_SERVICE"
@@ -140,15 +134,6 @@ class ModelFamily(StrEnum):
     OPENAI = "openai"
 
 
-class RunStart(StrEnum):
-    """What started a run."""
-
-    SCHEDULE = "schedule"
-    MANUAL = "manual"
-    WEBHOOK = "webhook"
-    MCP = "mcp"
-
-
 # How much of a report a run keeps as its summary. Webhooks send the summary.
 SUMMARY_MAX_CHARS = 4_000
 
@@ -220,13 +205,6 @@ class SandboxRuntime(StrEnum):
 
     DOCKER = "docker"
     GVISOR = "runsc"
-
-
-class RunSandbox(StrEnum):
-    """What a run records as its sandbox."""
-
-    PENDING = "pending-runner-service"
-    ISOLATED_RUNNER = "isolated-runner"
 
 
 RUNNER_SETTINGS = settings_module(Service.RUNNER)

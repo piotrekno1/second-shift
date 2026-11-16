@@ -6,12 +6,12 @@ from typing import Any
 import pytest
 from django.utils import timezone
 
-from secondshift.config.constants import RunStart
 from secondshift.config.formatting import duration_label
 from secondshift.connections.execution import choose_execution
 from secondshift.connections.models import Connection
 from secondshift.gateway.models import RunToken
 from secondshift.jobs.tests.plans import stored_plan
+from secondshift.runs.constants import RunStart
 from secondshift.runs.execution import agent
 from secondshift.runs.execution.agent import RUN_MODEL_ID
 from secondshift.runs.execution.deadlines import RunTimedOut, run_deadline

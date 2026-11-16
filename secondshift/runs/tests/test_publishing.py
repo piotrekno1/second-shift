@@ -9,7 +9,6 @@ from unittest.mock import Mock
 import pytest
 from django.utils import timezone
 
-from secondshift.config.constants import RETRY_PULL_REQUEST_WORKFLOW, RunStart
 from secondshift.connections.models import Connection
 from secondshift.jobs.models import Job
 from secondshift.repositories.models import Repository
@@ -20,6 +19,7 @@ from secondshift.repositories.pull_requests import (
 )
 from secondshift.runs import deliveries, publishing
 from secondshift.runs.artifacts import artifact_storage, store_run_text
+from secondshift.runs.constants import RETRY_PULL_REQUEST_WORKFLOW, RunStart
 from secondshift.runs.models import Run, RunDelivery, RunEvent
 from secondshift.runs.orchestration import workflows
 from secondshift.runs.reporting.notifications import run_report_payload

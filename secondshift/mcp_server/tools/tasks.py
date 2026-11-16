@@ -2,7 +2,6 @@
 
 from thin_mcp import ToolContext, ToolExecutionError
 
-from secondshift.config.constants import RunStart
 from secondshift.jobs.schemas import SkillInspectionInput, SkillInspectionSchema
 from secondshift.jobs.serialization import serialize_inspection
 from secondshift.jobs.skill_needs import inspect_external_skill
@@ -11,6 +10,7 @@ from secondshift.mcp_server.tools_registry import call_request, register_tool
 from secondshift.repositories.access import repository_for_request
 from secondshift.repositories.external_skills import ExternalSkillError
 from secondshift.runs.access import run_for_request
+from secondshift.runs.constants import RunStart
 from secondshift.runs.queue import cancel_queued_task
 from secondshift.runs.schemas import TaskSubmissionSchema
 from secondshift.runs.serialization import serialize_run_detail, serialize_submission

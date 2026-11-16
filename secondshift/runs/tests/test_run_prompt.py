@@ -4,11 +4,11 @@ import pytest
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 
-from secondshift.config.constants import RunStart
 from secondshift.jobs.models import Job
 from secondshift.jobs.tests.plans import CAPABILITY, stored_plan
 from secondshift.repositories.models import Repository
 from secondshift.runner.protocol import CommandResult
+from secondshift.runs.constants import RunStart
 from secondshift.runs.dao import create_task
 from secondshift.runs.execution.run import render_run_input, run_prompt
 from secondshift.runs.models import Run

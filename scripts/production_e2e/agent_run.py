@@ -16,11 +16,11 @@ django.setup()
 
 from django.contrib.auth import get_user_model
 
-from secondshift.config.constants import RunStart
 from secondshift.connections.agents import save_agent_connection
 from secondshift.connections.execution import choose_execution
 from secondshift.jobs.models import Job
 from secondshift.runs.artifacts import read_text
+from secondshift.runs.constants import RunStart
 from secondshift.runs.models import Run
 from secondshift.runs.services import start_run
 

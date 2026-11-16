@@ -4,7 +4,7 @@ from typing import Literal
 from ninja import Schema
 from pydantic import Field
 
-from secondshift.config.constants import RunStart
+from secondshift.runs.constants import RunStart
 from secondshift.runs.models import Run
 from secondshift.runs.reporting.queries import Period, RunSort
 
