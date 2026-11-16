@@ -10,7 +10,11 @@ from unittest.mock import Mock
 import pytest
 from pydantic import ValidationError
 
-from secondshift.agent.image import agent, claude, codex, outcomes
+from secondshift.agent.image import agent, outcomes
+from secondshift.agent.image.claude import command as claude
+from secondshift.agent.image.claude import events as claude_events
+from secondshift.agent.image.codex import command as codex
+from secondshift.agent.image.codex import events as codex_events
 from secondshift.core.launcher import services
 from secondshift.runner import agents
 from secondshift.runner.agent_credentials import (
@@ -134,7 +138,7 @@ def test_packaged_agents_disable_native_tools_and_use_only_the_broker(
     monkeypatch.setattr(outcomes, "AUTH", tmp_path)
     (tmp_path / "claude-token").write_text(TOKEN)
 
-    argv, env = claude.claude(BROKER)
+    argv, env = claude.start(BROKER)
     assert argv[argv.index("--tools") + 1] == ""
     assert "--strict-mcp-config" in argv
     assert env == {"CLAUDE_CODE_OAUTH_TOKEN": TOKEN}
@@ -148,7 +152,7 @@ def test_packaged_agents_disable_native_tools_and_use_only_the_broker(
         }
     }
 
-    argv, env = codex.codex(BROKER)
+    argv, env = codex.start(BROKER)
     assert "--skip-git-repo-check" in argv
     assert env == {"SECONDSHIFT_BROKER_TOKEN": "broker-secret"}
     config = (tmp_path / "config.toml").read_text()
@@ -193,7 +197,7 @@ def outcome_of(read: Any, events: list[dict[str, Any]], exit_code: int = 0) -> A
 
 def test_agent_events_keep_only_final_report_and_numeric_usage() -> None:
     done = outcome_of(
-        claude.read_claude,
+        claude_events.read,
         [
             {
                 "type": "result",
@@ -212,7 +216,7 @@ def test_agent_events_keep_only_final_report_and_numeric_usage() -> None:
         "subagents": [],
     }
     codex_done = outcome_of(
-        codex.read_codex,
+        codex_events.read,
         [
             {"type": "item.completed", "item": {"type": "agent_message", "text": "Hi"}},
             {"type": "turn.completed", "usage": {"output_tokens": 3}},
@@ -220,7 +224,7 @@ def test_agent_events_keep_only_final_report_and_numeric_usage() -> None:
     )
     assert codex_done["report"] == "Hi" and codex_done["succeeded"] is True
     # A failing CLI exit code never counts as success.
-    assert outcome_of(codex.read_codex, [], exit_code=0)["reason"] == "agent_failed"
+    assert outcome_of(codex_events.read, [], exit_code=0)["reason"] == "agent_failed"
 
 
 def reply(message_id: str, sub_agent: bool = False, **usage: int) -> dict[str, Any]:
@@ -241,7 +245,7 @@ def test_claude_usage_adds_up_each_reply_once_with_sub_agents() -> None:
         reply("msg_3", sub_agent=True, input_tokens=2, output_tokens=16),
     ]
     for event in events:
-        claude.read_claude(event, outcome)
+        claude_events.read(event, outcome)
 
     # Counted as replies arrive, so a budget can stop the run before it ends.
     assert outcome.usage == {
@@ -252,7 +256,7 @@ def test_claude_usage_adds_up_each_reply_once_with_sub_agents() -> None:
 
     # The final usage leaves out sub-agents. The per-model usage includes them.
     # The largest of each count is kept.
-    claude.read_claude(
+    claude_events.read(
         {
             "type": "result",
             "result": "Done",
@@ -290,7 +294,7 @@ def test_the_token_budget_stops_claude_mid_run(monkeypatch) -> None:
         return [sys.executable, "-c", script], {}
 
     monkeypatch.setitem(
-        agent.BACKENDS, "claude_code", (sys.executable, start, claude.read_claude)
+        agent.BACKENDS, "claude_code", (sys.executable, start, claude_events.read)
     )
     started = time.monotonic()
 
@@ -344,7 +348,7 @@ def test_a_codex_run_with_mostly_cached_input_finishes(monkeypatch) -> None:
         return [sys.executable, "-c", script], {}
 
     monkeypatch.setitem(
-        agent.BACKENDS, "codex", (sys.executable, start, codex.read_codex)
+        agent.BACKENDS, "codex", (sys.executable, start, codex_events.read)
     )
 
     # 100 fresh input, 50 output and 490 for the cache reads.
@@ -358,7 +362,7 @@ def test_a_codex_run_with_mostly_cached_input_finishes(monkeypatch) -> None:
     ("read", "events", "reason"),
     [
         (
-            claude.read_claude,
+            claude_events.read,
             [
                 {
                     "type": "result",
@@ -369,12 +373,12 @@ def test_a_codex_run_with_mostly_cached_input_finishes(monkeypatch) -> None:
             "reconnect_required",
         ),
         (
-            claude.read_claude,
+            claude_events.read,
             [{"type": "result", "subtype": "error_max_turns", "is_error": True}],
             "turn_budget_exhausted",
         ),
         (
-            codex.read_codex,
+            codex_events.read,
             [{"type": "turn.failed", "error": {"message": "You hit your usage limit"}}],
             "quota_exhausted",
         ),
@@ -469,13 +473,13 @@ def test_a_login_check_has_no_tools_at_all(
     (tmp_path / "claude-token").write_text(TOKEN)
     check = {"max_turns": 1}
 
-    argv, env = claude.claude(check)
+    argv, env = claude.start(check)
     assert "--strict-mcp-config" in argv and argv[argv.index("--tools") + 1] == ""
     assert "--mcp-config" not in argv and "--allowedTools" not in argv
     assert env == {"CLAUDE_CODE_OAUTH_TOKEN": TOKEN}
     assert not (tmp_path / "mcp.json").exists()
 
-    argv, env = codex.codex(check)
+    argv, env = codex.start(check)
     assert env == {}
     parsed = tomllib.loads((tmp_path / "config.toml").read_text())
     assert "mcp_servers" not in parsed

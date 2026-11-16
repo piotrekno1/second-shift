@@ -61,15 +61,25 @@ def test_agent_image_builds_from_only_the_packaged_agent_files(
     assert seen["files"] == [
         "secondshift/agent/image/Dockerfile",
         "secondshift/agent/image/agent.py",
-        "secondshift/agent/image/claude.py",
-        "secondshift/agent/image/codex.py",
+        "secondshift/agent/image/claude/__init__.py",
+        "secondshift/agent/image/claude/agents.json",
+        "secondshift/agent/image/claude/command.py",
+        "secondshift/agent/image/claude/events.py",
+        "secondshift/agent/image/claude/mcp.json",
+        "secondshift/agent/image/claude/settings.json",
+        "secondshift/agent/image/claude/subagent_hook.py",
+        "secondshift/agent/image/claude/worker_prompt.md",
+        "secondshift/agent/image/codex/__init__.py",
+        "secondshift/agent/image/codex/broker.toml",
+        "secondshift/agent/image/codex/command.py",
+        "secondshift/agent/image/codex/config.toml",
+        "secondshift/agent/image/codex/events.py",
         "secondshift/agent/image/outcomes.py",
-        "secondshift/agent/image/subagent_hook.py",
     ]
     assert seen["build"][-3:-1] == ["-t", "secondshift-agent:local"]
 
 
-def test_the_agent_image_copies_every_module() -> None:
+def test_the_agent_image_copies_the_whole_folder() -> None:
     dockerfile = (AGENT_IMAGE_DIR / "Dockerfile").read_text()
 
-    assert "COPY secondshift/agent/image/*.py " in dockerfile
+    assert "COPY secondshift/agent/image/ " in dockerfile

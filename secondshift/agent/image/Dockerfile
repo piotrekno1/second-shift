@@ -9,8 +9,8 @@ FROM python:3.13.11-slim-trixie@sha256:2b9c9803c6a287cafa0a8c917211dddd23dcd2016
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates libstdc++6 && \
     rm -rf /var/lib/apt/lists/* && mkdir -p /opt/secondshift
 COPY --from=cli-build /usr/local/ /usr/local/
-# Every module, so a new backend file is never left out of the image.
-COPY secondshift/agent/image/*.py /opt/secondshift/secondshift/agent/image/
+# The whole folder, so a new backend module or config file is never left out.
+COPY secondshift/agent/image/ /opt/secondshift/secondshift/agent/image/
 ENV PYTHONPATH=/opt/secondshift
 USER 10001:10001
 ENTRYPOINT ["python3", "-m", "secondshift.agent.image.agent"]

@@ -3,7 +3,8 @@
 The runner sends one JSON line on stdin. The CLI reaches SecondShift tools only
 through the run's MCP broker over HTTP. Raw CLI events and stderr can contain
 credentials or tool payloads, so only the final report and numeric usage leave
-the container. Each CLI's command and event reader live in its own module.
+the container. Each CLI has its own package with its command, its event reader
+and its config files.
 """
 
 import contextlib
@@ -14,8 +15,10 @@ import sys
 from collections.abc import Callable
 from typing import Any
 
-from secondshift.agent.image.claude import claude, read_claude
-from secondshift.agent.image.codex import codex, read_codex
+from secondshift.agent.image.claude import command as claude
+from secondshift.agent.image.claude import events as claude_events
+from secondshift.agent.image.codex import command as codex
+from secondshift.agent.image.codex import events as codex_events
 from secondshift.agent.image.outcomes import (
     AgentConfig,
     AgentOutcome,
@@ -32,8 +35,8 @@ Start = Callable[[AgentConfig], tuple[list[str], dict[str, str]]]
 # Updates the outcome from one CLI event.
 Read = Callable[[dict[str, Any], Outcome], None]
 BACKENDS: dict[str, tuple[str, Start, Read]] = {
-    "claude_code": ("claude", claude, read_claude),
-    "codex": ("codex", codex, read_codex),
+    "claude_code": (claude.BINARY, claude.start, claude_events.read),
+    "codex": (codex.BINARY, codex.start, codex_events.read),
 }
 
 

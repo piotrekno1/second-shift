@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    $server: {
+      "type": "http",
+      "url": $url,
+      "headers": {"Authorization": $authorization}
+    }
+  }
+}

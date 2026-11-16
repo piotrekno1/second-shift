@@ -37,7 +37,10 @@ package. `core/tests/test_runner_boundary.py` checks this.
 `secondshift/agent` is a plain package for the agent image, the container that
 runs a subscription CLI for one run. `agent/image` holds the files the image
 ships. They use only the standard library, because the image has nothing else
-installed. The runner starts the image, and the control plane reads the
+installed. Each CLI has its own package, `image/claude` and `image/codex`, with
+its command, its event reader and its config files. Config files are real
+files. `outcomes.fill_template` puts each run value in as a JSON literal and
+parses the result, so a value can never add a setting. The runner starts the image, and the control plane reads the
 outcomes and usage it reports. `agent/build.py` builds the image on this
 machine for `secondshift up` and development.
 

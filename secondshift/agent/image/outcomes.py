@@ -4,9 +4,12 @@ The agent image ships this file next to agent.py, so it may use only the
 standard library. The control plane imports AgentOutcome from here too.
 """
 
+import json
+import tomllib
 from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
+from string import Template
 from typing import Any, NotRequired, TypedDict
 
 # Container paths. Backends read them as outcomes.TMP and outcomes.AUTH, so
@@ -93,6 +96,22 @@ def numbers(values: dict[str, Any]) -> dict[str, int]:
 def private_file(path: Path, text: str) -> None:
     path.write_text(text)
     path.chmod(0o600)
+
+
+def fill_template(path: Path, **values: object) -> str:
+    """A config file from this image, with each $name replaced by its value.
+
+    Each value goes in as a JSON literal, which TOML reads the same way. The
+    result must parse, so a value can never add a setting of its own.
+    """
+    text = Template(path.read_text()).substitute(
+        {name: json.dumps(value) for name, value in values.items()}
+    )
+    if path.suffix == ".json":
+        json.loads(text)
+    elif path.suffix == ".toml":
+        tomllib.loads(text)
+    return text
 
 
 def budget_count(fresh: int, cached: int) -> int:
