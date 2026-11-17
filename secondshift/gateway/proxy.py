@@ -20,12 +20,12 @@ from django.conf import settings
 from django.http import HttpRequest, HttpResponse, StreamingHttpResponse
 
 from secondshift.connections.credential_store import Secret, read_secret
+from secondshift.connections.errors import CredentialUnavailable
 from secondshift.connections.model_providers import (
     ModelFamily,
     api_root,
     provider_family,
 )
-from secondshift.connections.models import Connection
 from secondshift.connections.outbound import (
     OutboundUrlError,
     PinnedTransport,
@@ -107,7 +107,7 @@ def error_response(
 
 
 def upstream_headers(
-    request: HttpRequest, family: ModelFamily, connection: Connection
+    request: HttpRequest, family: ModelFamily, token: str
 ) -> dict[str, str]:
     headers = {
         "Content-Type": "application/json",
@@ -117,7 +117,6 @@ def upstream_headers(
     for name in ROUTES[family].forwarded_headers:
         if value := request.headers.get(name):
             headers[name] = value
-    token = read_secret(connection, Secret.TOKEN)
     if family == ModelFamily.ANTHROPIC:
         headers.setdefault("anthropic-version", ANTHROPIC_VERSION)
         headers["x-api-key"] = token
@@ -269,6 +268,11 @@ async def send_upstream(
     except OutboundUrlError as error:
         raise GatewayRefusal(family, 502, "api_error", str(error)) from error
     url = f"{root}/{path}"
+    try:
+        # A secret manager answers over the network, and the workspace is a query.
+        token = await sync_to_async(read_secret)(connection, Secret.TOKEN)
+    except CredentialUnavailable as error:
+        raise GatewayRefusal(family, 502, "api_error", str(error)) from error
     client = upstream_client()
     try:
         return await client.send(
@@ -276,7 +280,7 @@ async def send_upstream(
                 "POST",
                 url,
                 content=raw,
-                headers=upstream_headers(request, family, connection),
+                headers=upstream_headers(request, family, token),
             ),
             stream=True,
         )

@@ -7,7 +7,9 @@ from pydantic_ai.models.openai import OpenAIChatModel, OpenAIResponsesModel
 from pydantic_ai.providers.anthropic import AnthropicProvider
 from pydantic_ai.providers.openai import OpenAIProvider
 
+from secondshift.connections.credential_store import Secret, has_secret, read_secret
 from secondshift.connections.dao import connected_model
+from secondshift.connections.errors import CredentialUnavailable
 from secondshift.connections.model_providers import (
     ModelFamily,
     model_provider,
@@ -63,6 +65,14 @@ def issue_model_gateway_access(run: Run) -> ModelGatewayAccess:
             "The run's model provider is no longer connected."
         )
 
+    if has_secret(connection, Secret.TOKEN):
+        try:
+            # Fails the run at the start, not on the agent's first model call.
+            read_secret(connection, Secret.TOKEN)
+        except CredentialUnavailable as error:
+            raise ModelGatewayConfigurationError(
+                f"The model provider's key is unavailable. {error}"
+            ) from error
     family = provider_family(connection)
     revoke_run_tokens(run.pk)
     token = issue_run_token(run, connection)
