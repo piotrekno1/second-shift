@@ -1,5 +1,7 @@
 import logging
+import os
 import signal
+import sys
 import threading
 from pathlib import Path
 from types import FrameType
@@ -90,6 +92,32 @@ def worker_tasks(client: DBOSClient) -> list[PeriodicTask]:
     ]
 
 
+def end_running_workflows(before: set[threading.Thread]) -> None:
+    """End the process if workflows still run after DBOS stopped waiting.
+
+    Python would wait for their threads, which can take as long as a run.
+    Meanwhile a new worker resumes the same workflows, so both would run
+    them. DBOS keeps each finished step, so the next worker picks up from
+    there.
+    """
+    left = [
+        thread
+        for thread in threading.enumerate()
+        if thread.is_alive() and not thread.daemon and thread not in before
+    ]
+    if not left:
+        return
+    logger.warning(
+        "Stopping with %d workflow threads still running. The next worker "
+        "resumes their workflows.",
+        len(left),
+    )
+    logging.shutdown()
+    sys.stdout.flush()
+    sys.stderr.flush()
+    os._exit(1 if sys.exc_info()[0] else 0)
+
+
 @click.command()
 @click.option("--sync-interval", type=int, default=15, show_default=True)
 @click.option("--ready-file", type=click.Path(path_type=Path), hidden=True)
@@ -101,6 +129,7 @@ def command(sync_interval: int, ready_file: Path | None) -> None:
         stopped.set()
 
     previous = signal.signal(signal.SIGTERM, stop)
+    before = set(threading.enumerate())
     client = None
     try:
         launch_dbos_worker()
@@ -127,3 +156,4 @@ def command(sync_interval: int, ready_file: Path | None) -> None:
                 DBOS.destroy(workflow_completion_timeout_sec=10)
             finally:
                 signal.signal(signal.SIGTERM, previous)
+                end_running_workflows(before)

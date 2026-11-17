@@ -65,3 +65,36 @@ def test_startup_failure_restores_signal_handler(
 
     destroy.assert_called_once_with(workflow_completion_timeout_sec=10)
     assert signal.getsignal(signal.SIGTERM) == previous
+
+
+def test_workflows_still_running_after_destroy_end_the_process(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    exits: list[int] = []
+    monkeypatch.setattr(worker.os, "_exit", exits.append)
+    before = set(worker.threading.enumerate())
+    release = worker.threading.Event()
+    # Stands in for a workflow thread waiting on a long agent run.
+    workflow = worker.threading.Thread(target=release.wait)
+    workflow.start()
+    try:
+        worker.end_running_workflows(before)
+    finally:
+        release.set()
+        workflow.join()
+
+    assert exits == [0]
+
+
+def test_a_worker_with_no_workflows_left_exits_normally(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    exits: list[int] = []
+    monkeypatch.setattr(worker.os, "_exit", exits.append)
+    before = set(worker.threading.enumerate())
+    daemon = worker.threading.Thread(target=worker.threading.Event().wait, daemon=True)
+    daemon.start()
+
+    worker.end_running_workflows(before)
+
+    assert exits == []
