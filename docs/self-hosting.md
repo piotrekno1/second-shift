@@ -141,6 +141,9 @@ offline.
 - The proxy allows `pypi.org`, `files.pythonhosted.org`, `registry.npmjs.org`
   and `registry.yarnpkg.com`. Add a private index with another
   `--allow-host=<host>` in the proxy's command.
+- The proxy closes a connection that sends nothing for 60 seconds. A stalled
+  download then fails fast and the package manager retries it, instead of
+  using up the setup time limit. Change it with `--idle-seconds=<seconds>`.
 - Every job may run setup once the server allows it. A registry accepts
   uploads as well as downloads, so a setup command could publish repository
   content. Only people who can merge to a repository choose its commands.

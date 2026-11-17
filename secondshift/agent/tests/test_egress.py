@@ -243,12 +243,13 @@ async def tunnel_through(
         [asyncio.StreamReader, asyncio.StreamWriter], Awaitable[None]
     ],
     seconds: float,
+    idle_seconds: float,
 ) -> bytes:
     """Open a forward to an upstream and read for a while without sending."""
     upstream = await asyncio.start_server(upstream_handler, "127.0.0.1", 0)
     target = upstream.sockets[0].getsockname()[1]
     server = await asyncio.start_server(
-        egress.forwarder("127.0.0.1", target), "127.0.0.1", 0
+        egress.forwarder("127.0.0.1", target, idle_seconds), "127.0.0.1", 0
     )
     port = server.sockets[0].getsockname()[1]
     reader, writer = await asyncio.open_connection("127.0.0.1", port)
@@ -264,23 +265,17 @@ async def tunnel_through(
     return received
 
 
-def test_an_idle_tunnel_is_closed(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(egress, "IDLE_SECONDS", 0.2)
-
+def test_an_idle_tunnel_is_closed() -> None:
     async def silent(
         reader: asyncio.StreamReader, writer: asyncio.StreamWriter
     ) -> None:
         await asyncio.sleep(5)
 
     # Closed by the proxy well before the client gives up after 3 seconds.
-    assert asyncio.run(tunnel_through(silent, 3)) == b""
+    assert asyncio.run(tunnel_through(silent, 3, idle_seconds=0.2)) == b""
 
 
-def test_a_stream_from_one_side_keeps_the_tunnel_open(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr(egress, "IDLE_SECONDS", 0.3)
-
+def test_a_stream_from_one_side_keeps_the_tunnel_open() -> None:
     async def streaming(
         reader: asyncio.StreamReader, writer: asyncio.StreamWriter
     ) -> None:
@@ -291,4 +286,43 @@ def test_a_stream_from_one_side_keeps_the_tunnel_open(
         writer.close()
 
     # 0.6 seconds of data, twice the idle limit, arrives in full.
-    assert asyncio.run(tunnel_through(streaming, 3)) == b"......"
+    assert asyncio.run(tunnel_through(streaming, 3, idle_seconds=0.3)) == b"......"
+
+
+def test_a_stalled_download_is_closed_so_the_client_can_retry() -> None:
+    async def stalls_midway(
+        reader: asyncio.StreamReader, writer: asyncio.StreamWriter
+    ) -> None:
+        # Part of a body, then nothing, with the connection left open.
+        writer.write(b"partial")
+        await writer.drain()
+        await asyncio.sleep(5)
+
+    # The client sees the connection end instead of waiting the whole time.
+    assert asyncio.run(tunnel_through(stalls_midway, 3, idle_seconds=0.2)) == (
+        b"partial"
+    )
+
+
+@pytest.mark.parametrize(
+    ("argv", "idle"),
+    [
+        ([], egress.IDLE_SECONDS),
+        (["--allow-registries"], egress.SETUP_IDLE_SECONDS),
+        (["--allow-host", "pypi.example.com"], egress.SETUP_IDLE_SECONDS),
+        (["--allow-registries", "--idle-seconds", "30"], 30),
+    ],
+)
+def test_package_hosts_get_the_short_idle_limit(
+    monkeypatch: pytest.MonkeyPatch, argv: list[str], idle: float
+) -> None:
+    started: list[float] = []
+
+    async def serve(
+        port: int, forwards: object, hosts: object, idle_seconds: float
+    ) -> None:
+        started.append(idle_seconds)
+
+    monkeypatch.setattr(egress, "serve", serve)
+    egress.main(argv)
+    assert started == [idle]
