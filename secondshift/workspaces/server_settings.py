@@ -18,6 +18,7 @@ from secondshift.config.constants import (
     SandboxRuntime,
 )
 from secondshift.config.formatting import duration_label
+from secondshift.runner_protocol.environments import environment_variable
 
 
 @dataclass(frozen=True)
@@ -58,6 +59,19 @@ def image_label(image: str) -> str:
     """The image name with a short digest, e.g. python:3.13-slim @ 57b29a7c050c."""
     name, _, digest = image.partition("@sha256:")
     return f"{name} @ {digest[:12]}" if digest else image
+
+
+def environment_items() -> list[SettingValue]:
+    """The named environments a job may choose, besides the default image."""
+    return [
+        SettingValue(
+            f"Environment: {name}",
+            image_label(image),
+            environment_variable(name),
+            f"Jobs that set environment: {name} run on this image.",
+        )
+        for name, image in settings.RUNNER_ENVIRONMENTS.items()
+    ]
 
 
 def repository_groups() -> list[SettingGroup]:
@@ -135,6 +149,7 @@ def setting_groups() -> list[SettingGroup]:
                     else "Docker's official Python image, pinned. "
                     "Repositories cannot choose the image.",
                 ),
+                *environment_items(),
             ],
         ),
     ]
