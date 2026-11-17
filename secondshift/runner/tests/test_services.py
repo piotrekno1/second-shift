@@ -7,6 +7,7 @@ from secondshift.runner.models import RunnerCommand, RunnerSession
 from secondshift.runner.services import DockerRunnerService, RunnerConfigurationError
 from secondshift.runner_protocol.sessions import (
     CommandRequest,
+    CommandResult,
     RunnerProtocolError,
     RunnerSessionSpec,
 )
@@ -511,3 +512,164 @@ def test_a_skill_from_another_repository_is_unpacked_beside_the_workspace(
     other = RunnerSessionSpec(**{**spec.__dict__, "skill_sha256": "f" * 64})
     with pytest.raises(RunnerProtocolError, match="different session spec"):
         DockerRunnerService().start(other)
+
+
+def run_for(
+    monkeypatch, seconds: float, result: CommandResult, commands: list[list[str]]
+) -> None:
+    """Make run_captured return this result after this many seconds."""
+    clock = iter([100.0, 100.0 + seconds])
+    monkeypatch.setattr(
+        "secondshift.runner.services.time.monotonic", lambda: next(clock)
+    )
+
+    def run_captured(self, call_id: str, command: list[str], timeout: int):
+        commands.append([*command, f"runner-timeout={timeout}"])
+        return result
+
+    monkeypatch.setattr(DockerRunnerService, "run_captured", run_captured)
+    monkeypatch.setattr(
+        DockerRunnerService, "run_command", fake_inspect(running=True, oom_killed=False)
+    )
+
+
+@pytest.mark.django_db
+def test_a_command_past_its_limit_ends_inside_the_sandbox(
+    settings, monkeypatch, tmp_path: Path
+) -> None:
+    settings.RUNNER_WORK_ROOT = tmp_path
+    session = active_session(tmp_path)
+    session.command_timeout = True
+    session.save()
+    commands: list[list[str]] = []
+    run_for(monkeypatch, 45.2, CommandResult("call-1", 124, "partial"), commands)
+
+    result = DockerRunnerService().execute(
+        "run-7", CommandRequest("call-1", ("npm", "test"), timeout_seconds=45)
+    )
+
+    assert result.timed_out is True
+    assert result.output == "partial"
+    assert commands == [
+        [
+            "docker",
+            "exec",
+            "--workdir",
+            "/workspace",
+            "secondshift-run-7",
+            "timeout",
+            "-k",
+            "5",
+            "45",
+            "npm",
+            "test",
+            "runner-timeout=60",
+        ]
+    ]
+    # The agent keeps its sandbox and can try something else.
+    assert RunnerSession.objects.get().status == RunnerSession.Status.ACTIVE
+    assert RunnerCommand.objects.get().timed_out is True
+
+
+@pytest.mark.django_db
+def test_a_command_that_fails_before_its_limit_did_not_time_out(
+    settings, monkeypatch, tmp_path: Path
+) -> None:
+    settings.RUNNER_WORK_ROOT = tmp_path
+    session = active_session(tmp_path)
+    session.command_timeout = True
+    session.save()
+    run_for(monkeypatch, 3, CommandResult("call-1", 124, ""), [])
+
+    result = DockerRunnerService().execute(
+        "run-7", CommandRequest("call-1", ("sh", "-c", "exit 124"), timeout_seconds=45)
+    )
+
+    assert result.timed_out is False
+    assert result.exit_code == 124
+
+
+@pytest.mark.django_db
+def test_a_command_that_outlives_timeout_stops_the_sandbox(
+    settings, monkeypatch, tmp_path: Path
+) -> None:
+    settings.RUNNER_WORK_ROOT = tmp_path
+    session = active_session(tmp_path)
+    session.command_timeout = True
+    session.save()
+    run_for(monkeypatch, 60, CommandResult("call-1", None, "", timed_out=True), [])
+
+    result = DockerRunnerService().execute(
+        "run-7", CommandRequest("call-1", ("sleep", "999"), timeout_seconds=45)
+    )
+
+    assert result.timed_out is True
+    assert RunnerSession.objects.get().status == RunnerSession.Status.STOPPED
+
+
+@pytest.mark.django_db
+def test_without_timeout_in_the_image_a_late_command_stops_the_sandbox(
+    settings, monkeypatch, tmp_path: Path
+) -> None:
+    settings.RUNNER_WORK_ROOT = tmp_path
+    active_session(tmp_path)
+    commands: list[list[str]] = []
+    run_for(
+        monkeypatch, 45, CommandResult("call-1", None, "", timed_out=True), commands
+    )
+
+    DockerRunnerService().execute(
+        "run-7", CommandRequest("call-1", ("sleep", "999"), timeout_seconds=45)
+    )
+
+    assert commands[0][5:] == ["sleep", "999", "runner-timeout=45"]
+    assert RunnerSession.objects.get().status == RunnerSession.Status.STOPPED
+
+
+@pytest.mark.django_db
+def test_command_arguments_never_reach_docker_or_timeout_as_options(
+    settings, monkeypatch, tmp_path: Path
+) -> None:
+    settings.RUNNER_WORK_ROOT = tmp_path
+    settings.RUNNER_COMMAND_TIMEOUT_SECONDS = 120
+    session = active_session(tmp_path)
+    session.command_timeout = True
+    session.save()
+    commands: list[list[str]] = []
+    run_for(monkeypatch, 1, CommandResult("call-1", 0, ""), commands)
+    argv = ("--privileged", "-k", "0", "--signal=KILL", "999")
+
+    DockerRunnerService().execute(
+        "run-7", CommandRequest("call-1", argv, timeout_seconds=900)
+    )
+
+    # Server-owned: the container, timeout's options, and a limit capped by
+    # the runner. The request's own arguments follow the command they run.
+    assert commands[0][:9] == [
+        "docker",
+        "exec",
+        "--workdir",
+        "/workspace",
+        "secondshift-run-7",
+        "timeout",
+        "-k",
+        "5",
+        "120",
+    ]
+    assert commands[0][9:-1] == list(argv)
+
+
+@pytest.mark.parametrize(("code", "available"), [(0, True), (126, False)])
+def test_the_runner_checks_the_image_for_timeout(
+    monkeypatch, code: int, available: bool
+) -> None:
+    calls: list[list[str]] = []
+
+    def run(command: list[str], timeout: int = 30) -> Mock:
+        calls.append(command)
+        return completed(code)
+
+    monkeypatch.setattr(DockerRunnerService, "run_command", staticmethod(run))
+
+    assert DockerRunnerService().has_timeout("secondshift-run-7") is available
+    assert calls == [["docker", "exec", "secondshift-run-7", "timeout", "1", "true"]]

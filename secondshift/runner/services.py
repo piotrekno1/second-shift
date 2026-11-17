@@ -3,6 +3,8 @@ import os
 import shutil
 import subprocess
 import tempfile
+import time
+from dataclasses import replace
 from pathlib import Path
 
 from django.conf import settings
@@ -21,6 +23,7 @@ from secondshift.runner.dao import (
     get_session,
     lock_session,
     session_command,
+    set_command_timeout,
     set_session_status,
 )
 from secondshift.runner.models import RunnerCommand, RunnerSession
@@ -44,6 +47,12 @@ TRUNCATION_MARKER = b"\n[... command output truncated by SecondShift ...]\n"
 HISTORY_DIR = "history"
 # Beside the workspace: a skill from another repository.
 SKILL_DIR = "skill"
+# A command past its limit gets this long to stop after timeout's TERM
+# before timeout sends KILL.
+COMMAND_KILL_AFTER_SECONDS = 5
+# How long past a command's limit the runner waits for timeout to end it.
+# After that the runner stops the whole sandbox.
+COMMAND_STOP_GRACE_SECONDS = 10
 
 
 def sandbox_name(session_id: str) -> str:
@@ -196,8 +205,16 @@ class DockerRunnerService:
             self.remove_workspace(session_root)
             set_session_status(session_id, RunnerSession.Status.ERROR)
             raise
+        set_command_timeout(session_id, self.has_timeout(container_name))
         set_session_status(session_id, RunnerSession.Status.ACTIVE)
         return session_id
+
+    def has_timeout(self, container_name: str) -> bool:
+        """Whether the sandbox image can run a command under timeout."""
+        probe = self.run_command(
+            ["docker", "exec", container_name, "timeout", "1", "true"]
+        )
+        return probe.returncode == 0
 
     def prepare_sandbox(
         self,
@@ -237,15 +254,41 @@ class DockerRunnerService:
             return cached
         session = get_session(session_id)
         timeout = min(request.timeout_seconds, settings.RUNNER_COMMAND_TIMEOUT_SECONDS)
+        argv = list(request.argv)
+        runner_timeout = timeout
+        if session.command_timeout:
+            # timeout ends the command and its children inside the sandbox.
+            # Stopping the sandbox would end the agent's whole run.
+            argv = [
+                "timeout",
+                "-k",
+                str(COMMAND_KILL_AFTER_SECONDS),
+                str(timeout),
+                *argv,
+            ]
+            runner_timeout = (
+                timeout + COMMAND_KILL_AFTER_SECONDS + COMMAND_STOP_GRACE_SECONDS
+            )
         command = [
             "docker",
             "exec",
             "--workdir",
             request.workdir,
             session.container_name,
-            *request.argv,
+            *argv,
         ]
-        result = self.run_captured(request.call_id, command, timeout)
+        started = time.monotonic()
+        result = self.run_captured(request.call_id, command, runner_timeout)
+        # GNU timeout exits 124 or 137 and BusyBox with the signal's code, so
+        # the time the command took is what shows that timeout ended it.
+        ended_in_sandbox = bool(
+            session.command_timeout
+            and not result.timed_out
+            and result.exit_code
+            and time.monotonic() - started >= timeout
+        )
+        if ended_in_sandbox:
+            result = replace(result, timed_out=True)
         complete_command(
             session,
             request.call_id,
@@ -253,7 +296,8 @@ class DockerRunnerService:
             result.output,
             result.timed_out,
         )
-        if result.timed_out:
+        if result.timed_out and not ended_in_sandbox:
+            # The command outlived timeout, or the image has none.
             self.stop(session_id)
         elif result.exit_code:
             # gVisor ends the whole sandbox when it runs out of memory, so

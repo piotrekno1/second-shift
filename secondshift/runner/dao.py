@@ -38,6 +38,12 @@ def set_session_status(session_id: str, status: RunnerSession.Status) -> None:
     RunnerSession.objects.filter(session_id=session_id).update(status=status)
 
 
+def set_command_timeout(session_id: str, available: bool) -> None:
+    RunnerSession.objects.filter(session_id=session_id).update(
+        command_timeout=available
+    )
+
+
 def session_command(session: RunnerSession, call_id: str) -> RunnerCommand | None:
     """The command already reserved for this call, if any."""
     return RunnerCommand.objects.filter(session=session, call_id=call_id).first()

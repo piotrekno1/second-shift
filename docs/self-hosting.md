@@ -329,7 +329,12 @@ The run checks the time limit before each model request and each tool call,
 and its model access ends at the limit. A run that passes it fails with the
 reason **Timed out** and keeps what the agent wrote so far as a partial report.
 Each sandbox command also has its own limit,
-`SECONDSHIFT_RUNNER_COMMAND_TIMEOUT_SECONDS` (default 120).
+`SECONDSHIFT_RUNNER_COMMAND_TIMEOUT_SECONDS` (default 120). The runner runs
+each command under `timeout`, so a command past its limit ends inside the
+sandbox and the agent can carry on. The sandbox image needs a `timeout`
+command, which Debian, Ubuntu and Alpine images have. Without one, or when a
+command still runs 15 seconds past its limit, the runner stops the sandbox and
+the run ends.
 
 Each run's prompt states its time, tool-call and model-call limits, so the agent
 can size its work. Codex runs have no model-call limit.
