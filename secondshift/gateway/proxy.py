@@ -31,6 +31,7 @@ from secondshift.connections.outbound import (
     PinnedTransport,
     validate_outbound_url,
 )
+from secondshift.gateway.dao import arelease_connection
 from secondshift.gateway.metering import StreamMeter, record_usage, usage_from_json
 from secondshift.gateway.models import RunToken
 from secondshift.gateway.tokens import aauthenticate, request_token
@@ -150,6 +151,10 @@ async def forward(request: HttpRequest, family_name: str, path: str) -> HttpResp
     family = ModelFamily(family_name)
     try:
         run_token = await authorize(request, family, path)
+        # Nothing else touches the database until the usage is recorded. A
+        # stream can last minutes, and holding a connection for each one
+        # would use up the pool.
+        await arelease_connection()
         raw, payload = await read_payload(request, family)
         model, metered = check_request(run_token, family, path, payload)
         raw = with_stream_usage(family, path, payload, raw)

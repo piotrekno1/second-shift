@@ -524,3 +524,43 @@ def test_runs_count_budget_tokens_the_way_the_gateway_does(
     assert listed["model_budget_tokens"] == 23
     assert listed["model_cache_read_tokens"] == 20
     assert listed["model_tokens"] == 40
+
+
+@pytest.mark.django_db
+def test_the_database_connection_is_released_before_the_provider_answers(
+    client: Client, monkeypatch: pytest.MonkeyPatch, workspace: Workspace
+) -> None:
+    # A stream can last minutes. Holding a pooled connection through each one
+    # ran the pool dry under 40 parallel streams.
+    run = make_run(workspace)
+    token = issue_run_token(run, provider(workspace))
+    order: list[str] = []
+
+    async def release() -> None:
+        order.append("released")
+
+    def answer(request: httpx.Request) -> httpx.Response:
+        order.append("provider called")
+        return fake_upstream(
+            content_type="text/event-stream", chunks=[b"data: {}\n\n"]
+        )(request)
+
+    monkeypatch.setattr("secondshift.gateway.proxy.arelease_connection", release)
+    capture_post(monkeypatch, answer)
+
+    drain(
+        post(
+            client,
+            "/gateway/anthropic/v1/messages",
+            {
+                "model": "claude-opus-5-5",
+                "max_tokens": 10,
+                "stream": True,
+                "messages": [],
+            },
+            **{"x-api-key": token},
+        )
+    )
+
+    assert order == ["released", "provider called"]
+    assert ModelUsage.objects.filter(run=run).exists()

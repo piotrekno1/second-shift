@@ -85,6 +85,11 @@ class Service(StrEnum):
     WORKER = "worker"
 
 
+# Served over ASGI, since both hold long requests open (model streams, agent
+# runs) while serving others. Gunicorn and the database settings read this.
+ASGI_SERVICES = frozenset({Service.GATEWAY, Service.RUNNER})
+
+
 def settings_module(name: str) -> str:
     return f"secondshift.config.settings.{name}"
 

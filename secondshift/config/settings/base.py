@@ -25,6 +25,7 @@ from django.utils.csp import CSP
 from environ import Env
 
 from secondshift.config.constants import (
+    ASGI_SERVICES,
     DEFAULT_SANDBOX_IMAGE,
     ENVIRONMENT_VAR,
     GITHUB_BASE_URL,
@@ -203,7 +204,11 @@ DATABASE_URL = env.str(
 DATABASES = {
     "default": {
         **env.db_url_config(DATABASE_URL),
-        "CONN_MAX_AGE": env.int("SECONDSHIFT_DB_CONN_MAX_AGE_SECONDS", default=60),
+        # Under ASGI each request's database work runs on its own thread, and
+        # a connection kept past the request is never used or closed again.
+        "CONN_MAX_AGE": 0
+        if SERVICE in ASGI_SERVICES
+        else env.int("SECONDSHIFT_DB_CONN_MAX_AGE_SECONDS", default=60),
         "CONN_HEALTH_CHECKS": True,
     }
 }
@@ -219,6 +224,15 @@ if DATABASES["default"]["ENGINE"] == "django.db.backends.sqlite3":
         "init_command": "PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;",
         "transaction_mode": "IMMEDIATE",
         "timeout": 20,
+    }
+elif SERVICE in ASGI_SERVICES:
+    # Each request takes a connection from the pool and returns it when the
+    # request ends, so ASGI services reuse connections without keeping them
+    # on threads that are gone. A request waits up to the timeout for one.
+    DATABASES["default"].setdefault("OPTIONS", {})["pool"] = {
+        "min_size": 2,
+        "max_size": env.int("SECONDSHIFT_DB_POOL_MAX_SIZE", default=20),
+        "timeout": 10,
     }
 # Sign-in rate limits and the health check use the cache. Every process must
 # see the same counts, so the default is a table in the application database.

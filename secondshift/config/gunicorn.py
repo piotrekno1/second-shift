@@ -7,6 +7,7 @@ from environ import Env
 from gunicorn.arbiter import Arbiter
 
 from secondshift.config.constants import (
+    ASGI_SERVICES,
     ENVIRONMENT_VAR,
     SERVICE_VAR,
     AppEnv,
@@ -22,8 +23,7 @@ if service == Service.WORKER:
     )
 env = Env()
 
-# Both hold long requests open (model streams, agent runs) while serving others.
-async_http = service in (Service.GATEWAY, Service.RUNNER)
+async_http = service in ASGI_SERVICES
 factory = "asgi" if async_http else "wsgi"
 wsgi_app = f"secondshift.config.app:{factory}('{service}')"
 worker_class = "uvicorn_worker.UvicornWorker" if async_http else "sync"
