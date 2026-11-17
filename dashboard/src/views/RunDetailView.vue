@@ -344,6 +344,12 @@ onUnmounted(stopPolling)
             class="primary-action"
             >Fix the provider <AppIcon name="arrow-right"
           /></RouterLink>
+          <RouterLink
+            v-else-if="run.failure.login_id"
+            :to="{ path: '/models', query: { login: String(run.failure.login_id) } }"
+            class="primary-action"
+            >Fix the subscription <AppIcon name="arrow-right"
+          /></RouterLink>
         </p>
         <p v-else-if="active" class="run-headline run-active-note">
           <AppIcon

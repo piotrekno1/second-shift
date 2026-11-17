@@ -46,7 +46,7 @@ export default createRouter({
     if (to.path === from.path) return false
     // Connections scrolls to the row a link names. Going to the top would undo that.
     if (to.path === '/connections' && to.query.binding) return false
-    if (to.path === '/models' && to.query.connection) return false
+    if (to.path === '/models' && (to.query.connection || to.query.login)) return false
     return { top: 0 }
   },
 })

@@ -1,10 +1,12 @@
 from types import SimpleNamespace
 
 import pytest
+from django.contrib.auth import get_user_model
 from pydantic_ai.exceptions import ModelHTTPError
 
 from secondshift.connections.errors import ExternalToolError
 from secondshift.connections.mcp.base import MCPRequestError
+from secondshift.connections.models import AgentConnection
 from secondshift.github.errors import GitHubError
 from secondshift.jobs.argument_rules import ToolRuleViolation
 from secondshift.jobs.tests.plans import CAPABILITY, MODEL, stored_plan
@@ -313,3 +315,25 @@ def test_other_failures_point_at_no_connection() -> None:
     assert failure is not None
     assert failure.connection_id is None
     assert failure.next_step == ""
+
+
+def test_a_subscription_failure_links_to_its_login(db: None) -> None:
+    run = execution_run(db)
+    login = AgentConnection.objects.create(
+        workspace=run.job.workspace,
+        owner=get_user_model().objects.get(username="owner"),
+        backend="codex",
+        display_name="Personal",
+        auth_data="never-in-plan",
+    )
+    run.status = Run.Status.FAILED
+    run.failure = RunFailure.MODEL_PROVIDER
+    run.failure_reason = "Agent sign-in expired. Reconnect the subscription on Models."
+    run.agent_connection = login
+
+    failure = run_failure(run)
+
+    assert failure is not None
+    assert failure.login_id == login.pk
+    assert failure.connection_id is None
+    assert failure.next_step == "Open the run's subscription on Models."
