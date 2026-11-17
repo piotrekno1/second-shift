@@ -23,3 +23,8 @@ incremental_tools = false
 # Codex sub-agents report no token usage, and nesting limits do not hold.
 [agents]
 enabled = false
+
+# Codex sends usage metrics to ab.chatgpt.com, which the egress proxy refuses.
+# Turn them off so a run doesn't make a call that is sure to fail.
+[otel]
+metrics_exporter = "none"
