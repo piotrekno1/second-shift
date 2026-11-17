@@ -98,6 +98,7 @@ Put these in `runner.env` unless the table names other services:
 | `SECONDSHIFT_RUNNER_WORK_ROOT` | Persistent runner workspace and session directory. The generated absolute path must be mounted at the identical path on the Docker host. |
 | `SECONDSHIFT_RUNNER_RUNTIME` | Sandbox OCI runtime, not the HTTP server. Use `runsc` in web, worker and runner for production. Gateway does not need it. |
 | `SECONDSHIFT_RUNNER_IMAGE` | Optional command-sandbox image. If overridden, keep the value identical in web, worker and runner. Default is the pinned Python image supplied by SecondShift. |
+| `SECONDSHIFT_RUNNER_ENVIRONMENT_<NAME>` | Optional named sandbox image that jobs choose with `environment: <name>`, such as `SECONDSHIFT_RUNNER_ENVIRONMENT_NODE` for `node`. One variable per environment. Keep the values identical in web, worker and runner. Servers require an image pinned by digest. See [environments](self-hosting.md#environments). |
 | `SECONDSHIFT_RUNNER_SANDBOX_UID`, `SECONDSHIFT_RUNNER_SANDBOX_GID` | Identity inside command sandboxes. Image defaults `10001:10001`. Separate from the runner container's root user. |
 | `SECONDSHIFT_EXTERNAL_SKILLS_ENABLED` | Set in web and worker. `true` by default. Lets tasks and jobs run skills from other GitHub repositories. The control plane fetches them over HTTPS from `github.com`. Public repositories are fetched without credentials. Private ones use a GitHub connection in the workspace that can read them. Set `false` to allow only skills committed to a run's own repository. |
 
