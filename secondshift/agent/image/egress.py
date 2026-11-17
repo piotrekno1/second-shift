@@ -50,6 +50,9 @@ MAX_CONNECTIONS = 256
 # A tunnel with no bytes either way for this long is closed. Model streams
 # send data or keep-alive pings well within it.
 IDLE_SECONDS = 600
+# Package downloads don't pause. A registry connection that goes quiet has
+# stalled, and closing it lets npm or pip retry instead of waiting out setup.
+SETUP_IDLE_SECONDS = 60
 
 
 class Denied(Exception):
@@ -159,6 +162,7 @@ async def pipe(
 async def splice(
     client: tuple[asyncio.StreamReader, asyncio.StreamWriter],
     upstream: tuple[asyncio.StreamReader, asyncio.StreamWriter],
+    idle_seconds: float,
 ) -> None:
     """Copy both ways until either side closes or the tunnel goes idle.
 
@@ -173,14 +177,14 @@ async def splice(
     }
     while pending:
         quiet = loop.time() - activity.last
-        if quiet >= IDLE_SECONDS:
+        if quiet >= idle_seconds:
             for task in pending:
                 task.cancel()
             client[1].close()
             upstream[1].close()
             await asyncio.gather(*pending, return_exceptions=True)
             return
-        pending = (await asyncio.wait(pending, timeout=IDLE_SECONDS - quiet))[1]
+        pending = (await asyncio.wait(pending, timeout=idle_seconds - quiet))[1]
 
 
 def client_address(writer: asyncio.StreamWriter) -> str:
@@ -205,16 +209,22 @@ async def handle_connect(
     reader: asyncio.StreamReader,
     writer: asyncio.StreamWriter,
     hosts: frozenset[str] | None = None,
+    idle_seconds: float = IDLE_SECONDS,
 ) -> None:
     with SLOTS.take() as taken:
         if not taken:
             refuse(writer, Denied(503, "busy"), "", 0)
             return
-        await open_tunnel(reader, writer, ALLOWED_HOSTS if hosts is None else hosts)
+        await open_tunnel(
+            reader, writer, ALLOWED_HOSTS if hosts is None else hosts, idle_seconds
+        )
 
 
 async def open_tunnel(
-    reader: asyncio.StreamReader, writer: asyncio.StreamWriter, hosts: frozenset[str]
+    reader: asyncio.StreamReader,
+    writer: asyncio.StreamWriter,
+    hosts: frozenset[str],
+    idle_seconds: float,
 ) -> None:
     client = client_address(writer)
     host, port = "", 0
@@ -236,13 +246,15 @@ async def open_tunnel(
         return
     log("egress", decision="allowed", host=host, port=port, client=client)
     writer.write(b"HTTP/1.1 200 Connection established\r\n\r\n")
-    await splice((reader, writer), upstream)
+    await splice((reader, writer), upstream, idle_seconds)
 
 
 Handler = Callable[[asyncio.StreamReader, asyncio.StreamWriter], Awaitable[None]]
 
 
-def forwarder(target_host: str, target_port: int) -> Handler:
+def forwarder(
+    target_host: str, target_port: int, idle_seconds: float = IDLE_SECONDS
+) -> Handler:
     """Pass every connection through to one fixed, server-owned address."""
 
     async def handle(
@@ -260,7 +272,7 @@ def forwarder(target_host: str, target_port: int) -> Handler:
             except (OSError, TimeoutError):
                 writer.close()
                 return
-            await splice((reader, writer), upstream)
+            await splice((reader, writer), upstream, idle_seconds)
 
     return handle
 
@@ -272,22 +284,28 @@ def parse_forward(value: str) -> tuple[int, str, int]:
 
 
 async def serve(
-    port: int, forwards: Sequence[tuple[int, str, int]], hosts: frozenset[str]
+    port: int,
+    forwards: Sequence[tuple[int, str, int]],
+    hosts: frozenset[str],
+    idle_seconds: float = IDLE_SECONDS,
 ) -> None:
     async def handle(
         reader: asyncio.StreamReader, writer: asyncio.StreamWriter
     ) -> None:
-        await handle_connect(reader, writer, hosts)
+        await handle_connect(reader, writer, hosts, idle_seconds)
 
     servers = [await asyncio.start_server(handle, "0.0.0.0", port, limit=HEADER_LIMIT)]
     for listen, host, target in forwards:
         servers.append(
-            await asyncio.start_server(forwarder(host, target), "0.0.0.0", listen)
+            await asyncio.start_server(
+                forwarder(host, target, idle_seconds), "0.0.0.0", listen
+            )
         )
     log(
         "egress_started",
         port=port,
         hosts=sorted(hosts),
+        idle_seconds=idle_seconds,
         forwards=[f"{listen}:{host}:{target}" for listen, host, target in forwards],
     )
     await asyncio.gather(*(server.serve_forever() for server in servers))
@@ -296,6 +314,11 @@ async def serve(
 def allowed_hosts(names: Sequence[str]) -> frozenset[str]:
     """The hosts the options name, or the agents' providers when they name none."""
     return frozenset(name.lower().rstrip(".") for name in names) or ALLOWED_HOSTS
+
+
+def idle_limit(names: Sequence[str]) -> float:
+    """Package hosts get the short limit. The agents' providers stream slowly."""
+    return SETUP_IDLE_SECONDS if names else IDLE_SECONDS
 
 
 def main(argv: Sequence[str] | None = None) -> None:
@@ -321,13 +344,23 @@ def main(argv: Sequence[str] | None = None) -> None:
         help="Another host to allow in place of the agents' providers, such as "
         "a private package index. Repeat it for each one.",
     )
+    parser.add_argument(
+        "--idle-seconds",
+        type=float,
+        help=f"Close a tunnel with no bytes either way for this long. Defaults to "
+        f"{SETUP_IDLE_SECONDS} for package hosts and {IDLE_SECONDS} for the agents' "
+        "providers.",
+    )
     arguments = parser.parse_args(argv)
     names = [
         *(REGISTRY_HOSTS if arguments.allow_registries else ()),
         *arguments.allow_host,
     ]
+    idle_seconds = arguments.idle_seconds or idle_limit(names)
     try:
-        asyncio.run(serve(arguments.port, arguments.forward, allowed_hosts(names)))
+        asyncio.run(
+            serve(arguments.port, arguments.forward, allowed_hosts(names), idle_seconds)
+        )
     except KeyboardInterrupt:
         sys.exit(0)
 
