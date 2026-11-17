@@ -100,3 +100,16 @@ def test_background_sync_is_listed_with_local_repositories(settings: object) -> 
     settings.LOCAL_REPOSITORIES_ENABLED = False  # type: ignore[attr-defined]
     values = {item.label: item.value for g in setting_groups() for item in g.items}
     assert "Background sync" not in values
+
+
+def test_each_named_environment_is_listed_with_its_env_var(settings: object) -> None:
+    settings.RUNNER_ENVIRONMENTS = {  # type: ignore[attr-defined]
+        "node": "ghcr.io/org/runner-node@sha256:" + "b" * 64
+    }
+    items = {item.label: item for g in setting_groups() for item in g.items}
+
+    assert items["Environment: default"].env == "SECONDSHIFT_RUNNER_IMAGE"
+    node = items["Environment: node"]
+    assert node.value == "ghcr.io/org/runner-node @ bbbbbbbbbbbb"
+    assert node.env == "SECONDSHIFT_RUNNER_ENVIRONMENT_NODE"
+    assert "environment: node" in node.help

@@ -519,6 +519,15 @@ useLiveRefresh(loadJob, () => (job.value?.recent_runs ?? []).some((run) => isRun
                 <code>{{ job.repository_revision.slice(0, 12) }}</code>
               </dd>
             </div>
+            <div v-if="job.environment !== 'default'">
+              <dt>Environment</dt>
+              <dd>
+                <code>{{ job.environment }}</code>
+                <span v-if="job.environment_problem" class="run-details-muted">
+                  · Not on this server</span
+                >
+              </dd>
+            </div>
             <div>
               <dt>History</dt>
               <dd>{{ historyLabel(job.history) }}</dd>

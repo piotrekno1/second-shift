@@ -35,6 +35,7 @@ from secondshift.jobs.models import Job, JobGrant
 from secondshift.jobs.tool_policy import plan_tools
 from secondshift.repositories.github.scope import repository_ref
 from secondshift.repositories.models import Repository
+from secondshift.runner_protocol.environments import DEFAULT_ENVIRONMENT
 from secondshift.runner_protocol.sandbox import COMMIT_SHA_PATTERN
 from secondshift.workspaces.limits import RunLimit, workspace_limits
 from secondshift.workspaces.models import Workspace
@@ -77,6 +78,14 @@ class ExecutionDefinition:
     skill_path: str
     config_hash: str
     skill_source: SkillSourcePlan | None = None
+    environment: str = DEFAULT_ENVIRONMENT
+
+
+def environment_image(name: str) -> str:
+    """The server's image for an environment, or empty when it has none."""
+    if name == DEFAULT_ENVIRONMENT:
+        return settings.RUNNER_IMAGE
+    return settings.RUNNER_ENVIRONMENTS.get(name, "")
 
 
 GRANT_REASONS = {
@@ -222,8 +231,11 @@ def compile_execution_plan(
     )
     selection = workspace_execution(workspace)
     connection = selection.connection
-    ready = selection.ready and all(
-        item.authorized for item in capabilities if item.required
+    image = environment_image(definition.environment)
+    ready = (
+        selection.ready
+        and bool(image)
+        and all(item.authorized for item in capabilities if item.required)
     )
     agent = AgentPlan(
         limits=PlanLimits(
@@ -264,11 +276,12 @@ def compile_execution_plan(
             full_name=repository.full_name, config_sha=commit_sha
         ),
         runner=RunnerPlan(
-            image=settings.RUNNER_IMAGE,
+            image=image,
             network_policy="none",
             # Every run keeps its changes for review. Pull requests only
             # decide whether they are published.
             collect_changes=True,
+            environment=definition.environment,
         ),
         pull_request=pull_request,
         issues=issues,
@@ -318,6 +331,7 @@ def build_execution_plan(job: Job) -> ExecutionPlan:
             job.skill_path,
             job.config_hash,
             job_skill_source(job),
+            job.environment or DEFAULT_ENVIRONMENT,
         ),
         capabilities,
         effective_limits(job),
@@ -376,7 +390,11 @@ def build_skill_execution_plan(
         repository.workspace,
         repository,
         ExecutionDefinition(
-            key, definition.skill or "", manifest_hash(definition), skill_source
+            key,
+            definition.skill or "",
+            manifest_hash(definition),
+            skill_source,
+            definition.environment or DEFAULT_ENVIRONMENT,
         ),
         capabilities,
         workspace_limits(repository.workspace),

@@ -67,7 +67,8 @@ For a ready-made skill that needs only a model, see the
 
 The sandbox has no network access or provider credentials. Dependencies must
 already be available in the sandbox image. Reading files and running
-standard-library tests work without installing packages.
+standard-library tests work without installing packages. A job that needs other
+tools can name an [environment](#environments) the server defines.
 
 ## Manifest fields
 
@@ -82,6 +83,7 @@ standard-library tests work without installing packages.
 | `jobs.<key>.timezone` | No | IANA timezone, such as `Europe/Warsaw`. Defaults to `UTC`. |
 | `jobs.<key>.history` | No | How many of the job's own earlier runs each run starts with: their reports, and the files they saved. Up to the server's `SECONDSHIFT_JOB_HISTORY_MAX` (5 by default). Defaults to 0. See [run history](#run-history). |
 | `jobs.<key>.subagents` | No | How many sub-agents each run may start, up to the server's `SECONDSHIFT_RUN_SUBAGENTS_MAX` (5 by default). Defaults to 0. See [sub-agents](#sub-agents). |
+| `jobs.<key>.environment` | No | The name of a sandbox environment the server defines, such as `node`. Never an image. Defaults to the server's default image. See [environments](#environments). |
 | `jobs.<key>.notify` | No | Webhook notification bindings requested by this job. |
 | `jobs.<key>.triggers` | No | Events that can start the job. Only `webhook` is supported. An owner or admin turns it on. See [webhook triggers](#webhook-triggers). |
 | `jobs.<key>.webhook` | No | Which webhook requests start a run: `skip_when`, `repeat_key` and `repeat_window`. Needs `triggers: [webhook]`. See [ignore requests and repeats](#ignore-requests-and-repeats). |
@@ -216,6 +218,27 @@ checked by an agent that never saw the reasoning behind it.
 Sub-agents grant no new access, so `subagents` needs no approval. The server's
 `SECONDSHIFT_RUN_SUBAGENTS_MAX` caps it. A manifest above it fails to sync,
 and lowering it also caps jobs already synced.
+
+## Environments
+
+A job runs in the server's default sandbox image. A server admin can define
+more images, each under a name. A job picks one by name:
+
+```yaml
+jobs:
+  test-triage:
+    name: Test triage
+    skill: .agents/skills/test-triage/SKILL.md
+    environment: node
+```
+
+- `environment` takes only a name. A manifest that names an image, such as
+  `node:22` or `ghcr.io/org/runner-node`, fails to sync.
+- The server admin chooses each environment's image. The repository never does.
+- Every environment gets the same sandbox: no network, the same limits and the
+  same mounts. Only the installed tools differ.
+- The server's settings page lists its environments. A job that names one the
+  server lacks can't be enabled or run, and its page says why.
 
 ## Draft pull requests
 

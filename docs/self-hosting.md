@@ -99,6 +99,30 @@ them. Repositories can never choose the image. A custom image must:
   `HOME=/tmp` and the repository mounted at `/workspace`
 - contain no credentials, Docker client or SecondShift code.
 
+### Environments
+
+Jobs that need other tools can run in another image. Each environment is one
+env var, set in web, worker and runner:
+
+```bash
+SECONDSHIFT_RUNNER_ENVIRONMENT_NODE=ghcr.io/org/runner-node@sha256:...
+SECONDSHIFT_RUNNER_ENVIRONMENT_BROWSER=ghcr.io/org/runner-browser@sha256:...
+```
+
+A job picks one with `environment: node` in `.secondshift.yaml`. Jobs that name
+none run on `SECONDSHIFT_RUNNER_IMAGE`, the `default` environment.
+
+- The name is the end of the env var in lowercase. It has letters, digits and
+  underscores.
+- Each image must meet the same rules as a custom image above.
+- A server refuses to start if an environment's image is not pinned by digest.
+  `secondshift up` on one machine also accepts tags.
+- The runner pulls every environment's image when it starts, and refuses to
+  run any other image.
+- Every job may use every environment. Vet an image before you add it.
+- The settings page lists every environment the server found, `default`
+  included, with its image and env var.
+
 The runner checks out the commit itself, so the image needs no git to run
 skills. The workspace holds a git repository with one commit of those files and
 no earlier history. The default image has no git, so add it to a custom image

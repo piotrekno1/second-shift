@@ -9,6 +9,8 @@ from secondshift.connections.models import Connection
 from secondshift.jobs.dao import active_jobs_with_grants
 from secondshift.jobs.limits import job_limit_views
 from secondshift.jobs.models import Job
+from secondshift.jobs.planner import environment_image
+from secondshift.jobs.readiness import environment_problem
 from secondshift.jobs.schemas import (
     AccessSchema,
     CapabilitySchema,
@@ -23,6 +25,7 @@ from secondshift.jobs.schemas import (
 from secondshift.jobs.skill_needs import MAX_INSPECTED_CHARS, SkillInspection
 from secondshift.repositories.github.scope import repository_ref
 from secondshift.repositories.models import Repository
+from secondshift.runner_protocol.environments import DEFAULT_ENVIRONMENT
 from secondshift.runs.dao import (
     job_with_last_run,
     newest_job_runs,
@@ -115,6 +118,7 @@ def serialize_job(
         execution_backend=execution.backend,
         execution_label=execution.label,
         execution_problem=execution.problem,
+        environment_problem=job_environment_problem(job),
         name=job.name,
         repository_id=job.repository_id,
         repository=job.repository.display_name,
@@ -131,6 +135,12 @@ def serialize_job(
         last_run=last_run(job),
         triggers=job.triggers,
     )
+
+
+def job_environment_problem(job: Job) -> str:
+    """Why the job's environment stops it from running, or empty."""
+    name = job.environment or DEFAULT_ENVIRONMENT
+    return "" if environment_image(name) else environment_problem(name)
 
 
 def skill_url(job: Job) -> str:
@@ -163,6 +173,7 @@ def serialize_job_detail(job: Job, can_edit_limits: bool) -> JobDetailSchema:
         config_hash=job.config_hash,
         history=job.history,
         subagents=job.subagents,
+        environment=job.environment or DEFAULT_ENVIRONMENT,
         open_pull_request=job.open_pull_request,
         can_open_pull_requests=is_github,
         pull_requests_allowed=job.repository.receives_pull_requests,
