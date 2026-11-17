@@ -64,6 +64,8 @@ def test_packaged_agents_disable_native_tools_and_use_only_the_broker(
     assert parsed["features"]["incremental_tools"] is False
     # The model's own multi-agent setting overrides features.multi_agent.
     assert parsed["agents"]["enabled"] is False
+    # The egress proxy refuses Codex's metrics host.
+    assert parsed["otel"]["metrics_exporter"] == "none"
     for feature in (
         "shell_tool",
         "unified_exec",
