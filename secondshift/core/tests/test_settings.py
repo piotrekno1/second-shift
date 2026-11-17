@@ -510,3 +510,31 @@ def test_agent_defaults_exist_only_on_one_machine(tmp_path: Path) -> None:
     # process-compose sets no image. Dev builds and resolves its own tag.
     assert output["dev runner"] == ["secondshift-agent:dev", broker, "True"]
     assert output["server runner"] == ["", "", "False"]
+
+
+@pytest.mark.parametrize(
+    ("module", "service", "max_age"),
+    [
+        ("secondshift.config.settings.dev", "web", "60"),
+        ("secondshift.config.settings.dev", "worker", "60"),
+        ("secondshift.config.settings.dev", "gateway", "0"),
+        ("secondshift.config.settings.runner", "runner", "0"),
+    ],
+)
+def test_asgi_services_close_each_request_connection(
+    module: str, service: str, max_age: str, tmp_path: Path
+) -> None:
+    # A connection kept by an ASGI request's thread is never closed. The
+    # gateway once held more than 70 until Postgres refused new clients.
+    result = load_settings(
+        module,
+        tmp_path,
+        script="print(s.DATABASES['default']['CONN_MAX_AGE'])",
+        SECONDSHIFT_ENV="dev",
+        SECONDSHIFT_SERVICE=service,
+        SECONDSHIFT_DB_CONN_MAX_AGE_SECONDS="60",
+        SECONDSHIFT_RUNNER_SERVICE_TOKEN="r" * 40,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == max_age

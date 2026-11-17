@@ -63,9 +63,10 @@ RUNNER_DATABASE_URL = env.str(
 DATABASES = {
     "default": {
         **env.db_url_config(RUNNER_DATABASE_URL),
-        "CONN_MAX_AGE": env.int(
-            "SECONDSHIFT_RUNNER_DB_CONN_MAX_AGE_SECONDS", default=60
-        ),
+        # The runner is served over ASGI, where each request's database work
+        # runs on its own thread. A connection kept past the request is never
+        # used or closed again.
+        "CONN_MAX_AGE": 0,
         "CONN_HEALTH_CHECKS": True,
     }
 }

@@ -25,6 +25,7 @@ from django.utils.csp import CSP
 from environ import Env
 
 from secondshift.config.constants import (
+    ASGI_SERVICES,
     DEFAULT_SANDBOX_IMAGE,
     ENVIRONMENT_VAR,
     GITHUB_BASE_URL,
@@ -203,7 +204,11 @@ DATABASE_URL = env.str(
 DATABASES = {
     "default": {
         **env.db_url_config(DATABASE_URL),
-        "CONN_MAX_AGE": env.int("SECONDSHIFT_DB_CONN_MAX_AGE_SECONDS", default=60),
+        # Under ASGI each request's database work runs on its own thread, and
+        # a connection kept past the request is never used or closed again.
+        "CONN_MAX_AGE": 0
+        if SERVICE in ASGI_SERVICES
+        else env.int("SECONDSHIFT_DB_CONN_MAX_AGE_SECONDS", default=60),
         "CONN_HEALTH_CHECKS": True,
     }
 }
