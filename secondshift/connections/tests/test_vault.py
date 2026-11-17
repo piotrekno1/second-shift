@@ -225,6 +225,10 @@ def test_references_are_refused_when_they_cannot_work(
         create_model_connection(
             workspace, "anthropic", "", "", credential_reference="vault:../x#key"
         )
+    with pytest.raises(ModelProviderError, match="starts with one of: vault:"):
+        create_model_connection(
+            workspace, "anthropic", "", "", credential_reference="op://x/y/key"
+        )
     vault.VAULT_ADDR = ""
     with pytest.raises(ModelProviderError, match="not set up"):
         create_model_connection(

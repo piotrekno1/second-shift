@@ -15,8 +15,7 @@ from secondshift.connections.errors import CredentialUnavailable
 from secondshift.connections.models import Connection
 from secondshift.connections.vault import (
     NOT_CONFIGURED,
-    REFERENCE_HINT,
-    is_vault_reference,
+    SCHEME,
     parse_reference,
     read_vault_secret,
     vault_configured,
@@ -43,6 +42,19 @@ class CredentialStore(Protocol):
         ...
 
 
+class ReferenceStore(CredentialStore, Protocol):
+    """A store for secrets an external manager holds, named by a reference."""
+
+    scheme: str
+
+    def normalized(self, reference: str) -> str:
+        """The reference in its normal form. Checks it can work, never fetches.
+
+        Raises CredentialUnavailable with a hint when it cannot.
+        """
+        ...
+
+
 class DatabaseStore:
     """Secrets kept encrypted on the connection row."""
 
@@ -62,6 +74,14 @@ def referenced_secret(connection: Connection) -> Secret:
 
 class VaultStore:
     """One secret kept in HashiCorp Vault, read on every use."""
+
+    scheme = SCHEME
+
+    def normalized(self, reference: str) -> str:
+        parsed = parse_reference(reference)
+        if not vault_configured():
+            raise CredentialUnavailable(NOT_CONFIGURED)
+        return str(parsed)
 
     def has(self, connection: Connection, secret: Secret) -> bool:
         return secret == referenced_secret(connection)
@@ -87,24 +107,31 @@ class UnknownStore:
 DATABASE_STORE = DatabaseStore()
 VAULT_STORE = VaultStore()
 UNKNOWN_STORE = UnknownStore()
+REFERENCE_STORES: tuple[ReferenceStore, ...] = (VAULT_STORE,)
+
+
+def reference_store(reference: str) -> ReferenceStore | None:
+    """The store whose scheme starts the reference."""
+    return next(
+        (store for store in REFERENCE_STORES if reference.startswith(store.scheme)),
+        None,
+    )
 
 
 def store_for(connection: Connection) -> CredentialStore:
     if connection.auth_strategy != Connection.AuthStrategy.REFERENCE:
         return DATABASE_STORE
-    if is_vault_reference(connection.credential_reference):
-        return VAULT_STORE
-    return UNKNOWN_STORE
+    return reference_store(connection.credential_reference) or UNKNOWN_STORE
 
 
 def checked_reference(reference: str) -> str:
     """A reference some store understands, in its normal form. Not fetched."""
     reference = reference.strip()
-    if not is_vault_reference(reference):
-        raise CredentialUnavailable(REFERENCE_HINT)
-    if not vault_configured():
-        raise CredentialUnavailable(NOT_CONFIGURED)
-    return str(parse_reference(reference))
+    store = reference_store(reference)
+    if store is None:
+        schemes = ", ".join(store.scheme for store in REFERENCE_STORES)
+        raise CredentialUnavailable(f"A secret reference starts with one of: {schemes}")
+    return store.normalized(reference)
 
 
 def has_secret(connection: Connection, secret: Secret) -> bool:

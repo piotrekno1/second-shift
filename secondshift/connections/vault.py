@@ -38,13 +38,9 @@ class VaultReference:
         return f"{SCHEME}{self.path}#{self.field}"
 
 
-def is_vault_reference(reference: str) -> bool:
-    return reference.startswith(SCHEME)
-
-
 def parse_reference(reference: str) -> VaultReference:
     """The path and field of a reference. Refuses anything that leaves the prefix."""
-    if not is_vault_reference(reference):
+    if not reference.startswith(SCHEME):
         raise CredentialUnavailable(REFERENCE_HINT)
     path, separator, field = reference.removeprefix(SCHEME).strip().partition("#")
     segments = path.strip("/").split("/")
