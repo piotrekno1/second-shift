@@ -22,6 +22,9 @@ class RunnerSession(models.Model):
     # Set when the agent's first command or run starts. Setup, which has
     # network access, never runs after that.
     setup_closed = models.BooleanField(default=False)
+    # Whether the image has a timeout command. With it, a command that runs
+    # too long ends inside the sandbox and the agent keeps its sandbox.
+    command_timeout = models.BooleanField(default=False)
     container_name = models.CharField(max_length=120, unique=True)
     workspace_path = models.TextField()
     status = models.CharField(
