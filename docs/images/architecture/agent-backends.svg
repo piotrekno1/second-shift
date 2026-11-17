@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 600" role="img" aria-labelledby="title desc">
   <title id="title">Agent backends</title>
-  <desc id="desc">On the control plane, the built-in agent loop runs in the worker and reaches model providers through the model gateway with an API key. On the runner, Claude Code or Codex runs in an agent container, reaches its provider with a subscription login and calls tools through the MCP broker, which is part of the gateway. Both agents use the same run tools, checked against the frozen plan. The tools reach the networkless command sandbox and the approved services.</desc>
+  <desc id="desc">On the control plane, the built-in agent loop runs in the worker and reaches model providers through the model gateway with an API key. On the runner, Claude Code or Codex runs in an agent container, reaches its provider with a subscription login only through the egress proxy and calls tools through the MCP broker, which is part of the gateway. Both agents use the same run tools, checked against the frozen plan. The tools reach the networkless command sandbox and the approved services.</desc>
   <style>
     .card { fill: #171717; stroke: #292929; }
     .lane { fill: #1b1b1b; stroke: #2e2e2e; }
@@ -79,14 +79,16 @@
   <rect class="hi" x="652" y="228" width="256" height="172" rx="10"/>
   <text class="t" x="668" y="255">Claude Code or Codex</text>
   <text class="p" x="668" y="278">In an agent container.</text>
-  <circle class="dot" cx="672" cy="305" r="2.5"/>
-  <text class="p" x="682" y="309">Only the login's files</text>
-  <circle class="dot" cx="672" cy="329" r="2.5"/>
-  <text class="p" x="682" y="333">Its own tools switched off</text>
-  <circle class="dot" cx="672" cy="353" r="2.5"/>
-  <text class="p" x="682" y="357">One step, never resumed</text>
-  <circle class="dot" cx="672" cy="377" r="2.5"/>
-  <text class="p" x="682" y="381">Tools only through the broker</text>
+  <circle class="dot" cx="672" cy="296" r="2.5"/>
+  <text class="p" x="682" y="300">Only the login's files</text>
+  <circle class="dot" cx="672" cy="317" r="2.5"/>
+  <text class="p" x="682" y="321">Its own tools switched off</text>
+  <circle class="dot" cx="672" cy="338" r="2.5"/>
+  <text class="p" x="682" y="342">One step, never resumed</text>
+  <circle class="dot" cx="672" cy="359" r="2.5"/>
+  <text class="p" x="682" y="363">Tools only through the broker</text>
+  <circle class="dot" cx="672" cy="380" r="2.5"/>
+  <text class="p" x="682" y="384">Out only through the egress proxy</text>
 
   <!-- Inside the control plane -->
   <path class="wire" d="M182 294v20" marker-start="url(#a)" marker-end="url(#a)"/>
@@ -101,7 +103,8 @@
   <path class="flow" d="M298 128H182v98" marker-start="url(#ah)" marker-end="url(#ah)"/>
   <text class="lbl" x="192" y="176">API key</text>
   <path class="flow" d="M662 128H780v98" marker-start="url(#ah)" marker-end="url(#ah)"/>
-  <text class="lbl" x="790" y="176">subscription login</text>
+  <text class="lbl" x="790" y="160">subscription login</text>
+  <text class="lbl" x="790" y="175">via egress proxy</text>
 
   <!-- What the tools reach -->
   <path class="wire" d="M458 402v34" marker-end="url(#a)"/>

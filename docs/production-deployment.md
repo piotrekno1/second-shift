@@ -90,21 +90,14 @@ docker image inspect --format '{{.Id}}' secondshift-agent:production
 Set `AGENT_IMAGE` in `compose.env` to the printed `sha256:...` ID. Alternatively,
 push the image to your private registry and set `AGENT_IMAGE` to its immutable
 `registry/name@sha256:...` reference. Pull that exact image on the Docker host
-before enabling it. Create the server-owned resolver file inside `RUNNER_ROOT`
-(the runner mounts this file read-only in agent containers):
+before enabling it.
 
-```bash
-# Replace these with DNS servers reachable from this server's Docker networks.
-printf 'nameserver 1.1.1.1\nnameserver 1.0.0.1\n' > /srv/secondshift/runner/agent-resolv.conf
-chmod 644 /srv/secondshift/runner/agent-resolv.conf
-```
-
-Use your configured runner path. Do not copy a host resolver that uses a
-loopback-only stub such as `127.0.0.53`. gVisor's network stack cannot use Docker's
-embedded DNS redirection, so agents use this resolver and reach the gateway at
-its reserved address. Set `AGENT_SUBNET` and `AGENT_GATEWAY_ADDRESS` together if
-the default `172.30.0.0/24` and `172.30.0.2` overlap an existing host route.
-The gateway address must be inside the subnet. Image architecture must match
+Agents need no DNS. They reach the gateway and the egress proxy at reserved
+addresses, and the proxy looks up provider names itself. This also suits
+gVisor, which can't use Docker's embedded DNS. Set `AGENT_SUBNET`,
+`AGENT_GATEWAY_ADDRESS` and `AGENT_PROXY_ADDRESS` together if the default
+`172.30.0.0/24`, `172.30.0.2` and `172.30.0.3` overlap an existing host route.
+Both addresses must be inside the subnet. Image architecture must match
 the runner host. The main
 application release workflow does not publish this separate image.
 
@@ -115,10 +108,16 @@ It creates a dedicated bridge named by `AGENT_NETWORK` (default
 PostgreSQL, web, runner and worker stay on the application network. Give each
 installation on one Docker host a distinct agent network name.
 
-Agent containers can reach the internet for their provider and the gateway's
-run-scoped MCP endpoint. This is not an outbound destination allowlist. Their
-built-in CLI tools are disabled; repository commands still execute in the
-separate offline gVisor sandbox. Agents receive only their own subscription
+The agent network is internal, so it has no route out. Agent containers reach
+the gateway's run-scoped MCP endpoint on it. They reach the internet only
+through the `agent-proxy` service at `AGENT_PROXY_ADDRESS` (default
+`172.30.0.3`, inside `AGENT_SUBNET`). The proxy opens HTTPS tunnels only to
+`api.anthropic.com`, `chatgpt.com` and `auth.openai.com`, and only to public
+addresses. It joins one other network of its own, so it can't reach
+PostgreSQL or the other services. Run `dc logs agent-proxy` to see each
+tunnel it opened or refused. The runner refuses to start agents when the agent
+network isn't internal or no proxy address is set. Built-in CLI tools are
+disabled. Repository commands still run in the separate offline gVisor sandbox. Agents receive only their own subscription
 login and a run token, never artifact credentials or an artifact directory.
 
 The gateway runs workspace tools for subscription runs, so it needs the

@@ -45,8 +45,8 @@ A run can use three things. Nothing else is reachable from it.
    that run is active. The gateway forwards only a fixed list of provider paths
    and cuts the run off once its token budget is used. Claude Code and Codex
    run in an agent container on the runner instead. It reaches the provider
-   directly with a person's login. See
-   [Agent subscriptions](agent-subscriptions.md).
+   with a person's login, through an egress proxy that allows only the
+   provider's hosts. See [Agent subscriptions](agent-subscriptions.md).
 3. **The tool broker.** Each MCP or API call is checked against the run's frozen
    execution plan, the job's grant, and the connection's allowed tools.
    Arguments must match the tool's schema and the owner's
@@ -192,11 +192,14 @@ the `#alerts` and `#ops` channels.
   that service.
 - **The model provider sees the context.** Repository content sent to the model
   leaves your environment unless you use a local provider.
-- **A subscription agent has internet access.** The agent container can reach
-  any address, not only its provider and the gateway. Its CLI's own shell,
-  file and web tools are switched off, and it holds only its login and a run
-  token. Protect the runner's `agent-auth` directory and its backups as
-  secrets.
+- **A subscription agent can reach its provider.** The agent container sits
+  on an internal network with no route out. It reaches the gateway, and the
+  internet only through the egress proxy. The proxy opens HTTPS tunnels only
+  to `api.anthropic.com`, `chatgpt.com` and `auth.openai.com`, and only to
+  public addresses. A prompt injection could still send data to the
+  provider in a model request. The CLI's own shell, file and web tools are
+  switched off, and the container holds only its login and a run token.
+  Protect the runner's `agent-auth` directory and its backups as secrets.
 - **The credential sets the reach.** For custom MCP servers and HTTP APIs,
   SecondShift cannot narrow what the credential itself can access. Use the
   narrowest token the service offers.

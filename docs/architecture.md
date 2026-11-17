@@ -38,7 +38,7 @@ model provider or subscription login on **Models**, and every job uses it.
 
 ## Agent backends
 
-![The built-in agent runs in the worker on the control plane and reaches models through the model gateway. Claude Code and Codex run in an agent container on the runner and reach tools through the MCP broker, part of the gateway. Both agents use the same run tools, which reach the command sandbox and approved services.](images/architecture/agent-backends.svg)
+![The built-in agent runs in the worker on the control plane and reaches models through the model gateway. Claude Code and Codex run in an agent container on the runner. They reach their provider only through the egress proxy, and tools through the MCP broker, part of the gateway. Both agents use the same run tools, which reach the command sandbox and approved services.](images/architecture/agent-backends.svg)
 
 Both kinds of agent get the same plan, tools, sandbox and limits. They differ in
 how they pay for models and where their loop runs.
@@ -47,7 +47,7 @@ how they pay for models and where their loop runs.
 | --- | --- | --- |
 | Pays with | A provider API key, per use | A person's subscription |
 | Loop runs in | The worker, on the control plane | A container on the runner |
-| Reaches models | Through the gateway | Directly, with the login |
+| Reaches models | Through the gateway | Through the egress proxy, with the login |
 | Reaches tools | Direct calls in the worker | The MCP broker on the gateway |
 | Token usage | Metered by the gateway | Reported by the CLI |
 | Out of budget | Writes a partial report | Stops without a report |
@@ -57,7 +57,10 @@ The built-in agent never sees a Docker socket or a provider key. Each model call
 gets a short-lived gateway token that exists only inside that durable step.
 
 Claude Code and Codex run in a container next to the sandbox. The container
-holds only the login, with no Docker socket or host home directory. The
+holds only the login, with no Docker socket or host home directory. It sits on
+an internal network with no route out. It reaches the gateway there, and its
+provider only through an egress proxy that opens HTTPS tunnels to the
+provider's hosts and nothing else. The
 repository stays in the sandbox. The CLI reaches it the way the built-in agent
 does, through tools that list, read and search files and run commands.
 
@@ -79,10 +82,12 @@ agent waits for each report before it goes on. Codex runs without sub-agents.
 
 ## Where things run
 
-![The control plane holds every secret and talks to GitHub, Slack and webhooks, MCP servers and APIs, and model providers. The runner owns Docker and runs the agent container and the networkless command sandbox.](images/architecture/trust-zones.svg)
+![The control plane holds every secret and talks to GitHub, Slack and webhooks, MCP servers and APIs, and model providers. The runner owns Docker and runs the agent container, which reaches its provider only through the egress proxy, and the networkless command sandbox.](images/architecture/trust-zones.svg)
 
 - Only the runner can start containers. Each sandbox is fresh, capped on
   memory, CPU and processes, and has no network or credentials.
+- An agent container reaches the internet only through the egress proxy, which
+  allows its provider's hosts. The proxy holds no secrets.
 - For the built-in agent, the gateway picks the model, enforces the token
   budget and meters usage.
 - The control plane runs only approved MCP tools and API operations, for

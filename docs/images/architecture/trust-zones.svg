@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 616" role="img" aria-labelledby="title desc">
   <title id="title">Where things run</title>
-  <desc id="desc">The control plane holds every secret and talks to GitHub, notification targets, MCP servers and APIs, and model providers. The runner owns Docker. It runs the command sandbox with no network, and for subscription runs an agent container that reaches its provider with the login and SecondShift tools through the gateway.</desc>
+  <desc id="desc">The control plane holds every secret and talks to GitHub, notification targets, MCP servers and APIs, and model providers. The runner owns Docker. It runs the command sandbox with no network, and for subscription runs an agent container on an internal network. The agent container reaches its provider with the login only through the egress proxy, which allows only provider hosts, and SecondShift tools through the gateway.</desc>
   <style>
     .card { fill: #171717; stroke: #292929; }
     .zone { fill: #1b1b1b; stroke: #2e2e2e; }
@@ -87,12 +87,12 @@
   <!-- Runner -->
   <rect class="zone" x="648" y="244" width="280" height="340" rx="14"/>
   <text class="eyebrow" x="668" y="272">RUNNER</text>
-  <text class="lbl" x="908" y="272" text-anchor="end">owns Docker</text>
+  <text class="lbl" x="848" y="272" text-anchor="end">owns Docker</text>
 
   <rect class="hi" x="668" y="292" width="240" height="88" rx="10"/>
   <text class="t" x="684" y="319">Agent container</text>
   <text class="p" x="684" y="341">Subscription runs only.</text>
-  <text class="p" x="684" y="360">The login's files, nothing else.</text>
+  <text class="p" x="684" y="360">Login files. Internal network.</text>
 
   <rect class="iso" x="668" y="400" width="240" height="164" rx="10"/>
   <text class="t" x="684" y="427">Command sandbox</text>
@@ -113,8 +113,12 @@
   <text class="lblhi" x="664" y="192" text-anchor="middle">API key</text>
 
   <!-- Runner to outside and to the control plane -->
-  <path class="flow" d="M860 290v-128" marker-end="url(#ah)"/>
-  <text class="lblhi" x="852" y="206" text-anchor="end">login</text>
+  <rect class="box" x="780" y="178" width="128" height="46" rx="8"/>
+  <text class="t" x="844" y="198" text-anchor="middle">Egress proxy</text>
+  <text class="mono" x="844" y="215" text-anchor="middle">provider hosts</text>
+  <path class="flow" d="M860 290v-64" marker-end="url(#ah)"/>
+  <path class="flow" d="M860 178v-16" marker-end="url(#ah)"/>
+  <text class="lblhi" x="852" y="238" text-anchor="end">login</text>
   <path class="wire" d="M582 324h84" marker-start="url(#a)" marker-end="url(#a)"/>
   <text class="lbl" x="624" y="316" text-anchor="middle">MCP</text>
   <path class="wire" d="M582 420h84" marker-end="url(#a)"/>
