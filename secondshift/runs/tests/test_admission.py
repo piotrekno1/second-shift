@@ -400,11 +400,13 @@ def test_global_limit_is_registered_and_worker_limit_fits(
 ) -> None:
     settings.DBOS_WORKER_CONCURRENCY = 4
     settings.DBOS_GLOBAL_CONCURRENCY = limit
-    dbos = Mock()
-    monkeypatch.setattr(dbos_runtime, "DBOS", dbos)
+    client = Mock()
+    monkeypatch.setattr(dbos_runtime, "DBOS", Mock())
+    monkeypatch.setattr(dbos_runtime, "new_dbos_client", lambda: client)
     dbos_runtime.launch_dbos_worker()
-    dbos.register_queue.assert_called_once_with(
+    client.register_queue.assert_called_once_with(
         settings.DBOS_QUEUE_NAME,
         worker_concurrency=worker,
         global_concurrency=limit or None,
+        on_conflict="always_update",
     )
