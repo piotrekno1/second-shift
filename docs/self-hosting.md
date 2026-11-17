@@ -120,7 +120,8 @@ none run on `SECONDSHIFT_RUNNER_IMAGE`, the `default` environment.
 - The runner pulls every environment's image when it starts, and refuses to
   run any other image.
 - Every job may use every environment. Vet an image before you add it.
-- The settings page lists the environments the server found.
+- The settings page lists every environment the server found, `default`
+  included, with its image and env var.
 
 The runner checks out the commit itself, so the image needs no git to run
 skills. The workspace holds a git repository with one commit of those files and
