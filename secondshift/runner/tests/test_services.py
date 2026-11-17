@@ -122,6 +122,66 @@ def test_runner_pulls_a_missing_sandbox_image(settings, monkeypatch) -> None:
     ]
 
 
+def test_runner_pulls_every_environment_image(settings, monkeypatch) -> None:
+    settings.RUNNER_IMAGE = "python:3.13-slim@sha256:abc"
+    settings.RUNNER_ENVIRONMENTS = {
+        "browser": "registry.example/browser@sha256:def",
+        "same": "python:3.13-slim@sha256:abc",
+    }
+    pulled: list[str] = []
+
+    def run(command: list[str], timeout: int = 30) -> Mock:
+        if command[1] == "pull":
+            pulled.append(command[2])
+        return completed(1 if command[1] == "image" else 0)
+
+    monkeypatch.setattr(DockerRunnerService, "run_command", staticmethod(run))
+    DockerRunnerService().ensure_image()
+
+    assert pulled == [
+        "python:3.13-slim@sha256:abc",
+        "registry.example/browser@sha256:def",
+    ]
+
+
+def test_runner_refuses_an_image_no_environment_names(settings, tmp_path: Path) -> None:
+    settings.RUNNER_WORK_ROOT = tmp_path
+    settings.RUNNER_IMAGE = "secondshift-runner:test"
+    settings.RUNNER_ENVIRONMENTS = {"node": "registry.example/node@sha256:def"}
+    spec = RunnerSessionSpec(
+        run_id=7,
+        session_key="0" * 32,
+        repository="example/project",
+        commit_sha="a" * 40,
+        image="attacker.example/image:latest",
+        source_sha256="d" * 64,
+    )
+
+    with pytest.raises(RunnerProtocolError, match="not enabled by this runner"):
+        DockerRunnerService().start(spec)
+
+
+def test_every_environment_gets_the_same_flags_and_mounts(
+    settings, tmp_path: Path
+) -> None:
+    settings.RUNNER_IMAGE = "secondshift-runner:test"
+    settings.RUNNER_ENVIRONMENTS = {"node": "registry.example/node@sha256:def"}
+    commands = [
+        DockerRunnerService.create_command(
+            Mock(image=image), "secondshift-run-7", tmp_path / "workspace"
+        )
+        for image in ("secondshift-runner:test", "registry.example/node@sha256:def")
+    ]
+
+    assert commands[0][-3:] == ["secondshift-runner:test", "sleep", "infinity"]
+    assert commands[1][-3:] == [
+        "registry.example/node@sha256:def",
+        "sleep",
+        "infinity",
+    ]
+    assert commands[0][:-3] == commands[1][:-3]
+
+
 def test_runner_skips_the_pull_when_the_image_is_present(settings, monkeypatch) -> None:
     calls: list[list[str]] = []
 

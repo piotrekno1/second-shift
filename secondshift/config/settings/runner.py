@@ -23,6 +23,10 @@ from secondshift.config.constants import (
 )
 from secondshift.config.logging import logging_config
 from secondshift.runner_protocol.agents import local_agent_broker_url
+from secondshift.runner_protocol.environments import (
+    EnvironmentConfigError,
+    configured_environments,
+)
 
 env = Env()
 # On a single host the runner shares the data folder, but reads only runner.env
@@ -65,8 +69,18 @@ DATABASES = {
     }
 }
 
+# One person's machine: dev or local mode, not a server.
+SINGLE_HOST = os.environ.get(ENVIRONMENT_VAR) in {Environment.DEV, Environment.LOCAL}
 RUNNER_SERVICE_TOKEN = env.str(AppEnv.RUNNER_SERVICE_TOKEN, default="")
 RUNNER_IMAGE = env.str(AppEnv.RUNNER_IMAGE, default=DEFAULT_SANDBOX_IMAGE)
+# Named environments a job may choose, besides the default RUNNER_IMAGE. A
+# server requires each one pinned by digest. Only one machine may use tags.
+try:
+    RUNNER_ENVIRONMENTS = configured_environments(
+        os.environ, require_digest=not SINGLE_HOST
+    )
+except EnvironmentConfigError as error:
+    raise ImproperlyConfigured(str(error)) from error
 RUNNER_RUNTIME = env.str(AppEnv.RUNNER_RUNTIME, default=SandboxRuntime.GVISOR)
 RUNNER_COMMAND_TIMEOUT_SECONDS = env.int(
     "SECONDSHIFT_RUNNER_COMMAND_TIMEOUT_SECONDS", default=120
@@ -127,8 +141,6 @@ AGENT_IMAGE = env.str(
 )
 # An internal Docker network with no route out. The runner refuses any other.
 AGENT_NETWORK = env.str(AppEnv.AGENT_NETWORK, default="secondshift-agents")
-# On one machine, agent containers reach the gateway on the Docker host.
-SINGLE_HOST = os.environ.get(ENVIRONMENT_VAR) in {Environment.DEV, Environment.LOCAL}
 AGENT_IMAGE_TAGS_ALLOWED = SINGLE_HOST
 AGENT_BROKER_URL = env.str(
     AppEnv.AGENT_BROKER_URL,

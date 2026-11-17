@@ -102,3 +102,16 @@ def test_runner_reads_only_its_token_from_the_data_folder(tmp_path: Path) -> Non
         str(tmp_path / "runner"),
         "False",
     ]
+
+
+def test_a_server_runner_refuses_an_environment_image_without_a_digest(
+    tmp_path: Path,
+) -> None:
+    result = load_runner_settings(
+        tmp_path, {"SECONDSHIFT_RUNNER_ENVIRONMENT_NODE": "node:22"}
+    )
+
+    assert result.returncode != 0
+    assert "SECONDSHIFT_RUNNER_ENVIRONMENT_NODE must name an image pinned" in (
+        result.stderr
+    )

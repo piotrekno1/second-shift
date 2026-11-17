@@ -75,6 +75,13 @@ def sandbox_flags() -> list[str]:
     ]
 
 
+def enabled_images() -> list[str]:
+    """The default image, then each named environment's. Nothing else runs."""
+    return list(
+        dict.fromkeys([settings.RUNNER_IMAGE, *settings.RUNNER_ENVIRONMENTS.values()])
+    )
+
+
 class RunnerConfigurationError(RuntimeError):
     pass
 
@@ -89,8 +96,11 @@ class DockerRunnerService:
         self.ensure_image()
 
     def ensure_image(self) -> None:
-        """Pull the sandbox image at startup so the first run doesn't wait on it."""
-        image = settings.RUNNER_IMAGE
+        """Pull every environment's image at startup, so no run waits on it."""
+        for image in enabled_images():
+            self.pull_image(image)
+
+    def pull_image(self, image: str) -> None:
         if not self.run_command(
             ["docker", "image", "inspect", image], timeout=15
         ).returncode:
@@ -123,7 +133,7 @@ class DockerRunnerService:
             )
 
     def start(self, spec: RunnerSessionSpec) -> str:
-        if spec.image != settings.RUNNER_IMAGE:
+        if spec.image not in enabled_images():
             raise RunnerProtocolError(
                 "The requested image is not enabled by this runner."
             )
