@@ -17,6 +17,11 @@ class RunnerSession(models.Model):
     collect_changes = models.BooleanField(default=False)
     history_sha256 = models.CharField(max_length=64, blank=True)
     skill_sha256 = models.CharField(max_length=64, blank=True)
+    # The setup commands the spec names, run before the agent.
+    setup = models.JSONField(default=list, blank=True)
+    # Set when the agent's first command or run starts. Setup, which has
+    # network access, never runs after that.
+    setup_closed = models.BooleanField(default=False)
     container_name = models.CharField(max_length=120, unique=True)
     workspace_path = models.TextField()
     status = models.CharField(

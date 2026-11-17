@@ -8,6 +8,7 @@ from django.conf import settings
 from secondshift.runner_protocol.credentials import encrypt_agent_auth
 from secondshift.runner_protocol.schemas import AgentCheckInput, AgentInput, AgentOutput
 from secondshift.runner_protocol.sessions import (
+    MAX_SETUP_SECONDS,
     CommandRequest,
     CommandResult,
     RunnerProtocolError,
@@ -84,6 +85,16 @@ class HttpRunnerClient:
             f"/v1/sessions/{session_id}/commands",
             timeout=max(self.timeout, request.timeout_seconds + 5),
             json=asdict(request),
+        )
+        return CommandResult(**self.response_payload(response))
+
+    def setup(self, session_id: str, index: int) -> CommandResult:
+        """Run the session's setup command at this index, before the agent."""
+        response = self.send(
+            "POST",
+            f"/v1/sessions/{session_id}/setup/{index}",
+            # The runner stops a setup command after at most 900 seconds.
+            timeout=MAX_SETUP_SECONDS + 60,
         )
         return CommandResult(**self.response_payload(response))
 

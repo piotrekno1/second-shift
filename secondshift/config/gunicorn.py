@@ -45,10 +45,12 @@ control_socket_disable = True
 
 
 def on_exit(server: Arbiter) -> None:
-    """A local runner removes the egress proxy it started. Others have none."""
+    """A local runner removes the egress proxies it started. Others have none."""
     if service != Service.RUNNER:
         return
     django.setup()
     from secondshift.runner.egress import stop_local_proxy  # noqa: PLC0415
+    from secondshift.runner.setup import stop_local_setup_proxy  # noqa: PLC0415
 
     stop_local_proxy()
+    stop_local_setup_proxy()

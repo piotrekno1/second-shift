@@ -55,9 +55,8 @@ class AgentEgress:
         ]
 
 
-def require_internal_network(create: bool) -> None:
-    """Fail closed unless the agent network has no route out."""
-    network = settings.AGENT_NETWORK
+def require_internal_network(network: str, create: bool) -> None:
+    """Fail closed unless the network has no route out."""
     try:
         found = run("network", "inspect", "--format", "{{.Internal}}", network)
         if found.returncode and create:
@@ -65,14 +64,14 @@ def require_internal_network(create: bool) -> None:
             return
     except DockerError as error:
         raise RunnerProtocolError(
-            "The runner could not check the agent network."
+            f"The runner could not check the network {network}."
         ) from error
     if found.returncode:
-        raise RunnerProtocolError("The agent network does not exist.")
+        raise RunnerProtocolError(f"The network {network} does not exist.")
     if found.stdout.strip() != "true":
         raise RunnerProtocolError(
-            "The agent network must be internal, so agents reach the internet "
-            "only through the egress proxy."
+            f"The network {network} must be internal, so containers on it reach "
+            "the internet only through the egress proxy."
         )
 
 
@@ -87,7 +86,7 @@ def is_address(host: str) -> bool:
 def prepare_egress(image: str) -> AgentEgress:
     """Check the network and find the proxy. Starts it on one machine."""
     if settings.AGENT_PROXY_ADDRESS:
-        require_internal_network(create=False)
+        require_internal_network(settings.AGENT_NETWORK, create=False)
         try:
             address = ipaddress.ip_address(settings.AGENT_PROXY_ADDRESS)
         except ValueError:
@@ -103,8 +102,10 @@ def prepare_egress(image: str) -> AgentEgress:
         raise RunnerProtocolError("The local agent broker URL must use a host name.")
     command = local_proxy_command(image, broker.hostname, broker.port)
     with proxy_lock():
-        require_internal_network(create=True)
-        address = ensure_local_proxy(local_proxy_name(broker.port), command)
+        require_internal_network(settings.AGENT_NETWORK, create=True)
+        address = ensure_local_proxy(
+            local_proxy_name(broker.port), command, settings.AGENT_NETWORK
+        )
     return AgentEgress(address, (broker.hostname,))
 
 
@@ -125,7 +126,7 @@ def local_proxy_command(image: str, gateway_host: str, gateway_port: int) -> lis
 
 @contextmanager
 def proxy_lock() -> Iterator[None]:
-    """Only one run starts or replaces the local proxy at a time."""
+    """Only one run starts or replaces a local proxy at a time."""
     settings.RUNNER_WORK_ROOT.mkdir(parents=True, exist_ok=True, mode=0o700)
     with (settings.RUNNER_WORK_ROOT / "agent-proxy.lock").open("a") as stream:
         fcntl.flock(stream, fcntl.LOCK_EX)
@@ -154,8 +155,11 @@ def stop_local_proxy() -> None:
         run("rm", "--force", local_proxy_name(port))
 
 
-def ensure_local_proxy(name: str, command: list[str]) -> str:
-    """Start the proxy unless one with this exact configuration runs already."""
+def ensure_local_proxy(name: str, command: list[str], network: str) -> str:
+    """Start the proxy unless one with this exact configuration runs already.
+
+    Returns its address on the internal network.
+    """
     config = config_hash(command)
     try:
         state = run(
@@ -185,9 +189,9 @@ def ensure_local_proxy(name: str, command: list[str]) -> str:
                 name,
             )
         )
-        address = networks[settings.AGENT_NETWORK]["IPAddress"]
+        address = networks[network]["IPAddress"]
         return str(ipaddress.ip_address(address))
     except (DockerError, KeyError, TypeError, ValueError) as error:
         raise RunnerProtocolError(
-            "The runner could not start the agent proxy."
+            f"The runner could not start the egress proxy {name}."
         ) from error
