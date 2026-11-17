@@ -82,6 +82,7 @@ def serialize_connection(
         ],
         require_approval=connection.require_approval,
         attribution=is_github_source(connection) and shows_attribution(connection),
+        credential_reference=connection.credential_reference,
         usage=None
         if usage is None
         else ConnectionUsageSchema(

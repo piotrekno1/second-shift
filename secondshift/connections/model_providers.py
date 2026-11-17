@@ -11,7 +11,12 @@ from django.conf import settings
 from django.db import transaction
 
 from secondshift.connections.checks import record_check
-from secondshift.connections.credential_store import Secret, read_secret
+from secondshift.connections.credential_store import (
+    Secret,
+    checked_reference,
+    read_secret,
+)
+from secondshift.connections.errors import CredentialUnavailable
 from secondshift.connections.models import Connection
 from secondshift.connections.outbound import (
     OutboundUrlError,
@@ -105,6 +110,25 @@ def checked_api_key(provider: str, api_key: str) -> str:
     return api_key
 
 
+def set_credential(connection: Connection, api_key: str, reference: str) -> None:
+    """Keep the key in the database, or only a reference to a secret manager."""
+    if api_key and reference:
+        raise ModelProviderError("Enter an API key or a secret reference, not both.")
+    if reference:
+        try:
+            connection.credential_reference = checked_reference(reference)
+        except CredentialUnavailable as error:
+            raise ModelProviderError(str(error)) from error
+        connection.auth_strategy = Connection.AuthStrategy.REFERENCE
+        connection.access_token = ""
+        return
+    connection.credential_reference = ""
+    connection.access_token = api_key
+    connection.auth_strategy = (
+        Connection.AuthStrategy.API_KEY if api_key else Connection.AuthStrategy.NONE
+    )
+
+
 def clean_models(values: list[str]) -> list[str]:
     cleaned = sorted({value.strip() for value in values if value.strip()})
     if any(len(value) > 200 for value in cleaned):
@@ -124,6 +148,54 @@ def validated_endpoint(provider: str, endpoint_url: str) -> str:
         raise ModelProviderError(str(error)) from error
 
 
+def preview_new_connection(
+    workspace: Workspace,
+    provider: str,
+    endpoint_url: str,
+    api_key: str,
+    credential_reference: str,
+) -> Connection:
+    """An unsaved connection for listing models before it is created."""
+    preview = Connection(
+        workspace=workspace,
+        provider=provider,
+        endpoint_url=validated_endpoint(provider, endpoint_url),
+    )
+    reference = credential_reference.strip()
+    set_credential(
+        preview,
+        api_key.strip() if reference else checked_api_key(provider, api_key),
+        reference,
+    )
+    return preview
+
+
+def preview_changed_connection(
+    connection: Connection,
+    endpoint_url: str | None,
+    api_key: str | None,
+    credential_reference: str | None,
+) -> Connection:
+    """An unsaved copy with the proposed changes. Saves no credential."""
+    preview = Connection(
+        workspace=connection.workspace,
+        provider=connection.provider,
+        endpoint_url=validated_endpoint(
+            connection.provider,
+            endpoint_url if endpoint_url is not None else connection.endpoint_url,
+        ),
+    )
+    api_key = (api_key or "").strip()
+    reference = (credential_reference or "").strip()
+    if api_key or reference:
+        set_credential(preview, api_key, reference)
+    elif connection.auth_strategy == Connection.AuthStrategy.REFERENCE:
+        set_credential(preview, "", connection.credential_reference)
+    else:
+        set_credential(preview, read_secret(connection, Secret.TOKEN), "")
+    return preview
+
+
 @transaction.atomic
 def create_model_connection(
     workspace: Workspace,
@@ -133,20 +205,23 @@ def create_model_connection(
     endpoint_url: str = "",
     allowed_models: list[str] | None = None,
     default_model: str = "",
+    credential_reference: str = "",
 ) -> Connection:
-    api_key = checked_api_key(provider, api_key)
     connection = Connection(
         workspace=workspace,
         provider=provider,
         kind=Connection.Kind.MODEL,
         display_name=display_name.strip() or Connection.Provider(provider).label,
-        auth_strategy=(
-            Connection.AuthStrategy.API_KEY if api_key else Connection.AuthStrategy.NONE
-        ),
         endpoint_url=validated_endpoint(provider, endpoint_url),
-        access_token=api_key,
         allowed_models=clean_models(allowed_models or []),
         default_model=default_model.strip(),
+    )
+    set_credential(
+        connection,
+        checked_api_key(provider, api_key)
+        if not credential_reference.strip()
+        else api_key.strip(),
+        credential_reference.strip(),
     )
     connection.metadata = {"target": host_label(base_url(connection))}
     check_default_model(connection)
@@ -163,6 +238,7 @@ def update_model_connection(
     endpoint_url: str | None = None,
     allowed_models: list[str] | None = None,
     default_model: str | None = None,
+    credential_reference: str | None = None,
 ) -> Connection:
     if connection.kind != Connection.Kind.MODEL:
         raise ModelProviderError("This is not a model provider connection.")
@@ -180,12 +256,15 @@ def update_model_connection(
         connection.allowed_models = clean_models(allowed_models)
     if default_model is not None:
         connection.default_model = default_model.strip()
-    if api_key and api_key.strip():
-        connection.access_token = api_key.strip()
-        connection.auth_strategy = Connection.AuthStrategy.API_KEY
+    api_key = (api_key or "").strip()
+    reference = (credential_reference or "").strip()
+    if api_key or reference:
+        set_credential(connection, api_key, reference)
         connection.status = Connection.Status.CONNECTED
     elif connection.status == Connection.Status.REVOKED:
-        raise ModelProviderError("Enter a new API key to reconnect this provider.")
+        raise ModelProviderError(
+            "Enter a new API key or secret reference to reconnect this provider."
+        )
     check_default_model(connection)
     # A saved check result described the old settings, so drop it.
     connection.metadata = {
@@ -406,7 +485,7 @@ def fetch_models(connection: Connection) -> list[str]:
         raise CheckFailed(f"The provider answered HTTP {error.status_code}.") from error
     except anthropic.APIConnectionError as error:
         raise CheckFailed("The provider could not be reached.") from error
-    except (ModelProviderError, OutboundUrlError) as error:
+    except (ModelProviderError, OutboundUrlError, CredentialUnavailable) as error:
         raise CheckFailed(str(error)) from error
     except httpx.HTTPError as error:
         logger.warning(
@@ -428,7 +507,7 @@ def model_call_failure(connection: Connection) -> str | None:
         return try_model_call(connection)
     except anthropic.APIConnectionError:
         return "The provider could not be reached for a test call."
-    except OutboundUrlError as error:
+    except (OutboundUrlError, CredentialUnavailable) as error:
         return str(error)
     except httpx.HTTPError as error:
         logger.warning(

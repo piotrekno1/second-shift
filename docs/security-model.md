@@ -67,7 +67,11 @@ issues.
 
 ## Where secrets live
 
-All credentials are encrypted in the database with `SECONDSHIFT_ENCRYPTION_KEY`.
+Credentials are encrypted in the database with `SECONDSHIFT_ENCRYPTION_KEY`.
+A model provider key can instead stay in
+[HashiCorp Vault](environment-variables.md#hashicorp-vault). Then the
+database holds only where the key lives, and the gateway reads the key on each
+use. Each workspace reads only below its own Vault prefix.
 
 | Secret | During a run, decrypted by | Never reaches |
 | --- | --- | --- |

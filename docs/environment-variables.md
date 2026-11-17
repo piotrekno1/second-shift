@@ -198,6 +198,39 @@ Only operators configure these settings. Repository input cannot change images,
 networks, the proxy or credentials. See the
 [production guide](production-deployment.md#optional-subscription-agents).
 
+## HashiCorp Vault
+
+A model provider can keep its API key in Vault instead of the SecondShift
+database. Set these in **web, gateway and worker**, never in the runner. Vault
+is off until both the address and the token are set.
+
+| Variable | Meaning and default |
+| --- | --- |
+| `SECONDSHIFT_VAULT_ADDR` | Vault's address, for example `https://vault.internal:8200`. |
+| `SECONDSHIFT_VAULT_TOKEN` | The token SecondShift reads with. Give it read access to the prefix below and nothing else. |
+| `SECONDSHIFT_VAULT_NAMESPACE` | Vault Enterprise or HCP namespace. Empty uses the root namespace. |
+| `SECONDSHIFT_VAULT_MOUNT` | Mount of the KV version 2 engine. Default `secret`. |
+| `SECONDSHIFT_VAULT_PATH_PREFIX` | Where workspaces may read. `{workspace}` is replaced with the workspace slug. Default `secondshift/{workspace}`. |
+
+A workspace names a secret as `vault:<path>#<field>`. The path is relative to
+its prefix and cannot leave it. With the defaults, `vault:anthropic#api_key`
+in the workspace `acme` reads the field `api_key` from
+`secret/secondshift/acme/anthropic`.
+
+SecondShift reads the key each time the gateway or a check needs it. It keeps
+the key in memory only and never stores or logs it. A rotated key is used from
+the next model call. When Vault can't be reached, or refuses, the run fails
+with Vault's reason. SecondShift renews nothing, so use a token that does not
+expire, or renew it outside SecondShift.
+
+A Vault policy for the default settings:
+
+```hcl
+path "secret/data/secondshift/*" {
+  capabilities = ["read"]
+}
+```
+
 ## HTTP server
 
 Set `SECONDSHIFT_SERVICE` to `web`, `gateway` or `runner`, then start the server:

@@ -284,6 +284,10 @@ example in your password manager or secret store. Without it, saved credentials
 can't be restored. Keep the data backups private and off the server too: they
 hold repository contents, run history and Caddy's TLS keys.
 
+Model provider keys kept in [Vault](environment-variables.md#hashicorp-vault)
+are not in the dumps. The dumps hold only where each key lives. Back up Vault
+on its own schedule, and keep the Vault token with the other server secrets.
+
 Stop the application services so the databases, runner directory and bucket
 match, then run from the checkout:
 

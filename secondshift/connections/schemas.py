@@ -69,6 +69,8 @@ class ConnectionSchema(Schema):
     require_approval: bool = False
     # GitHub sources: whether pull requests, issues and commits name SecondShift.
     attribution: bool = False
+    # Model providers: where a secret manager keeps the key. Never the key.
+    credential_reference: str = ""
 
 
 class AttributionSchema(Schema):
@@ -206,6 +208,8 @@ class ModelConnectionCreateSchema(Schema):
     display_name: str = Field(default="", max_length=200)
     api_key: str = Field(default="", max_length=1000)
     base_url: str = Field(default="", max_length=2000)
+    # Instead of api_key: where a secret manager keeps it, like vault:path#field.
+    credential_reference: str = Field(default="", max_length=500)
     allowed_models: list[str] = Field(default_factory=list, max_length=100)
     default_model: str = Field(default="", max_length=200)
     is_default: bool | None = None
@@ -215,6 +219,8 @@ class ModelConnectionUpdateSchema(Schema):
     display_name: str | None = Field(default=None, max_length=200)
     api_key: str | None = Field(default=None, max_length=1000)
     base_url: str | None = Field(default=None, max_length=2000)
+    # A reference replaces a saved key, and a key replaces a reference.
+    credential_reference: str | None = Field(default=None, max_length=500)
     allowed_models: list[str] | None = Field(default=None, max_length=100)
     default_model: str | None = Field(default=None, max_length=200)
     is_default: bool | None = None

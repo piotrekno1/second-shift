@@ -34,6 +34,8 @@ class Connection(models.Model):
         OAUTH = "oauth", "OAuth"
         API_KEY = "api_key", "Encrypted API key"
         MANAGED = "managed", "Managed by service"
+        # The secret stays in an external manager. See credential_store.
+        REFERENCE = "reference", "Secret manager reference"
         NONE = "none", "None"
 
     class Status(models.TextChoices):
@@ -76,6 +78,9 @@ class Connection(models.Model):
     delivery_url = EncryptedTextField(blank=True, default="")
     access_token = EncryptedTextField(blank=True, default="")
     refresh_token = EncryptedTextField(blank=True, default="")
+    # Where an external secret manager keeps the secret, such as
+    # vault:anthropic#api_key. A location, never the secret itself.
+    credential_reference = models.CharField(max_length=500, blank=True, default="")
     expires_at = models.DateTimeField(null=True, blank=True)
     metadata = models.JSONField(default=dict, blank=True)
     # Capability connections only. When off, a job that asks only for allowed

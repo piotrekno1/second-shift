@@ -1,3 +1,4 @@
+import httpx
 import pytest
 from django.contrib.auth import get_user_model
 from pydantic_ai.models.anthropic import AnthropicModel
@@ -5,6 +6,7 @@ from pydantic_ai.models.openai import OpenAIChatModel, OpenAIResponsesModel
 
 from secondshift.connections.execution import choose_execution
 from secondshift.connections.models import Connection
+from secondshift.gateway.models import RunToken
 from secondshift.gateway.tokens import authenticate
 from secondshift.jobs.models import Job
 from secondshift.jobs.planner import build_execution_plan
@@ -122,3 +124,30 @@ def test_gateway_access_refuses_a_disconnected_provider(model_run: Run) -> None:
 
     with pytest.raises(ModelGatewayConfigurationError, match="no longer connected"):
         issue_model_gateway_access(model_run)
+
+
+def test_gateway_access_fails_closed_when_vault_cannot_supply_the_key(
+    model_run: Run, settings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    settings.VAULT_ADDR = "https://vault.internal:8200"
+    settings.VAULT_TOKEN = "hvs.server-token"
+    Connection.objects.update(
+        auth_strategy=Connection.AuthStrategy.REFERENCE,
+        credential_reference="vault:anthropic#api_key",
+        access_token="",
+    )
+    monkeypatch.setattr(
+        "secondshift.connections.vault.vault_client",
+        lambda: httpx.Client(
+            transport=httpx.MockTransport(lambda request: httpx.Response(403))
+        ),
+    )
+
+    with pytest.raises(ModelGatewayConfigurationError) as raised:
+        issue_model_gateway_access(model_run)
+
+    assert str(raised.value) == (
+        "The model provider's key is unavailable. "
+        "Vault refused to read vault:anthropic#api_key."
+    )
+    assert not RunToken.objects.filter(run=model_run).exists()

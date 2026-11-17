@@ -524,3 +524,82 @@ def test_runs_count_budget_tokens_the_way_the_gateway_does(
     assert listed["model_budget_tokens"] == 23
     assert listed["model_cache_read_tokens"] == 20
     assert listed["model_tokens"] == 40
+
+
+def vault_reference(
+    connection: Connection,
+    settings: Any,
+    monkeypatch: pytest.MonkeyPatch,
+    **answer: Any,
+) -> None:
+    settings.VAULT_ADDR = "https://vault.internal:8200"
+    settings.VAULT_TOKEN = "hvs.server-token"
+    connection.auth_strategy = Connection.AuthStrategy.REFERENCE
+    connection.credential_reference = "vault:anthropic#api_key"
+    connection.access_token = ""
+    connection.save()
+    monkeypatch.setattr(
+        "secondshift.connections.vault.vault_client",
+        lambda: httpx.Client(
+            transport=httpx.MockTransport(lambda request: httpx.Response(**answer))
+        ),
+    )
+
+
+@pytest.mark.django_db
+def test_gateway_sends_the_key_vault_holds(
+    client: Client,
+    monkeypatch: pytest.MonkeyPatch,
+    settings: Any,
+    workspace: Workspace,
+) -> None:
+    run = make_run(workspace)
+    connection = provider(workspace)
+    vault_reference(
+        connection,
+        settings,
+        monkeypatch,
+        status_code=200,
+        json={"data": {"data": {"api_key": "sk-ant-in-vault"}}},
+    )
+    token = issue_run_token(run, connection)
+    calls = capture_post(monkeypatch, fake_upstream())
+
+    response = post(
+        client,
+        "/gateway/anthropic/v1/messages",
+        {"model": "claude-opus-5-5", "max_tokens": 16, "messages": []},
+        **{"x-api-key": token},
+    )
+
+    assert response.status_code == 200
+    assert calls[0].headers["x-api-key"] == "sk-ant-in-vault"
+    connection.refresh_from_db()
+    assert connection.access_token == ""
+
+
+@pytest.mark.django_db
+def test_gateway_fails_closed_when_vault_cannot_answer(
+    client: Client,
+    monkeypatch: pytest.MonkeyPatch,
+    settings: Any,
+    workspace: Workspace,
+) -> None:
+    run = make_run(workspace)
+    connection = provider(workspace)
+    vault_reference(connection, settings, monkeypatch, status_code=503)
+    token = issue_run_token(run, connection)
+    calls = capture_post(monkeypatch, fake_upstream())
+
+    response = post(
+        client,
+        "/gateway/anthropic/v1/messages",
+        {"model": "claude-opus-5-5", "max_tokens": 16, "messages": []},
+        **{"x-api-key": token},
+    )
+
+    assert response.status_code == 502
+    assert response.json()["error"]["message"] == (
+        "Vault answered HTTP 503 for vault:anthropic#api_key."
+    )
+    assert calls == []

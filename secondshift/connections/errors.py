@@ -11,3 +11,10 @@ class ExternalRequestError(ExternalToolError):
 
 class ToolArgumentError(ExternalToolError):
     """The model sent arguments the tool refuses. It may fix them and try again."""
+
+
+class CredentialUnavailable(RuntimeError):
+    """A secret manager could not supply a secret. The message is safe to show.
+
+    It names the reference and what went wrong, never the secret.
+    """

@@ -498,6 +498,21 @@ MODEL_RUN_TOKEN_BUDGET, MODEL_RUN_TOKEN_BUDGET_CEILING = run_limit(
 GATEWAY_MAX_BODY_BYTES = 32 * 1024 * 1024
 GATEWAY_READ_TIMEOUT_SECONDS = 600
 
+# --- External secret managers ------------------------------------------------
+
+# HashiCorp Vault, KV version 2. Off unless an address is set. A connection
+# that names a Vault secret reads it here on every use and never stores it.
+VAULT_ADDR = env.str("SECONDSHIFT_VAULT_ADDR", default="").rstrip("/")
+VAULT_TOKEN = env.str("SECONDSHIFT_VAULT_TOKEN", default="")
+# Vault Enterprise and HCP only. Empty uses the root namespace.
+VAULT_NAMESPACE = env.str("SECONDSHIFT_VAULT_NAMESPACE", default="")
+VAULT_MOUNT = env.str("SECONDSHIFT_VAULT_MOUNT", default="secret").strip("/")
+# Each workspace reads only below this path. {workspace} is the workspace slug.
+VAULT_PATH_PREFIX = env.str(
+    "SECONDSHIFT_VAULT_PATH_PREFIX", default="secondshift/{workspace}"
+).strip("/")
+VAULT_TIMEOUT_SECONDS = 5
+
 # GitHub App credentials belong only to the control plane, never to sandboxes.
 GITHUB_APP_ID = env.str("SECONDSHIFT_GITHUB_APP_ID", default="")
 GITHUB_APP_SLUG = env.str("SECONDSHIFT_GITHUB_APP_SLUG", default="")
