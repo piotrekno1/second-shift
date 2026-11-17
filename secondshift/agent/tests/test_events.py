@@ -381,3 +381,31 @@ def test_the_turn_limit_stops_the_cli_mid_run(monkeypatch) -> None:
     assert time.monotonic() - started < 30
     assert finished["reason"] == "turn_budget_exhausted"
     assert finished["subagents"] == [{"requests": 2, "tool_calls": 0, "finished": 0}]
+
+
+# Codex 0.166's own words when its sign-in can't be refreshed.
+CODEX_REFRESH_ERRORS = [
+    "Your access token could not be refreshed because your refresh token has "
+    "expired. Please log out and sign in again.",
+    "Your access token could not be refreshed because your refresh token was "
+    "already used. Please log out and sign in again.",
+    "Your access token could not be refreshed because you have since logged out "
+    "or signed in to another account. Please sign in again.",
+    "Your access token could not be refreshed. Please log out and sign in again.",
+]
+
+
+@pytest.mark.parametrize("message", CODEX_REFRESH_ERRORS)
+@pytest.mark.parametrize(
+    "event",
+    [
+        lambda message: {"type": "error", "message": message},
+        lambda message: {"type": "turn.failed", "error": {"message": message}},
+    ],
+)
+def test_a_codex_login_that_cannot_refresh_needs_a_reconnect(
+    message: str, event: Any
+) -> None:
+    failed = outcome_of(codex_events.read, [event(message)])
+    assert failed["reason"] == "reconnect_required"
+    assert failed["report"] == ""
