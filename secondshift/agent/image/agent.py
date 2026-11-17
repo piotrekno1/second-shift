@@ -40,12 +40,25 @@ BACKENDS: dict[str, tuple[str, Start, Read]] = {
 }
 
 
+# Words in a CLI's last error that mean its login no longer works. Codex says
+# "Your access token could not be refreshed ... Please sign in again" when its
+# refresh token has expired, was used elsewhere, or the account signed out.
+SIGN_IN_WORDS = (
+    "401",
+    "unauthorized",
+    "authenticat",
+    "oauth",
+    "could not be refreshed",
+    "sign in again",
+)
+
+
 def failure_reason(error: str) -> str:
     """A reason the control plane can explain, from the CLI's last error."""
     text = error.lower()
     if any(word in text for word in ("rate limit", "usage limit", "quota")):
         return AgentOutcome.QUOTA_EXHAUSTED
-    if any(word in text for word in ("401", "unauthorized", "authenticat", "oauth")):
+    if any(word in text for word in SIGN_IN_WORDS):
         return AgentOutcome.RECONNECT_REQUIRED
     return AgentOutcome.AGENT_FAILED
 
