@@ -28,7 +28,6 @@ from secondshift.config.constants import (
     DEFAULT_SANDBOX_IMAGE,
     ENVIRONMENT_VAR,
     GITHUB_BASE_URL,
-    LOCAL_AGENT_TAG,
     LOCAL_GATEWAY_URL,
     SERVICE_VAR,
     AppEnv,
@@ -36,6 +35,7 @@ from secondshift.config.constants import (
     Environment,
     SandboxRuntime,
     Service,
+    default_agent_image,
 )
 from secondshift.config.first_run import write_generated_env
 from secondshift.config.logging import logging_config
@@ -509,11 +509,9 @@ GITHUB_APP_PRIVATE_KEY = env.str(
 
 
 # CLI agent execution. Servers turn it on by setting an image pinned by digest.
-# `secondshift up` builds the local tag, which its runner resolves per run.
-AGENT_IMAGE = env.str(
-    AppEnv.AGENT_IMAGE,
-    default=LOCAL_AGENT_TAG if ENVIRONMENT == Environment.LOCAL else "",
-)
+# On one machine, `secondshift up` or process-compose builds a tag, which the
+# runner resolves per run.
+AGENT_IMAGE = env.str(AppEnv.AGENT_IMAGE, default=default_agent_image(ENVIRONMENT))
 AGENT_NETWORK = env.str(AppEnv.AGENT_NETWORK, default="bridge")
 AGENT_BROKER_URL = env.str(
     AppEnv.AGENT_BROKER_URL,

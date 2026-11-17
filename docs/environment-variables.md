@@ -189,7 +189,7 @@ The production Compose example sets these from its server-owned env file:
 
 | Variable | Meaning and default |
 | --- | --- |
-| `SECONDSHIFT_AGENT_IMAGE` | Agent image pinned by digest; empty disables subscriptions on servers. |
+| `SECONDSHIFT_AGENT_IMAGE` | Agent image pinned by digest. Empty disables subscriptions on servers. On one machine it defaults to the tag that mode builds, `secondshift-agent:local` or `secondshift-agent:dev`. |
 | `SECONDSHIFT_AGENT_BROKER_URL` | Agent-reachable run-scoped MCP URL on the gateway. |
 | `SECONDSHIFT_AGENT_NETWORK` | Docker network for transient agent containers; default `bridge`. |
 | `SECONDSHIFT_AGENT_RESOLV_CONF` | Runner-only absolute host path to a resolver file mounted read-only at `/etc/resolv.conf`; empty uses Docker's resolver. Use a reachable non-loopback DNS server with gVisor on a dedicated bridge. |
