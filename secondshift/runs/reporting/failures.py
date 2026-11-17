@@ -156,9 +156,9 @@ def model_provider_next_step(reason: str, connection_name: str) -> str:
 def setup_failure(command: str, result: CommandResult) -> str:
     """Why a setup command failed, in one line. Empty when it succeeded."""
     if result.timed_out:
-        return f"`{command}` ran out of time."
+        return f'"{command}" ran out of time.'
     if result.exit_code:
-        return f"`{command}` exited with code {result.exit_code}."
+        return f'"{command}" exited with code {result.exit_code}.'
     return ""
 
 

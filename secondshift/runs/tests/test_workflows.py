@@ -298,8 +298,8 @@ def test_setup_runs_each_command_before_the_agent(
             "message", flat=True
         )
     ) == [
-        "Setup ran `npm ci` with access to package registries only.",
-        "Setup ran `uv sync` with access to package registries only.",
+        'Setup ran "npm ci" with access to package registries only.',
+        'Setup ran "uv sync" with access to package registries only.',
     ]
 
 
@@ -323,7 +323,7 @@ def test_a_failed_setup_command_stops_the_run_before_the_agent(
     run.refresh_from_db()
     assert run.status == Run.Status.FAILED
     assert run.failure == RunFailure.SETUP
-    assert run.failure_reason == "`npm ci` exited with code 1."
+    assert run.failure_reason == '"npm ci" exited with code 1.'
     assert client.setups == [(f"run-{run.pk}", 0)]
     assert fake_stages == [f"run-{run.pk}"]
     event = RunEvent.objects.get(level="error", message__startswith="Setup stopped")

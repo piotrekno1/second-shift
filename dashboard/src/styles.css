@@ -2108,6 +2108,8 @@ body .p-select-overlay .p-select-header .p-inputtext {
 }
 .run-timeline span {
   overflow-wrap: anywhere;
+  /* A failed setup command's output keeps its lines. */
+  white-space: pre-line;
 }
 .run-output {
   max-height: 480px;

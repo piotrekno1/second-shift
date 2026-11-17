@@ -228,7 +228,7 @@ def run_setup_step(run_id: int, session_id: str, index: int) -> str:
     failure = setup_failure(command, result)
     if not failure:
         add_event(
-            run_id, f"Setup ran `{command}` with access to package registries only."
+            run_id, f'Setup ran "{command}" with access to package registries only.'
         )
         return ""
     tail = setup_output_tail(result)
