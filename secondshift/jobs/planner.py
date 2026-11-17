@@ -79,6 +79,7 @@ class ExecutionDefinition:
     config_hash: str
     skill_source: SkillSourcePlan | None = None
     environment: str = DEFAULT_ENVIRONMENT
+    setup: tuple[str, ...] = ()
 
 
 def environment_image(name: str) -> str:
@@ -282,6 +283,7 @@ def compile_execution_plan(
             # decide whether they are published.
             collect_changes=True,
             environment=definition.environment,
+            setup=definition.setup,
         ),
         pull_request=pull_request,
         issues=issues,
@@ -332,6 +334,7 @@ def build_execution_plan(job: Job) -> ExecutionPlan:
             job.config_hash,
             job_skill_source(job),
             job.environment or DEFAULT_ENVIRONMENT,
+            tuple(job.setup),
         ),
         capabilities,
         effective_limits(job),
@@ -395,6 +398,7 @@ def build_skill_execution_plan(
             manifest_hash(definition),
             skill_source,
             definition.environment or DEFAULT_ENVIRONMENT,
+            tuple(definition.setup),
         ),
         capabilities,
         workspace_limits(repository.workspace),

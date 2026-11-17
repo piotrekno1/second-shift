@@ -19,6 +19,7 @@ from secondshift.runner.schemas import (
     SessionOutput,
 )
 from secondshift.runner.services import get_runner_service
+from secondshift.runner.setup import run_setup
 from secondshift.runner.sources import has_source, receive_source
 from secondshift.runner_protocol.schemas import AgentCheckInput, AgentInput, AgentOutput
 from secondshift.runner_protocol.sessions import (
@@ -72,6 +73,12 @@ def start_session(request: HttpRequest, payload: SessionInput):
 def execute_command(request: HttpRequest, session_id: str, payload: CommandInput):
     command = CommandRequest(**{**payload.model_dump(), "argv": tuple(payload.argv)})
     return get_runner_service().execute(session_id, command)
+
+
+@api.post("/v1/sessions/{session_id}/setup/{index}", response=CommandOutput)
+def run_setup_command(request: HttpRequest, session_id: str, index: int):
+    """Run one of the session's setup commands. The spec fixed them at start."""
+    return run_setup(session_id, index)
 
 
 @api.post("/v1/sessions/{session_id}/collection")

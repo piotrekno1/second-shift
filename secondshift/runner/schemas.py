@@ -1,6 +1,8 @@
 from ninja import Schema
 from pydantic import ConfigDict, Field
 
+from secondshift.runner_protocol.sessions import MAX_SETUP_COMMANDS
+
 
 class StrictSchema(Schema):
     model_config = ConfigDict(extra="forbid")
@@ -16,6 +18,7 @@ class SessionInput(StrictSchema):
     collect_changes: bool = False
     history_sha256: str = Field(default="", pattern=r"^(?:[0-9a-f]{64})?$")
     skill_sha256: str = Field(default="", pattern=r"^(?:[0-9a-f]{64})?$")
+    setup: list[str] = Field(default_factory=list, max_length=MAX_SETUP_COMMANDS)
 
 
 class SessionOutput(Schema):

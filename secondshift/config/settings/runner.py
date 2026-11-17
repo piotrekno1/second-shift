@@ -27,6 +27,7 @@ from secondshift.runner_protocol.environments import (
     EnvironmentConfigError,
     configured_environments,
 )
+from secondshift.runner_protocol.sessions import MAX_SETUP_SECONDS
 
 env = Env()
 # On a single host the runner shares the data folder, but reads only runner.env
@@ -157,6 +158,26 @@ AGENT_AUTH_ROOT = RUNNER_WORK_ROOT / "agent-auth"
 # runner starts it itself, with no address set.
 AGENT_PROXY_ADDRESS = env.str("SECONDSHIFT_AGENT_PROXY_ADDRESS", default="")
 AGENT_MANAGED_PROXY = SINGLE_HOST and not AGENT_PROXY_ADDRESS
+
+# Setup commands install a job's dependencies before the agent starts. They
+# run on their own internal network, whose only way out is a proxy that allows
+# package registries. A server turns setup on by running that proxy at this
+# address. On one machine the runner starts it itself.
+RUNNER_SETUP_NETWORK = env.str(
+    "SECONDSHIFT_RUNNER_SETUP_NETWORK", default="secondshift-setup"
+)
+RUNNER_SETUP_PROXY_ADDRESS = env.str(
+    "SECONDSHIFT_RUNNER_SETUP_PROXY_ADDRESS", default=""
+)
+RUNNER_SETUP_MANAGED_PROXY = SINGLE_HOST and not RUNNER_SETUP_PROXY_ADDRESS
+RUNNER_SETUP_TIMEOUT_SECONDS = env.int(
+    "SECONDSHIFT_RUNNER_SETUP_TIMEOUT_SECONDS", default=600
+)
+if not 1 <= RUNNER_SETUP_TIMEOUT_SECONDS <= MAX_SETUP_SECONDS:
+    raise ImproperlyConfigured(
+        "SECONDSHIFT_RUNNER_SETUP_TIMEOUT_SECONDS must be between 1 and "
+        f"{MAX_SETUP_SECONDS}."
+    )
 
 if AGENT_IMAGE:
     DATA_UPLOAD_MAX_MEMORY_SIZE = 512 * 1024

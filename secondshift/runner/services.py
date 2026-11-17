@@ -32,6 +32,7 @@ from secondshift.runner_protocol.sandbox import (
     SANDBOX_SKILL_DIR,
 )
 from secondshift.runner_protocol.sessions import (
+    SETUP_CALL_PREFIX,
     CommandRequest,
     CommandResult,
     RunnerProtocolError,
@@ -51,6 +52,10 @@ def sandbox_name(session_id: str) -> str:
 
 def agent_name(session_id: str) -> str:
     return f"secondshift-agent-{session_id}"
+
+
+def setup_name(session_id: str) -> str:
+    return f"secondshift-setup-{session_id}"
 
 
 def sandbox_flags() -> list[str]:
@@ -157,6 +162,7 @@ class DockerRunnerService:
                         collect_changes=spec.collect_changes,
                         history_sha256=spec.history_sha256,
                         skill_sha256=spec.skill_sha256,
+                        setup=list(spec.setup),
                         container_name=container_name,
                         workspace_path=str(workspace),
                     )
@@ -239,6 +245,32 @@ class DockerRunnerService:
             session.container_name,
             *request.argv,
         ]
+        result = self.run_captured(request.call_id, command, timeout)
+        complete_command(
+            session,
+            request.call_id,
+            result.exit_code,
+            result.output,
+            result.timed_out,
+        )
+        if result.timed_out:
+            self.stop(session_id)
+        elif result.exit_code:
+            # gVisor ends the whole sandbox when it runs out of memory, so
+            # later commands could never succeed. Docker sets OOMKilled at
+            # once but reports the container running a little longer.
+            if self.container_oom_killed(session.container_name):
+                self.stop(session_id)
+                raise RunnerProtocolError("The sandbox ran out of memory.")
+            if not self.container_running(session.container_name):
+                self.stop(session_id)
+                raise RunnerProtocolError("The sandbox stopped unexpectedly.")
+        return result
+
+    def run_captured(
+        self, call_id: str, command: list[str], timeout: int
+    ) -> CommandResult:
+        """Run a docker command, keeping the start and end of long output."""
         output_descriptor, output_name = tempfile.mkstemp(
             dir=settings.RUNNER_WORK_ROOT, prefix="command-output-"
         )
@@ -258,32 +290,12 @@ class DockerRunnerService:
                     exit_code = completed.returncode
                 except subprocess.TimeoutExpired:
                     timed_out = True
-            result = CommandResult(
-                call_id=request.call_id,
+            return CommandResult(
+                call_id=call_id,
                 exit_code=exit_code,
                 output=self.read_output(output_path),
                 timed_out=timed_out,
             )
-            complete_command(
-                session,
-                request.call_id,
-                result.exit_code,
-                result.output,
-                result.timed_out,
-            )
-            if timed_out:
-                self.stop(session_id)
-            elif exit_code:
-                # gVisor ends the whole sandbox when it runs out of memory, so
-                # later commands could never succeed. Docker sets OOMKilled at
-                # once but reports the container running a little longer.
-                if self.container_oom_killed(session.container_name):
-                    self.stop(session_id)
-                    raise RunnerProtocolError("The sandbox ran out of memory.")
-                if not self.container_running(session.container_name):
-                    self.stop(session_id)
-                    raise RunnerProtocolError("The sandbox stopped unexpectedly.")
-            return result
         finally:
             output_path.unlink(missing_ok=True)
 
@@ -303,6 +315,7 @@ class DockerRunnerService:
         session_root = workspace.parent.resolve()
         self.require_owned_path(session_root)
         self.remove_container(agent_name(session_id))
+        self.remove_container(setup_name(session_id))
         self.run_command(["docker", "kill", session.container_name])
         if self.container_running(session.container_name):
             raise RunnerProtocolError("The runner could not stop the sandbox.")
@@ -318,16 +331,29 @@ class DockerRunnerService:
             container_name = session.container_name
             workspace = Path(session.workspace_path)
         self.remove_container(agent_name(session_id))
+        self.remove_container(setup_name(session_id))
         self.remove_container(container_name)
         self.remove_workspace(workspace.parent)
 
     def reserve_command(
-        self, session_id: str, request: CommandRequest
+        self, session_id: str, request: CommandRequest, setup: bool = False
     ) -> CommandResult | None:
+        """Record a call before it runs, or return its earlier result.
+
+        The agent's first call closes setup for good, so commands with network
+        access never run once the agent could have read untrusted input.
+        """
+        if request.call_id.startswith(SETUP_CALL_PREFIX) != setup:
+            raise RunnerProtocolError("Only setup commands may use setup call IDs.")
         with transaction.atomic():
             session = lock_session(session_id, active_only=True)
             if session is None:
                 raise RunnerProtocolError("Unknown or inactive runner session.")
+            if setup and session.setup_closed:
+                raise RunnerProtocolError("Setup can't run once the agent has started.")
+            if not setup and not session.setup_closed:
+                session.setup_closed = True
+                session.save(update_fields=("setup_closed", "updated_at"))
             command = session_command(session, request.call_id)
             if command is None:
                 create_command(session, request.call_id, request.fingerprint)
@@ -358,6 +384,7 @@ class DockerRunnerService:
             session.collect_changes,
             session.history_sha256,
             session.skill_sha256,
+            tuple(session.setup),
         )
         requested = (
             spec.run_id,
@@ -368,6 +395,7 @@ class DockerRunnerService:
             spec.collect_changes,
             spec.history_sha256,
             spec.skill_sha256,
+            spec.setup,
         )
         if recorded != requested:
             raise RunnerProtocolError("The run already has a different session spec.")

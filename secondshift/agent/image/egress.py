@@ -6,6 +6,10 @@ HTTPS tunnels only to the hosts below, and only to public addresses. It can
 also pass one fixed port straight through to the gateway, for local mode,
 where the gateway runs on the Docker host.
 
+A second instance serves the setup phase, which installs a repository's
+dependencies before the agent starts. It runs with --allow-host for each
+package registry, so it never reaches the agents' providers.
+
 It logs one JSON line per tunnel it opens or refuses. The lines hold the
 destination and the reason, never request headers or content.
 
@@ -29,6 +33,13 @@ HTTPS_PORT = 443
 # backend and its sign-in refresh. The runner turns off Claude Code's
 # telemetry and update checks, so their hosts are left out.
 ALLOWED_HOSTS = frozenset({"api.anthropic.com", "chatgpt.com", "auth.openai.com"})
+# What the setup phase may reach by default: the Python and npm registries.
+REGISTRY_HOSTS = (
+    "pypi.org",
+    "files.pythonhosted.org",
+    "registry.npmjs.org",
+    "registry.yarnpkg.com",
+)
 HEADER_LIMIT = 8192
 HEADER_SECONDS = 10
 CONNECT_SECONDS = 10
@@ -191,17 +202,19 @@ def refuse(writer: asyncio.StreamWriter, denied: Denied, host: str, port: int) -
 
 
 async def handle_connect(
-    reader: asyncio.StreamReader, writer: asyncio.StreamWriter
+    reader: asyncio.StreamReader,
+    writer: asyncio.StreamWriter,
+    hosts: frozenset[str] | None = None,
 ) -> None:
     with SLOTS.take() as taken:
         if not taken:
             refuse(writer, Denied(503, "busy"), "", 0)
             return
-        await open_tunnel(reader, writer)
+        await open_tunnel(reader, writer, ALLOWED_HOSTS if hosts is None else hosts)
 
 
 async def open_tunnel(
-    reader: asyncio.StreamReader, writer: asyncio.StreamWriter
+    reader: asyncio.StreamReader, writer: asyncio.StreamWriter, hosts: frozenset[str]
 ) -> None:
     client = client_address(writer)
     host, port = "", 0
@@ -213,7 +226,7 @@ async def open_tunnel(
         except TimeoutError:
             raise Denied(408, "timeout") from None
         host, port = parse_connect(head)
-        if host not in ALLOWED_HOSTS:
+        if host not in hosts:
             raise Denied(403, "host")
         if port != HTTPS_PORT:
             raise Denied(403, "port")
@@ -258,10 +271,15 @@ def parse_forward(value: str) -> tuple[int, str, int]:
     return int(listen), host, int(port)
 
 
-async def serve(port: int, forwards: Sequence[tuple[int, str, int]]) -> None:
-    servers = [
-        await asyncio.start_server(handle_connect, "0.0.0.0", port, limit=HEADER_LIMIT)
-    ]
+async def serve(
+    port: int, forwards: Sequence[tuple[int, str, int]], hosts: frozenset[str]
+) -> None:
+    async def handle(
+        reader: asyncio.StreamReader, writer: asyncio.StreamWriter
+    ) -> None:
+        await handle_connect(reader, writer, hosts)
+
+    servers = [await asyncio.start_server(handle, "0.0.0.0", port, limit=HEADER_LIMIT)]
     for listen, host, target in forwards:
         servers.append(
             await asyncio.start_server(forwarder(host, target), "0.0.0.0", listen)
@@ -269,10 +287,15 @@ async def serve(port: int, forwards: Sequence[tuple[int, str, int]]) -> None:
     log(
         "egress_started",
         port=port,
-        hosts=sorted(ALLOWED_HOSTS),
+        hosts=sorted(hosts),
         forwards=[f"{listen}:{host}:{target}" for listen, host, target in forwards],
     )
     await asyncio.gather(*(server.serve_forever() for server in servers))
+
+
+def allowed_hosts(names: Sequence[str]) -> frozenset[str]:
+    """The hosts the options name, or the agents' providers when they name none."""
+    return frozenset(name.lower().rstrip(".") for name in names) or ALLOWED_HOSTS
 
 
 def main(argv: Sequence[str] | None = None) -> None:
@@ -285,9 +308,26 @@ def main(argv: Sequence[str] | None = None) -> None:
         default=[],
         help="LISTEN_PORT:HOST:PORT to pass through, such as the local gateway.",
     )
+    parser.add_argument(
+        "--allow-registries",
+        action="store_true",
+        help="Allow the package registries in place of the agents' providers. "
+        "The setup phase's proxy runs with this.",
+    )
+    parser.add_argument(
+        "--allow-host",
+        action="append",
+        default=[],
+        help="Another host to allow in place of the agents' providers, such as "
+        "a private package index. Repeat it for each one.",
+    )
     arguments = parser.parse_args(argv)
+    names = [
+        *(REGISTRY_HOSTS if arguments.allow_registries else ()),
+        *arguments.allow_host,
+    ]
     try:
-        asyncio.run(serve(arguments.port, arguments.forward))
+        asyncio.run(serve(arguments.port, arguments.forward, allowed_hosts(names)))
     except KeyboardInterrupt:
         sys.exit(0)
 

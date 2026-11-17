@@ -344,7 +344,13 @@ def test_collecting_stops_the_sandbox_before_reading_files(
 
     DockerRunnerService().collect("run-7")
 
-    assert steps == ["docker rm", "docker kill", "docker inspect", "collect"]
+    assert steps == [
+        "docker rm",
+        "docker rm",
+        "docker kill",
+        "docker inspect",
+        "collect",
+    ]
 
 
 @pytest.mark.django_db

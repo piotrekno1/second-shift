@@ -19,6 +19,8 @@ Its API is deliberately narrow:
 - `HEAD /v1/sources/{sha256}` asks whether a source snapshot is already here
 - `PUT /v1/sources/{sha256}` uploads a snapshot of one commit's files
 - `POST /v1/sessions` creates a sandbox from one uploaded snapshot
+- `POST /v1/sessions/{id}/setup/{index}` runs one of the setup commands the
+  session spec named, before the agent, with registry-only network access
 - `POST /v1/sessions/{id}/commands` executes one idempotent tool call
 - `POST /v1/sessions/{id}/collection` stops the sandbox and returns its file
   changes and saved files as one archive
@@ -40,6 +42,8 @@ Production runners must:
 - unpack only the uploaded snapshot named in the session spec
 - accept only server-owned images, mounts and OCI flags
 - give command sandboxes no network and no credentials
+- run setup commands only before the agent's first call, in a separate
+  container that sees only the workspace and reaches only package registries
 - use a dedicated sandbox per run with bounded resources
 - keep sandbox images free of the control-plane application and Docker client
 - deduplicate tool calls by their stable run and call identifiers

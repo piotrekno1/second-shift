@@ -26,6 +26,29 @@ SOURCE_SHA256 = re.compile(r"^[0-9a-f]{64}$")
 # Folders beside the repository where a command may start. Their mounts, and
 # whether they are writable, stay fixed by the runner.
 COMMAND_FOLDERS = (SANDBOX_SKILL_DIR, SANDBOX_HISTORY_DIR, SANDBOX_OUTPUTS_DIR)
+# Setup commands install a job's dependencies before the agent starts.
+MAX_SETUP_COMMANDS = 10
+MAX_SETUP_COMMAND_CHARS = 1000
+# The longest a runner lets one setup command run.
+MAX_SETUP_SECONDS = 900
+# Setup commands are recorded like agent commands, under IDs only setup uses.
+SETUP_CALL_PREFIX = "setup-"
+
+
+def setup_call_id(index: int) -> str:
+    return f"{SETUP_CALL_PREFIX}{index}"
+
+
+def validate_setup(commands: tuple[str, ...]) -> None:
+    if len(commands) > MAX_SETUP_COMMANDS:
+        raise ValueError(f"setup takes at most {MAX_SETUP_COMMANDS} commands")
+    for command in commands:
+        if not command.strip() or "\0" in command:
+            raise ValueError("each setup command must be non-empty text")
+        if len(command) > MAX_SETUP_COMMAND_CHARS:
+            raise ValueError(
+                f"each setup command has at most {MAX_SETUP_COMMAND_CHARS} characters"
+            )
 
 
 @dataclass(frozen=True)
@@ -48,8 +71,15 @@ class RunnerSessionSpec:
     # none. The control plane builds it, so the skill's repository never
     # chooses where it goes or how it is mounted.
     skill_sha256: str = ""
+    # Shell commands from the job's merged configuration, such as npm ci. The
+    # runner runs each one before the agent, with access to package
+    # registries only. The network and its allow-list stay server-owned.
+    setup: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
+        # JSON brings a list.
+        object.__setattr__(self, "setup", tuple(self.setup))
+        validate_setup(self.setup)
         if self.run_id < 1:
             raise ValueError("run_id must be positive")
         if not SESSION_KEY.fullmatch(self.session_key):

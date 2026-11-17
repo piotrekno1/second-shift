@@ -102,6 +102,9 @@ services:
       <<: *agents
       SECONDSHIFT_AGENT_NETWORK: ${AGENT_NETWORK:-secondshift_agents}
       SECONDSHIFT_AGENT_PROXY_ADDRESS: ${AGENT_PROXY_ADDRESS:-172.30.0.3}
+      # Empty turns setup commands off. See setup-proxy below.
+      SECONDSHIFT_RUNNER_SETUP_PROXY_ADDRESS: ${SETUP_PROXY_ADDRESS:-}
+      SECONDSHIFT_RUNNER_SETUP_NETWORK: ${SETUP_NETWORK:-secondshift_setup}
       SECONDSHIFT_RUNNER_DATABASE_URL: postgres://secondshift_runner:${RUNNER_DATABASE_PASSWORD:?}@postgres:5432/secondshift_runner
       SECONDSHIFT_DATA_DIR: ${RUNNER_ROOT:?Set RUNNER_ROOT to an absolute host path}
       SECONDSHIFT_RUNNER_WORK_ROOT: ${RUNNER_ROOT:?}
@@ -139,6 +142,26 @@ services:
         max-size: 10m
         max-file: "3"
 
+  # Setup commands' only way out. It opens HTTPS tunnels to package registries
+  # only, never to the agents' providers. Off unless the setup profile is on
+  # and SETUP_PROXY_ADDRESS is set.
+  setup-proxy:
+    <<: *application
+    profiles: [setup]
+    command: [python, -m, secondshift.agent.image.egress, --allow-registries]
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    networks:
+      setup:
+        ipv4_address: ${SETUP_PROXY_ADDRESS:-172.31.0.3}
+      setup-egress: {}
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped
@@ -167,6 +190,15 @@ networks:
         - subnet: ${AGENT_SUBNET:-172.30.0.0/24}
   # Only agent-proxy joins it, so the proxy can reach nothing else of ours.
   egress: {}
+  # No route out. Setup containers reach the internet only through setup-proxy.
+  setup:
+    name: ${SETUP_NETWORK:-secondshift_setup}
+    internal: true
+    ipam:
+      config:
+        - subnet: ${SETUP_SUBNET:-172.31.0.0/24}
+  # Only setup-proxy joins it.
+  setup-egress: {}
 
 volumes:
   artifacts:

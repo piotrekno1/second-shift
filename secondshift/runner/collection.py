@@ -119,6 +119,28 @@ def record_baseline(session_root: Path, workspace: Path) -> None:
     )
 
 
+def record_setup_baseline(session_root: Path, workspace: Path) -> None:
+    """Add what setup changed to the baseline, so it stays out of the changes.
+
+    Not forced, like the final comparison: new files that match .gitignore,
+    such as node_modules, stay out of both. A lockfile setup rewrote is
+    recorded, so a draft pull request holds only the agent's work.
+    """
+    baseline = session_root / BASELINE_DIR
+    require_git(git(baseline, workspace, "add", "--all", "."))
+    require_git(
+        git(
+            baseline,
+            workspace,
+            "commit",
+            "--quiet",
+            "--no-verify",
+            "--allow-empty",
+            "--message=After setup",
+        )
+    )
+
+
 def record_workspace_commit(workspace: Path, repository: str, commit_sha: str) -> None:
     """Give the sandbox a git repository with one commit of the unpacked files.
 

@@ -86,6 +86,8 @@ agent waits for each report before it goes on. Codex runs without sub-agents.
 
 - Only the runner can start containers. Each sandbox is fresh, capped on
   memory, CPU and processes, and has no network or credentials.
+- A job's setup commands run before the agent, in their own container that
+  reaches package registries only, through a second egress proxy.
 - An agent container reaches the internet only through the egress proxy, which
   allows its provider's hosts. The proxy holds no secrets.
 - For the built-in agent, the gateway picks the model, enforces the token

@@ -10,6 +10,7 @@ from secondshift.runner import collection
 from secondshift.runner.collection import (
     collect,
     record_baseline,
+    record_setup_baseline,
     record_workspace_commit,
 )
 from secondshift.runner_protocol.sessions import RunnerProtocolError
@@ -270,3 +271,20 @@ def test_an_existing_git_folder_is_refused(tmp_path: Path) -> None:
         record_workspace_commit(workspace, "example/project", "a" * 40)
 
     assert not (tmp_path / "elsewhere").exists()
+
+
+def test_what_setup_changed_stays_out_of_the_changes(
+    session: tuple[Path, Path],
+) -> None:
+    root, workspace = session
+    # Setup rewrites a tracked file and installs into an ignored folder.
+    (workspace / "README.md").write_text("# Project\n\nRewritten by setup.\n")
+    (workspace / "build").mkdir()
+    (workspace / "build" / "dependency.js").write_text("installed\n")
+    record_setup_baseline(root, workspace)
+    (workspace / "docs").mkdir()
+    (workspace / "docs" / "guide.md").write_text("A new guide.\n")
+
+    manifest, _ = read_archive(collect(root, workspace))
+
+    assert manifest["changes"]["files"] == ["docs/guide.md"]

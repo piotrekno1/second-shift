@@ -148,6 +148,8 @@ class JobDetailSchema(JobSchema):
     subagents: int
     # The sandbox environment the configuration names, or "default".
     environment: str
+    # Commands that install dependencies before the agent starts.
+    setup: list[str]
     # The configuration asks for a draft pull request with each run's changes.
     open_pull_request: bool
     # A GitHub repository, so drafts could open. Local repositories cannot.

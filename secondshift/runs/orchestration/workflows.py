@@ -55,6 +55,8 @@ from secondshift.runs.reporting.collection import collection_summary
 from secondshift.runs.reporting.failures import (
     StageFailure,
     failure_metadata,
+    setup_failure,
+    setup_output_tail,
     stage_failure,
 )
 from secondshift.runs.reporting.notifications import (
@@ -203,11 +205,47 @@ def start_runner_session_step(run_id: int) -> str:
             collect_changes=plan.runner.collect_changes,
             history_sha256=history.sha256 if history is not None else "",
             skill_sha256=skill_sha256,
+            setup=plan.runner.setup,
         )
     )
     update_run(run.pk, sandbox_runtime=RunSandbox.ISOLATED_RUNNER)
     add_event(run.pk, "Sandbox started without network access.")
     return session_id
+
+
+@DBOS.step(
+    name="secondshift.run_setup_command",
+    retries_allowed=True,
+    max_attempts=3,
+)
+def run_setup_step(run_id: int, session_id: str, index: int) -> str:
+    """Run one setup command. Returns why it failed, or nothing.
+
+    The runner keeps each result, so a retried step never runs it twice.
+    """
+    command = get_run(run_id).plan.runner.setup[index]
+    result = get_runner_client().setup(session_id, index)
+    failure = setup_failure(command, result)
+    if not failure:
+        add_event(
+            run_id, f'Setup ran "{command}" with access to package registries only.'
+        )
+        return ""
+    tail = setup_output_tail(result)
+    add_event(
+        run_id,
+        f"Setup stopped: {failure}"
+        + (f" Its output ends with:\n{tail}" if tail else ""),
+        level="error",
+    )
+    return failure
+
+
+def run_setup(run_id: int, session_id: str) -> None:
+    """Install the job's dependencies before the agent starts."""
+    for index in range(len(get_run(run_id).plan.runner.setup)):
+        if failure := run_setup_step(run_id, session_id, index):
+            raise RuntimeError(failure)
 
 
 @DBOS.step(
@@ -437,6 +475,8 @@ def execute_run(run_id: int) -> None:
         prepare_source_step(run_id)
         stage = RunFailure.SANDBOX
         session_id = start_runner_session_step(run_id)
+        stage = RunFailure.SETUP
+        run_setup(run_id, session_id)
         stage = RunFailure.SKILL
         run = get_run(run_id, "job")
         record_run_event_step(

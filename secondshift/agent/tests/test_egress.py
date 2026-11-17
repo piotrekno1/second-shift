@@ -1,6 +1,7 @@
 """The egress proxy opens tunnels only to allowed public HTTPS hosts."""
 
 import asyncio
+import functools
 import json
 from collections.abc import Awaitable, Callable
 from typing import Any
@@ -120,6 +121,26 @@ def test_an_allowed_name_that_resolves_inside_is_refused(
     reply = asyncio.run(exchange(egress.handle_connect, connect("localhost")))
     assert reply.startswith(b"HTTP/1.1 403 ")
     assert logged(capsys)[0]["reason"] == "address"
+
+
+def test_a_registry_proxy_refuses_the_agents_providers(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    registries = egress.allowed_hosts(egress.REGISTRY_HOSTS)
+    handler = functools.partial(egress.handle_connect, hosts=registries)
+
+    reply = asyncio.run(exchange(handler, connect("api.anthropic.com")))
+
+    assert reply.startswith(b"HTTP/1.1 403 ")
+    assert logged(capsys)[0]["reason"] == "host"
+
+
+def test_allowed_hosts_replace_the_providers() -> None:
+    assert egress.allowed_hosts([]) == egress.ALLOWED_HOSTS
+    assert egress.allowed_hosts(["PyPI.org.", "registry.npmjs.org"]) == {
+        "pypi.org",
+        "registry.npmjs.org",
+    }
 
 
 async def echo(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
