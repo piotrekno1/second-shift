@@ -18,7 +18,10 @@ from secondshift.config.constants import (
     SandboxRuntime,
 )
 from secondshift.config.formatting import duration_label
-from secondshift.runner_protocol.environments import environment_variable
+from secondshift.runner_protocol.environments import (
+    DEFAULT_ENVIRONMENT,
+    environment_variable,
+)
 
 
 @dataclass(frozen=True)
@@ -141,13 +144,13 @@ def setting_groups() -> list[SettingGroup]:
                     "calls go through SecondShift.",
                 ),
                 SettingValue(
-                    "Image",
+                    f"Environment: {DEFAULT_ENVIRONMENT}",
                     image_label(settings.RUNNER_IMAGE),
                     AppEnv.RUNNER_IMAGE,
-                    "Repositories cannot choose the image."
+                    "Jobs that set no environment run on this image."
                     if settings.RUNNER_IMAGE != DEFAULT_SANDBOX_IMAGE
-                    else "Docker's official Python image, pinned. "
-                    "Repositories cannot choose the image.",
+                    else "Docker's official Python image, pinned. Jobs that "
+                    "set no environment run on it.",
                 ),
                 *environment_items(),
             ],
