@@ -44,6 +44,25 @@ def test_agents_leave_only_through_the_egress_proxy() -> None:
     )
 
 
+def test_setup_leaves_only_through_a_registry_proxy_and_is_off_by_default() -> None:
+    compose = yaml.safe_load((ROOT / "compose.production.yaml").read_text())
+    services = compose["services"]
+    assert compose["networks"]["setup"]["internal"] is True
+    proxy = services["setup-proxy"]
+    assert proxy["profiles"] == ["setup"]
+    assert proxy["command"][-1] == "--allow-registries"
+    assert set(proxy["networks"]) == {"setup", "setup-egress"}
+    assert "environment" not in proxy and "volumes" not in proxy
+    for role, service in services.items():
+        if role != "setup-proxy":
+            assert "setup" not in service.get("networks", {})
+            assert "setup-egress" not in service.get("networks", {})
+    runner = services["runner"]["environment"]
+    assert (
+        runner["SECONDSHIFT_RUNNER_SETUP_PROXY_ADDRESS"] == "${SETUP_PROXY_ADDRESS:-}"
+    )
+
+
 def test_agents_reach_the_broker_at_the_gateways_route() -> None:
     services = production_services()
     for role in ("web", "worker", "gateway", "runner"):

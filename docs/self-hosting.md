@@ -123,6 +123,28 @@ none run on `SECONDSHIFT_RUNNER_IMAGE`, the `default` environment.
 - The settings page lists every environment the server found, `default`
   included, with its image and env var.
 
+### Setup commands
+
+Jobs can install their dependencies with
+[setup commands](repository-configuration.md#setup-commands) before the agent
+starts. Each one runs in its own container with the job's image and the same
+sandbox flags. It joins an internal network whose only way out is a second
+egress proxy, which allows package registries only. The agent's sandbox stays
+offline.
+
+- `secondshift up` on one machine allows setup. The runner starts the proxy
+  from the agent image, so setup needs the agent image too.
+- A server allows setup only when the runner has
+  `SECONDSHIFT_RUNNER_SETUP_PROXY_ADDRESS`. With Compose, uncomment
+  `COMPOSE_PROFILES=setup` and `SETUP_PROXY_ADDRESS` in `compose.env`. See the
+  [production guide](production-deployment.md#setup-commands).
+- The proxy allows `pypi.org`, `files.pythonhosted.org`, `registry.npmjs.org`
+  and `registry.yarnpkg.com`. Add a private index with another
+  `--allow-host=<host>` in the proxy's command.
+- Every job may run setup once the server allows it. A registry accepts
+  uploads as well as downloads, so a setup command could publish repository
+  content. Only people who can merge to a repository choose its commands.
+
 The runner checks out the commit itself, so the image needs no git to run
 skills. The workspace holds a git repository with one commit of those files and
 no earlier history. The default image has no git, so add it to a custom image

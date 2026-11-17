@@ -40,6 +40,16 @@ A run can use three things. Nothing else is reachable from it.
    the agent's file changes as a patch. The runner compares the workspace
    against a record of the commit kept outside the sandbox, so the agent cannot
    change it.
+
+   Before the agent starts, a job's [setup commands](repository-configuration.md#setup-commands)
+   may install dependencies, if the server allows setup. Each runs in its own
+   container with the same flags, on an internal network whose only way out is
+   a proxy for package registries. It sees only the repository at the run's
+   commit, which whoever can merge already controls. No trigger payload, tool
+   result or model output has entered the run yet, so no model can be steered
+   while the network is open. The agent's first command closes setup for good.
+   A registry also accepts uploads, so setup could publish repository content.
+   That is content anyone who can merge can already read.
 2. **The model.** The built-in agent reaches the model provider only through
    the gateway. A run authenticates with its own token, which only works while
    that run is active. The gateway forwards only a fixed list of provider paths

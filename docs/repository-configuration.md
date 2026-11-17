@@ -65,10 +65,11 @@ the job when you want it to run on schedule.
 For a ready-made skill that needs only a model, see the
 [documentation drift example](../examples/docs-drift/README.md).
 
-The sandbox has no network access or provider credentials. Dependencies must
-already be available in the sandbox image. Reading files and running
-standard-library tests work without installing packages. A job that needs other
-tools can name an [environment](#environments) the server defines.
+The sandbox has no network access or provider credentials. Reading files and
+running standard-library tests work without installing packages. A job that
+needs other tools can name an [environment](#environments) the server defines,
+or install its dependencies with [setup commands](#setup-commands) if the
+server allows them.
 
 ## Manifest fields
 
@@ -84,6 +85,7 @@ tools can name an [environment](#environments) the server defines.
 | `jobs.<key>.history` | No | How many of the job's own earlier runs each run starts with: their reports, and the files they saved. Up to the server's `SECONDSHIFT_JOB_HISTORY_MAX` (5 by default). Defaults to 0. See [run history](#run-history). |
 | `jobs.<key>.subagents` | No | How many sub-agents each run may start, up to the server's `SECONDSHIFT_RUN_SUBAGENTS_MAX` (5 by default). Defaults to 0. See [sub-agents](#sub-agents). |
 | `jobs.<key>.environment` | No | The name of a sandbox environment the server defines, such as `node`. Never an image. Defaults to the server's default image. See [environments](#environments). |
+| `jobs.<key>.setup` | No | Up to 10 shell commands that install dependencies before the agent starts, such as `npm ci --ignore-scripts`. They reach package registries only. The server must allow setup. See [setup commands](#setup-commands). |
 | `jobs.<key>.notify` | No | Webhook notification bindings requested by this job. |
 | `jobs.<key>.triggers` | No | Events that can start the job. Only `webhook` is supported. An owner or admin turns it on. See [webhook triggers](#webhook-triggers). |
 | `jobs.<key>.webhook` | No | Which webhook requests start a run: `skip_when`, `repeat_key` and `repeat_window`. Needs `triggers: [webhook]`. See [ignore requests and repeats](#ignore-requests-and-repeats). |
@@ -239,6 +241,41 @@ jobs:
   same mounts. Only the installed tools differ.
 - The server's settings page lists its environments. A job that names one the
   server lacks can't be enabled or run, and its page says why.
+
+## Setup commands
+
+A job can install its dependencies before the agent starts:
+
+```yaml
+jobs:
+  test-triage:
+    name: Test triage
+    skill: .agents/skills/test-triage/SKILL.md
+    environment: node
+    setup:
+      - npm ci --ignore-scripts
+```
+
+- Each command runs with `sh -c` in the job's sandbox image, from
+  `/workspace`, in order. A command that fails or runs out of time stops the
+  run before the agent starts. The run's timeline shows the end of its output.
+- Setup reaches only package registries: `pypi.org`,
+  `files.pythonhosted.org`, `registry.npmjs.org` and `registry.yarnpkg.com`.
+  The server admin chooses them. The repository can't add hosts.
+- Only the workspace carries over to the agent. Install into it, such as
+  `node_modules` or `.venv`. Caches and anything under `HOME` are gone when
+  setup ends.
+- The agent's sandbox never has network access, during setup or after.
+- Setup sees only the repository at the run's commit. It can't see files
+  earlier runs saved or a skill from another repository.
+- Whatever setup changes stays out of the run's changes, so a draft pull
+  request holds only the agent's work. Ignore installed folders in
+  `.gitignore`, as you would anyway.
+- Only jobs in `.secondshift.yaml` can name setup. A submitted task can't.
+- If the server doesn't allow setup, the run fails at setup and says so.
+
+Install scripts run code that package authors wrote. Prefer
+`npm ci --ignore-scripts` where it works.
 
 ## Draft pull requests
 
