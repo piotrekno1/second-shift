@@ -14,12 +14,12 @@ from environ import Env
 from secondshift.config.constants import (
     DEFAULT_SANDBOX_IMAGE,
     ENVIRONMENT_VAR,
-    LOCAL_AGENT_TAG,
     LOCAL_GATEWAY_URL,
     AppEnv,
     Environment,
     SandboxRuntime,
     Service,
+    default_agent_image,
 )
 from secondshift.config.logging import logging_config
 from secondshift.runner_protocol.agents import local_agent_broker_url
@@ -120,15 +120,16 @@ LOGGING = logging_config(
 
 
 # CLI agent execution. Servers turn it on by setting an image pinned by digest.
-# `secondshift up` builds the local tag on one person's machine. Only there may
-# the runner resolve a tag, once per run. Servers must pin a digest.
-LOCAL = os.environ.get(ENVIRONMENT_VAR) == Environment.LOCAL
-AGENT_IMAGE = env.str(AppEnv.AGENT_IMAGE, default=LOCAL_AGENT_TAG if LOCAL else "")
-AGENT_IMAGE_TAGS_ALLOWED = LOCAL
+# On one person's machine, `secondshift up` or process-compose builds a tag.
+# Only there may the runner resolve a tag, once per run.
+AGENT_IMAGE = env.str(
+    AppEnv.AGENT_IMAGE, default=default_agent_image(os.environ.get(ENVIRONMENT_VAR))
+)
 AGENT_RESOLV_CONF = env.str(AppEnv.AGENT_RESOLV_CONF, default="")
 AGENT_NETWORK = env.str(AppEnv.AGENT_NETWORK, default="bridge")
 # On one machine, agent containers reach the gateway on the Docker host.
 SINGLE_HOST = os.environ.get(ENVIRONMENT_VAR) in {Environment.DEV, Environment.LOCAL}
+AGENT_IMAGE_TAGS_ALLOWED = SINGLE_HOST
 AGENT_BROKER_URL = env.str(
     AppEnv.AGENT_BROKER_URL,
     default=local_agent_broker_url(

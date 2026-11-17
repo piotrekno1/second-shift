@@ -13,8 +13,9 @@ use an API key.
 
 ## Development
 
-Run `process-compose up`. Startup builds the `secondshift-agent:dev` image and
-turns on subscriptions for every service. The runner resolves that tag to the
+Run `process-compose up`. Startup builds the `secondshift-agent:dev` image the
+same way `secondshift up` builds its own, and dev mode turns on subscriptions
+for every service with no settings. The runner resolves that tag to the
 image's immutable `sha256:` ID, so no registry is needed. The first build
 downloads both CLIs. Later starts use Docker's build cache.
 

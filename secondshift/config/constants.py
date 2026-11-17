@@ -15,6 +15,8 @@ SERVICE_VAR = "SECONDSHIFT_SERVICE"
 
 # `secondshift up` builds this tag from the installed package.
 LOCAL_AGENT_TAG = "secondshift-agent:local"
+# process-compose builds this one from the checkout.
+DEV_AGENT_TAG = "secondshift-agent:dev"
 LOCAL_GATEWAY_URL = "http://127.0.0.1:8001"
 
 
@@ -86,6 +88,13 @@ class Service(StrEnum):
 
 def settings_module(name: str) -> str:
     return f"secondshift.config.settings.{name}"
+
+
+def default_agent_image(environment: str | None) -> str:
+    """The tag a single-machine mode builds. Servers set a digest instead."""
+    return {Environment.LOCAL: LOCAL_AGENT_TAG, Environment.DEV: DEV_AGENT_TAG}.get(
+        environment or "", ""
+    )
 
 
 class SandboxRuntime(StrEnum):

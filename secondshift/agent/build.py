@@ -4,7 +4,7 @@ import shutil
 import tempfile
 from pathlib import Path
 
-from secondshift.config.constants import LOCAL_AGENT_TAG
+from secondshift.config.constants import DEV_AGENT_TAG, LOCAL_AGENT_TAG
 from secondshift.docker import commands
 
 AGENT_IMAGE_DIR = Path(__file__).parent / "image"
@@ -26,3 +26,8 @@ def build_agent_image(tag: str = LOCAL_AGENT_TAG) -> str:
         )
         commands.build(target / "Dockerfile", tag, Path(context), BUILD_SECONDS)
     return commands.resolve_image_id(tag)
+
+
+if __name__ == "__main__":
+    # process-compose builds the development tag this way.
+    print(build_agent_image(DEV_AGENT_TAG))

@@ -478,6 +478,14 @@ def test_agent_defaults_exist_only_on_one_machine(tmp_path: Path) -> None:
             SECONDSHIFT_MODEL_GATEWAY_URL="http://127.0.0.1:8201",
             **token,
         ),
+        "dev runner": load_settings(
+            "secondshift.config.settings.runner",
+            tmp_path / "dev-runner",
+            script=runner,
+            SECONDSHIFT_ENV="dev",
+            SECONDSHIFT_MODEL_GATEWAY_URL="http://127.0.0.1:8201",
+            **token,
+        ),
         "server runner": load_settings(
             "secondshift.config.settings.runner",
             tmp_path / "server-runner",
@@ -499,4 +507,6 @@ def test_agent_defaults_exist_only_on_one_machine(tmp_path: Path) -> None:
     ]
     assert output["production"][:2] == ["", ""]
     assert output["local runner"] == ["secondshift-agent:local", broker, "True"]
+    # process-compose sets no image. Dev builds and resolves its own tag.
+    assert output["dev runner"] == ["secondshift-agent:dev", broker, "True"]
     assert output["server runner"] == ["", "", "False"]
