@@ -538,3 +538,34 @@ def test_asgi_services_close_each_request_connection(
 
     assert result.returncode == 0, result.stderr
     assert result.stdout.strip() == max_age
+
+
+@pytest.mark.parametrize(
+    ("service", "database_url", "pool"),
+    [
+        (
+            "gateway",
+            "postgres://u:p@db:5432/app",
+            "{'min_size': 2, 'max_size': 5, 'timeout': 10}",
+        ),
+        ("web", "postgres://u:p@db:5432/app", "None"),
+        ("worker", "postgres://u:p@db:5432/app", "None"),
+        ("gateway", "", "None"),
+    ],
+)
+def test_asgi_services_reuse_postgres_connections_through_a_pool(
+    service: str, database_url: str, pool: str, tmp_path: Path
+) -> None:
+    variables = {"SECONDSHIFT_DATABASE_URL": database_url} if database_url else {}
+    result = load_settings(
+        "secondshift.config.settings.dev",
+        tmp_path,
+        script="print(s.DATABASES['default'].get('OPTIONS', {}).get('pool'))",
+        SECONDSHIFT_ENV="dev",
+        SECONDSHIFT_SERVICE=service,
+        SECONDSHIFT_DB_POOL_MAX_SIZE="5",
+        **variables,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == pool

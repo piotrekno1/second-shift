@@ -225,6 +225,15 @@ if DATABASES["default"]["ENGINE"] == "django.db.backends.sqlite3":
         "transaction_mode": "IMMEDIATE",
         "timeout": 20,
     }
+elif SERVICE in ASGI_SERVICES:
+    # Each request takes a connection from the pool and returns it when the
+    # request ends, so ASGI services reuse connections without keeping them
+    # on threads that are gone. A request waits up to the timeout for one.
+    DATABASES["default"].setdefault("OPTIONS", {})["pool"] = {
+        "min_size": 2,
+        "max_size": env.int("SECONDSHIFT_DB_POOL_MAX_SIZE", default=20),
+        "timeout": 10,
+    }
 # Sign-in rate limits and the health check use the cache. Every process must
 # see the same counts, so the default is a table in the application database.
 CACHES = {

@@ -4,6 +4,8 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
+from asgiref.sync import sync_to_async
+from django.db import connection as database
 from django.db.models import Count, F, Max, Q, QuerySet, Sum
 from django.utils import timezone
 
@@ -135,3 +137,15 @@ def spend_per_job(workspace_id: int, since: datetime) -> list[dict[str, Any]]:
         )
         .order_by()
     )
+
+
+def release_connection() -> None:
+    """Give this thread's database connection back, or close it without a pool.
+
+    Skipped inside a transaction, which must keep its connection.
+    """
+    if not database.in_atomic_block:
+        database.close()
+
+
+arelease_connection = sync_to_async(release_connection)
