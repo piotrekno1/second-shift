@@ -7,16 +7,15 @@ from ninja.errors import HttpError
 from ninja.security import django_auth
 
 from secondshift.connections.api.shared import owned_connection
-from secondshift.connections.credential_store import Secret, read_secret
 from secondshift.connections.execution import apply_model_default
 from secondshift.connections.model_providers import (
     CheckFailed,
     ModelProviderError,
-    checked_api_key,
     create_model_connection,
     fetch_models,
+    preview_changed_connection,
+    preview_new_connection,
     update_model_connection,
-    validated_endpoint,
 )
 from secondshift.connections.models import Connection
 from secondshift.connections.schemas import (
@@ -34,12 +33,14 @@ router = Router(auth=django_auth, tags=["connections"])
 def discover_model_provider_models(
     request: HttpRequest, payload: ModelConnectionCreateSchema
 ) -> list[str]:
-    require(request, Action.ADD_MODEL_PROVIDERS)
+    workspace = require(request, Action.ADD_MODEL_PROVIDERS)
     try:
-        connection = Connection(
-            provider=payload.provider,
-            endpoint_url=validated_endpoint(payload.provider, payload.base_url),
-            access_token=checked_api_key(payload.provider, payload.api_key),
+        connection = preview_new_connection(
+            workspace,
+            payload.provider,
+            payload.base_url,
+            payload.api_key,
+            payload.credential_reference,
         )
         return fetch_models(connection)
     except (ModelProviderError, CheckFailed) as error:
@@ -57,17 +58,11 @@ def refresh_model_provider_models(
         raise HttpError(422, "This is not a model provider connection.")
     try:
         # Preview changes without saving credentials, settings, or discovery results.
-        preview = Connection(
-            provider=connection.provider,
-            endpoint_url=validated_endpoint(
-                connection.provider,
-                payload.base_url
-                if payload.base_url is not None
-                else connection.endpoint_url,
-            ),
-            access_token=payload.api_key.strip()
-            if payload.api_key and payload.api_key.strip()
-            else read_secret(connection, Secret.TOKEN),
+        preview = preview_changed_connection(
+            connection,
+            payload.base_url,
+            payload.api_key,
+            payload.credential_reference,
         )
         return fetch_models(preview)
     except (ModelProviderError, CheckFailed) as error:
@@ -88,6 +83,7 @@ def create_model_provider(
             endpoint_url=payload.base_url,
             allowed_models=payload.allowed_models,
             default_model=payload.default_model,
+            credential_reference=payload.credential_reference,
         )
     except ModelProviderError as error:
         raise HttpError(422, str(error)) from error
@@ -112,6 +108,7 @@ def update_model_provider(
             endpoint_url=payload.base_url,
             allowed_models=payload.allowed_models,
             default_model=payload.default_model,
+            credential_reference=payload.credential_reference,
         )
     except ModelProviderError as error:
         raise HttpError(422, str(error)) from error
