@@ -19,7 +19,9 @@ import ipaddress
 import json
 import socket
 import sys
-from collections.abc import Awaitable, Callable, Sequence
+from collections.abc import Awaitable, Callable, Iterator, Sequence
+from contextlib import contextmanager
+from dataclasses import dataclass
 
 PROXY_PORT = 3128
 HTTPS_PORT = 443
@@ -31,6 +33,12 @@ HEADER_LIMIT = 8192
 HEADER_SECONDS = 10
 CONNECT_SECONDS = 10
 CHUNK_BYTES = 65536
+# Tunnels and forwards together. Each holds two sockets, so one runaway agent
+# can't use up the proxy's file descriptors and block every other agent.
+MAX_CONNECTIONS = 256
+# A tunnel with no bytes either way for this long is closed. Model streams
+# send data or keep-alive pings well within it.
+IDLE_SECONDS = 600
 
 
 class Denied(Exception):
@@ -40,6 +48,34 @@ class Denied(Exception):
         super().__init__(reason)
         self.status = status
         self.reason = reason
+
+
+class Slots:
+    """Counts open connections. The proxy runs on one event loop, so a plain
+    counter is enough."""
+
+    def __init__(self, limit: int) -> None:
+        self.limit = limit
+        self.used = 0
+
+    @contextmanager
+    def take(self) -> Iterator[bool]:
+        if self.used >= self.limit:
+            yield False
+            return
+        self.used += 1
+        try:
+            yield True
+        finally:
+            self.used -= 1
+
+
+SLOTS = Slots(MAX_CONNECTIONS)
+
+
+@dataclass
+class Activity:
+    last: float
 
 
 def log(event: str, **fields: object) -> None:
@@ -94,9 +130,13 @@ async def open_first(
     raise Denied(502, "connect")
 
 
-async def pipe(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+async def pipe(
+    reader: asyncio.StreamReader, writer: asyncio.StreamWriter, activity: Activity
+) -> None:
+    loop = asyncio.get_running_loop()
     try:
         while data := await reader.read(CHUNK_BYTES):
+            activity.last = loop.time()
             writer.write(data)
             await writer.drain()
     except OSError:
@@ -109,7 +149,27 @@ async def splice(
     client: tuple[asyncio.StreamReader, asyncio.StreamWriter],
     upstream: tuple[asyncio.StreamReader, asyncio.StreamWriter],
 ) -> None:
-    await asyncio.gather(pipe(client[0], upstream[1]), pipe(upstream[0], client[1]))
+    """Copy both ways until either side closes or the tunnel goes idle.
+
+    Idle means no bytes in either direction, so a long stream from the
+    provider keeps the tunnel open while the client sends nothing.
+    """
+    loop = asyncio.get_running_loop()
+    activity = Activity(loop.time())
+    pending = {
+        asyncio.create_task(pipe(client[0], upstream[1], activity)),
+        asyncio.create_task(pipe(upstream[0], client[1], activity)),
+    }
+    while pending:
+        quiet = loop.time() - activity.last
+        if quiet >= IDLE_SECONDS:
+            for task in pending:
+                task.cancel()
+            client[1].close()
+            upstream[1].close()
+            await asyncio.gather(*pending, return_exceptions=True)
+            return
+        pending = (await asyncio.wait(pending, timeout=IDLE_SECONDS - quiet))[1]
 
 
 def client_address(writer: asyncio.StreamWriter) -> str:
@@ -117,7 +177,30 @@ def client_address(writer: asyncio.StreamWriter) -> str:
     return str(peer[0]) if peer else ""
 
 
+def refuse(writer: asyncio.StreamWriter, denied: Denied, host: str, port: int) -> None:
+    log(
+        "egress",
+        decision="denied",
+        host=host,
+        port=port,
+        client=client_address(writer),
+        reason=denied.reason,
+    )
+    writer.write(f"HTTP/1.1 {denied.status} Refused\r\n\r\n".encode())
+    writer.close()
+
+
 async def handle_connect(
+    reader: asyncio.StreamReader, writer: asyncio.StreamWriter
+) -> None:
+    with SLOTS.take() as taken:
+        if not taken:
+            refuse(writer, Denied(503, "busy"), "", 0)
+            return
+        await open_tunnel(reader, writer)
+
+
+async def open_tunnel(
     reader: asyncio.StreamReader, writer: asyncio.StreamWriter
 ) -> None:
     client = client_address(writer)
@@ -136,16 +219,7 @@ async def handle_connect(
             raise Denied(403, "port")
         upstream = await open_first(await public_addresses(host, port), port)
     except Denied as denied:
-        log(
-            "egress",
-            decision="denied",
-            host=host,
-            port=port,
-            client=client,
-            reason=denied.reason,
-        )
-        writer.write(f"HTTP/1.1 {denied.status} Refused\r\n\r\n".encode())
-        writer.close()
+        refuse(writer, denied, host, port)
         return
     log("egress", decision="allowed", host=host, port=port, client=client)
     writer.write(b"HTTP/1.1 200 Connection established\r\n\r\n")
@@ -161,14 +235,19 @@ def forwarder(target_host: str, target_port: int) -> Handler:
     async def handle(
         reader: asyncio.StreamReader, writer: asyncio.StreamWriter
     ) -> None:
-        try:
-            upstream = await asyncio.wait_for(
-                asyncio.open_connection(target_host, target_port), CONNECT_SECONDS
-            )
-        except (OSError, TimeoutError):
-            writer.close()
-            return
-        await splice((reader, writer), upstream)
+        with SLOTS.take() as taken:
+            if not taken:
+                writer.close()
+                return
+            try:
+                upstream = await asyncio.wait_for(
+                    asyncio.open_connection(target_host, target_port),
+                    CONNECT_SECONDS,
+                )
+            except (OSError, TimeoutError):
+                writer.close()
+                return
+            await splice((reader, writer), upstream)
 
     return handle
 

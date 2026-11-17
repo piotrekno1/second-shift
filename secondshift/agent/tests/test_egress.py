@@ -179,3 +179,95 @@ def test_the_forward_port_passes_bytes_to_its_fixed_target() -> None:
             upstream.close()
 
     assert asyncio.run(scenario()) == b"POST /gateway/agent/mcp HTTP/1.1\r\n\r\n"
+
+
+def test_a_full_proxy_refuses_new_tunnels(
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(egress, "SLOTS", egress.Slots(0))
+    reply = asyncio.run(exchange(egress.handle_connect, connect("api.anthropic.com")))
+    assert reply.startswith(b"HTTP/1.1 503 ")
+    assert logged(capsys)[0]["reason"] == "busy"
+
+
+def test_a_full_proxy_refuses_forwards(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(egress, "SLOTS", egress.Slots(0))
+
+    async def scenario() -> bytes:
+        server = await asyncio.start_server(
+            egress.forwarder("127.0.0.1", 9), "127.0.0.1", 0
+        )
+        port = server.sockets[0].getsockname()[1]
+        reader, writer = await asyncio.open_connection("127.0.0.1", port)
+        reply = await asyncio.wait_for(reader.read(), 5)
+        writer.close()
+        server.close()
+        return reply
+
+    assert asyncio.run(scenario()) == b""
+
+
+def test_slots_are_returned_when_a_connection_ends() -> None:
+    slots = egress.Slots(1)
+    with slots.take() as first:
+        assert first
+        with slots.take() as second:
+            assert not second
+    with slots.take() as again:
+        assert again
+
+
+async def tunnel_through(
+    upstream_handler: Callable[
+        [asyncio.StreamReader, asyncio.StreamWriter], Awaitable[None]
+    ],
+    seconds: float,
+) -> bytes:
+    """Open a forward to an upstream and read for a while without sending."""
+    upstream = await asyncio.start_server(upstream_handler, "127.0.0.1", 0)
+    target = upstream.sockets[0].getsockname()[1]
+    server = await asyncio.start_server(
+        egress.forwarder("127.0.0.1", target), "127.0.0.1", 0
+    )
+    port = server.sockets[0].getsockname()[1]
+    reader, writer = await asyncio.open_connection("127.0.0.1", port)
+    received = b""
+    try:
+        while data := await asyncio.wait_for(reader.read(64), seconds):
+            received += data
+    except TimeoutError:
+        received += b"<open>"
+    writer.close()
+    server.close()
+    upstream.close()
+    return received
+
+
+def test_an_idle_tunnel_is_closed(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(egress, "IDLE_SECONDS", 0.2)
+
+    async def silent(
+        reader: asyncio.StreamReader, writer: asyncio.StreamWriter
+    ) -> None:
+        await asyncio.sleep(5)
+
+    # Closed by the proxy well before the client gives up after 3 seconds.
+    assert asyncio.run(tunnel_through(silent, 3)) == b""
+
+
+def test_a_stream_from_one_side_keeps_the_tunnel_open(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(egress, "IDLE_SECONDS", 0.3)
+
+    async def streaming(
+        reader: asyncio.StreamReader, writer: asyncio.StreamWriter
+    ) -> None:
+        for chunk in [b"."] * 6:
+            writer.write(chunk)
+            await writer.drain()
+            await asyncio.sleep(0.1)
+        writer.close()
+
+    # 0.6 seconds of data, twice the idle limit, arrives in full.
+    assert asyncio.run(tunnel_through(streaming, 3)) == b"......"
