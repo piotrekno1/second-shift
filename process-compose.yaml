@@ -61,12 +61,13 @@ processes:
       restart: always
 
   gateway:
-    description: Model and agent-tool gateway, reachable from Docker
+    description: Model and agent-tool gateway, reachable from the agents' egress proxy
     command: uv run gunicorn --reload
     environment:
       - SECONDSHIFT_SERVICE=gateway
       - SECONDSHIFT_HTTP_GRACEFUL_TIMEOUT_SECONDS=600
-      - SECONDSHIFT_HTTP_BIND=0.0.0.0:8001
+      # Linux also gets the Docker bridge address. See config/gunicorn.py.
+      - SECONDSHIFT_HTTP_BIND=127.0.0.1:8001
       - SECONDSHIFT_HTTP_PROCESSES=1
     depends_on:
       initialize:

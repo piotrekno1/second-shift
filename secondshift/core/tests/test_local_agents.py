@@ -63,3 +63,17 @@ def test_gateway_opens_to_the_bridge_only_on_native_linux_docker(
     monkeypatch.setattr(commands.subprocess, "run", run)
 
     assert local_agents.container_gateway_host() == expected
+
+
+@pytest.mark.parametrize(
+    ("host", "expected"),
+    [
+        (None, ["127.0.0.1:8001"]),
+        ("172.17.0.1", ["127.0.0.1:8001", "172.17.0.1:8001"]),
+    ],
+)
+def test_the_dev_gateway_adds_only_the_bridge_address(
+    monkeypatch: pytest.MonkeyPatch, host: str | None, expected: list[str]
+) -> None:
+    monkeypatch.setattr(local_agents, "container_gateway_host", lambda: host)
+    assert local_agents.with_container_binds(["127.0.0.1:8001"]) == expected

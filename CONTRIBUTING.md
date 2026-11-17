@@ -34,9 +34,10 @@ subscriptions. The runner resolves the image's development tag to its immutable
 local ID, so no registry is needed. Agent containers join the internal
 `secondshift-agents` network, and the runner starts an egress proxy beside them.
 The proxy lets them reach only their provider, and passes
-`host.docker.internal:8001` through to the gateway. The gateway listens on all
-interfaces so the proxy can reach it. On Linux, use a gateway address your
-Docker network can reach. Add your login on Connections, and choose what runs jobs in Settings. See
+`host.docker.internal:8001` through to the gateway. The gateway listens on
+loopback, which the proxy reaches through Docker Desktop. With native Linux
+Docker it also listens on the Docker bridge address, usually `172.17.0.1`.
+Other machines can't reach either one. Add your login on Connections, and choose what runs jobs in Settings. See
 [agent subscriptions](docs/agent-subscriptions.md) for details.
 
 Gunicorn automatically loads the root `gunicorn.conf.py`, which delegates to
