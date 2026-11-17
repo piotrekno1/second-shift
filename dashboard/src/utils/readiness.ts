@@ -27,10 +27,12 @@ function approvalStep(waiting: Capability[]): string {
 
 /** Why a job cannot be switched on yet, or '' when nothing blocks it. */
 export function enableBlocker(
-  job: Pick<Job, 'enabled' | 'capabilities'> & Partial<Pick<Job, 'removed_at'>>,
+  job: Pick<Job, 'enabled' | 'capabilities'> &
+    Partial<Pick<Job, 'removed_at' | 'environment_problem'>>,
 ): string {
   if (job.removed_at) return REMOVED_JOB
   if (job.enabled) return ''
+  if (job.environment_problem) return job.environment_problem
   const waiting = waitingCapabilities(job)
   const step = approvalStep(waiting)
   return (
@@ -65,7 +67,8 @@ function connectionStep(capabilities: Capability[], connections: Connection[]): 
  * Checks what the server checks, in the same order, so a button never offers a run that fails.
  */
 export function runBlocker(
-  job: Pick<Job, 'capabilities' | 'execution_problem' | 'removed_at'>,
+  job: Pick<Job, 'capabilities' | 'execution_problem' | 'removed_at'> &
+    Partial<Pick<Job, 'environment_problem'>>,
   repositoryEnabled: boolean,
   execution: ExecutionStatus | null | undefined,
   connections: Connection[] = [],
@@ -74,6 +77,7 @@ export function runBlocker(
   if (!repositoryEnabled) return PAUSED_REPOSITORY
   return (
     runWarning(execution, job) ||
+    job.environment_problem ||
     approvalStep(waitingCapabilities(job)) ||
     connectionStep(job.capabilities, connections)
   )

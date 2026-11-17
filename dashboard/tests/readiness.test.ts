@@ -148,6 +148,19 @@ test('runBlocker checks what the server checks, in its order', () => {
     ],
   }
   assert.equal(runBlocker(waiting, true, status()), 'Connect and approve github first.')
+  const noEnvironment = { ...waiting, environment_problem: 'This server has no node environment.' }
+  assert.equal(runBlocker(noEnvironment, true, status()), 'This server has no node environment.')
+  assert.equal(runBlocker(noEnvironment, true, status({ problem: 'No model.' })), 'No model.')
+})
+
+test('enableBlocker names an environment the server lacks', () => {
+  const job = {
+    enabled: false,
+    capabilities: [capability('github', true, 'pending')],
+    environment_problem: 'This server has no node environment.',
+  }
+  assert.equal(enableBlocker(job), 'This server has no node environment.')
+  assert.equal(enableBlocker({ ...job, enabled: true }), '')
 })
 
 test('runBlocker names an approved binding whose connection stopped working', () => {

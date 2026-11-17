@@ -230,6 +230,8 @@ export interface Job {
   execution_backend: string
   execution_label: string
   execution_problem: string
+  /** Why the job's sandbox environment stops it from running, or ''. */
+  environment_problem: string
   id: number
   name: string
   repository_id: number
@@ -258,6 +260,8 @@ export interface JobDetail extends Job {
   /** How many of its own earlier reports each run starts with. */
   history: number
   subagents: number
+  /** The sandbox environment the configuration names, or "default". */
+  environment: string
   /** The configuration asks for a draft pull request with each run's changes. */
   open_pull_request: boolean
   /** A GitHub repository, so drafts could open. Local repositories cannot. */
