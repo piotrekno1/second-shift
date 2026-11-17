@@ -101,7 +101,7 @@ services:
     environment:
       <<: *agents
       SECONDSHIFT_AGENT_NETWORK: ${AGENT_NETWORK:-secondshift_agents}
-      SECONDSHIFT_AGENT_RESOLV_CONF: ${RUNNER_ROOT:?}/agent-resolv.conf
+      SECONDSHIFT_AGENT_PROXY_ADDRESS: ${AGENT_PROXY_ADDRESS:-172.30.0.3}
       SECONDSHIFT_RUNNER_DATABASE_URL: postgres://secondshift_runner:${RUNNER_DATABASE_PASSWORD:?}@postgres:5432/secondshift_runner
       SECONDSHIFT_DATA_DIR: ${RUNNER_ROOT:?Set RUNNER_ROOT to an absolute host path}
       SECONDSHIFT_RUNNER_WORK_ROOT: ${RUNNER_ROOT:?}
@@ -121,6 +121,24 @@ services:
         condition: service_healthy
     stop_grace_period: 40s
 
+  # Agents' only way out. It opens HTTPS tunnels to their providers only.
+  # It holds no secrets and reaches no other service.
+  agent-proxy:
+    <<: *application
+    command: [python, -m, secondshift.agent.image.egress]
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    networks:
+      agents:
+        ipv4_address: ${AGENT_PROXY_ADDRESS:-172.30.0.3}
+      egress: {}
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped
@@ -139,11 +157,16 @@ services:
         condition: service_healthy
 
 networks:
+  # No route out. Agents reach the gateway here and the internet only
+  # through agent-proxy. The runner refuses an agent network that isn't internal.
   agents:
     name: ${AGENT_NETWORK:-secondshift_agents}
+    internal: true
     ipam:
       config:
         - subnet: ${AGENT_SUBNET:-172.30.0.0/24}
+  # Only agent-proxy joins it, so the proxy can reach nothing else of ours.
+  egress: {}
 
 volumes:
   artifacts:

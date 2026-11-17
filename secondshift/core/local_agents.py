@@ -43,6 +43,17 @@ def existing_image() -> str | None:
         return None
 
 
+def with_container_binds(binds: list[str]) -> list[str]:
+    """Add the bridge address on native Linux Docker, so the egress proxy can
+    reach the gateway. Docker Desktop reaches loopback, so binds stay as they are.
+    """
+    host = container_gateway_host()
+    if not host or not binds:
+        return binds
+    port = binds[0].rpartition(":")[2]
+    return [*binds, f"{host}:{port}"]
+
+
 def container_gateway_host() -> str | None:
     """Where the gateway must also listen for containers, if not loopback."""
     if sys.platform != "linux" or commands.is_docker_desktop():

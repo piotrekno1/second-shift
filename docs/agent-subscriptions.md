@@ -39,13 +39,25 @@ To start without subscriptions:
 secondshift up --no-agents
 ```
 
-Agent containers reach the gateway through `host.docker.internal`.
+Agent containers join the internal `secondshift-agents` network, which has no
+route out. The runner creates it and starts one proxy container from the agent
+image, named for the gateway port, such as `secondshift-agent-proxy-8001`. The proxy is the only
+container on that network that can reach the internet and the Docker host.
 
-- With Docker Desktop, that name reaches the host's loopback. The gateway stays
+- Agents reach their provider through the proxy. It allows only the provider
+  hosts listed under [Isolation](#isolation). Run `docker logs
+  secondshift-agent-proxy-8001` to see each tunnel it opened or refused.
+- Agents reach the gateway at `host.docker.internal`. In the agent container
+  that name points at the proxy, which passes the gateway's port through to
+  the host.
+- With Docker Desktop, the proxy reaches the host's loopback. The gateway stays
   on `127.0.0.1`.
-- With native Linux Docker, the runner adds that name to each agent container.
-  The gateway also listens on the Docker bridge address, usually `172.17.0.1`.
-  Other machines can't route to it.
+- With native Linux Docker, the gateway also listens on the Docker bridge
+  address, usually `172.17.0.1`. Other machines can't route to it.
+
+A new agent image or gateway port replaces the proxy on the next run. The
+runner removes its proxy when it stops. The network stays, since it costs
+nothing and other local instances may share it.
 
 The gateway never listens on every network for agents.
 
@@ -114,6 +126,9 @@ command sandbox. The container:
 - mounts only that login's credential directory. It gets no repository, Docker
   socket or host home.
 - has the CLI's own shell, file, web search and other built-in tools turned off
+- joins an internal Docker network with no route out. It reaches the internet
+  only through the egress proxy, which opens HTTPS tunnels to
+  `api.anthropic.com`, `chatgpt.com` and `auth.openai.com` and nothing else.
 
 The agent reaches the run's tools only through a run-scoped MCP broker on the
 gateway. These are the same workspace and approved external tools a model API

@@ -191,11 +191,11 @@ The production Compose example sets these from its server-owned env file:
 | --- | --- |
 | `SECONDSHIFT_AGENT_IMAGE` | Agent image pinned by digest. Empty disables subscriptions on servers. On one machine it defaults to the tag that mode builds, `secondshift-agent:local` or `secondshift-agent:dev`. |
 | `SECONDSHIFT_AGENT_BROKER_URL` | Agent-reachable run-scoped MCP URL on the gateway. |
-| `SECONDSHIFT_AGENT_NETWORK` | Docker network for transient agent containers; default `bridge`. |
-| `SECONDSHIFT_AGENT_RESOLV_CONF` | Runner-only absolute host path to a resolver file mounted read-only at `/etc/resolv.conf`; empty uses Docker's resolver. Use a reachable non-loopback DNS server with gVisor on a dedicated bridge. |
+| `SECONDSHIFT_AGENT_NETWORK` | Internal Docker network for transient agent containers. Default `secondshift-agents`. The runner refuses a network that isn't internal. On one machine it creates the network. |
+| `SECONDSHIFT_AGENT_PROXY_ADDRESS` | Runner-only address of the egress proxy on the agent network. Compose sets `172.30.0.3`. Empty on a server stops subscription runs. On one machine the runner starts its own proxy. |
 
 Only operators configure these settings. Repository input cannot change images,
-networks, resolver mounts or credentials. See the
+networks, the proxy or credentials. See the
 [production guide](production-deployment.md#optional-subscription-agents).
 
 ## HTTP server

@@ -21,8 +21,8 @@ from secondshift.agent.image.outcomes import (
 from secondshift.docker.commands import DockerError, resolve_image_id
 from secondshift.runner.agent_credentials import decrypt_agent_auth
 from secondshift.runner.dao import is_session_active
+from secondshift.runner.egress import AgentEgress, prepare_egress
 from secondshift.runner.services import DockerRunnerService, agent_name, sandbox_flags
-from secondshift.runner_protocol.agents import HOST_ALIAS
 from secondshift.runner_protocol.schemas import AgentCheckInput, AgentInput, AgentOutput
 from secondshift.runner_protocol.sessions import CommandRequest, RunnerProtocolError
 
@@ -52,8 +52,13 @@ def require_agent_configuration() -> str:
     return image
 
 
-def agent_command(session_id: str, auth_path: Path, image: str) -> list[str]:
-    command = [
+def agent_command(
+    session_id: str, auth_path: Path, image: str, egress: AgentEgress
+) -> list[str]:
+    uid, gid = settings.RUNNER_SANDBOX_UID, settings.RUNNER_SANDBOX_GID
+    # No resolver. Agents reach the proxy and the gateway by address, and the
+    # proxy looks up provider names itself.
+    return [
         "docker",
         "run",
         "--rm",
@@ -61,24 +66,9 @@ def agent_command(session_id: str, auth_path: Path, image: str) -> list[str]:
         "--name",
         agent_name(session_id),
         *sandbox_flags(),
-    ]
-    if settings.AGENT_RESOLV_CONF:
-        resolver = Path(settings.AGENT_RESOLV_CONF)
-        if (
-            not resolver.is_absolute()
-            or not resolver.is_file()
-            or resolver.is_symlink()
-        ):
-            raise RunnerProtocolError(
-                "The agent resolver must be an existing absolute file."
-            )
-        command += [f"--mount=type=bind,src={resolver},dst=/etc/resolv.conf,readonly"]
-    uid, gid = settings.RUNNER_SANDBOX_UID, settings.RUNNER_SANDBOX_GID
-    return [
-        *command,
+        # Internal, so the egress proxy is the only way out.
         f"--network={settings.AGENT_NETWORK}",
-        # Docker Desktop defines this alias. Native Linux Docker needs it added.
-        f"--add-host={HOST_ALIAS}:host-gateway",
+        *egress.flags(),
         f"--tmpfs=/tmp:rw,nosuid,size=256m,uid={uid},gid={gid}",
         f"--mount=type=bind,src={auth_path},dst=/auth",
         "--workdir=/tmp",
@@ -142,6 +132,8 @@ def execute_locked_agent(session_id: str, request: AgentInput) -> AgentOutput:
     image = require_agent_configuration()
     if not is_session_active(session_id):
         raise RunnerProtocolError("Unknown or inactive runner session.")
+    # Before the reservation, so a missing proxy leaves the run retryable.
+    egress = prepare_egress(image)
     # Reserve once, before starting the process: an ambiguous outcome is not retried.
     reservation = CommandRequest(
         call_id="agent-execution", argv=(request.backend, request.credential_key)
@@ -161,7 +153,7 @@ def execute_locked_agent(session_id: str, request: AgentInput) -> AgentOutput:
     }
     return run_agent_container(
         agent_name(session_id),
-        agent_command(session_id, auth_path, image),
+        agent_command(session_id, auth_path, image, egress),
         configuration,
         request.timeout_seconds,
     )
@@ -181,7 +173,7 @@ def check_agent(request: AgentCheckInput) -> AgentOutput:
         }
         return run_agent_container(
             agent_name(name),
-            agent_command(name, auth_path, image),
+            agent_command(name, auth_path, image, prepare_egress(image)),
             configuration,
             CHECK_TIMEOUT_SECONDS,
         )
