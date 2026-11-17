@@ -4,6 +4,7 @@ from unittest.mock import Mock
 
 import pytest
 
+from secondshift.agent import build as agent_build
 from secondshift.agent.build import AGENT_IMAGE_DIR, build_agent_image
 from secondshift.docker import commands
 
@@ -74,3 +75,20 @@ def test_the_cli_releases_are_locked() -> None:
     )
     assert "npm ci" in (AGENT_IMAGE_DIR / "Dockerfile").read_text()
 
+
+def test_the_command_prints_the_image_id_for_the_tag_asked(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    tags: list[str] = []
+
+    def build(tag: str) -> str:
+        tags.append(tag)
+        return "sha256:" + "c" * 64
+
+    monkeypatch.setattr(agent_build, "build_agent_image", build)
+
+    agent_build.main([])
+    agent_build.main(["--tag", "secondshift-agent:production"])
+
+    assert tags == ["secondshift-agent:dev", "secondshift-agent:production"]
+    assert capsys.readouterr().out.split() == ["sha256:" + "c" * 64] * 2
