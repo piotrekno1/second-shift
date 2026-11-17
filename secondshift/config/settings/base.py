@@ -512,7 +512,7 @@ GITHUB_APP_PRIVATE_KEY = env.str(
 # On one machine, `secondshift up` or process-compose builds a tag, which the
 # runner resolves per run.
 AGENT_IMAGE = env.str(AppEnv.AGENT_IMAGE, default=default_agent_image(ENVIRONMENT))
-AGENT_NETWORK = env.str(AppEnv.AGENT_NETWORK, default="bridge")
+AGENT_NETWORK = env.str(AppEnv.AGENT_NETWORK, default="secondshift-agents")
 AGENT_BROKER_URL = env.str(
     AppEnv.AGENT_BROKER_URL,
     default=local_agent_broker_url(MODEL_GATEWAY_URL) if SINGLE_HOST else "",

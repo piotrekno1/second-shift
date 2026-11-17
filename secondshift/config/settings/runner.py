@@ -125,8 +125,8 @@ LOGGING = logging_config(
 AGENT_IMAGE = env.str(
     AppEnv.AGENT_IMAGE, default=default_agent_image(os.environ.get(ENVIRONMENT_VAR))
 )
-AGENT_RESOLV_CONF = env.str(AppEnv.AGENT_RESOLV_CONF, default="")
-AGENT_NETWORK = env.str(AppEnv.AGENT_NETWORK, default="bridge")
+# An internal Docker network with no route out. The runner refuses any other.
+AGENT_NETWORK = env.str(AppEnv.AGENT_NETWORK, default="secondshift-agents")
 # On one machine, agent containers reach the gateway on the Docker host.
 SINGLE_HOST = os.environ.get(ENVIRONMENT_VAR) in {Environment.DEV, Environment.LOCAL}
 AGENT_IMAGE_TAGS_ALLOWED = SINGLE_HOST
@@ -140,6 +140,11 @@ AGENT_BROKER_URL = env.str(
 )
 
 AGENT_AUTH_ROOT = RUNNER_WORK_ROOT / "agent-auth"
+# Agents reach their provider only through the egress proxy. A server runs it
+# as its own service at this address on the agent network. On one machine the
+# runner starts it itself, with no address set.
+AGENT_PROXY_ADDRESS = env.str("SECONDSHIFT_AGENT_PROXY_ADDRESS", default="")
+AGENT_MANAGED_PROXY = SINGLE_HOST and not AGENT_PROXY_ADDRESS
 
 if AGENT_IMAGE:
     DATA_UPLOAD_MAX_MEMORY_SIZE = 512 * 1024

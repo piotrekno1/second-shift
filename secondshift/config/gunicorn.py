@@ -2,7 +2,9 @@
 
 import os
 
+import django
 from environ import Env
+from gunicorn.arbiter import Arbiter
 
 from secondshift.config.constants import SERVICE_VAR, AppEnv, Service
 
@@ -29,3 +31,13 @@ if workers < 1 or timeout < 1 or graceful_timeout < 1:
     raise ValueError("Gunicorn worker count and timeouts must be positive")
 # Services may share a data directory. Never compete for a shared control socket.
 control_socket_disable = True
+
+
+def on_exit(server: Arbiter) -> None:
+    """A local runner removes the egress proxy it started. Others have none."""
+    if service != Service.RUNNER:
+        return
+    django.setup()
+    from secondshift.runner.egress import stop_local_proxy  # noqa: PLC0415
+
+    stop_local_proxy()

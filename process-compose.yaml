@@ -39,7 +39,6 @@ processes:
     command: uv run gunicorn --reload
     environment:
       - SECONDSHIFT_SERVICE=runner
-      - SECONDSHIFT_AGENT_NETWORK=bridge
       - SECONDSHIFT_HTTP_BIND=127.0.0.1:8002
       - SECONDSHIFT_HTTP_PROCESSES=1
     depends_on:
@@ -54,7 +53,6 @@ processes:
     command: uv run gunicorn --reload
     environment:
       - SECONDSHIFT_SERVICE=web
-      - SECONDSHIFT_AGENT_NETWORK=bridge
       - SECONDSHIFT_HTTP_BIND=127.0.0.1:8000
     depends_on:
       initialize:
@@ -67,7 +65,6 @@ processes:
     command: uv run gunicorn --reload
     environment:
       - SECONDSHIFT_SERVICE=gateway
-      - SECONDSHIFT_AGENT_NETWORK=bridge
       - SECONDSHIFT_HTTP_GRACEFUL_TIMEOUT_SECONDS=600
       - SECONDSHIFT_HTTP_BIND=0.0.0.0:8001
       - SECONDSHIFT_HTTP_PROCESSES=1
@@ -81,7 +78,6 @@ processes:
     command: uv run python manage.py run_dbos_worker
     environment:
       - SECONDSHIFT_SERVICE=worker
-      - SECONDSHIFT_AGENT_NETWORK=bridge
     depends_on:
       initialize:
         condition: process_completed_successfully

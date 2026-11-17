@@ -27,6 +27,23 @@ def test_only_gateway_joins_the_agent_network() -> None:
         )
 
 
+def test_agents_leave_only_through_the_egress_proxy() -> None:
+    compose = yaml.safe_load((ROOT / "compose.production.yaml").read_text())
+    services = compose["services"]
+    assert compose["networks"]["agents"]["internal"] is True
+    proxy = services["agent-proxy"]
+    assert set(proxy["networks"]) == {"agents", "egress"}
+    assert "environment" not in proxy and "env_file" not in proxy
+    assert "volumes" not in proxy
+    for role, service in services.items():
+        if role != "agent-proxy":
+            assert "egress" not in service.get("networks", {})
+    address = proxy["networks"]["agents"]["ipv4_address"]
+    assert services["runner"]["environment"]["SECONDSHIFT_AGENT_PROXY_ADDRESS"] == (
+        address
+    )
+
+
 def test_agents_reach_the_broker_at_the_gateways_route() -> None:
     services = production_services()
     for role in ("web", "worker", "gateway", "runner"):
