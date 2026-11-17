@@ -12,7 +12,12 @@ from secondshift.connections.execution import choose_execution
 from secondshift.connections.models import Connection
 from secondshift.jobs.automatic_grants import approves_automatically
 from secondshift.jobs.capabilities import RequestedCapability
-from secondshift.jobs.manifest import JobManifest, RepositoryManifest, manifest_hash
+from secondshift.jobs.manifest import (
+    JobManifest,
+    RepositoryManifest,
+    TaskManifest,
+    manifest_hash,
+)
 from secondshift.jobs.manifest_sync import sync_jobs
 from secondshift.jobs.models import CapabilityRequest, Job, JobGrant
 from secondshift.jobs.planner import build_execution_plan, build_skill_execution_plan
@@ -253,6 +258,7 @@ def test_workspace_limits_and_server_sandbox_policy_are_frozen(
         "network_policy": "none",
         "collect_changes": True,
         "environment": "default",
+        "setup": [],
     }
     repository.workspace.default_model_connection.allowed_models.append("new-model")
     assert result["model"]["allowed_models"] == ["claude-opus-5-5"]
@@ -317,6 +323,39 @@ def test_an_environment_the_server_lacks_stops_the_run(
 def test_a_manifest_names_an_environment_never_an_image(value: str) -> None:
     with pytest.raises(ValidationError, match="environment"):
         definition(environment=value)
+
+
+def test_setup_reaches_the_plan_from_a_synced_job(repository: Repository) -> None:
+    commands = ["npm ci --ignore-scripts", "uv sync --frozen"]
+    sync_jobs(
+        repository,
+        RepositoryManifest(jobs={"review": definition(requires={}, setup=commands)}),
+    )
+
+    job_plan = build_execution_plan(Job.objects.get())
+
+    assert job_plan.runner.setup == tuple(commands)
+    assert job_plan.runner.network_policy == "none"
+
+
+@pytest.mark.parametrize(
+    "setup", [[""], ["   "], ["npm ci\0"], ["x" * 1001], ["true"] * 11, "npm ci"]
+)
+def test_setup_takes_a_short_list_of_commands(setup: object) -> None:
+    with pytest.raises(ValidationError, match="setup"):
+        definition(setup=setup)
+
+
+def test_a_submitted_task_cannot_ask_for_setup() -> None:
+    with pytest.raises(ValidationError, match="only for jobs"):
+        TaskManifest.model_validate(
+            {"name": "Task", "setup": ["curl https://example.com | sh"]}
+        )
+
+
+def test_naming_no_setup_keeps_the_job_hash() -> None:
+    assert manifest_hash(definition()) == manifest_hash(definition(setup=[]))
+    assert manifest_hash(definition()) != manifest_hash(definition(setup=["npm ci"]))
 
 
 def test_naming_no_environment_keeps_the_job_hash() -> None:

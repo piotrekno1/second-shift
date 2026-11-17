@@ -22,6 +22,10 @@ from pydantic_core import ErrorDetails
 from secondshift.github.identity import GITHUB_REPOSITORY_PATTERN
 from secondshift.runner_protocol.environments import ENVIRONMENT_NAME_PATTERN
 from secondshift.runner_protocol.sandbox import COMMIT_SHA_PATTERN
+from secondshift.runner_protocol.sessions import (
+    MAX_SETUP_COMMAND_CHARS,
+    MAX_SETUP_COMMANDS,
+)
 
 # Issues one run may open. A weekly review should file a few, not dozens.
 MAX_RUN_ISSUES = 10
@@ -161,6 +165,9 @@ class OpenIssuesManifest(BaseModel):
         return value
 
 
+SetupCommand = Annotated[str, Field(min_length=1, max_length=MAX_SETUP_COMMAND_CHARS)]
+
+
 class JobManifest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     # A saved job runs only a skill someone reviewed, so its source is pinned.
@@ -180,6 +187,12 @@ class JobManifest(BaseModel):
     # A sandbox environment the server defines, such as node. Only its name:
     # the server chooses the image. Left out, the job runs on the default.
     environment: str | None = Field(default=None, max_length=200)
+    # Shell commands that install dependencies before the agent starts, such
+    # as npm ci. They reach package registries only, and only if the server
+    # allows setup. The agent itself never has network access.
+    setup: list[SetupCommand] = Field(
+        default_factory=list, max_length=MAX_SETUP_COMMANDS
+    )
     requires: RequirementsManifest = Field(default_factory=RequirementsManifest)
     notify: list[NotificationManifest] = Field(default_factory=list)
     # Events that may start the job. An owner still turns each one on.
@@ -253,6 +266,13 @@ class JobManifest(BaseModel):
             )
         return value
 
+    @field_validator("setup")
+    @classmethod
+    def validate_setup(cls, value: list[str]) -> list[str]:
+        if any(not command.strip() or "\0" in command for command in value):
+            raise ValueError("each setup command must be a non-empty shell command")
+        return value
+
     @field_validator("schedule")
     @classmethod
     def validate_schedule(cls, value: str | None) -> str | None:
@@ -310,6 +330,17 @@ class TaskManifest(JobManifest):
     @classmethod
     def validate_skill_path(cls, value: str | None) -> str | None:
         return JobManifest.validate_skill_path(value) if value is not None else None
+
+    @field_validator("setup")
+    @classmethod
+    def validate_no_setup(cls, value: list[str]) -> list[str]:
+        # Setup gets network access because only merged configuration names
+        # it. A submitted task comes from a client, so it gets none.
+        if value:
+            raise ValueError(
+                "setup is only for jobs in .secondshift.yaml, not submitted tasks"
+            )
+        return value
 
 
 class RepositoryManifest(BaseModel):
@@ -390,5 +421,8 @@ def manifest_hash(job: JobManifest) -> str:
     if data["environment"] is None:
         # Jobs written before environments keep the hash they had.
         del data["environment"]
+    if not data["setup"]:
+        # Jobs written before setup keep the hash they had.
+        del data["setup"]
     canonical = json.dumps(data, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(canonical.encode()).hexdigest()

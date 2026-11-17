@@ -7,17 +7,20 @@ from pydantic_ai.exceptions import ModelHTTPError
 from secondshift.connections.errors import ExternalRequestError, ExternalToolError
 from secondshift.github.errors import GitHubError
 from secondshift.jobs.argument_rules import ToolRuleViolation
-from secondshift.runner_protocol.sessions import RunnerProtocolError
+from secondshift.runner_protocol.sessions import CommandResult, RunnerProtocolError
 from secondshift.runs.models import Run, RunFailure
 
 STAGE_FAILURES: dict[str, str] = {
     RunFailure.STARTING: "The run could not start",
     RunFailure.CHECKOUT: "Couldn't check out the repository",
     RunFailure.SANDBOX: "Couldn't start the sandbox",
+    RunFailure.SETUP: "Setup failed",
     RunFailure.SKILL: "The skill run failed",
     RunFailure.FINISHING: "The run could not be recorded",
 }
 MAX_DETAIL_CHARS = 300
+# How much of a failed setup command's output its timeline line keeps.
+SETUP_OUTPUT_TAIL_CHARS = 1500
 TOOL_RULE_NEXT_STEP = (
     "The model used a tool in a way the job's access review does not allow. "
     "Change the restriction or the skill, then run again."
@@ -148,3 +151,20 @@ def model_provider_next_step(reason: str, connection_name: str) -> str:
     if reason.startswith("HTTP 5"):
         return "The provider had a problem. Run again later."
     return f"Check {connection_name}, then run again."
+
+
+def setup_failure(command: str, result: CommandResult) -> str:
+    """Why a setup command failed, in one line. Empty when it succeeded."""
+    if result.timed_out:
+        return f"`{command}` ran out of time."
+    if result.exit_code:
+        return f"`{command}` exited with code {result.exit_code}."
+    return ""
+
+
+def setup_output_tail(result: CommandResult) -> str:
+    """The end of a failed command's output, where its error usually is."""
+    output = result.output.strip()
+    if len(output) <= SETUP_OUTPUT_TAIL_CHARS:
+        return output
+    return "…" + output[-SETUP_OUTPUT_TAIL_CHARS:]

@@ -10,10 +10,10 @@ from secondshift.jobs.models import Job
 from secondshift.jobs.tests.plans import stored_plan
 from secondshift.repositories.models import Repository
 from secondshift.repositories.sources import SourceSnapshot
-from secondshift.runner_protocol.sessions import RunnerSessionSpec
+from secondshift.runner_protocol.sessions import CommandResult, RunnerSessionSpec
 from secondshift.runs.constants import RunSandbox, RunStart
 from secondshift.runs.dao import create_task
-from secondshift.runs.models import Run, RunEvent
+from secondshift.runs.models import Run, RunEvent, RunFailure
 from secondshift.runs.orchestration import workflows
 from secondshift.runs.orchestration.workflows import (
     prepare_source_step,
@@ -238,3 +238,93 @@ def test_a_notification_error_keeps_the_run_failure(
 
     with pytest.raises(RuntimeError, match="empty report"):
         workflows.execute_run(run.pk)
+
+
+class SetupRunnerClient(FakeRunnerClient):
+    def __init__(self, results: list[CommandResult]) -> None:
+        super().__init__()
+        self.results = results
+        self.setups: list[tuple[str, int]] = []
+
+    def setup(self, session_id: str, index: int) -> CommandResult:
+        self.setups.append((session_id, index))
+        return self.results[index]
+
+
+def setup_run(db, commands: list[str]) -> Run:
+    run = execution_run(db)
+    run.execution_plan["runner"]["setup"] = commands
+    run.save(update_fields=["execution_plan"])
+    return run
+
+
+@pytest.mark.django_db
+def test_the_session_spec_carries_the_plans_setup(db, monkeypatch) -> None:
+    run = setup_run(db, ["npm ci --ignore-scripts"])
+    client = FakeRunnerClient()
+    monkeypatch.setattr(workflows, "get_runner_client", lambda: client)
+    monkeypatch.setattr(workflows, "source_snapshot", lambda *args: SNAPSHOT)
+
+    start_runner_session_step(run.pk)
+
+    assert client.started[0].setup == ("npm ci --ignore-scripts",)
+
+
+@pytest.mark.django_db
+def test_setup_runs_each_command_before_the_agent(
+    db, monkeypatch: pytest.MonkeyPatch, fake_stages: list[str]
+) -> None:
+    run = setup_run(db, ["npm ci", "uv sync"])
+    client = SetupRunnerClient(
+        [CommandResult("setup-0", 0, "ok"), CommandResult("setup-1", 0, "ok")]
+    )
+    order: list[str] = []
+    monkeypatch.setattr(workflows, "get_runner_client", lambda: client)
+
+    def agent(run: Run, session_id: str) -> None:
+        order.append(f"agent after {len(client.setups)} setup commands")
+        raise RuntimeError("stop here")
+
+    monkeypatch.setattr(workflows, "execute_agent_run", agent)
+    monkeypatch.setattr(workflows, "notify", lambda run_id: None)
+
+    with pytest.raises(RuntimeError, match="stop here"):
+        workflows.execute_run(run.pk)
+
+    assert client.setups == [(f"run-{run.pk}", 0), (f"run-{run.pk}", 1)]
+    assert order == ["agent after 2 setup commands"]
+    assert list(
+        RunEvent.objects.filter(message__startswith="Setup ran").values_list(
+            "message", flat=True
+        )
+    ) == [
+        "Setup ran `npm ci` with access to package registries only.",
+        "Setup ran `uv sync` with access to package registries only.",
+    ]
+
+
+@pytest.mark.django_db
+def test_a_failed_setup_command_stops_the_run_before_the_agent(
+    db, monkeypatch: pytest.MonkeyPatch, fake_stages: list[str]
+) -> None:
+    run = setup_run(db, ["npm ci", "uv sync"])
+    client = SetupRunnerClient(
+        [CommandResult("setup-0", 1, "npm ERR! 404 Not Found - left-pad")]
+    )
+    monkeypatch.setattr(workflows, "get_runner_client", lambda: client)
+    monkeypatch.setattr(
+        workflows, "execute_agent_run", lambda *args: pytest.fail("agent ran")
+    )
+    monkeypatch.setattr(workflows, "notify", lambda run_id: None)
+
+    with pytest.raises(RuntimeError, match="exited with code 1"):
+        workflows.execute_run(run.pk)
+
+    run.refresh_from_db()
+    assert run.status == Run.Status.FAILED
+    assert run.failure == RunFailure.SETUP
+    assert run.failure_reason == "`npm ci` exited with code 1."
+    assert client.setups == [(f"run-{run.pk}", 0)]
+    assert fake_stages == [f"run-{run.pk}"]
+    event = RunEvent.objects.get(level="error", message__startswith="Setup stopped")
+    assert "npm ERR! 404 Not Found - left-pad" in event.message

@@ -21,6 +21,7 @@ class RunFailure(models.TextChoices):
     STARTING = "starting", "Start"
     CHECKOUT = "checkout", "Checkout"
     SANDBOX = "sandbox", "Sandbox"
+    SETUP = "setup", "Setup"
     SKILL = "skill", "Skill"
     FINISHING = "finishing", "Recording"
     # A run limit stopped the agent.

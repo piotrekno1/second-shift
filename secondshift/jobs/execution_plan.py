@@ -114,6 +114,9 @@ class RunnerPlan(Frozen):
     # The environment the job names. Plans stored before environments ran
     # on the default.
     environment: str = DEFAULT_ENVIRONMENT
+    # Commands from the job's merged configuration that install dependencies
+    # before the agent starts, with access to package registries only.
+    setup: tuple[str, ...] = ()
 
 
 class PullRequestPlan(Frozen):
