@@ -101,6 +101,8 @@ class JobSchema(Schema):
     execution_backend: str = AgentBackend.PYDANTIC
     execution_label: str = ""
     execution_problem: str = ""
+    # Why the job's sandbox environment stops it from running, or empty.
+    environment_problem: str = ""
     name: str
     repository_id: int
     repository: str
@@ -144,6 +146,8 @@ class JobDetailSchema(JobSchema):
     config_hash: str
     history: int
     subagents: int
+    # The sandbox environment the configuration names, or "default".
+    environment: str
     # The configuration asks for a draft pull request with each run's changes.
     open_pull_request: bool
     # A GitHub repository, so drafts could open. Local repositories cannot.

@@ -25,12 +25,22 @@ REASON_TEXT = {
 OTHER_REASON = "cannot reach what the job needs through its connection"
 
 
+def environment_problem(name: str) -> str:
+    """Why a job naming an environment the server lacks cannot run."""
+    return (
+        f"This server has no {name} environment. Ask the server admin to add "
+        "it, or change environment in .secondshift.yaml."
+    )
+
+
 def execution_problems(repository: Repository, plan: ExecutionPlan) -> list[str]:
     problems = []
     if not repository.accepts_runs:
         problems.append("The repository is disabled.")
     if not plan.execution.ready:
         problems.append(plan.execution.problem)
+    if not plan.runner.image:
+        problems.append(environment_problem(plan.runner.environment))
     for capability in plan.capabilities:
         if not capability.required or capability.authorized:
             continue

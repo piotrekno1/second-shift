@@ -38,6 +38,8 @@ class Job(RunLimitOverrides):
     history = models.PositiveSmallIntegerField(default=0)
     # How many sub-agents one run may start.
     subagents = models.PositiveSmallIntegerField(default=0)
+    # The sandbox environment the manifest names. Empty means the default.
+    environment = models.CharField(max_length=40, blank=True, default="")
     # Trigger kinds the repository names, such as "webhook". See JobTrigger.
     triggers = models.JSONField(default=list, blank=True)
     # The repository's webhook settings: skip_when, repeat_key, repeat_window.

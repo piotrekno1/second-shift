@@ -20,6 +20,7 @@ from pydantic import (
 from pydantic_core import ErrorDetails
 
 from secondshift.github.identity import GITHUB_REPOSITORY_PATTERN
+from secondshift.runner_protocol.environments import ENVIRONMENT_NAME_PATTERN
 from secondshift.runner_protocol.sandbox import COMMIT_SHA_PATTERN
 
 # Issues one run may open. A weekly review should file a few, not dozens.
@@ -176,6 +177,9 @@ class JobManifest(BaseModel):
     history: int = Field(default=0, ge=0)
     # How many sub-agents one run may start. They share the run's limits.
     subagents: int = Field(default=0, ge=0)
+    # A sandbox environment the server defines, such as node. Only its name:
+    # the server chooses the image. Left out, the job runs on the default.
+    environment: str | None = Field(default=None, max_length=200)
     requires: RequirementsManifest = Field(default_factory=RequirementsManifest)
     notify: list[NotificationManifest] = Field(default_factory=list)
     # Events that may start the job. An owner still turns each one on.
@@ -229,6 +233,23 @@ class JobManifest(BaseModel):
         if value > settings.RUN_SUBAGENTS_MAX:
             raise ValueError(
                 f"subagents cannot be above {settings.RUN_SUBAGENTS_MAX} on this server"
+            )
+        return value
+
+    @field_validator("environment")
+    @classmethod
+    def validate_environment(cls, value: str | None) -> str | None:
+        if value is None:
+            return value
+        if re.search(r"[/:@.]", value):
+            raise ValueError(
+                "environment takes the name of an environment the server "
+                "defines, such as node, not an image"
+            )
+        if not re.fullmatch(ENVIRONMENT_NAME_PATTERN, value):
+            raise ValueError(
+                "environment must start with a lowercase letter and use only "
+                "lowercase letters, digits and underscores"
             )
         return value
 
@@ -366,5 +387,8 @@ def manifest_hash(job: JobManifest) -> str:
     if data["skill_source"] is None:
         # Jobs written before skill sources keep the hash they had.
         del data["skill_source"]
+    if data["environment"] is None:
+        # Jobs written before environments keep the hash they had.
+        del data["environment"]
     canonical = json.dumps(data, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(canonical.encode()).hexdigest()

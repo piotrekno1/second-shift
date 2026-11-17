@@ -93,6 +93,7 @@ def job_fields(
         "timezone": item.timezone,
         "history": item.history,
         "subagents": item.subagents,
+        "environment": item.environment or "",
         "triggers": [str(kind) for kind in item.triggers],
         "webhook": item.webhook.model_dump(mode="json") if item.webhook else {},
         "open_pull_request": item.open_pull_request,

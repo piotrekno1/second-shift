@@ -16,6 +16,8 @@ from secondshift.jobs.manifest import JobManifest, RepositoryManifest, manifest_
 from secondshift.jobs.manifest_sync import sync_jobs
 from secondshift.jobs.models import CapabilityRequest, Job, JobGrant
 from secondshift.jobs.planner import build_execution_plan, build_skill_execution_plan
+from secondshift.jobs.readiness import execution_problems
+from secondshift.jobs.serialization import serialize_job_detail
 from secondshift.repositories.models import Repository
 from secondshift.runner_protocol.agents import AgentBackend
 from secondshift.runs.models import Run, Task
@@ -250,6 +252,7 @@ def test_workspace_limits_and_server_sandbox_policy_are_frozen(
         "image": "server-owned-image",
         "network_policy": "none",
         "collect_changes": True,
+        "environment": "default",
     }
     repository.workspace.default_model_connection.allowed_models.append("new-model")
     assert result["model"]["allowed_models"] == ["claude-opus-5-5"]
@@ -262,6 +265,63 @@ def test_workspace_limits_and_server_sandbox_policy_are_frozen(
 def test_definition_cannot_choose_credentials_or_runtime(field: str) -> None:
     with pytest.raises(ValidationError):
         definition(**{field: "client-controlled"})
+
+
+def test_a_named_environment_runs_the_image_the_server_set(
+    repository: Repository, settings: Any
+) -> None:
+    settings.RUNNER_ENVIRONMENTS = {"node": "registry.example/node@sha256:def"}
+
+    result = plan(repository, definition(requires={}, environment="node"))
+
+    assert result["runner"]["environment"] == "node"
+    assert result["runner"]["image"] == "registry.example/node@sha256:def"
+
+
+def test_an_environment_the_server_lacks_stops_the_run(
+    repository: Repository, settings: Any
+) -> None:
+    settings.RUNNER_ENVIRONMENTS = {"node": "registry.example/node@sha256:def"}
+    sync_jobs(
+        repository,
+        RepositoryManifest(
+            jobs={"review": definition(requires={}, environment="browser")}
+        ),
+    )
+
+    job_plan = build_execution_plan(Job.objects.get())
+
+    assert job_plan.ready is False
+    assert job_plan.runner.image == ""
+    assert (
+        "This server has no browser environment. Ask the server admin to add "
+        "it, or change environment in .secondshift.yaml."
+    ) in execution_problems(repository, job_plan)
+    detail = serialize_job_detail(Job.objects.get(), can_edit_limits=False)
+    assert detail.environment == "browser"
+    assert detail.environment_problem.startswith("This server has no browser")
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "ghcr.io/org/runner-node@sha256:" + "a" * 64,
+        "node:22",
+        "library/node",
+        "node@sha256:abc",
+        "Node",
+        "node-22",
+        "",
+    ],
+)
+def test_a_manifest_names_an_environment_never_an_image(value: str) -> None:
+    with pytest.raises(ValidationError, match="environment"):
+        definition(environment=value)
+
+
+def test_naming_no_environment_keeps_the_job_hash() -> None:
+    assert manifest_hash(definition()) == manifest_hash(definition(environment=None))
+    assert manifest_hash(definition()) != manifest_hash(definition(environment="node"))
 
 
 @pytest.mark.parametrize("revision", ["", "main", "HEAD", "a" * 12, "z" * 40])
