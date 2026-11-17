@@ -174,6 +174,7 @@ def serialize_job_detail(job: Job, can_edit_limits: bool) -> JobDetailSchema:
         history=job.history,
         subagents=job.subagents,
         environment=job.environment or DEFAULT_ENVIRONMENT,
+        setup=list(job.setup),
         open_pull_request=job.open_pull_request,
         can_open_pull_requests=is_github,
         pull_requests_allowed=job.repository.receives_pull_requests,

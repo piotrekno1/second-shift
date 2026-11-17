@@ -262,6 +262,8 @@ export interface JobDetail extends Job {
   subagents: number
   /** The sandbox environment the configuration names, or "default". */
   environment: string
+  /** Commands that install dependencies before the agent starts. */
+  setup: string[]
   /** The configuration asks for a draft pull request with each run's changes. */
   open_pull_request: boolean
   /** A GitHub repository, so drafts could open. Local repositories cannot. */

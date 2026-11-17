@@ -528,6 +528,15 @@ useLiveRefresh(loadJob, () => (job.value?.recent_runs ?? []).some((run) => isRun
                 >
               </dd>
             </div>
+            <div v-if="job.setup.length">
+              <dt>Setup</dt>
+              <dd class="setup-commands">
+                <code v-for="(command, index) in job.setup" :key="index">{{ command }}</code>
+                <span class="run-details-muted"
+                  >Runs before the agent, with access to package registries only.</span
+                >
+              </dd>
+            </div>
             <div>
               <dt>History</dt>
               <dd>{{ historyLabel(job.history) }}</dd>

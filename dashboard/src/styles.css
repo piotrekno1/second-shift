@@ -2642,6 +2642,11 @@ body .p-select-overlay .p-select-header .p-inputtext {
 .run-details-muted {
   color: var(--subtle);
 }
+.setup-commands {
+  display: grid;
+  gap: 4px;
+  justify-items: start;
+}
 @media (max-width: 1100px) {
   .run-layout {
     grid-template-columns: minmax(0, 1fr);
