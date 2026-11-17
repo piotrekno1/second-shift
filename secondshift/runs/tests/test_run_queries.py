@@ -223,6 +223,7 @@ def test_run_list_splits_failures_into_label_and_reason(
         "reason": "Runner answered HTTP 500.",
         "limit": False,
         "connection_id": None,
+        "login_id": None,
         "next_step": "",
     }
     assert items[runs["health_ok"].pk]["failure"] is None  # type: ignore[attr-defined]

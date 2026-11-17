@@ -97,3 +97,10 @@ export function modelRows(
   }
   return [...rows.filter((row) => row.chosen), ...rows.filter((row) => !row.chosen)]
 }
+
+/** The row a link asks to open: ?connection=<id> for a provider, ?login=<id> for a subscription. */
+export function requestedRow(query: Record<string, unknown>): string {
+  if (typeof query.connection === 'string') return `model:${query.connection}`
+  if (typeof query.login === 'string') return `agent:${query.login}`
+  return ''
+}

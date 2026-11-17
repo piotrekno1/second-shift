@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 import type { AgentConfiguration, AgentConnection, Connection } from '../src/types'
-import { modelRows } from '../src/utils/models'
+import { modelRows, requestedRow } from '../src/utils/models'
 
 function model(id: number, overrides: Partial<Connection> = {}): Connection {
   return {
@@ -141,4 +141,11 @@ test('modelRows shows a failed check in its own words, the same before and after
       'Disconnected. Reconnect it to use it.',
     ],
   )
+})
+
+test('a link opens the provider or subscription it names', () => {
+  assert.equal(requestedRow({ connection: '3' }), 'model:3')
+  assert.equal(requestedRow({ login: '7' }), 'agent:7')
+  assert.equal(requestedRow({}), '')
+  assert.equal(requestedRow({ login: ['7', '8'] }), '')
 })

@@ -16,6 +16,8 @@ class RunFailureSchema(Schema):
     limit: bool = False
     # The connection to fix, when the failure came from one, and what to do.
     connection_id: int | None = None
+    # The subscription login to fix, for a run on one.
+    login_id: int | None = None
     next_step: str = ""
 
 

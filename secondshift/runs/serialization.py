@@ -36,8 +36,12 @@ def run_failure(run: Run) -> RunFailureSchema | None:
     if run.status != Run.Status.FAILED:
         return None
     view = describe_failure(run)
-    connection_id, next_step = None, ""
-    if run.failure == RunFailure.MODEL_PROVIDER:
+    connection_id, login_id, next_step = None, None, ""
+    if run.failure == RunFailure.MODEL_PROVIDER and run.agent_connection_id:
+        # The reason already says whether to reconnect or wait for usage.
+        login_id = run.agent_connection_id
+        next_step = "Open the run's subscription on Models."
+    elif run.failure == RunFailure.MODEL_PROVIDER:
         model = run.plan.model
         connection_id = model.connection_id if model else None
         name = (model.connection_name if model else "") or "the model connection"
@@ -49,6 +53,7 @@ def run_failure(run: Run) -> RunFailureSchema | None:
         reason=view.reason,
         limit=run.failure in (RunFailure.BUDGET, RunFailure.TIMEOUT),
         connection_id=connection_id,
+        login_id=login_id,
         next_step=next_step,
     )
 

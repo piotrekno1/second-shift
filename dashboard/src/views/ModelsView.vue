@@ -17,7 +17,7 @@ import { useAppStore } from '../stores/app'
 import type { Notice } from '../types'
 import { parseRunCap } from '../utils/agents'
 import { formatRelative } from '../utils/format'
-import { modelRows, SIGN_IN_REFUSED, type ModelRow } from '../utils/models'
+import { modelRows, requestedRow, SIGN_IN_REFUSED, type ModelRow } from '../utils/models'
 import { Action } from '../utils/permissions'
 import { errorMessage } from '../services/api'
 
@@ -273,9 +273,9 @@ onMounted(async () => {
     loadError.value = errorMessage(error, 'Unable to load what runs jobs.')
   }
   loaded.value = true
-  // Warnings link here with ?connection=<id> so the broken provider opens ready to fix.
-  const requested =
-    typeof route.query.connection === 'string' ? `model:${route.query.connection}` : ''
+  // Warnings link here with ?connection=<id>, or ?login=<id> for a subscription,
+  // so the broken one opens ready to fix.
+  const requested = requestedRow(route.query)
   if (!requested || !rows.value.some((row) => row.key === requested)) return
   if (canEdit.value) openForm.value = { mode: 'edit', key: requested }
   await nextTick()

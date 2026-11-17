@@ -337,6 +337,8 @@ export interface RunFailure {
   limit?: boolean
   /** The connection the failure came from, when there is one to fix. */
   connection_id?: number | null
+  /** The subscription login to fix, for a run on one. */
+  login_id?: number | null
   next_step?: string
 }
 
