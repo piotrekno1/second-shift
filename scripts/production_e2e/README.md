@@ -45,20 +45,22 @@ token and secret replaced by `[redacted]`. The test host is removed either way.
    GitHub tokens never appear in prompts, webhooks or artifacts.
 3. The guide's backup, then its update commands to the image built from this
    working tree.
-4. A deterministic agent runs under gVisor through the real workflow and MCP
+4. The guide's command builds the agent image in the runner container, from
+   the image under test, and both CLIs start in it.
+5. A deterministic agent runs under gVisor through the real workflow and MCP
    broker, reads its webhook payload from both S3 and local storage, and checks
    that artifact credentials, artifact mounts and database DNS are unavailable
    inside its container. This checks transport and isolation, not real CLI or
    provider authentication.
-5. After the upgrade, a full restart, and a restore of a backup onto a wiped
+6. After the upgrade, a full restart, and a restore of a backup onto a wiped
    server: password sign-in, run history, artifacts, saved credentials and new
    runs all work.
-6. After deploying, upgrading and restoring, web, gateway, worker and runner
+7. After deploying, upgrading and restoring, web, gateway, worker and runner
    all run the image under test. Its digest is recorded.
-7. The edge and storage: plain HTTP only redirects to HTTPS, Caddy's
+8. The edge and storage: plain HTTP only redirects to HTTPS, Caddy's
    certificate verifies against its own local CA and nothing else, and
    anonymous S3 listing and reads are refused.
-8. After setup and after the restore: each database login is refused by the
+9. After setup and after the restore: each database login is refused by the
    other database, and web and worker refuse to start without a required
    credential, without printing any secret.
 

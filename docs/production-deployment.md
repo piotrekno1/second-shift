@@ -78,19 +78,22 @@ for upgrades.
 ## Optional subscription agents
 
 Model API jobs need no agent image. To enable Claude Code and Codex subscriptions,
-build the separate agent image from the same checkout as the application. On a
-single server, an immutable local image ID is sufficient:
+build the separate agent image. The runner builds it from the files in the
+application image, so it always matches the running release:
 
 ```bash
-docker build -f secondshift/agent/image/Dockerfile \
-  -t secondshift-agent:production .
-docker image inspect --format '{{.Id}}' secondshift-agent:production
+dc run --rm --no-deps runner python -m secondshift.agent.build \
+  --tag secondshift-agent:production
 ```
 
-Set `AGENT_IMAGE` in `compose.env` to the printed `sha256:...` ID. Alternatively,
-push the image to your private registry and set `AGENT_IMAGE` to its immutable
-`registry/name@sha256:...` reference. Pull that exact image on the Docker host
-before enabling it.
+It prints the image's `sha256:...` ID. Set `AGENT_IMAGE` in `compose.env` to it.
+The build installs the Claude Code and Codex releases the image pins, from npm,
+and checks each download against its recorded checksum. The first build takes a
+few minutes.
+
+On more than one host, push the image to your private registry instead and set
+`AGENT_IMAGE` to its immutable `registry/name@sha256:...` reference. Pull that
+exact image on each Docker host before enabling it.
 
 Agents need no DNS. They reach the gateway and the egress proxy at reserved
 addresses, and the proxy looks up provider names itself. This also suits
@@ -371,8 +374,9 @@ dc up -d
 ```
 
 Retain private env files and encryption keys; do not rerun the environment
-generator. Rebuild or pull the intended agent image and update `AGENT_IMAGE`
-when upgrading subscription execution. Subscription runs also need the runner
+generator. If you use subscriptions, rebuild the agent image after `dc pull`
+with the command in [optional subscription agents](#optional-subscription-agents)
+and set `AGENT_IMAGE` to the new ID before `dc up -d`. Subscription runs also need the runner
 URL and token in `gateway.env`; see
 [optional subscription agents](#optional-subscription-agents). The existing PostgreSQL workflow
 database remains shared; the separate SQLite workflow file applies only to

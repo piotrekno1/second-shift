@@ -104,6 +104,7 @@ if [ -z "$ONLY" ]; then
   step upgrade upgrade "$UNDER_TEST"
   step after-upgrade drive after-restart
 fi
+step agent-image agent-image
 step agent-storage agent-probe
 step restart restart
 step after-restart drive after-restart

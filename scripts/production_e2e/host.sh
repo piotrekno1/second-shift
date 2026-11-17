@@ -98,9 +98,9 @@ s3_copy() {
 }
 
 run_doc() {
-  # Run the Nth bash block of the guide's "Update and back up" section, so the
-  # published commands themselves are what is tested.
-  awk -v n="$1" '/^## Update and back up/ { section = 1 }
+  # Run the Nth bash block of a guide section, "Update and back up" unless
+  # named, so the published commands themselves are what is tested.
+  awk -v n="$1" -v heading="## ${2:-Update and back up}" '$0 == heading { section = 1 }
     section && /^```bash$/ { count++; if (count == n) { printing = 1; next } }
     printing && /^```$/ { exit }
     printing' docs/production-deployment.md > "$STATE/doc-block.sh"
@@ -283,6 +283,19 @@ upgrade)
   run_doc 4
   dc ps --format 'table {{.Service}}\t{{.Image}}\t{{.Status}}'
   record_image upgraded
+  ;;
+agent-image)
+  load_env
+  step "Build the agent image with the guide's command"
+  if ! grep -q 'secondshift.agent.build' docs/production-deployment.md; then
+    echo "0 checks passed: this guide builds the agent image from a checkout"
+    exit 0
+  fi
+  run_doc 1 "Optional subscription agents" | tee "$STATE/agent-build.out"
+  image=$(tail -1 "$STATE/agent-build.out")
+  case "$image" in sha256:*) ;; *) echo "No image ID from the build: $image" >&2; exit 1 ;; esac
+  docker run --rm --entrypoint sh "$image" -c 'claude --version && codex --version'
+  echo "1 checks passed: the runner builds an agent image with both CLIs"
   ;;
 agent-probe)
   load_env

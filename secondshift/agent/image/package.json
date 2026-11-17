@@ -1,0 +1,9 @@
+{
+  "name": "secondshift-agent-clis",
+  "private": true,
+  "description": "The CLI releases in the agent image. After a version change, regenerate package-lock.json as described in the Dockerfile.",
+  "dependencies": {
+    "@anthropic-ai/claude-code": "2.1.316",
+    "@openai/codex": "0.166.0"
+  }
+}

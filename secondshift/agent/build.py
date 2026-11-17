@@ -1,5 +1,6 @@
 """Build the agent image from the files shipped in the package."""
 
+import argparse
 import shutil
 import tempfile
 from pathlib import Path
@@ -28,6 +29,16 @@ def build_agent_image(tag: str = LOCAL_AGENT_TAG) -> str:
     return commands.resolve_image_id(tag)
 
 
+def main(argv: list[str] | None = None) -> None:
+    """Print the built image's ID.
+
+    process-compose builds the development tag. A production server runs this
+    in its runner container, so the agent image matches the running release.
+    """
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--tag", default=DEV_AGENT_TAG)
+    print(build_agent_image(parser.parse_args(argv).tag))
+
+
 if __name__ == "__main__":
-    # process-compose builds the development tag this way.
-    print(build_agent_image(DEV_AGENT_TAG))
+    main()
