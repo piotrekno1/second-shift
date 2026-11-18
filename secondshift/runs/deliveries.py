@@ -1,5 +1,6 @@
 """Delivering a finished run's results again, without running the agent again."""
 
+import logging
 import uuid
 
 from dbos import EnqueueOptions
@@ -15,6 +16,8 @@ from secondshift.runs.dao import add_event, lock_delivery
 from secondshift.runs.models import Run, RunDelivery
 from secondshift.runs.orchestration.dbos_runtime import new_dbos_client
 from secondshift.runs.services import RunRefused
+
+logger = logging.getLogger(__name__)
 
 
 class DeliveryQueueUnavailable(Exception):
@@ -77,4 +80,10 @@ def enqueue_retry(workflow: str, name: str, *args: int) -> str:
     except Exception as error:
         raise DeliveryQueueUnavailable from error
     finally:
-        client.destroy()
+        # DBOS may have accepted the retry already. Raising here would roll
+        # the delivery back to failed while the retry runs, and a second
+        # retry would send it twice.
+        try:
+            client.destroy()
+        except Exception:
+            logger.warning("Could not close the queue client for %s", name)
