@@ -23,6 +23,7 @@ from secondshift.runs.orchestration.dispatch import (
     dispatch_waiting_tasks,
     recover_unqueued_runs,
 )
+from secondshift.runs.orchestration.durable import refresh_connections
 from secondshift.runs.orchestration.periodic import PeriodicTask
 from secondshift.runs.orchestration.reconciliation import reconcile_terminal_workflows
 from secondshift.runs.orchestration.schedules import synchronize_schedules
@@ -143,6 +144,8 @@ def command(sync_interval: int, ready_file: Path | None) -> None:
         if ready_file is not None:
             ready_file.touch(mode=0o600)
         while not stopped.is_set():
+            # The periodic tasks run on this thread, outside any request.
+            refresh_connections()
             for task in tasks:
                 if stopped.is_set():
                     break

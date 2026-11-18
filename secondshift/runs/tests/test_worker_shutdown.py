@@ -16,6 +16,7 @@ def test_sigterm_stops_tasks_and_cleans_up(monkeypatch: pytest.MonkeyPatch) -> N
     stop_task.run_if_due.side_effect = lambda: os.kill(os.getpid(), signal.SIGTERM)
     previous = signal.getsignal(signal.SIGTERM)
     monkeypatch.setattr(worker, "launch_dbos_worker", Mock())
+    monkeypatch.setattr(worker, "refresh_connections", lambda: None)
     monkeypatch.setattr(worker, "new_dbos_client", lambda: client)
     monkeypatch.setattr(
         worker, "worker_tasks", lambda client: [stop_task, following_task]
@@ -39,6 +40,7 @@ def test_dbos_cleanup_runs_if_client_cleanup_fails(
     destroy = Mock()
     previous = signal.getsignal(signal.SIGTERM)
     monkeypatch.setattr(worker, "launch_dbos_worker", Mock())
+    monkeypatch.setattr(worker, "refresh_connections", lambda: None)
     monkeypatch.setattr(worker, "new_dbos_client", lambda: client)
     monkeypatch.setattr(worker, "worker_tasks", Mock(side_effect=KeyboardInterrupt))
     monkeypatch.setattr(worker.DBOS, "destroy", destroy)

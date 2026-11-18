@@ -3,7 +3,6 @@ import hashlib
 import logging
 from typing import Any
 
-from dbos import DBOS
 from django.utils import timezone
 from pydantic_ai import capture_run_messages
 from pydantic_ai.exceptions import UsageLimitExceeded
@@ -46,6 +45,7 @@ from secondshift.runs.execution.workspace_tools import (
 )
 from secondshift.runs.history import previous_reports
 from secondshift.runs.models import Run
+from secondshift.runs.orchestration import durable
 from secondshift.runs.reporting.failures import root_error
 from secondshift.workspaces.limits import RunLimit
 
@@ -247,7 +247,7 @@ def payload_section(run: Run) -> list[str]:
     return ["## Trigger payload", "", note, "", fenced(text), ""]
 
 
-@DBOS.step(
+@durable.step(
     name="secondshift.capture_run_input",
     retries_allowed=True,
     max_attempts=3,
