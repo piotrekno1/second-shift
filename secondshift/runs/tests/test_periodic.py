@@ -61,6 +61,26 @@ def test_a_failure_is_logged_and_waits_for_the_next_interval(
     assert "periodic task 'prune' failed" in caplog.text
 
 
+def test_a_failing_enabled_check_is_logged_and_tried_again(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    checks, runs = [], []
+
+    def enabled() -> bool:
+        checks.append(1)
+        if len(checks) == 1:
+            raise RuntimeError("database went away")
+        return True
+
+    task = PeriodicTask("sync", every=60, run=lambda: runs.append(1), enabled=enabled)
+
+    task.run_if_due()
+    task.run_if_due()
+
+    assert "periodic task 'sync' failed" in caplog.text
+    assert runs == [1]
+
+
 def test_the_worker_syncs_repositories_only_when_the_server_does(
     settings: object,
 ) -> None:
