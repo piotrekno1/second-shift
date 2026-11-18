@@ -7,7 +7,7 @@ from typing import Annotated, ClassVar, Self
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import yaml
-from croniter import croniter
+from croniter import CroniterBadDateError, croniter
 from django.conf import settings
 from pydantic import (
     BaseModel,
@@ -29,6 +29,22 @@ from secondshift.runner_protocol.sessions import (
 
 # Issues one run may open. A weekly review should file a few, not dozens.
 MAX_RUN_ISSUES = 10
+CRON_FIELDS = 5
+
+
+def schedule_problem(cron: str) -> str | None:
+    """Why the scheduler can't run this cron expression, or None when it can.
+
+    croniter reads a sixth field as seconds at the end, and DBOS reads it as
+    seconds at the start. One schedule DBOS rejects blocks them all.
+    """
+    if len(cron.split()) != CRON_FIELDS or not croniter.is_valid(cron):
+        return "schedule must be a valid five-field cron expression"
+    try:
+        croniter(cron).get_next()
+    except CroniterBadDateError:
+        return "schedule never comes round, such as on 31 February"
+    return None
 
 
 class TriggerKind(StrEnum):
@@ -276,8 +292,19 @@ class JobManifest(BaseModel):
     @field_validator("schedule")
     @classmethod
     def validate_schedule(cls, value: str | None) -> str | None:
-        if value is not None and not croniter.is_valid(value):
+        if value is not None and (problem := schedule_problem(value)):
+            raise ValueError(problem)
+        return value
+        # croniter reads a sixth field as seconds at the end, and DBOS reads it
+        # as seconds at the start. One schedule DBOS rejects blocks them all.
+        if len(value.split()) != CRON_FIELDS or not croniter.is_valid(value):
             raise ValueError("schedule must be a valid five-field cron expression")
+        try:
+            croniter(value).get_next()
+        except CroniterBadDateError:
+            raise ValueError(
+                "schedule never comes round, such as on 31 February"
+            ) from None
         return value
 
     @field_validator("timezone")

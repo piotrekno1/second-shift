@@ -111,6 +111,43 @@ jobs:
     )
 
 
+@pytest.mark.parametrize(
+    ("schedule", "message"),
+    [
+        ("0 9 * * * 30", "schedule must be a valid five-field cron expression"),
+        ("@daily", "schedule must be a valid five-field cron expression"),
+        ("0 0 31 2 *", "schedule never comes round, such as on 31 February"),
+    ],
+)
+def test_parse_manifest_rejects_schedules_the_scheduler_cannot_run(
+    schedule: str, message: str
+) -> None:
+    text = f"""
+jobs:
+  review:
+    name: Review
+    skill: .agents/skills/review/SKILL.md
+    schedule: "{schedule}"
+""".strip()
+
+    with pytest.raises(ManifestError) as error:
+        parse_manifest(text)
+
+    assert str(error.value) == f"jobs.review.schedule: {message}."
+
+
+def test_parse_manifest_accepts_a_leap_day_schedule() -> None:
+    text = """
+jobs:
+  review:
+    name: Review
+    skill: .agents/skills/review/SKILL.md
+    schedule: "0 0 29 2 *"
+""".strip()
+
+    assert parse_manifest(text).jobs["review"].schedule == "0 0 29 2 *"
+
+
 def job_with(extra: str) -> str:
     return f"""
 version: 1

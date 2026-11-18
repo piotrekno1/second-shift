@@ -1,17 +1,38 @@
 """DBOS schedules: one per enabled job with a cron schedule."""
 
+import logging
+
 from dbos import DBOSClient
 from django.conf import settings
 
 from secondshift.jobs.dao import schedulable_jobs
+from secondshift.jobs.manifest import schedule_problem
+from secondshift.jobs.models import Job
 from secondshift.runs.constants import SCHEDULED_JOB_WORKFLOW
 from secondshift.runs.orchestration.dbos_runtime import new_dbos_client
 
 SCHEDULE_PREFIX = "secondshift-job-"
 
+logger = logging.getLogger(__name__)
+
 
 def schedule_name(job_id: int) -> str:
     return f"{SCHEDULE_PREFIX}{job_id}"
+
+
+def runnable_jobs() -> list[Job]:
+    """Jobs whose schedule DBOS accepts.
+
+    A job saved before manifests checked this may hold one it rejects. DBOS
+    applies schedules as one batch, so that job is left out, not the batch.
+    """
+    jobs = []
+    for job in schedulable_jobs():
+        if problem := schedule_problem(job.cron):
+            logger.warning("not scheduling job %s: %s", job.pk, problem)
+            continue
+        jobs.append(job)
+    return jobs
 
 
 def desired_schedules() -> list[dict[str, object]]:
@@ -27,7 +48,7 @@ def desired_schedules() -> list[dict[str, object]]:
             "queue_name": settings.DBOS_QUEUE_NAME,
             "application_name": settings.DBOS_APPLICATION_NAME,
         }
-        for job in schedulable_jobs()
+        for job in runnable_jobs()
     ]
 
 

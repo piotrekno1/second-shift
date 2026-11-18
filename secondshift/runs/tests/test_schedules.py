@@ -67,3 +67,38 @@ def test_synchronize_schedules_applies_enabled_jobs_and_removes_orphans(
     assert client.applied[0]["cron_timezone"] == "Europe/Warsaw"
     assert client.deleted == ["secondshift-job-orphan"]
     assert client.destroyed is True
+
+
+def test_synchronize_schedules_leaves_out_a_schedule_dbos_rejects(
+    db,
+    monkeypatch,
+) -> None:
+    # Saved before manifests required five fields. DBOS reads the sixth as
+    # seconds at the start and rejects the whole batch.
+    user = get_user_model().objects.create_user(username="owner")
+    workspace = create_workspace(name="Test", slug="test", owner=user)
+    repository = Repository.objects.create(
+        workspace=workspace,
+        full_name="example/project",
+        enabled=True,
+    )
+    fields = {
+        "workspace": workspace,
+        "repository": repository,
+        "skill_path": ".agents/skills/review/SKILL.md",
+        "timezone": "UTC",
+        "config_hash": "abc",
+        "enabled": True,
+    }
+    good = Job.objects.create(key="good", name="Good", cron="0 9 * * 1", **fields)
+    Job.objects.create(key="bad", name="Bad", cron="0 9 * * * 30", **fields)
+    client = FakeDBOSClient()
+    monkeypatch.setattr(
+        "secondshift.runs.orchestration.schedules.new_dbos_client",
+        lambda: client,
+    )
+
+    assert synchronize_schedules() == 1
+    assert [item["schedule_name"] for item in client.applied] == [
+        schedule_name(good.pk)
+    ]
