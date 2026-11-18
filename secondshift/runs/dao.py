@@ -223,11 +223,13 @@ def waiting_tasks(now: datetime, limit: int) -> list[Run]:
     )
 
 
-def active_workflows(limit: int) -> list[tuple[int, str]]:
-    """Unfinished runs that the queue accepted, as (run id, workflow id)."""
+def active_workflows(after_id: int, limit: int) -> list[tuple[int, str]]:
+    """Unfinished runs the queue accepted, as (run id, workflow id), by run id."""
     return list(
         active_runs()
         .exclude(dbos_workflow_id="")
+        .filter(pk__gt=after_id)
+        .order_by("pk")
         .values_list("pk", "dbos_workflow_id")[:limit]
     )
 

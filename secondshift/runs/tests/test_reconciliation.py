@@ -91,3 +91,32 @@ def test_reconcile_preserves_canceled_workflow_status() -> None:
     run.refresh_from_db()
     assert reconciled == 1
     assert run.status == Run.Status.CANCELED
+
+
+@pytest.mark.django_db
+def test_reconcile_reaches_runs_beyond_the_first_batch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # A backlog of still-running workflows used to fill every pass, so a run
+    # whose workflow had failed was never looked at.
+    monkeypatch.setattr(
+        "secondshift.runs.orchestration.reconciliation.RECONCILE_BATCH", 2
+    )
+    busy = [
+        create_run(status=Run.Status.QUEUED, workflow_id=f"run-busy-{index}")
+        for index in range(3)
+    ]
+    failed = create_run(status=Run.Status.RUNNING, workflow_id="run-failed")
+    fake = FakeDBOSClient(
+        [
+            SimpleNamespace(workflow_id=run.dbos_workflow_id, status="ENQUEUED")
+            for run in busy
+        ]
+        + [SimpleNamespace(workflow_id="run-failed", status="ERROR")]
+    )
+
+    assert reconcile_terminal_workflows(cast(DBOSClient, fake)) == 1
+
+    failed.refresh_from_db()
+    assert failed.status == Run.Status.FAILED
+    assert all(Run.objects.get(pk=run.pk).status == Run.Status.QUEUED for run in busy)

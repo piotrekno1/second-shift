@@ -52,24 +52,39 @@ def mark_run_terminal(
     return True
 
 
+RECONCILE_BATCH = 500
+
+
 def reconcile_terminal_workflows(client: DBOSClient | None = None) -> int:
-    pending_runs = active_workflows(500)
+    """Finish runs whose workflow has ended, checking every active run.
+
+    The runs go in batches by id, so a long backlog can't hide older ones.
+    """
+    pending_runs = active_workflows(0, RECONCILE_BATCH)
     if not pending_runs:
         return 0
-
     owns_client = client is None
     client = client or new_dbos_client()
+    reconciled = 0
     try:
-        workflows = client.list_workflows(
-            workflow_ids=[workflow_id for _, workflow_id in pending_runs],
-            application_name=settings.DBOS_APPLICATION_NAME,
-            load_input=False,
-            load_output=False,
-        )
+        while pending_runs:
+            reconciled += reconcile_batch(client, pending_runs)
+            if len(pending_runs) < RECONCILE_BATCH:
+                break
+            pending_runs = active_workflows(pending_runs[-1][0], RECONCILE_BATCH)
     finally:
         if owns_client:
             client.destroy()
+    return reconciled
 
+
+def reconcile_batch(client: DBOSClient, pending_runs: list[tuple[int, str]]) -> int:
+    workflows = client.list_workflows(
+        workflow_ids=[workflow_id for _, workflow_id in pending_runs],
+        application_name=settings.DBOS_APPLICATION_NAME,
+        load_input=False,
+        load_output=False,
+    )
     run_ids = {workflow_id: run_id for run_id, workflow_id in pending_runs}
     reconciled = 0
     for workflow in workflows:
