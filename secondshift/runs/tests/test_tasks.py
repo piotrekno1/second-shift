@@ -237,3 +237,50 @@ def test_a_job_run_the_queue_accepted_stays_queued_when_saving_fails(
         dispatch.enqueue_run(run)
 
     assert Run.objects.get(pk=run.pk).status == Run.Status.QUEUED
+
+
+def test_the_worker_queues_a_job_run_a_stopped_process_never_queued(
+    job: Job, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The web process saved the run and stopped before handing it to DBOS.
+    stuck = create_run(job, timezone.now())
+    Run.objects.filter(pk=stuck.pk).update(
+        created_at=timezone.now() - timedelta(minutes=5)
+    )
+    client = Mock()
+    client.enqueue.return_value.get_workflow_id.return_value = "secondshift-run-1"
+    monkeypatch.setattr(dispatch, "new_dbos_client", lambda: client)
+
+    assert dispatch.recover_unqueued_runs() == 1
+
+    options, run_id = client.enqueue.call_args.args
+    assert options["workflow_id"] == f"secondshift-run-{stuck.pk}"
+    assert run_id == stuck.pk
+    assert Run.objects.get(pk=stuck.pk).dbos_workflow_id == "secondshift-run-1"
+
+
+def test_the_worker_leaves_a_job_run_that_is_still_being_queued(
+    job: Job, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    create_run(job, timezone.now())
+    client = Mock()
+    monkeypatch.setattr(dispatch, "new_dbos_client", lambda: client)
+
+    assert dispatch.recover_unqueued_runs() == 0
+    client.enqueue.assert_not_called()
+
+
+def test_the_worker_retries_a_job_run_the_queue_refuses(
+    job: Job, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    stuck = create_run(job, timezone.now())
+    Run.objects.filter(pk=stuck.pk).update(
+        created_at=timezone.now() - timedelta(minutes=5)
+    )
+    client = Mock()
+    client.enqueue.side_effect = ConnectionError("queue is down")
+    monkeypatch.setattr(dispatch, "new_dbos_client", lambda: client)
+
+    assert dispatch.recover_unqueued_runs() == 0
+    run = Run.objects.get(pk=stuck.pk)
+    assert (run.status, run.dbos_workflow_id) == (Run.Status.QUEUED, "")
