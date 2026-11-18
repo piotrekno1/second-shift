@@ -1,4 +1,5 @@
 import logging
+from datetime import timedelta
 
 from dbos import EnqueueOptions
 from django.conf import settings
@@ -13,6 +14,7 @@ from secondshift.runs.dao import (
     first_due_task,
     has_dispatched_task,
     repository_task_run,
+    unqueued_job_runs,
     waiting_tasks,
 )
 from secondshift.runs.models import Run, RunFailure
@@ -27,6 +29,9 @@ from secondshift.runs.transitions import finish_run
 logger = logging.getLogger(__name__)
 
 RUN_ENQUEUE_FAILED = "The durable workflow could not be enqueued."
+# A start hands its run to the queue right after saving it. Older than this,
+# the process that saved it has stopped before the handoff or its record.
+UNQUEUED_GRACE_SECONDS = 60
 
 
 class RunEnqueueFailed(Exception):
@@ -128,3 +133,22 @@ def dispatch_waiting_tasks() -> int:
     """Recover committed submissions and advance the queue on each worker pass."""
     waiting = waiting_tasks(timezone.now(), 500)
     return sum(bool(enqueue_task(run)) for run in waiting)
+
+
+def recover_unqueued_runs() -> int:
+    """Hand the queue job runs that a stopped process saved but never queued.
+
+    Such a run stays queued and blocks its job's next start. The workflow ID
+    comes from the run, so a run the queue did accept gets its workflow back
+    instead of a second one.
+    """
+    created_before = timezone.now() - timedelta(seconds=UNQUEUED_GRACE_SECONDS)
+    recovered = 0
+    for run in unqueued_job_runs(created_before, 500):
+        try:
+            record_workflow(run, queue_workflow(run))
+        except Exception:
+            logger.warning("Could not queue run %s yet", run.pk, exc_info=True)
+            continue
+        recovered += 1
+    return recovered

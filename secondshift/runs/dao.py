@@ -203,6 +203,18 @@ def first_due_task(repository_id: int, now: datetime) -> Run | None:
     )
 
 
+def unqueued_job_runs(created_before: datetime, limit: int) -> list[Run]:
+    """Queued job runs the execution queue never acknowledged."""
+    return list(
+        Run.objects.filter(
+            job__isnull=False,
+            status=Run.Status.QUEUED,
+            dbos_workflow_id="",
+            created_at__lte=created_before,
+        ).order_by("created_at", "pk")[:limit]
+    )
+
+
 def waiting_tasks(now: datetime, limit: int) -> list[Run]:
     """Due tasks not yet dispatched, in repositories with nothing dispatched."""
     blocked = (
