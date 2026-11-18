@@ -80,7 +80,7 @@ server allows them.
 | `jobs.<key>.name` | Yes | Display name in SecondShift. |
 | `jobs.<key>.skill` | Yes | Repository-relative path to a `SKILL.md` file. With `skill_source`, a path in that repository instead. |
 | `jobs.<key>.skill_source` | No | Another GitHub repository that holds the skill: `repository` (`owner/name`) and `ref` (a full commit SHA). See [skills from another repository](#skills-from-another-repository). |
-| `jobs.<key>.schedule` | No | Cron schedule, such as `0 9 * * 1` for Monday at 09:00. Leave it out for a job that runs only with **Run now**. A tick is skipped while the job has a run that has not finished. |
+| `jobs.<key>.schedule` | No | Five-field cron schedule, such as `0 9 * * 1` for Monday at 09:00. Leave it out for a job that runs only with **Run now**. A tick is skipped while the job has a run that has not finished. |
 | `jobs.<key>.timezone` | No | IANA timezone, such as `Europe/Warsaw`. Defaults to `UTC`. |
 | `jobs.<key>.history` | No | How many of the job's own earlier runs each run starts with: their reports, and the files they saved. Up to the server's `SECONDSHIFT_JOB_HISTORY_MAX` (5 by default). Defaults to 0. See [run history](#run-history). |
 | `jobs.<key>.subagents` | No | How many sub-agents each run may start, up to the server's `SECONDSHIFT_RUN_SUBAGENTS_MAX` (5 by default). Defaults to 0. See [sub-agents](#sub-agents). |
