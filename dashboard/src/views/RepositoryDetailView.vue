@@ -4,7 +4,6 @@ import TaskSubmissionForm from '../components/TaskSubmissionForm.vue'
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Button from 'primevue/button'
-import Menu from 'primevue/menu'
 import PageHeader from '../components/PageHeader.vue'
 import StatusPill from '../components/StatusPill.vue'
 import { errorMessage } from '../services/api'
@@ -12,7 +11,6 @@ import { connectionSetupQuery, waitingCapabilities } from '../utils/readiness'
 import { setJobEnabled } from '../services/jobs'
 import JobList from '../components/JobList.vue'
 import {
-  checkRepository,
   deleteRepository,
   fetchRepository,
   saveIssueSettings,
@@ -37,10 +35,6 @@ const error = ref<string | null>(null)
 const copied = ref(false)
 const confirmRemove = ref(false)
 const showTaskForm = ref(false)
-const repositoryMenu = ref<InstanceType<typeof Menu> | null>(null)
-const repositoryActions = computed(() => [
-  { label: 'Validate configuration', appIcon: 'check-circle-outline', command: validateRepository },
-])
 const repositoryId = Number(route.params.id)
 const justAdded = computed(() => route.query.added === '1')
 const detailedJobs = computed(() => {
@@ -103,19 +97,6 @@ async function loadRepository(): Promise<void> {
     error.value = errorMessage(loadError, 'Unable to load repository')
   } finally {
     loading.value = false
-  }
-}
-
-async function validateRepository(): Promise<void> {
-  action.value = 'validate'
-  error.value = null
-  try {
-    const validation = await checkRepository(repositoryId)
-    if (repository.value) repository.value.validation = validation
-  } catch (validationError) {
-    error.value = errorMessage(validationError, 'Validation failed')
-  } finally {
-    action.value = null
   }
 }
 
@@ -284,29 +265,6 @@ onMounted(async () => {
         >
           <template #icon><AppIcon :name="repository.enabled ? 'pause' : 'play'" /></template>
         </Button>
-        <Button
-          label="More"
-          severity="secondary"
-          text
-          aria-label="More repository actions"
-          aria-haspopup="true"
-          aria-controls="repository-actions-menu"
-          :loading="action === 'validate'"
-          @click="repositoryMenu?.toggle($event)"
-        />
-        <Menu
-          id="repository-actions-menu"
-          ref="repositoryMenu"
-          :model="repositoryActions"
-          popup
-          class="row-menu"
-        >
-          <template #item="{ item, props }"
-            ><a v-bind="props.action" class="row-menu-item"
-              ><AppIcon :name="item.appIcon" />{{ item.label }}</a
-            ></template
-          >
-        </Menu>
       </template>
     </PageHeader>
 

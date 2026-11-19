@@ -1,5 +1,5 @@
 import { apiDelete, apiGet, apiPost } from './api'
-import type { Repository, RepositoryDetail, RepositoryValidation } from '../types'
+import type { Repository, RepositoryDetail } from '../types'
 
 export function fetchRepositories(): Promise<Repository[]> {
   return apiGet<Repository[]>('/repositories')
@@ -11,10 +11,6 @@ export function fetchRepository(repositoryId: number): Promise<RepositoryDetail>
 
 export function createLocalRepository(path: string): Promise<Repository> {
   return apiPost<Repository>('/repositories/local', { path })
-}
-
-export function checkRepository(repositoryId: number): Promise<RepositoryValidation> {
-  return apiPost<RepositoryValidation>(`/repositories/${repositoryId}/validate`)
 }
 
 export function syncRepository(repositoryId: number): Promise<RepositoryDetail> {
