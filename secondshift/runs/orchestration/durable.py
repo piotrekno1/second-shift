@@ -33,15 +33,15 @@ def fresh_connection[**P, R](function: Callable[P, R]) -> Callable[P, R]:
     return wrapper
 
 
-def step(**options: Any) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
-    def decorate[**P, R](function: Callable[P, R]) -> Callable[P, R]:
+def step[**P, R](**options: Any) -> Callable[[Callable[P, R]], Callable[P, R]]:
+    def decorate(function: Callable[P, R]) -> Callable[P, R]:
         return DBOS.step(**options)(fresh_connection(function))
 
     return decorate
 
 
-def workflow(**options: Any) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
-    def decorate[**P, R](function: Callable[P, R]) -> Callable[P, R]:
+def workflow[**P, R](**options: Any) -> Callable[[Callable[P, R]], Callable[P, R]]:
+    def decorate(function: Callable[P, R]) -> Callable[P, R]:
         return DBOS.workflow(**options)(fresh_connection(function))
 
     return decorate
