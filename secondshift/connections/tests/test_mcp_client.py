@@ -4,7 +4,9 @@ from types import SimpleNamespace
 from typing import Any
 
 import pytest
+from django.contrib.auth import get_user_model
 
+from secondshift.connections.mcp import client
 from secondshift.connections.mcp.base import MCPError
 from secondshift.connections.mcp.client import (
     MCP_MAX_OFFERED_TOOLS,
@@ -15,6 +17,8 @@ from secondshift.connections.mcp.client import (
 from secondshift.connections.mcp.custom import CUSTOM_MCP
 from secondshift.connections.mcp.github import GITHUB_MCP
 from secondshift.connections.models import Connection
+from secondshift.workspaces.dao import create_workspace
+from secondshift.workspaces.models import Workspace
 
 
 def tool(name: str, read_only: bool = True) -> SimpleNamespace:
@@ -114,3 +118,64 @@ def test_a_revoked_token_connection_needs_a_new_token() -> None:
         apply_credentials(connection, CUSTOM_MCP, None, None, {})
     apply_credentials(connection, CUSTOM_MCP, "fresh-token", None, {})
     assert connection.access_token == "fresh-token"
+
+
+def saved_connection(
+    workspace: Workspace, provider: str, metadata: dict[str, Any]
+) -> Connection:
+    return Connection.objects.create(
+        workspace=workspace,
+        provider=provider,
+        kind=Connection.Kind.MCP,
+        binding_key=provider,
+        status=Connection.Status.CONNECTED,
+        metadata=metadata,
+    )
+
+
+@pytest.mark.django_db
+def test_built_in_tools_are_listed_again_after_an_upgrade(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    owner = get_user_model().objects.create_user(username="tools-owner")
+    workspace = create_workspace(name="Tools", slug="tools", owner=owner)
+    # Saved before an upgrade added a tool, so its list is missing one.
+    old = saved_connection(workspace, Connection.Provider.GITHUB, {"tools": {}})
+    custom = saved_connection(workspace, CUSTOM_MCP.key, {"tools": {}})
+    offered = {
+        name: {"description": name, "inputSchema": {"type": "object"}}
+        for name in GITHUB_MCP.tools
+    }
+    listed: list[int] = []
+
+    def discover(connection: Connection) -> dict[str, Any]:
+        listed.append(connection.pk)
+        return offered
+
+    monkeypatch.setattr(client, "discover_tools", discover)
+
+    assert client.refresh_built_in_tools() == 1
+    old.refresh_from_db()
+    assert set(old.tool_definitions) == set(GITHUB_MCP.tools)
+    # Listed once. The next pass sees the current list and skips it.
+    assert client.refresh_built_in_tools() == 0
+    assert listed == [old.pk]
+    custom.refresh_from_db()
+    assert custom.tool_definitions == {}
+
+
+@pytest.mark.django_db
+def test_a_failed_listing_is_tried_again_later(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    owner = get_user_model().objects.create_user(username="tools-owner")
+    workspace = create_workspace(name="Tools", slug="tools", owner=owner)
+    saved_connection(workspace, Connection.Provider.GITHUB, {"tools": {}})
+
+    def unavailable(connection: Connection) -> dict[str, Any]:
+        raise MCPError("GitHub is unavailable.")
+
+    monkeypatch.setattr(client, "discover_tools", unavailable)
+
+    assert client.refresh_built_in_tools() == 0
+    assert client.refresh_built_in_tools() == 0

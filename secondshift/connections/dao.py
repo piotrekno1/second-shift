@@ -135,6 +135,17 @@ def connected_github_sources(workspace_id: int | None = None) -> QuerySet[Connec
     return sources
 
 
+def connected_mcp_connections(providers: Collection[str]) -> list[Connection]:
+    """Every workspace's connected MCP connections to these providers."""
+    return list(
+        Connection.objects.filter(
+            kind=Connection.Kind.MCP,
+            provider__in=providers,
+            status=Connection.Status.CONNECTED,
+        ).order_by("pk")
+    )
+
+
 def has_github_token_sources() -> bool:
     """Whether any connected GitHub source signs in with a personal token."""
     return (

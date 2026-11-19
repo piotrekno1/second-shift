@@ -12,6 +12,7 @@ from dbos import DBOS, DBOSClient
 from django.conf import settings
 
 from secondshift.connections.agents import retry_credential_cleanups
+from secondshift.connections.mcp.client import refresh_built_in_tools
 from secondshift.jobs.autosync import server_syncs, sync_moved_repositories
 from secondshift.mcp_server.audit import prune_tool_calls
 from secondshift.repositories.github.check import check_due_sources
@@ -89,6 +90,11 @@ def worker_tasks(client: DBOSClient) -> list[PeriodicTask]:
             "check GitHub connections",
             every=SOURCE_CHECK_POLL_SECONDS,
             run=sources,
+        ),
+        PeriodicTask(
+            "refresh built-in MCP tools",
+            every=SOURCE_CHECK_POLL_SECONDS,
+            run=refresh_built_in_tools,
         ),
         PeriodicTask(
             "remove cached agent logins",
