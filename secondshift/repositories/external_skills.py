@@ -22,6 +22,7 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
 from django.conf import settings
+from django.db import connection as database
 
 from secondshift.connections.dao import connected_github_sources
 from secondshift.connections.github import can_check, connection_source
@@ -150,8 +151,25 @@ def skill_readers(
     sources = checkable_sources(workspace_id)
     names = sorted(set(repositories))
     with ThreadPoolExecutor(max_workers=READER_THREADS) as pool:
-        readers = pool.map(lambda name: reader_from(sources, workspace_id, name), names)
+        readers = pool.map(
+            lambda name: read_on_thread(sources, workspace_id, name), names
+        )
         return dict(zip(names, readers, strict=True))
+
+
+def read_on_thread(
+    sources: list[Connection], workspace_id: int, repository: str
+) -> SkillReader:
+    """reader_from on a pool thread, closing any database connection it opens.
+
+    Django opens one connection per thread and never closes it for a thread
+    it did not start. reader_from queries nothing today. This keeps a later
+    change that does from leaking a connection on every sync.
+    """
+    try:
+        return reader_from(sources, workspace_id, repository)
+    finally:
+        database.close()
 
 
 def reader_from(
