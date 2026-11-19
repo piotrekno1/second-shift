@@ -11,13 +11,20 @@ Fix one approved issue per run. A maintainer approves an issue by adding the
 ## Pick the issue
 
 1. List open issues with the label, oldest first, using `list_issues`.
-2. Skip an issue that an earlier report of this job already handled, whether
-   it was fixed or left alone. The earlier reports name each issue number.
-3. Skip an issue that an open pull request already fixes. Search open pull
-   requests for its number with `search_pull_requests`, such as
-   `is:open "Closes #12"`.
+2. Look up each issue's pull requests with `search_pull_requests`, such as
+   `is:pr "Closes #12"`.
+   - Skip it while one is open. A maintainer is reviewing it.
+   - Skip it when two were closed without merging. Say in the report that it
+     needs a person.
+3. Skip an issue that an earlier report of this job left alone without a pull
+   request. The reason still holds. The earlier reports name each issue number.
 4. Take the first issue left. Read it, its comments and its labels with
    `issue_read`.
+
+A pull request closed without merging, on an issue that still has the label,
+asks for another attempt. Read that pull request's comments and reviews with
+`pull_request_read` before you start. The new fix must answer them, not repeat
+the closed one.
 
 If no issue is left, change nothing and report that the queue is empty.
 
@@ -52,6 +59,8 @@ Then give:
 - **The fix:** what changed and why this way.
 - **Tests:** what you added and what you ran, with results.
 - **Left out:** anything the issue asked for that this change doesn't do.
+- **Earlier attempt:** for another attempt, the closed pull request's number
+  and what this fix does differently.
 
 When you change nothing, name the issue number and why, so the next run skips
 it. Keep the report under 400 words.

@@ -15,7 +15,8 @@ def test_the_issue_fixer_example_reads_issues_and_opens_drafts() -> None:
     [github] = job.requires.mcps
     assert github.binding == "github"
     assert set(github.tools) <= set(GITHUB_MCP_TOOLS)
-    assert {"list_issues", "issue_read"} <= set(github.tools)
+    # A closed draft's comments and reviews say what a new attempt must change.
+    assert {"list_issues", "issue_read", "pull_request_read"} <= set(github.tools)
     assert (EXAMPLE / job.skill).is_file()
 
 
