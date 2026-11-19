@@ -264,12 +264,24 @@ def import_repository(client: Client, connection_id: int) -> dict:
             "branch": "main",
         },
     )
+    repository = wait_for_sync(client, repository["id"])
     check(
         "GitHub repository imports",
         repository["full_name"] == "acme/e2e-fixture" and repository["job_count"] == 2,
         repository,
     )
     return repository
+
+
+def wait_for_sync(client: Client, repository_id: int) -> dict:
+    """The worker syncs. Wait until the repository no longer shows syncing."""
+    deadline = time.monotonic() + 120
+    while time.monotonic() < deadline:
+        detail = client.json("GET", f"/api/repositories/{repository_id}")
+        if not detail["syncing"]:
+            return detail
+        time.sleep(1)
+    raise Failure(f"repository {repository_id} did not finish syncing")
 
 
 def connect_services(client: Client, api_key: str) -> int:
@@ -410,13 +422,16 @@ def first(link: str) -> None:
         timeout=30,
     ) as response:
         new_head = json.loads(response.read())["sha"]
-    validation = client.json("POST", f"/api/repositories/{repository['id']}/validate")
+    validation = client.json("GET", f"/api/repositories/{repository['id']}")[
+        "validation"
+    ]
     check(
         "new commit is detected",
         validation["needs_sync"] and validation["current_revision"] == new_head,
         validation,
     )
     client.json("POST", f"/api/repositories/{repository['id']}/resync")
+    wait_for_sync(client, repository["id"])
     second = check_report(client, jobs["smoke-report"], marker, new_head)
 
     state = fake_state()

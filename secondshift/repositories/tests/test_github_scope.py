@@ -6,12 +6,9 @@ from django.contrib.auth import get_user_model
 from secondshift.connections.models import Connection
 from secondshift.github.identity import github_remote_name
 from secondshift.jobs.models import JobGrant
-from secondshift.jobs.repository_sync import (
-    attach_local_repository,
-    inspect_local_repository,
-)
+from secondshift.jobs.repository_sync import attach_local_repository
 from secondshift.repositories.github.scope import github_repository_scope
-from secondshift.repositories.local import git
+from secondshift.repositories.local import git, locate_local_repository
 from secondshift.repositories.models import Repository
 from secondshift.repositories.tests.test_local import create_local_repository
 from secondshift.workspaces.dao import create_workspace
@@ -72,11 +69,11 @@ def test_inspection_records_sanitized_github_origin(
         "https://private-token@github.com/example/project.git",
     )
     assert (
-        inspect_local_repository(workspace.pk, str(tmp_path)).clone_url
+        locate_local_repository(str(tmp_path)).clone_url
         == "https://github.com/example/project"
     )
     git(tmp_path, "remote", "remove", "origin")
-    assert inspect_local_repository(workspace.pk, str(tmp_path)).clone_url == ""
+    assert locate_local_repository(str(tmp_path)).clone_url == ""
 
 
 @pytest.mark.django_db

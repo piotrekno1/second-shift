@@ -4,10 +4,6 @@ from secondshift.github import repos
 from secondshift.github.errors import GitHubError
 from secondshift.jobs.autosync import server_syncs
 from secondshift.jobs.dao import repository_jobs_with_grants
-from secondshift.jobs.repository_sync import (
-    RepositoryConfigError,
-    inspect_local_repository,
-)
 from secondshift.repositories.github.access import github_access
 from secondshift.repositories.local import (
     LocalRepositoryError,
@@ -80,42 +76,25 @@ def unreachable(repository: Repository, error: Exception) -> RepositoryValidatio
     )
 
 
-def validate_repository(
-    repository: Repository, *, inspect: bool = False
-) -> RepositoryValidationSchema:
+def validate_repository(repository: Repository) -> RepositoryValidationSchema:
     """Read the branch head, then report the state the last syncs saved.
 
-    `inspect` also checks a local branch's configuration and linked skills.
-    That fetches every linked skill, so only an explicit check asks for it.
-    Every page load and setting change returns this, and with dozens of
-    linked skills it took over 30 seconds.
+    Only a sync reads the manifest and its linked skills. That can take
+    seconds, so it runs in the worker. Pages and settings read what it saved.
     """
-    if repository.source_type != Repository.SourceType.LOCAL:
-        try:
+    try:
+        if repository.source_type == Repository.SourceType.LOCAL:
+            head = locate_local_repository(
+                repository.local_path, repository.default_branch
+            ).revision
+        else:
             access = github_access(repository)
             head = repos.branch_head(
                 access.token, access.repository_id, repository.default_branch
             )
-        except GitHubError as error:
-            return unreachable(repository, error)
-        return validation_schema(repository, head, repository.last_sync_error)
-    try:
-        if not inspect:
-            location = locate_local_repository(
-                repository.local_path, repository.default_branch
-            )
-            return validation_schema(
-                repository, location.revision, repository.last_sync_error
-            )
-        metadata = inspect_local_repository(
-            repository.workspace_id, repository.local_path, repository.default_branch
-        )
-    except RepositoryConfigError as error:
-        # The branch is readable, but its configuration is broken right now.
-        return validation_schema(repository, None, str(error))
-    except LocalRepositoryError as error:
+    except (GitHubError, LocalRepositoryError) as error:
         return unreachable(repository, error)
-    return validation_schema(repository, metadata.revision, repository.last_sync_error)
+    return validation_schema(repository, head, repository.last_sync_error)
 
 
 def serialize_repository_detail(

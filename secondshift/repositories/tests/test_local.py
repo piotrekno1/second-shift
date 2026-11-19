@@ -210,13 +210,14 @@ def test_git_errors_never_name_folders_on_this_machine(
     damaged = main / ".git/objects" / blob[:2] / blob[2:]
     damaged.chmod(0o644)
     damaged.write_bytes(b"damaged")
+    attach_local_repository(workspace, str(worktree), "work")
     member = get_user_model().objects.create_user(username="member")
     WorkspaceMembership.objects.create(workspace=workspace, user=member)
     client.force_login(member)
 
-    response = client.post(f"/api/repositories/{repository.pk}/validate")
+    response = client.get(f"/api/repositories/{repository.pk}")
 
-    message = response.json()["message"]
+    message = response.json()["validation"]["message"]
     assert message == "Git could not read .agents/skills/review/SKILL.md."
     assert str(tmp_path) not in message
 
@@ -603,26 +604,27 @@ def test_resync_and_soft_remove_local_repository(client, tmp_path: Path) -> None
     assert client.get("/api/repositories").json() == []
 
 
-def test_showing_a_repository_reads_only_its_branch_head(
-    workspace: Workspace,
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
+@pytest.mark.django_db
+@override_settings(LOCAL_REPOSITORIES_ENABLED=True)
+def test_resuming_uses_the_last_sync_and_reads_no_skills(
+    client, workspace: Workspace, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    # Inspecting fetches every linked skill. A page load must not.
     root = tmp_path / "project"
     create_local_repository(root)
     repository = attach_local_repository(workspace, str(root))
-    inspected: list[str] = []
+    (root / ".secondshift.yaml").write_text("not: [valid")
+    run_git(root, "commit", "-am", "Break the manifest")
+    attach_local_repository(workspace, str(root))
+    Repository.objects.filter(pk=repository.pk).update(enabled=False)
 
-    def inspect(workspace_id: int, raw_path: str, branch: str | None = None) -> None:
-        inspected.append(raw_path)
-        raise AssertionError("inspected")
+    def read(*args: object) -> NoReturn:
+        raise AssertionError("read the configuration")
 
-    monkeypatch.setattr(
-        "secondshift.repositories.serialization.inspect_local_repository", inspect
-    )
+    monkeypatch.setattr("secondshift.jobs.repository_sync.read_committed_config", read)
+    client.force_login(workspace.memberships.get().user)
+    path = f"/api/repositories/{repository.pk}/enabled"
 
-    assert validate_repository(repository).status == "valid"
-    assert inspected == []
-    with pytest.raises(AssertionError, match="inspected"):
-        validate_repository(repository, inspect=True)
+    refused = client.post(path, {"enabled": True}, content_type="application/json")
+
+    assert refused.status_code == 409
+    assert "Invalid .secondshift.yaml" in refused.json()["detail"]
