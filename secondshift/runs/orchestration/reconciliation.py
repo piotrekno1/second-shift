@@ -7,7 +7,6 @@ from django.db import transaction
 
 from secondshift.runs.dao import active_workflows, add_event
 from secondshift.runs.models import Run, RunFailure
-from secondshift.runs.orchestration.dbos_runtime import new_dbos_client
 from secondshift.runs.transitions import finish_run
 
 
@@ -55,24 +54,16 @@ def mark_run_terminal(
 RECONCILE_BATCH = 500
 
 
-def reconcile_terminal_workflows(client: DBOSClient | None = None) -> int:
+def reconcile_terminal_workflows(client: DBOSClient) -> int:
     """Finish runs whose workflow has ended, checking every active run.
 
     The runs go in batches by id, so a long backlog can't hide older ones.
     """
     reconciled = 0
     after_id = 0
-    # Opened only once there is a run to check, and closed here.
-    own_client = None
-    try:
-        while batch := active_workflows(after_id, RECONCILE_BATCH):
-            if client is None:
-                client = own_client = new_dbos_client()
-            reconciled += reconcile_batch(client, batch)
-            after_id = batch[-1][0]
-    finally:
-        if own_client is not None:
-            own_client.destroy()
+    while batch := active_workflows(after_id, RECONCILE_BATCH):
+        reconciled += reconcile_batch(client, batch)
+        after_id = batch[-1][0]
     return reconciled
 
 
