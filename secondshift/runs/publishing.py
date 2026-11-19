@@ -12,6 +12,7 @@ import logging
 import tempfile
 from pathlib import Path
 
+from django.conf import settings
 from django.utils.text import slugify
 
 from secondshift.connections.github import shows_attribution
@@ -119,6 +120,9 @@ def trailers(run: Run) -> str:
     lines = [f"SecondShift-Run: {run.pk}"]
     if run.job is not None:
         lines.append(f"SecondShift-Job: {run.job.name}")
+    if co_author := settings.PULL_REQUEST_CO_AUTHOR:
+        # GitHub credits a co-author in the repository's contributors.
+        lines.append(f"Co-authored-by: {co_author}")
     return "\n".join(lines)
 
 

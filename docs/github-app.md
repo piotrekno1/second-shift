@@ -222,6 +222,13 @@ Commits are authored by the account that pushes them. That is the App's bot,
 such as `secondshift-acme[bot]`, or the token's owner. GitHub credits that
 account on the pull request and in the contributors list.
 
+To credit another GitHub account too, set
+`SECONDSHIFT_PULL_REQUEST_CO_AUTHOR` to its name and email, such as
+`SecondShift <bot@example.com>`. Commits then carry a `Co-authored-by` trailer
+while attribution is on. GitHub lists co-authors among a repository's
+contributors when the email belongs to an account. A squash merge keeps the
+trailer.
+
 Attribution is on for the App and off for a token, because a token posts as a
 person. To change it, open the connection's menu on **Connections** and choose
 **Mention SecondShift** or **Don't mention SecondShift**.
