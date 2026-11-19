@@ -24,4 +24,7 @@ def test_the_root_manifest_runs_the_example_skill() -> None:
 
     assert job.skill == f"{EXAMPLE}/.agents/skills/issue-fixer/SKILL.md"
     assert job.open_pull_request
+    # A fix may touch the dashboard, and the default image has no Node.
+    assert job.environment == "fullstack"
+    assert any("npm ci" in command for command in job.setup)
     assert Path(job.skill).is_file()

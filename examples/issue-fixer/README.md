@@ -56,3 +56,19 @@ The canonical skill lives in this example. Root `.agents/skills/issue-fixer` is
 a relative symlink for agent discovery. The root manifest runs it every weekday
 with setup for the Python and dashboard dependencies. It picks up issues from
 the monthly code review.
+
+The root job runs in the `fullstack` [environment](../../docs/self-hosting.md#environments),
+because a fix may touch the backend, the dashboard or both. The default sandbox
+image has no Node. The server admin maps `fullstack` to an image with Python
+3.13 and Node 24, the versions CI uses. The setup installs uv itself, so the
+image needs only Python, pip, Node and npm. We use an off-the-shelf image,
+pinned by digest:
+
+```bash
+SECONDSHIFT_RUNNER_ENVIRONMENT_FULLSTACK=nikolaik/python-nodejs@sha256:9d41da282b54312ee9c9229ae9f3e86b6886109dc18dacb0e65f4e032b53ee97
+```
+
+That is the `python3.13-nodejs24-slim` tag on 2026-11-19. Its setup takes about
+20 seconds, and the dashboard checks and tests pass in it offline as an
+unprivileged user. Without the environment, the job can't be enabled or run.
+In a checkout, uncomment the line in `.env` that `.env.example` provides.
