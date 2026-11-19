@@ -71,11 +71,12 @@ logger = logging.getLogger(__name__)
 
 
 @durable.step(name="secondshift.create_scheduled_run")
+@transaction.atomic
 def create_scheduled_run_step(scheduled_time: datetime, context: Any) -> int | None:
     job_id = int(context["job_id"])
     job = scheduled_job(job_id)
     if job is None:
-        logger.info("skipping disabled or deleted scheduled job %s", job_id)
+        logger.info("skipping ineligible scheduled job %s", job_id)
         return None
 
     run = create_scheduled_run(job, scheduled_time)

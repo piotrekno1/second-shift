@@ -42,6 +42,15 @@ def test_tick_creates_a_run(job: Job) -> None:
     assert run.task.submitted_by is None
 
 
+def test_queued_tick_is_skipped_after_cron_is_removed(job: Job) -> None:
+    job.cron = ""
+    job.save(update_fields=["cron"])
+
+    assert tick(job) is None
+    assert not Run.objects.exists()
+    assert not Task.objects.exists()
+
+
 def test_replayed_tick_returns_the_same_run(job: Job) -> None:
     first = tick(job)
     Run.objects.filter(pk=first).update(status=Run.Status.RUNNING)

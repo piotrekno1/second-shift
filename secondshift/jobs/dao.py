@@ -85,10 +85,12 @@ def schedulable_jobs() -> QuerySet[Job]:
 
 
 def scheduled_job(job_id: int) -> Job | None:
-    """The job with its repository while both are enabled."""
+    """Lock an eligible job for the current transaction and load its repository."""
     return (
-        Job.objects.select_related("repository")
-        .filter(pk=job_id, enabled=True, repository__enabled=True)
+        schedulable_jobs()
+        .filter(pk=job_id)
+        .select_related("repository")
+        .select_for_update(of=("self",))
         .first()
     )
 
