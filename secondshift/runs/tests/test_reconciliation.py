@@ -12,6 +12,7 @@ from secondshift.repositories.models import Repository
 from secondshift.runs.constants import RunStart
 from secondshift.runs.dao import create_task
 from secondshift.runs.models import Run
+from secondshift.runs.orchestration import reconciliation
 from secondshift.runs.orchestration.reconciliation import reconcile_terminal_workflows
 from secondshift.workspaces.dao import create_workspace
 
@@ -19,6 +20,10 @@ from secondshift.workspaces.dao import create_workspace
 class FakeDBOSClient:
     def __init__(self, statuses: list[SimpleNamespace]) -> None:
         self.statuses = statuses
+        self.destroyed = False
+
+    def destroy(self) -> None:
+        self.destroyed = True
 
     def list_workflows(self, **kwargs: Any) -> list[SimpleNamespace]:
         workflow_ids = set(kwargs["workflow_ids"])
@@ -120,3 +125,24 @@ def test_reconcile_reaches_runs_beyond_the_first_batch(
     failed.refresh_from_db()
     assert failed.status == Run.Status.FAILED
     assert all(Run.objects.get(pk=run.pk).status == Run.Status.QUEUED for run in busy)
+
+
+@pytest.mark.django_db
+def test_reconcile_opens_its_own_client_only_when_a_run_is_active(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    opened: list[FakeDBOSClient] = []
+
+    def new_client() -> FakeDBOSClient:
+        opened.append(FakeDBOSClient([]))
+        return opened[-1]
+
+    monkeypatch.setattr(reconciliation, "new_dbos_client", new_client)
+
+    assert reconcile_terminal_workflows() == 0
+    assert opened == []
+
+    create_run(status=Run.Status.RUNNING, workflow_id="run-active")
+    assert reconcile_terminal_workflows() == 0
+    [client] = opened
+    assert client.destroyed

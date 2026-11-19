@@ -60,21 +60,19 @@ def reconcile_terminal_workflows(client: DBOSClient | None = None) -> int:
 
     The runs go in batches by id, so a long backlog can't hide older ones.
     """
-    pending_runs = active_workflows(0, RECONCILE_BATCH)
-    if not pending_runs:
-        return 0
-    owns_client = client is None
-    client = client or new_dbos_client()
     reconciled = 0
+    after_id = 0
+    # Opened only once there is a run to check, and closed here.
+    own_client = None
     try:
-        while pending_runs:
-            reconciled += reconcile_batch(client, pending_runs)
-            if len(pending_runs) < RECONCILE_BATCH:
-                break
-            pending_runs = active_workflows(pending_runs[-1][0], RECONCILE_BATCH)
+        while batch := active_workflows(after_id, RECONCILE_BATCH):
+            if client is None:
+                client = own_client = new_dbos_client()
+            reconciled += reconcile_batch(client, batch)
+            after_id = batch[-1][0]
     finally:
-        if owns_client:
-            client.destroy()
+        if own_client is not None:
+            own_client.destroy()
     return reconciled
 
 
