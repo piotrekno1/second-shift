@@ -15,7 +15,8 @@ import hashlib
 import os
 import posixpath
 import re
-from collections.abc import Iterator
+from collections.abc import Iterable, Iterator
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
@@ -24,6 +25,7 @@ from django.conf import settings
 
 from secondshift.connections.dao import connected_github_sources
 from secondshift.connections.github import can_check, connection_source
+from secondshift.connections.models import Connection
 from secondshift.git import commands
 from secondshift.github import credentials, repos
 from secondshift.github.errors import GitHubError
@@ -116,15 +118,47 @@ class SkillReader:
         return authenticated_git(mirror, self.token, *arguments)
 
 
+# How many skill repositories a sync asks GitHub about at once.
+READER_THREADS = 8
+
+
+def checkable_sources(workspace_id: int) -> list[Connection]:
+    return [
+        connection
+        for connection in connected_github_sources(workspace_id)
+        if can_check(connection)
+    ]
+
+
 def skill_reader(workspace_id: int, repository: str) -> SkillReader:
     """A connection that reads the repository when it is private.
 
     GitHub decides whether it is private, never the cache. Connections that
     cannot see the repository are skipped. Without one, it is read as public.
     """
-    for connection in connected_github_sources(workspace_id):
-        if not can_check(connection):
-            continue
+    return reader_from(checkable_sources(workspace_id), workspace_id, repository)
+
+
+def skill_readers(
+    workspace_id: int, repositories: Iterable[str]
+) -> dict[str, SkillReader]:
+    """A reader for each repository, asked about once each, in parallel.
+
+    A manifest can link dozens of skills, and each question is a GitHub
+    request. One at a time, a sync of 69 linked skills took 40 seconds.
+    """
+    sources = checkable_sources(workspace_id)
+    names = sorted(set(repositories))
+    with ThreadPoolExecutor(max_workers=READER_THREADS) as pool:
+        readers = pool.map(lambda name: reader_from(sources, workspace_id, name), names)
+        return dict(zip(names, readers, strict=True))
+
+
+def reader_from(
+    sources: list[Connection], workspace_id: int, repository: str
+) -> SkillReader:
+    """Asks GitHub only. It never queries the database, so threads can run it."""
+    for connection in sources:
         source = connection_source(connection)
         try:
             token = credentials.token_for(source, None, credentials.METADATA_READ)
@@ -219,18 +253,24 @@ def require_enabled() -> None:
 
 
 def resolve_external_skill(
-    workspace_id: int, repository: str, path: str, ref: str | None = None
+    workspace_id: int,
+    repository: str,
+    path: str,
+    ref: str | None = None,
+    reader: SkillReader | None = None,
 ) -> ExternalSkill:
     """Fetch the skill at a branch, tag or commit, and pin it to a commit.
 
-    Without a ref, the repository's default branch is used.
+    Without a ref, the repository's default branch is used. A sync passes
+    the `reader` it already looked up with skill_readers.
     """
     require_enabled()
     check_reference(repository, path)
     requested = ref or "HEAD"
     if ref is not None:
         check_ref(ref)
-    reader = skill_reader(workspace_id, repository)
+    if reader is None:
+        reader = skill_reader(workspace_id, repository)
     with locked_skill_mirror(reader) as mirror:
         commit = mirrored_commit(mirror, reader, requested)
         try:

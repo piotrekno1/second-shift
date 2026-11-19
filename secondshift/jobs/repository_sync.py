@@ -24,6 +24,7 @@ from secondshift.repositories.dao import (
 from secondshift.repositories.external_skills import (
     ExternalSkillError,
     resolve_external_skill,
+    skill_readers,
 )
 from secondshift.repositories.github.access import connection_access
 from secondshift.repositories.github.sync import (
@@ -69,10 +70,20 @@ def read_committed_config(
         raise RepositoryConfigError(f"Invalid {MANIFEST_FILE}: {error}") from error
     skills = {}
     try:
+        linked = [
+            job.skill_source.repository
+            for job in manifest.jobs.values()
+            if job.skill_source
+        ]
+        readers = skill_readers(workspace_id, linked) if linked else {}
         for job in manifest.jobs.values():
             if source := job.skill_source:
                 skills[skill_key(job)] = resolve_external_skill(
-                    workspace_id, source.repository, job.skill, source.ref
+                    workspace_id,
+                    source.repository,
+                    job.skill,
+                    source.ref,
+                    reader=readers[source.repository],
                 ).text
             else:
                 skills[skill_key(job)] = committed_file(root, revision, job.skill)
