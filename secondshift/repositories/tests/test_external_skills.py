@@ -2,8 +2,10 @@ import io
 import os
 import subprocess
 import tarfile
+import threading
 import time
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -197,3 +199,29 @@ def test_a_sync_asks_about_each_skill_repository_once(
 
     assert sorted(asked) == ["vendor/one", "vendor/two"]
     assert readers["vendor/one"].repository == "vendor/one"
+
+
+@pytest.mark.django_db
+def test_each_reader_thread_closes_its_database_connection(
+    workspace: Workspace, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # SQLite ignores closing the in-memory test database, so this checks the
+    # call. Each pool thread closes the connection Django gave that thread.
+    readers: list[int] = []
+    closed: list[int] = []
+
+    def reader(sources: list[Any], workspace_id: int, repository: str) -> Any:
+        readers.append(threading.get_ident())
+        return external_skills.SkillReader(repository)
+
+    monkeypatch.setattr(external_skills, "reader_from", reader)
+    monkeypatch.setattr(
+        external_skills,
+        "database",
+        SimpleNamespace(close=lambda: closed.append(threading.get_ident())),
+    )
+
+    external_skills.skill_readers(workspace.pk, ["vendor/one", "vendor/two"])
+
+    assert sorted(closed) == sorted(readers)
+    assert threading.get_ident() not in closed
