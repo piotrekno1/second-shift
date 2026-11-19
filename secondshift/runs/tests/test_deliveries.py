@@ -249,6 +249,24 @@ def test_a_queue_outage_leaves_the_delivery_failed(
 
 
 @pytest.mark.django_db
+def test_a_retry_the_queue_accepted_stays_retrying_when_closing_the_client_fails(
+    approved_run: tuple[Run, Connection, JobGrant],
+    receiver: Receiver,
+    queue: Mock,
+) -> None:
+    # Rolling back to failed here would let a second retry send it twice.
+    run, _, _ = approved_run
+    receiver.codes.append(500)
+    workflows.notify(run.pk)
+    queue.destroy.side_effect = ConnectionError("connection already closed")
+
+    deliveries.retry_delivery(run, only_delivery(run).pk)
+
+    assert only_delivery(run).status == RunDelivery.Status.RETRYING
+    assert queue.enqueue.call_count == 1
+
+
+@pytest.mark.django_db
 def test_retry_endpoint_needs_run_permission(
     client: Client,
     approved_run: tuple[Run, Connection, JobGrant],
