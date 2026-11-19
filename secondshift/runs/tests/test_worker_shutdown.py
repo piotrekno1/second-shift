@@ -21,7 +21,7 @@ def test_sigterm_stops_tasks_and_cleans_up(monkeypatch: pytest.MonkeyPatch) -> N
     monkeypatch.setattr(worker, "refresh_connections", lambda: None)
     monkeypatch.setattr(worker, "new_dbos_client", lambda: client)
     monkeypatch.setattr(
-        worker, "worker_tasks", lambda client: [stop_task, following_task]
+        worker, "worker_tasks", lambda client, every_pass: [stop_task, following_task]
     )
     monkeypatch.setattr(worker.DBOS, "destroy", destroy)
 
@@ -47,7 +47,7 @@ def test_sigterm_ends_a_task_blocked_on_a_lock(
     monkeypatch.setattr(worker, "launch_dbos_worker", Mock())
     monkeypatch.setattr(worker, "refresh_connections", lambda: None)
     monkeypatch.setattr(worker, "new_dbos_client", lambda: client)
-    monkeypatch.setattr(worker, "worker_tasks", lambda client: [blocked])
+    monkeypatch.setattr(worker, "worker_tasks", lambda client, every_pass: [blocked])
     monkeypatch.setattr(worker.DBOS, "destroy", Mock())
     started = time.monotonic()
 
@@ -69,7 +69,7 @@ def test_a_second_sigterm_during_cleanup_is_ignored(
     monkeypatch.setattr(worker, "launch_dbos_worker", Mock())
     monkeypatch.setattr(worker, "refresh_connections", lambda: None)
     monkeypatch.setattr(worker, "new_dbos_client", lambda: client)
-    monkeypatch.setattr(worker, "worker_tasks", lambda client: [stop_task])
+    monkeypatch.setattr(worker, "worker_tasks", lambda client, every_pass: [stop_task])
     monkeypatch.setattr(worker.DBOS, "destroy", destroy)
 
     call_command("run_dbos_worker", sync_interval=3600)

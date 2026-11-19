@@ -16,8 +16,11 @@ from secondshift.connections.github import can_check
 from secondshift.github import repos
 from secondshift.github.app import configured
 from secondshift.github.errors import GitHubError
-from secondshift.jobs.repository_sync import sync_repository
-from secondshift.repositories.dao import repositories_to_sync, set_sync_error
+from secondshift.repositories.dao import (
+    repositories_to_sync,
+    request_sync,
+    set_sync_error,
+)
 from secondshift.repositories.github.access import github_access
 from secondshift.repositories.github.check import check_after_failure
 from secondshift.repositories.local import (
@@ -50,9 +53,12 @@ def branch_head(repository: Repository) -> str:
     return branch_revision(Path(repository.local_path), repository.default_branch)
 
 
-def sync_moved_repositories() -> int:
-    """Sync each repository whose branch has a new commit. Returns how many."""
-    synced = 0
+def request_moved_syncs() -> int:
+    """Ask for a sync of each repository whose branch has a new commit.
+
+    Returns how many. The worker runs them with the other requested syncs.
+    """
+    requested = 0
     for repository in repositories_to_sync(settings.LOCAL_REPOSITORIES_ENABLED):
         is_github = repository.source_type == Repository.SourceType.GITHUB
         if is_github and not can_check(repository.github_connection):
@@ -60,7 +66,6 @@ def sync_moved_repositories() -> int:
         try:
             if branch_head(repository) == repository.checked_sha:
                 continue
-            result = sync_repository(repository)
         except (LocalRepositoryError, GitHubError) as error:
             # The repository page shows the same problem when opened. Runs
             # keep using the last good sync until it is fixed.
@@ -69,10 +74,6 @@ def sync_moved_repositories() -> int:
             if is_github:
                 check_after_failure(repository.github_connection)
             continue
-        if result.last_sync_error:
-            logger.warning(
-                "could not sync %s: %s", repository.display_name, result.last_sync_error
-            )
-            continue
-        synced += 1
-    return synced
+        request_sync(repository.pk)
+        requested += 1
+    return requested

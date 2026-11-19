@@ -23,12 +23,25 @@ from secondshift.repositories.mirrors import SYNCED_REF, mirror_path
 from secondshift.repositories.models import Repository
 from secondshift.repositories.tests.fixtures import run_git
 from secondshift.repositories.tests.github_fakes import fake_github
+from secondshift.repositories.tests.test_autosync import sync_moved_repositories
 from secondshift.repositories.tests.test_local import (
     commit_configuration,
     create_local_repository,
 )
 from secondshift.workspaces.dao import create_workspace
 from secondshift.workspaces.models import WorkspaceMembership
+
+
+def add_and_sync(
+    workspace: Any, connection: Connection, repository_id: int, branch: str
+) -> Repository:
+    """Add a repository, then run the sync the worker would run."""
+    repository = repository_sync.add_github_repository(
+        workspace, connection, repository_id, branch
+    )
+    repository_sync.run_requested_syncs()
+    repository.refresh_from_db()
+    return repository
 
 
 @pytest.fixture
@@ -246,9 +259,7 @@ def test_import_without_a_manifest_keeps_the_repository(
     run_git(source, "commit", "--allow-empty", "-m", "Start")
     fetch_from_local_source(monkeypatch, source, settings, tmp_path)
 
-    repository = repository_sync.attach_github_repository(
-        workspace, source_connection, 7, ""
-    )
+    repository = add_and_sync(workspace, source_connection, 7, "")
 
     assert repository.pk
     assert repository.config_sha == ""
@@ -287,15 +298,15 @@ def test_autosync_picks_up_the_first_manifest_of_a_disabled_repository(
             ["git", "-C", str(source), "rev-parse", "main"], text=True
         ).strip(),
     )
-    fetches = Mock(wraps=autosync.sync_repository)
-    monkeypatch.setattr(autosync, "sync_repository", fetches)
+    fetches = Mock(wraps=repository_sync.sync_repository)
+    monkeypatch.setattr(repository_sync, "sync_repository", fetches)
 
     # The commit without a manifest was already read, so it is not fetched again.
-    assert autosync.sync_moved_repositories() == 0
+    assert sync_moved_repositories() == 0
     assert fetches.call_count == 0
 
     commit_configuration(source)
-    assert autosync.sync_moved_repositories() == 1
+    assert sync_moved_repositories() == 1
     repository.refresh_from_db()
     assert repository.config_sha
     assert repository.last_sync_error == ""
@@ -333,8 +344,8 @@ def test_failed_poll_is_visible_and_retains_last_revision(
     def fail_sync(repository: Any) -> None:
         raise GitHubError("The committed manifest is invalid.")
 
-    monkeypatch.setattr(autosync, "sync_repository", fail_sync)
-    assert autosync.sync_moved_repositories() == 0
+    monkeypatch.setattr(repository_sync, "sync_repository", fail_sync)
+    assert sync_moved_repositories() == 0
     repository.refresh_from_db()
     assert repository.config_sha == "a" * 40
     assert repository.last_sync_error == "The committed manifest is invalid."
@@ -469,12 +480,12 @@ def test_adding_a_repository_syncs_outside_a_transaction(
 
     monkeypatch.setattr(repository_sync, "sync_github_repository", sync)
 
-    repository_sync.attach_github_repository(workspace, source_connection, 7, "")
+    add_and_sync(workspace, source_connection, 7, "")
 
     assert depths == [outer]
 
 
-def test_a_failed_first_sync_removes_the_new_repository(
+def test_a_failed_first_sync_keeps_the_repository_with_the_problem(
     workspace: Any, source_connection: Any, github_metadata: None, monkeypatch: Any
 ) -> None:
     def fail(repository: Repository) -> Repository:
@@ -482,36 +493,13 @@ def test_a_failed_first_sync_removes_the_new_repository(
 
     monkeypatch.setattr(repository_sync, "sync_github_repository", fail)
 
-    with pytest.raises(GitHubError):
-        repository_sync.attach_github_repository(workspace, source_connection, 7, "")
+    repository = add_and_sync(workspace, source_connection, 7, "")
 
-    assert not Repository.objects.filter(full_name="owner/project").exists()
-
-
-def test_a_failed_sync_leaves_a_readded_repository_removed(
-    workspace: Any, source_connection: Any, github_metadata: None, monkeypatch: Any
-) -> None:
-    removed_at = timezone.now()
-    repository = Repository.objects.create(
-        workspace=workspace,
-        github_connection=source_connection,
-        full_name="owner/project",
-        external_id="7",
-        default_branch="old-branch",
-        removed_at=removed_at,
+    assert repository.sync_requested_at is None
+    assert repository.last_sync_error == (
+        "Could not fetch the GitHub repository and branch."
     )
-
-    def fail(repository: Repository) -> Repository:
-        raise GitHubError("Could not fetch the GitHub repository and branch.")
-
-    monkeypatch.setattr(repository_sync, "sync_github_repository", fail)
-
-    with pytest.raises(GitHubError):
-        repository_sync.attach_github_repository(workspace, source_connection, 7, "dev")
-
-    repository.refresh_from_db()
-    assert repository.removed_at == removed_at
-    assert repository.default_branch == "old-branch"
+    assert repository.config_sha == ""
 
 
 def test_an_autosync_check_mints_one_token_per_repository(
@@ -528,7 +516,7 @@ def test_an_autosync_check_mints_one_token_per_repository(
     heads = Mock(return_value="a" * 40)
     monkeypatch.setattr(repos, "branch_head", heads)
 
-    assert autosync.sync_moved_repositories() == 0
+    assert sync_moved_repositories() == 0
 
     assert tokens.call_count == 1
     assert heads.call_args.args[0] == "github-secret"
@@ -620,9 +608,7 @@ def test_a_repository_imported_with_a_token_syncs_with_it(
     monkeypatch.setattr(github_sync, "authenticated_git", local_fetch)
     settings.SOURCE_CACHE_ROOT = tmp_path / "sources"
 
-    repository = repository_sync.attach_github_repository(
-        workspace, token_connection, 7, ""
-    )
+    repository = add_and_sync(workspace, token_connection, 7, "")
 
     assert repository.github_connection == token_connection
     assert repository.config_sha
@@ -668,7 +654,7 @@ def test_autosync_checks_token_repositories_and_skips_app_ones_without_the_app(
     heads = Mock(return_value="a" * 40)
     monkeypatch.setattr(repos, "branch_head", heads)
 
-    autosync.sync_moved_repositories()
+    sync_moved_repositories()
 
     [call] = heads.call_args_list
     assert call.args[0] == token_connection.access_token
@@ -774,7 +760,7 @@ def test_a_repository_added_again_after_its_source_was_deleted_keeps_its_history
     )
     monkeypatch.setattr(repository_sync, "sync_github_repository", lambda row: row)
 
-    restored = repository_sync.attach_github_repository(workspace, reconnected, 7, "")
+    restored = add_and_sync(workspace, reconnected, 7, "")
 
     assert restored.pk == repository.pk
     assert restored.removed_at is None

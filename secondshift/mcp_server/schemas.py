@@ -112,6 +112,8 @@ class RepositorySyncResult(Schema):
     revision: str
     validation: RepositoryValidationSchema
     jobs: list[RepositoryJobSchema]
+    # The sync was still running when the tool stopped waiting.
+    syncing: bool
 
 
 TOOL_TEXT_NOTE = (

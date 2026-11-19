@@ -13,7 +13,8 @@ from django.conf import settings
 
 from secondshift.connections.agents import retry_credential_cleanups
 from secondshift.connections.mcp.client import refresh_built_in_tools
-from secondshift.jobs.autosync import server_syncs, sync_moved_repositories
+from secondshift.jobs.autosync import request_moved_syncs, server_syncs
+from secondshift.jobs.repository_sync import run_requested_syncs
 from secondshift.mcp_server.audit import prune_tool_calls
 from secondshift.repositories.github.check import check_due_sources
 from secondshift.repositories.sources import prune_source_cache
@@ -38,6 +39,9 @@ PRUNE_INTERVAL_SECONDS = 24 * 60 * 60
 SOURCE_CHECK_POLL_SECONDS = 60 * 60
 # How often to ask the runner again to remove logins it kept.
 CREDENTIAL_CLEANUP_SECONDS = 60
+# How often the loop wakes. Requested syncs start within this, and the other
+# tasks wait for their own interval.
+TICK_SECONDS = 1
 
 
 def remove_cached_logins() -> None:
@@ -45,8 +49,21 @@ def remove_cached_logins() -> None:
         logger.info("removed %s cached agent login(s) from the runner", removed)
 
 
-def worker_tasks(client: DBOSClient) -> list[PeriodicTask]:
-    """What the worker repeats, in the order it runs them on each pass."""
+def find_new_commits() -> None:
+    if requested := request_moved_syncs():
+        logger.info("found new commits in %s repository(s)", requested)
+
+
+def run_syncs() -> None:
+    if synced := run_requested_syncs():
+        logger.info("synced %s repository(s)", synced)
+
+
+def worker_tasks(client: DBOSClient, every_pass: float) -> list[PeriodicTask]:
+    """What the worker repeats, in the order it runs them on each pass.
+
+    `every_pass` is the interval of the tasks that keep runs moving.
+    """
 
     def reconcile() -> None:
         if count := reconcile_terminal_workflows(client):
@@ -66,26 +83,28 @@ def worker_tasks(client: DBOSClient) -> list[PeriodicTask]:
             cache.bytes,
         )
 
-    def repositories() -> None:
-        if synced := sync_moved_repositories():
-            logger.info("synced %s repository(s) with new commits", synced)
-
     def sources() -> None:
         if checked := check_due_sources():
             logger.info("checked %s GitHub connection(s)", checked)
 
     return [
-        PeriodicTask("reconcile runs", every=0, run=reconcile),
-        PeriodicTask("dispatch waiting tasks", every=0, run=dispatch_waiting_tasks),
-        PeriodicTask("queue unqueued runs", every=0, run=recover_unqueued_runs),
-        PeriodicTask("sync schedules", every=0, run=schedules),
+        PeriodicTask("reconcile runs", every=every_pass, run=reconcile),
+        PeriodicTask(
+            "dispatch waiting tasks", every=every_pass, run=dispatch_waiting_tasks
+        ),
+        PeriodicTask(
+            "queue unqueued runs", every=every_pass, run=recover_unqueued_runs
+        ),
+        PeriodicTask("sync schedules", every=every_pass, run=schedules),
         PeriodicTask("prune runs", every=PRUNE_INTERVAL_SECONDS, run=prune),
         PeriodicTask(
-            "sync repositories",
+            "find new commits",
             every=settings.REPOSITORY_SYNC_INTERVAL_SECONDS,
-            run=repositories,
+            run=find_new_commits,
             enabled=server_syncs,
         ),
+        # Resync, adding a repository and new commits all ask for a sync.
+        PeriodicTask("run requested syncs", every=0, run=run_syncs),
         PeriodicTask(
             "check GitHub connections",
             every=SOURCE_CHECK_POLL_SECONDS,
@@ -157,7 +176,7 @@ def command(sync_interval: int, ready_file: Path | None) -> None:
         launch_dbos_worker()
         click.echo("DBOS worker started")
         client = new_dbos_client()
-        tasks = worker_tasks(client)
+        tasks = worker_tasks(client, every_pass=sync_interval)
         if ready_file is not None:
             ready_file.touch(mode=0o600)
         while True:
@@ -165,7 +184,7 @@ def command(sync_interval: int, ready_file: Path | None) -> None:
             refresh_connections()
             for task in tasks:
                 task.run_if_due()
-            time.sleep(sync_interval)
+            time.sleep(TICK_SECONDS)
     except (KeyboardInterrupt, StopWorker):
         click.echo("Stopping DBOS worker")
     finally:

@@ -7,7 +7,11 @@ import pytest
 from django.contrib.auth import get_user_model
 from django.test import override_settings
 
-from secondshift.jobs.repository_sync import SyncError, attach_local_repository, resync
+from secondshift.jobs.repository_sync import (
+    attach_local_repository,
+    run_requested_syncs,
+)
+from secondshift.repositories.dao import request_sync
 from secondshift.repositories.local import (
     LocalRepositoryError,
     local_directories,
@@ -110,7 +114,8 @@ def test_a_resync_keeps_a_disabled_repository_disabled(
     repository.enabled = False
     repository.save(update_fields=["enabled"])
 
-    resync(repository)
+    request_sync(repository.pk)
+    run_requested_syncs()
 
     repository.refresh_from_db()
     assert repository.enabled is False
@@ -169,8 +174,10 @@ def test_a_broken_manifest_keeps_the_jobs_from_the_last_good_sync(
     assert resynced.jobs.get().name == "Review"
     assert "Invalid .secondshift.yaml" in resynced.last_sync_error
     assert validate_repository(resynced).status == "error"
-    with pytest.raises(SyncError, match=r"Invalid \.secondshift\.yaml"):
-        resync(resynced)
+    request_sync(resynced.pk)
+    run_requested_syncs()
+    resynced.refresh_from_db()
+    assert "Invalid .secondshift.yaml" in resynced.last_sync_error
 
 
 def test_attach_local_repository_rejects_non_repository(
@@ -252,7 +259,11 @@ def test_workspace_owner_can_attach_local_repository_through_api(
     assert response.json()["source_type"] == Repository.SourceType.LOCAL
     assert response.json()["display_name"] == "project"
     assert response.json()["local_path"] == str(root)
-    assert response.json()["job_count"] == 1
+    # The worker reads the configuration after the response.
+    assert response.json()["syncing"] is True
+    assert response.json()["job_count"] == 0
+
+    assert run_requested_syncs() == 1
 
     detail = client.get(f"/api/repositories/{response.json()['id']}")
     assert detail.status_code == 200
@@ -292,6 +303,7 @@ jobs:
     )
 
     assert response.status_code == 200
+    run_requested_syncs()
     repository = Repository.objects.get(pk=response.json()["id"])
     assert "Invalid .secondshift.yaml" in repository.last_sync_error
     assert response.json()["revision"] == ""
@@ -552,6 +564,7 @@ def test_resync_and_soft_remove_local_repository(client, tmp_path: Path) -> None
         data=json.dumps({"path": str(root)}),
         content_type="application/json",
     ).json()
+    run_requested_syncs()
     repository = Repository.objects.get(pk=created["id"])
     previous_revision = repository.config_sha
 
@@ -571,8 +584,13 @@ def test_resync_and_soft_remove_local_repository(client, tmp_path: Path) -> None
         content_type="application/json",
     )
     assert enabled.status_code == 200
-    resynced = client.post(f"/api/repositories/{repository.pk}/resync")
-    assert resynced.status_code == 200
+    requested = client.post(f"/api/repositories/{repository.pk}/resync")
+    assert requested.status_code == 200
+    assert requested.json()["syncing"] is True
+    assert requested.json()["revision"] == previous_revision
+    run_requested_syncs()
+    resynced = client.get(f"/api/repositories/{repository.pk}")
+    assert resynced.json()["syncing"] is False
     assert resynced.json()["revision"] != previous_revision
     assert resynced.json()["jobs"][0]["name"] == "Health review"
 

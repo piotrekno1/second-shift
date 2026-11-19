@@ -52,9 +52,8 @@ files, copy `SECONDSHIFT_RUNNER_SERVICE_URL` and
 `SECONDSHIFT_RUNNER_SERVICE_TOKEN` from `worker.env` into `web.env`. Keep the
 runner API private. Neither web nor worker needs the Docker socket or runner DB.
 
-Imports are synchronous. Set `SECONDSHIFT_HTTP_TIMEOUT_SECONDS=300` for web and
-`180` for runner, and allow at least 300 seconds through any reverse proxy.
-Restart web, worker, and runner after updating their settings. Apply migrations
+Imports run in the worker, so the web request returns at once. Set
+`SECONDSHIFT_HTTP_TIMEOUT_SECONDS=180` for runner. Restart web, worker, and runner after updating their settings. Apply migrations
 with the usual `python manage.py migrate` before starting the updated services.
 
 ## Connect and run
@@ -77,7 +76,7 @@ current workspace. A callback's installation ID is never treated as proof.
 Available repositories are listed from those installations. Repository import
 requires a workspace owner. Owners and admins can resync afterward.
 
-**Resync** fetches the selected branch again. Enabled repositories with automatic
+**Resync** asks the worker to fetch the selected branch again. Enabled repositories with automatic
 sync turned on are checked every 300 seconds by the worker. Set
 `SECONDSHIFT_REPOSITORY_SYNC_INTERVAL_SECONDS` to change this interval. Set it to `0` to
 disable polling. Changed capabilities continue through the existing approval

@@ -131,10 +131,9 @@ callback.
 | `SECONDSHIFT_SOURCE_CACHE_MAX_BYTES` | Size limit for cached snapshots. Default 2 GiB. Past it, the least recently used snapshots are removed. Mirrors are not counted. |
 
 Production rejects partial App configuration. Adding a repository and
-**Resync** fetch from GitHub during the request. Generated role files set the
-web HTTP timeout to 300 seconds. For a checkout, set
-`SECONDSHIFT_HTTP_TIMEOUT_SECONDS=300` when testing imports and restart
-process-compose to apply it.
+**Resync** ask the worker for a sync and return at once. The worker fetches
+from GitHub and reads the manifest and its skills, one repository at a time.
+The repository page shows **Syncing…** until it finishes.
 
 ## GitHub sign-in
 

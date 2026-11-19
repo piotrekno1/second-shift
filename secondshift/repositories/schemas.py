@@ -19,6 +19,8 @@ class RepositorySchema(Schema):
     revision: str
     # The GitHub source connection it syncs through. None for local folders.
     github_connection_id: int | None
+    # A sync is waiting for the worker or running.
+    syncing: bool
 
 
 class LocalRepositoryCreateSchema(Schema):

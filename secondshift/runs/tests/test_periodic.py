@@ -86,13 +86,13 @@ def test_the_worker_syncs_repositories_only_when_the_server_does(
 ) -> None:
     settings.LOCAL_REPOSITORIES_ENABLED = True  # type: ignore[attr-defined]
     settings.REPOSITORY_SYNC_INTERVAL_SECONDS = 300  # type: ignore[attr-defined]
-    tasks = {task.name: task for task in worker_tasks(client=object())}  # type: ignore[arg-type]
+    tasks = {task.name: task for task in worker_tasks(client=object(), every_pass=15)}  # type: ignore[arg-type]
 
     assert tasks["prune runs"].every == PRUNE_INTERVAL_SECONDS
-    assert tasks["sync repositories"].every == 300
-    assert tasks["sync repositories"].enabled() is True
+    assert tasks["find new commits"].every == 300
+    assert tasks["find new commits"].enabled() is True
     assert tasks["check GitHub connections"].every == SOURCE_CHECK_POLL_SECONDS
     assert tasks["remove cached agent logins"].every == CREDENTIAL_CLEANUP_SECONDS
 
     settings.REPOSITORY_SYNC_INTERVAL_SECONDS = 0  # type: ignore[attr-defined]
-    assert tasks["sync repositories"].enabled() is False
+    assert tasks["find new commits"].enabled() is False
