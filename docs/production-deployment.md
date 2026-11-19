@@ -169,7 +169,8 @@ are refused. Use the **Create a token on GitHub** link and select only the
 repositories this workspace should access. The token needs:
 
 - **Contents: Read-only** for import, checkout and automatic sync.
-- **Pull requests**, **Actions** and **Commit statuses: Read-only** for GitHub tools.
+- **Pull requests**, **Issues**, **Actions** and **Commit statuses: Read-only** for
+  GitHub tools.
 - **Contents** and **Pull requests: Read and write** for draft pull requests.
   Do not grant **Workflows**.
 
@@ -361,7 +362,8 @@ newer release only after it works.
 Before upgrading an existing GitHub App installation to use new GitHub tools
 or draft pull requests, update its permissions:
 
-- GitHub tools need **Pull requests**, **Actions** and **Commit statuses: Read-only**.
+- GitHub tools need **Pull requests**, **Issues**, **Actions** and **Commit statuses:
+  Read-only**.
 - Draft publishing needs **Contents** and **Pull requests: Read and write**.
 - Each installation owner must accept the App's changed permissions on GitHub.
 

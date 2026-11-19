@@ -93,8 +93,8 @@ checks three things:
 - Every added repository is still reachable.
 - What each feature can do:
   - **Sync** needs read access to Contents.
-  - **GitHub tools** need read access to Pull requests, Actions and Commit
-    statuses.
+  - **GitHub tools** need read access to Pull requests, Issues, Actions and
+    Commit statuses.
   - **Draft pull requests** need write access to Contents and Pull requests.
   - **Issues** need write access to Issues.
 
@@ -161,6 +161,7 @@ With the App, add these repository permissions:
 - **Pull requests: Read-only**, or read and write if you also open drafts.
 - **Actions: Read-only**, for CI runs and job logs.
 - **Commit statuses: Read-only**.
+- **Issues: Read-only**, for issue tools, or read and write if jobs open issues.
 
 A tool token asks only for the permissions the installation granted, and only
 for read access. A permission the App lacks fails just the tools that need it.
@@ -191,8 +192,8 @@ Give the token only the repositories SecondShift should use, and these
 repository permissions:
 
 - **Contents: Read-only**, to import and sync.
-- **Pull requests**, **Actions** and **Commit statuses: Read-only**, for GitHub
-  tools.
+- **Pull requests**, **Issues**, **Actions** and **Commit statuses: Read-only**,
+  for GitHub tools.
 - **Contents** and **Pull requests: Read and write**, for draft pull requests.
   Do not grant **Workflows**, for the reason given above.
 - **Issues: Read and write**, for jobs that open issues.
