@@ -18,6 +18,7 @@ than one team.
 | [Code simplifier](code-simplifier/README.md) | Suggests simplifications to recently changed code that keep behavior the same. | Repository source and recent commits. |
 | [Documentation drift](docs-drift/README.md) | Finds docs that no longer match project files and behavior. | Documentation and the repository files it describes. |
 | [Implicit state machines](implicit-state-machines/README.md) | Finds state machines the code has without naming them. | Repository source. |
+| [Issue fixer](issue-fixer/README.md) | Fixes one issue a maintainer approved and opens a draft pull request. | Open issues and pull requests through the built-in GitHub connection, plus repository source and tests. |
 | [CI failures](ci-failure-review/README.md) | Groups recurring failures and explains what still blocks builds. | GitHub Actions runs and job logs through the built-in GitHub connection, or another CI service you connect, plus repository code. |
 
 ## SRE and operations

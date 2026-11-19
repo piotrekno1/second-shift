@@ -64,7 +64,7 @@ jobs:
         required: true
 
   # A linked skill, pinned to the commit we tested. It files what it finds as
-  # issues.
+  # issues. Add fix-approved to one to queue it for the issue fixer.
   code-review:
     name: Code review
     skill: plugins/developer-essentials/skills/code-review-excellence/SKILL.md
@@ -77,3 +77,24 @@ jobs:
     open_issues:
       labels: [secondshift, code-review]
       max: 5
+
+  # Fixes one issue labelled fix-approved per run and opens a draft pull
+  # request. A maintainer adds the label after reading the issue.
+  issue-fixer:
+    name: Issue fixer
+    skill: examples/issue-fixer/.agents/skills/issue-fixer/SKILL.md
+    schedule: "0 7 * * 1-5"
+    timezone: UTC
+    history: 5
+    open_pull_request: true
+    setup:
+      - python3 -m pip install --quiet --no-cache-dir --target .setup/uv uv
+      - UV_LINK_MODE=copy .setup/uv/bin/uv sync --frozen --python /usr/local/bin/python3
+      - cd dashboard && npm ci --ignore-scripts --no-audit --no-fund
+    requires:
+      mcps:
+        - binding: github
+          tools:
+            - list_issues
+            - issue_read
+            - search_pull_requests

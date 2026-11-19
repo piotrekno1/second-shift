@@ -1,0 +1,16 @@
+version: 1
+jobs:
+  issue-fixer:
+    name: Issue fixer
+    skill: .agents/skills/issue-fixer/SKILL.md
+    schedule: "0 7 * * 1-5"
+    timezone: UTC
+    history: 5
+    open_pull_request: true
+    requires:
+      mcps:
+        - binding: github
+          tools:
+            - list_issues
+            - issue_read
+            - search_pull_requests

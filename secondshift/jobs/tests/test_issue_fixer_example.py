@@ -1,0 +1,27 @@
+from pathlib import Path
+
+from secondshift.connections.mcp.github import GITHUB_MCP_TOOLS
+from secondshift.jobs.manifest import load_manifest
+
+EXAMPLE = Path("examples/issue-fixer")
+
+
+def test_the_issue_fixer_example_reads_issues_and_opens_drafts() -> None:
+    job = load_manifest(EXAMPLE / ".secondshift.yaml").jobs["issue-fixer"]
+
+    assert job.open_pull_request
+    # Earlier reports name the issues already handled.
+    assert job.history > 0
+    [github] = job.requires.mcps
+    assert github.binding == "github"
+    assert set(github.tools) <= set(GITHUB_MCP_TOOLS)
+    assert {"list_issues", "issue_read"} <= set(github.tools)
+    assert (EXAMPLE / job.skill).is_file()
+
+
+def test_the_root_manifest_runs_the_example_skill() -> None:
+    job = load_manifest(Path(".secondshift.yaml")).jobs["issue-fixer"]
+
+    assert job.skill == f"{EXAMPLE}/.agents/skills/issue-fixer/SKILL.md"
+    assert job.open_pull_request
+    assert Path(job.skill).is_file()
