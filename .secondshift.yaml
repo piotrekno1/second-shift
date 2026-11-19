@@ -77,6 +77,14 @@ jobs:
     open_issues:
       labels: [secondshift, code-review]
       max: 5
+    # To find issues already filed, open or closed, before proposing one.
+    requires:
+      mcps:
+        - binding: github
+          tools:
+            - search_issues
+            - list_issues
+            - issue_read
 
   # Fixes one issue labelled fix-approved per run and opens a draft pull
   # request. A maintainer adds the label after reading the issue.
