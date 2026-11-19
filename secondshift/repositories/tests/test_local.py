@@ -583,3 +583,28 @@ def test_resync_and_soft_remove_local_repository(client, tmp_path: Path) -> None
     assert repository.removed_at is not None
     assert repository.jobs.filter(enabled=True).count() == 0
     assert client.get("/api/repositories").json() == []
+
+
+def test_showing_a_repository_reads_only_its_branch_head(
+    workspace: Workspace,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Inspecting fetches every linked skill. A page load must not.
+    root = tmp_path / "project"
+    create_local_repository(root)
+    repository = attach_local_repository(workspace, str(root))
+    inspected: list[str] = []
+
+    def inspect(workspace_id: int, raw_path: str, branch: str | None = None) -> None:
+        inspected.append(raw_path)
+        raise AssertionError("inspected")
+
+    monkeypatch.setattr(
+        "secondshift.repositories.serialization.inspect_local_repository", inspect
+    )
+
+    assert validate_repository(repository).status == "valid"
+    assert inspected == []
+    with pytest.raises(AssertionError, match="inspected"):
+        validate_repository(repository, inspect=True)

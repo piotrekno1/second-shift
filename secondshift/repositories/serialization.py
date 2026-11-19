@@ -11,6 +11,7 @@ from secondshift.jobs.repository_sync import (
 from secondshift.repositories.github.access import github_access
 from secondshift.repositories.local import (
     LocalRepositoryError,
+    locate_local_repository,
 )
 from secondshift.repositories.models import Repository
 from secondshift.repositories.schemas import (
@@ -78,8 +79,16 @@ def unreachable(repository: Repository, error: Exception) -> RepositoryValidatio
     )
 
 
-def validate_repository(repository: Repository) -> RepositoryValidationSchema:
-    """Read the branch head, then report the state the last syncs saved."""
+def validate_repository(
+    repository: Repository, *, inspect: bool = False
+) -> RepositoryValidationSchema:
+    """Read the branch head, then report the state the last syncs saved.
+
+    `inspect` also checks a local branch's configuration and linked skills.
+    That fetches every linked skill, so only an explicit check asks for it.
+    Every page load and setting change returns this, and with dozens of
+    linked skills it took over 30 seconds.
+    """
     if repository.source_type != Repository.SourceType.LOCAL:
         try:
             access = github_access(repository)
@@ -90,6 +99,13 @@ def validate_repository(repository: Repository) -> RepositoryValidationSchema:
             return unreachable(repository, error)
         return validation_schema(repository, head, repository.last_sync_error)
     try:
+        if not inspect:
+            location = locate_local_repository(
+                repository.local_path, repository.default_branch
+            )
+            return validation_schema(
+                repository, location.revision, repository.last_sync_error
+            )
         metadata = inspect_local_repository(
             repository.workspace_id, repository.local_path, repository.default_branch
         )
