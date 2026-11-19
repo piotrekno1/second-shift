@@ -192,6 +192,70 @@ def test_lowercase_or_is_plain_search_text(github_connection) -> None:
     assert result["query"] == "repo:example/project login or signup"
 
 
+@pytest.mark.parametrize(
+    "arguments",
+    [
+        {"query": "repo:other/project label:fix-approved"},
+        {"query": "label:bug OR label:fix-approved"},
+        {"query": "label:fix-approved", "owner": "other"},
+    ],
+)
+def test_issue_search_cannot_be_widened(arguments: dict[str, Any]) -> None:
+    with pytest.raises(MCPError):
+        scoped_github_arguments("example/project", "search_issues", arguments)
+
+
+def test_issue_search_and_list_target_the_job_repository() -> None:
+    searched = scoped_github_arguments(
+        "example/project", "search_issues", {"query": "is:open label:fix-approved"}
+    )
+    assert searched["query"] == "repo:example/project is:open label:fix-approved"
+    listed = scoped_github_arguments(
+        "example/project", "list_issues", {"labels": ["fix-approved"]}
+    )
+    assert listed == {"labels": ["fix-approved"], "owner": "example", "repo": "project"}
+    with pytest.raises(MCPError, match="repository"):
+        scoped_github_arguments("example/project", "list_issues", {"repo": "other"})
+
+
+@pytest.mark.parametrize("method", ["get", "get_comments", "get_labels"])
+def test_an_issue_can_be_read_with_its_comments_and_labels(method: str) -> None:
+    arguments = {"method": method, "issue_number": 7}
+    assert scoped_github_arguments("example/project", "issue_read", arguments) == {
+        **arguments,
+        "owner": "example",
+        "repo": "project",
+    }
+
+
+@pytest.mark.parametrize("method", ["get_sub_issues", None])
+def test_sub_issues_are_not_read(method: str | None) -> None:
+    # A sub-issue can live in another repository.
+    with pytest.raises(MCPError, match="methods"):
+        scoped_github_arguments(
+            "example/project", "issue_read", {"method": method, "issue_number": 7}
+        )
+
+
+def test_issue_read_offers_only_the_allowed_methods() -> None:
+    schema = {
+        "type": "object",
+        "properties": {
+            "method": {
+                "type": "string",
+                "enum": ["get", "get_comments", "get_sub_issues", "get_labels"],
+            },
+            "issue_number": {"type": "integer"},
+        },
+    }
+    narrowed = narrowed_github_schema("issue_read", schema)
+    assert narrowed["properties"]["method"]["enum"] == [
+        "get",
+        "get_comments",
+        "get_labels",
+    ]
+
+
 @pytest.mark.django_db
 @pytest.mark.parametrize("token", ["ghp_classic_token", "github_test_token", ""])
 def test_only_fine_grained_tokens_are_accepted(token: str) -> None:
@@ -542,6 +606,7 @@ def test_discovery_stores_the_narrowed_schema(mcp_http, github_connection) -> No
             "read access to Actions",
         ),
         ("actions_list", "Resource not accessible by integration", "Actions"),
+        ("issue_read", "403 Resource not accessible", "read access to Issues"),
         ("get_commit", "403 Forbidden", "repository permissions"),
         ("get_job_logs", "404 Not Found", None),
     ],
