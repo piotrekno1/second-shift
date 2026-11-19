@@ -8,6 +8,7 @@ from typing import Any
 
 import pytest
 
+from secondshift.repositories import external_skills
 from secondshift.repositories.external_skills import (
     ExternalSkillError,
     resolve_external_skill,
@@ -176,3 +177,23 @@ def test_unused_skills_leave_the_cache(workspace: Workspace, vendor: Path) -> No
     assert (pruned.snapshots, pruned.mirrors) == (1, 1)
     assert not list(skill_snapshots_root().iterdir())
     assert not mirror.exists()
+
+
+@pytest.mark.django_db
+def test_a_sync_asks_about_each_skill_repository_once(
+    workspace: Workspace, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    asked: list[str] = []
+
+    def reader(sources: list[Any], workspace_id: int, repository: str) -> Any:
+        asked.append(repository)
+        return external_skills.SkillReader(repository)
+
+    monkeypatch.setattr(external_skills, "reader_from", reader)
+
+    readers = external_skills.skill_readers(
+        workspace.pk, ["vendor/one", "vendor/two", "vendor/one"]
+    )
+
+    assert sorted(asked) == ["vendor/one", "vendor/two"]
+    assert readers["vendor/one"].repository == "vendor/one"
