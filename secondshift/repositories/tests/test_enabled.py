@@ -11,7 +11,9 @@ from secondshift.workspaces.dao import workspace_owner
 from secondshift.workspaces.models import Workspace
 
 
-def valid(repository: Repository) -> RepositoryValidationSchema:
+def valid(
+    repository: Repository, *, inspect: bool = False
+) -> RepositoryValidationSchema:
     return RepositoryValidationSchema(
         status="valid",
         message="Repository synchronized.",

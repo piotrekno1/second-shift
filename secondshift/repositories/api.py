@@ -176,7 +176,9 @@ def validate_repository_endpoint(
     request: HttpRequest,
     repository_id: int,
 ) -> RepositoryValidationSchema:
-    return validate_repository(repository_for_request(request, repository_id))
+    return validate_repository(
+        repository_for_request(request, repository_id), inspect=True
+    )
 
 
 @router.post(
@@ -210,7 +212,7 @@ def set_repository_enabled(
     repository = repository_for_request(request, repository_id)
     require(request, Action.CHANGE_REPOSITORY_STATE)
     if payload.enabled:
-        validation = validate_repository(repository)
+        validation = validate_repository(repository, inspect=True)
         if validation.status != ValidationStatus.VALID:
             raise HttpError(409, validation.message)
     turned_on = payload.enabled and not repository.enabled
