@@ -111,6 +111,11 @@ def test_reporting_time_has_whole_seconds_in_utc(make_run) -> None:
     assert "Reporting time (UTC): 2026-11-04T14:50:00Z" in run_prompt(run)
 
 
+def test_the_prompt_names_the_source_commit(make_run) -> None:
+    # git in the sandbox shows the hash of a new commit, not this one.
+    assert "Source commit: aaaaaaaaaaaa." in run_prompt(make_run([]))
+
+
 @pytest.mark.parametrize(
     ("backend", "expected"),
     [
