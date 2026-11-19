@@ -62,3 +62,18 @@ jobs:
     notify:
       - binding: engineering-reports
         required: true
+
+  # A linked skill, pinned to the commit we tested. It files what it finds as
+  # issues.
+  code-review:
+    name: Code review
+    skill: plugins/developer-essentials/skills/code-review-excellence/SKILL.md
+    skill_source:
+      repository: wshobson/agents
+      ref: 42203085cfc5736204bf0f6d436dff7e1da0bf3f
+    history: 3
+    schedule: "0 8 22 * *"
+    timezone: UTC
+    open_issues:
+      labels: [secondshift, code-review]
+      max: 5
