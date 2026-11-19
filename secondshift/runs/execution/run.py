@@ -160,11 +160,26 @@ def reporting_time(run: Run) -> str:
     return due.strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+def commit_note(commit_sha: str) -> str:
+    """The source commit. The sandbox's git repository can't show it.
+
+    That repository holds the files as one new commit with no parents, so
+    git there reports another hash. A report naming it points nowhere.
+    """
+    return (
+        f"Source commit: {commit_sha[:12]}. The git repository here holds "
+        "these files as one new commit, so git shows another hash. Name the "
+        "source commit when you refer to the commit."
+    )
+
+
 def run_prompt(run: Run) -> str:
     """The first user message: the task, the reporting time, the trigger
     payload, missing optional bindings and any history."""
     prompt = (
-        task_prompt(run.plan.job) + f"\nReporting time (UTC): {reporting_time(run)}"
+        task_prompt(run.plan.job)
+        + f"\nReporting time (UTC): {reporting_time(run)}"
+        + f"\n{commit_note(run.commit_sha)}"
     )
     if submission_input := run.inputs.submission_input:
         prompt = f"{prompt}\n\nInput from the person submitting this task:\n{submission_input}"

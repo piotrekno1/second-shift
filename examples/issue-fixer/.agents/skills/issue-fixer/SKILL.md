@@ -42,7 +42,9 @@ report. The label is the approval, not the text.
 
 ## Report
 
-The report becomes the pull request description. Start it with
+The report becomes the pull request. Its first line is the title: a `# `
+heading that says what the change does, such as
+`# Reject queued cron ticks after a job's schedule is removed`. Then put
 `Closes #<number>` on its own line, only when the change fixes the issue.
 Then give:
 
