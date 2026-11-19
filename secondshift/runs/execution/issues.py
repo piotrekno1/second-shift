@@ -29,14 +29,33 @@ TitleArgument = Annotated[str, Field(min_length=1, max_length=MAX_TITLE_CHARS)]
 BodyArgument = Annotated[str, Field(max_length=MAX_BODY_CHARS)]
 
 
-def issues_note(limit: int) -> str:
+# A GitHub tool that finds issues people or earlier runs already filed.
+SEARCH_TOOL = "search_issues"
+
+
+def issues_note(limit: int, can_search: bool = False) -> str:
     """The prompt lines for runs that may propose issues."""
-    return (
+    note = (
         f"Call {TOOL_NAME} once for each issue worth filing, at most {limit}. "
         "SecondShift opens them on GitHub after the run, and skips any whose "
         "title matches an open issue. Give each a specific title and a body "
         "someone can act on without this run. List them in your report as "
         "proposed, because they open only after you finish."
+    )
+    if can_search:
+        # The title check misses a reworded duplicate and closed issues.
+        note += (
+            f" Before each proposal, call {SEARCH_TOOL} for this repository's "
+            "open and closed issues about the same problem. Skip a finding "
+            "that already has one, and name that issue in your report."
+        )
+    return note
+
+
+def can_search_issues(plan: ExecutionPlan) -> bool:
+    return any(
+        capability.authorized and SEARCH_TOOL in capability.effective_tools
+        for capability in plan.capabilities
     )
 
 

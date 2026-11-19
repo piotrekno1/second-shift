@@ -1,4 +1,6 @@
 from datetime import UTC, datetime
+from types import SimpleNamespace
+from typing import Any
 
 import anyio
 import pytest
@@ -9,7 +11,13 @@ from secondshift.jobs.manifest import MAX_RUN_ISSUES
 from secondshift.jobs.models import Job
 from secondshift.runs.constants import RunStart
 from secondshift.runs.execution.agent_broker import broker_tools
-from secondshift.runs.execution.issues import TOOL_NAME, issue_tool, propose_issue
+from secondshift.runs.execution.issues import (
+    SEARCH_TOOL,
+    TOOL_NAME,
+    can_search_issues,
+    issue_tool,
+    propose_issue,
+)
 from secondshift.runs.execution.run import run_prompt
 from secondshift.runs.execution.workspace_tools import WorkspaceToolDeps
 from secondshift.runs.models import Run, RunIssue
@@ -55,6 +63,24 @@ def test_a_filing_run_offers_the_tool(filing_run: Run) -> None:
     assert f"Call {TOOL_NAME}" in run_prompt(filing_run)
     assert anyio.run(issue_tool().prepare_tool_def, context(filing_run, "1"))
     assert TOOL_NAME in broker_tools(filing_run)
+
+
+def test_a_filing_run_without_search_is_not_told_to_search(
+    filing_run: Run,
+) -> None:
+    assert SEARCH_TOOL not in run_prompt(filing_run)
+
+
+def plan_with(tools: tuple[str, ...], authorized: bool = True) -> Any:
+    capability = SimpleNamespace(authorized=authorized, effective_tools=tools)
+    return SimpleNamespace(capabilities=(capability,))
+
+
+def test_a_run_that_can_search_issues_checks_for_one_first() -> None:
+    assert can_search_issues(plan_with(("search_issues", "issue_read")))
+    # Requested but not approved, or not requested at all.
+    assert not can_search_issues(plan_with(("search_issues",), authorized=False))
+    assert not can_search_issues(plan_with(("list_issues",)))
 
 
 def test_proposals_are_kept_once_per_call(filing_run: Run) -> None:
