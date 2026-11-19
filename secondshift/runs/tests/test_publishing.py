@@ -379,3 +379,23 @@ def test_a_title_without_letters_still_names_the_branch(
     workflows.publish_pull_request_step(run.pk)
 
     assert fake.calls[0][2].branch == f"changes-{run.pk}"
+
+
+@pytest.mark.django_db
+def test_a_report_heading_names_the_draft(
+    run: Run, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    github_source(run, Connection.AuthStrategy.API_KEY)
+    report = "# Reject queued cron ticks\n\nCloses #377\n\n" + REPORT
+    run.output_path = store_run_text(run, report).path
+    run.save(update_fields=["output_path"])
+    fake = publisher(monkeypatch, OPENED)
+
+    workflows.publish_pull_request_step(run.pk)
+
+    draft = fake.calls[0][2]
+    assert draft.title == "Reject queued cron ticks"
+    assert draft.branch == f"reject-queued-cron-ticks-{run.pk}"
+    # The title is not repeated as the description's first line.
+    assert draft.body == "Closes #377\n\n" + REPORT
+    assert draft.message.startswith("Reject queued cron ticks\n")

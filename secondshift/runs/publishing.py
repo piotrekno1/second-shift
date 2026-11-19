@@ -77,18 +77,21 @@ def skip_reason(run: Run, repository: Repository) -> str:
     return ""
 
 
+MAX_TITLE_CHARS = 200
+
+
 def draft_for(run: Run) -> DraftPullRequest:
     if run.finished_at is None:
         raise PublishError("The run has not finished.")
     plan = run.plan.pull_request
     if plan is None:
         raise PublishError("The run did not ask for a pull request.")
-    title = run.display_name[:200]
     report = ""
     if run.output_path:
         report, _ = read_text(run.output_path, MAX_BODY_CHARS)
+    title, report = title_and_report(report, run.display_name)
     attribution = shows_attribution(run.repository.github_connection)
-    body = report.strip() or run.summary
+    body = report or run.summary
     paragraphs = [title]
     if not plan.run_ci:
         # CI waits for a person, because the patch has not been reviewed yet.
@@ -97,7 +100,7 @@ def draft_for(run: Run) -> DraftPullRequest:
         body = f"{body}\n\n---\n\n{footer(run)}"
         paragraphs.append(trailers(run))
     return DraftPullRequest(
-        branch=branch_name(run, attribution),
+        branch=branch_name(run, title, attribution),
         base=plan.base,
         title=title,
         body=body,
@@ -119,11 +122,24 @@ def trailers(run: Run) -> str:
     return "\n".join(lines)
 
 
-def branch_name(run: Run, attribution: bool) -> str:
+def title_and_report(report: str, fallback: str) -> tuple[str, str]:
+    """The pull request's title, and the report without it.
+
+    A report that starts with a `# ` heading names its pull request, so a
+    job that fixes a different issue each run gets a title for each. Other
+    reports keep the job's name.
+    """
+    first, _, rest = report.strip().partition("\n")
+    if first.startswith("# ") and (heading := first[2:].strip()):
+        return heading[:MAX_TITLE_CHARS], rest.strip()
+    return fallback[:MAX_TITLE_CHARS], report.strip()
+
+
+def branch_name(run: Run, title: str, attribution: bool) -> str:
     """The same name on every attempt, so a retry pushes the same branch."""
     if attribution:
         return f"{BRANCH_PREFIX}{run.pk}"
-    slug = slugify(run.display_name)[:BRANCH_SLUG_CHARS].strip("-") or "changes"
+    slug = slugify(title)[:BRANCH_SLUG_CHARS].strip("-") or "changes"
     return f"{slug}-{run.pk}"
 
 
