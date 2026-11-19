@@ -10,7 +10,7 @@ from django.utils import timezone
 
 from secondshift.connections.dao import connection_binding, get_connection
 from secondshift.connections.webhooks import deliver_webhook
-from secondshift.jobs.dao import scheduled_job
+from secondshift.jobs.dao import lock_scheduled_job
 from secondshift.jobs.readiness import execution_problems
 from secondshift.jobs.scheduling import next_occurrence
 from secondshift.repositories.dao import lock_repository
@@ -71,11 +71,12 @@ logger = logging.getLogger(__name__)
 
 
 @durable.step(name="secondshift.create_scheduled_run")
+@transaction.atomic
 def create_scheduled_run_step(scheduled_time: datetime, context: Any) -> int | None:
     job_id = int(context["job_id"])
-    job = scheduled_job(job_id)
+    job = lock_scheduled_job(job_id)
     if job is None:
-        logger.info("skipping disabled or deleted scheduled job %s", job_id)
+        logger.info("skipping job %s: no enabled schedule", job_id)
         return None
 
     run = create_scheduled_run(job, scheduled_time)
