@@ -1,5 +1,7 @@
 import os
 import signal
+import threading
+import time
 from unittest.mock import Mock
 
 import pytest
@@ -30,6 +32,49 @@ def test_sigterm_stops_tasks_and_cleans_up(monkeypatch: pytest.MonkeyPatch) -> N
     client.destroy.assert_called_once()
     destroy.assert_called_once_with(workflow_completion_timeout_sec=10)
     assert signal.getsignal(signal.SIGTERM) == previous
+
+
+def test_sigterm_ends_a_task_blocked_on_a_lock(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Like a sync waiting on a repository's mirror lock, or holding it.
+    client = Mock()
+    blocked = Mock()
+    blocked.run_if_due.side_effect = lambda: (
+        os.kill(os.getpid(), signal.SIGTERM),
+        threading.Event().wait(30),
+    )
+    monkeypatch.setattr(worker, "launch_dbos_worker", Mock())
+    monkeypatch.setattr(worker, "refresh_connections", lambda: None)
+    monkeypatch.setattr(worker, "new_dbos_client", lambda: client)
+    monkeypatch.setattr(worker, "worker_tasks", lambda client: [blocked])
+    monkeypatch.setattr(worker.DBOS, "destroy", Mock())
+    started = time.monotonic()
+
+    call_command("run_dbos_worker", sync_interval=3600)
+
+    assert time.monotonic() - started < 5
+    client.destroy.assert_called_once()
+
+
+def test_a_second_sigterm_during_cleanup_is_ignored(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # process-compose and uv run each send one.
+    client = Mock()
+    client.destroy.side_effect = lambda: os.kill(os.getpid(), signal.SIGTERM)
+    destroy = Mock()
+    stop_task = Mock()
+    stop_task.run_if_due.side_effect = lambda: os.kill(os.getpid(), signal.SIGTERM)
+    monkeypatch.setattr(worker, "launch_dbos_worker", Mock())
+    monkeypatch.setattr(worker, "refresh_connections", lambda: None)
+    monkeypatch.setattr(worker, "new_dbos_client", lambda: client)
+    monkeypatch.setattr(worker, "worker_tasks", lambda client: [stop_task])
+    monkeypatch.setattr(worker.DBOS, "destroy", destroy)
+
+    call_command("run_dbos_worker", sync_interval=3600)
+
+    destroy.assert_called_once_with(workflow_completion_timeout_sec=10)
 
 
 def test_dbos_cleanup_runs_if_client_cleanup_fails(

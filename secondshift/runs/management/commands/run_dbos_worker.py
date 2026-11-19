@@ -3,6 +3,7 @@ import os
 import signal
 import sys
 import threading
+import time
 from pathlib import Path
 from types import FrameType
 
@@ -97,6 +98,21 @@ def worker_tasks(client: DBOSClient) -> list[PeriodicTask]:
     ]
 
 
+class StopWorker(BaseException):
+    """Raised on the main thread by SIGTERM, so blocking work ends right away.
+
+    It is a BaseException so periodic tasks that catch Exception can't keep it.
+    """
+
+
+def stop(signum: int, frame: FrameType | None) -> None:
+    # A handler must not take a lock. Setting a threading.Event does, and a
+    # second SIGTERM arriving inside that call deadlocked the worker, holding
+    # a repository's mirror lock. process-compose and uv run both send one.
+    signal.signal(signal.SIGTERM, signal.SIG_IGN)
+    raise StopWorker
+
+
 def end_running_workflows(before: set[threading.Thread]) -> None:
     """End the process if workflows still run after DBOS stopped waiting.
 
@@ -128,11 +144,6 @@ def end_running_workflows(before: set[threading.Thread]) -> None:
 @click.option("--ready-file", type=click.Path(path_type=Path), hidden=True)
 def command(sync_interval: int, ready_file: Path | None) -> None:
     """Run DBOS workers and reconcile database-backed schedules."""
-    stopped = threading.Event()
-
-    def stop(signum: int, frame: FrameType | None) -> None:
-        stopped.set()
-
     previous = signal.signal(signal.SIGTERM, stop)
     before = set(threading.enumerate())
     client = None
@@ -143,16 +154,13 @@ def command(sync_interval: int, ready_file: Path | None) -> None:
         tasks = worker_tasks(client)
         if ready_file is not None:
             ready_file.touch(mode=0o600)
-        while not stopped.is_set():
+        while True:
             # The periodic tasks run on this thread, outside any request.
             refresh_connections()
             for task in tasks:
-                if stopped.is_set():
-                    break
                 task.run_if_due()
-            if stopped.wait(sync_interval):
-                break
-    except KeyboardInterrupt:
+            time.sleep(sync_interval)
+    except (KeyboardInterrupt, StopWorker):
         click.echo("Stopping DBOS worker")
     finally:
         try:
