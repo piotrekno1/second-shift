@@ -30,3 +30,4 @@ coverage.xml
 htmlcov/
 scripts/production_e2e/certs/
 .benchmarks
+.setup/
