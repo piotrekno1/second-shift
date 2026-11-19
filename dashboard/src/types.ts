@@ -175,6 +175,8 @@ export interface Repository {
   revision: string
   /** The GitHub source connection it syncs through. Null for local folders. */
   github_connection_id: number | null
+  /** A sync is waiting for the worker or running. */
+  syncing: boolean
 }
 
 export interface RepositoryValidation {

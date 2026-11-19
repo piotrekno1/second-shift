@@ -22,6 +22,7 @@ import {
   syncRepository,
 } from '../services/repositories'
 import { useAppStore } from '../stores/app'
+import { useLiveRefresh } from '../composables/useLiveRefresh'
 import type { RepositoryDetail } from '../types'
 import { Action } from '../utils/permissions'
 import { countLabel, formatDate, formatRelative, jobState, utcTitle } from '../utils/format'
@@ -118,14 +119,26 @@ async function validateRepository(): Promise<void> {
   }
 }
 
+// The worker syncs. The page refreshes quickly until it is done.
+const syncing = computed(() => repository.value?.syncing ?? false)
+
+async function refreshRepository(): Promise<void> {
+  const wasSyncing = syncing.value
+  await loadRepository()
+  // The sync may have added, changed or removed jobs.
+  if (wasSyncing && !syncing.value) await app.refresh()
+}
+
+const { reschedule } = useLiveRefresh(refreshRepository, () => syncing.value)
+
 async function resyncRepository(): Promise<void> {
   action.value = 'resync'
   error.value = null
   try {
     repository.value = await syncRepository(repositoryId)
-    await app.refresh()
+    reschedule()
   } catch (syncError) {
-    error.value = errorMessage(syncError, 'Synchronization failed')
+    error.value = errorMessage(syncError, 'Unable to start a sync')
   } finally {
     action.value = null
   }
@@ -225,7 +238,11 @@ async function copyPath(): Promise<void> {
   }, 1600)
 }
 
-onMounted(loadRepository)
+onMounted(async () => {
+  await loadRepository()
+  // The refresh was scheduled before the repository loaded.
+  reschedule()
+})
 </script>
 
 <template>
@@ -246,10 +263,10 @@ onMounted(loadRepository)
         </Button>
         <Button
           v-if="app.can(Action.ResyncRepositories)"
-          label="Resync"
+          :label="syncing ? 'Syncing…' : 'Resync'"
           severity="secondary"
           outlined
-          :loading="action === 'resync'"
+          :loading="action === 'resync' || syncing"
           title="Import the committed manifest and skill definitions"
           @click="resyncRepository"
         >
@@ -350,7 +367,7 @@ onMounted(loadRepository)
                 : 'Finish setup'
             }}
           </h2>
-          <p v-if="needsConfig">
+          <p v-if="needsConfig && !syncing">
             Commit a valid <code>{{ repository.config_path }}</code> to
             {{ repository.default_branch }} to define its jobs.
             {{
@@ -359,8 +376,12 @@ onMounted(loadRepository)
                 : 'Then press Resync.'
             }}
           </p>
+          <p v-if="needsConfig && syncing">
+            Reading <code>{{ repository.config_path }}</code> and its skills from
+            {{ repository.default_branch }}…
+          </p>
           <p
-            v-if="needsConfig && repository.validation.status !== 'valid'"
+            v-else-if="needsConfig && repository.validation.status !== 'valid'"
             class="setup-problem"
             :class="repository.validation.status"
           >
@@ -420,9 +441,9 @@ onMounted(loadRepository)
         </div>
         <Button
           v-if="app.can(Action.ResyncRepositories)"
-          label="Resync"
+          :label="syncing ? 'Syncing…' : 'Resync'"
           size="small"
-          :loading="action === 'resync'"
+          :loading="action === 'resync' || syncing"
           @click="resyncRepository"
         >
           <template #icon><AppIcon name="refresh" /></template>

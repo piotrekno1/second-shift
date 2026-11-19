@@ -133,22 +133,14 @@ def available_github_sources(
     return available, errors
 
 
-# A removed repository that is added again gets these back if its sync fails.
-RESTORED_FIELDS = (
-    "removed_at",
-    "github_connection",
-    "default_branch",
-)
-
-
 def save_attached_repository(
     workspace: Workspace,
     connection: Connection,
     repository_id: int,
     branch: str,
     metadata: dict,
-) -> tuple[Repository, dict | None]:
-    """The new or restored row, and a restored row's earlier values."""
+) -> Repository:
+    """The new or restored row."""
     repository, created = lock_or_create_github_repository(
         workspace,
         metadata["full_name"],
@@ -161,19 +153,18 @@ def save_attached_repository(
         },
     )
     if created:
-        return repository, None
+        return repository
     if (
         repository.removed_at is None
         or repository.source_type != Repository.SourceType.GITHUB
         or repository.external_id != str(repository_id)
     ):
         raise GitHubRepositoryExistsError("This repository is already connected.")
-    previous = {field: getattr(repository, field) for field in RESTORED_FIELDS}
     repository.removed_at = None
     repository.github_connection = connection
     repository.default_branch = branch or metadata["default_branch"]
     repository.save()
-    return repository, previous
+    return repository
 
 
 def repository_branches(connection: Connection, repository_id: int) -> list[str]:

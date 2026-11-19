@@ -55,6 +55,9 @@ class Repository(models.Model):
     checked_sha = models.CharField(max_length=64, blank=True)
     last_synced_at = models.DateTimeField(null=True, blank=True)
     last_sync_error = models.CharField(max_length=SYNC_ERROR_MAX_CHARS, blank=True)
+    # When a sync was asked for. The worker runs it and clears this, so a
+    # set value means a sync is waiting or running.
+    sync_requested_at = models.DateTimeField(null=True, blank=True)
     removed_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

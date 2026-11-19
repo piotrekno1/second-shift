@@ -14,7 +14,10 @@ export function refreshDelay(active: boolean, hidden: boolean): number | null {
  * queued or running, slow ones otherwise (scheduled runs start on their own), and
  * one as soon as the tab is shown again. Nothing runs while the tab is hidden.
  */
-export function useLiveRefresh(load: () => Promise<unknown> | void, active: () => boolean): void {
+export function useLiveRefresh(
+  load: () => Promise<unknown> | void,
+  active: () => boolean,
+): { reschedule: () => void } {
   let timer: number | null = null
   let inFlight = false
   let stopped = false
@@ -53,4 +56,6 @@ export function useLiveRefresh(load: () => Promise<unknown> | void, active: () =
     document.removeEventListener('visibilitychange', onVisibility)
     if (timer !== null) window.clearTimeout(timer)
   })
+  // For a view that just became active, so it refreshes soon.
+  return { reschedule: schedule }
 }

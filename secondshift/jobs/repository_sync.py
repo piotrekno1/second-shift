@@ -2,9 +2,13 @@
 
 The repositories app reads the source. This module reads the manifest and
 skills from it and syncs the jobs, so source code never knows about jobs.
-Git runs outside database transactions.
+Git runs outside database transactions. Syncs run only in the worker, one
+at a time. Resync, adding a repository and new commits all ask for one with
+request_sync, and the page shows it as syncing until it finishes.
 """
 
+import logging
+import time
 from pathlib import Path
 
 import yaml
@@ -17,9 +21,12 @@ from secondshift.jobs.dao import reopen_github_mcp_grants, repository_active_req
 from secondshift.jobs.manifest import RepositoryManifest, parse_manifest, skill_key
 from secondshift.jobs.manifest_sync import sync_jobs
 from secondshift.repositories.dao import (
+    finish_sync_request,
     get_repository_with_connection,
-    restore_repository_fields,
+    request_sync,
+    requested_syncs,
     set_sync_error,
+    sync_pending,
 )
 from secondshift.repositories.external_skills import (
     ExternalSkillError,
@@ -27,6 +34,7 @@ from secondshift.repositories.external_skills import (
     skill_readers,
 )
 from secondshift.repositories.github.access import connection_access
+from secondshift.repositories.github.check import check_after_failure
 from secondshift.repositories.github.sync import (
     fetched_branch,
     record_synced_revision,
@@ -42,6 +50,8 @@ from secondshift.repositories.local import (
 from secondshift.repositories.models import MANIFEST_FILE, Repository
 from secondshift.workspaces.models import Workspace
 
+logger = logging.getLogger(__name__)
+
 
 class RepositoryConfigError(LocalRepositoryError):
     """The branch's manifest, or a skill it names, is missing or invalid.
@@ -50,8 +60,7 @@ class RepositoryConfigError(LocalRepositoryError):
     """
 
 
-class SyncError(Exception):
-    pass
+UNEXPECTED_SYNC_ERROR = "The sync failed unexpectedly. The worker log has details."
 
 
 def read_committed_config(
@@ -167,31 +176,40 @@ def sync_github_repository(repository: Repository) -> Repository:
     return repository
 
 
-def attach_github_repository(
+def add_github_repository(
     workspace: Workspace, connection: Connection, repository_id: int, branch: str
 ) -> Repository:
-    """Add a repository, or restore a removed one, then sync it.
-
-    The row is saved first in a short transaction, so the GitHub fetch never
-    holds a database lock. If the first sync fails, the row is put back.
-    """
+    """Add a repository, or restore a removed one. The worker syncs it."""
     metadata = connection_access(connection, repository_id).metadata
     with transaction.atomic():
-        repository, previous = save_attached_repository(
+        repository = save_attached_repository(
             workspace, connection, repository_id, branch, metadata
         )
-    try:
-        return sync_github_repository(repository)
-    except Exception:
-        if previous is None:
-            repository.delete()
-        else:
-            restore_repository_fields(repository.pk, previous)
-        raise
+    request_sync(repository.pk)
+    repository.refresh_from_db()
+    return repository
+
+
+def add_local_repository(workspace: Workspace, raw_path: str) -> Repository:
+    """Add a local repository, or restore a removed one. The worker syncs it.
+
+    Raises LocalRepositoryError when the folder is not a Git repository.
+    """
+    location = locate_local_repository(raw_path)
+    repository, _ = save_local_location(
+        workspace, location, config_error="", config_read=False
+    )
+    request_sync(repository.pk)
+    repository.refresh_from_db()
+    return repository
 
 
 def sync_repository(repository: Repository) -> Repository:
-    """Sync from the branch's newest commit, from GitHub or the local folder."""
+    """Sync from the branch's newest commit, from GitHub or the local folder.
+
+    Only the worker calls this, through run_requested_syncs. Everything else
+    asks for a sync with request_sync.
+    """
     if repository.source_type == Repository.SourceType.GITHUB:
         return sync_github_repository(repository)
     return attach_local_repository(
@@ -199,16 +217,45 @@ def sync_repository(repository: Repository) -> Repository:
     )
 
 
-def resync(repository: Repository) -> Repository:
-    """Read the manifest and skills again from the branch's newest commit.
+def run_requested_syncs() -> int:
+    """Run each sync that was asked for, one at a time. Returns how many.
 
-    A configuration problem is saved on the repository and raised, so the
-    person who pressed Resync sees it.
+    A failure is saved on the repository, as a broken manifest is, and the
+    worker moves on to the next one.
     """
-    try:
-        synced = sync_repository(repository)
-    except (GitHubError, LocalRepositoryError) as error:
-        raise SyncError(str(error)) from error
-    if synced.last_sync_error:
-        raise SyncError(synced.last_sync_error)
+    synced = 0
+    for repository in requested_syncs():
+        requested_at = repository.sync_requested_at
+        assert requested_at is not None
+        try:
+            result = sync_repository(repository)
+        except (GitHubError, LocalRepositoryError) as error:
+            set_sync_error(repository.pk, str(error))
+            logger.warning("could not sync %s: %s", repository.display_name, error)
+            if repository.source_type == Repository.SourceType.GITHUB:
+                check_after_failure(repository.github_connection)
+        except Exception:
+            set_sync_error(repository.pk, UNEXPECTED_SYNC_ERROR)
+            logger.exception("could not sync %s", repository.display_name)
+        else:
+            if result.last_sync_error:
+                logger.warning(
+                    "could not sync %s: %s",
+                    repository.display_name,
+                    result.last_sync_error,
+                )
+            else:
+                synced += 1
+        finally:
+            finish_sync_request(repository.pk, requested_at)
     return synced
+
+
+def wait_for_sync(repository_id: int, timeout: float, poll: float = 0.5) -> bool:
+    """Wait for the worker to finish a requested sync. False on timeout."""
+    deadline = time.monotonic() + timeout
+    while sync_pending(repository_id):
+        if time.monotonic() >= deadline:
+            return False
+        time.sleep(poll)
+    return True

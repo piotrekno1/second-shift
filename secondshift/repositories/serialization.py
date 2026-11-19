@@ -52,6 +52,7 @@ def serialize_repository(
         local_path=visible_local_path(request, repository),
         revision=repository.config_sha,
         github_connection_id=repository.github_connection_id,
+        syncing=repository.sync_requested_at is not None,
     )
 
 

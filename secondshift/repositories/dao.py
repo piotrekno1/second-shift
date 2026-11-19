@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import Any
 
 from django.db.models import Q, QuerySet
+from django.utils import timezone
 
 from secondshift.connections.models import Connection
 from secondshift.repositories.models import SYNC_ERROR_MAX_CHARS, Repository
@@ -93,9 +94,37 @@ def set_sync_error(repository_id: int, error: str, checked_sha: str = "") -> Non
     Repository.objects.filter(pk=repository_id).update(**fields)
 
 
-def restore_repository_fields(repository_id: int, values: dict[str, Any]) -> None:
-    """Put back fields saved before a change that failed."""
-    Repository.objects.filter(pk=repository_id).update(**values)
+def request_sync(repository_id: int) -> None:
+    """Ask the worker to sync. A sync that has not started yet covers this.
+
+    A request made while a sync runs moves the time on, so the worker sees it
+    is newer than the sync and runs another.
+    """
+    Repository.objects.filter(pk=repository_id).update(sync_requested_at=timezone.now())
+
+
+def sync_pending(repository_id: int) -> bool:
+    return Repository.objects.filter(
+        pk=repository_id, sync_requested_at__isnull=False
+    ).exists()
+
+
+def requested_syncs() -> list[Repository]:
+    """Repositories waiting for a sync, oldest request first."""
+    return list(
+        Repository.objects.filter(
+            sync_requested_at__isnull=False, removed_at__isnull=True
+        )
+        .select_related("workspace", "github_connection")
+        .order_by("sync_requested_at")
+    )
+
+
+def finish_sync_request(repository_id: int, requested_at: datetime) -> None:
+    """Clear a request the sync covered. One made during the sync stays."""
+    Repository.objects.filter(pk=repository_id, sync_requested_at=requested_at).update(
+        sync_requested_at=None
+    )
 
 
 def lock_or_create_github_repository(

@@ -10,7 +10,6 @@ from django.utils import timezone
 from secondshift.connections.execution import choose_execution
 from secondshift.connections.models import Connection
 from secondshift.jobs.models import CapabilityRequest, Job
-from secondshift.jobs.repository_sync import SyncError
 from secondshift.jobs.tests.plans import stored_plan
 from secondshift.repositories.models import Repository
 from secondshift.runs.artifacts import store_run_text
@@ -253,21 +252,34 @@ def test_sync_repository_needs_the_run_scope_and_reports_errors(
     repository: Repository,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    def broken(repo: Repository) -> Repository:
-        raise SyncError(".secondshift.yaml: jobs.review.name is required.")
+    problems: list[str] = []
+
+    def worker(repository_id: int, timeout: float) -> bool:
+        # Stands in for the worker finishing the sync.
+        Repository.objects.filter(pk=repository_id).update(
+            sync_requested_at=None, last_sync_error=problems[-1] if problems else ""
+        )
+        return True
 
     assert error_text(
         call(token(owner, "read"), "sync_repository", repository_id=repository.pk)
     ) == ("This API token cannot resync repositories.")
     monkeypatch.setattr(
-        "secondshift.mcp_server.tools.repositories.resync", lambda repo: repo
+        "secondshift.mcp_server.tools.repositories.wait_for_sync", worker
     )
     synced = call(token(owner, "run"), "sync_repository", repository_id=repository.pk)
-    monkeypatch.setattr("secondshift.mcp_server.tools.repositories.resync", broken)
+    problems.append(".secondshift.yaml: jobs.review.name is required.")
     failed = call(token(owner, "run"), "sync_repository", repository_id=repository.pk)
+    monkeypatch.setattr(
+        "secondshift.mcp_server.tools.repositories.wait_for_sync",
+        lambda repository_id, timeout: False,
+    )
+    running = call(token(owner, "run"), "sync_repository", repository_id=repository.pk)
 
     result = synced["structuredContent"]
     assert (result["repository_id"], result["revision"]) == (repository.pk, "abc123")
     assert [item["name"] for item in result["jobs"]] == ["Review"]
+    assert result["syncing"] is False
     assert "local_path" not in json.dumps(result)
     assert error_text(failed) == ".secondshift.yaml: jobs.review.name is required."
+    assert running["structuredContent"]["syncing"] is True

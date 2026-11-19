@@ -11,14 +11,12 @@ from secondshift.github.app import configured
 from secondshift.github.errors import GitHubError
 from secondshift.jobs.dao import disable_repository_jobs, enabled_repository_jobs
 from secondshift.jobs.repository_sync import (
-    SyncError,
-    attach_github_repository,
-    attach_local_repository,
-    resync,
+    add_github_repository,
+    add_local_repository,
 )
 from secondshift.jobs.scheduling import restart_schedules
 from secondshift.repositories.access import repository_for_request
-from secondshift.repositories.dao import active_repositories_with_jobs
+from secondshift.repositories.dao import active_repositories_with_jobs, request_sync
 from secondshift.repositories.github.sync import (
     GitHubRepositoryExistsError,
     available_github_sources,
@@ -76,7 +74,7 @@ def create_local_repository(
         raise HttpError(404, "Local repositories are disabled.")
     workspace = require(request, Action.ADD_LOCAL_REPOSITORIES)
     try:
-        repository = attach_local_repository(workspace, payload.path)
+        repository = add_local_repository(workspace, payload.path)
     except LocalRepositoryError as error:
         raise HttpError(422, str(error)) from error
     return serialize_repository(request, repository)
@@ -144,7 +142,7 @@ def create_github_repository(
         connected_github_sources(workspace.pk), pk=payload.connection_id
     )
     try:
-        repository = attach_github_repository(
+        repository = add_github_repository(
             workspace, connection, payload.repository_id, payload.branch
         )
     except GitHubRepositoryExistsError as error:
@@ -190,12 +188,11 @@ def resync_repository(
     request: HttpRequest,
     repository_id: int,
 ) -> RepositoryDetailSchema:
+    """Ask the worker to sync. The response shows the repository as syncing."""
     repository = repository_for_request(request, repository_id)
     require(request, Action.RESYNC_REPOSITORIES)
-    try:
-        repository = resync(repository)
-    except SyncError as error:
-        raise HttpError(422, str(error)) from error
+    request_sync(repository.pk)
+    repository.refresh_from_db()
     return serialize_repository_detail(request, repository)
 
 
