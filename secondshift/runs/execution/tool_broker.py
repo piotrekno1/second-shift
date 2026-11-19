@@ -5,7 +5,6 @@ import json
 from dataclasses import dataclass
 from typing import Any
 
-from dbos import DBOS
 from jsonschema import ValidationError, validate
 
 from secondshift.connections.errors import ExternalToolError, ToolArgumentError
@@ -17,6 +16,7 @@ from secondshift.repositories.github.scope import repository_ref
 from secondshift.runs.dao import add_event, get_run
 from secondshift.runs.execution.consent import approved_connection
 from secondshift.runs.models import Run
+from secondshift.runs.orchestration import durable
 
 
 @dataclass(frozen=True)
@@ -56,7 +56,7 @@ def schema_problem(error: ValidationError) -> str:
     return f"{prefix}: {error.json_path} fails the {error.validator!s} rule."
 
 
-@DBOS.step(name="secondshift.call_external_tool")
+@durable.step(name="secondshift.call_external_tool")
 def call_external_tool_step(
     run_id: int, name: str, arguments: dict[str, Any], call_id: str
 ) -> dict[str, Any] | ExternalToolFailure:

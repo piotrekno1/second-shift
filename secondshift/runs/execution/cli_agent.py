@@ -4,7 +4,6 @@ import hashlib
 import secrets
 from typing import Any
 
-from dbos import DBOS
 from django.utils import timezone
 from pydantic import ValidationError
 
@@ -26,6 +25,7 @@ from secondshift.runs.execution.deadlines import run_deadline, timeout_failure
 from secondshift.runs.execution.result import AgentResult
 from secondshift.runs.execution.subagents import FINISHED, finish
 from secondshift.runs.models import Run, RunFailure
+from secondshift.runs.orchestration import durable
 from secondshift.runs.reporting.failures import StageFailure
 
 FAILURE_SUMMARIES = {
@@ -98,7 +98,7 @@ def record_subagents(run: Run, subagents: list[dict[str, int]]) -> None:
         )
 
 
-@DBOS.step(name="secondshift.execute_cli_agent")
+@durable.step(name="secondshift.execute_cli_agent")
 def execute_cli_step(run_id: int, session_id: str, prompt: str) -> dict[str, Any]:
     run = get_run(run_id, "job")
     # A lease means an earlier attempt started the agent before the worker

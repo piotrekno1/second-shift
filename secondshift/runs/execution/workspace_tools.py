@@ -6,7 +6,6 @@ from datetime import datetime
 from pathlib import PurePosixPath
 from typing import Annotated, Any
 
-from dbos import DBOS
 from pydantic import Field
 from pydantic_ai import ModelRetry, RunContext, Tool
 from pydantic_ai.tools import ToolDefinition
@@ -24,6 +23,7 @@ from secondshift.runs.execution.deadlines import (
     check_deadline,
 )
 from secondshift.runs.inputs import Payload
+from secondshift.runs.orchestration import durable
 
 MODEL_TOOL_NAMES = {
     "workspace.list_files": "workspace_list_files",
@@ -109,7 +109,7 @@ class WorkspaceToolDeps:
         }
 
 
-@DBOS.step(
+@durable.step(
     name="secondshift.execute_runner_command",
     retries_allowed=True,
     max_attempts=3,

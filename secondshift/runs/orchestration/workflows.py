@@ -45,6 +45,7 @@ from secondshift.runs.execution.run import execute_agent_run
 from secondshift.runs.history import pack_earlier_files
 from secondshift.runs.issue_delivery import open_run_issues
 from secondshift.runs.models import Run, RunDelivery, RunFailure
+from secondshift.runs.orchestration import durable
 from secondshift.runs.orchestration.admission import task_admission_problem
 from secondshift.runs.orchestration.reconciliation import (
     WorkflowStatus,
@@ -69,7 +70,7 @@ from secondshift.runs.transitions import finish_run, mark_running
 logger = logging.getLogger(__name__)
 
 
-@DBOS.step(name="secondshift.create_scheduled_run")
+@durable.step(name="secondshift.create_scheduled_run")
 def create_scheduled_run_step(scheduled_time: datetime, context: Any) -> int | None:
     job_id = int(context["job_id"])
     job = scheduled_job(job_id)
@@ -93,7 +94,7 @@ class RunNotReadyError(RuntimeError):
     """
 
 
-@DBOS.step(name="secondshift.mark_run_started")
+@durable.step(name="secondshift.mark_run_started")
 @transaction.atomic
 def mark_run_started_step(run_id: int) -> bool:
     """Start a queued run. Raises RunNotReadyError before any work is done."""
@@ -125,12 +126,12 @@ def mark_run_started_step(run_id: int) -> bool:
     return bool(started)
 
 
-@DBOS.step(name="secondshift.record_run_event")
+@durable.step(name="secondshift.record_run_event")
 def record_run_event_step(run_id: int, message: str) -> None:
     add_event(run_id, message)
 
 
-@DBOS.step(
+@durable.step(
     name="secondshift.prepare_source",
     retries_allowed=True,
     max_attempts=3,
@@ -164,7 +165,7 @@ def prepare_source_step(run_id: int) -> None:
         )
 
 
-@DBOS.step(
+@durable.step(
     name="secondshift.start_runner_session",
     retries_allowed=True,
     max_attempts=3,
@@ -213,7 +214,7 @@ def start_runner_session_step(run_id: int) -> str:
     return session_id
 
 
-@DBOS.step(
+@durable.step(
     name="secondshift.run_setup_command",
     retries_allowed=True,
     max_attempts=3,
@@ -248,7 +249,7 @@ def run_setup(run_id: int, session_id: str) -> None:
             raise RuntimeError(failure)
 
 
-@DBOS.step(
+@durable.step(
     name="secondshift.collect_run_outputs",
     retries_allowed=True,
     max_attempts=3,
@@ -265,7 +266,7 @@ def collect_outputs_step(run_id: int, session_id: str) -> None:
         add_event(run_id, message)
 
 
-@DBOS.step(name="secondshift.record_collection_failure")
+@durable.step(name="secondshift.record_collection_failure")
 def record_collection_failure_step(run_id: int) -> None:
     add_event(
         run_id,
@@ -283,7 +284,7 @@ def collect_outputs(run_id: int, session_id: str) -> None:
         record_collection_failure_step(run_id)
 
 
-@DBOS.step(
+@durable.step(
     name="secondshift.stop_runner_session",
     retries_allowed=True,
     max_attempts=3,
@@ -292,7 +293,7 @@ def stop_runner_session_step(session_id: str) -> None:
     get_runner_client().stop(session_id)
 
 
-@DBOS.step(name="secondshift.finish_run")
+@durable.step(name="secondshift.finish_run")
 @transaction.atomic
 def finish_run_step(run_id: int, stored: dict[str, Any]) -> None:
     result = AgentResult.model_validate(stored)
@@ -340,12 +341,12 @@ class RetryableDeliveryError(Exception):
     pass
 
 
-@DBOS.step(name="secondshift.notification_targets")
+@durable.step(name="secondshift.notification_targets")
 def notification_targets_step(run_id: int) -> list[int]:
     return notification_targets(get_run(run_id, "job"))
 
 
-@DBOS.step(
+@durable.step(
     name="secondshift.deliver_run_notification",
     retries_allowed=True,
     max_attempts=3,
@@ -379,7 +380,7 @@ def deliver_run_notification_step(run_id: int, connection_id: int) -> None:
     )
 
 
-@DBOS.step(name="secondshift.record_notification_failure")
+@durable.step(name="secondshift.record_notification_failure")
 def record_notification_failure_step(run_id: int, connection_id: int) -> None:
     binding = connection_binding(connection_id)
     # The last attempt's message stays, since it says why delivery failed.
@@ -404,22 +405,22 @@ def deliver_notification(run_id: int, connection_id: int) -> None:
         record_notification_failure_step(run_id, connection_id)
 
 
-@DBOS.step(name="secondshift.publish_pull_request")
+@durable.step(name="secondshift.publish_pull_request")
 def publish_pull_request_step(run_id: int) -> None:
     publish_run(run_id)
 
 
-@DBOS.workflow(name=RETRY_PULL_REQUEST_WORKFLOW)
+@durable.workflow(name=RETRY_PULL_REQUEST_WORKFLOW)
 def retry_pull_request_workflow(run_id: int) -> None:
     publish_pull_request_step(run_id)
 
 
-@DBOS.step(name="secondshift.open_issues")
+@durable.step(name="secondshift.open_issues")
 def open_issues_step(run_id: int) -> None:
     open_run_issues(run_id)
 
 
-@DBOS.workflow(name=RETRY_ISSUES_WORKFLOW)
+@durable.workflow(name=RETRY_ISSUES_WORKFLOW)
 def retry_issues_workflow(run_id: int) -> None:
     open_issues_step(run_id)
 
@@ -443,12 +444,12 @@ def notify(run_id: int) -> None:
         deliver_notification(run_id, connection_id)
 
 
-@DBOS.workflow(name=RETRY_NOTIFICATION_WORKFLOW)
+@durable.workflow(name=RETRY_NOTIFICATION_WORKFLOW)
 def retry_notification_workflow(run_id: int, connection_id: int) -> None:
     deliver_notification(run_id, connection_id)
 
 
-@DBOS.step(name="secondshift.fail_run")
+@durable.step(name="secondshift.fail_run")
 def fail_run_step(
     run_id: int, summary: str, failure: str, reason: str, details: dict[str, object]
 ) -> None:
@@ -516,12 +517,12 @@ def execute_run(run_id: int) -> None:
     deliver(run_id)
 
 
-@DBOS.workflow(name=EXECUTE_RUN_WORKFLOW)
+@durable.workflow(name=EXECUTE_RUN_WORKFLOW)
 def execute_run_workflow(run_id: int) -> None:
     execute_run(run_id)
 
 
-@DBOS.workflow(name=SCHEDULED_JOB_WORKFLOW)
+@durable.workflow(name=SCHEDULED_JOB_WORKFLOW)
 def scheduled_job_workflow(scheduled_time: datetime, context: Any) -> None:
     run_id = create_scheduled_run_step(scheduled_time, context)
     if run_id is not None:
