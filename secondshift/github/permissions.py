@@ -11,7 +11,7 @@ from secondshift.github.rest import GITHUB_API_URL, send
 
 # The feature each permission serves, as GitHub names them.
 SYNC = ("contents",)
-TOOLS = ("pull_requests", "actions", "statuses")
+TOOLS = ("pull_requests", "issues", "actions", "statuses")
 DRAFT_PULL_REQUESTS = ("contents", "pull_requests")
 ISSUES = ("issues",)
 
@@ -21,6 +21,7 @@ def probe_paths(branch: str) -> dict[str, str]:
     return {
         "contents": "commits?per_page=1",
         "pull_requests": "pulls?per_page=1",
+        "issues": "issues?per_page=1",
         "actions": "actions/runs?per_page=1",
         "statuses": f"commits/{quote(branch, safe='')}/status",
     }

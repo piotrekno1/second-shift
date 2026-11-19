@@ -30,7 +30,7 @@ GITHUB_MCP_URL = "https://api.githubcopilot.com/mcp/readonly"
 
 
 class GitHubMCPTool(StrEnum):
-    """Read tools for pull requests, commits, and Actions runs.
+    """Read tools for pull requests, issues, commits, and Actions runs.
 
     Actions tools that trigger runs, list artifacts, or return download links
     are left out or blocked by method.
@@ -38,6 +38,9 @@ class GitHubMCPTool(StrEnum):
 
     SEARCH_PULL_REQUESTS = "search_pull_requests"
     PULL_REQUEST_READ = "pull_request_read"
+    SEARCH_ISSUES = "search_issues"
+    LIST_ISSUES = "list_issues"
+    ISSUE_READ = "issue_read"
     LIST_COMMITS = "list_commits"
     GET_COMMIT = "get_commit"
     ACTIONS_LIST = "actions_list"
@@ -49,8 +52,14 @@ GITHUB_MCP_TOOLS = tuple(GitHubMCPTool)
 
 # Search text is written by the model. A short limit keeps it a search.
 GITHUB_SEARCH_QUERY_MAX_CHARS = 256
+# Searches that take a query. The query is pinned to the job's repository.
+GITHUB_SEARCH_TOOLS = frozenset(
+    {GitHubMCPTool.SEARCH_PULL_REQUESTS, GitHubMCPTool.SEARCH_ISSUES}
+)
 # Artifacts and log archives are left out. They return download links.
-GITHUB_ACTIONS_METHODS = {
+# Sub-issues are left out. They can live in another repository.
+GITHUB_TOOL_METHODS = {
+    GitHubMCPTool.ISSUE_READ: frozenset({"get", "get_comments", "get_labels"}),
     GitHubMCPTool.ACTIONS_LIST: frozenset(
         {"list_workflows", "list_workflow_runs", "list_workflow_jobs"}
     ),
@@ -61,6 +70,9 @@ GITHUB_ACTIONS_METHODS = {
 GITHUB_ACTIONS_TOOLS = frozenset(
     {GitHubMCPTool.ACTIONS_LIST, GitHubMCPTool.ACTIONS_GET, GitHubMCPTool.GET_JOB_LOGS}
 )
+GITHUB_ISSUE_TOOLS = frozenset(
+    {GitHubMCPTool.SEARCH_ISSUES, GitHubMCPTool.LIST_ISSUES, GitHubMCPTool.ISSUE_READ}
+)
 GITHUB_MISSING_SOURCE = (
     "This repository was not added from GitHub, so it has no GitHub connection "
     "to borrow. Use a GitHub connection with its own token."
@@ -70,7 +82,7 @@ GITHUB_JOB_LOG_MAX_LINES = 300
 
 
 def scoped_search_query(repository: str, query: str) -> str:
-    """Pin a pull request search to the job's repository."""
+    """Pin a search to the job's repository."""
     if len(query) > GITHUB_SEARCH_QUERY_MAX_CHARS:
         raise MCPArgumentError(
             f"Keep the search under {GITHUB_SEARCH_QUERY_MAX_CHARS} characters."
@@ -108,9 +120,9 @@ def scoped_github_arguments(
         scoped[key] = value
     if tool == GitHubMCPTool.LIST_COMMITS and scoped.get("sha"):
         raise MCPArgumentError("List commits from the default branch by omitting sha.")
-    if tool == GitHubMCPTool.SEARCH_PULL_REQUESTS:
+    if tool in GITHUB_SEARCH_TOOLS:
         scoped["query"] = scoped_search_query(repository, str(scoped.get("query", "")))
-    methods = GITHUB_ACTIONS_METHODS.get(tool)
+    methods = GITHUB_TOOL_METHODS.get(tool)
     if methods is not None and scoped.get("method") not in methods:
         raise MCPArgumentError(
             f"Use one of these methods: {', '.join(sorted(methods))}."
@@ -123,7 +135,7 @@ def scoped_github_arguments(
 
 
 def narrowed_github_schema(tool: str, schema: dict[str, Any]) -> dict[str, Any]:
-    """Show the model only the Actions methods and log options it may use.
+    """Show the model only the methods and log options it may use.
 
     A call outside the scope rules stops the run, so the model must not be
     offered methods those rules block.
@@ -132,7 +144,7 @@ def narrowed_github_schema(tool: str, schema: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(properties, dict):
         return schema
     narrowed = {**schema, "properties": dict(properties)}
-    methods = GITHUB_ACTIONS_METHODS.get(tool)
+    methods = GITHUB_TOOL_METHODS.get(tool)
     if methods is not None and isinstance(properties.get("method"), dict):
         narrowed["properties"]["method"] = {
             **properties["method"],
@@ -170,6 +182,11 @@ def github_tool_error(tool: str, text: str) -> str | None:
             "GitHub refused this call. It needs read access to Actions on this "
             "repository. Give it to the token or the GitHub App, then retry."
         )
+    if tool in GITHUB_ISSUE_TOOLS:
+        return (
+            "GitHub refused this call. It needs read access to Issues on this "
+            "repository. Give it to the token or the GitHub App, then retry."
+        )
     return (
         "GitHub refused this call. Check the repository permissions of the "
         "token or the GitHub App."
@@ -183,7 +200,13 @@ def github_scope(settings: MCPSettings, repository: RepositoryRef) -> str | None
 
 
 # What the tools read. An App token asks only for those the installation has.
-GITHUB_TOOL_PERMISSIONS = ("contents", "pull_requests", "actions", "statuses")
+GITHUB_TOOL_PERMISSIONS = (
+    "contents",
+    "pull_requests",
+    "issues",
+    "actions",
+    "statuses",
+)
 
 
 def github_source_reachable(repository: RepositoryRef) -> bool:

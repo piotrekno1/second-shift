@@ -131,7 +131,7 @@ def test_an_app_names_each_missing_permission(
     features = by_feature(connection)
     assert features["tools"]["ok"] is False
     assert features["tools"]["message"] == (
-        "Needs read access to Actions, Commit statuses."
+        "Needs read access to Issues, Actions, Commit statuses."
     )
     assert features["draft_pull_requests"]["message"] == (
         "Needs write access to Contents, Pull requests."
@@ -185,6 +185,7 @@ def test_a_token_is_probed_and_its_expiry_refreshed(
         return_value={
             "contents": True,
             "pull_requests": True,
+            "issues": True,
             "actions": False,
             "statuses": True,
         }
@@ -196,7 +197,7 @@ def test_a_token_is_probed_and_its_expiry_refreshed(
         TOKEN,
         "owner/project",
         "main",
-        ("contents", "pull_requests", "actions", "statuses"),
+        ("contents", "pull_requests", "issues", "actions", "statuses"),
     )
     features = by_feature(connection)
     assert features["tools"]["message"] == "Needs read access to Actions."

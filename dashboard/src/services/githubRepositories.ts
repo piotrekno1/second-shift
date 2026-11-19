@@ -8,6 +8,7 @@ export const GITHUB_TOKENS_URL = 'https://github.com/settings/personal-access-to
 const READ_PERMISSIONS = {
   contents: 'read',
   pull_requests: 'read',
+  issues: 'read',
   actions: 'read',
   statuses: 'read',
 }

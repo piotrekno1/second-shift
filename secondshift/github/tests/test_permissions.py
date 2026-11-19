@@ -21,6 +21,7 @@ def test_each_read_is_probed_on_the_repository(
     assert reads == {
         "contents": True,
         "pull_requests": True,
+        "issues": True,
         "actions": False,
         "statuses": True,
     }
