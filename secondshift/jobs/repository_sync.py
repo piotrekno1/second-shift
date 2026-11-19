@@ -42,7 +42,6 @@ from secondshift.repositories.github.sync import (
 )
 from secondshift.repositories.local import (
     LocalRepositoryError,
-    LocalRepositoryLocation,
     committed_file,
     locate_local_repository,
     save_local_location,
@@ -101,21 +100,6 @@ def read_committed_config(
     except LocalRepositoryError as error:
         raise RepositoryConfigError(str(error)) from error
     return manifest, skills
-
-
-def inspect_local_repository(
-    workspace_id: int, raw_path: str, branch: str | None = None
-) -> LocalRepositoryLocation:
-    """Check the newest commit on a branch has a valid configuration.
-
-    Only committed files count, so edits in the working folder never change
-    what runs.
-    """
-    location = locate_local_repository(raw_path, branch)
-    read_committed_config(
-        workspace_id, location.root, location.revision, location.branch
-    )
-    return location
 
 
 def attach_local_repository(

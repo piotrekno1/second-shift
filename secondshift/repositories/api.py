@@ -39,7 +39,6 @@ from secondshift.repositories.schemas import (
     RepositoryIssuesSchema,
     RepositoryPullRequestsSchema,
     RepositorySchema,
-    RepositoryValidationSchema,
 )
 from secondshift.repositories.serialization import (
     serialize_repository,
@@ -166,20 +165,6 @@ def repository_detail(
 
 
 @router.post(
-    "/repositories/{repository_id}/validate",
-    response=RepositoryValidationSchema,
-    auth=django_auth,
-)
-def validate_repository_endpoint(
-    request: HttpRequest,
-    repository_id: int,
-) -> RepositoryValidationSchema:
-    return validate_repository(
-        repository_for_request(request, repository_id), inspect=True
-    )
-
-
-@router.post(
     "/repositories/{repository_id}/resync",
     response=RepositoryDetailSchema,
     auth=django_auth,
@@ -209,7 +194,7 @@ def set_repository_enabled(
     repository = repository_for_request(request, repository_id)
     require(request, Action.CHANGE_REPOSITORY_STATE)
     if payload.enabled:
-        validation = validate_repository(repository, inspect=True)
+        validation = validate_repository(repository)
         if validation.status != ValidationStatus.VALID:
             raise HttpError(409, validation.message)
     turned_on = payload.enabled and not repository.enabled
