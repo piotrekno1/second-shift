@@ -71,3 +71,4 @@ SECONDSHIFT_RUNNER_ENVIRONMENT_FULLSTACK=nikolaik/python-nodejs@sha256:9d41da282
 That is the `python3.13-nodejs24-slim` tag on 2026-11-19. Its setup takes about
 20 seconds, and the dashboard checks and tests pass in it offline as an
 unprivileged user. Without the environment, the job can't be enabled or run.
+In a checkout, uncomment the line in `.env` that `.env.example` provides.
