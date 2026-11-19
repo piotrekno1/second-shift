@@ -1,8 +1,10 @@
 """The shared MCP client. Provider details come from the provider registry."""
 
 import json
+import logging
 import re
 from datetime import timedelta
+from importlib.metadata import version
 from typing import Any
 
 import anyio
@@ -14,7 +16,7 @@ from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
 
 from secondshift.connections.credential_store import Secret, has_secret, read_secret
-from secondshift.connections.dao import binding_taken
+from secondshift.connections.dao import binding_taken, connected_mcp_connections
 from secondshift.connections.mcp.base import (
     SOURCE_AUTH,
     CustomMCPToolError,
@@ -24,7 +26,7 @@ from secondshift.connections.mcp.base import (
     MCPSettings,
 )
 from secondshift.connections.mcp.oauth import fresh_connection
-from secondshift.connections.mcp.providers import mcp_provider
+from secondshift.connections.mcp.providers import MCP_PROVIDERS, mcp_provider
 from secondshift.connections.mcp.schemas import validate_tool_schema
 from secondshift.connections.models import Connection
 from secondshift.connections.outbound import (
@@ -35,6 +37,8 @@ from secondshift.connections.outbound import (
 from secondshift.connections.services import ConnectionConflict
 from secondshift.connections.tools import UnknownTools, store_tools
 from secondshift.workspaces.models import Workspace
+
+logger = logging.getLogger(__name__)
 
 MCP_MAX_PAGES = 10
 MCP_ERROR_REASON_MAX_CHARS = 500
@@ -238,6 +242,50 @@ def select_tools(
         )
     except UnknownTools as error:
         raise MCPError("Choose tools from the server's list.") from error
+    if not provider.owner_selects_tools:
+        connection.metadata[TOOL_LIST_KEY] = tool_list(provider)
+
+
+# Which built-in tool list a connection's stored tools came from.
+TOOL_LIST_KEY = "tool_list"
+
+
+def tool_list(provider: MCPProvider) -> str:
+    """Changes when an upgrade can change what a built-in provider offers.
+
+    The version covers new schema narrowing. The names cover tools added
+    between releases.
+    """
+    return f"{version('secondshift')}:{','.join(sorted(provider.tools))}"
+
+
+def refresh_built_in_tools() -> int:
+    """List tools again for built-in connections saved by an older SecondShift.
+
+    Without it, a tool added in an upgrade has no stored definition. Jobs that
+    request it can't be reviewed or run until the owner tests the connection.
+    """
+    built_in = {
+        key: provider
+        for key, provider in MCP_PROVIDERS.items()
+        if not provider.owner_selects_tools
+    }
+    refreshed = 0
+    for connection in connected_mcp_connections(built_in):
+        provider = built_in[connection.provider]
+        if connection.metadata.get(TOOL_LIST_KEY) == tool_list(provider):
+            continue
+        try:
+            recheck_mcp_connection(connection)
+        except MCPError:
+            logger.warning(
+                "could not list tools again for connection %s", connection.pk
+            )
+            continue
+        refreshed += 1
+    if refreshed:
+        logger.info("listed tools again for %s MCP connection(s)", refreshed)
+    return refreshed
 
 
 def create_mcp_connection(
