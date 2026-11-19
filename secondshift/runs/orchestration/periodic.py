@@ -29,11 +29,15 @@ class PeriodicTask:
         return self.last_run is None or self.clock() - self.last_run >= self.every
 
     def run_if_due(self) -> None:
-        """Run when due. A failure is logged and the worker carries on."""
-        if not self.due():
-            return
-        self.last_run = self.clock()
+        """Run when due. A failure is logged and the worker carries on.
+
+        That covers the due check too. An enabled check can read the
+        database, and an error there must not stop the worker's other tasks.
+        """
         try:
+            if not self.due():
+                return
+            self.last_run = self.clock()
             self.run()
         except Exception:
             logger.exception("periodic task %r failed", self.name)
