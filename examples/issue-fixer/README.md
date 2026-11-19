@@ -11,8 +11,8 @@ when it merges.
 
 ## Evidence and setup
 
-Open issues, their comments and labels, and open pull requests, through the
-built-in GitHub connection. Each job reads only its own repository.
+Open issues, their comments and labels, and pull requests with their reviews,
+through the built-in GitHub connection. Each job reads only its own repository.
 
 - The GitHub App or token needs read access to Issues and Pull requests for the
   tools, and write access to Contents and Pull requests for drafts.
@@ -34,8 +34,13 @@ part of it. The skill uses it only to learn what is wrong.
 ## Suggested schedule
 
 Weekdays at 07:00 UTC, one issue per run. A tick is skipped while a run is
-still going. `history: 5` lets each run skip issues earlier runs already
-handled. The skill also skips an issue that an open pull request closes.
+still going. The skill skips an issue while a pull request for it is open.
+`history: 5` lets each run skip issues earlier runs left alone.
+
+Close a draft and keep `fix-approved` to ask for another attempt. The fixer
+reads the closed pull request's comments and reviews first, so say there what
+to do differently. Remove the label to stop. After two closed attempts, the
+fixer leaves the issue to a person.
 
 **Begin with a manual run on one approved issue, review the draft, then enable
 the schedule.**

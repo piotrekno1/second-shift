@@ -14,3 +14,4 @@ jobs:
             - list_issues
             - issue_read
             - search_pull_requests
+            - pull_request_read
