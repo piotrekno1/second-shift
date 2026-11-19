@@ -95,10 +95,12 @@ jobs:
     timezone: UTC
     history: 5
     open_pull_request: true
+    # The default sandbox image has Python but no Node. The dashboard
+    # dependencies install only in an environment that has npm.
     setup:
       - python3 -m pip install --quiet --no-cache-dir --target .setup/uv uv
       - UV_LINK_MODE=copy .setup/uv/bin/uv sync --frozen --python /usr/local/bin/python3
-      - cd dashboard && npm ci --ignore-scripts --no-audit --no-fund
+      - if command -v npm >/dev/null; then cd dashboard && npm ci --ignore-scripts --no-audit --no-fund; fi
     requires:
       mcps:
         - binding: github

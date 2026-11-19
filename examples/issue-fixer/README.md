@@ -54,5 +54,6 @@ the schedule.**
 
 The canonical skill lives in this example. Root `.agents/skills/issue-fixer` is
 a relative symlink for agent discovery. The root manifest runs it every weekday
-with setup for the Python and dashboard dependencies. It picks up issues from
-the monthly code review.
+with setup for the Python dependencies. It installs the dashboard dependencies
+too when the sandbox has npm, which the default image doesn't. It picks up
+issues from the monthly code review.
