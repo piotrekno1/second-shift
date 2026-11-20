@@ -75,10 +75,12 @@ const DELIVERY_LABELS: Record<RunDelivery['status'], string> = {
   skipped: 'Skipped',
   failed: 'Failed',
 }
-// Drafts and issues open on GitHub after the run, and always say what happened.
-const OPENS_ON_GITHUB = new Set<RunDelivery['kind']>(['pull_request', 'issues'])
+// Drafts, issues and hand-backs reach GitHub after the run, and always say
+// what happened.
+const OPENS_ON_GITHUB = new Set<RunDelivery['kind']>(['pull_request', 'issues', 'hand_back'])
 function deliveryLabel(delivery: RunDelivery): string {
   if (!OPENS_ON_GITHUB.has(delivery.kind)) return DELIVERY_LABELS[delivery.status]
+  if (delivery.kind === 'hand_back' && delivery.status === 'delivered') return 'Handed back'
   // These wait for the run to finish, so pending is not sending yet.
   if (delivery.status === 'pending') return active.value ? 'After the run' : 'Opening'
   return delivery.status === 'delivered' ? 'Opened' : DELIVERY_LABELS[delivery.status]
