@@ -253,22 +253,36 @@ function codeStep(state: SetupState): SetupStep {
 }
 
 function runnerStep(state: SetupState): SetupStep {
-  const done = !state.execution?.needs_setup
+  const execution = state.execution
+  // Done once something is chosen. A saved key or login that runs nothing is not enough.
+  // Until the status loads, the step does not nag.
+  const done = !execution || execution.chosen
+  const nothingSaved = execution?.needs_setup ?? false
+  let detail: string
+  if (done) detail = execution?.label ? `${execution.label} runs jobs.` : 'Ready to run jobs.'
+  else if (!state.canConnect)
+    detail = nothingSaved
+      ? 'Ask a workspace owner to set up a model.'
+      : 'Ask a workspace owner to choose what runs jobs.'
+  else
+    detail = nothingSaved
+      ? 'Add a model API key, or connect a Claude Code or Codex subscription.'
+      : 'Choose which model key or subscription runs jobs.'
   return {
     key: 'runner',
     title: 'Choose what runs jobs',
-    detail: done
-      ? state.execution?.label
-        ? `${state.execution.label} runs jobs.`
-        : 'Ready to run jobs.'
-      : state.canConnect
-        ? 'Add a model API key, or connect a Claude Code or Codex subscription.'
-        : 'Ask a workspace owner to set up a model.',
+    detail,
     done,
     actions:
       done || !state.canConnect
         ? []
-        : [{ label: 'Set up a model', to: { path: '/models' }, icon: 'creation-outline' }],
+        : [
+            {
+              label: nothingSaved ? 'Set up a model' : 'Choose a model',
+              to: { path: '/models' },
+              icon: 'creation-outline',
+            },
+          ],
     agentHint: null,
   }
 }
