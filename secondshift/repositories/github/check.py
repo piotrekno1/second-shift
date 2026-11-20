@@ -163,11 +163,7 @@ def summary(
         return False, "Cannot read code, so sync fails."
     if not repositories:
         return True, "Connected. No repositories added yet."
-    count = len(repositories)
-    return (
-        True,
-        f"Reaches {'its repository' if count == 1 else f'all {count} repositories'}.",
-    )
+    return True, reach_message(len(repositories))
 
 
 def check_token(
@@ -277,3 +273,12 @@ def check_after_failure(connection: Connection | None) -> None:
     if connection.failed_last_check:
         return
     check_source(connection)
+
+
+def reach_message(count: int) -> str:
+    """What a passing check says about the repositories it reached."""
+    if count == 1:
+        return "Reaches its repository."
+    if count == 2:
+        return "Reaches both repositories."
+    return f"Reaches all {count} repositories."
