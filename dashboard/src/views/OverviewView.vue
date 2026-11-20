@@ -221,10 +221,10 @@ const attentionDetail = computed(() => {
       <div v-if="showAgentCard" class="agent-card">
         <AppIcon name="link-plus" />
         <div>
-          <strong>Use SecondShift from your editor</strong
+          <strong>Use SecondShift from your coding agent</strong
           ><span
-            >Your coding agent can check .secondshift.yaml changes, follow runs and read their
-            reports over MCP.</span
+            >Connect Claude Code or another MCP client. It can check your
+            <code>.secondshift.yaml</code> before you push, start jobs and read run reports.</span
           >
         </div>
         <Button label="Not now" severity="secondary" text size="small" @click="closeAgentCard" />
