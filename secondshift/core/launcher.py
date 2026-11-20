@@ -32,6 +32,7 @@ from secondshift.config.constants import (
     settings_module,
 )
 from secondshift.core import local_output
+from secondshift.runner_protocol.environments import SANDBOX_PREFIX
 
 CONTROL_SETTINGS = settings_module(Environment.LOCAL)
 # The runner gets only these variables from the parent environment.
@@ -48,7 +49,7 @@ RUNNER_ENV_NAMES = {
     AppEnv.AGENT_BROKER_URL,
     AppEnv.DATA_DIR,
 }
-RUNNER_ENV_PREFIXES = ("DOCKER_", "SECONDSHIFT_RUNNER_")
+RUNNER_ENV_PREFIXES = ("DOCKER_", "SECONDSHIFT_RUNNER_", SANDBOX_PREFIX)
 STOP_SECONDS = 15
 GUNICORN_CONFIG = "python:secondshift.config.gunicorn"
 
