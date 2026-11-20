@@ -399,3 +399,23 @@ def test_a_report_heading_names_the_draft(
     # The title is not repeated as the description's first line.
     assert draft.body == "Closes #377\n\n" + REPORT
     assert draft.message.startswith("Reject queued cron ticks\n")
+
+
+@pytest.mark.django_db
+def test_a_configured_co_author_is_credited_only_with_attribution(
+    run: Run, monkeypatch: pytest.MonkeyPatch, settings: Any
+) -> None:
+    settings.PULL_REQUEST_CO_AUTHOR = "SecondShift <bot@example.com>"
+    github_source(run, Connection.AuthStrategy.API_KEY, attribution=True)
+    fake = publisher(monkeypatch, OPENED)
+
+    workflows.publish_pull_request_step(run.pk)
+    # GitHub lists co-authors among the repository's contributors.
+    assert fake.calls[0][2].message.endswith(
+        "SecondShift-Job: Review\nCo-authored-by: SecondShift <bot@example.com>"
+    )
+
+    Connection.objects.filter(kind=Connection.Kind.SOURCE).update(attribution=False)
+    assert (
+        "Co-authored-by" not in publishing.draft_for(Run.objects.get(pk=run.pk)).message
+    )

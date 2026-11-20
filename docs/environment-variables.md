@@ -126,6 +126,7 @@ callback.
 | `SECONDSHIFT_GITHUB_APP_CLIENT_ID` | App OAuth client ID. |
 | `SECONDSHIFT_GITHUB_APP_CLIENT_SECRET` | Generated App client secret. |
 | `SECONDSHIFT_GITHUB_APP_PRIVATE_KEY` | Downloaded PEM contents. Accepts real newlines or literal `\n` escapes. |
+| `SECONDSHIFT_PULL_REQUEST_CO_AUTHOR` | A GitHub account credited on draft commits while attribution is on, as `Name <email>`. Empty by default. See [attribution](github-app.md#attribution). |
 | `SECONDSHIFT_REPOSITORY_SYNC_INTERVAL_SECONDS` | Worker polling interval. Default `300`. Set `0` to disable polling. |
 | `SECONDSHIFT_SOURCE_CACHE_ROOT` | Where web and worker keep each repository's Git mirror and the snapshots runs get. Default `sources/` in the data directory. It is a cache. Deleting it only costs a fetch from GitHub. |
 | `SECONDSHIFT_SOURCE_CACHE_MAX_BYTES` | Size limit for cached snapshots. Default 2 GiB. Past it, the least recently used snapshots are removed. Mirrors are not counted. |
