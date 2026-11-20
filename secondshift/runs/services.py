@@ -1,6 +1,6 @@
 """Create runs from job policy, whether started by cron, by hand or by a trigger."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 from django.contrib.auth.models import User
 from django.db import transaction
@@ -17,6 +17,7 @@ from secondshift.runs.dao import (
     add_event,
     create_run_record,
     create_task,
+    has_scheduled_skip,
     job_run_for_slot,
     latest_active_run,
 )
@@ -153,20 +154,23 @@ def create_scheduled_run(
 ) -> Run | None:
     """Create the run for one cron tick, or skip it while another run is active.
 
-    A replayed tick returns the run it already created. A skipped tick is
-    noted on the active run.
+    Replay returns the run or honors the skip recorded for the tick.
     """
     with transaction.atomic():
         lock_job(job)
         existing = job_run_for_slot(job, scheduled_for)
         if existing is not None:
             return existing
+        slot = scheduled_for.astimezone(UTC).isoformat()
+        if has_scheduled_skip(job, slot):
+            return None
         active = latest_active_run(job)
         if active is not None:
             add_event(
                 active.pk,
                 f"Skipped the scheduled run at {scheduled_for:%Y-%m-%d %H:%M %Z} "
                 "because this run had not finished.",
+                metadata={"skipped_scheduled_for": slot},
             )
             return None
         return create_run(job, scheduled_for, workflow_id=workflow_id)
