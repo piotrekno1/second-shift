@@ -7,6 +7,10 @@ jobs:
     timezone: UTC
     history: 5
     open_pull_request: true
+    # Hands an issue that needs a person back to the maintainers.
+    hand_back:
+      remove: [fix-approved]
+      add: [needs-design]
     requires:
       mcps:
         - binding: github

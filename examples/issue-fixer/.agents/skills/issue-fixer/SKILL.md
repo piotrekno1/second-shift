@@ -102,15 +102,27 @@ One or two sentences on the cause, with file and line.
 - Add `### Earlier attempt` for another attempt: the closed pull request's
   number and what this fix does differently.
 
-## Report a hand-back
+## Hand it back
 
-Change nothing, so no pull request opens. Start the report with
-`# Needs a person: #<number> <issue title>`. Then give:
+Change nothing, so no pull request opens. Call `hand_back_issue` with the
+issue number and a comment for the maintainers, in this shape:
 
-- **Why it doesn't fit:** which rule above, in one or two sentences.
-- **What you found:** the cause, with file and line, and anything the issue
-  got wrong.
-- **Suggested plan:** the steps you would take, and the choice a person has to
-  make.
+```markdown
+**Needs a person:** the fix adds a table to remember skipped ticks.
 
-Later runs read this report, skip the issue, and leave it to a person.
+### What I found
+
+The cause, with file and line, and anything the issue got wrong.
+
+### Suggested plan
+
+1. The steps you would take.
+2. The choice a person has to make.
+```
+
+SecondShift posts the comment after the run and swaps the issue's labels, so
+later runs don't pick it again. If the tool isn't available, put the same
+text in the report instead, and later runs skip the issue from it.
+
+Start the report with `# Needs a person: #<number> <issue title>`, then the
+same text.

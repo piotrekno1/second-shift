@@ -45,7 +45,9 @@ fixer leaves the issue to a person.
 The fixer takes only fixes that are quick to review. It hands an issue back,
 with no pull request, when the fix needs a migration, changes more than about
 80 lines or 3 files, changes concurrency or crash handling, or needs a design
-choice. Its report says why and suggests a plan, for a session with a person.
+choice. SecondShift then comments on the issue with what the fixer found and a
+suggested plan, removes `fix-approved` and adds `needs-design`. Pick those up
+in a session with a person. `hand_back` in the job sets the labels.
 
 Each draft opens with its risk, whether the checks passed, and where to look
 in the diff.

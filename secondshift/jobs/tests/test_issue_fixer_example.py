@@ -10,6 +10,9 @@ def test_the_issue_fixer_example_reads_issues_and_opens_drafts() -> None:
     job = load_manifest(EXAMPLE / ".secondshift.yaml").jobs["issue-fixer"]
 
     assert job.open_pull_request
+    # An issue that needs a person goes back to the maintainers.
+    assert job.hand_back is not None
+    assert job.hand_back.remove == ["fix-approved"]
     # Earlier reports name the issues already handled.
     assert job.history > 0
     [github] = job.requires.mcps

@@ -98,6 +98,9 @@ jobs:
     timezone: UTC
     history: 5
     open_pull_request: true
+    hand_back:
+      remove: [fix-approved]
+      add: [needs-design]
     environment: fullstack
     setup:
       - python3 -m pip install --quiet --no-cache-dir --target .setup/uv uv
