@@ -67,7 +67,7 @@ def post(client: Client, path: str, body: dict[str, Any]) -> Any:
 
 @pytest.mark.django_db
 def test_a_job_without_choices_gets_the_server_defaults(job: Job) -> None:
-    assert effective_limits(job) == {
+    assert effective_limits(job, job.workspace) == {
         "max_turns": 24,
         "max_tool_calls": 64,
         "token_budget": 2_000_000,
@@ -83,7 +83,7 @@ def test_a_job_choice_wins_over_the_workspace(job: Job) -> None:
     job.max_turns = 60
     job.save()
 
-    limits = effective_limits(job)
+    limits = effective_limits(job, job.workspace)
 
     assert limits["max_turns"] == 60
     assert limits["token_budget"] == 5_000_000
@@ -96,7 +96,7 @@ def test_a_lowered_maximum_caps_earlier_choices(job: Job, ceilings: Any) -> None
     job.save()
     ceilings.AGENT_MAX_TURNS_CEILING = 50
 
-    assert effective_limits(job)["max_turns"] == 50
+    assert effective_limits(job, job.workspace)["max_turns"] == 50
 
 
 @pytest.mark.django_db

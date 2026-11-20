@@ -1,11 +1,14 @@
 """Why a job cannot run yet, in plain words."""
 
+from collections.abc import Iterable
+
 from secondshift.jobs.environments import environment_missing
 from secondshift.jobs.execution_plan import ExecutionPlan, PlanReason
 from secondshift.jobs.models import Job
-from secondshift.jobs.planner import build_execution_plan
+from secondshift.jobs.planner import build_execution_plan, workspace_planning
 from secondshift.repositories.models import Repository
 from secondshift.runner_protocol.environments import environment_variable
+from secondshift.workspaces.models import Workspace
 
 MISMATCH = "is approved for a connection that does not match"
 REASON_TEXT = {
@@ -58,3 +61,29 @@ def execution_problems(repository: Repository, plan: ExecutionPlan) -> list[str]
 def readiness_problems(job: Job) -> list[str]:
     """Empty when Run now would start the job."""
     return execution_problems(job.repository, build_execution_plan(job))
+
+
+def listed_readiness_problems(
+    workspace: Workspace, jobs: Iterable[Job]
+) -> list[tuple[Job, list[str]]]:
+    """readiness_problems for each of the workspace's listed jobs.
+
+    The jobs come with their requests, grants and connections prefetched.
+    What every job shares is resolved once for the whole list.
+    """
+    shared = workspace_planning(workspace)
+    return [
+        (
+            job,
+            execution_problems(
+                job.repository,
+                build_execution_plan(
+                    job,
+                    workspace=workspace,
+                    requests=job.capability_requests.all(),
+                    shared=shared,
+                ),
+            ),
+        )
+        for job in jobs
+    ]

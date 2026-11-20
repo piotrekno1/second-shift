@@ -4,7 +4,9 @@ from typing import Any
 import pytest
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
+from django.db import connection
 from django.test import Client
+from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 
 from secondshift.connections.execution import choose_execution
@@ -132,6 +134,32 @@ def test_list_jobs_says_which_jobs_are_ready_and_why_not(
     assert by_key["triage"]["blocked_by"] == ["github waits for an owner's approval."]
     enabled = call(secret, "list_jobs", enabled=True)["structuredContent"]["jobs"]
     assert [item["key"] for item in enabled] == ["triage"]
+
+
+def list_jobs_queries(secret: str) -> int:
+    with CaptureQueriesContext(connection) as captured:
+        call(secret, "list_jobs")
+    return len(captured.captured_queries)
+
+
+def add_blocked_jobs(workspace: Workspace, repository: Repository, keys: str) -> None:
+    for key in keys.split():
+        blocked = make_job(workspace, key, repository)
+        CapabilityRequest.objects.create(
+            job=blocked, binding="github", kind=CapabilityRequest.Kind.MCP
+        )
+
+
+def test_list_jobs_runs_the_same_queries_for_more_jobs(
+    owner: AbstractUser, job: Job, repository: Repository
+) -> None:
+    secret = token(owner, "read")
+    add_blocked_jobs(job.workspace, repository, "triage")
+    few = list_jobs_queries(secret)
+
+    add_blocked_jobs(job.workspace, repository, "lint docs deps audit")
+
+    assert list_jobs_queries(secret) == few
 
 
 def test_get_job_reads_only_the_token_s_workspace(
