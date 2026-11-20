@@ -2,7 +2,11 @@ from django.core.exceptions import ValidationError
 from django.db import models
 
 from secondshift.connections.models import Connection
-from secondshift.jobs.manifest import OpenIssuesManifest, WebhookManifest
+from secondshift.jobs.manifest import (
+    ApprovedIssuesManifest,
+    OpenIssuesManifest,
+    WebhookManifest,
+)
 from secondshift.repositories.models import MANIFEST_FILE, Repository
 from secondshift.workspaces.models import RunLimitOverrides, Workspace
 
@@ -51,6 +55,9 @@ class Job(RunLimitOverrides):
     # The repository asks to open the issues each run's agent proposes:
     # {"labels": [...], "max": n}. None when it does not.
     open_issues = models.JSONField(null=True, blank=True)
+    # The issues a maintainer approved for the job: {"label": ...,
+    # "hand_back": ...}. None when the job doesn't work on issues.
+    approved_issues = models.JSONField(null=True, blank=True)
     enabled = models.BooleanField(default=False)
     next_run_at = models.DateTimeField(null=True, blank=True)
     # Set when a sync no longer finds the job in the manifest. The job and its
@@ -81,6 +88,12 @@ class Job(RunLimitOverrides):
         if not self.open_issues:
             return None
         return OpenIssuesManifest.model_validate(self.open_issues)
+
+    @property
+    def approved_issue_settings(self) -> ApprovedIssuesManifest | None:
+        if not self.approved_issues:
+            return None
+        return ApprovedIssuesManifest.model_validate(self.approved_issues)
 
     def capability_grant_status(self) -> str:
         """Summarize the required grants already loaded for this job."""

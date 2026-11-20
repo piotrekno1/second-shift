@@ -133,6 +133,13 @@ class IssuesPlan(Frozen):
     labels: tuple[str, ...]
 
 
+class ApprovedIssuesPlan(Frozen):
+    """The label that approves an issue for the job, and the one a hand-back adds."""
+
+    label: str
+    hand_back: str | None
+
+
 class ModelPlan(Frozen):
     connection_id: int
     connection_name: str
@@ -171,6 +178,8 @@ class ExecutionPlan(Frozen):
     issues: IssuesPlan | None
     model: ModelPlan | None
     capabilities: tuple[CapabilityPlan, ...]
+    # Plans stored before approved issues existed have none.
+    approved_issues: ApprovedIssuesPlan | None = None
 
     def limit(self, limit: RunLimit) -> int:
         return self.agent.limits.value(limit)

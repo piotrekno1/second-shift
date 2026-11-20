@@ -1,4 +1,5 @@
-"""Queries and writes on runs, tasks, run events, deliveries, issues and leases."""
+"""Queries and writes on runs, tasks, run events, deliveries, issues, hand-backs
+and leases."""
 
 from collections.abc import Collection, Iterable
 from datetime import date, datetime
@@ -21,6 +22,7 @@ from secondshift.runs.models import (
     RunDelivery,
     RunEvent,
     RunFailure,
+    RunHandBack,
     RunIssue,
     Task,
 )
@@ -567,6 +569,21 @@ def proposed_issue_count(run_id: int) -> int:
 def create_issue_proposal(run_id: int, call_id: str, title: str, body: str) -> RunIssue:
     return RunIssue.objects.create(
         run_id=run_id, call_id=call_id, title=title, body=body
+    )
+
+
+# Hand-backs
+
+
+def run_hand_back(run_id: int) -> RunHandBack | None:
+    return RunHandBack.objects.filter(run_id=run_id).first()
+
+
+def create_hand_back(
+    run_id: int, call_id: str, number: int, comment: str
+) -> RunHandBack:
+    return RunHandBack.objects.create(
+        run_id=run_id, call_id=call_id, number=number, comment=comment
     )
 
 

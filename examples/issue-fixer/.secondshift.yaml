@@ -7,6 +7,11 @@ jobs:
     timezone: UTC
     history: 5
     open_pull_request: true
+    # The label a maintainer adds to approve an issue for a fix, and the one
+    # an issue gets when the fixer hands it back to a person.
+    approved_issues:
+      label: fix-approved
+      hand_back: needs-design
     requires:
       mcps:
         - binding: github

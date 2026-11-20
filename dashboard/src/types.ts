@@ -398,7 +398,7 @@ export interface RunFile {
 
 export interface RunDelivery {
   id: number
-  kind: 'notification' | 'pull_request' | 'issues' | string
+  kind: 'notification' | 'pull_request' | 'issues' | 'hand_back' | string
   target: string
   status: 'pending' | 'retrying' | 'delivered' | 'skipped' | 'failed'
   attempts: number

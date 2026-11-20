@@ -34,6 +34,7 @@ from secondshift.runs.execution.budgets import (
 from secondshift.runs.execution.cli_agent import execute_cli_step
 from secondshift.runs.execution.deadlines import run_deadline, timeout_failure
 from secondshift.runs.execution.external_tools import external_tools
+from secondshift.runs.execution.hand_back import approved_issues_note, hand_back_tool
 from secondshift.runs.execution.issues import (
     can_search_issues,
     issue_limit,
@@ -80,6 +81,7 @@ WORKSPACE_AGENT = build_agent(
         *workspace_tools(),
         payload_tool(),
         issue_tool(),
+        hand_back_tool(),
         subagent_tool(),
         access_tool(),
     ),
@@ -194,6 +196,8 @@ def run_prompt(run: Run) -> str:
         prompt = f"{prompt}\n\n{PULL_REQUEST_NOTE}"
     if limit := issue_limit(plan):
         prompt = f"{prompt}\n\n{issues_note(limit, can_search_issues(plan))}"
+    if note := approved_issues_note(plan):
+        prompt = f"{prompt}\n\n{note}"
     if "workspace.write_file" in plan.agent.tools:
         prompt = f"{prompt}\n\n{WRITE_NOTE}"
     prompt = f"{prompt}\n\n{ACCESS_NOTE}"
@@ -330,6 +334,7 @@ def execute_agent_run(run: Run, session_id: str) -> AgentResult:
         allowed_tools=plan.agent.tools,
         payload=run_payload(run),
         issue_limit=issue_limit(plan),
+        hand_back=plan.approved_issues is not None,
         subagent_limit=subagent_limit(plan),
     )
     capture_run_input_step(run.pk, session_id)

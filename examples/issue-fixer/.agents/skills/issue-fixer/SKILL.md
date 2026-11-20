@@ -6,11 +6,11 @@ description: Pick one open GitHub issue a maintainer approved for fixing, fix it
 # Issue fixer
 
 Fix one approved issue per run. A maintainer approves an issue by adding the
-`fix-approved` label. Use the label in the request when it names another one.
+job's approval label. The request names it.
 
 ## Pick the issue
 
-1. List open issues with the label, oldest first, using `list_issues`.
+1. List open issues with the approval label, oldest first, using `list_issues`.
 2. Look up each issue's pull requests with `search_pull_requests`, such as
    `is:pr "Closes #12"`.
    - Skip it while one is open. A maintainer is reviewing it.
@@ -21,8 +21,8 @@ Fix one approved issue per run. A maintainer approves an issue by adding the
 4. Take the first issue left. Read it, its comments and its labels with
    `issue_read`.
 
-A pull request closed without merging, on an issue that still has the label,
-asks for another attempt. Read that pull request's comments and reviews with
+A pull request closed without merging, on an issue that still has the approval
+label, asks for another attempt. Read that pull request's comments and reviews with
 `pull_request_read` before you start. The new fix must answer them, not repeat
 the closed one.
 
@@ -102,15 +102,27 @@ One or two sentences on the cause, with file and line.
 - Add `### Earlier attempt` for another attempt: the closed pull request's
   number and what this fix does differently.
 
-## Report a hand-back
+## Hand it back
 
-Change nothing, so no pull request opens. Start the report with
-`# Needs a person: #<number> <issue title>`. Then give:
+Change nothing, so no pull request opens. Call `hand_back_issue` with the
+issue number and a comment for the maintainers, in this shape:
 
-- **Why it doesn't fit:** which rule above, in one or two sentences.
-- **What you found:** the cause, with file and line, and anything the issue
-  got wrong.
-- **Suggested plan:** the steps you would take, and the choice a person has to
-  make.
+```markdown
+**Needs a person:** the fix adds a table to remember skipped ticks.
 
-Later runs read this report, skip the issue, and leave it to a person.
+### What I found
+
+The cause, with file and line, and anything the issue got wrong.
+
+### Suggested plan
+
+1. The steps you would take.
+2. The choice a person has to make.
+```
+
+SecondShift posts the comment after the run and swaps the issue's labels, so
+later runs don't pick it again. If the tool isn't available, put the same
+text in the report instead, and later runs skip the issue from it.
+
+Start the report with `# Needs a person: #<number> <issue title>`, then the
+same text.
