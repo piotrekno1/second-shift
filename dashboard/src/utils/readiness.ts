@@ -11,6 +11,13 @@ export function waitingCapabilities(job: Pick<Job, 'capabilities'>): Capability[
   )
 }
 
+/** The pill for a job awaiting approval. A binding without a connection cannot be approved yet. */
+export function approvalLabel(job: Pick<Job, 'capabilities'>): string {
+  return waitingCapabilities(job).some((capability) => capability.connection_id === null)
+    ? 'Needs connection'
+    : 'Needs approval'
+}
+
 /** Jobs that name an environment the server lacks, grouped by the server's reason. */
 export interface EnvironmentProblem {
   problem: string
