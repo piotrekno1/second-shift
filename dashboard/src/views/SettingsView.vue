@@ -117,7 +117,13 @@ onMounted(async () => {
                   :title="`Copy ${item.env}`"
                   @click="copy(item.env)"
                 >
-                  <AppIcon :name="copied === item.env ? 'check' : 'content-copy'" /> {{ item.env }}
+                  <AppIcon :name="copied === item.env ? 'check' : 'content-copy'" />
+                  <!-- A long name may break after an underscore, never inside a word. -->
+                  <span
+                    ><template v-for="(part, index) in item.env.split('_')" :key="index"
+                      ><template v-if="index">_<wbr /></template>{{ part }}</template
+                    ></span
+                  >
                 </button>
               </dd>
             </div>

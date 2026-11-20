@@ -4247,7 +4247,9 @@ body .row-menu .p-menu-separator {
   max-width: 100%;
   margin-top: 6px;
   text-align: left;
-  overflow-wrap: anywhere;
+}
+.server-row .env-chip span {
+  min-width: 0;
 }
 .server-row dd strong {
   font-size: var(--text-sm);
