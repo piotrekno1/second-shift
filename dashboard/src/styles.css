@@ -56,6 +56,10 @@
 * {
   box-sizing: border-box;
 }
+/* Short pages and long ones keep the same width, so content doesn't jump. */
+html {
+  scrollbar-gutter: stable;
+}
 body {
   margin: 0;
   min-width: 320px;
@@ -614,10 +618,19 @@ body .account-menu {
   font-weight: 600;
   letter-spacing: -0.01em;
 }
+/* On a phone a long link moves under the text instead of wrapping beside it. */
+.panel-heading {
+  flex-wrap: wrap;
+}
+.panel-heading > div {
+  flex: 1 1 200px;
+  min-width: 0;
+}
 .panel-heading > a {
   color: var(--muted);
   font-size: var(--text-sm);
   font-weight: 500;
+  white-space: nowrap;
 }
 .panel-heading > a:hover {
   color: var(--ink);
@@ -4231,7 +4244,12 @@ body .row-menu .p-menu-separator {
   margin: 0;
 }
 .server-row .env-chip {
+  max-width: 100%;
   margin-top: 6px;
+  text-align: left;
+}
+.server-row .env-chip span {
+  min-width: 0;
 }
 .server-row dd strong {
   font-size: var(--text-sm);

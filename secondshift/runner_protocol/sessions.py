@@ -6,6 +6,10 @@ import re
 from dataclasses import asdict, dataclass
 from pathlib import PurePosixPath
 
+from secondshift.runner_protocol.environments import (
+    DEFAULT_ENVIRONMENT,
+    ENVIRONMENT_NAME_PATTERN,
+)
 from secondshift.runner_protocol.sandbox import (
     COMMIT_SHA_PATTERN,
     SANDBOX_HISTORY_DIR,
@@ -22,6 +26,7 @@ class RunnerProtocolError(RuntimeError):
 REPOSITORY_NAME = re.compile(r"^[A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)+$")
 COMMIT_SHA = re.compile(COMMIT_SHA_PATTERN)
 SESSION_KEY = re.compile(r"^[0-9a-f]{32}$")
+ENVIRONMENT_NAME = re.compile(ENVIRONMENT_NAME_PATTERN)
 SOURCE_SHA256 = re.compile(r"^[0-9a-f]{64}$")
 # Folders beside the repository where a command may start. Their mounts, and
 # whether they are writable, stay fixed by the runner.
@@ -57,7 +62,9 @@ class RunnerSessionSpec:
     session_key: str
     repository: str
     commit_sha: str
-    image: str
+    # The environment the job names. The runner maps it to an image, so the
+    # control plane never chooses one.
+    environment: str
     # The uploaded snapshot of the commit's files the session unpacks.
     source_sha256: str
     # Record the unpacked files, so the agent's changes can be collected.
@@ -90,8 +97,10 @@ class RunnerSessionSpec:
             raise ValueError("repository must be a normalized owner/name path")
         if not COMMIT_SHA.fullmatch(self.commit_sha):
             raise ValueError("commit_sha must be a full lowercase hexadecimal SHA")
-        if not self.image.strip():
-            raise ValueError("a server-owned image is required")
+        if self.environment != DEFAULT_ENVIRONMENT and not ENVIRONMENT_NAME.fullmatch(
+            self.environment
+        ):
+            raise ValueError("environment must be an environment name")
         if not SOURCE_SHA256.fullmatch(self.source_sha256):
             raise ValueError("source_sha256 must be a lowercase SHA-256")
         if self.history_sha256 and not SOURCE_SHA256.fullmatch(self.history_sha256):

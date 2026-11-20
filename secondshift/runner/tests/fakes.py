@@ -5,6 +5,12 @@ import httpx
 
 from secondshift.runner.agent_credentials import provisioning_public_key
 from secondshift.runner_protocol.client import HttpRunnerClient
+from secondshift.runner_protocol.environments import RunnerEnvironments
+
+
+def sandboxes(default: str, **others: str) -> RunnerEnvironments:
+    """A runner's sandboxes: python, the default, on this image, and others."""
+    return RunnerEnvironments(images={"python": default, **others}, default="python")
 
 
 def agent_runner(

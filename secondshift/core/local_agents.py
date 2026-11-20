@@ -24,11 +24,15 @@ def prepare_agent_image(image: str, echo: Callable[[str], None]) -> None:
     """Build the local tag the runner resolves. A chosen image is left alone."""
     if image != LOCAL_AGENT_TAG:
         return
-    echo("Preparing the agent image. The first start takes a few minutes.")
+    built = existing_image()
+    if built:
+        echo("Checking the agent image.")
+    else:
+        echo("Preparing the agent image. The first start takes a few minutes.")
     try:
         build_agent_image()
     except DockerError as error:
-        if existing_image():
+        if built:
             echo("Couldn't update the agent image, so using the last one built.")
             return
         raise AgentSetupError(

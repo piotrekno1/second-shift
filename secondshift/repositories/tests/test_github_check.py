@@ -319,3 +319,15 @@ def test_an_app_source_without_the_app_on_this_server_says_so(
     result = github_check.check_source(app_source(workspace))
     assert not result.ok
     assert "no GitHub App configured" in result.message
+
+
+@pytest.mark.parametrize(
+    ("count", "message"),
+    [
+        (1, "Reaches its repository."),
+        (2, "Reaches both repositories."),
+        (5, "Reaches all 5 repositories."),
+    ],
+)
+def test_the_reach_message_reads_naturally(count: int, message: str) -> None:
+    assert github_check.reach_message(count) == message

@@ -161,7 +161,7 @@ const rateText = computed(() =>
       <div class="outcome-tile">
         <span>Spend</span>
         <strong>{{ formatCost(outcomes.totalCostUsd) }}</strong>
-        <small>across these {{ runs.length }} runs</small>
+        <small>{{ runs.length === 1 ? 'for this run' : `across these ${runs.length} runs` }}</small>
       </div>
     </div>
   </section>

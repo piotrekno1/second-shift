@@ -6,6 +6,7 @@ import httpx
 from django.conf import settings
 
 from secondshift.runner_protocol.credentials import encrypt_agent_auth
+from secondshift.runner_protocol.environments import RunnerEnvironments
 from secondshift.runner_protocol.schemas import AgentCheckInput, AgentInput, AgentOutput
 from secondshift.runner_protocol.sessions import (
     MAX_SETUP_SECONDS,
@@ -73,6 +74,20 @@ class HttpRunnerClient:
             )
         if response.status_code != 204:
             self.response_payload(response)
+
+    def environments(self, timeout: float | None = None) -> RunnerEnvironments:
+        """Each environment the runner offers, its image, and the default."""
+        payload = self.response_payload(
+            self.send("GET", "/v1/environments", timeout=timeout)
+        )
+        images = payload.get("environments")
+        default = payload.get("default")
+        if not isinstance(images, dict) or not isinstance(default, str):
+            raise RunnerProtocolError("Runner returned an invalid response.")
+        return RunnerEnvironments(
+            images={str(name): str(image) for name, image in images.items()},
+            default=default,
+        )
 
     def start(self, spec: RunnerSessionSpec) -> str:
         response = self.send("POST", "/v1/sessions", json=asdict(spec))

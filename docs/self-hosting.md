@@ -84,44 +84,61 @@ closed unless the configured isolation policy is available. SecondShift never
 accepts agent drivers, runtime flags, images, capabilities, networks or mounts
 from a repository manifest.
 
-### Sandbox image
+### Sandboxes
 
-Skill commands run in Docker's official `python:3.13-slim` image, pinned by
-digest in `secondshift/config/constants.py`. The runner pulls it when it starts, so there is
-nothing to build or host.
+Each sandbox is one image, set by one env var on the runner. Jobs pick one by
+name. SecondShift writes these into the runner's `runner.env` when it creates
+it:
 
-Operators can set `SECONDSHIFT_RUNNER_IMAGE` to their own image, for example
-one built `FROM python:3.13-slim` with Node or Go added for skills that need
-them. Repositories can never choose the image. A custom image must:
+```bash
+SECONDSHIFT_SANDBOX_DEFAULT=python
+SECONDSHIFT_SANDBOX_PYTHON=python:3.13-slim@sha256:...
+SECONDSHIFT_SANDBOX_PYTHON_NODE=nikolaik/python-nodejs@sha256:...
+```
+
+- `SECONDSHIFT_SANDBOX_<NAME>` offers a sandbox called `<name>`, the end of
+  the env var in lowercase. A job picks it with `environment: <name>` in
+  `.secondshift.yaml`.
+- `SECONDSHIFT_SANDBOX_DEFAULT` names the sandbox for jobs that name none. To
+  run them all with Node, set it to `python_node`.
+- `python` is Docker's official `python:3.13-slim`. `python_node` adds Node 24,
+  git and make, for jobs that run a project's full checks. It is about 1.5 GB.
+  Remove its line to stop offering it.
+
+Where the file is:
+
+- `secondshift up` writes `runner.env` in its data folder, `~/.secondshift` by
+  default. A `runner.env` from an earlier release gets the defaults once.
+- On a server, `python -m secondshift.config.container_env` writes
+  `deploy/production/runner.env`.
+
+The defaults are listed in
+[`secondshift/config/runner_images.env`](https://github.com/piotrekno1/second-shift/blob/main/secondshift/config/runner_images.env).
+Once written, the file is yours: a new release never changes it. The release
+notes say when the defaults change. Restart the runner after a change.
+
+You can add your own image, for example one built `FROM python:3.13-slim` with
+Go added. Repositories can never choose an image, only a name the runner
+offers. An image must:
 
 - provide `sleep`, `find`, `cat` and `grep` (any Debian or Alpine base does)
 - work as an unprivileged user with a read-only root filesystem, no network,
   `HOME=/tmp` and the repository mounted at `/workspace`
 - contain no credentials, Docker client or SecondShift code.
 
-### Environments
+Rules the runner checks when it starts:
 
-Jobs that need other tools can run in another image. Each environment is one
-env var, set in web, worker and runner:
-
-```bash
-SECONDSHIFT_RUNNER_ENVIRONMENT_NODE=ghcr.io/org/runner-node@sha256:...
-SECONDSHIFT_RUNNER_ENVIRONMENT_BROWSER=ghcr.io/org/runner-browser@sha256:...
-```
-
-A job picks one with `environment: node` in `.secondshift.yaml`. Jobs that name
-none run on `SECONDSHIFT_RUNNER_IMAGE`, the `default` environment.
-
-- The name is the end of the env var in lowercase. It has letters, digits and
-  underscores.
-- Each image must meet the same rules as a custom image above.
-- A server refuses to start if an environment's image is not pinned by digest.
-  `secondshift up` on one machine also accepts tags.
-- The runner pulls every environment's image when it starts, and refuses to
-  run any other image.
+- A name has letters, digits and underscores, and starts with a letter.
+- `SECONDSHIFT_SANDBOX_DEFAULT` must name one of the sandboxes.
+- A server refuses an image that is not pinned by digest. `secondshift up` on
+  one machine also accepts tags.
+- The runner pulls every image when it starts, and refuses to run any other
+  image.
+- Only the runner knows the images. The web app and worker ask it which
+  environments exist, and a run sends just the name.
 - Every job may use every environment. Vet an image before you add it.
-- The settings page lists every environment the server found, `default`
-  included, with its image and env var.
+- The settings page shows the default and lists every sandbox with its image
+  and env var.
 
 ### Setup commands
 

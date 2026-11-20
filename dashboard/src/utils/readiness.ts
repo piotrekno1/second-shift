@@ -11,6 +11,26 @@ export function waitingCapabilities(job: Pick<Job, 'capabilities'>): Capability[
   )
 }
 
+/** Jobs that name an environment the server lacks, grouped by the server's reason. */
+export interface EnvironmentProblem {
+  problem: string
+  jobs: string[]
+}
+
+export function environmentProblems(
+  jobs: Pick<Job, 'name' | 'environment_problem'>[],
+): EnvironmentProblem[] {
+  const grouped = new Map<string, string[]>()
+  for (const job of jobs) {
+    if (!job.environment_problem) continue
+    grouped.set(job.environment_problem, [
+      ...(grouped.get(job.environment_problem) ?? []),
+      job.name,
+    ])
+  }
+  return [...grouped].map(([problem, names]) => ({ problem, jobs: names }))
+}
+
 /** Why a job in a paused repository cannot run. */
 export const PAUSED_REPOSITORY = 'Resume the repository to run its jobs.'
 
@@ -233,22 +253,36 @@ function codeStep(state: SetupState): SetupStep {
 }
 
 function runnerStep(state: SetupState): SetupStep {
-  const done = !state.execution?.needs_setup
+  const execution = state.execution
+  // Done once something is chosen. A saved key or login that runs nothing is not enough.
+  // Until the status loads, the step does not nag.
+  const done = !execution || execution.chosen
+  const nothingSaved = execution?.needs_setup ?? false
+  let detail: string
+  if (done) detail = execution?.label ? `${execution.label} runs jobs.` : 'Ready to run jobs.'
+  else if (!state.canConnect)
+    detail = nothingSaved
+      ? 'Ask a workspace owner to set up a model.'
+      : 'Ask a workspace owner to choose what runs jobs.'
+  else
+    detail = nothingSaved
+      ? 'Add a model API key, or connect a Claude Code or Codex subscription.'
+      : 'Choose which model key or subscription runs jobs.'
   return {
     key: 'runner',
     title: 'Choose what runs jobs',
-    detail: done
-      ? state.execution?.label
-        ? `${state.execution.label} runs jobs.`
-        : 'Ready to run jobs.'
-      : state.canConnect
-        ? 'Add a model API key, or connect a Claude Code or Codex subscription.'
-        : 'Ask a workspace owner to set up a model.',
+    detail,
     done,
     actions:
       done || !state.canConnect
         ? []
-        : [{ label: 'Set up a model', to: { path: '/models' }, icon: 'creation-outline' }],
+        : [
+            {
+              label: nothingSaved ? 'Set up a model' : 'Choose a model',
+              to: { path: '/models' },
+              icon: 'creation-outline',
+            },
+          ],
     agentHint: null,
   }
 }

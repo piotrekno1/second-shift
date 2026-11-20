@@ -13,6 +13,7 @@ from secondshift.jobs.argument_rules import ToolRules, broken_rules, kept_rules
 from secondshift.jobs.automatic_grants import approves_automatically
 from secondshift.jobs.capabilities import RequestedCapability, manifest_capabilities
 from secondshift.jobs.dao import job_requests_with_grants
+from secondshift.jobs.environments import environment_missing
 from secondshift.jobs.execution_plan import (
     AgentPlan,
     ApprovedIssuesPlan,
@@ -81,13 +82,6 @@ class ExecutionDefinition:
     skill_source: SkillSourcePlan | None = None
     environment: str = DEFAULT_ENVIRONMENT
     setup: tuple[str, ...] = ()
-
-
-def environment_image(name: str) -> str:
-    """The server's image for an environment, or empty when it has none."""
-    if name == DEFAULT_ENVIRONMENT:
-        return settings.RUNNER_IMAGE
-    return settings.RUNNER_ENVIRONMENTS.get(name, "")
 
 
 GRANT_REASONS = {
@@ -234,10 +228,9 @@ def compile_execution_plan(
     )
     selection = workspace_execution(workspace)
     connection = selection.connection
-    image = environment_image(definition.environment)
     ready = (
         selection.ready
-        and bool(image)
+        and not environment_missing(definition.environment)
         and all(item.authorized for item in capabilities if item.required)
     )
     agent = AgentPlan(
@@ -279,7 +272,6 @@ def compile_execution_plan(
             full_name=repository.full_name, config_sha=commit_sha
         ),
         runner=RunnerPlan(
-            image=image,
             network_policy="none",
             # Every run keeps its changes for review. Pull requests only
             # decide whether they are published.

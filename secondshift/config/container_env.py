@@ -16,6 +16,7 @@ from secondshift.config.constants import (
     SandboxRuntime,
     Service,
 )
+from secondshift.config.first_run import default_runner_images
 
 ROLE_FILES = {role: f"{role}.env" for role in Service}
 
@@ -91,6 +92,8 @@ def generate_environment(hostname: str, directory: Path) -> None:
             output.write(f"{SERVICE_VAR}={role}\n")
             for name, value in values.items():
                 output.write(f"{name}={value}\n")
+            if role == Service.RUNNER:
+                output.write("\n" + default_runner_images())
 
 
 def main() -> None:

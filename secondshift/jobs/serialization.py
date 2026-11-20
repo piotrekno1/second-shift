@@ -7,9 +7,9 @@ from secondshift.connections.execution import (
 from secondshift.connections.external import changing_tools, external_access
 from secondshift.connections.models import Connection
 from secondshift.jobs.dao import active_jobs_with_grants
+from secondshift.jobs.environments import environment_missing
 from secondshift.jobs.limits import job_limit_views
 from secondshift.jobs.models import Job
-from secondshift.jobs.planner import environment_image
 from secondshift.jobs.readiness import environment_problem
 from secondshift.jobs.schemas import (
     AccessSchema,
@@ -140,7 +140,7 @@ def serialize_job(
 def job_environment_problem(job: Job) -> str:
     """Why the job's environment stops it from running, or empty."""
     name = job.environment or DEFAULT_ENVIRONMENT
-    return "" if environment_image(name) else environment_problem(name)
+    return environment_problem(name) if environment_missing(name) else ""
 
 
 def skill_url(job: Job) -> str:

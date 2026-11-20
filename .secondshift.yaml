@@ -88,9 +88,9 @@ jobs:
 
   # Fixes one issue labelled fix-approved per run and opens a draft pull
   # request. A maintainer adds the label after reading the issue.
-  # The fullstack environment has Python 3.13 and Node 24, like CI, so the
-  # agent can run the backend and dashboard checks. The server admin defines
-  # it. See examples/issue-fixer/README.md.
+  # The python_node environment has Python 3.13 and Node 24, like CI, so the
+  # agent can run the backend and dashboard checks. Generated runner.env files
+  # offer it. See examples/issue-fixer/README.md.
   issue-fixer:
     name: Issue fixer
     skill: examples/issue-fixer/.agents/skills/issue-fixer/SKILL.md
@@ -101,7 +101,7 @@ jobs:
     approved_issues:
       label: fix-approved
       hand_back: needs-design
-    environment: fullstack
+    environment: python_node
     setup:
       - python3 -m pip install --quiet --no-cache-dir --target .setup/uv uv
       - UV_LINK_MODE=copy .setup/uv/bin/uv sync --frozen --python /usr/local/bin/python3

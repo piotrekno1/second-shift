@@ -31,7 +31,6 @@ class AppEnv(StrEnum):
     AGENT_BROKER_URL = "SECONDSHIFT_AGENT_BROKER_URL"
     DATA_DIR = "SECONDSHIFT_DATA_DIR"
     RUNNER_RUNTIME = "SECONDSHIFT_RUNNER_RUNTIME"
-    RUNNER_IMAGE = "SECONDSHIFT_RUNNER_IMAGE"
     RUNNER_SERVICE_URL = "SECONDSHIFT_RUNNER_SERVICE_URL"
     RUNNER_SERVICE_TOKEN = "SECONDSHIFT_RUNNER_SERVICE_TOKEN"
     MODEL_GATEWAY_URL = "SECONDSHIFT_MODEL_GATEWAY_URL"
@@ -109,14 +108,3 @@ class SandboxRuntime(StrEnum):
 
 
 RUNNER_SETTINGS = settings_module(Service.RUNNER)
-
-# Docker's official Python image, pinned by digest so a rebuilt tag can't change
-# what runs. The agent's tools need only `find`, `cat` and `grep`. It has no git,
-# so the workspace's git repository helps only custom images that add it.
-# Operators override it with SECONDSHIFT_RUNNER_IMAGE.
-# To update, run `docker buildx imagetools inspect python:3.13-slim` and copy
-# the index digest.
-DEFAULT_SANDBOX_IMAGE = (
-    "python:3.13-slim"
-    "@sha256:57b29a7c050c4e679e4bea572e14b3965cf4b5839de2da49d55e49ffc4024f39"
-)

@@ -290,7 +290,7 @@ def test_agent_and_command_sandboxes_get_the_same_hardening(
     settings.RUNNER_RUNTIME = "runsc"
     agent = agent_command("run-1", tmp_path / "auth", IMAGE, EGRESS)
     sandbox = DockerRunnerService.create_command(
-        Mock(image="secondshift-runner:test"), "secondshift-run-1", tmp_path / "ws"
+        "secondshift-runner:test", "secondshift-run-1", tmp_path / "ws"
     )
 
     hardening = sandbox_flags()
