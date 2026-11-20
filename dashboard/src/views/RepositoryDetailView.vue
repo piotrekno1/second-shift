@@ -498,6 +498,13 @@ onMounted(async () => {
                 ><code v-else title="The synced commit">{{ repository.revision.slice(0, 7) }}</code
                 >)
               </template>
+              <span
+                v-if="repository.last_synced_at"
+                class="synced-at"
+                :title="`${formatDate(repository.last_synced_at)} · ${utcTitle(repository.last_synced_at)}`"
+              >
+                Synced {{ formatRelative(repository.last_synced_at) }}</span
+              >
             </dd>
           </div>
           <div>
@@ -571,14 +578,6 @@ onMounted(async () => {
               >
                 {{ repository.allow_issues ? 'Turn off' : 'Turn on' }}
               </button>
-            </dd>
-          </div>
-          <div>
-            <dt>Last synced</dt>
-            <dd
-              :title="`${formatDate(repository.last_synced_at)} · ${utcTitle(repository.last_synced_at)}`"
-            >
-              {{ formatRelative(repository.last_synced_at) }}
             </dd>
           </div>
         </dl>
