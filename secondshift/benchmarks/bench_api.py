@@ -19,7 +19,7 @@ from secondshift.benchmarks.seed import (
 )
 from secondshift.connections.models import Connection
 from secondshift.gateway.tokens import authenticate
-from secondshift.jobs.models import Job
+from secondshift.jobs.models import CapabilityRequest, Job
 from secondshift.mcp_server.api import throttle
 from secondshift.runs.execution.model_gateway import issue_run_token
 from secondshift.runs.models import Run
@@ -34,6 +34,7 @@ RUNS_PAGE_QUERIES = 8
 # whether the person has an MCP token.
 OVERVIEW_QUERIES = 21
 MCP_LIST_RUNS_QUERIES = 13
+MCP_LIST_JOBS_QUERIES = 14
 GATEWAY_AUTH_QUERIES = 1
 
 
@@ -124,6 +125,21 @@ def test_mcp_list_runs(benchmark: BenchmarkFixture, mcp_secret: str) -> None:
         mcp_call(mcp_secret, "list_runs", {"page_size": 50})
 
     benchmark(mcp_call, mcp_secret, "list_runs", {"page_size": 50})
+
+
+def test_mcp_list_jobs(
+    benchmark: BenchmarkFixture, workspace: Workspace, mcp_secret: str
+) -> None:
+    """Each job's readiness plan, with requests that wait for approval."""
+    CapabilityRequest.objects.bulk_create(
+        CapabilityRequest(job=job, binding="github", kind=CapabilityRequest.Kind.MCP)
+        for job in Job.objects.filter(workspace=workspace)
+    )
+    with query_budget(MCP_LIST_JOBS_QUERIES):
+        result = mcp_call(mcp_secret, "list_jobs", {})
+    assert result["structuredContent"]["jobs"]
+
+    benchmark(mcp_call, mcp_secret, "list_jobs", {})
 
 
 def test_gateway_token_lookup(

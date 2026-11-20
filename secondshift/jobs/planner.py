@@ -1,11 +1,15 @@
 import re
-from collections.abc import Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 
 from django.conf import settings
 
 from secondshift.connections.dao import connection_for_binding, connections_by_binding
-from secondshift.connections.execution import workspace_execution, workspace_model
+from secondshift.connections.execution import (
+    ExecutionSelection,
+    workspace_execution,
+    workspace_model,
+)
 from secondshift.connections.external import EXTERNAL_KINDS
 from secondshift.connections.model_providers import provider_family
 from secondshift.connections.models import Connection
@@ -33,7 +37,7 @@ from secondshift.jobs.execution_plan import (
 )
 from secondshift.jobs.limits import effective_limits
 from secondshift.jobs.manifest import JobManifest, TaskManifest, manifest_hash
-from secondshift.jobs.models import Job, JobGrant
+from secondshift.jobs.models import CapabilityRequest, Job, JobGrant
 from secondshift.jobs.tool_policy import plan_tools
 from secondshift.repositories.github.scope import repository_ref
 from secondshift.repositories.models import Repository
@@ -82,6 +86,22 @@ class ExecutionDefinition:
     skill_source: SkillSourcePlan | None = None
     environment: str = DEFAULT_ENVIRONMENT
     setup: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class WorkspacePlanning:
+    """What every job of one workspace plans with. A list resolves it once."""
+
+    execution: ExecutionSelection
+    # The workspace's bound connections, by binding key.
+    connections: Mapping[str, Connection]
+
+
+def workspace_planning(workspace: Workspace) -> WorkspacePlanning:
+    return WorkspacePlanning(
+        execution=workspace_execution(workspace),
+        connections=connections_by_binding(workspace.pk),
+    )
 
 
 GRANT_REASONS = {
@@ -149,11 +169,14 @@ def missing_reason(
     request: RequestedCapability,
     grant: CapabilityApproval | None,
     reasons: list[str],
+    connections: Mapping[str, Connection] | None = None,
 ) -> Missing:
     if grant and grant.status == JobGrant.Status.DENIED:
         return Missing.DENIED
-    connection = (grant.connection if grant else None) or connection_for_binding(
-        workspace.pk, request.binding
+    connection = (grant.connection if grant else None) or (
+        connections.get(request.binding)
+        if connections is not None
+        else connection_for_binding(workspace.pk, request.binding)
     )
     if connection is None or connection.status != Connection.Status.CONNECTED:
         return Missing.NOT_CONNECTED
@@ -163,7 +186,10 @@ def missing_reason(
 
 
 def capability_plan(
-    workspace: Workspace, repository: Repository, capability: PlannedCapability
+    workspace: Workspace,
+    repository: Repository,
+    capability: PlannedCapability,
+    connections: Mapping[str, Connection] | None = None,
 ) -> CapabilityPlan:
     """One requested capability, with the tools the run may use."""
     request = capability.request
@@ -199,7 +225,9 @@ def capability_plan(
         authorized=authorized,
         reasons=tuple(reasons),
         missing=(
-            None if authorized else missing_reason(workspace, request, grant, reasons)
+            None
+            if authorized
+            else missing_reason(workspace, request, grant, reasons, connections)
         ),
         external=(
             adapter.freeze(connection, access.scope, effective) if frozen else None
@@ -219,14 +247,20 @@ def compile_execution_plan(
     issues: IssuesPlan | None = None,
     subagents: int = 0,
     approved_issues: ApprovedIssuesPlan | None = None,
+    shared: WorkspacePlanning | None = None,
 ) -> ExecutionPlan:
-    """Compile server-resolved policy into the plan a run keeps."""
+    """Compile server-resolved policy into the plan a run keeps.
+
+    A caller planning many jobs of one workspace passes its shared planning.
+    """
     if repository.workspace_id != workspace.pk:
         raise ValueError("Repository and execution policy must share a workspace.")
+    connections = shared.connections if shared else None
     capabilities = tuple(
-        capability_plan(workspace, repository, item) for item in resolved_capabilities
+        capability_plan(workspace, repository, item, connections)
+        for item in resolved_capabilities
     )
-    selection = workspace_execution(workspace)
+    selection = shared.execution if shared else workspace_execution(workspace)
     connection = selection.connection
     ready = (
         selection.ready
@@ -297,10 +331,24 @@ def job_skill_source(job: Job) -> SkillSourcePlan | None:
     )
 
 
-def build_execution_plan(job: Job) -> ExecutionPlan:
-    """The plan for a run of this saved job, with its grants."""
+def build_execution_plan(
+    job: Job,
+    *,
+    workspace: Workspace | None = None,
+    requests: Iterable[CapabilityRequest] | None = None,
+    shared: WorkspacePlanning | None = None,
+) -> ExecutionPlan:
+    """The plan for a run of this saved job, with its grants.
+
+    A list of jobs passes the workspace, each job's prefetched requests with
+    their grants and connections, and the workspace's shared planning, so
+    planning one more job runs no more queries.
+    """
+    workspace = workspace or job.workspace
+    if requests is None:
+        requests = job_requests_with_grants(job)
     capabilities = []
-    for request in job_requests_with_grants(job):
+    for request in requests:
         grant = getattr(request, "grant", None)
         capabilities.append(
             PlannedCapability(
@@ -321,7 +369,7 @@ def build_execution_plan(job: Job) -> ExecutionPlan:
             )
         )
     return compile_execution_plan(
-        job.workspace,
+        workspace,
         job.repository,
         ExecutionDefinition(
             job.key,
@@ -332,7 +380,7 @@ def build_execution_plan(job: Job) -> ExecutionPlan:
             tuple(job.setup),
         ),
         capabilities,
-        effective_limits(job),
+        effective_limits(job, workspace),
         job.repository.config_sha,
         # Jobs run on the followed branch, so their drafts target it.
         PullRequestPlan(
@@ -351,6 +399,7 @@ def build_execution_plan(job: Job) -> ExecutionPlan:
             if (approved := job.approved_issue_settings)
             else None
         ),
+        shared=shared,
     )
 
 

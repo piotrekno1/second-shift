@@ -4,7 +4,7 @@ from thin_mcp import ToolContext, ToolExecutionError
 
 from secondshift.jobs.access import job_for_request
 from secondshift.jobs.dao import active_jobs_with_grants
-from secondshift.jobs.readiness import readiness_problems
+from secondshift.jobs.readiness import listed_readiness_problems, readiness_problems
 from secondshift.jobs.serialization import serialize_job_detail
 from secondshift.mcp_server.schemas import (
     JobArguments,
@@ -32,14 +32,15 @@ from secondshift.workspaces.access import Action, current_workspace, require
 )
 def list_jobs(context: ToolContext, arguments: JobListArguments) -> JobListResult:
     workspace = current_workspace(call_request(context))
+    if workspace is None:
+        return JobListResult(jobs=[])
     jobs = active_jobs_with_grants(
-        workspace.pk if workspace else None,
+        workspace.pk,
         repository_id=arguments.repository_id,
         enabled=arguments.enabled,
     )
     summaries = []
-    for job in jobs:
-        problems = readiness_problems(job)
+    for job, problems in listed_readiness_problems(workspace, jobs):
         summaries.append(
             JobSummary(
                 id=job.pk,
