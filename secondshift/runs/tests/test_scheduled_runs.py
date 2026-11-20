@@ -1,11 +1,16 @@
 from datetime import UTC, datetime, timedelta
+from types import SimpleNamespace
+from unittest.mock import Mock
 
 import pytest
 from django.contrib.auth import get_user_model
+from django.utils import timezone
 
 from secondshift.jobs.models import Job
 from secondshift.repositories.models import Repository
 from secondshift.runs.models import Run, RunEvent, Task
+from secondshift.runs.orchestration import dispatch, workflows
+from secondshift.runs.orchestration.reconciliation import reconcile_terminal_workflows
 from secondshift.runs.orchestration.workflows import create_scheduled_run_step
 from secondshift.workspaces.dao import create_workspace
 
@@ -40,6 +45,33 @@ def test_tick_creates_a_run(job: Job) -> None:
 
     assert (run.started_by, run.scheduled_for) == ("schedule", TICK)
     assert run.task.submitted_by is None
+
+
+def test_interrupted_tick_keeps_its_workflow(
+    job: Job, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    workflow_id = "scheduled-workflow"
+    monkeypatch.setattr(workflows, "DBOS", SimpleNamespace(workflow_id=workflow_id))
+    queue = Mock(return_value="duplicate-workflow")
+    monkeypatch.setattr(dispatch, "queue_workflow", queue)
+
+    run = Run.objects.get(pk=tick(job))
+    assert run.status == Run.Status.QUEUED
+    grace = timedelta(seconds=dispatch.UNQUEUED_GRACE_SECONDS + 1)
+    Run.objects.filter(pk=run.pk).update(created_at=timezone.now() - grace)
+
+    assert dispatch.recover_unqueued_runs() == 0
+    queue.assert_not_called()
+    assert run.dbos_workflow_id == workflow_id
+
+    client = Mock()
+    client.list_workflows.return_value = [
+        SimpleNamespace(workflow_id=workflow_id, status="ERROR")
+    ]
+    assert reconcile_terminal_workflows(client) == 1
+    assert client.list_workflows.call_args.kwargs["workflow_ids"] == [workflow_id]
+    run.refresh_from_db()
+    assert run.status == Run.Status.FAILED
 
 
 def test_queued_tick_is_skipped_after_cron_is_removed(job: Job) -> None:
