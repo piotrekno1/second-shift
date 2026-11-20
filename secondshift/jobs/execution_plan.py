@@ -8,7 +8,7 @@ from enum import StrEnum
 from pathlib import PurePosixPath
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from secondshift.runner_protocol.agents import AgentBackend
 from secondshift.runner_protocol.environments import DEFAULT_ENVIRONMENT
@@ -104,16 +104,16 @@ class RepositoryPlan(Frozen):
 
 
 class RunnerPlan(Frozen):
-    # The server's image for the environment. Empty when the server has none,
-    # and then the plan is not ready.
-    image: str
     network_policy: Literal["none"]
     # Whether the runner records the agent's file changes. Every new plan
     # does. Plans stored before that may not.
     collect_changes: bool
-    # The environment the job names. Plans stored before environments ran
-    # on the default.
+    # The environment the job names. The runner maps it to an image. Plans
+    # stored before environments ran on the default.
     environment: str = DEFAULT_ENVIRONMENT
+    # Plans stored before 0.1.0b13 named the image too. Runs ignore it, and
+    # new plans don't store it.
+    image: str = Field(default="", exclude=True)
     # Commands from the job's merged configuration that install dependencies
     # before the agent starts, with access to package registries only.
     setup: tuple[str, ...] = ()

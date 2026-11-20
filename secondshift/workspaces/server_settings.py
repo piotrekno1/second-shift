@@ -11,13 +11,13 @@ from dataclasses import dataclass
 from django.conf import settings
 
 from secondshift.config.constants import (
-    DEFAULT_SANDBOX_IMAGE,
     AppEnv,
     ArtifactStorage,
     Environment,
     SandboxRuntime,
 )
 from secondshift.config.formatting import duration_label
+from secondshift.jobs.environments import runner_environments
 from secondshift.runner_protocol.environments import (
     DEFAULT_ENVIRONMENT,
     environment_variable,
@@ -65,15 +65,31 @@ def image_label(image: str) -> str:
 
 
 def environment_items() -> list[SettingValue]:
-    """The named environments a job may choose, besides the default image."""
+    """Each environment the runner offers, the default first. The runner owns
+    their images, so the page asks it.
+    """
+    environments = runner_environments()
+    if environments is None:
+        return [
+            SettingValue(
+                "Environments",
+                "Runner unreachable",
+                "",
+                "The runner lists its environments and images when it answers.",
+            )
+        ]
     return [
         SettingValue(
             f"Environment: {name}",
             image_label(image),
-            environment_variable(name),
-            f"Jobs that set environment: {name} run on this image.",
+            AppEnv.RUNNER_IMAGE
+            if name == DEFAULT_ENVIRONMENT
+            else environment_variable(name),
+            "Jobs that set no environment run on this image."
+            if name == DEFAULT_ENVIRONMENT
+            else f"Jobs that set environment: {name} run on this image.",
         )
-        for name, image in settings.RUNNER_ENVIRONMENTS.items()
+        for name, image in environments.items()
     ]
 
 
@@ -142,15 +158,6 @@ def setting_groups() -> list[SettingGroup]:
                     "",
                     "Skills cannot reach the network. Model and approved MCP "
                     "calls go through SecondShift.",
-                ),
-                SettingValue(
-                    f"Environment: {DEFAULT_ENVIRONMENT}",
-                    image_label(settings.RUNNER_IMAGE),
-                    AppEnv.RUNNER_IMAGE,
-                    "Jobs that set no environment run on this image."
-                    if settings.RUNNER_IMAGE != DEFAULT_SANDBOX_IMAGE
-                    else "Docker's official Python image, pinned. Jobs that "
-                    "set no environment run on it.",
                 ),
                 *environment_items(),
             ],

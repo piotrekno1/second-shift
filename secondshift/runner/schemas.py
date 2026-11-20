@@ -13,7 +13,7 @@ class SessionInput(StrictSchema):
     session_key: str = Field(min_length=32, max_length=32)
     repository: str = Field(min_length=3, max_length=300)
     commit_sha: str = Field(min_length=40, max_length=64)
-    image: str = Field(min_length=1, max_length=300)
+    environment: str = Field(min_length=1, max_length=40)
     source_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     collect_changes: bool = False
     history_sha256: str = Field(default="", pattern=r"^(?:[0-9a-f]{64})?$")

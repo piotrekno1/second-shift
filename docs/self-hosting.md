@@ -102,7 +102,7 @@ them. Repositories can never choose the image. A custom image must:
 ### Environments
 
 Jobs that need other tools can run in another image. Each environment is one
-env var, set in web, worker and runner:
+env var, set on the runner only:
 
 ```bash
 SECONDSHIFT_RUNNER_ENVIRONMENT_NODE=ghcr.io/org/runner-node@sha256:...
@@ -119,6 +119,8 @@ none run on `SECONDSHIFT_RUNNER_IMAGE`, the `default` environment.
   `secondshift up` on one machine also accepts tags.
 - The runner pulls every environment's image when it starts, and refuses to
   run any other image.
+- Only the runner knows the images. The web app and worker ask it which
+  environments exist, and a run sends just the name.
 - Every job may use every environment. Vet an image before you add it.
 - The settings page lists every environment the server found, `default`
   included, with its image and env var.

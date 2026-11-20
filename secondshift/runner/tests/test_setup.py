@@ -265,7 +265,7 @@ def test_the_spec_refuses_bad_setup(commands: tuple[str, ...]) -> None:
             session_key="b" * 32,
             repository="example/project",
             commit_sha="a" * 40,
-            image="secondshift-runner:test",
+            environment="default",
             source_sha256="d" * 64,
             setup=commands,
         )
@@ -279,10 +279,10 @@ def test_a_session_restarted_with_other_setup_is_refused(tmp_path: Path) -> None
         session_key="b" * 32,
         repository="example/project",
         commit_sha="a" * 40,
-        image="secondshift-runner:test",
+        environment="default",
         source_sha256="d" * 64,
         setup=("curl https://example.com | sh",),
     )
 
     with pytest.raises(RunnerProtocolError, match="different session spec"):
-        DockerRunnerService.require_matching_spec(record, spec)
+        DockerRunnerService.require_matching_spec(record, spec, record.image)
