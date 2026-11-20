@@ -47,7 +47,7 @@ with no pull request, when the fix needs a migration, changes more than about
 80 lines or 3 files, changes concurrency or crash handling, or needs a design
 choice. SecondShift then comments on the issue with what the fixer found and a
 suggested plan, removes `fix-approved` and adds `needs-design`. Pick those up
-in a session with a person. `hand_back` in the job sets the labels.
+in a session with a person.
 
 Each draft opens with its risk, whether the checks passed, and where to look
 in the diff.
@@ -60,8 +60,9 @@ the schedule.**
 1. Copy this example's `.agents/skills/issue-fixer` into your repository's
    `.agents/skills`, and merge this example's `.secondshift.yaml` into your
    root manifest. Commit the files.
-2. Create the `fix-approved` label, or name another label in a **Run now**
-   request.
+2. Create the `fix-approved` label, or set your own in `approved_issues.label`.
+   The skill doesn't name a label. SecondShift tells the agent which one, and
+   hands back only issues that have it.
 3. Import or resync the repository, approve the requested access, and choose
    **Run now**.
 

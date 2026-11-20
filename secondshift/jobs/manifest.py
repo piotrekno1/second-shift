@@ -181,25 +181,25 @@ class OpenIssuesManifest(BaseModel):
         return value
 
 
-class HandBackManifest(BaseModel):
-    """How a job hands an approved issue back to a person.
+class ApprovedIssuesManifest(BaseModel):
+    """The issues a maintainer approved for the job, by label.
 
-    The agent may hand back one issue per run. SecondShift then comments on it
-    and swaps these labels, only if the issue still has a label in remove.
+    The agent works on open issues with label. It may hand one back per run.
+    SecondShift then comments on it, removes label and adds hand_back, only if
+    the issue still has label.
     """
 
     model_config = ConfigDict(extra="forbid")
 
-    # The labels that approve an issue for the job. One must be on the issue.
-    remove: list[IssueLabel] = Field(min_length=1, max_length=10)
-    add: list[IssueLabel] = Field(default_factory=list, max_length=10)
+    label: IssueLabel
+    # Added when the agent hands an issue back. Left out, nothing is added.
+    hand_back: IssueLabel | None = None
 
-    @field_validator("remove", "add")
-    @classmethod
-    def distinct_labels(cls, value: list[str]) -> list[str]:
-        if len({label.casefold() for label in value}) != len(value):
-            raise ValueError("list each label once")
-        return value
+    @model_validator(mode="after")
+    def different_labels(self) -> "ApprovedIssuesManifest":
+        if self.hand_back and self.hand_back.casefold() == self.label.casefold():
+            raise ValueError("hand_back must differ from label")
+        return self
 
 
 SetupCommand = Annotated[str, Field(min_length=1, max_length=MAX_SETUP_COMMAND_CHARS)]
@@ -241,9 +241,10 @@ class JobManifest(BaseModel):
     # Open the issues the agent proposes. true uses the defaults. An owner
     # still allows issues for the repository.
     open_issues: OpenIssuesManifest | None = None
-    # Let the agent hand one approved issue back to a person per run. An
-    # owner still allows issues for the repository.
-    hand_back: HandBackManifest | None = None
+    # The issues a maintainer approved for the job, by label. The agent may
+    # hand one back to a person per run. An owner still allows issues for the
+    # repository.
+    approved_issues: ApprovedIssuesManifest | None = None
 
     @field_validator("open_issues", mode="before")
     @classmethod

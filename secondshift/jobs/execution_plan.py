@@ -133,11 +133,11 @@ class IssuesPlan(Frozen):
     labels: tuple[str, ...]
 
 
-class HandBackPlan(Frozen):
-    """The labels a hand-back removes and adds. One in remove must be present."""
+class ApprovedIssuesPlan(Frozen):
+    """The label that approves an issue for the job, and the one a hand-back adds."""
 
-    remove: tuple[str, ...]
-    add: tuple[str, ...]
+    label: str
+    hand_back: str | None
 
 
 class ModelPlan(Frozen):
@@ -178,8 +178,8 @@ class ExecutionPlan(Frozen):
     issues: IssuesPlan | None
     model: ModelPlan | None
     capabilities: tuple[CapabilityPlan, ...]
-    # Plans stored before hand-backs existed have none.
-    hand_back: HandBackPlan | None = None
+    # Plans stored before approved issues existed have none.
+    approved_issues: ApprovedIssuesPlan | None = None
 
     def limit(self, limit: RunLimit) -> int:
         return self.agent.limits.value(limit)

@@ -14,7 +14,7 @@ from pydantic_ai.usage import RunUsage
 from secondshift.connections.models import Connection
 from secondshift.github.errors import GitHubError
 from secondshift.github.issues import IssueState
-from secondshift.jobs.manifest import HandBackManifest
+from secondshift.jobs.manifest import ApprovedIssuesManifest
 from secondshift.jobs.planner import build_execution_plan
 from secondshift.repositories.github.access import GitHubAccess
 from secondshift.repositories.models import Repository
@@ -29,7 +29,7 @@ from secondshift.runs.tests.test_publishing import github_source, queue  # noqa:
 from secondshift.runs.tests.test_workflows import execution_run
 
 ACCESS = GitHubAccess(42, "current/project", "ghs_token", {})
-LABELS = {"remove": ["fix-approved"], "add": ["needs-design"]}
+APPROVED = {"label": "fix-approved", "hand_back": "needs-design"}
 COMMENT_URL = "https://github.com/current/project/issues/12#issuecomment-1"
 
 
@@ -83,7 +83,7 @@ def run(db: object) -> Run:
     Repository.objects.filter(pk=run.repository.pk).update(allow_issues=True)
     run.status = Run.Status.SUCCEEDED
     run.finished_at = timezone.now()
-    run.execution_plan["hand_back"] = LABELS
+    run.execution_plan["approved_issues"] = APPROVED
     run.save()
     return Run.objects.get(pk=run.pk)
 
@@ -109,35 +109,39 @@ def tool_context(run: Run, call_id: str, allowed: bool = True) -> RunContext:
     return RunContext(deps=deps, model=None, usage=RunUsage(), tool_call_id=call_id)
 
 
-def test_the_manifest_needs_an_approving_label() -> None:
-    assert HandBackManifest.model_validate({"remove": ["fix-approved"]}).add == []
+def test_the_manifest_needs_an_approval_label() -> None:
+    approved = ApprovedIssuesManifest.model_validate({"label": "fix-approved"})
+    assert approved.hand_back is None
     with pytest.raises(ValidationError):
-        HandBackManifest.model_validate({"add": ["needs-design"]})
+        ApprovedIssuesManifest.model_validate({"hand_back": "needs-design"})
     with pytest.raises(ValidationError):
-        HandBackManifest.model_validate({"remove": ["a", "A"]})
+        ApprovedIssuesManifest.model_validate({"label": "a", "hand_back": "A"})
 
 
-def test_a_job_with_hand_back_plans_its_labels(run: Run) -> None:
+def test_a_job_with_approved_issues_plans_its_labels(run: Run) -> None:
     job = run.job
-    job.hand_back = LABELS
+    job.approved_issues = APPROVED
     job.save()
 
     plan = build_execution_plan(job)
 
-    assert plan.hand_back is not None
-    assert (plan.hand_back.remove, plan.hand_back.add) == (
-        ("fix-approved",),
-        ("needs-design",),
+    assert plan.approved_issues is not None
+    assert (plan.approved_issues.label, plan.approved_issues.hand_back) == (
+        "fix-approved",
+        "needs-design",
     )
-    job.hand_back = None
+    job.approved_issues = None
     job.save()
-    assert build_execution_plan(job).hand_back is None
+    assert build_execution_plan(job).approved_issues is None
 
 
 def test_the_prompt_explains_the_tool_only_when_the_job_has_it(run: Run) -> None:
-    assert "hand_back_issue" in run_prompt(run)
-    assert "removes fix-approved and adds needs-design" in run_prompt(run)
-    run.execution_plan["hand_back"] = None
+    prompt = run_prompt(run)
+    # The skill needn't name the label. The prompt does.
+    assert "with the label fix-approved. Work only on open issues" in prompt
+    assert "hand_back_issue" in prompt
+    assert "removes fix-approved and adds needs-design" in prompt
+    run.execution_plan["approved_issues"] = None
     run.save()
     assert "hand_back_issue" not in run_prompt(Run.objects.get(pk=run.pk))
 

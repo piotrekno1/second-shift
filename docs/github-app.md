@@ -136,7 +136,8 @@ owner allows issues for the repository. For this, the App needs one more
 repository permission:
 
 - **Issues: Read and write**, to search open issues and open new ones. Jobs
-  that set `hand_back` also comment on an issue and change its labels.
+  that set `approved_issues` also comment on an issue they hand back and
+  change its labels.
 
 Opening issues asks for a token limited to the run's repository and to issues.
 It is used after the run and never reaches the sandbox or the model.

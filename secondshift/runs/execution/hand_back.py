@@ -2,7 +2,7 @@
 
 The agent only records which issue and why. After a successful run,
 SecondShift comments on the issue and swaps its labels with a token for this
-one repository, if the issue still has an approving label.
+one repository, if the issue still has the job's approval label.
 """
 
 from typing import Annotated, Any
@@ -23,20 +23,20 @@ NumberArgument = Annotated[int, Field(ge=1)]
 CommentArgument = Annotated[str, Field(min_length=1, max_length=MAX_COMMENT_CHARS)]
 
 
-def hand_back_note(plan: ExecutionPlan) -> str:
-    """The prompt lines for runs that may hand an issue back."""
-    labels = plan.hand_back
-    if labels is None:
+def approved_issues_note(plan: ExecutionPlan) -> str:
+    """The prompt lines for jobs that work on issues a maintainer approved."""
+    approved = plan.approved_issues
+    if approved is None:
         return ""
-    removed = ", ".join(labels.remove)
-    added = f" and adds {', '.join(labels.add)}" if labels.add else ""
+    added = f" and adds {approved.hand_back}" if approved.hand_back else ""
     return (
-        f"To hand an issue back to a person instead of fixing it, call "
-        f"{TOOL_NAME} once with its number and a comment for the maintainers: "
-        "why it needs a person, what you found, and a suggested plan. After "
-        f"the run, SecondShift posts the comment, removes {removed}{added}. "
-        "It does this only for an open issue that still has one of those "
-        "labels. Leave the workspace unchanged when you hand an issue back."
+        f"A maintainer approves an issue for this job with the label "
+        f"{approved.label}. Work only on open issues that have it. To hand an "
+        f"approved issue back to a person instead, call {TOOL_NAME} once with "
+        "its number and a comment for the maintainers: why it needs a person, "
+        "what you found, and a suggested plan. After the run, SecondShift "
+        f"posts the comment, removes {approved.label}{added}. Leave the "
+        "workspace unchanged when you hand an issue back."
     )
 
 

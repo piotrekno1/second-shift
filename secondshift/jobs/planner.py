@@ -15,10 +15,10 @@ from secondshift.jobs.capabilities import RequestedCapability, manifest_capabili
 from secondshift.jobs.dao import job_requests_with_grants
 from secondshift.jobs.execution_plan import (
     AgentPlan,
+    ApprovedIssuesPlan,
     CapabilityPlan,
     ExecutionChoice,
     ExecutionPlan,
-    HandBackPlan,
     IssuesPlan,
     JobPlan,
     Missing,
@@ -224,7 +224,7 @@ def compile_execution_plan(
     pull_request: PullRequestPlan | None = None,
     issues: IssuesPlan | None = None,
     subagents: int = 0,
-    hand_back: HandBackPlan | None = None,
+    approved_issues: ApprovedIssuesPlan | None = None,
 ) -> ExecutionPlan:
     """Compile server-resolved policy into the plan a run keeps."""
     if repository.workspace_id != workspace.pk:
@@ -289,7 +289,7 @@ def compile_execution_plan(
         ),
         pull_request=pull_request,
         issues=issues,
-        hand_back=hand_back,
+        approved_issues=approved_issues,
         model=model_plan(workspace) if selection.backend.uses_model_api else None,
         capabilities=capabilities,
     )
@@ -354,9 +354,9 @@ def build_execution_plan(job: Job) -> ExecutionPlan:
             else None
         ),
         subagents=job.subagents,
-        hand_back=(
-            HandBackPlan(remove=tuple(labels.remove), add=tuple(labels.add))
-            if (labels := job.hand_back_settings)
+        approved_issues=(
+            ApprovedIssuesPlan(label=approved.label, hand_back=approved.hand_back)
+            if (approved := job.approved_issue_settings)
             else None
         ),
     )

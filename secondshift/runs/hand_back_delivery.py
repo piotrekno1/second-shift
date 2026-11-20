@@ -16,7 +16,7 @@ from secondshift.github.issues import (
     issue_state,
     remove_issue_label,
 )
-from secondshift.jobs.execution_plan import HandBackPlan
+from secondshift.jobs.execution_plan import ApprovedIssuesPlan
 from secondshift.repositories.github.access import github_access
 from secondshift.repositories.models import Repository
 from secondshift.runs.dao import (
@@ -55,10 +55,10 @@ def comment_body(run: Run, hand_back: RunHandBack) -> str:
     return f"{hand_back.comment}\n\n---\n\n{footer}"
 
 
-def labels_message(number: int, labels: HandBackPlan) -> str:
-    message = f"Handed #{number} back. Removed {', '.join(labels.remove)}"
-    if labels.add:
-        message += f" and added {', '.join(labels.add)}"
+def labels_message(number: int, approved: ApprovedIssuesPlan) -> str:
+    message = f"Handed #{number} back. Removed {approved.label}"
+    if approved.hand_back:
+        message += f" and added {approved.hand_back}"
     return f"{message}."
 
 
@@ -69,8 +69,8 @@ def hand_back_run_issue(run_id: int) -> None:
         "task__repository__github_connection",
     )
     hand_back = run_hand_back(run.pk)
-    labels = run.plan.hand_back
-    if hand_back is None or labels is None:
+    approved = run.plan.approved_issues
+    if hand_back is None or approved is None:
         # Most runs fix their issue and hand nothing back.
         return
     delivery = hand_back_delivery(run) or create_delivery(
@@ -97,7 +97,7 @@ def hand_back_run_issue(run_id: int) -> None:
             access.token,
             access.full_name,
             hand_back,
-            labels,
+            approved,
             comment_body(run, hand_back),
         )
     except GitHubError as error:
@@ -116,15 +116,15 @@ def hand_back_run_issue(run_id: int) -> None:
         finish_delivery(
             delivery,
             RunDelivery.Status.SKIPPED,
-            f"#{hand_back.number} is not an open issue with "
-            f"{' or '.join(labels.remove)}, so it was left alone.",
+            f"#{hand_back.number} is not an open issue with {approved.label}, "
+            "so it was left alone.",
         )
         return
     delivery.external_url = hand_back.comment_url
     finish_delivery(
         delivery,
         RunDelivery.Status.DELIVERED,
-        labels_message(hand_back.number, labels),
+        labels_message(hand_back.number, approved),
     )
 
 
@@ -132,7 +132,7 @@ def apply_hand_back(
     token: str,
     full_name: str,
     hand_back: RunHandBack,
-    labels: HandBackPlan,
+    approved: ApprovedIssuesPlan,
     comment: str,
 ) -> bool:
     """Comment once and swap the labels. False when the issue isn't approved.
@@ -148,13 +148,13 @@ def apply_hand_back(
             state is None
             or state.pull_request
             or not state.open
-            or not set(labels.remove) & set(state.labels)
+            or approved.label.casefold()
+            not in {label.casefold() for label in state.labels}
         ):
             return False
         hand_back.comment_url = comment_on_issue(token, full_name, number, comment)
         hand_back.save(update_fields=["comment_url"])
-    for label in labels.remove:
-        remove_issue_label(token, full_name, number, label)
-    if labels.add:
-        add_issue_labels(token, full_name, number, list(labels.add))
+    remove_issue_label(token, full_name, number, approved.label)
+    if approved.hand_back:
+        add_issue_labels(token, full_name, number, [approved.hand_back])
     return True

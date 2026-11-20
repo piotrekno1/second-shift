@@ -99,7 +99,9 @@ def job_fields(
         "webhook": item.webhook.model_dump(mode="json") if item.webhook else {},
         "open_pull_request": item.open_pull_request,
         "open_issues": item.open_issues.model_dump() if item.open_issues else None,
-        "hand_back": item.hand_back.model_dump() if item.hand_back else None,
+        "approved_issues": (
+            item.approved_issues.model_dump() if item.approved_issues else None
+        ),
         "config_hash": manifest_hash(item),
         # A job named again comes back. Its schedule stays off until resumed.
         "removed_at": None,

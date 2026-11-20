@@ -91,7 +91,7 @@ server allows them.
 | `jobs.<key>.webhook` | No | Which webhook requests start a run: `skip_when`, `repeat_key` and `repeat_window`. Needs `triggers: [webhook]`. See [ignore requests and repeats](#ignore-requests-and-repeats). |
 | `jobs.<key>.open_pull_request` | No | Set to `true` to open a draft pull request with each run's changes. An owner must allow pull requests for the repository. See [draft pull requests](#draft-pull-requests). |
 | `jobs.<key>.open_issues` | No | Set to `true`, or to `labels` and `max`, to let the agent propose GitHub issues. They open after each successful run. An owner must allow issues for the repository. See [GitHub issues](#github-issues). |
-| `jobs.<key>.hand_back` | No | Labels to `remove` and `add` when the agent hands an approved issue back to a person. An owner must allow issues for the repository. See [Hand an issue back](#hand-an-issue-back). |
+| `jobs.<key>.approved_issues` | No | The `label` that approves an issue for the job, and the `hand_back` label an issue gets when the agent hands it back to a person. An owner must allow issues for the repository. See [Approved issues](#approved-issues). |
 | `jobs.<key>.requires` | No | MCP tools and HTTP API operations the job needs. See below. |
 
 Skill paths must stay inside the repository. Unknown fields are rejected.
@@ -341,11 +341,11 @@ Issues. Until then, runs still produce their report, and the run says why no
 issues opened. A failed attempt can be retried from the run page. It opens only
 the issues that did not open yet. Local repositories cannot receive issues.
 
-### Hand an issue back
+### Approved issues
 
 A job that works on issues a maintainer approved, such as
 [the issue fixer](https://github.com/piotrekno1/second-shift/tree/main/examples/issue-fixer),
-can hand one back when it needs a person:
+names the approval label in its manifest:
 
 ```yaml
 jobs:
@@ -353,21 +353,24 @@ jobs:
     name: Issue fixer
     skill: .agents/skills/issue-fixer/SKILL.md
     open_pull_request: true
-    hand_back:
-      remove: [fix-approved]
-      add: [needs-design]
+    approved_issues:
+      label: fix-approved
+      hand_back: needs-design
 ```
 
 | Field | Default | Description |
 |---|---|---|
-| `remove` | required | The labels that approve an issue for the job, up to 10. |
-| `add` | none | Labels added when the issue is handed back, up to 10. GitHub creates a label the repository doesn't have yet. |
+| `label` | required | The label a maintainer adds to approve an issue for the job. |
+| `hand_back` | none | The label an issue gets when the agent hands it back. GitHub creates it if the repository doesn't have it yet. |
 
-The agent gets a `hand_back_issue` tool and may hand back one issue per run,
-with a comment for the maintainers. After a successful run, SecondShift posts
-the comment, removes the `remove` labels and adds the `add` labels. It does
-this only for an open issue that still has one of the `remove` labels, so the
-agent can't touch an issue nobody approved. The comment ends with a footer
+The prompt tells the agent to work only on open issues with `label`, so the
+skill doesn't need to name it.
+
+The agent also gets a `hand_back_issue` tool. It may hand back one issue per
+run, with a comment for the maintainers, when the issue needs a person. After
+a successful run, SecondShift posts the comment, removes `label` and adds
+`hand_back`. It does this only for an open issue that still has `label`, so
+the agent can't touch an issue nobody approved. The comment ends with a footer
 naming the run when the connection shows attribution. The run page links the
 comment.
 

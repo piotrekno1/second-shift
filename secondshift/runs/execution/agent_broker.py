@@ -73,7 +73,7 @@ def broker_tools(run: Run) -> dict[str, Tool[WorkspaceToolDeps]]:
         tools.append(payload_tool())
     if issue_limit(run.plan):
         tools.append(issue_tool())
-    if run.plan.hand_back:
+    if run.plan.approved_issues:
         tools.append(hand_back_tool())
     tools.append(access_tool())
     return {tool.name: tool for tool in (*tools, *external_tools(run))}
@@ -121,7 +121,7 @@ def tool_result(
         allowed_tools=run.plan.agent.tools,
         payload=run_payload(run),
         issue_limit=issue_limit(run.plan),
-        hand_back=run.plan.hand_back is not None,
+        hand_back=run.plan.approved_issues is not None,
     )
     context = RunContext(deps=deps, model=None, usage=RunUsage(), tool_call_id=call_id)
     try:

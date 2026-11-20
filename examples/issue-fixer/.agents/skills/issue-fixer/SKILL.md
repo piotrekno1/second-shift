@@ -6,11 +6,11 @@ description: Pick one open GitHub issue a maintainer approved for fixing, fix it
 # Issue fixer
 
 Fix one approved issue per run. A maintainer approves an issue by adding the
-`fix-approved` label. Use the label in the request when it names another one.
+job's approval label. The request names it.
 
 ## Pick the issue
 
-1. List open issues with the label, oldest first, using `list_issues`.
+1. List open issues with the approval label, oldest first, using `list_issues`.
 2. Look up each issue's pull requests with `search_pull_requests`, such as
    `is:pr "Closes #12"`.
    - Skip it while one is open. A maintainer is reviewing it.
@@ -21,8 +21,8 @@ Fix one approved issue per run. A maintainer approves an issue by adding the
 4. Take the first issue left. Read it, its comments and its labels with
    `issue_read`.
 
-A pull request closed without merging, on an issue that still has the label,
-asks for another attempt. Read that pull request's comments and reviews with
+A pull request closed without merging, on an issue that still has the approval
+label, asks for another attempt. Read that pull request's comments and reviews with
 `pull_request_read` before you start. The new fix must answer them, not repeat
 the closed one.
 
