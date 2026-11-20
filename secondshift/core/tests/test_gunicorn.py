@@ -145,6 +145,7 @@ def test_generated_env_files_configure_production_roles(
     values = dict(
         line.split("=", 1)
         for line in (directory / f"{role}.env").read_text().splitlines()
+        if line and not line.startswith("#")
     )
     config = server_config(role, tmp_path, values)
     assert config["bind"] == [bind]

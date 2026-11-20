@@ -12,7 +12,6 @@ from django.core.exceptions import ImproperlyConfigured
 from environ import Env
 
 from secondshift.config.constants import (
-    DEFAULT_SANDBOX_IMAGE,
     ENVIRONMENT_VAR,
     LOCAL_GATEWAY_URL,
     AppEnv,
@@ -74,7 +73,14 @@ DATABASES = {
 # One person's machine: dev or local mode, not a server.
 SINGLE_HOST = os.environ.get(ENVIRONMENT_VAR) in {Environment.DEV, Environment.LOCAL}
 RUNNER_SERVICE_TOKEN = env.str(AppEnv.RUNNER_SERVICE_TOKEN, default="")
-RUNNER_IMAGE = env.str(AppEnv.RUNNER_IMAGE, default=DEFAULT_SANDBOX_IMAGE)
+# Sandbox images come only from the runner's env. Generated runner.env files
+# start with the ones in secondshift/config/runner_images.env.
+RUNNER_IMAGE = env.str(AppEnv.RUNNER_IMAGE, default="")
+if not RUNNER_IMAGE:
+    raise ImproperlyConfigured(
+        "Set SECONDSHIFT_RUNNER_IMAGE in the runner's env, such as runner.env. "
+        "secondshift/config/runner_images.env has the default images."
+    )
 # Named environments a job may choose, besides the default RUNNER_IMAGE. A
 # server requires each one pinned by digest. Only one machine may use tags.
 try:

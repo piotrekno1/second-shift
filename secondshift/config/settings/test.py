@@ -9,7 +9,6 @@ os.environ[ENVIRONMENT_VAR] = Environment.TEST
 # Files go to a throwaway folder, and ~/.secondshift/.env is never read.
 os.environ["SECONDSHIFT_DATA_DIR"] = tempfile.mkdtemp(prefix="secondshift-test-")
 
-from secondshift.config.constants import DEFAULT_SANDBOX_IMAGE
 from secondshift.config.settings.base import *
 
 INSTALLED_APPS = [*INSTALLED_APPS, "secondshift.runner"]
@@ -41,7 +40,7 @@ RUNNER_SANDBOX_UID = os.getuid()
 RUNNER_SANDBOX_GID = os.getgid()
 AGENT_IMAGE_TAGS_ALLOWED = False
 # The runner's settings, which the control plane never reads.
-RUNNER_IMAGE = DEFAULT_SANDBOX_IMAGE
+RUNNER_IMAGE = "python:3.13-slim"
 RUNNER_ENVIRONMENTS: dict[str, str] = {}
 
 # Internal services in tests have explicit addresses, independent of the shell.

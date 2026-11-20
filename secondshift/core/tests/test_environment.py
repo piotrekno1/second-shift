@@ -9,7 +9,7 @@ from secondshift.config.constants import (
     SETTINGS_MODULE_VAR,
     Environment,
 )
-from secondshift.config.first_run import write_generated_env
+from secondshift.config.first_run import default_runner_images, write_generated_env
 from secondshift.core.tests.test_settings import load_settings
 
 COMMON = {
@@ -101,9 +101,21 @@ def test_runner_accepts_prefixed_settings_without_control_plane_keys(
         SECONDSHIFT_RUNNER_DATABASE_URL=f"sqlite:///{database}",
         SECONDSHIFT_RUNNER_ALLOWED_HOSTS="private-runner",
         SECONDSHIFT_RUNNER_SERVICE_TOKEN="t" * 32,
+        SECONDSHIFT_RUNNER_IMAGE="python:3.13-slim",
     )
     assert result.returncode == 0, result.stderr
     assert result.stdout.splitlines() == ["['private-runner']", str(database), "False"]
+
+
+def test_the_runner_refuses_to_start_without_an_image(tmp_path: Path) -> None:
+    result = load_settings(
+        "secondshift.config.settings.runner",
+        tmp_path,
+        SECONDSHIFT_RUNNER_SERVICE_TOKEN="t" * 32,
+    )
+
+    assert result.returncode != 0
+    assert "Set SECONDSHIFT_RUNNER_IMAGE in the runner's env" in result.stderr
 
 
 @pytest.mark.parametrize(
@@ -187,3 +199,30 @@ def test_generated_keyfile_uses_only_the_new_key_names(tmp_path: Path) -> None:
     assert "SECONDSHIFT_ENCRYPTION_KEY=" in content
     assert "DJANGO_SECRET_KEY=" not in content
     assert "\nFIELD_ENCRYPTION_KEY=" not in content
+
+
+def test_an_older_runner_env_gets_the_default_images_once(tmp_path: Path) -> None:
+    write_generated_env(tmp_path)
+    token = "SECONDSHIFT_RUNNER_SERVICE_TOKEN=" + "r" * 40 + "\n"
+    # A runner.env from before images came only from env.
+    (tmp_path / "runner.env").write_text(token)
+
+    write_generated_env(tmp_path)
+    write_generated_env(tmp_path)
+
+    assert (tmp_path / "runner.env").read_text() == (
+        token + "\n" + default_runner_images()
+    )
+
+
+def test_images_someone_set_are_never_touched(tmp_path: Path) -> None:
+    write_generated_env(tmp_path)
+    mine = (
+        "SECONDSHIFT_RUNNER_SERVICE_TOKEN=" + "r" * 40 + "\n"
+        "SECONDSHIFT_RUNNER_IMAGE=registry.example/sandbox@sha256:" + "a" * 64 + "\n"
+    )
+    (tmp_path / "runner.env").write_text(mine)
+
+    write_generated_env(tmp_path)
+
+    assert (tmp_path / "runner.env").read_text() == mine

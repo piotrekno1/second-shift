@@ -7,7 +7,11 @@ from secondshift.config.container_env import generate_environment
 
 
 def read_env(path: Path) -> dict[str, str]:
-    return dict(line.split("=", 1) for line in path.read_text().splitlines())
+    return dict(
+        line.split("=", 1)
+        for line in path.read_text().splitlines()
+        if line and not line.startswith("#")
+    )
 
 
 def test_role_files_are_private_and_have_only_their_required_settings(
@@ -52,6 +56,11 @@ def test_role_files_are_private_and_have_only_their_required_settings(
     )
     assert "SECONDSHIFT_MODEL_GATEWAY_URL" not in gateway
     assert runner["SECONDSHIFT_RUNNER_WORK_ROOT"] == str(tmp_path / "runner")
+    # Only the runner names sandbox images.
+    assert runner["SECONDSHIFT_RUNNER_IMAGE"].startswith("python:3.13-slim@sha256:")
+    assert "SECONDSHIFT_RUNNER_ENVIRONMENT_FULLSTACK" in runner
+    for values in (web, gateway, worker):
+        assert not any(name.startswith("SECONDSHIFT_RUNNER_IMAGE") for name in values)
 
 
 @pytest.mark.parametrize("existing", ["web.env", "runner.env", ".env"])

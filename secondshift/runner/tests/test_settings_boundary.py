@@ -75,7 +75,10 @@ def test_runner_accepts_its_own_user_as_the_sandbox_user(tmp_path: Path) -> None
 
 
 def test_runner_reads_only_its_token_from_the_data_folder(tmp_path: Path) -> None:
-    (tmp_path / "runner.env").write_text("SECONDSHIFT_RUNNER_SERVICE_TOKEN=" + "r" * 40)
+    (tmp_path / "runner.env").write_text(
+        "SECONDSHIFT_RUNNER_SERVICE_TOKEN=" + "r" * 40 + "\n"
+        "SECONDSHIFT_RUNNER_IMAGE=python:3.13-slim\n"
+    )
     (tmp_path / ".env").write_text("SECONDSHIFT_ENCRYPTION_KEY=must-not-be-read")
     environment = {
         key: value
