@@ -50,10 +50,19 @@ def active_jobs(
 def active_jobs_with_grants(
     workspace_id: int, repository_id: int | None = None, enabled: bool | None = None
 ) -> QuerySet[Job]:
-    """active_jobs with each capability request's grant and connection."""
-    return active_jobs(workspace_id, repository_id, enabled).prefetch_related(
-        "capability_requests__grant__connection"
+    """active_jobs with each capability request's grant and connection.
+
+    Lists never return the skill preview, so it stays in the database.
+    """
+    return (
+        active_jobs(workspace_id, repository_id, enabled)
+        .defer("skill_text")
+        .prefetch_related("capability_requests__grant__connection")
     )
+
+
+def repository_job_count(repository_id: int) -> int:
+    return Job.objects.filter(repository_id=repository_id).count()
 
 
 def enabled_job_count(workspace_id: int) -> int:
@@ -122,7 +131,10 @@ def disable_repository_jobs(repository: Repository) -> None:
 
 
 def repository_jobs_with_grants(repository: Repository) -> QuerySet[Job]:
-    return repository.jobs.prefetch_related("capability_requests__grant")
+    """The repository's jobs without their skill previews."""
+    return repository.jobs.defer("skill_text").prefetch_related(
+        "capability_requests__grant"
+    )
 
 
 # Capability requests

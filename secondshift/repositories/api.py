@@ -9,14 +9,21 @@ from ninja.security import django_auth
 from secondshift.connections.dao import connected_github_sources
 from secondshift.github.app import configured
 from secondshift.github.errors import GitHubError
-from secondshift.jobs.dao import disable_repository_jobs, enabled_repository_jobs
+from secondshift.jobs.dao import (
+    disable_repository_jobs,
+    enabled_repository_jobs,
+    repository_job_count,
+)
 from secondshift.jobs.repository_sync import (
     add_github_repository,
     add_local_repository,
 )
 from secondshift.jobs.scheduling import restart_schedules
 from secondshift.repositories.access import repository_for_request
-from secondshift.repositories.dao import active_repositories_with_jobs, request_sync
+from secondshift.repositories.dao import (
+    active_repositories_with_job_counts,
+    request_sync,
+)
 from secondshift.repositories.github.sync import (
     GitHubRepositoryExistsError,
     available_github_sources,
@@ -60,8 +67,8 @@ def repositories(request: HttpRequest) -> list[RepositorySchema]:
     workspace = current_workspace(request)
     if not workspace:
         return []
-    queryset = active_repositories_with_jobs(workspace.pk)
-    return [serialize_repository(request, item) for item in queryset]
+    queryset = active_repositories_with_job_counts(workspace.pk)
+    return [serialize_repository(request, item, item.job_count) for item in queryset]
 
 
 @router.post("/repositories/local", response=RepositorySchema, auth=django_auth)
@@ -76,7 +83,9 @@ def create_local_repository(
         repository = add_local_repository(workspace, payload.path)
     except LocalRepositoryError as error:
         raise HttpError(422, str(error)) from error
-    return serialize_repository(request, repository)
+    return serialize_repository(
+        request, repository, repository_job_count(repository.pk)
+    )
 
 
 @router.get(
@@ -148,7 +157,9 @@ def create_github_repository(
         raise HttpError(409, str(error)) from error
     except GitHubError as error:
         raise HttpError(422, str(error)) from error
-    return serialize_repository(request, repository)
+    return serialize_repository(
+        request, repository, repository_job_count(repository.pk)
+    )
 
 
 @router.get(

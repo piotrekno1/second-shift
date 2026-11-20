@@ -34,6 +34,7 @@ def visible_local_path(request: HttpRequest, repository: Repository) -> str | No
 def serialize_repository(
     request: HttpRequest,
     repository: Repository,
+    job_count: int,
 ) -> RepositorySchema:
     return RepositorySchema(
         id=repository.pk,
@@ -41,8 +42,7 @@ def serialize_repository(
         display_name=repository.display_name,
         default_branch=repository.default_branch,
         enabled=repository.enabled,
-        # The list endpoint prefetches jobs, so this reads them from memory.
-        job_count=len(repository.jobs.all()),
+        job_count=job_count,
         last_synced_at=repository.last_synced_at,
         source_type=repository.source_type,
         local_path=visible_local_path(request, repository),
@@ -101,8 +101,8 @@ def serialize_repository_detail(
     request: HttpRequest,
     repository: Repository,
 ) -> RepositoryDetailSchema:
-    summary = serialize_repository(request, repository)
-    jobs = repository_jobs_with_grants(repository)
+    jobs = list(repository_jobs_with_grants(repository))
+    summary = serialize_repository(request, repository, len(jobs))
     return RepositoryDetailSchema(
         **summary.model_dump(),
         config_path=repository.config_path,

@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Any
 
-from django.db.models import Q, QuerySet
+from django.db.models import Count, Q, QuerySet
 from django.utils import timezone
 
 from secondshift.connections.models import Connection
@@ -32,8 +32,9 @@ def active_repositories(workspace_id: int) -> QuerySet[Repository]:
     return Repository.objects.filter(workspace_id=workspace_id, removed_at__isnull=True)
 
 
-def active_repositories_with_jobs(workspace_id: int) -> QuerySet[Repository]:
-    return active_repositories(workspace_id).prefetch_related("jobs")
+def active_repositories_with_job_counts(workspace_id: int) -> QuerySet[Repository]:
+    """active_repositories, each with job_count counted in the database."""
+    return active_repositories(workspace_id).annotate(job_count=Count("jobs"))
 
 
 def active_repository_ids() -> set[int]:
