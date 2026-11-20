@@ -628,3 +628,61 @@ def test_usage_and_budget_commit_together(
 
     assert not ModelUsage.objects.filter(run=run).exists()
     assert RunToken.objects.get(run=run).used_tokens == 0
+
+
+@pytest.mark.parametrize(
+    ("kind", "path", "headers"),
+    [
+        (Connection.Provider.ANTHROPIC, "anthropic/v1/messages", "x-api-key"),
+        (Connection.Provider.OPENAI, "openai/v1/responses", "authorization"),
+    ],
+)
+def test_an_interrupted_stream_ends_with_an_error_event(
+    client: Client,
+    monkeypatch: pytest.MonkeyPatch,
+    workspace: Workspace,
+    kind: str,
+    path: str,
+    headers: str,
+) -> None:
+    run = make_run(workspace)
+    token = issue_run_token(run, provider(workspace, kind=kind))
+    first = (
+        b'event: message_start\ndata: {"type":"message_start","message":'
+        b'{"usage":{"input_tokens":40,"output_tokens":1}}}\n\nevent: content'
+    )
+    closed: list[bool] = []
+
+    class BrokenStream(httpx.AsyncByteStream):
+        async def __aiter__(self) -> AsyncIterator[bytes]:
+            yield first
+            raise httpx.ReadError("connection reset")
+
+        async def aclose(self) -> None:
+            closed.append(True)
+
+    capture_post(
+        monkeypatch,
+        lambda request: httpx.Response(
+            200, headers={"content-type": "text/event-stream"}, stream=BrokenStream()
+        ),
+    )
+    credential = token if headers == "x-api-key" else f"Bearer {token}"
+
+    received = drain(
+        post(
+            client,
+            f"/gateway/{path}",
+            {"model": "model-test", "stream": True, "messages": []},
+            **{headers: credential},
+        )
+    )
+
+    assert received.startswith(first)
+    tail = received[len(first) :]
+    assert tail.startswith(b"\n\nevent: error\ndata: ")
+    event = json.loads(tail.split(b"data: ", 1)[1])
+    assert event["type"] == "error"
+    assert event["error"]["message"] == "The provider stream was interrupted."
+    assert closed == [True]
+    assert ModelUsage.objects.filter(run=run).count() == 1

@@ -41,6 +41,7 @@ logger = logging.getLogger(__name__)
 ANTHROPIC_VERSION = "2023-06-01"
 # The gateway refuses a run past its token budget with this message.
 TOKEN_BUDGET_MESSAGE = "This run has used its token budget."
+STREAM_INTERRUPTED_MESSAGE = "The provider stream was interrupted."
 
 
 @dataclass(frozen=True)
@@ -360,12 +361,33 @@ async def relay_stream(
             run_token.run_id,
             type(error).__name__,
         )
+        # Ending the body normally would look like a finished answer. An
+        # error event makes the agent's SDK raise instead.
+        yield stream_error_event(family, STREAM_INTERRUPTED_MESSAGE)
     finally:
         # Runs on completion and when the client disconnects (Django closes the
         # generator). Shielded so a second cancellation cannot lose the usage.
         await asyncio.shield(
             finish_stream(upstream, run_token, family, model, metered, meter)
         )
+
+
+def stream_error_event(family: ModelFamily, message: str) -> bytes:
+    """A server-sent error in the provider's own shape.
+
+    It starts with a blank line to end any event the upstream cut off.
+    """
+    if family == ModelFamily.ANTHROPIC:
+        body: dict[str, Any] = {
+            "type": "error",
+            "error": {"type": "api_error", "message": message},
+        }
+    else:
+        body = {
+            "type": "error",
+            "error": {"message": message, "type": "api_error", "code": "api_error"},
+        }
+    return f"\n\nevent: error\ndata: {json.dumps(body)}\n\n".encode()
 
 
 async def finish_stream(
