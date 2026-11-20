@@ -111,6 +111,23 @@ def test_tick_is_skipped_while_another_run_is_active(job: Job, status: str) -> N
     assert job.next_run_at > TICK
 
 
+@pytest.mark.parametrize("finish_before_replay", [False, True])
+def test_replayed_overlap_skip_stays_skipped(
+    job: Job, finish_before_replay: bool
+) -> None:
+    active = Run.objects.get(pk=tick(job, TICK - timedelta(days=1)))
+    assert tick(job) is None
+    if finish_before_replay:
+        Run.objects.filter(pk=active.pk).update(status=Run.Status.SUCCEEDED)
+
+    assert tick(job) is None
+    assert Run.objects.count() == 1
+    assert RunEvent.objects.filter(run=active).count() == 1
+
+    if finish_before_replay:
+        assert tick(job, TICK + timedelta(days=1)) is not None
+
+
 def test_tick_runs_once_the_other_run_finished(job: Job) -> None:
     earlier = tick(job, TICK - timedelta(days=1))
     Run.objects.filter(pk=earlier).update(status=Run.Status.SUCCEEDED)

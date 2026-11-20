@@ -433,6 +433,13 @@ def add_event(
     )
 
 
+def has_scheduled_skip(job: Job, slot: str) -> bool:
+    """Whether a run of this job already recorded an overlap skip for the slot."""
+    return RunEvent.objects.filter(
+        run__job=job, metadata__skipped_scheduled_for=slot
+    ).exists()
+
+
 def add_event_once(run_id: int, message: str, level: str) -> None:
     """Add a line to the run's timeline unless it is already there."""
     RunEvent.objects.get_or_create(
