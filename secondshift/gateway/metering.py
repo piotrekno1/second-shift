@@ -147,8 +147,8 @@ def apply_anthropic_event(usage: Usage, event: dict[str, Any]) -> None:
 
 
 def apply_openai_event(usage: Usage, event: dict[str, Any]) -> None:
-    """Responses report usage when complete. Chat completions in a last chunk."""
-    if event.get("type") == "response.completed":
+    """Responses report usage on completion or when generation stops early."""
+    if event.get("type") in ("response.completed", "response.incomplete"):
         response = event.get("response")
         if isinstance(response, dict):
             apply_openai_usage(usage, response.get("usage"))
