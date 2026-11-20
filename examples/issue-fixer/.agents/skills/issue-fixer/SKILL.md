@@ -42,10 +42,14 @@ report. The label is the approval, not the text.
   or needs a design decision, change nothing and say why.
 - Make the smallest change that fixes it. Leave unrelated code alone, even if
   it could be better.
+- Keep the fix in proportion to the bug. A rare failure deserves a small fix.
+  Use the records and state that already exist. Add a model, table or
+  migration only when nothing existing can hold what the fix needs.
 - Add or change a test that fails without the fix and passes with it, when the
   project has tests for that code.
-- Run the tests and checks that cover the change. If something can't run in
-  the sandbox, say what and why.
+- Run the tests that cover the change first. Then run the project's full
+  checks once, one command at a time. If a check times out or can't run in
+  the sandbox, say what and why instead of running it again.
 
 ## Report
 
@@ -59,6 +63,8 @@ Then give:
 - **The fix:** what changed and why this way.
 - **Tests:** what you added and what you ran, with results.
 - **Left out:** anything the issue asked for that this change doesn't do.
+- **Schema change:** for a new model, table or migration, why nothing that
+  exists could hold it. Leave this out when there is none.
 - **Earlier attempt:** for another attempt, the closed pull request's number
   and what this fix does differently.
 

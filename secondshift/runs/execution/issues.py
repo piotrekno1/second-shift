@@ -39,7 +39,9 @@ def issues_note(limit: int, can_search: bool = False) -> str:
         f"Call {TOOL_NAME} once for each issue worth filing, at most {limit}. "
         "SecondShift opens them on GitHub after the run, and skips any whose "
         "title matches an open issue. Give each a specific title and a body "
-        "someone can act on without this run. List them in your report as "
+        "someone can act on without this run. Start the body with how likely "
+        "the problem is and what it costs when it happens, so a maintainer "
+        "can rank it against the others. List them in your report as "
         "proposed, because they open only after you finish."
     )
     if can_search:
