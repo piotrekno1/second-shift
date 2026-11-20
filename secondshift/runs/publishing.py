@@ -36,6 +36,10 @@ from secondshift.runs.reporting.collection import plural
 logger = logging.getLogger(__name__)
 
 SKIP_CI = "[skip ci]"
+# A merged draft would otherwise look checked. Nothing in it names SecondShift.
+CI_WAITS_NOTE = (
+    "CI has not run on this commit. It waits for a review: push a commit to run it."
+)
 BRANCH_PREFIX = "secondshift/run-"
 # Long enough to read, short enough for a branch list.
 BRANCH_SLUG_CHARS = 40
@@ -99,6 +103,7 @@ def draft_for(run: Run) -> DraftPullRequest:
     if not plan.run_ci:
         # CI waits for a person, because the patch has not been reviewed yet.
         paragraphs.append(SKIP_CI)
+        body = f"{body}\n\n{CI_WAITS_NOTE}"
     if attribution:
         body = f"{body}\n\n---\n\n{footer(run)}"
         paragraphs.append(trailers(run))
