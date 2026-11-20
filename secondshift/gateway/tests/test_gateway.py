@@ -409,6 +409,43 @@ def test_openai_stream_requests_usage_and_splits_cached_tokens(
     )
 
 
+@pytest.mark.django_db
+def test_openai_incomplete_responses_stream_is_metered(
+    client: Client, monkeypatch: pytest.MonkeyPatch, workspace: Workspace
+) -> None:
+    run = make_run(workspace)
+    token = issue_run_token(run, provider(workspace, kind=Connection.Provider.OPENAI))
+    stream = (
+        b'event: response.incomplete\ndata: {"type":"response.incomplete","response":'
+        b'{"status":"incomplete","incomplete_details":{"reason":"max_output_tokens"},'
+        b'"usage":{"input_tokens":50,"output_tokens":10,"total_tokens":60}}}\n\n'
+    )
+    capture_post(
+        monkeypatch, fake_upstream(content_type="text/event-stream", chunks=[stream])
+    )
+
+    response = post(
+        client,
+        "/gateway/openai/v1/responses",
+        {
+            "model": "gpt-test",
+            "stream": True,
+            "input": "Hello",
+            "max_output_tokens": 10,
+        },
+        authorization=f"Bearer {token}",
+    )
+
+    assert response.status_code == 200
+    assert drain(response) == stream
+    usage = ModelUsage.objects.get(run=run)
+    assert (
+        usage.input_tokens,
+        usage.output_tokens,
+        RunToken.objects.get(run=run).used_tokens,
+    ) == (50, 10, 60)
+
+
 def test_stream_meter_ignores_malformed_events() -> None:
     meter = StreamMeter("anthropic")
     meter.feed(b'data: not json\n\ndata: [1, 2]\n\ndata: {"type": "message_delta"}\n')
