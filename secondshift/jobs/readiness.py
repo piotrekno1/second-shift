@@ -31,8 +31,9 @@ def environment_problem(name: str) -> str:
     """Why a job naming an environment the server lacks cannot run."""
     return (
         f"This server has no {name} environment. The server admin adds it by "
-        f"setting {environment_variable(name)} to an image and restarting, or "
-        "the job can name another environment in .secondshift.yaml."
+        f"setting {environment_variable(name)} to an image in the runner's "
+        "runner.env and restarting, or the job can name another environment in "
+        ".secondshift.yaml."
     )
 
 

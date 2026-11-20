@@ -375,7 +375,7 @@ test('the sidebar calls a chosen model that stopped working failing', () => {
 })
 
 test('environmentProblems groups the jobs that share a missing environment', () => {
-  const missing = 'This server has no fullstack environment.'
+  const missing = 'This server has no python_node environment.'
   assert.deepEqual(
     environmentProblems([
       { name: 'Issue fixer', environment_problem: missing },

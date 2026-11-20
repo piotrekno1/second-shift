@@ -305,8 +305,9 @@ def test_an_environment_the_server_lacks_stops_the_run(
     assert job_plan.runner.image == ""
     assert (
         "This server has no browser environment. The server admin adds it by "
-        "setting SECONDSHIFT_RUNNER_ENVIRONMENT_BROWSER to an image and "
-        "restarting, or the job can name another environment in .secondshift.yaml."
+        "setting SECONDSHIFT_SANDBOX_BROWSER to an image in the runner's "
+        "runner.env and restarting, or the job can name another environment in "
+        ".secondshift.yaml."
     ) in execution_problems(repository, job_plan)
     detail = serialize_job_detail(Job.objects.get(), can_edit_limits=False)
     assert detail.environment == "browser"
