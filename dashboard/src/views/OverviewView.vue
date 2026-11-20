@@ -14,10 +14,9 @@ import { useLiveRefresh } from '../composables/useLiveRefresh'
 import { isRunActive } from '../services/runs'
 import { useAppStore } from '../stores/app'
 import { agentCardDismissed, dismissAgentCard } from '../utils/agentSetup'
-import { waitingCapabilities } from '../utils/readiness'
+import { approvalLabel, waitingCapabilities } from '../utils/readiness'
 import { Action } from '../utils/permissions'
 import {
-  accessLabel,
   awaitsApproval,
   countLabel,
   formatCost,
@@ -188,7 +187,10 @@ const attentionDetail = computed(() => {
         <div class="panel-heading">
           <div>
             <h2>Needs approval</h2>
-            <p>These jobs ask for access to a connection. They cannot run until you approve it.</p>
+            <p>
+              These jobs ask for access to a connection. They cannot run until it is connected and
+              approved.
+            </p>
           </div>
           <RouterLink :to="{ path: '/jobs', query: { state: 'review' } }"
             >All jobs needing approval</RouterLink
@@ -211,7 +213,7 @@ const attentionDetail = computed(() => {
                 }}</code></span
               >
             </div>
-            <StatusPill :status="job.grant_status" :label="accessLabel(job.grant_status)" />
+            <StatusPill :status="job.grant_status" :label="approvalLabel(job)" />
             <AppIcon name="chevron-right" />
           </RouterLink>
         </div>

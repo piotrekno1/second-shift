@@ -5,6 +5,7 @@ import type { Capability, Connection, ExecutionStatus } from '../src/types'
 import {
   PAUSED_REPOSITORY,
   REMOVED_JOB,
+  approvalLabel,
   approvalPending,
   enableBlocker,
   environmentProblems,
@@ -407,4 +408,14 @@ test('environmentProblems groups the jobs that share a missing environment', () 
       { problem: 'This server has no browser environment.', jobs: ['Browser check'] },
     ],
   )
+})
+
+test('approvalLabel asks for a connection before approval', () => {
+  const unconnected = capability('engineering-reports', true, 'pending')
+  assert.equal(approvalLabel({ capabilities: [unconnected] }), 'Needs connection')
+  const connected = { ...unconnected, connection_id: 3, connection_name: 'Reports' }
+  assert.equal(approvalLabel({ capabilities: [connected] }), 'Needs approval')
+  // An optional binding without a connection does not hold the job back.
+  const optional = capability('alerts', false, 'unconfigured')
+  assert.equal(approvalLabel({ capabilities: [connected, optional] }), 'Needs approval')
 })
