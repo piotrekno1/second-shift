@@ -5,6 +5,8 @@
 *.env.*
 !.env.example
 !deploy/production/compose.env.example
+# Default sandbox images. Not secret, and the package ships it.
+!secondshift/config/runner_images.env
 deploy/production/runner/
 .venv/
 .pytest_cache/
