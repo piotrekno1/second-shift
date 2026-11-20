@@ -14,8 +14,8 @@ job's approval label. The request names it.
 2. Look up each issue's pull requests with `search_pull_requests`, such as
    `is:pr "Closes #12"`.
    - Skip it while one is open. A maintainer is reviewing it.
-   - Skip it when two were closed without merging. Say in the report that it
-     needs a person.
+   - Take it when two were closed without merging, and hand it back. Two
+     attempts failed, so it needs a person.
 3. Skip an issue that an earlier report of this job left alone without a pull
    request. The reason still holds. The earlier reports name each issue number.
 4. Take the first issue left. Read it, its comments and its labels with

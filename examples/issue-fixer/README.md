@@ -41,7 +41,7 @@ Close a draft and keep `fix-approved` to ask for another attempt. The fixer
 reads the closed pull request's comments and reviews first, so say there what
 to do differently. With no reason given, it hands the issue back and asks
 instead of guessing. Remove the label to stop. After two closed attempts, the
-fixer leaves the issue to a person.
+fixer hands the issue back.
 
 The fixer takes only fixes that are quick to review. It hands an issue back,
 with no pull request, when the fix needs a migration, changes more than about
