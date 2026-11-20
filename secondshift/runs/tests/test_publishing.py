@@ -20,7 +20,7 @@ from secondshift.repositories.pull_requests import (
 from secondshift.runs import deliveries, publishing
 from secondshift.runs.artifacts import artifact_storage, store_run_text
 from secondshift.runs.constants import RETRY_PULL_REQUEST_WORKFLOW, RunStart
-from secondshift.runs.models import Run, RunDelivery, RunEvent
+from secondshift.runs.models import Run, RunDelivery, RunEvent, RunHandBack
 from secondshift.runs.orchestration import workflows
 from secondshift.runs.reporting.notifications import run_report_payload
 from secondshift.runs.services import create_run
@@ -147,6 +147,23 @@ def test_runs_without_publishable_changes_are_skipped(
     assert fake.calls == []
     assert delivery(run).status == RunDelivery.Status.SKIPPED
     assert delivery(run).message == reason
+
+
+@pytest.mark.django_db
+def test_a_run_that_handed_an_issue_back_lists_no_skipped_draft(
+    run: Run, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    Run.objects.filter(pk=run.pk).update(outputs={"changes": {"file_count": 0}})
+    RunHandBack.objects.create(run=run, call_id="call", number=12, comment="Plan")
+    fake = publisher(monkeypatch)
+
+    workflows.publish_pull_request_step(run.pk)
+
+    assert fake.calls == []
+    # The hand-back delivery says what happened instead.
+    assert not RunDelivery.objects.filter(
+        run=run, kind=RunDelivery.Kind.PULL_REQUEST
+    ).exists()
 
 
 @pytest.mark.django_db
