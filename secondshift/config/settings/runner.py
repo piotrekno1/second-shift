@@ -12,7 +12,6 @@ from django.core.exceptions import ImproperlyConfigured
 from environ import Env
 
 from secondshift.config.constants import (
-    DEFAULT_SANDBOX_IMAGE,
     ENVIRONMENT_VAR,
     LOCAL_GATEWAY_URL,
     AppEnv,
@@ -74,15 +73,23 @@ DATABASES = {
 # One person's machine: dev or local mode, not a server.
 SINGLE_HOST = os.environ.get(ENVIRONMENT_VAR) in {Environment.DEV, Environment.LOCAL}
 RUNNER_SERVICE_TOKEN = env.str(AppEnv.RUNNER_SERVICE_TOKEN, default="")
-RUNNER_IMAGE = env.str(AppEnv.RUNNER_IMAGE, default=DEFAULT_SANDBOX_IMAGE)
-# Named environments a job may choose, besides the default RUNNER_IMAGE. A
-# server requires each one pinned by digest. Only one machine may use tags.
+# Sandbox images come only from the runner's env. Generated runner.env files
+# start with the ones in secondshift/config/runner_images.env.
+if os.environ.get("SECONDSHIFT_RUNNER_IMAGE"):
+    raise ImproperlyConfigured(
+        "SECONDSHIFT_RUNNER_IMAGE is replaced. Name its image "
+        "SECONDSHIFT_SANDBOX_<NAME>, such as SECONDSHIFT_SANDBOX_PYTHON, and set "
+        "SECONDSHIFT_SANDBOX_DEFAULT to that name."
+    )
+# A server requires each image pinned by digest. Only one machine may use tags.
 try:
     RUNNER_ENVIRONMENTS = configured_environments(
         os.environ, require_digest=not SINGLE_HOST
     )
 except EnvironmentConfigError as error:
-    raise ImproperlyConfigured(str(error)) from error
+    raise ImproperlyConfigured(
+        f"{error} secondshift/config/runner_images.env has the default sandboxes."
+    ) from error
 RUNNER_RUNTIME = env.str(AppEnv.RUNNER_RUNTIME, default=SandboxRuntime.GVISOR)
 # Long enough for a project's full checks on the sandbox's 2 CPUs.
 RUNNER_COMMAND_TIMEOUT_SECONDS = env.int(

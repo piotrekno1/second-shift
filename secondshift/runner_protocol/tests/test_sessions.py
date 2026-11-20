@@ -12,7 +12,7 @@ def spec() -> RunnerSessionSpec:
         session_key="0123456789abcdef0123456789abcdef",
         repository="example/project",
         commit_sha="a" * 40,
-        image="secondshift-runner@sha256:abc",
+        environment="default",
         source_sha256="d" * 64,
     )
 
@@ -43,7 +43,7 @@ def test_repository_name_must_be_a_normalized_relative_path(repository: str) -> 
             session_key="0123456789abcdef0123456789abcdef",
             repository=repository,
             commit_sha="a" * 40,
-            image="secondshift-runner:test",
+            environment="default",
             source_sha256="d" * 64,
         )
 
@@ -56,7 +56,7 @@ def test_session_key_must_be_lowercase_hex(session_key: str) -> None:
             session_key=session_key,
             repository="example/project",
             commit_sha="a" * 40,
-            image="secondshift-runner:test",
+            environment="default",
             source_sha256="d" * 64,
         )
 

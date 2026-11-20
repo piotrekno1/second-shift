@@ -1,5 +1,6 @@
 """Why a job cannot run yet, in plain words."""
 
+from secondshift.jobs.environments import environment_missing
 from secondshift.jobs.execution_plan import ExecutionPlan, PlanReason
 from secondshift.jobs.models import Job
 from secondshift.jobs.planner import build_execution_plan
@@ -41,7 +42,7 @@ def execution_problems(repository: Repository, plan: ExecutionPlan) -> list[str]
         problems.append("The repository is disabled.")
     if not plan.execution.ready:
         problems.append(plan.execution.problem)
-    if not plan.runner.image:
+    if environment_missing(plan.runner.environment):
         problems.append(environment_problem(plan.runner.environment))
     for capability in plan.capabilities:
         if not capability.required or capability.authorized:

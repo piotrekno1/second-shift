@@ -8,7 +8,9 @@ import httpx
 import pytest
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
+from django.db import connection as database
 from django.test import Client
+from django.test.utils import CaptureQueriesContext
 
 from secondshift.connections import webhooks
 from secondshift.connections.models import Connection
@@ -22,7 +24,11 @@ from secondshift.jobs.tests.test_capability_needs import (
 )
 from secondshift.repositories.models import Repository
 from secondshift.runs import deliveries
-from secondshift.runs.constants import RETRY_NOTIFICATION_WORKFLOW, RunStart
+from secondshift.runs.constants import (
+    RETRY_NOTIFICATION_WORKFLOW,
+    RETRY_PULL_REQUEST_WORKFLOW,
+    RunStart,
+)
 from secondshift.runs.dao import create_task
 from secondshift.runs.models import Run, RunDelivery
 from secondshift.runs.orchestration import workflows
@@ -298,3 +304,58 @@ def test_retry_endpoint_needs_run_permission(
     assert response.json()["status"] == "retrying"
     assert client.post(url).status_code == 409
     assert client.post(f"/api/runs/{run.pk}/deliveries/999/retry").status_code == 404
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("kind", "workflow"),
+    [
+        (RunDelivery.Kind.PULL_REQUEST, RETRY_PULL_REQUEST_WORKFLOW),
+        (RunDelivery.Kind.NOTIFICATION, RETRY_NOTIFICATION_WORKFLOW),
+    ],
+)
+def test_retry_endpoint_locks_only_the_delivery(
+    client: Client,
+    approved_run: tuple[Run, Connection, JobGrant],
+    queue: Mock,
+    setup: Setup,  # noqa: F811
+    kind: str,
+    workflow: str,
+) -> None:
+    owner, _, _ = setup
+    run, connection, _ = approved_run
+    delivery = RunDelivery.objects.create(
+        run=run,
+        kind=kind,
+        target="retry target",
+        connection=connection if kind == RunDelivery.Kind.NOTIFICATION else None,
+        status=RunDelivery.Status.FAILED,
+    )
+    client.force_login(owner)
+    url = f"/api/runs/{run.pk}/deliveries/{delivery.pk}/retry"
+
+    with CaptureQueriesContext(database) as queries:
+        response = client.post(url)
+
+    assert response.status_code == 200
+    assert response.json()["status"] == RunDelivery.Status.RETRYING
+    delivery.refresh_from_db()
+    assert delivery.status == RunDelivery.Status.RETRYING
+    queue.enqueue.assert_called_once()
+    options, *arguments = queue.enqueue.call_args.args
+    assert options["workflow_name"] == workflow
+    expected_arguments = [run.pk]
+    if delivery.connection_id is not None:
+        expected_arguments.append(connection.pk)
+    assert arguments == expected_arguments
+
+    # SQLite omits FOR UPDATE, but the query must also be safe to lock on PostgreSQL.
+    table = database.ops.quote_name(RunDelivery._meta.db_table)
+    (delivery_query,) = [
+        query["sql"]
+        for query in queries
+        if query["sql"].startswith("SELECT") and f"FROM {table}" in query["sql"]
+    ]
+    assert " JOIN " not in delivery_query
+    if database.features.has_select_for_update:
+        assert "FOR UPDATE" in delivery_query

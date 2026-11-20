@@ -4,6 +4,7 @@ import socket
 import subprocess
 import sys
 import webbrowser
+from collections import deque
 from importlib.metadata import version
 
 import djclick as click
@@ -175,7 +176,11 @@ def prepare_runner(runner: launcher.Process, debug: bool) -> None:
         stderr=subprocess.STDOUT,
     )
     assert migration.stdout is not None
-    reader = local_output.capture(migration.stdout, local_output.SETUP_LOG, debug)
+    # The end of the output, where a settings error says what to fix.
+    tail: deque[str] = deque(maxlen=50)
+    reader = local_output.capture(
+        migration.stdout, local_output.SETUP_LOG, debug, on_line=tail.append
+    )
     try:
         code = migration.wait()
     except KeyboardInterrupt:
@@ -185,8 +190,11 @@ def prepare_runner(runner: launcher.Process, debug: bool) -> None:
     finally:
         reader.join(timeout=2)
     if code:
+        reason = local_output.configuration_error(tail)
         raise click.ClickException(
-            "Couldn't prepare runner data. Run secondshift logs --service setup."
+            f"The runner can't start. {reason}"
+            if reason
+            else "Couldn't prepare runner data. Run secondshift logs --service setup."
         )
 
 

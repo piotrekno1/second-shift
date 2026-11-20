@@ -10,6 +10,7 @@ os.environ[ENVIRONMENT_VAR] = Environment.TEST
 os.environ["SECONDSHIFT_DATA_DIR"] = tempfile.mkdtemp(prefix="secondshift-test-")
 
 from secondshift.config.settings.base import *
+from secondshift.runner_protocol.environments import RunnerEnvironments
 
 INSTALLED_APPS = [*INSTALLED_APPS, "secondshift.runner"]
 SECRET_KEY = "test-secret-key"
@@ -39,7 +40,10 @@ RUNNER_PIDS_LIMIT = 256
 RUNNER_SANDBOX_UID = os.getuid()
 RUNNER_SANDBOX_GID = os.getgid()
 AGENT_IMAGE_TAGS_ALLOWED = False
-RUNNER_ENVIRONMENTS: dict[str, str] = {}
+# The runner's settings, which the control plane never reads.
+RUNNER_ENVIRONMENTS = RunnerEnvironments(
+    images={"python": "python:3.13-slim"}, default="python"
+)
 
 # Internal services in tests have explicit addresses, independent of the shell.
 RUNNER_SERVICE_URL = "http://127.0.0.1:8002"

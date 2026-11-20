@@ -65,7 +65,8 @@ def execution_run(db) -> Run:
         scheduled_for=timezone.now(),
         execution_plan=stored_plan(
             repository={"full_name": "frozen/project"},
-            runner={"image": "server-owned:test"},
+            # The image a plan from before 0.1.0b13 kept is never sent.
+            runner={"image": "server-owned:test", "environment": "node"},
         ),
     )
 
@@ -111,7 +112,7 @@ def test_runner_session_uses_only_the_frozen_server_plan(db, monkeypatch) -> Non
             session_key=run.runner_session_key.hex,
             repository="frozen/project",
             commit_sha="a" * 40,
-            image="server-owned:test",
+            environment="node",
             source_sha256="e" * 64,
         )
     ]

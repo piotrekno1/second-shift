@@ -80,8 +80,8 @@ and writes its own files.
   or facts outside the repository, is reported as needing validation.
 - The audit's validators need Node, which SecondShift's default sandbox image
   does not include. Without it, the run checks its files by reading them and
-  says the validators did not run. To run them, set
-  `SECONDSHIFT_RUNNER_IMAGE` to an image with Node.
+  says the validators did not run. To run them, add
+  `environment: python_node` to the job.
 - Run history keeps the last successful run's files. A failed run is skipped,
   so the next run continues from the last good ledger. Reports and files are
   kept for `SECONDSHIFT_RUN_RETENTION_DAYS`, 90 by default.

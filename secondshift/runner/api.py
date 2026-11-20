@@ -62,6 +62,13 @@ def health(request: HttpRequest) -> dict[str, bool]:
     return {"ok": True}
 
 
+@api.get("/v1/environments", response=dict[str, dict[str, str] | str])
+def environments(request: HttpRequest) -> dict[str, dict[str, str] | str]:
+    """Each environment this runner offers, its image, and the default's name."""
+    offered = settings.RUNNER_ENVIRONMENTS
+    return {"environments": offered.images, "default": offered.default}
+
+
 @api.post("/v1/sessions", response={201: SessionOutput})
 def start_session(request: HttpRequest, payload: SessionInput):
     spec = RunnerSessionSpec(**payload.model_dump())

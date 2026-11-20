@@ -24,6 +24,7 @@ from secondshift.jobs.planner import build_execution_plan, build_skill_execution
 from secondshift.jobs.readiness import execution_problems
 from secondshift.jobs.serialization import serialize_job_detail
 from secondshift.repositories.models import Repository
+from secondshift.runner.tests.fakes import sandboxes
 from secondshift.runner_protocol.agents import AgentBackend
 from secondshift.runs.models import Run, Task
 from secondshift.workspaces.dao import create_workspace
@@ -241,7 +242,6 @@ def test_explicit_skill_requires_workspace_execution(repository: Repository) -> 
 def test_workspace_limits_and_server_sandbox_policy_are_frozen(
     repository: Repository, settings: Any
 ) -> None:
-    settings.RUNNER_IMAGE = "server-owned-image"
     workspace = repository.workspace
     workspace.max_turns = 7
     workspace.timeout_seconds = 120
@@ -254,7 +254,6 @@ def test_workspace_limits_and_server_sandbox_policy_are_frozen(
     assert result["agent"]["limits"]["timeout_seconds"] == 120
     assert result["execution"]["backend"] == AgentBackend.PYDANTIC
     assert result["runner"] == {
-        "image": "server-owned-image",
         "network_policy": "none",
         "collect_changes": True,
         "environment": "default",
@@ -273,21 +272,26 @@ def test_definition_cannot_choose_credentials_or_runtime(field: str) -> None:
         definition(**{field: "client-controlled"})
 
 
-def test_a_named_environment_runs_the_image_the_server_set(
+def test_a_plan_names_the_environment_and_never_an_image(
     repository: Repository, settings: Any
 ) -> None:
-    settings.RUNNER_ENVIRONMENTS = {"node": "registry.example/node@sha256:def"}
+    settings.RUNNER_ENVIRONMENTS = sandboxes(
+        "python:3.13-slim", node="registry.example/node@sha256:def"
+    )
 
     result = plan(repository, definition(requires={}, environment="node"))
 
+    assert result["ready"] is True
     assert result["runner"]["environment"] == "node"
-    assert result["runner"]["image"] == "registry.example/node@sha256:def"
+    assert "image" not in result["runner"]
 
 
 def test_an_environment_the_server_lacks_stops_the_run(
     repository: Repository, settings: Any
 ) -> None:
-    settings.RUNNER_ENVIRONMENTS = {"node": "registry.example/node@sha256:def"}
+    settings.RUNNER_ENVIRONMENTS = sandboxes(
+        "python:3.13-slim", node="registry.example/node@sha256:def"
+    )
     sync_jobs(
         repository,
         RepositoryManifest(

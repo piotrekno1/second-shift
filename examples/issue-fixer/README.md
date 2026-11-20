@@ -74,18 +74,9 @@ a relative symlink for agent discovery. The root manifest runs it every weekday
 with setup for the Python and dashboard dependencies. It picks up issues from
 the monthly code review.
 
-The root job runs in the `fullstack` [environment](../../docs/self-hosting.md#environments),
+The root job runs in the `python_node` [sandbox](../../docs/self-hosting.md#sandboxes),
 because a fix may touch the backend, the dashboard or both. The default sandbox
-image has no Node. The server admin maps `fullstack` to an image with Python
-3.13 and Node 24, the versions CI uses. The setup installs uv itself. The
-image also needs git and make, because the tests and `make check` call them.
-We use an off-the-shelf image, pinned by digest:
-
-```bash
-SECONDSHIFT_RUNNER_ENVIRONMENT_FULLSTACK=nikolaik/python-nodejs@sha256:36165c0fb95721c983def24f998b5f4922216b4a85b639c5a4cdabdcb64d6c91
-```
-
-That is the `python3.13-nodejs24` tag on 2026-11-19, about 1.5 GB. The slim
-tag is a third of the size but has no git or make, so a fix can't run the
-whole test suite there. Setup takes under a minute. Without the environment, the job can't be enabled or run.
-In a checkout, uncomment the line in `.env` that `.env.example` provides.
+image has no Node. The generated `runner.env` offers `python_node`, with Python
+3.13 and Node 24, the versions CI uses, plus git and make, which the tests and
+`make check` call. The setup installs uv itself and takes under a minute.
+Without the environment, the job can't be enabled or run.
