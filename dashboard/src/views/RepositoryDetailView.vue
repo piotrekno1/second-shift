@@ -72,6 +72,20 @@ const setupComplete = computed(
     missingEnvironments.value.length === 0 &&
     readyDisabledJobs.value.length === 0,
 )
+// GitHub pages for the synced commit and its manifest. Local folders have none.
+const githubBase = computed(() => {
+  const item = repository.value
+  if (item?.source_type !== 'github' || !item.revision) return null
+  return `https://github.com/${item.full_name}`
+})
+const commitUrl = computed(() =>
+  githubBase.value ? `${githubBase.value}/commit/${repository.value?.revision}` : null,
+)
+const manifestUrl = computed(() =>
+  githubBase.value
+    ? `${githubBase.value}/blob/${repository.value?.revision}/${repository.value?.config_path}`
+    : null,
+)
 const repositorySubtitle = computed(() => {
   const item = repository.value
   if (!item) return loading.value ? 'Loading repository…' : 'This repository could not be loaded'
@@ -471,7 +485,20 @@ onMounted(async () => {
           </div>
           <div>
             <dt>Branch</dt>
-            <dd>{{ repository.default_branch }}</dd>
+            <dd>
+              {{ repository.default_branch
+              }}<template v-if="repository.revision">
+                (<a
+                  v-if="commitUrl"
+                  :href="commitUrl"
+                  target="_blank"
+                  rel="noopener"
+                  title="The synced commit on GitHub"
+                  ><code>{{ repository.revision.slice(0, 7) }}</code></a
+                ><code v-else title="The synced commit">{{ repository.revision.slice(0, 7) }}</code
+                >)
+              </template>
+            </dd>
           </div>
           <div>
             <dt>Auto-sync</dt>
@@ -547,18 +574,6 @@ onMounted(async () => {
             </dd>
           </div>
           <div>
-            <dt>Synced commit</dt>
-            <dd>
-              <code>{{ repository.revision.slice(0, 12) || '—' }}</code>
-            </dd>
-          </div>
-          <div>
-            <dt>Manifest</dt>
-            <dd>
-              <code>{{ repository.config_path }}</code>
-            </dd>
-          </div>
-          <div>
             <dt>Last synced</dt>
             <dd
               :title="`${formatDate(repository.last_synced_at)} · ${utcTitle(repository.last_synced_at)}`"
@@ -573,10 +588,10 @@ onMounted(async () => {
         <div class="panel-heading">
           <div>
             <h2>Discovered jobs</h2>
-            <p>
-              Read from <code>{{ repository.config_path }}</code> at the synced commit.
-            </p>
           </div>
+          <a v-if="manifestUrl" :href="manifestUrl" target="_blank" rel="noopener"
+            >View {{ repository.config_path }}</a
+          >
           <RouterLink to="/jobs">All jobs</RouterLink>
         </div>
         <!-- The same rows as the Jobs page, so a job looks and acts the same in both places. -->
