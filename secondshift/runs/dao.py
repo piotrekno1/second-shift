@@ -485,12 +485,8 @@ def run_delivery(run: Run, kind: str, delivered: bool = False) -> RunDelivery | 
 
 
 def lock_delivery(run: Run, delivery_id: int) -> RunDelivery:
-    """Lock the run's delivery, with its connection. Raises when missing."""
-    return (
-        RunDelivery.objects.select_for_update()
-        .select_related("connection")
-        .get(pk=delivery_id, run=run)
-    )
+    """Lock the run's delivery row. Raises when missing."""
+    return RunDelivery.objects.select_for_update().get(pk=delivery_id, run=run)
 
 
 def notification_delivery(run: Run, connection: Connection) -> RunDelivery:
