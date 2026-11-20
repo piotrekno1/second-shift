@@ -12,7 +12,6 @@ import logging
 import tempfile
 from pathlib import Path
 
-from django.conf import settings
 from django.utils.text import slugify
 
 from secondshift.connections.github import shows_attribution
@@ -79,6 +78,9 @@ def skip_reason(run: Run, repository: Repository) -> str:
 
 
 MAX_TITLE_CHARS = 200
+# SecondShift's own GitHub account. GitHub lists a commit's co-authors among
+# a repository's contributors.
+CO_AUTHOR = "SecondShift <359045448+secondshift-bot@users.noreply.github.com>"
 
 
 def draft_for(run: Run) -> DraftPullRequest:
@@ -116,13 +118,14 @@ def footer(run: Run) -> str:
 
 
 def trailers(run: Run) -> str:
-    """Git trailers, so tools can find the run behind a commit."""
+    """Git trailers, so tools can find the run behind a commit.
+
+    The co-author credits SecondShift's account, as Claude Code credits Claude.
+    """
     lines = [f"SecondShift-Run: {run.pk}"]
     if run.job is not None:
         lines.append(f"SecondShift-Job: {run.job.name}")
-    if co_author := settings.PULL_REQUEST_CO_AUTHOR:
-        # GitHub credits a co-author in the repository's contributors.
-        lines.append(f"Co-authored-by: {co_author}")
+    lines.append(f"Co-authored-by: {CO_AUTHOR}")
     return "\n".join(lines)
 
 
