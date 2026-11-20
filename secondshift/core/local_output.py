@@ -7,7 +7,7 @@ instance, and a state file records its dashboard address and processes.
 import fcntl
 import json
 import logging
-from collections.abc import Iterator
+from collections.abc import Callable, Iterable, Iterator
 from contextlib import contextmanager
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
@@ -93,8 +93,28 @@ def log_directory() -> Path:
     return directory
 
 
-def capture(stream: BinaryIO, service: str, debug: bool) -> Thread:
-    """Copy a process's output to its log file, and to stderr in debug mode."""
+def configuration_error(lines: Iterable[str]) -> str | None:
+    """The message of the last settings error in a process's output.
+
+    SecondShift's settings raise ImproperlyConfigured with a message written
+    for the person running it, naming env vars but never their values.
+    """
+    marker = "ImproperlyConfigured: "
+    for line in reversed(list(lines)):
+        if marker in line:
+            return line.split(marker, 1)[1].strip() or None
+    return None
+
+
+def capture(
+    stream: BinaryIO,
+    service: str,
+    debug: bool,
+    on_line: Callable[[str], None] | None = None,
+) -> Thread:
+    """Copy a process's output to its log file, and to stderr in debug mode.
+    on_line also gets each line, to read output as it is saved.
+    """
     path = log_directory() / f"{service}.log"
     path.touch(mode=0o600, exist_ok=True)
     handler = PrivateRotatingFileHandler(
@@ -109,6 +129,8 @@ def capture(stream: BinaryIO, service: str, debug: bool) -> Thread:
                 handler.handle(
                     logging.LogRecord(service, logging.INFO, "", 0, message, (), None)
                 )
+                if on_line:
+                    on_line(message)
                 if debug:
                     click.echo(f"[{service}] {message}", err=True)
         finally:
