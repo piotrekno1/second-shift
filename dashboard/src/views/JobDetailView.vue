@@ -201,6 +201,10 @@ useLiveRefresh(loadJob, () => (job.value?.recent_runs ?? []).some((run) => isRun
     <template v-else>
       <p v-if="error" class="page-error">{{ error }}</p>
       <ExecutionWarning />
+      <p v-if="job.environment_problem && !job.removed_at" class="page-warning">
+        <AppIcon name="alert-outline" />
+        <span>{{ job.environment_problem }}</span>
+      </p>
 
       <section class="panel job-status-strip" :class="{ disabled: !job.enabled }">
         <StatusPill :status="jobState(job)" :label="jobStateLabel(jobState(job))" />
