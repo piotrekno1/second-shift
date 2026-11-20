@@ -22,9 +22,13 @@ job's approval label. The request names it.
    `issue_read`.
 
 A pull request closed without merging, on an issue that still has the approval
-label, asks for another attempt. Read that pull request's comments and reviews with
-`pull_request_read` before you start. The new fix must answer them, not repeat
-the closed one.
+label, asks for another attempt. Read that pull request's comments and reviews
+with `pull_request_read` before you start. The new fix must answer them, not
+repeat the closed one.
+
+When no person said why it was closed, don't guess. Bot comments, such as
+deploy previews, don't count. Hand the issue back and ask what was wrong with
+the closed attempt.
 
 If no issue is left, change nothing and report that the queue is empty.
 
