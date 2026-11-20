@@ -13,6 +13,7 @@ from secondshift.repositories.sources import SourceSnapshot
 from secondshift.runner_protocol.sessions import CommandResult, RunnerSessionSpec
 from secondshift.runs.constants import RunSandbox, RunStart
 from secondshift.runs.dao import create_task
+from secondshift.runs.execution.result import AgentResult
 from secondshift.runs.models import Run, RunEvent, RunFailure
 from secondshift.runs.orchestration import workflows
 from secondshift.runs.orchestration.workflows import (
@@ -192,6 +193,46 @@ def test_prepare_source_checks_github_access_first(db, monkeypatch) -> None:
 
     with pytest.raises(RuntimeError, match="removed"):
         prepare_source_step(run.pk)
+
+
+@pytest.mark.django_db
+def test_shutdown_failure_preserves_the_report_and_identifies_the_session(
+    db, monkeypatch: pytest.MonkeyPatch, fake_stages: list[str]
+) -> None:
+    run = execution_run(db)
+    report = "The skill completed successfully."
+    session_id = f"run-{run.pk}"
+
+    class UnavailableRunner(FakeRunnerClient):
+        def stop(self, session_id: str) -> None:
+            raise ConnectionError("Runner unavailable")
+
+    def agent_result(run: Run, session_id: str) -> AgentResult:
+        return AgentResult.success(run, report)
+
+    delivered: list[tuple[str, str]] = []
+
+    def deliver(run_id: int) -> None:
+        finished = Run.objects.get(pk=run_id)
+        delivered.append((finished.status, finished.output_excerpt))
+
+    monkeypatch.setattr(workflows, "get_runner_client", UnavailableRunner)
+    monkeypatch.setattr(workflows, "stop_runner_session_step", stop_runner_session_step)
+    monkeypatch.setattr(workflows, "execute_agent_run", agent_result)
+    monkeypatch.setattr(workflows, "deliver", deliver)
+
+    workflows.execute_run(run.pk)
+
+    run.refresh_from_db()
+    assert run.status == Run.Status.SUCCEEDED
+    assert run.exit_code == 0
+    assert run.summary == report
+    assert run.output_path
+    assert run.output_excerpt == report
+    warning = RunEvent.objects.get(run=run, level="warning")
+    assert warning.message == "The runner session could not be stopped after retries."
+    assert warning.metadata["session_id"] == session_id
+    assert delivered == [(Run.Status.SUCCEEDED, report)]
 
 
 @pytest.mark.django_db
