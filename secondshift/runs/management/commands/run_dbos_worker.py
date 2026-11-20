@@ -28,7 +28,10 @@ from secondshift.runs.orchestration.dispatch import (
 )
 from secondshift.runs.orchestration.durable import refresh_connections
 from secondshift.runs.orchestration.periodic import PeriodicTask
-from secondshift.runs.orchestration.reconciliation import reconcile_terminal_workflows
+from secondshift.runs.orchestration.reconciliation import (
+    reconcile_delivery_retries,
+    reconcile_terminal_workflows,
+)
 from secondshift.runs.orchestration.schedules import synchronize_schedules
 from secondshift.runs.retention import prune_runs
 
@@ -69,6 +72,12 @@ def worker_tasks(client: DBOSClient, every_pass: float) -> list[PeriodicTask]:
         if count := reconcile_terminal_workflows(client):
             logger.warning("reconciled %s run(s) from terminal DBOS workflows", count)
 
+    def reconcile_deliveries() -> None:
+        if count := reconcile_delivery_retries(client):
+            logger.warning(
+                "reconciled %s delivery retry(s) from terminal DBOS workflows", count
+            )
+
     def schedules() -> None:
         logger.debug("synchronized %s DBOS schedule(s)", synchronize_schedules(client))
 
@@ -89,6 +98,9 @@ def worker_tasks(client: DBOSClient, every_pass: float) -> list[PeriodicTask]:
 
     return [
         PeriodicTask("reconcile runs", every=every_pass, run=reconcile),
+        PeriodicTask(
+            "reconcile delivery retries", every=every_pass, run=reconcile_deliveries
+        ),
         PeriodicTask(
             "dispatch waiting tasks", every=every_pass, run=dispatch_waiting_tasks
         ),

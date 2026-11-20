@@ -1,6 +1,7 @@
 import json
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from types import SimpleNamespace
 from typing import Any
 from unittest.mock import Mock
 
@@ -26,6 +27,7 @@ from secondshift.runs.constants import RETRY_NOTIFICATION_WORKFLOW, RunStart
 from secondshift.runs.dao import create_task
 from secondshift.runs.models import Run, RunDelivery
 from secondshift.runs.orchestration import workflows
+from secondshift.runs.orchestration.reconciliation import reconcile_delivery_retries
 from secondshift.workspaces.models import Workspace, WorkspaceMembership
 
 Setup = tuple[AbstractUser, Workspace, Repository]
@@ -177,6 +179,7 @@ def test_retrying_sends_the_stored_report_again(
     delivery.refresh_from_db()
     assert delivery.status == RunDelivery.Status.RETRYING
     options, *arguments = queue.enqueue.call_args.args
+    assert delivery.retry_workflow_id == options["workflow_id"]
     assert options["workflow_name"] == RETRY_NOTIFICATION_WORKFLOW
     assert arguments == [run.pk, connection.pk]
 
@@ -188,6 +191,79 @@ def test_retrying_sends_the_stored_report_again(
     # The agent did not run again. The run's outcome is unchanged.
     run.refresh_from_db()
     assert run.status == Run.Status.SUCCEEDED
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "terminal_status",
+    ["ERROR", "CANCELLED", "SUCCESS", "MAX_RECOVERY_ATTEMPTS_EXCEEDED"],
+)
+def test_terminal_retry_without_a_result_can_be_retried_again(
+    approved_run: tuple[Run, Connection, JobGrant],
+    receiver: Receiver,
+    queue: Mock,
+    terminal_status: str,
+) -> None:
+    run, _, _ = approved_run
+    receiver.codes.append(500)
+    workflows.notify(run.pk)
+    delivery = deliveries.retry_delivery(run, only_delivery(run).pk)
+    workflow = SimpleNamespace(workflow_id=delivery.retry_workflow_id, status="PENDING")
+    queue.list_workflows.return_value = [workflow]
+
+    assert reconcile_delivery_retries(queue) == 0
+    assert only_delivery(run).status == RunDelivery.Status.RETRYING
+    assert queue.list_workflows.call_args.kwargs["workflow_ids"] == [
+        delivery.retry_workflow_id
+    ]
+
+    workflow.status = terminal_status
+    assert reconcile_delivery_retries(queue) == 1
+    assert reconcile_delivery_retries(queue) == 0
+    recovered = only_delivery(run)
+    assert recovered.status == RunDelivery.Status.FAILED
+    assert (
+        recovered.message
+        == "The retry workflow ended before recording a delivery result."
+    )
+    assert deliveries.retryable(recovered)
+    retried = deliveries.retry_delivery(run, recovered.pk)
+    assert retried.retry_workflow_id != delivery.retry_workflow_id
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "new_status", [RunDelivery.Status.DELIVERED, RunDelivery.Status.RETRYING]
+)
+def test_reconciliation_preserves_outcomes_and_new_retries(
+    approved_run: tuple[Run, Connection, JobGrant],
+    receiver: Receiver,
+    queue: Mock,
+    new_status: RunDelivery.Status,
+) -> None:
+    run, _, _ = approved_run
+    receiver.codes.append(500)
+    workflows.notify(run.pk)
+    delivery = deliveries.retry_delivery(run, only_delivery(run).pk)
+
+    def finish_before_lookup_returns(**kwargs: Any) -> list[SimpleNamespace]:
+        RunDelivery.objects.filter(pk=delivery.pk).update(
+            status=new_status,
+            message="New state.",
+            retry_workflow_id=(
+                "new-attempt"
+                if new_status == RunDelivery.Status.RETRYING
+                else delivery.retry_workflow_id
+            ),
+        )
+        return [SimpleNamespace(workflow_id=delivery.retry_workflow_id, status="ERROR")]
+
+    queue.list_workflows.side_effect = finish_before_lookup_returns
+
+    assert reconcile_delivery_retries(queue) == 0
+    delivery.refresh_from_db()
+    assert delivery.status == new_status
+    assert delivery.message == "New state."
 
 
 @pytest.mark.django_db

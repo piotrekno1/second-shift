@@ -236,6 +236,7 @@ class RunDelivery(models.Model):
     status = models.CharField(
         max_length=16, choices=Status.choices, default=Status.PENDING
     )
+    retry_workflow_id = models.CharField(max_length=200, blank=True)
     attempts = models.PositiveIntegerField(default=0)
     status_code = models.IntegerField(null=True, blank=True)
     message = models.TextField(blank=True)

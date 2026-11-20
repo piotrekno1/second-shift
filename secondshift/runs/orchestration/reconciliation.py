@@ -5,7 +5,12 @@ from dbos import DBOSClient
 from django.conf import settings
 from django.db import transaction
 
-from secondshift.runs.dao import active_workflows, add_event
+from secondshift.runs.dao import (
+    active_delivery_retries,
+    active_workflows,
+    add_event,
+    fail_delivery_retry,
+)
 from secondshift.runs.models import Run, RunFailure
 from secondshift.runs.transitions import finish_run
 
@@ -63,6 +68,33 @@ def reconcile_terminal_workflows(client: DBOSClient) -> int:
     after_id = 0
     while batch := active_workflows(after_id, RECONCILE_BATCH):
         reconciled += reconcile_batch(client, batch)
+        after_id = batch[-1][0]
+    return reconciled
+
+
+def reconcile_delivery_retries(client: DBOSClient) -> int:
+    """Make explicit retries eligible to retry again if DBOS ended without an outcome."""
+    reconciled = 0
+    after_id = 0
+    while batch := active_delivery_retries(after_id, RECONCILE_BATCH):
+        delivery_ids = {workflow_id: delivery_id for delivery_id, workflow_id in batch}
+        workflows = client.list_workflows(
+            workflow_ids=list(delivery_ids),
+            application_name=settings.DBOS_APPLICATION_NAME,
+            load_input=False,
+            load_output=False,
+        )
+        for workflow in workflows:
+            delivery_id = delivery_ids.get(workflow.workflow_id)
+            if (
+                delivery_id is not None
+                and workflow.status in TERMINAL_WORKFLOW_STATUSES
+            ):
+                reconciled += fail_delivery_retry(
+                    delivery_id,
+                    workflow.workflow_id,
+                    "The retry workflow ended before recording a delivery result.",
+                )
         after_id = batch[-1][0]
     return reconciled
 

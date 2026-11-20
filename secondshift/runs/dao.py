@@ -7,6 +7,7 @@ from typing import Any
 from django.db import transaction
 from django.db.models import Count, Exists, F, OuterRef, Q, QuerySet, Subquery, Sum
 from django.db.models.functions import Coalesce, TruncDate
+from django.utils import timezone
 
 from secondshift.agent.image.outcomes import CACHE_READ_DIVISOR
 from secondshift.connections.models import Connection
@@ -476,11 +477,30 @@ def run_delivery(run: Run, kind: str, delivered: bool = False) -> RunDelivery | 
 
 
 def lock_delivery(run: Run, delivery_id: int) -> RunDelivery:
-    """Lock the run's delivery, with its connection. Raises when missing."""
-    return (
-        RunDelivery.objects.select_for_update()
-        .select_related("connection")
-        .get(pk=delivery_id, run=run)
+    """Lock the run's delivery. Raises when missing."""
+    return RunDelivery.objects.select_for_update().get(pk=delivery_id, run=run)
+
+
+def active_delivery_retries(after_id: int, limit: int) -> list[tuple[int, str]]:
+    """Explicit retries still waiting for an outcome, in delivery id order."""
+    return list(
+        RunDelivery.objects.filter(status=RunDelivery.Status.RETRYING, pk__gt=after_id)
+        .exclude(retry_workflow_id="")
+        .order_by("pk")
+        .values_list("pk", "retry_workflow_id")[:limit]
+    )
+
+
+def fail_delivery_retry(delivery_id: int, workflow_id: str, message: str) -> bool:
+    """Fail the retry only if the observed workflow still owns it."""
+    return bool(
+        RunDelivery.objects.filter(
+            pk=delivery_id,
+            status=RunDelivery.Status.RETRYING,
+            retry_workflow_id=workflow_id,
+        ).update(
+            status=RunDelivery.Status.FAILED, message=message, updated_at=timezone.now()
+        )
     )
 
 
