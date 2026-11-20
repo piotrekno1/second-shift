@@ -13,6 +13,7 @@ from secondshift.repositories.sources import SourceSnapshot
 from secondshift.runner_protocol.sessions import CommandResult, RunnerSessionSpec
 from secondshift.runs.constants import RunSandbox, RunStart
 from secondshift.runs.dao import create_task
+from secondshift.runs.execution.result import AgentResult
 from secondshift.runs.models import Run, RunEvent, RunFailure
 from secondshift.runs.orchestration import workflows
 from secondshift.runs.orchestration.workflows import (
@@ -192,6 +193,48 @@ def test_prepare_source_checks_github_access_first(db, monkeypatch) -> None:
 
     with pytest.raises(RuntimeError, match="removed"):
         prepare_source_step(run.pk)
+
+
+@pytest.mark.django_db
+def test_a_completed_run_keeps_its_report_when_runner_shutdown_fails(
+    db, monkeypatch: pytest.MonkeyPatch, fake_stages: list[str]
+) -> None:
+    run = execution_run(db)
+    report = "The skill completed successfully."
+    stop_attempts: list[str] = []
+    delivered: list[tuple[str, str]] = []
+
+    def stop(session_id: str) -> None:
+        stop_attempts.append(session_id)
+        raise ConnectionError("Runner unavailable")
+
+    def deliver(run_id: int) -> None:
+        finished = Run.objects.get(pk=run_id)
+        delivered.append((finished.status, finished.output_excerpt))
+
+    monkeypatch.setattr(workflows, "stop_runner_session_step", stop)
+    monkeypatch.setattr(
+        workflows,
+        "execute_agent_run",
+        lambda run, session_id: AgentResult.success(run, report),
+    )
+    monkeypatch.setattr(workflows, "deliver", deliver)
+
+    workflows.execute_run(run.pk)
+
+    run.refresh_from_db()
+    assert run.status == Run.Status.SUCCEEDED
+    assert run.exit_code == 0
+    assert run.summary == report
+    assert run.output_path
+    assert run.output_excerpt == report
+    assert stop_attempts == [f"run-{run.pk}"]
+    assert RunEvent.objects.filter(
+        run=run,
+        level="warning",
+        message__contains="runner session could not be stopped",
+    ).exists()
+    assert delivered == [(Run.Status.SUCCEEDED, report)]
 
 
 @pytest.mark.django_db
