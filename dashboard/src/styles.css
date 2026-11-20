@@ -921,6 +921,17 @@ body .account-menu {
   overflow-wrap: anywhere;
   color: var(--ink);
 }
+/* The sync time sits on its own line under the commit. */
+.repository-metadata .synced-at {
+  display: block;
+  color: var(--subtle);
+}
+/* Underlined like the Turn on and Turn off buttons beside it. */
+.repository-metadata dd a {
+  text-decoration: underline;
+  text-decoration-color: var(--subtle);
+  text-underline-offset: 3px;
+}
 .copy-button {
   width: 28px;
   height: 28px;
@@ -3033,6 +3044,8 @@ body .p-select-overlay .p-select-header .p-inputtext {
 }
 .repository-metadata.compact-grid > div {
   grid-template-columns: 1fr;
+  /* Labels stay level when one value wraps to a second line. */
+  align-content: start;
   gap: 2px;
   padding: 8px 0;
   border-top: 0;
