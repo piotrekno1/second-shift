@@ -27,6 +27,7 @@ from secondshift.runs.dao import (
     run_hand_back,
 )
 from secondshift.runs.issue_delivery import write_access_problem
+from secondshift.runs.links import attribution_footer
 from secondshift.runs.models import Run, RunDelivery, RunHandBack
 
 logger = logging.getLogger(__name__)
@@ -51,7 +52,7 @@ def comment_body(run: Run, hand_back: RunHandBack) -> str:
     """The agent's comment, and a footer when the connection shows attribution."""
     if not shows_attribution(run.repository.github_connection):
         return hand_back.comment
-    footer = f"Handed back by SecondShift from run #{run.pk} at {run.commit_sha[:12]}."
+    footer = attribution_footer("Handed back", run)
     return f"{hand_back.comment}\n\n---\n\n{footer}"
 
 

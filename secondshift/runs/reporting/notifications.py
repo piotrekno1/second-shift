@@ -21,6 +21,7 @@ from secondshift.runner_protocol.agents import AgentBackend
 from secondshift.runs.constants import RunStart
 from secondshift.runs.dao import opened_issues, run_delivery
 from secondshift.runs.execution.consent import approved_connection
+from secondshift.runs.links import run_url
 from secondshift.runs.models import Run, RunDelivery, Task
 from secondshift.runs.outputs import SavedFile
 from secondshift.runs.reporting.collection import plural
@@ -51,11 +52,11 @@ def notification_targets(run: Run) -> list[int]:
 
 
 def run_report_payload(run: Run) -> dict[str, Any]:
-    run_url = f"{settings.FRONTEND_URL.rstrip('/')}/runs/{run.pk}"
+    url = run_url(run.pk)
     return {
         "event": "run.finished",
         # Slack, Mattermost and Discord (/slack URLs) render this field directly.
-        "text": run_report_text(run, run_url),
+        "text": run_report_text(run, url),
         "run": {
             "id": run.pk,
             "status": run.status,
@@ -63,7 +64,7 @@ def run_report_payload(run: Run) -> dict[str, Any]:
             "commit_sha": run.commit_sha,
             "scheduled_for": run.scheduled_for.isoformat(),
             "finished_at": run.finished_at.isoformat() if run.finished_at else None,
-            "url": run_url,
+            "url": url,
         },
         "job": {
             "key": run.job_key,
