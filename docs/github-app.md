@@ -222,20 +222,16 @@ Commits are authored by the account that pushes them. That is the App's bot,
 such as `secondshift-acme[bot]`, or the token's owner. GitHub credits that
 account on the pull request and in the contributors list.
 
-To credit another GitHub account too, set
-`SECONDSHIFT_PULL_REQUEST_CO_AUTHOR` to its name and email, such as
-`SecondShift <bot@example.com>`. Commits then carry a `Co-authored-by` trailer
-while attribution is on. GitHub lists co-authors among a repository's
-contributors when the email belongs to an account. A squash merge keeps the
-trailer.
-
 Attribution is on for the App and off for a token, because a token posts as a
 person. To change it, open the connection's menu on **Connections** and choose
 **Mention SecondShift** or **Don't mention SecondShift**.
 
 - When it is on, the branch is named `secondshift/run-<id>`. Pull request and
   issue descriptions end with a line naming the run. Commits carry
-  `SecondShift-Run` and `SecondShift-Job` trailers.
+  `SecondShift-Run` and `SecondShift-Job` trailers, and a `Co-authored-by`
+  trailer for the `secondshift-bot` account. GitHub then lists SecondShift
+  among the repository's contributors once a commit merges. A squash merge
+  keeps the trailer.
 - When it is off, nothing names SecondShift. The branch is named after the job,
   such as `weekly-docs-review-42`. The description is the report alone, and the
   commit message is the job's name.

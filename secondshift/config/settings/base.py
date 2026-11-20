@@ -16,7 +16,6 @@ data folder's .env outlives upgrades, so local values belong in code.
 """
 
 import os
-import re
 from datetime import timedelta
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -533,18 +532,6 @@ GITHUB_APP_CLIENT_SECRET = env.str("SECONDSHIFT_GITHUB_APP_CLIENT_SECRET", defau
 GITHUB_APP_PRIVATE_KEY = env.str(
     "SECONDSHIFT_GITHUB_APP_PRIVATE_KEY", default=""
 ).replace("\\n", "\n")
-# A GitHub account credited on SecondShift's draft commits, as
-# `Name <email>`. GitHub lists co-authors among a repository's contributors.
-# Commits name it only while the connection shows attribution.
-PULL_REQUEST_CO_AUTHOR = env.str(
-    "SECONDSHIFT_PULL_REQUEST_CO_AUTHOR", default=""
-).strip()
-if PULL_REQUEST_CO_AUTHOR and not re.fullmatch(
-    r"[^<>\n]+ <[^<>\s@]+@[^<>\s]+>", PULL_REQUEST_CO_AUTHOR
-):
-    raise ImproperlyConfigured(
-        "SECONDSHIFT_PULL_REQUEST_CO_AUTHOR must look like Name <email>."
-    )
 
 
 # CLI agent execution. Servers turn it on by setting an image pinned by digest.
