@@ -63,6 +63,7 @@ def test_a_filing_run_offers_the_tool(filing_run: Run) -> None:
     assert f"Call {TOOL_NAME}" in run_prompt(filing_run)
     # A maintainer ranks proposals by how likely and costly each problem is.
     assert "how likely the problem is" in run_prompt(filing_run)
+    assert "how big the fix is" in run_prompt(filing_run)
     assert anyio.run(issue_tool().prepare_tool_def, context(filing_run, "1"))
     assert TOOL_NAME in broker_tools(filing_run)
 
