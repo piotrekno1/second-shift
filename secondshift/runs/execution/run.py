@@ -128,7 +128,9 @@ def missing_bindings(plan: ExecutionPlan) -> str:
 PULL_REQUEST_NOTE = """SecondShift opens a draft pull request with the changes you leave in the
 workspace. Make the changes there, and do not commit them. Your report becomes the
 pull request description, so say what changed and why, which checks you ran and
-their results, and anything left unresolved."""
+their results, and anything left unresolved. Reviewers read it on GitHub, next
+to the diff. Name files by their path in the repository, such as src/app.py:12,
+and leave out how this workspace holds the changes."""
 
 
 # Codex starts with its own sandbox set to read-only, so its built-in tools

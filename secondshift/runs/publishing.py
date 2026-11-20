@@ -9,6 +9,7 @@ branch is named after the title and the description is the report alone.
 """
 
 import logging
+import re
 import tempfile
 from pathlib import Path
 
@@ -22,7 +23,7 @@ from secondshift.repositories.pull_requests import (
     PublishError,
     publish_pull_request,
 )
-from secondshift.runner_protocol.sandbox import MAX_CHANGES_BYTES
+from secondshift.runner_protocol.sandbox import MAX_CHANGES_BYTES, SANDBOX_WORKSPACE_DIR
 from secondshift.runs.artifacts import artifact_storage, read_text
 from secondshift.runs.dao import (
     create_delivery,
@@ -81,6 +82,10 @@ MAX_TITLE_CHARS = 200
 # SecondShift's own GitHub account. GitHub lists a commit's co-authors among
 # a repository's contributors.
 CO_AUTHOR = "SecondShift <359045448+secondshift-bot@users.noreply.github.com>"
+# A Markdown link to a file in the sandbox, such as [a.py](/workspace/a.py:3).
+SANDBOX_LINK = re.compile(
+    rf"\[([^\]\n]*)\]\({re.escape(SANDBOX_WORKSPACE_DIR)}/([^)\s]+)\)"
+)
 
 
 def draft_for(run: Run) -> DraftPullRequest:
@@ -93,6 +98,7 @@ def draft_for(run: Run) -> DraftPullRequest:
     if run.output_path:
         report, _ = read_text(run.output_path, MAX_BODY_CHARS)
     title, report = title_and_report(report, run.display_name)
+    report = repository_paths(report)
     attribution = shows_attribution(run.repository.github_connection)
     body = report or run.summary
     paragraphs = [title]
@@ -111,6 +117,22 @@ def draft_for(run: Run) -> DraftPullRequest:
         # The same date on every attempt gives the same commit.
         committed_at=run.finished_at,
     )
+
+
+def repository_paths(report: str) -> str:
+    """Links to sandbox files as repository paths, such as `a.py:3`.
+
+    Agents link the files they changed by their path in the sandbox. On
+    GitHub such a link leads nowhere, and the diff shows the files anyway.
+    Link text other than the file's name stays in front of the path.
+    """
+
+    def path(match: re.Match[str]) -> str:
+        text, target = match[1].strip(), match[2]
+        name = target.split(":")[0].rsplit("/", 1)[-1]
+        return f"`{target}`" if text in ("", name, target) else f"{text} (`{target}`)"
+
+    return SANDBOX_LINK.sub(path, report)
 
 
 def footer(run: Run) -> str:

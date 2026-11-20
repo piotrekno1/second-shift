@@ -403,3 +403,18 @@ def test_a_report_heading_names_the_draft(
     # The title is not repeated as the description's first line.
     assert draft.body == "Closes #377\n\n" + REPORT
     assert draft.message.startswith("Reject queued cron ticks\n")
+
+
+def test_sandbox_links_become_repository_paths() -> None:
+    report = (
+        "**Fix.** See [services.py](/workspace/secondshift/runs/services.py:45) "
+        "and the [Migration](/workspace/secondshift/runs/migrations/0016_tick.py). "
+        "Earlier: [PR #400](https://github.com/acme/app/pull/400)."
+    )
+
+    # GitHub can't open sandbox paths. Other links stay.
+    assert publishing.repository_paths(report) == (
+        "**Fix.** See `secondshift/runs/services.py:45` "
+        "and the Migration (`secondshift/runs/migrations/0016_tick.py`). "
+        "Earlier: [PR #400](https://github.com/acme/app/pull/400)."
+    )
