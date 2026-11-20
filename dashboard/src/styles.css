@@ -921,6 +921,12 @@ body .account-menu {
   overflow-wrap: anywhere;
   color: var(--ink);
 }
+/* Underlined like the Turn on and Turn off buttons beside it. */
+.repository-metadata dd a {
+  text-decoration: underline;
+  text-decoration-color: var(--subtle);
+  text-underline-offset: 3px;
+}
 .copy-button {
   width: 28px;
   height: 28px;
