@@ -204,7 +204,7 @@ function setup(overrides: Partial<SetupState> = {}): SetupState {
     repositories: 0,
     repositoryName: '',
     accessProblem: '',
-    execution: status({ needs_setup: true, problem: 'Nothing runs jobs.' }),
+    execution: status({ needs_setup: true, chosen: false, problem: 'Nothing runs jobs.' }),
     jobs: 0,
     enabledJobs: 0,
     hasRuns: false,
@@ -261,6 +261,25 @@ test('done steps name what was set up', () => {
     setupSteps(setup({ ...withCode, repositories: 2 }))![0]!.detail,
     '2 repositories are connected.',
   )
+})
+
+test('a saved login that runs nothing leaves the runner step to do', () => {
+  const unchosen = status({
+    label: 'Nothing chosen',
+    problem: 'Choose a model API key or a subscription to run jobs.',
+    chosen: false,
+    needs_setup: false,
+  })
+  const step = setupSteps(setup({ ...withCode, execution: unchosen }))![1]!
+  assert.equal(step.done, false)
+  assert.equal(step.detail, 'Choose which model key or subscription runs jobs.')
+  assert.deepEqual(
+    step.actions.map((action) => [action.label, action.to]),
+    [['Choose a model', { path: '/models' }]],
+  )
+  const member = setupSteps(setup({ ...withCode, execution: unchosen, canConnect: false }))![1]!
+  assert.equal(member.detail, 'Ask a workspace owner to choose what runs jobs.')
+  assert.deepEqual(member.actions, [])
 })
 
 test('the job step sends people to their jobs', () => {
