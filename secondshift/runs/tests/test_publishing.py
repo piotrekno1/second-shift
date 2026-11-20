@@ -120,6 +120,7 @@ def test_trusted_repositories_run_ci_on_the_draft(
     workflows.publish_pull_request_step(run.pk)
 
     assert "[skip ci]" not in fake.calls[0][2].message
+    assert publishing.CI_WAITS_NOTE not in fake.calls[0][2].body
 
 
 @pytest.mark.django_db
@@ -323,7 +324,8 @@ def test_an_app_draft_names_secondshift(
     draft = fake.calls[0][2]
     assert draft.branch == f"secondshift/run-{run.pk}"
     assert draft.body == (
-        f"{REPORT}\n\n---\n\nOpened by SecondShift from run #{run.pk} at {'a' * 12}."
+        f"{REPORT}\n\n{publishing.CI_WAITS_NOTE}\n\n---\n\n"
+        f"Opened by SecondShift from run #{run.pk} at {'a' * 12}."
     )
     assert draft.message == (
         f"Review\n\n[skip ci]\n\nSecondShift-Run: {run.pk}\nSecondShift-Job: Review"
@@ -353,7 +355,9 @@ def test_without_attribution_nothing_names_secondshift(
     # A personal token posts as a person, so by default the draft looks
     # like theirs: a branch named after the title and the report alone.
     assert draft.branch == f"review-{run.pk}"
-    assert draft.body == REPORT
+    # Until CI runs, the description says it hasn't, without naming SecondShift.
+    assert draft.body == f"{REPORT}\n\n{publishing.CI_WAITS_NOTE}"
+    assert "SecondShift" not in publishing.CI_WAITS_NOTE
     assert draft.message == "Review\n\n[skip ci]"
 
 
@@ -401,7 +405,7 @@ def test_a_report_heading_names_the_draft(
     assert draft.title == "Reject queued cron ticks"
     assert draft.branch == f"reject-queued-cron-ticks-{run.pk}"
     # The title is not repeated as the description's first line.
-    assert draft.body == "Closes #377\n\n" + REPORT
+    assert draft.body == f"Closes #377\n\n{REPORT}\n\n{publishing.CI_WAITS_NOTE}"
     assert draft.message.startswith("Reject queued cron ticks\n")
 
 

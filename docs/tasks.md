@@ -188,8 +188,9 @@ Then set `pull_request` to `true` when you submit the task.
 - A run that fails or changes nothing opens no pull request. Its delivery shows
   why.
 - CI is skipped on the first push, because nobody has reviewed the patch yet.
-  After you review it, push a commit to the branch to run CI. An owner can let
-  CI run at once for trusted repositories.
+  After you review it, push a commit to the branch to run CI. The description
+  ends with a line saying so. An owner can let CI run at once for trusted
+  repositories.
 - Changes to `.github/workflows` are refused by GitHub, since SecondShift never
   asks for workflow access.
 
