@@ -24,6 +24,7 @@ from secondshift.jobs.planner import build_execution_plan, build_skill_execution
 from secondshift.jobs.readiness import execution_problems
 from secondshift.jobs.serialization import serialize_job_detail
 from secondshift.repositories.models import Repository
+from secondshift.runner.tests.fakes import sandboxes
 from secondshift.runner_protocol.agents import AgentBackend
 from secondshift.runs.models import Run, Task
 from secondshift.workspaces.dao import create_workspace
@@ -274,7 +275,9 @@ def test_definition_cannot_choose_credentials_or_runtime(field: str) -> None:
 def test_a_plan_names_the_environment_and_never_an_image(
     repository: Repository, settings: Any
 ) -> None:
-    settings.RUNNER_ENVIRONMENTS = {"node": "registry.example/node@sha256:def"}
+    settings.RUNNER_ENVIRONMENTS = sandboxes(
+        "python:3.13-slim", node="registry.example/node@sha256:def"
+    )
 
     result = plan(repository, definition(requires={}, environment="node"))
 
@@ -286,7 +289,9 @@ def test_a_plan_names_the_environment_and_never_an_image(
 def test_an_environment_the_server_lacks_stops_the_run(
     repository: Repository, settings: Any
 ) -> None:
-    settings.RUNNER_ENVIRONMENTS = {"node": "registry.example/node@sha256:def"}
+    settings.RUNNER_ENVIRONMENTS = sandboxes(
+        "python:3.13-slim", node="registry.example/node@sha256:def"
+    )
     sync_jobs(
         repository,
         RepositoryManifest(

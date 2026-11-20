@@ -10,7 +10,6 @@ from secondshift.jobs import environments
 from secondshift.jobs.models import Job
 from secondshift.jobs.planner import build_execution_plan
 from secondshift.repositories.models import Repository
-from secondshift.runner_protocol.environments import DEFAULT_ENVIRONMENT
 from secondshift.runs.constants import RunStart
 from secondshift.runs.dao import create_task
 from secondshift.runs.models import Run
@@ -25,10 +24,7 @@ def runner_environments(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     monkeypatch.setattr(
         environments,
         "fetch_environments",
-        lambda: {
-            DEFAULT_ENVIRONMENT: settings.RUNNER_IMAGE,
-            **settings.RUNNER_ENVIRONMENTS,
-        },
+        lambda: settings.RUNNER_ENVIRONMENTS,
     )
     environments.forget_runner_environments()
     yield

@@ -12,6 +12,7 @@ from django.test import override_settings
 
 from secondshift.config.constants import Service
 from secondshift.core import launcher, local_output
+from secondshift.core.management.commands import up
 from secondshift.core.management.commands.logs import read_new
 
 
@@ -114,3 +115,62 @@ def test_status_uses_saved_custom_url_and_service_health(
     output = capsys.readouterr().out
     assert "http://127.0.0.1:9444" in output
     assert "web: ready" in output
+
+
+def test_a_settings_error_is_found_in_service_output() -> None:
+    lines = [
+        "Traceback (most recent call last):",
+        '  File "runner.py", line 80, in <module>',
+        "    raise ImproperlyConfigured(",
+        "django.core.exceptions.ImproperlyConfigured: Set SECONDSHIFT_SANDBOX_DEFAULT.",
+    ]
+
+    assert local_output.configuration_error(lines) == "Set SECONDSHIFT_SANDBOX_DEFAULT."
+    assert local_output.configuration_error(["OperationalError: locked"]) is None
+
+
+def test_capture_hands_each_line_to_its_reader(tmp_path: Path) -> None:
+    seen: list[str] = []
+    with override_settings(DATA_DIR=tmp_path):
+        reader = local_output.capture(
+            io.BytesIO(b"one\ntwo\n"), Service.RUNNER, False, on_line=seen.append
+        )
+        reader.join()
+
+    assert seen == ["one", "two"]
+
+
+def test_up_says_why_the_runner_cannot_start(tmp_path: Path) -> None:
+    env = launcher.runner_env(
+        {
+            "PATH": os.environ["PATH"],
+            "HOME": str(tmp_path),
+            "SECONDSHIFT_DATA_DIR": str(tmp_path),
+            "SECONDSHIFT_RUNNER_SERVICE_TOKEN": "t" * 40,
+            "SECONDSHIFT_RUNNER_WORK_ROOT": str(tmp_path / "runner"),
+            "SECONDSHIFT_RUNNER_IMAGE": "registry.example/mine:1",
+        }
+    )
+    runner = launcher.Process("runner", [], env)
+
+    with (
+        override_settings(DATA_DIR=tmp_path),
+        pytest.raises(click.ClickException) as raised,
+    ):
+        up.prepare_runner(runner, debug=False)
+
+    assert raised.value.message.startswith(
+        "The runner can't start. SECONDSHIFT_RUNNER_IMAGE is replaced."
+    )
+
+
+def test_sandboxes_set_in_the_shell_reach_the_local_runner() -> None:
+    env = launcher.runner_env(
+        {
+            "SECONDSHIFT_SANDBOX_GO": "golang:1.23",
+            "SECONDSHIFT_ENCRYPTION_KEY": "never-for-the-runner",
+        }
+    )
+
+    assert env["SECONDSHIFT_SANDBOX_GO"] == "golang:1.23"
+    assert "SECONDSHIFT_ENCRYPTION_KEY" not in env

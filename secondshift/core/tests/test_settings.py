@@ -7,6 +7,7 @@ import pytest
 from cryptography.fernet import Fernet
 
 from secondshift.config import app
+from secondshift.config.first_run import default_runner_images
 from secondshift.config.settings.base import sqlalchemy_url
 
 CHECKOUT_ENV = Path(__file__).resolve().parents[3] / ".env"
@@ -250,9 +251,12 @@ def test_dev_generates_keys_once_into_the_data_folder(tmp_path: Path) -> None:
     assert len(secret) >= 50 and len(runner_token) >= 50
     Fernet(field_key.encode())
     assert database == str(tmp_path / "secondshift.sqlite3")
-    # The runner's file holds only its token, never the encryption key.
+    # The runner's file holds its token and the sandbox images, never the
+    # encryption key.
     runner_env = (tmp_path / "runner.env").read_text()
-    assert runner_env == f"SECONDSHIFT_RUNNER_SERVICE_TOKEN={runner_token}\n"
+    assert runner_env == (
+        f"SECONDSHIFT_RUNNER_SERVICE_TOKEN={runner_token}\n\n" + default_runner_images()
+    )
     for name in (".env", "runner.env"):
         assert (tmp_path / name).stat().st_mode & 0o777 == 0o600
 
@@ -454,7 +458,11 @@ def test_agent_defaults_exist_only_on_one_machine(tmp_path: Path) -> None:
     runner = (
         "print(s.AGENT_IMAGE, s.AGENT_BROKER_URL, s.AGENT_IMAGE_TAGS_ALLOWED, sep='|')"
     )
-    token = {"SECONDSHIFT_RUNNER_SERVICE_TOKEN": "t" * 40}
+    token = {
+        "SECONDSHIFT_RUNNER_SERVICE_TOKEN": "t" * 40,
+        "SECONDSHIFT_SANDBOX_PYTHON": "python:3.13-slim@sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "SECONDSHIFT_SANDBOX_DEFAULT": "python",
+    }
     results = {
         "local": load_settings(
             "secondshift.config.settings.local",
@@ -534,6 +542,8 @@ def test_asgi_services_close_each_request_connection(
         SECONDSHIFT_SERVICE=service,
         SECONDSHIFT_DB_CONN_MAX_AGE_SECONDS="60",
         SECONDSHIFT_RUNNER_SERVICE_TOKEN="r" * 40,
+        SECONDSHIFT_SANDBOX_PYTHON="python:3.13-slim@sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        SECONDSHIFT_SANDBOX_DEFAULT="python",
     )
 
     assert result.returncode == 0, result.stderr

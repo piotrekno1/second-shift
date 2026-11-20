@@ -5,6 +5,8 @@ from django.contrib.auth import get_user_model
 from django.test import Client
 
 from secondshift.jobs import environments
+from secondshift.runner.tests.fakes import sandboxes
+from secondshift.runner_protocol.environments import RunnerEnvironments
 from secondshift.runner_protocol.sessions import RunnerProtocolError
 from secondshift.workspaces.dao import create_workspace
 from secondshift.workspaces.models import WorkspaceMembership
@@ -105,22 +107,25 @@ def test_background_sync_is_listed_with_local_repositories(settings: object) -> 
 
 
 def test_each_named_environment_is_listed_with_its_env_var(settings: object) -> None:
-    settings.RUNNER_ENVIRONMENTS = {  # type: ignore[attr-defined]
-        "node": "ghcr.io/org/runner-node@sha256:" + "b" * 64
-    }
+    settings.RUNNER_ENVIRONMENTS = sandboxes(  # type: ignore[attr-defined]
+        "python:3.13-slim", node="ghcr.io/org/runner-node@sha256:" + "b" * 64
+    )
     items = {item.label: item for g in setting_groups() for item in g.items}
 
-    assert items["Environment: default"].env == "SECONDSHIFT_RUNNER_IMAGE"
+    default = items["Default environment"]
+    assert (default.value, default.env) == ("python", "SECONDSHIFT_SANDBOX_DEFAULT")
+    assert items["Environment: python"].env == "SECONDSHIFT_SANDBOX_PYTHON"
+    assert "Environment: default" not in items
     node = items["Environment: node"]
     assert node.value == "ghcr.io/org/runner-node @ bbbbbbbbbbbb"
-    assert node.env == "SECONDSHIFT_RUNNER_ENVIRONMENT_NODE"
+    assert node.env == "SECONDSHIFT_SANDBOX_NODE"
     assert "environment: node" in node.help
 
 
 def test_the_page_says_when_the_runner_cannot_list_environments(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    def unreachable() -> dict[str, str]:
+    def unreachable() -> RunnerEnvironments:
         raise RunnerProtocolError("The runner service could not be reached.")
 
     monkeypatch.setattr(environments, "fetch_environments", unreachable)

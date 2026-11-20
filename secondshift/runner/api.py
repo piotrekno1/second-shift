@@ -18,7 +18,7 @@ from secondshift.runner.schemas import (
     SessionInput,
     SessionOutput,
 )
-from secondshift.runner.services import environment_images, get_runner_service
+from secondshift.runner.services import get_runner_service
 from secondshift.runner.setup import run_setup
 from secondshift.runner.sources import has_source, receive_source
 from secondshift.runner_protocol.schemas import AgentCheckInput, AgentInput, AgentOutput
@@ -62,10 +62,11 @@ def health(request: HttpRequest) -> dict[str, bool]:
     return {"ok": True}
 
 
-@api.get("/v1/environments", response=dict[str, dict[str, str]])
-def environments(request: HttpRequest) -> dict[str, dict[str, str]]:
-    """Each environment this runner offers, and its image, by name."""
-    return {"environments": environment_images()}
+@api.get("/v1/environments", response=dict[str, dict[str, str] | str])
+def environments(request: HttpRequest) -> dict[str, dict[str, str] | str]:
+    """Each environment this runner offers, its image, and the default's name."""
+    offered = settings.RUNNER_ENVIRONMENTS
+    return {"environments": offered.images, "default": offered.default}
 
 
 @api.post("/v1/sessions", response={201: SessionOutput})
