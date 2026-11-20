@@ -52,6 +52,7 @@ WEBHOOK_BINDING = "smoke-reports"
 FAILURE_SKILL = "smoke-failure"
 START_SECONDS = 240
 RUN_SECONDS = 300
+SYNC_SECONDS = 60
 FINISHED = {"succeeded", "failed", "canceled"}
 MCP_PROTOCOL_VERSION = "2025-06-18"
 
@@ -442,7 +443,8 @@ def connect(client: Client, model_url: str, webhook_url: str, api_key: str) -> i
 
 
 def add_repository(client: Client, path: Path, webhook_id: int) -> dict[str, int]:
-    client.json("POST", "/api/repositories/local", {"path": str(path)})
+    repository = client.json("POST", "/api/repositories/local", {"path": str(path)})
+    wait_for_sync(client, int(repository["id"]))
     jobs = {
         detail["key"]: detail
         for job in client.json("GET", "/api/jobs")
@@ -461,6 +463,16 @@ def add_repository(client: Client, path: Path, webhook_id: int) -> dict[str, int
             )
         log(f"Discovered {key} and approved its notification.")
     return {key: int(job["id"]) for key, job in jobs.items()}
+
+
+def wait_for_sync(client: Client, repository_id: int) -> None:
+    """The worker discovers a new repository's jobs in the background."""
+    deadline = time.monotonic() + SYNC_SECONDS
+    while time.monotonic() < deadline:
+        if not client.json("GET", f"/api/repositories/{repository_id}")["syncing"]:
+            return
+        time.sleep(1)
+    raise SmokeFailure(f"The repository did not sync in {SYNC_SECONDS} s.")
 
 
 def run_job(client: Client, job_id: int) -> dict[str, Any]:
