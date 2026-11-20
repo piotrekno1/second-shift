@@ -4,6 +4,8 @@ import pytest
 from django.contrib.auth import get_user_model
 from django.test import Client
 
+from secondshift.jobs import environments
+from secondshift.runner_protocol.sessions import RunnerProtocolError
 from secondshift.workspaces.dao import create_workspace
 from secondshift.workspaces.models import WorkspaceMembership
 from secondshift.workspaces.server_settings import image_label, setting_groups
@@ -113,3 +115,16 @@ def test_each_named_environment_is_listed_with_its_env_var(settings: object) -> 
     assert node.value == "ghcr.io/org/runner-node @ bbbbbbbbbbbb"
     assert node.env == "SECONDSHIFT_RUNNER_ENVIRONMENT_NODE"
     assert "environment: node" in node.help
+
+
+def test_the_page_says_when_the_runner_cannot_list_environments(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def unreachable() -> dict[str, str]:
+        raise RunnerProtocolError("The runner service could not be reached.")
+
+    monkeypatch.setattr(environments, "fetch_environments", unreachable)
+    items = {item.label: item for g in setting_groups() for item in g.items}
+
+    assert items["Environments"].value == "Runner unreachable"
+    assert "Environment: default" not in items

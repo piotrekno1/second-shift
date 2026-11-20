@@ -228,7 +228,7 @@ def sample_plan(job: Job, commit_sha: str) -> ExecutionPlan:
         repository=RepositoryPlan(
             full_name=job.repository.full_name, config_sha=commit_sha
         ),
-        runner=RunnerPlan(image="", network_policy="none", collect_changes=False),
+        runner=RunnerPlan(network_policy="none", collect_changes=False),
         pull_request=None,
         issues=None,
         model=None,

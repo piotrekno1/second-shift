@@ -74,6 +74,16 @@ class HttpRunnerClient:
         if response.status_code != 204:
             self.response_payload(response)
 
+    def environments(self, timeout: float | None = None) -> dict[str, str]:
+        """Each environment the runner offers, and its image, by name."""
+        payload = self.response_payload(
+            self.send("GET", "/v1/environments", timeout=timeout)
+        )
+        environments = payload.get("environments")
+        if not isinstance(environments, dict):
+            raise RunnerProtocolError("Runner returned an invalid response.")
+        return {str(name): str(image) for name, image in environments.items()}
+
     def start(self, spec: RunnerSessionSpec) -> str:
         response = self.send("POST", "/v1/sessions", json=asdict(spec))
         payload = self.response_payload(response)

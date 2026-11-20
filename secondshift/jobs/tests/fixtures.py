@@ -1,15 +1,38 @@
+from collections.abc import Iterator
+
 import pytest
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.utils import timezone
 
 from secondshift.connections.models import AgentConnection
+from secondshift.jobs import environments
 from secondshift.jobs.models import Job
 from secondshift.jobs.planner import build_execution_plan
 from secondshift.repositories.models import Repository
+from secondshift.runner_protocol.environments import DEFAULT_ENVIRONMENT
 from secondshift.runs.constants import RunStart
 from secondshift.runs.dao import create_task
 from secondshift.runs.models import Run
 from secondshift.workspaces.models import Workspace
+
+
+@pytest.fixture(autouse=True)
+def runner_environments(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    """The control plane asks the runner for its environments. In tests the
+    runner's settings answer, so a test changes them with settings.
+    """
+    monkeypatch.setattr(
+        environments,
+        "fetch_environments",
+        lambda: {
+            DEFAULT_ENVIRONMENT: settings.RUNNER_IMAGE,
+            **settings.RUNNER_ENVIRONMENTS,
+        },
+    )
+    environments.forget_runner_environments()
+    yield
+    environments.forget_runner_environments()
 
 
 @pytest.fixture

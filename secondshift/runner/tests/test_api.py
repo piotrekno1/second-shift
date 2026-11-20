@@ -18,7 +18,7 @@ def test_runner_api_requires_service_auth(settings, monkeypatch) -> None:
         "session_key": "0123456789abcdef0123456789abcdef",
         "repository": "example/project",
         "commit_sha": "a" * 40,
-        "image": settings.RUNNER_IMAGE,
+        "environment": "default",
         "source_sha256": "d" * 64,
     }
 
@@ -33,6 +33,28 @@ def test_runner_api_requires_service_auth(settings, monkeypatch) -> None:
     assert denied.status_code == 401
     assert allowed.status_code == 201
     assert allowed.json() == {"session_id": "run-7"}
+
+
+@pytest.mark.django_db
+def test_the_runner_lists_its_environments_to_the_control_plane_only(
+    settings,
+) -> None:
+    settings.RUNNER_IMAGE = "secondshift-runner:test"
+    settings.RUNNER_ENVIRONMENTS = {"node": "registry.example/node@sha256:def"}
+
+    denied = Client().get("/v1/environments")
+    allowed = Client().get(
+        "/v1/environments",
+        HTTP_AUTHORIZATION=f"Bearer {settings.RUNNER_SERVICE_TOKEN}",
+    )
+
+    assert denied.status_code == 401
+    assert allowed.json() == {
+        "environments": {
+            "default": "secondshift-runner:test",
+            "node": "registry.example/node@sha256:def",
+        }
+    }
 
 
 @pytest.mark.django_db
@@ -57,7 +79,9 @@ def test_runner_api_rejects_repository_runtime_configuration(
             "session_key": "0123456789abcdef0123456789abcdef",
             "repository": "example/project",
             "commit_sha": "a" * 40,
-            "image": settings.RUNNER_IMAGE,
+            "environment": "default",
+            # A request never chooses the image. The runner maps the name.
+            "image": "attacker.example/image:latest",
             "network": "host",
             "mounts": ["/:/workspace"],
         },

@@ -204,7 +204,7 @@ def start_runner_session_step(run_id: int) -> str:
             session_key=run.runner_session_key.hex,
             repository=plan.repository.full_name,
             commit_sha=run.commit_sha,
-            image=plan.runner.image,
+            environment=plan.runner.environment,
             source_sha256=snapshot.sha256,
             collect_changes=plan.runner.collect_changes,
             history_sha256=history.sha256 if history is not None else "",

@@ -4,7 +4,11 @@ from unittest.mock import Mock
 import pytest
 
 from secondshift.runner.models import RunnerCommand, RunnerSession
-from secondshift.runner.services import DockerRunnerService, RunnerConfigurationError
+from secondshift.runner.services import (
+    DockerRunnerService,
+    RunnerConfigurationError,
+    environment_images,
+)
 from secondshift.runner_protocol.sessions import (
     CommandRequest,
     CommandResult,
@@ -68,10 +72,8 @@ def test_container_flags_are_server_owned(settings, tmp_path: Path) -> None:
     settings.RUNNER_CPUS = "1"
     settings.RUNNER_SANDBOX_UID = 65534
     settings.RUNNER_SANDBOX_GID = 65534
-    spec = Mock(image="secondshift-runner:test")
-
     command = DockerRunnerService.create_command(
-        spec, "secondshift-run-7", tmp_path / "workspace"
+        "secondshift-runner:test", "secondshift-run-7", tmp_path / "workspace"
     )
 
     assert "--runtime" in command
@@ -145,7 +147,9 @@ def test_runner_pulls_every_environment_image(settings, monkeypatch) -> None:
     ]
 
 
-def test_runner_refuses_an_image_no_environment_names(settings, tmp_path: Path) -> None:
+def test_runner_refuses_an_environment_it_does_not_have(
+    settings, tmp_path: Path
+) -> None:
     settings.RUNNER_WORK_ROOT = tmp_path
     settings.RUNNER_IMAGE = "secondshift-runner:test"
     settings.RUNNER_ENVIRONMENTS = {"node": "registry.example/node@sha256:def"}
@@ -154,12 +158,22 @@ def test_runner_refuses_an_image_no_environment_names(settings, tmp_path: Path) 
         session_key="0" * 32,
         repository="example/project",
         commit_sha="a" * 40,
-        image="attacker.example/image:latest",
+        environment="browser",
         source_sha256="d" * 64,
     )
 
-    with pytest.raises(RunnerProtocolError, match="not enabled by this runner"):
+    with pytest.raises(RunnerProtocolError, match="has no browser environment"):
         DockerRunnerService().start(spec)
+
+
+def test_the_runner_alone_maps_environments_to_images(settings) -> None:
+    settings.RUNNER_IMAGE = "secondshift-runner:test"
+    settings.RUNNER_ENVIRONMENTS = {"node": "registry.example/node@sha256:def"}
+
+    assert environment_images() == {
+        "default": "secondshift-runner:test",
+        "node": "registry.example/node@sha256:def",
+    }
 
 
 def test_every_environment_gets_the_same_flags_and_mounts(
@@ -169,7 +183,7 @@ def test_every_environment_gets_the_same_flags_and_mounts(
     settings.RUNNER_ENVIRONMENTS = {"node": "registry.example/node@sha256:def"}
     commands = [
         DockerRunnerService.create_command(
-            Mock(image=image), "secondshift-run-7", tmp_path / "workspace"
+            image, "secondshift-run-7", tmp_path / "workspace"
         )
         for image in ("secondshift-runner:test", "registry.example/node@sha256:def")
     ]
@@ -239,7 +253,7 @@ def test_an_old_session_with_the_same_run_id_does_not_block_a_new_run(
         session_key="c" * 32,
         repository="example/project",
         commit_sha="a" * 40,
-        image="secondshift-runner:test",
+        environment="default",
         source_sha256="d" * 64,
     )
 
@@ -408,7 +422,7 @@ def test_the_baseline_is_recorded_only_when_the_spec_asks(
         session_key="c" * 32,
         repository="example/project",
         commit_sha="a" * 40,
-        image="secondshift-runner:test",
+        environment="default",
         source_sha256="d" * 64,
         collect_changes=collect_changes,
     )
@@ -451,7 +465,7 @@ def test_earlier_files_are_unpacked_beside_the_workspace(
         session_key="c" * 32,
         repository="example/project",
         commit_sha="a" * 40,
-        image="secondshift-runner:test",
+        environment="default",
         source_sha256="d" * 64,
         history_sha256="e" * 64,
     )
@@ -493,7 +507,7 @@ def test_a_skill_from_another_repository_is_unpacked_beside_the_workspace(
         session_key="c" * 32,
         repository="example/project",
         commit_sha="a" * 40,
-        image="secondshift-runner:test",
+        environment="default",
         source_sha256="d" * 64,
         collect_changes=True,
         skill_sha256="e" * 64,

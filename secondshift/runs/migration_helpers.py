@@ -127,7 +127,7 @@ def normalized_plan_v1(
         "runner": picked_v1(
             plan.get("runner"),
             {
-                "image": settings.RUNNER_IMAGE,
+                "image": "",
                 "network_policy": "none",
                 "collect_changes": False,
             },

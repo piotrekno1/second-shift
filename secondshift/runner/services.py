@@ -29,6 +29,7 @@ from secondshift.runner.dao import (
 from secondshift.runner.models import RunnerCommand, RunnerSession
 from secondshift.runner.sources import sweep_sources, unpack_source
 from secondshift.runner_protocol.collection import OUTPUTS_DIR
+from secondshift.runner_protocol.environments import DEFAULT_ENVIRONMENT
 from secondshift.runner_protocol.sandbox import (
     SANDBOX_HISTORY_DIR,
     SANDBOX_OUTPUTS_DIR,
@@ -89,11 +90,16 @@ def sandbox_flags() -> list[str]:
     ]
 
 
+def environment_images() -> dict[str, str]:
+    """Each environment's image, by name, the default first. Only the runner
+    knows them. The control plane sends a name.
+    """
+    return {DEFAULT_ENVIRONMENT: settings.RUNNER_IMAGE, **settings.RUNNER_ENVIRONMENTS}
+
+
 def enabled_images() -> list[str]:
-    """The default image, then each named environment's. Nothing else runs."""
-    return list(
-        dict.fromkeys([settings.RUNNER_IMAGE, *settings.RUNNER_ENVIRONMENTS.values()])
-    )
+    """The images this runner pulls and runs. Nothing else runs."""
+    return list(dict.fromkeys(environment_images().values()))
 
 
 class RunnerConfigurationError(RuntimeError):
@@ -147,9 +153,10 @@ class DockerRunnerService:
             )
 
     def start(self, spec: RunnerSessionSpec) -> str:
-        if spec.image not in enabled_images():
+        image = environment_images().get(spec.environment)
+        if not image:
             raise RunnerProtocolError(
-                "The requested image is not enabled by this runner."
+                f"This runner has no {spec.environment} environment."
             )
         session_id = spec.session_id
         container_name = sandbox_name(session_id)
@@ -166,7 +173,7 @@ class DockerRunnerService:
                         run_id=spec.run_id,
                         repository=spec.repository,
                         commit_sha=spec.commit_sha,
-                        image=spec.image,
+                        image=image,
                         source_sha256=spec.source_sha256,
                         collect_changes=spec.collect_changes,
                         history_sha256=spec.history_sha256,
@@ -180,7 +187,7 @@ class DockerRunnerService:
                         "The run already has a runner session."
                     ) from error
             else:
-                self.require_matching_spec(session, spec)
+                self.require_matching_spec(session, spec, image)
                 if session.status == RunnerSession.Status.ACTIVE:
                     if not self.container_exists(container_name):
                         raise RunnerProtocolError(
@@ -199,7 +206,7 @@ class DockerRunnerService:
         (session_root / HISTORY_DIR).mkdir(mode=0o700)
         (session_root / SKILL_DIR).mkdir(mode=0o700)
         try:
-            self.prepare_sandbox(spec, container_name, workspace, outputs)
+            self.prepare_sandbox(spec, image, container_name, workspace, outputs)
         except Exception:
             self.remove_container(container_name)
             self.remove_workspace(session_root)
@@ -219,6 +226,7 @@ class DockerRunnerService:
     def prepare_sandbox(
         self,
         spec: RunnerSessionSpec,
+        image: str,
         container_name: str,
         workspace: Path,
         outputs: Path,
@@ -240,7 +248,7 @@ class DockerRunnerService:
         self.prepare_workspace_permissions(history)
         self.prepare_workspace_permissions(skill)
         completed = self.run_command(
-            self.create_command(spec, container_name, workspace)
+            self.create_command(image, container_name, workspace)
         )
         if completed.returncode:
             raise RunnerProtocolError("The runner could not create the sandbox.")
@@ -418,7 +426,9 @@ class DockerRunnerService:
             )
 
     @staticmethod
-    def require_matching_spec(session: RunnerSession, spec: RunnerSessionSpec) -> None:
+    def require_matching_spec(
+        session: RunnerSession, spec: RunnerSessionSpec, image: str
+    ) -> None:
         recorded = (
             session.run_id,
             session.repository,
@@ -434,7 +444,7 @@ class DockerRunnerService:
             spec.run_id,
             spec.repository,
             spec.commit_sha,
-            spec.image,
+            image,
             spec.source_sha256,
             spec.collect_changes,
             spec.history_sha256,
@@ -445,9 +455,7 @@ class DockerRunnerService:
             raise RunnerProtocolError("The run already has a different session spec.")
 
     @staticmethod
-    def create_command(
-        spec: RunnerSessionSpec, container_name: str, workspace: Path
-    ) -> list[str]:
+    def create_command(image: str, container_name: str, workspace: Path) -> list[str]:
         return [
             "docker",
             "create",
@@ -478,7 +486,7 @@ class DockerRunnerService:
             "--env=GIT_CONFIG_COUNT=1",
             "--env=GIT_CONFIG_KEY_0=safe.directory",
             "--env=GIT_CONFIG_VALUE_0=/workspace",
-            spec.image,
+            image,
             "sleep",
             "infinity",
         ]
