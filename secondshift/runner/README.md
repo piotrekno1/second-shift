@@ -66,7 +66,9 @@ Sandboxes use `SECONDSHIFT_RUNNER_IMAGE` (default: the pinned official
 `python:3.13-slim`, see `secondshift/config/constants.py`), or the image of a
 named environment a job chooses (`SECONDSHIFT_RUNNER_ENVIRONMENT_<NAME>`). The
 runner pulls every one at startup, refuses to start if a pull fails, and runs no
-other image.
+other image. Only the runner maps environment names to images. The control
+plane reads the names from `GET /v1/environments` and sends one with each
+session.
 
 Runner and control-plane apps share one test suite:
 
