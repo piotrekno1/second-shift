@@ -4,6 +4,7 @@ from secondshift.jobs.execution_plan import ExecutionPlan, PlanReason
 from secondshift.jobs.models import Job
 from secondshift.jobs.planner import build_execution_plan
 from secondshift.repositories.models import Repository
+from secondshift.runner_protocol.environments import environment_variable
 
 MISMATCH = "is approved for a connection that does not match"
 REASON_TEXT = {
@@ -28,8 +29,9 @@ OTHER_REASON = "cannot reach what the job needs through its connection"
 def environment_problem(name: str) -> str:
     """Why a job naming an environment the server lacks cannot run."""
     return (
-        f"This server has no {name} environment. Ask the server admin to add "
-        "it, or change environment in .secondshift.yaml."
+        f"This server has no {name} environment. The server admin adds it by "
+        f"setting {environment_variable(name)} to an image and restarting, or "
+        "the job can name another environment in .secondshift.yaml."
     )
 
 
