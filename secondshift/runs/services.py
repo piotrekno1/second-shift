@@ -51,6 +51,7 @@ def create_attempt(
     commit_sha: str,
     scheduled_for: datetime,
     job: Job | None = None,
+    workflow_id: str = "",
 ) -> Run:
     """One run of the task, with the deliveries its plan promises shown as pending."""
     run = create_run_record(
@@ -61,6 +62,7 @@ def create_attempt(
         input_snapshot=inputs.stored(),
         execution_plan=plan.stored(),
         scheduled_for=scheduled_for,
+        dbos_workflow_id=workflow_id,
     )
     record_pending_pull_request(run)
     record_pending_issues(run)
@@ -75,6 +77,7 @@ def create_run(
     started_by: RunStart = RunStart.SCHEDULE,
     execution_plan: ExecutionPlan | None = None,
     submitted_by: User | None = None,
+    workflow_id: str = "",
 ) -> Run:
     """Create an assignment and its first attempt in the same transaction."""
     return create_attempt(
@@ -85,6 +88,7 @@ def create_run(
         started_by=started_by,
         commit_sha=job.repository.config_sha,
         scheduled_for=scheduled_for,
+        workflow_id=workflow_id,
     )
 
 
@@ -144,7 +148,9 @@ def start_run(
     return run
 
 
-def create_scheduled_run(job: Job, scheduled_for: datetime) -> Run | None:
+def create_scheduled_run(
+    job: Job, scheduled_for: datetime, *, workflow_id: str = ""
+) -> Run | None:
     """Create the run for one cron tick, or skip it while another run is active.
 
     A replayed tick returns the run it already created. A skipped tick is
@@ -163,7 +169,7 @@ def create_scheduled_run(job: Job, scheduled_for: datetime) -> Run | None:
                 "because this run had not finished.",
             )
             return None
-        return create_run(job, scheduled_for)
+        return create_run(job, scheduled_for, workflow_id=workflow_id)
 
 
 def start_manual_run(

@@ -79,7 +79,7 @@ def create_scheduled_run_step(scheduled_time: datetime, context: Any) -> int | N
         logger.info("skipping ineligible scheduled job %s", job_id)
         return None
 
-    run = create_scheduled_run(job, scheduled_time)
+    run = create_scheduled_run(job, scheduled_time, workflow_id=DBOS.workflow_id or "")
     job.next_run_at = next_occurrence(job, after=scheduled_time)
     job.save(update_fields=["next_run_at", "updated_at"])
     if run is None:
