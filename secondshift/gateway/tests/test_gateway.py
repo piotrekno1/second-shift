@@ -8,7 +8,8 @@ import httpx
 import pytest
 from asgiref.sync import async_to_sync
 from django.contrib.auth import get_user_model
-from django.db.models import F
+from django.db import DatabaseError
+from django.db.models import F, QuerySet
 from django.test import Client
 from django.urls import Resolver404, resolve
 from django.utils import timezone
@@ -601,3 +602,29 @@ def test_the_database_connection_is_released_before_the_provider_answers(
 
     assert order == ["released", "provider called"]
     assert ModelUsage.objects.filter(run=run).exists()
+
+
+@pytest.mark.django_db
+def test_usage_and_budget_commit_together(
+    monkeypatch: pytest.MonkeyPatch, workspace: Workspace
+) -> None:
+    run = make_run(workspace)
+    issue_run_token(run, provider(workspace))
+    run_token = RunToken.objects.select_related("connection").get(run=run)
+    update = QuerySet.update
+
+    def fail_on_budget(queryset: QuerySet[Any], **fields: Any) -> int:
+        if queryset.model is RunToken:
+            raise DatabaseError("budget write failed")
+        return update(queryset, **fields)
+
+    monkeypatch.setattr(QuerySet, "update", fail_on_budget)
+    usage = Usage(input_tokens=10, output_tokens=2)
+
+    with pytest.raises(DatabaseError):
+        async_to_sync(record_usage)(
+            run_token, "anthropic", "claude-opus-5-5", 200, usage
+        )
+
+    assert not ModelUsage.objects.filter(run=run).exists()
+    assert RunToken.objects.get(run=run).used_tokens == 0

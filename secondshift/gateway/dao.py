@@ -6,6 +6,7 @@ from typing import Any
 
 from asgiref.sync import sync_to_async
 from django.db import connection as database
+from django.db import transaction
 from django.db.models import Count, F, Max, Q, QuerySet, Sum
 from django.utils import timezone
 
@@ -61,35 +62,39 @@ async def aactive_token(token_hash: str) -> RunToken | None:
     return await active_tokens(token_hash).afirst()
 
 
-async def acreate_model_usage(
+def record_model_usage(
     run_token: RunToken,
     provider: str,
     model: str,
     status_code: int,
     tokens: dict[str, int],
     cost_usd: Decimal | None,
+    budget_tokens: int,
 ) -> ModelUsage:
-    """Record one model request made with this token.
+    """Record one model request and count it against the token's budget.
 
-    `tokens` holds input_tokens, output_tokens, cache_read_tokens and
-    cache_write_tokens.
+    Both writes commit together, so a failure between them cannot leave a
+    usage row the budget never counted. `tokens` holds input_tokens,
+    output_tokens, cache_read_tokens and cache_write_tokens.
     """
-    return await ModelUsage.objects.acreate(
-        run_id=run_token.run_id,
-        connection_id=run_token.connection_id,
-        provider=provider,
-        model=model,
-        status_code=status_code,
-        cost_usd=cost_usd,
-        **tokens,
-    )
+    with transaction.atomic():
+        usage = ModelUsage.objects.create(
+            run_id=run_token.run_id,
+            connection_id=run_token.connection_id,
+            provider=provider,
+            model=model,
+            status_code=status_code,
+            cost_usd=cost_usd,
+            **tokens,
+        )
+        if budget_tokens:
+            RunToken.objects.filter(pk=run_token.pk).update(
+                used_tokens=F("used_tokens") + budget_tokens
+            )
+    return usage
 
 
-async def aadd_used_tokens(run_token: RunToken, tokens: int) -> None:
-    """Count tokens against the token's budget."""
-    await RunToken.objects.filter(pk=run_token.pk).aupdate(
-        used_tokens=F("used_tokens") + tokens
-    )
+arecord_model_usage = sync_to_async(record_model_usage)
 
 
 def usage_by_connection(
