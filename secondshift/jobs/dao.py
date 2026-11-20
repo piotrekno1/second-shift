@@ -56,6 +56,10 @@ def active_jobs_with_grants(
     )
 
 
+def repository_job_count(repository_id: int) -> int:
+    return Job.objects.filter(repository_id=repository_id).count()
+
+
 def enabled_job_count(workspace_id: int) -> int:
     return active_jobs(workspace_id, enabled=True).count()
 
@@ -122,7 +126,10 @@ def disable_repository_jobs(repository: Repository) -> None:
 
 
 def repository_jobs_with_grants(repository: Repository) -> QuerySet[Job]:
-    return repository.jobs.prefetch_related("capability_requests__grant")
+    """The repository's jobs without their skill previews."""
+    return repository.jobs.defer("skill_text").prefetch_related(
+        "capability_requests__grant"
+    )
 
 
 # Capability requests
