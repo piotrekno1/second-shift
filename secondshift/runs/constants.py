@@ -7,6 +7,7 @@ SCHEDULED_JOB_WORKFLOW = "secondshift.scheduled_job"
 RETRY_NOTIFICATION_WORKFLOW = "secondshift.retry_notification"
 RETRY_PULL_REQUEST_WORKFLOW = "secondshift.retry_pull_request"
 RETRY_ISSUES_WORKFLOW = "secondshift.retry_issues"
+RETRY_HAND_BACK_WORKFLOW = "secondshift.retry_hand_back"
 
 
 class RunStart(StrEnum):

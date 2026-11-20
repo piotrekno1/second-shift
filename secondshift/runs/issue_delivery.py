@@ -30,7 +30,7 @@ from secondshift.runs.reporting.collection import plural
 logger = logging.getLogger(__name__)
 
 APP_WRITE_HINT = (
-    "GitHub refused to open issues. Give the GitHub App Issues write "
+    "GitHub refused to change issues. Give the GitHub App Issues write "
     "permission, then retry."
 )
 
@@ -60,6 +60,17 @@ def skip_reason(run: Run, repository: Repository) -> str:
     return ""
 
 
+def write_access_problem(repository: Repository, error: GitHubError) -> str:
+    """What to fix when SecondShift can't get Issues write access."""
+    with_token = (
+        repository.github_connection is not None
+        and repository.github_connection.auth_strategy
+        == Connection.AuthStrategy.API_KEY
+    )
+    # Token errors already say what to fix, such as an expired token.
+    return str(error) if with_token else APP_WRITE_HINT
+
+
 def issue_body(run: Run, issue: RunIssue) -> str:
     """The agent's text, and a footer when the connection shows attribution."""
     if not shows_attribution(run.repository.github_connection):
@@ -85,16 +96,8 @@ def open_run_issues(run_id: int) -> None:
     try:
         access = github_access(repository, credentials.ISSUES_WRITE)
     except GitHubError as error:
-        with_token = (
-            repository.github_connection is not None
-            and repository.github_connection.auth_strategy
-            == Connection.AuthStrategy.API_KEY
-        )
-        # Token errors already say what to fix, such as an expired token.
         finish_delivery(
-            delivery,
-            RunDelivery.Status.FAILED,
-            str(error) if with_token else APP_WRITE_HINT,
+            delivery, RunDelivery.Status.FAILED, write_access_problem(repository, error)
         )
         return
     try:

@@ -2,7 +2,11 @@ from django.core.exceptions import ValidationError
 from django.db import models
 
 from secondshift.connections.models import Connection
-from secondshift.jobs.manifest import OpenIssuesManifest, WebhookManifest
+from secondshift.jobs.manifest import (
+    HandBackManifest,
+    OpenIssuesManifest,
+    WebhookManifest,
+)
 from secondshift.repositories.models import MANIFEST_FILE, Repository
 from secondshift.workspaces.models import RunLimitOverrides, Workspace
 
@@ -51,6 +55,9 @@ class Job(RunLimitOverrides):
     # The repository asks to open the issues each run's agent proposes:
     # {"labels": [...], "max": n}. None when it does not.
     open_issues = models.JSONField(null=True, blank=True)
+    # The labels a hand-back removes and adds: {"remove": [...], "add": [...]}.
+    # None when the job can't hand issues back.
+    hand_back = models.JSONField(null=True, blank=True)
     enabled = models.BooleanField(default=False)
     next_run_at = models.DateTimeField(null=True, blank=True)
     # Set when a sync no longer finds the job in the manifest. The job and its
@@ -81,6 +88,12 @@ class Job(RunLimitOverrides):
         if not self.open_issues:
             return None
         return OpenIssuesManifest.model_validate(self.open_issues)
+
+    @property
+    def hand_back_settings(self) -> HandBackManifest | None:
+        return (
+            HandBackManifest.model_validate(self.hand_back) if self.hand_back else None
+        )
 
     def capability_grant_status(self) -> str:
         """Summarize the required grants already loaded for this job."""

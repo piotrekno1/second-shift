@@ -212,6 +212,7 @@ class RunDelivery(models.Model):
         NOTIFICATION = "notification", "Notification"
         PULL_REQUEST = "pull_request", "Pull request"
         ISSUES = "issues", "Issues"
+        HAND_BACK = "hand_back", "Hand-back"
 
     class Status(models.TextChoices):
         # Not tried yet.
@@ -268,6 +269,11 @@ class RunDelivery(models.Model):
                 condition=models.Q(kind="issues"),
                 name="unique_run_issues",
             ),
+            models.UniqueConstraint(
+                fields=["run"],
+                condition=models.Q(kind="hand_back"),
+                name="unique_run_hand_back",
+            ),
         ]
 
     def __str__(self) -> str:
@@ -302,6 +308,25 @@ class RunIssue(models.Model):
 
     def __str__(self) -> str:
         return f"{self.run_id}: {self.title}"
+
+
+class RunHandBack(models.Model):
+    """An approved issue the agent handed back to a person.
+
+    After the run, SecondShift comments on the issue and swaps its labels.
+    The comment keeps its URL, so a retry doesn't post it twice.
+    """
+
+    run = models.OneToOneField(Run, on_delete=models.CASCADE, related_name="hand_back")
+    # The model's tool call. A replayed call finds the hand-back it made.
+    call_id = models.CharField(max_length=128)
+    number = models.PositiveIntegerField()
+    comment = models.TextField()
+    comment_url = models.URLField(max_length=500, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self) -> str:
+        return f"{self.run_id}: #{self.number}"
 
 
 class RunAccessNeed(models.Model):

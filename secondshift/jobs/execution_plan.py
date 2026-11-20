@@ -133,6 +133,13 @@ class IssuesPlan(Frozen):
     labels: tuple[str, ...]
 
 
+class HandBackPlan(Frozen):
+    """The labels a hand-back removes and adds. One in remove must be present."""
+
+    remove: tuple[str, ...]
+    add: tuple[str, ...]
+
+
 class ModelPlan(Frozen):
     connection_id: int
     connection_name: str
@@ -171,6 +178,8 @@ class ExecutionPlan(Frozen):
     issues: IssuesPlan | None
     model: ModelPlan | None
     capabilities: tuple[CapabilityPlan, ...]
+    # Plans stored before hand-backs existed have none.
+    hand_back: HandBackPlan | None = None
 
     def limit(self, limit: RunLimit) -> int:
         return self.agent.limits.value(limit)

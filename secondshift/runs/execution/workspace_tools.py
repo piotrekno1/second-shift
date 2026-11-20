@@ -78,6 +78,8 @@ class WorkspaceToolDeps:
     payload: Payload | None = None
     # How many issues the agent may propose. Zero hides the tool.
     issue_limit: int = 0
+    # Whether the agent may hand an issue back. False hides the tool.
+    hand_back: bool = False
     # How many sub-agents the run may start. Zero hides the tool.
     subagent_limit: int = 0
 

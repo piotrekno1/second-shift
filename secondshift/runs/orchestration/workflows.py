@@ -24,6 +24,7 @@ from secondshift.runner_protocol.sessions import RunnerSessionSpec
 from secondshift.runs.artifacts import read_output_excerpt, store_collection
 from secondshift.runs.constants import (
     EXECUTE_RUN_WORKFLOW,
+    RETRY_HAND_BACK_WORKFLOW,
     RETRY_ISSUES_WORKFLOW,
     RETRY_NOTIFICATION_WORKFLOW,
     RETRY_PULL_REQUEST_WORKFLOW,
@@ -42,6 +43,7 @@ from secondshift.runs.execution.budgets import Budget, budget_reached_message
 from secondshift.runs.execution.deadlines import run_deadline, timeout_failure
 from secondshift.runs.execution.result import AgentResult
 from secondshift.runs.execution.run import execute_agent_run
+from secondshift.runs.hand_back_delivery import hand_back_run_issue
 from secondshift.runs.history import pack_earlier_files
 from secondshift.runs.issue_delivery import open_run_issues
 from secondshift.runs.models import Run, RunDelivery, RunFailure
@@ -426,6 +428,16 @@ def retry_issues_workflow(run_id: int) -> None:
     open_issues_step(run_id)
 
 
+@durable.step(name="secondshift.hand_back")
+def hand_back_step(run_id: int) -> None:
+    hand_back_run_issue(run_id)
+
+
+@durable.workflow(name=RETRY_HAND_BACK_WORKFLOW)
+def retry_hand_back_workflow(run_id: int) -> None:
+    hand_back_step(run_id)
+
+
 def deliver(run_id: int) -> None:
     """Publish first, so the notification can link to the pull request and issues."""
     try:
@@ -436,6 +448,10 @@ def deliver(run_id: int) -> None:
         open_issues_step(run_id)
     except Exception:
         logger.exception("could not open issues for run %s", run_id)
+    try:
+        hand_back_step(run_id)
+    except Exception:
+        logger.exception("could not hand back an issue for run %s", run_id)
     notify(run_id)
 
 

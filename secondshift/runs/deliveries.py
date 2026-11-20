@@ -8,6 +8,7 @@ from django.conf import settings
 from django.db import transaction
 
 from secondshift.runs.constants import (
+    RETRY_HAND_BACK_WORKFLOW,
     RETRY_ISSUES_WORKFLOW,
     RETRY_NOTIFICATION_WORKFLOW,
     RETRY_PULL_REQUEST_WORKFLOW,
@@ -24,12 +25,20 @@ class DeliveryQueueUnavailable(Exception):
     pass
 
 
+GITHUB_DELIVERIES = frozenset(
+    {
+        RunDelivery.Kind.PULL_REQUEST,
+        RunDelivery.Kind.ISSUES,
+        RunDelivery.Kind.HAND_BACK,
+    }
+)
+
+
 def retryable(delivery: RunDelivery) -> bool:
-    # Pull requests and issues need no connection. The repository's own
-    # GitHub access sends them.
+    # Pull requests, issues and hand-backs need no connection. The
+    # repository's own GitHub access sends them.
     return delivery.status == RunDelivery.Status.FAILED and (
-        delivery.kind in {RunDelivery.Kind.PULL_REQUEST, RunDelivery.Kind.ISSUES}
-        or delivery.connection_id is not None
+        delivery.kind in GITHUB_DELIVERIES or delivery.connection_id is not None
     )
 
 
@@ -51,6 +60,9 @@ def retry_delivery(run: Run, delivery_id: int) -> RunDelivery:
     elif delivery.kind == RunDelivery.Kind.ISSUES:
         add_event(run.pk, "Retrying the issues.")
         enqueue_retry(RETRY_ISSUES_WORKFLOW, f"issues-{run.pk}", run.pk)
+    elif delivery.kind == RunDelivery.Kind.HAND_BACK:
+        add_event(run.pk, "Retrying the hand-back.")
+        enqueue_retry(RETRY_HAND_BACK_WORKFLOW, f"hand-back-{run.pk}", run.pk)
     else:
         add_event(run.pk, f"Retrying the notification to {delivery.target}.")
         enqueue_retry(

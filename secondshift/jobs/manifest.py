@@ -181,6 +181,27 @@ class OpenIssuesManifest(BaseModel):
         return value
 
 
+class HandBackManifest(BaseModel):
+    """How a job hands an approved issue back to a person.
+
+    The agent may hand back one issue per run. SecondShift then comments on it
+    and swaps these labels, only if the issue still has a label in remove.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    # The labels that approve an issue for the job. One must be on the issue.
+    remove: list[IssueLabel] = Field(min_length=1, max_length=10)
+    add: list[IssueLabel] = Field(default_factory=list, max_length=10)
+
+    @field_validator("remove", "add")
+    @classmethod
+    def distinct_labels(cls, value: list[str]) -> list[str]:
+        if len({label.casefold() for label in value}) != len(value):
+            raise ValueError("list each label once")
+        return value
+
+
 SetupCommand = Annotated[str, Field(min_length=1, max_length=MAX_SETUP_COMMAND_CHARS)]
 
 
@@ -220,6 +241,9 @@ class JobManifest(BaseModel):
     # Open the issues the agent proposes. true uses the defaults. An owner
     # still allows issues for the repository.
     open_issues: OpenIssuesManifest | None = None
+    # Let the agent hand one approved issue back to a person per run. An
+    # owner still allows issues for the repository.
+    hand_back: HandBackManifest | None = None
 
     @field_validator("open_issues", mode="before")
     @classmethod
