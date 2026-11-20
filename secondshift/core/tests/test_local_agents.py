@@ -9,11 +9,19 @@ from secondshift.docker.commands import DockerError
 IMAGE_ID = "sha256:" + "c" * 64
 
 
+@pytest.mark.parametrize(
+    ("existing", "message"),
+    [
+        (None, "Preparing the agent image. The first start takes a few minutes."),
+        (IMAGE_ID, "Checking the agent image."),
+    ],
+)
 def test_up_builds_the_local_tag_but_leaves_a_chosen_image_alone(
-    monkeypatch: pytest.MonkeyPatch,
+    monkeypatch: pytest.MonkeyPatch, existing: str | None, message: str
 ) -> None:
     build = Mock(return_value=IMAGE_ID)
     monkeypatch.setattr(local_agents, "build_agent_image", build)
+    monkeypatch.setattr(local_agents, "existing_image", Mock(return_value=existing))
     messages: list[str] = []
 
     local_agents.prepare_agent_image("secondshift-agent:local", messages.append)
@@ -21,7 +29,7 @@ def test_up_builds_the_local_tag_but_leaves_a_chosen_image_alone(
     local_agents.prepare_agent_image("", print)
 
     build.assert_called_once_with()
-    assert "first start" in messages[0]
+    assert messages == [message]
 
 
 def test_failed_build_uses_the_last_image_or_explains(
