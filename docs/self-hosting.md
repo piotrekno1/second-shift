@@ -332,7 +332,7 @@ The run checks the time limit before each model request and each tool call,
 and its model access ends at the limit. A run that passes it fails with the
 reason **Timed out** and keeps what the agent wrote so far as a partial report.
 Each sandbox command also has its own limit,
-`SECONDSHIFT_RUNNER_COMMAND_TIMEOUT_SECONDS` (default 120). The runner runs
+`SECONDSHIFT_RUNNER_COMMAND_TIMEOUT_SECONDS` (default 300). The runner runs
 each command under `timeout`, so a command past its limit ends inside the
 sandbox and the agent can carry on. The sandbox image needs a `timeout`
 command, which Debian, Ubuntu and Alpine images have. Without one, or when a

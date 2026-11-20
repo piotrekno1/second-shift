@@ -251,8 +251,8 @@ it control of the Docker host. Use a dedicated, trusted server.
 It receives no application keys or S3 credentials. Command sandboxes still run
 unprivileged under gVisor without network access.
 
-Each sandbox is limited to 2 GiB of memory with no swap, 2 CPUs and 256
-processes. Change these with `SECONDSHIFT_RUNNER_MEMORY`,
+Each sandbox is limited to 2 GiB of memory with no swap, 2 CPUs and 1024
+processes. Threads count as processes. Change these with `SECONDSHIFT_RUNNER_MEMORY`,
 `SECONDSHIFT_RUNNER_CPUS` and `SECONDSHIFT_RUNNER_PIDS_LIMIT` in `runner.env`.
 Under gVisor, a command that exceeds the memory limit ends the whole sandbox,
 and the run fails with "The sandbox ran out of memory."
