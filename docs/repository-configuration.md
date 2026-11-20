@@ -372,7 +372,8 @@ a successful run, SecondShift posts the comment, removes `label` and adds
 `hand_back`. It does this only for an open issue that still has `label`, so
 the agent can't touch an issue nobody approved. The comment ends with a footer
 naming the run when the connection shows attribution. The run page links the
-comment.
+comment. A run that hands an issue back and changes nothing lists no draft
+pull request.
 
 It needs the same access as opening issues: an owner allows issues for the
 repository, and the GitHub App or token has write access to Issues. A failed

@@ -30,6 +30,7 @@ from secondshift.runs.dao import (
     finish_delivery,
     get_run,
     run_delivery,
+    run_hand_back,
 )
 from secondshift.runs.models import Run, RunDelivery
 from secondshift.runs.reporting.collection import plural
@@ -80,6 +81,16 @@ def skip_reason(run: Run, repository: Repository) -> str:
     if not changes.path:
         return "The agent made no changes."
     return ""
+
+
+def handed_back_instead(run: Run) -> bool:
+    """The agent handed an issue back and changed nothing."""
+    if run.status != Run.Status.SUCCEEDED or run.collected is None:
+        return False
+    changes = run.collected.changes
+    return (
+        not changes.path and not changes.too_large and run_hand_back(run.pk) is not None
+    )
 
 
 MAX_TITLE_CHARS = 200
@@ -183,6 +194,10 @@ def publish_run(run_id: int) -> None:
     if delivery is None or delivery.status == RunDelivery.Status.DELIVERED:
         return
     if reason := skip_reason(run, run.repository):
+        if handed_back_instead(run):
+            # The hand-back row says what happened. A skipped draft adds noise.
+            delivery.delete()
+            return
         finish_delivery(delivery, RunDelivery.Status.SKIPPED, reason)
         return
     delivery.attempts += 1
