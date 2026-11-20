@@ -29,7 +29,6 @@ from secondshift.runner.dao import (
 from secondshift.runner.models import RunnerCommand, RunnerSession
 from secondshift.runner.sources import sweep_sources, unpack_source
 from secondshift.runner_protocol.collection import OUTPUTS_DIR
-from secondshift.runner_protocol.environments import DEFAULT_ENVIRONMENT
 from secondshift.runner_protocol.sandbox import (
     SANDBOX_HISTORY_DIR,
     SANDBOX_OUTPUTS_DIR,
@@ -90,16 +89,9 @@ def sandbox_flags() -> list[str]:
     ]
 
 
-def environment_images() -> dict[str, str]:
-    """Each environment's image, by name, the default first. Only the runner
-    knows them. The control plane sends a name.
-    """
-    return {DEFAULT_ENVIRONMENT: settings.RUNNER_IMAGE, **settings.RUNNER_ENVIRONMENTS}
-
-
 def enabled_images() -> list[str]:
     """The images this runner pulls and runs. Nothing else runs."""
-    return list(dict.fromkeys(environment_images().values()))
+    return list(dict.fromkeys(settings.RUNNER_ENVIRONMENTS.images.values()))
 
 
 class RunnerConfigurationError(RuntimeError):
@@ -153,7 +145,7 @@ class DockerRunnerService:
             )
 
     def start(self, spec: RunnerSessionSpec) -> str:
-        image = environment_images().get(spec.environment)
+        image = settings.RUNNER_ENVIRONMENTS.image(spec.environment)
         if not image:
             raise RunnerProtocolError(
                 f"This runner has no {spec.environment} environment."

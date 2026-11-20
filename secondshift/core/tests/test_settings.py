@@ -460,7 +460,8 @@ def test_agent_defaults_exist_only_on_one_machine(tmp_path: Path) -> None:
     )
     token = {
         "SECONDSHIFT_RUNNER_SERVICE_TOKEN": "t" * 40,
-        "SECONDSHIFT_RUNNER_IMAGE": "python:3.13-slim",
+        "SECONDSHIFT_SANDBOX_PYTHON": "python:3.13-slim@sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "SECONDSHIFT_SANDBOX_DEFAULT": "python",
     }
     results = {
         "local": load_settings(
@@ -541,7 +542,8 @@ def test_asgi_services_close_each_request_connection(
         SECONDSHIFT_SERVICE=service,
         SECONDSHIFT_DB_CONN_MAX_AGE_SECONDS="60",
         SECONDSHIFT_RUNNER_SERVICE_TOKEN="r" * 40,
-        SECONDSHIFT_RUNNER_IMAGE="python:3.13-slim",
+        SECONDSHIFT_SANDBOX_PYTHON="python:3.13-slim@sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        SECONDSHIFT_SANDBOX_DEFAULT="python",
     )
 
     assert result.returncode == 0, result.stderr

@@ -8,6 +8,7 @@ import time
 from dataclasses import dataclass
 
 from secondshift.runner_protocol.client import get_runner_client
+from secondshift.runner_protocol.environments import RunnerEnvironments
 from secondshift.runner_protocol.sessions import RunnerProtocolError
 
 # A runner's environments change only when it restarts. Remembering its answer
@@ -20,20 +21,18 @@ ASK_TIMEOUT_SECONDS = 3
 @dataclass
 class Answer:
     asked_at: float
-    environments: dict[str, str] | None
+    environments: RunnerEnvironments | None
 
 
 last_answer = Answer(asked_at=float("-inf"), environments=None)
 
 
-def fetch_environments() -> dict[str, str]:
+def fetch_environments() -> RunnerEnvironments:
     return get_runner_client().environments(timeout=ASK_TIMEOUT_SECONDS)
 
 
-def runner_environments() -> dict[str, str] | None:
-    """Each environment and its image, by name, or None while the runner
-    can't be reached.
-    """
+def runner_environments() -> RunnerEnvironments | None:
+    """The runner's environments, or None while it can't be reached."""
     global last_answer
     now = time.monotonic()
     if now - last_answer.asked_at < REMEMBER_SECONDS:
@@ -57,4 +56,4 @@ def environment_missing(name: str) -> bool:
     can't be reached, a run may still start, and the runner then refuses it.
     """
     environments = runner_environments()
-    return environments is not None and name not in environments
+    return environments is not None and not environments.offers(name)

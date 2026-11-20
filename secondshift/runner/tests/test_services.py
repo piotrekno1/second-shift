@@ -7,8 +7,8 @@ from secondshift.runner.models import RunnerCommand, RunnerSession
 from secondshift.runner.services import (
     DockerRunnerService,
     RunnerConfigurationError,
-    environment_images,
 )
+from secondshift.runner.tests.fakes import sandboxes
 from secondshift.runner_protocol.sessions import (
     CommandRequest,
     CommandResult,
@@ -109,7 +109,7 @@ def completed(code: int, stderr: str = "") -> Mock:
 
 
 def test_runner_pulls_a_missing_sandbox_image(settings, monkeypatch) -> None:
-    settings.RUNNER_IMAGE = "python:3.13-slim@sha256:abc"
+    settings.RUNNER_ENVIRONMENTS = sandboxes("python:3.13-slim@sha256:abc")
     calls: list[list[str]] = []
 
     def run(command: list[str], timeout: int = 30) -> Mock:
@@ -126,11 +126,11 @@ def test_runner_pulls_a_missing_sandbox_image(settings, monkeypatch) -> None:
 
 
 def test_runner_pulls_every_environment_image(settings, monkeypatch) -> None:
-    settings.RUNNER_IMAGE = "python:3.13-slim@sha256:abc"
-    settings.RUNNER_ENVIRONMENTS = {
-        "browser": "registry.example/browser@sha256:def",
-        "same": "python:3.13-slim@sha256:abc",
-    }
+    settings.RUNNER_ENVIRONMENTS = sandboxes(
+        "python:3.13-slim@sha256:abc",
+        browser="registry.example/browser@sha256:def",
+        same="python:3.13-slim@sha256:abc",
+    )
     pulled: list[str] = []
 
     def run(command: list[str], timeout: int = 30) -> Mock:
@@ -151,8 +151,9 @@ def test_runner_refuses_an_environment_it_does_not_have(
     settings, tmp_path: Path
 ) -> None:
     settings.RUNNER_WORK_ROOT = tmp_path
-    settings.RUNNER_IMAGE = "secondshift-runner:test"
-    settings.RUNNER_ENVIRONMENTS = {"node": "registry.example/node@sha256:def"}
+    settings.RUNNER_ENVIRONMENTS = sandboxes(
+        "secondshift-runner:test", node="registry.example/node@sha256:def"
+    )
     spec = RunnerSessionSpec(
         run_id=7,
         session_key="0" * 32,
@@ -167,20 +168,23 @@ def test_runner_refuses_an_environment_it_does_not_have(
 
 
 def test_the_runner_alone_maps_environments_to_images(settings) -> None:
-    settings.RUNNER_IMAGE = "secondshift-runner:test"
-    settings.RUNNER_ENVIRONMENTS = {"node": "registry.example/node@sha256:def"}
+    settings.RUNNER_ENVIRONMENTS = sandboxes(
+        "secondshift-runner:test", node="registry.example/node@sha256:def"
+    )
 
-    assert environment_images() == {
-        "default": "secondshift-runner:test",
-        "node": "registry.example/node@sha256:def",
-    }
+    offered = settings.RUNNER_ENVIRONMENTS
+    assert offered.image("default") == "secondshift-runner:test"
+    assert offered.image("python") == "secondshift-runner:test"
+    assert offered.image("node") == "registry.example/node@sha256:def"
+    assert offered.image("browser") is None
 
 
 def test_every_environment_gets_the_same_flags_and_mounts(
     settings, tmp_path: Path
 ) -> None:
-    settings.RUNNER_IMAGE = "secondshift-runner:test"
-    settings.RUNNER_ENVIRONMENTS = {"node": "registry.example/node@sha256:def"}
+    settings.RUNNER_ENVIRONMENTS = sandboxes(
+        "secondshift-runner:test", node="registry.example/node@sha256:def"
+    )
     commands = [
         DockerRunnerService.create_command(
             image, "secondshift-run-7", tmp_path / "workspace"
@@ -211,7 +215,7 @@ def test_runner_skips_the_pull_when_the_image_is_present(settings, monkeypatch) 
 
 
 def test_runner_refuses_to_start_when_the_pull_fails(settings, monkeypatch) -> None:
-    settings.RUNNER_IMAGE = "registry.example/sandbox:1"
+    settings.RUNNER_ENVIRONMENTS = sandboxes("registry.example/sandbox:1")
 
     def run(command: list[str], timeout: int = 30) -> Mock:
         return completed(1, "Error response from daemon: pull access denied")
@@ -227,7 +231,7 @@ def test_an_old_session_with_the_same_run_id_does_not_block_a_new_run(
     settings, monkeypatch, tmp_path: Path
 ) -> None:
     settings.RUNNER_WORK_ROOT = tmp_path
-    settings.RUNNER_IMAGE = "secondshift-runner:test"
+    settings.RUNNER_ENVIRONMENTS = sandboxes("secondshift-runner:test")
     RunnerSession.objects.create(
         session_id="run-7",
         run_id=7,
@@ -402,7 +406,7 @@ def test_the_baseline_is_recorded_only_when_the_spec_asks(
     settings, monkeypatch, tmp_path: Path, collect_changes: bool
 ) -> None:
     settings.RUNNER_WORK_ROOT = tmp_path
-    settings.RUNNER_IMAGE = "secondshift-runner:test"
+    settings.RUNNER_ENVIRONMENTS = sandboxes("secondshift-runner:test")
     recorded: list[Path] = []
     monkeypatch.setattr(
         DockerRunnerService, "run_command", staticmethod(lambda *a, **k: completed(0))
@@ -448,7 +452,7 @@ def test_earlier_files_are_unpacked_beside_the_workspace(
     settings, monkeypatch, tmp_path: Path
 ) -> None:
     settings.RUNNER_WORK_ROOT = tmp_path
-    settings.RUNNER_IMAGE = "secondshift-runner:test"
+    settings.RUNNER_ENVIRONMENTS = sandboxes("secondshift-runner:test")
     unpacked: list[tuple[str, Path]] = []
     monkeypatch.setattr(
         DockerRunnerService, "run_command", staticmethod(lambda *a, **k: completed(0))
@@ -486,7 +490,7 @@ def test_a_skill_from_another_repository_is_unpacked_beside_the_workspace(
     settings, monkeypatch, tmp_path: Path
 ) -> None:
     settings.RUNNER_WORK_ROOT = tmp_path
-    settings.RUNNER_IMAGE = "secondshift-runner:test"
+    settings.RUNNER_ENVIRONMENTS = sandboxes("secondshift-runner:test")
     unpacked: list[tuple[str, Path]] = []
     commands: list[list[str]] = []
 

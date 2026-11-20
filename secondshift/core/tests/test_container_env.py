@@ -57,10 +57,11 @@ def test_role_files_are_private_and_have_only_their_required_settings(
     assert "SECONDSHIFT_MODEL_GATEWAY_URL" not in gateway
     assert runner["SECONDSHIFT_RUNNER_WORK_ROOT"] == str(tmp_path / "runner")
     # Only the runner names sandbox images.
-    assert runner["SECONDSHIFT_RUNNER_IMAGE"].startswith("python:3.13-slim@sha256:")
-    assert "SECONDSHIFT_RUNNER_ENVIRONMENT_FULLSTACK" in runner
+    assert runner["SECONDSHIFT_SANDBOX_DEFAULT"] == "python"
+    assert runner["SECONDSHIFT_SANDBOX_PYTHON"].startswith("python:3.13-slim@sha256:")
+    assert "SECONDSHIFT_SANDBOX_PYTHON_NODE" in runner
     for values in (web, gateway, worker):
-        assert not any(name.startswith("SECONDSHIFT_RUNNER_IMAGE") for name in values)
+        assert not any(name.startswith("SECONDSHIFT_SANDBOX_") for name in values)
 
 
 @pytest.mark.parametrize("existing", ["web.env", "runner.env", ".env"])

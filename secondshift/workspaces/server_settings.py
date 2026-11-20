@@ -19,7 +19,7 @@ from secondshift.config.constants import (
 from secondshift.config.formatting import duration_label
 from secondshift.jobs.environments import runner_environments
 from secondshift.runner_protocol.environments import (
-    DEFAULT_ENVIRONMENT,
+    DEFAULT_SANDBOX,
     environment_variable,
 )
 
@@ -65,8 +65,8 @@ def image_label(image: str) -> str:
 
 
 def environment_items() -> list[SettingValue]:
-    """Each environment the runner offers, the default first. The runner owns
-    their images, so the page asks it.
+    """Which environment jobs get by default, then each one the runner offers.
+    The runner owns their images, so the page asks it.
     """
     environments = runner_environments()
     if environments is None:
@@ -80,16 +80,20 @@ def environment_items() -> list[SettingValue]:
         ]
     return [
         SettingValue(
-            f"Environment: {name}",
-            image_label(image),
-            AppEnv.RUNNER_IMAGE
-            if name == DEFAULT_ENVIRONMENT
-            else environment_variable(name),
-            "Jobs that set no environment run on this image."
-            if name == DEFAULT_ENVIRONMENT
-            else f"Jobs that set environment: {name} run on this image.",
-        )
-        for name, image in environments.items()
+            "Default environment",
+            environments.default,
+            DEFAULT_SANDBOX,
+            "Jobs that set no environment run here.",
+        ),
+        *(
+            SettingValue(
+                f"Environment: {name}",
+                image_label(image),
+                environment_variable(name),
+                f"Jobs that set environment: {name} run on this image.",
+            )
+            for name, image in environments.images.items()
+        ),
     ]
 
 

@@ -101,13 +101,16 @@ def test_runner_accepts_prefixed_settings_without_control_plane_keys(
         SECONDSHIFT_RUNNER_DATABASE_URL=f"sqlite:///{database}",
         SECONDSHIFT_RUNNER_ALLOWED_HOSTS="private-runner",
         SECONDSHIFT_RUNNER_SERVICE_TOKEN="t" * 32,
-        SECONDSHIFT_RUNNER_IMAGE="python:3.13-slim",
+        SECONDSHIFT_SANDBOX_PYTHON="python:3.13-slim@sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        SECONDSHIFT_SANDBOX_DEFAULT="python",
     )
     assert result.returncode == 0, result.stderr
     assert result.stdout.splitlines() == ["['private-runner']", str(database), "False"]
 
 
-def test_the_runner_refuses_to_start_without_an_image(tmp_path: Path) -> None:
+def test_the_runner_refuses_to_start_without_a_default_sandbox(
+    tmp_path: Path,
+) -> None:
     result = load_settings(
         "secondshift.config.settings.runner",
         tmp_path,
@@ -115,7 +118,19 @@ def test_the_runner_refuses_to_start_without_an_image(tmp_path: Path) -> None:
     )
 
     assert result.returncode != 0
-    assert "Set SECONDSHIFT_RUNNER_IMAGE in the runner's env" in result.stderr
+    assert "Set SECONDSHIFT_SANDBOX_DEFAULT to the sandbox" in result.stderr
+
+
+def test_the_runner_says_how_to_rename_an_old_image_setting(tmp_path: Path) -> None:
+    result = load_settings(
+        "secondshift.config.settings.runner",
+        tmp_path,
+        SECONDSHIFT_RUNNER_SERVICE_TOKEN="t" * 32,
+        SECONDSHIFT_RUNNER_IMAGE="registry.example/mine:1",
+    )
+
+    assert result.returncode != 0
+    assert "SECONDSHIFT_RUNNER_IMAGE is replaced" in result.stderr
 
 
 @pytest.mark.parametrize(
@@ -219,7 +234,8 @@ def test_images_someone_set_are_never_touched(tmp_path: Path) -> None:
     write_generated_env(tmp_path)
     mine = (
         "SECONDSHIFT_RUNNER_SERVICE_TOKEN=" + "r" * 40 + "\n"
-        "SECONDSHIFT_RUNNER_IMAGE=registry.example/sandbox@sha256:" + "a" * 64 + "\n"
+        "SECONDSHIFT_SANDBOX_DEFAULT=mine\n"
+        "SECONDSHIFT_SANDBOX_MINE=registry.example/sandbox@sha256:" + "a" * 64 + "\n"
     )
     (tmp_path / "runner.env").write_text(mine)
 

@@ -8,6 +8,7 @@ from pathlib import Path
 from cryptography.fernet import Fernet
 
 from secondshift.config.constants import AppEnv
+from secondshift.runner_protocol.environments import DEFAULT_SANDBOX
 
 # The sandbox images a new runner.env starts with. Only this file names them.
 RUNNER_IMAGES = Path(__file__).with_name("runner_images.env")
@@ -21,10 +22,10 @@ def add_runner_images(runner_env: Path) -> None:
     """Give a runner.env from before 0.1.0b13 the default images, once.
 
     Images come only from env now, and that file has none. Once it names a
-    default image, it is the person's to edit and is never touched again.
+    default sandbox, it is the person's to edit and is never touched again.
     """
     content = runner_env.read_text()
-    if any(line.startswith(f"{AppEnv.RUNNER_IMAGE}=") for line in content.splitlines()):
+    if any(line.startswith(f"{DEFAULT_SANDBOX}=") for line in content.splitlines()):
         return
     with runner_env.open("a") as file:
         file.write(("\n" if content and not content.endswith("\n") else "") + "\n")

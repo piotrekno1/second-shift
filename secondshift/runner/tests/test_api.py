@@ -3,6 +3,7 @@ from unittest.mock import Mock
 import pytest
 from django.test import Client
 
+from secondshift.runner.tests.fakes import sandboxes
 from secondshift.runner_protocol.sessions import CommandResult
 
 pytestmark = pytest.mark.urls("secondshift.runner.urls")
@@ -39,8 +40,9 @@ def test_runner_api_requires_service_auth(settings, monkeypatch) -> None:
 def test_the_runner_lists_its_environments_to_the_control_plane_only(
     settings,
 ) -> None:
-    settings.RUNNER_IMAGE = "secondshift-runner:test"
-    settings.RUNNER_ENVIRONMENTS = {"node": "registry.example/node@sha256:def"}
+    settings.RUNNER_ENVIRONMENTS = sandboxes(
+        "secondshift-runner:test", node="registry.example/node@sha256:def"
+    )
 
     denied = Client().get("/v1/environments")
     allowed = Client().get(
@@ -51,9 +53,10 @@ def test_the_runner_lists_its_environments_to_the_control_plane_only(
     assert denied.status_code == 401
     assert allowed.json() == {
         "environments": {
-            "default": "secondshift-runner:test",
+            "python": "secondshift-runner:test",
             "node": "registry.example/node@sha256:def",
-        }
+        },
+        "default": "python",
     }
 
 
