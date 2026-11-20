@@ -1,6 +1,7 @@
 import pytest
 
 from secondshift.runner_protocol.environments import (
+    BUILT_IN_ENVIRONMENTS,
     EnvironmentConfigError,
     configured_environments,
     environment_variable,
@@ -18,6 +19,7 @@ def test_each_env_var_names_one_environment() -> None:
     }
 
     assert configured_environments(environ, require_digest=True) == {
+        "fullstack": BUILT_IN_ENVIRONMENTS["fullstack"],
         "go_1_23": NODE,
         "node": NODE,
     }
@@ -43,4 +45,20 @@ def test_a_server_refuses_a_bad_environment(key: str, value: str, message: str) 
 def test_one_machine_may_use_a_tag() -> None:
     environ = {"SECONDSHIFT_RUNNER_ENVIRONMENT_NODE": "node:22"}
 
-    assert configured_environments(environ, require_digest=False) == {"node": "node:22"}
+    assert configured_environments(environ, require_digest=False) == {
+        "fullstack": BUILT_IN_ENVIRONMENTS["fullstack"],
+        "node": "node:22",
+    }
+
+
+def test_a_server_has_the_fullstack_environment_without_config() -> None:
+    assert configured_environments({}, require_digest=True) == BUILT_IN_ENVIRONMENTS
+
+
+def test_an_admin_replaces_or_turns_off_a_built_in_environment() -> None:
+    key = "SECONDSHIFT_RUNNER_ENVIRONMENT_FULLSTACK"
+
+    assert configured_environments({key: NODE}, require_digest=True) == {
+        "fullstack": NODE
+    }
+    assert configured_environments({key: " "}, require_digest=True) == {}

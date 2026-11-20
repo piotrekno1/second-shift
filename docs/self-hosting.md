@@ -112,13 +112,19 @@ SECONDSHIFT_RUNNER_ENVIRONMENT_BROWSER=ghcr.io/org/runner-browser@sha256:...
 A job picks one with `environment: node` in `.secondshift.yaml`. Jobs that name
 none run on `SECONDSHIFT_RUNNER_IMAGE`, the `default` environment.
 
+SecondShift also supplies `fullstack`, with Python 3.13, Node 24, git and make,
+for jobs that run a project's full checks. It is
+`nikolaik/python-nodejs:python3.13-nodejs24` pinned by digest, about 1.5 GB.
+Set `SECONDSHIFT_RUNNER_ENVIRONMENT_FULLSTACK` to another image to replace it,
+or to an empty value to turn it off.
+
 - The name is the end of the env var in lowercase. It has letters, digits and
   underscores.
 - Each image must meet the same rules as a custom image above.
 - A server refuses to start if an environment's image is not pinned by digest.
   `secondshift up` on one machine also accepts tags.
 - The runner pulls every environment's image when it starts, and refuses to
-  run any other image.
+  run any other image. The first start pulls `fullstack` too.
 - Every job may use every environment. Vet an image before you add it.
 - The settings page lists every environment the server found, `default`
   included, with its image and env var.
