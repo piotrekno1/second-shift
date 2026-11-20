@@ -84,15 +84,18 @@ try:
 except EnvironmentConfigError as error:
     raise ImproperlyConfigured(str(error)) from error
 RUNNER_RUNTIME = env.str(AppEnv.RUNNER_RUNTIME, default=SandboxRuntime.GVISOR)
+# Long enough for a project's full checks on the sandbox's 2 CPUs.
 RUNNER_COMMAND_TIMEOUT_SECONDS = env.int(
-    "SECONDSHIFT_RUNNER_COMMAND_TIMEOUT_SECONDS", default=120
+    "SECONDSHIFT_RUNNER_COMMAND_TIMEOUT_SECONDS", default=300
 )
 RUNNER_COMMAND_OUTPUT_MAX_BYTES = env.int(
     "SECONDSHIFT_RUNNER_COMMAND_OUTPUT_MAX_BYTES", default=1024 * 1024
 )
 RUNNER_MEMORY = env.str("SECONDSHIFT_RUNNER_MEMORY", default="2g")
 RUNNER_CPUS = env.str("SECONDSHIFT_RUNNER_CPUS", default="2")
-RUNNER_PIDS_LIMIT = env.int("SECONDSHIFT_RUNNER_PIDS_LIMIT", default=256)
+# Threads count too. SecondShift's own tests peak at about 520, and Node
+# starts a thread pool per process.
+RUNNER_PIDS_LIMIT = env.int("SECONDSHIFT_RUNNER_PIDS_LIMIT", default=1024)
 # A runner started as root still runs sandboxes as an unprivileged user.
 UNPRIVILEGED_ID = 10001
 RUNNER_SANDBOX_UID = env.int(
