@@ -188,6 +188,20 @@ class Run(models.Model):
         return f"{self.display_name} at {self.scheduled_for:%Y-%m-%d %H:%M}"
 
 
+class SkippedScheduledTick(models.Model):
+    """Remember a skipped slot independently of the run that blocked it."""
+
+    job = models.ForeignKey(Job, on_delete=models.CASCADE)
+    scheduled_for = models.DateTimeField()
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["job", "scheduled_for"], name="unique_job_skipped_tick"
+            ),
+        ]
+
+
 class RunEvent(models.Model):
     run = models.ForeignKey(Run, on_delete=models.CASCADE, related_name="events")
     level = models.CharField(max_length=16, default="info")

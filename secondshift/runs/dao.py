@@ -22,6 +22,7 @@ from secondshift.runs.models import (
     RunEvent,
     RunFailure,
     RunIssue,
+    SkippedScheduledTick,
     Task,
 )
 
@@ -153,6 +154,16 @@ def succeeded_run_ids(job: Job, count: int) -> list[int]:
 def job_run_for_slot(job: Job, scheduled_for: datetime) -> Run | None:
     """The run already created for this scheduled time, if any."""
     return job.runs.filter(scheduled_for=scheduled_for).first()
+
+
+def scheduled_tick_was_skipped(job: Job, scheduled_for: datetime) -> bool:
+    return SkippedScheduledTick.objects.filter(
+        job=job, scheduled_for=scheduled_for
+    ).exists()
+
+
+def record_skipped_scheduled_tick(job: Job, scheduled_for: datetime) -> None:
+    SkippedScheduledTick.objects.create(job=job, scheduled_for=scheduled_for)
 
 
 def active_runs() -> QuerySet[Run]:

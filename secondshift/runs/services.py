@@ -19,6 +19,8 @@ from secondshift.runs.dao import (
     create_task,
     job_run_for_slot,
     latest_active_run,
+    record_skipped_scheduled_tick,
+    scheduled_tick_was_skipped,
 )
 from secondshift.runs.history import previous_run_ids
 from secondshift.runs.inputs import RunInput
@@ -147,16 +149,19 @@ def start_run(
 def create_scheduled_run(job: Job, scheduled_for: datetime) -> Run | None:
     """Create the run for one cron tick, or skip it while another run is active.
 
-    A replayed tick returns the run it already created. A skipped tick is
-    noted on the active run.
+    A replayed tick returns the run it already created or None if it was
+    skipped. Record the skip and its event together.
     """
     with transaction.atomic():
         lock_job(job)
+        if scheduled_tick_was_skipped(job, scheduled_for):
+            return None
         existing = job_run_for_slot(job, scheduled_for)
         if existing is not None:
             return existing
         active = latest_active_run(job)
         if active is not None:
+            record_skipped_scheduled_tick(job, scheduled_for)
             add_event(
                 active.pk,
                 f"Skipped the scheduled run at {scheduled_for:%Y-%m-%d %H:%M %Z} "

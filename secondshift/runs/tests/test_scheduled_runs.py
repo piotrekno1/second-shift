@@ -77,6 +77,20 @@ def test_tick_is_skipped_while_another_run_is_active(job: Job, status: str) -> N
     assert job.next_run_at > TICK
 
 
+@pytest.mark.parametrize("active_finished", [False, True])
+def test_replayed_skipped_tick_stays_skipped(job: Job, active_finished: bool) -> None:
+    active_id = tick(job, TICK - timedelta(days=1))
+
+    assert tick(job) is None
+    if active_finished:
+        Run.objects.filter(pk=active_id).update(status=Run.Status.SUCCEEDED)
+
+    assert tick(job) is None
+    assert Run.objects.count() == 1
+    assert Task.objects.count() == 1
+    assert RunEvent.objects.filter(run_id=active_id).count() == 1
+
+
 def test_tick_runs_once_the_other_run_finished(job: Job) -> None:
     earlier = tick(job, TICK - timedelta(days=1))
     Run.objects.filter(pk=earlier).update(status=Run.Status.SUCCEEDED)
