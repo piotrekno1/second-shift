@@ -62,9 +62,10 @@ Required configuration is in `secondshift/config/settings/runner.py`. Production
 self-hosting. Service startup verifies the selected runtime and fails closed.
 The runner uses the same image as the control plane, with its own command,
 root user override, database and network identity.
-Sandboxes use `SECONDSHIFT_RUNNER_IMAGE` (default: the pinned official
-`python:3.13-slim`, see `secondshift/config/constants.py`), or the image of a
-named environment a job chooses (`SECONDSHIFT_RUNNER_ENVIRONMENT_<NAME>`). The
+Sandboxes use `SECONDSHIFT_RUNNER_IMAGE`, which the runner requires, or the
+image of a named environment a job chooses
+(`SECONDSHIFT_RUNNER_ENVIRONMENT_<NAME>`). Both come only from the runner's env.
+Generated `runner.env` files start with `secondshift/config/runner_images.env`. The
 runner pulls every one at startup, refuses to start if a pull fails, and runs no
 other image. Only the runner maps environment names to images. The control
 plane reads the names from `GET /v1/environments` and sends one with each

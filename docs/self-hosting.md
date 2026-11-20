@@ -86,11 +86,24 @@ from a repository manifest.
 
 ### Sandbox image
 
-Skill commands run in Docker's official `python:3.13-slim` image, pinned by
-digest in `secondshift/config/constants.py`. The runner pulls it when it starts, so there is
-nothing to build or host.
+Sandbox images come only from the runner's env, so you see and choose every
+image the server runs. The runner refuses to start without
+`SECONDSHIFT_RUNNER_IMAGE`. SecondShift writes the defaults into the runner's
+`runner.env` when it creates it:
 
-Operators can set `SECONDSHIFT_RUNNER_IMAGE` to their own image, for example
+- `secondshift up` writes `runner.env` in its data folder, `~/.secondshift` by
+  default. A `runner.env` from an earlier release gets the defaults once.
+- On a server, `python -m secondshift.config.container_env` writes
+  `deploy/production/runner.env`.
+
+The defaults are Docker's official `python:3.13-slim` and a `fullstack`
+environment, each pinned by digest. They are listed in
+[`secondshift/config/runner_images.env`](https://github.com/piotrekno1/second-shift/blob/main/secondshift/config/runner_images.env).
+The runner pulls them when it starts, so there is nothing to build or host.
+Once written, the file is yours: a new release never changes it. The release
+notes say when the defaults change.
+
+You can set `SECONDSHIFT_RUNNER_IMAGE` to your own image, for example
 one built `FROM python:3.13-slim` with Node or Go added for skills that need
 them. Repositories can never choose the image. A custom image must:
 
@@ -111,6 +124,10 @@ SECONDSHIFT_RUNNER_ENVIRONMENT_BROWSER=ghcr.io/org/runner-browser@sha256:...
 
 A job picks one with `environment: node` in `.secondshift.yaml`. Jobs that name
 none run on `SECONDSHIFT_RUNNER_IMAGE`, the `default` environment.
+
+The generated `runner.env` already offers `fullstack`, with Python 3.13,
+Node 24, git and make, for jobs that run a project's full checks. It is about
+1.5 GB. Remove its line to stop offering it.
 
 - The name is the end of the env var in lowercase. It has letters, digits and
   underscores.
