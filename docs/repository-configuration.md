@@ -240,8 +240,6 @@ jobs:
 - The server admin chooses each environment's image. The repository never does.
 - Every environment gets the same sandbox: no network, the same limits and the
   same mounts. Only the installed tools differ.
-- Every server has `fullstack`, with Python 3.13, Node 24, git and make,
-  unless its admin turned it off.
 - The server's settings page lists its environments. A job that names one the
   server lacks can't be enabled or run, and its page says why.
 
