@@ -42,6 +42,7 @@ from secondshift.repositories.github.sync import (
 )
 from secondshift.repositories.local import (
     LocalRepositoryError,
+    RepositoryRemovedError,
     committed_file,
     locate_local_repository,
     save_local_location,
@@ -109,7 +110,8 @@ def attach_local_repository(
 
     A missing or invalid configuration does not stop it. The repository is
     saved with the problem in last_sync_error, and its jobs stay as the last
-    good sync left them.
+    good sync left them. A repository removed in the meantime stays removed,
+    with its jobs untouched.
     """
     location = locate_local_repository(raw_path, branch)
     try:
@@ -119,15 +121,19 @@ def attach_local_repository(
         config_error = ""
     except RepositoryConfigError as error:
         manifest, skills, config_error = None, {}, str(error)
-    with transaction.atomic():
-        repository, origin_changed = save_local_location(
-            workspace, location, config_error, manifest is not None
-        )
-        if manifest is not None:
-            sync_jobs(repository, manifest, skills)
-        if origin_changed:
-            reopen_github_mcp_grants(repository)
-            approve_waiting(repository_active_requests(repository))
+    try:
+        with transaction.atomic():
+            repository, origin_changed = save_local_location(
+                workspace, location, config_error, manifest is not None, restore=False
+            )
+            if manifest is not None:
+                sync_jobs(repository, manifest, skills)
+            if origin_changed:
+                reopen_github_mcp_grants(repository)
+                approve_waiting(repository_active_requests(repository))
+    except RepositoryRemovedError as removed:
+        # Removed while the folder was read. The removal stands.
+        return removed.repository
     return repository
 
 
@@ -155,7 +161,8 @@ def sync_github_repository(repository: Repository) -> Repository:
         branch.mark_synced()
         with transaction.atomic():
             locked = record_synced_revision(repository.pk, branch.revision)
-            sync_jobs(locked, manifest, skills)
+            if locked is not None:
+                sync_jobs(locked, manifest, skills)
     repository.refresh_from_db()
     return repository
 
@@ -181,7 +188,7 @@ def add_local_repository(workspace: Workspace, raw_path: str) -> Repository:
     """
     location = locate_local_repository(raw_path)
     repository, _ = save_local_location(
-        workspace, location, config_error="", config_read=False
+        workspace, location, config_error="", config_read=False, restore=True
     )
     request_sync(repository.pk)
     repository.refresh_from_db()

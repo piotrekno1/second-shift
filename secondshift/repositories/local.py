@@ -4,10 +4,12 @@ import posixpath
 from dataclasses import dataclass
 from pathlib import Path
 
+from django.db import transaction
+
 from secondshift.config.constants import GITHUB_BASE_URL
 from secondshift.git import commands
 from secondshift.git.commands import GitError
-from secondshift.repositories.dao import local_repository, save_local_repository
+from secondshift.repositories.dao import lock_local_repository, save_local_repository
 from secondshift.repositories.github.scope import github_remote_name
 from secondshift.repositories.models import (
     MANIFEST_FILE,
@@ -125,41 +127,58 @@ def local_repository_name(root: Path) -> str:
     return f"local/{root.name}-{digest}"
 
 
+class RepositoryRemovedError(Exception):
+    """A sync found its repository removed. Only adding it again restores it."""
+
+    def __init__(self, repository: Repository) -> None:
+        super().__init__(f"{repository.display_name} was removed.")
+        self.repository = repository
+
+
 def save_local_location(
     workspace: Workspace,
     location: LocalRepositoryLocation,
     config_error: str,
     config_read: bool,
+    restore: bool,
 ) -> tuple[Repository, bool]:
     """Save what was found in the folder.
 
-    Returns the repository and whether its GitHub origin changed.
+    Returns the repository and whether its GitHub origin changed. A removed
+    repository comes back only with `restore`, when someone adds it again.
+    Otherwise this raises RepositoryRemovedError. The row stays locked until
+    the caller's transaction ends, so a removal cannot slip in before it.
     """
-    previous = local_repository(workspace, str(location.root))
-    origin_changed = previous is not None and previous.clone_url != location.clone_url
-    synced = {"config_sha": location.revision} if config_read else {}
-    # Only a new or a removed repository is switched on. A resync keeps the
-    # owner's choice, as GitHub syncs do.
-    added = (
-        {"enabled": True, "removed_at": None}
-        if previous is None or previous.removed_at is not None
-        else {}
-    )
-    repository = save_local_repository(
-        workspace,
-        str(location.root),
-        {
-            "source_type": Repository.SourceType.LOCAL,
-            "full_name": location.repository_name,
-            "clone_url": location.clone_url,
-            "default_branch": location.branch,
-            "config_path": MANIFEST_FILE,
-            "checked_sha": location.revision,
-            "last_sync_error": config_error[:SYNC_ERROR_MAX_CHARS],
-            **added,
-            **synced,
-        },
-    )
+    with transaction.atomic():
+        previous = lock_local_repository(workspace, str(location.root))
+        removed = previous is not None and previous.removed_at is not None
+        if removed and not restore:
+            assert previous is not None
+            raise RepositoryRemovedError(previous)
+        origin_changed = (
+            previous is not None and previous.clone_url != location.clone_url
+        )
+        synced = {"config_sha": location.revision} if config_read else {}
+        # Only a new or a removed repository is switched on. A resync keeps the
+        # owner's choice, as GitHub syncs do.
+        added = (
+            {"enabled": True, "removed_at": None} if previous is None or removed else {}
+        )
+        repository = save_local_repository(
+            workspace,
+            str(location.root),
+            {
+                "source_type": Repository.SourceType.LOCAL,
+                "full_name": location.repository_name,
+                "clone_url": location.clone_url,
+                "default_branch": location.branch,
+                "config_path": MANIFEST_FILE,
+                "checked_sha": location.revision,
+                "last_sync_error": config_error[:SYNC_ERROR_MAX_CHARS],
+                **added,
+                **synced,
+            },
+        )
     return repository, origin_changed
 
 

@@ -63,9 +63,15 @@ def fetched_branch(repository: Repository) -> Iterator[FetchedBranch]:
         yield FetchedBranch(mirror, revision, access.token)
 
 
-def record_synced_revision(repository_id: int, revision: str) -> Repository:
-    """Save a good sync of this commit. Call inside a transaction."""
+def record_synced_revision(repository_id: int, revision: str) -> Repository | None:
+    """Save a good sync of this commit. Call inside a transaction.
+
+    None when the repository was removed during the sync. Its jobs stay as
+    the removal left them.
+    """
     locked = lock_repository(repository_id)
+    if locked.removed_at is not None:
+        return None
     locked.config_sha = revision
     locked.checked_sha = revision
     locked.last_sync_error = ""
