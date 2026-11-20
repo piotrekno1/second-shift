@@ -32,6 +32,7 @@ from secondshift.runs.dao import (
     run_delivery,
     run_hand_back,
 )
+from secondshift.runs.links import attribution_footer
 from secondshift.runs.models import Run, RunDelivery
 from secondshift.runs.reporting.collection import plural
 
@@ -152,7 +153,7 @@ def repository_paths(report: str) -> str:
 
 
 def footer(run: Run) -> str:
-    return f"Opened by SecondShift from run #{run.pk} at {run.commit_sha[:12]}."
+    return attribution_footer("Opened", run)
 
 
 def trailers(run: Run) -> str:

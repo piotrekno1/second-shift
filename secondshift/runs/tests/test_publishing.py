@@ -96,7 +96,7 @@ def test_the_stored_patch_and_report_become_a_draft(
     assert draft.base == "main"
     assert draft.title == "Review"
     assert draft.body.startswith(REPORT)
-    assert f"run #{run.pk}" in draft.body
+    assert f"run {run.pk}" in draft.body
     assert "[skip ci]" in draft.message.splitlines()
     assert draft.committed_at == run.finished_at
     published = delivery(run)
@@ -342,7 +342,7 @@ def test_an_app_draft_names_secondshift(
     assert draft.branch == f"secondshift/run-{run.pk}"
     assert draft.body == (
         f"{REPORT}\n\n{publishing.CI_WAITS_NOTE}\n\n---\n\n"
-        f"Opened by SecondShift from run #{run.pk} at {'a' * 12}."
+        f"Opened by SecondShift from run {run.pk} at {'a' * 12}."
     )
     assert draft.message == (
         f"Review\n\n[skip ci]\n\nSecondShift-Run: {run.pk}\nSecondShift-Job: Review"

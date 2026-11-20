@@ -184,7 +184,7 @@ def test_a_hand_back_comments_and_swaps_the_labels(run: Run, github: GitHub) -> 
 
     [comment] = github.comments
     assert comment.startswith("**Needs a person.**\n\n---\n\n")
-    assert f"run #{run.pk}" in comment
+    assert f"run {run.pk}" in comment
     assert (github.removed, github.added) == (["fix-approved"], ["needs-design"])
     # Only issues, never contents or pull requests.
     assert github.permissions == [{"issues": "write"}]

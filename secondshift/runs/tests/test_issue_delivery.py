@@ -97,7 +97,7 @@ def test_proposals_open_unless_already_open(run: Run, github: GitHub) -> None:
     [(title, body)] = github.opened
     assert title == "Flaky login test"
     assert body.startswith("Steps\n\n---\n\n")
-    assert f"run #{run.pk}" in body
+    assert f"run {run.pk}" in body
     # Only issues, never contents or pull requests.
     assert github.permissions == [{"issues": "write"}]
     done = delivery(run)

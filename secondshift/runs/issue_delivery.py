@@ -24,6 +24,7 @@ from secondshift.runs.dao import (
     unopened_issues,
 )
 from secondshift.runs.execution.issues import issue_labels, issue_limit
+from secondshift.runs.links import attribution_footer
 from secondshift.runs.models import Run, RunDelivery, RunIssue
 from secondshift.runs.reporting.collection import plural
 
@@ -75,7 +76,7 @@ def issue_body(run: Run, issue: RunIssue) -> str:
     """The agent's text, and a footer when the connection shows attribution."""
     if not shows_attribution(run.repository.github_connection):
         return issue.body
-    footer = f"Opened by SecondShift from run #{run.pk} at {run.commit_sha[:12]}."
+    footer = attribution_footer("Opened", run)
     return f"{issue.body}\n\n---\n\n{footer}" if issue.body else footer
 
 

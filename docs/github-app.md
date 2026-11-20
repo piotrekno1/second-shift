@@ -229,7 +229,9 @@ person. To change it, open the connection's menu on **Connections** and choose
 **Mention SecondShift** or **Don't mention SecondShift**.
 
 - When it is on, the branch is named `secondshift/run-<id>`. Pull request and
-  issue descriptions end with a line naming the run. Commits carry
+  issue descriptions end with a line naming the run and its commit. The run
+  links to its page when `SECONDSHIFT_PUBLIC_URL` is reachable from other
+  machines. On `localhost` it is named only. Commits carry
   `SecondShift-Run` and `SecondShift-Job` trailers, and a `Co-authored-by`
   trailer for the `secondshift-bot` account. GitHub then lists SecondShift
   among the repository's contributors once a commit merges. A squash merge
