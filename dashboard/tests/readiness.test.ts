@@ -7,6 +7,7 @@ import {
   REMOVED_JOB,
   approvalPending,
   enableBlocker,
+  environmentProblems,
   executionFix,
   runBlocker,
   runWarning,
@@ -370,5 +371,21 @@ test('the sidebar calls a chosen model that stopped working failing', () => {
   assert.deepEqual(
     sidebarNotes(sidebar({ execution: status({ problem: 'The key was rejected.' }) })).models,
     { text: 'failing', tone: 'danger' },
+  )
+})
+
+test('environmentProblems groups the jobs that share a missing environment', () => {
+  const missing = 'This server has no fullstack environment.'
+  assert.deepEqual(
+    environmentProblems([
+      { name: 'Issue fixer', environment_problem: missing },
+      { name: 'Code review', environment_problem: '' },
+      { name: 'Test triage', environment_problem: missing },
+      { name: 'Browser check', environment_problem: 'This server has no browser environment.' },
+    ]),
+    [
+      { problem: missing, jobs: ['Issue fixer', 'Test triage'] },
+      { problem: 'This server has no browser environment.', jobs: ['Browser check'] },
+    ],
   )
 })

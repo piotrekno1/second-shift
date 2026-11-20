@@ -7,7 +7,7 @@ import Button from 'primevue/button'
 import PageHeader from '../components/PageHeader.vue'
 import StatusPill from '../components/StatusPill.vue'
 import { errorMessage } from '../services/api'
-import { connectionSetupQuery, waitingCapabilities } from '../utils/readiness'
+import { connectionSetupQuery, environmentProblems, waitingCapabilities } from '../utils/readiness'
 import { setJobEnabled } from '../services/jobs'
 import JobList from '../components/JobList.vue'
 import {
@@ -53,10 +53,13 @@ const optionalSetups = computed(() =>
       .map((capability) => ({ job, capability })),
   ),
 )
+// A job whose environment is missing can't be enabled, so it is not ready.
+const missingEnvironments = computed(() => environmentProblems(detailedJobs.value))
 const readyDisabledJobs = computed(() =>
   detailedJobs.value.filter(
     (job) =>
       jobState(job) === 'disabled' &&
+      !job.environment_problem &&
       (job.grant_status === 'approved' || job.grant_status === 'not_required'),
   ),
 )
@@ -66,6 +69,7 @@ const setupComplete = computed(
   () =>
     !needsConfig.value &&
     requiredReviews.value.length === 0 &&
+    missingEnvironments.value.length === 0 &&
     readyDisabledJobs.value.length === 0,
 )
 const repositorySubtitle = computed(() => {
@@ -345,6 +349,9 @@ onMounted(async () => {
           >
             {{ repository.validation.message }}
           </p>
+          <p v-else-if="!requiredReviews.length && missingEnvironments.length">
+            Some jobs need a sandbox environment this server doesn't have.
+          </p>
           <p v-else-if="requiredReviews.length">
             Approve access for {{ countLabel(requiredReviews.length, 'required binding') }} before
             its jobs can run.
@@ -354,6 +361,13 @@ onMounted(async () => {
             schedule.
           </p>
           <p v-else>All required access is resolved and every ready job is enabled.</p>
+          <p
+            v-for="item in needsConfig ? [] : missingEnvironments"
+            :key="item.problem"
+            class="setup-problem"
+          >
+            <strong>{{ item.jobs.join(', ') }}:</strong> {{ item.problem }}
+          </p>
           <small v-if="optionalSetups.length && app.can(Action.AddConnections)">
             Optional:
             <RouterLink

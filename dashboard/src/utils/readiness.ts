@@ -11,6 +11,26 @@ export function waitingCapabilities(job: Pick<Job, 'capabilities'>): Capability[
   )
 }
 
+/** Jobs that name an environment the server lacks, grouped by the server's reason. */
+export interface EnvironmentProblem {
+  problem: string
+  jobs: string[]
+}
+
+export function environmentProblems(
+  jobs: Pick<Job, 'name' | 'environment_problem'>[],
+): EnvironmentProblem[] {
+  const grouped = new Map<string, string[]>()
+  for (const job of jobs) {
+    if (!job.environment_problem) continue
+    grouped.set(job.environment_problem, [
+      ...(grouped.get(job.environment_problem) ?? []),
+      job.name,
+    ])
+  }
+  return [...grouped].map(([problem, names]) => ({ problem, jobs: names }))
+}
+
 /** Why a job in a paused repository cannot run. */
 export const PAUSED_REPOSITORY = 'Resume the repository to run its jobs.'
 
