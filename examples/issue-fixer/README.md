@@ -42,6 +42,14 @@ reads the closed pull request's comments and reviews first, so say there what
 to do differently. Remove the label to stop. After two closed attempts, the
 fixer leaves the issue to a person.
 
+The fixer takes only fixes that are quick to review. It hands an issue back,
+with no pull request, when the fix needs a migration, changes more than about
+80 lines or 3 files, changes concurrency or crash handling, or needs a design
+choice. Its report says why and suggests a plan, for a session with a person.
+
+Each draft opens with its risk, whether the checks passed, and where to look
+in the diff.
+
 **Begin with a manual run on one approved issue, review the draft, then enable
 the schedule.**
 
