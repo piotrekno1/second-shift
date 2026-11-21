@@ -460,6 +460,8 @@ export interface RunDetail extends Run {
   skipped_files: RunSkippedFile[]
   /** Another repository the skill came from, at the commit the run used. */
   skill_source?: RunSkillSource | null
+  /** A tried skill whose job SecondShift can add with a draft pull request. */
+  schedules_by_pull_request?: boolean
   /** Access the agent reported it needed and did not have. Model output. */
   access_needs?: RunAccessNeed[]
 }

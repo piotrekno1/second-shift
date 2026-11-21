@@ -14,6 +14,7 @@ from secondshift.runs.deliveries import DeliveryQueueUnavailable, retry_delivery
 from secondshift.runs.models import RunDelivery
 from secondshift.runs.queue import cancel_queued_task
 from secondshift.runs.reporting.queries import RunFilters, run_page
+from secondshift.runs.scheduling import schedule_skill
 from secondshift.runs.schemas import (
     RunAgainSchema,
     RunDeliverySchema,
@@ -23,6 +24,8 @@ from secondshift.runs.schemas import (
     RunListQuery,
     RunPageSchema,
     RunSchema,
+    ScheduledSkillSchema,
+    ScheduleSkillSchema,
     TaskSubmissionSchema,
 )
 from secondshift.runs.serialization import (
@@ -67,6 +70,20 @@ def run_task_again(
     except RunRefused as error:
         raise HttpError(409, str(error)) from error
     return serialize_submission(result.run, result.started)
+
+
+@router.post("/runs/{run_id}/schedule", response=ScheduledSkillSchema)
+def schedule_tried_skill(
+    request: HttpRequest, run_id: int, payload: ScheduleSkillSchema
+) -> ScheduledSkillSchema:
+    """Open a draft pull request that adds the tried skill's job."""
+    require(request, Action.RUN_JOBS)
+    run = run_for_request(request, run_id)
+    try:
+        opened = schedule_skill(run, payload)
+    except RunRefused as error:
+        raise HttpError(409, str(error)) from error
+    return ScheduledSkillSchema(number=opened.number, url=opened.url)
 
 
 @router.post(

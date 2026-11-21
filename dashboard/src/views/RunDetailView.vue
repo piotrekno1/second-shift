@@ -18,6 +18,8 @@ import {
   runFileUrl,
   runTaskAgain,
   savedFileUrl,
+  scheduleSkill,
+  type ScheduledSkill,
   startJobRun,
 } from '../services/runs'
 import { useAppStore } from '../stores/app'
@@ -38,6 +40,7 @@ import { runBlocker } from '../utils/readiness'
 import { startedByLabel } from '../utils/triggers'
 import { errorMessage } from '../services/api'
 import Dialog from 'primevue/dialog'
+import InputText from 'primevue/inputtext'
 import Select from 'primevue/select'
 import { useSkillCatalog } from '../composables/useSkillCatalog'
 import {
@@ -226,6 +229,7 @@ const tried = computed(
 )
 const scheduling = ref(false)
 const copied = ref(false)
+const scheduleName = ref('')
 const scheduleChoice = ref<ScheduleChoice>(ScheduleChoice.Weekly)
 const notifyChoice = ref<string[]>([])
 const pullRequestChoice = ref(false)
@@ -250,6 +254,8 @@ const usesServices = computed(() =>
 )
 
 function openSchedule(): void {
+  scheduleName.value = listed.value?.name ?? run.value?.job ?? ''
+  scheduleError.value = ''
   scheduleChoice.value = scheduleFor(listed.value)
   notifyChoice.value = suggestedNotify(listed.value, app.connections)
   pullRequestChoice.value = suggests(DeliveryKind.PullRequest)
@@ -257,15 +263,18 @@ function openSchedule(): void {
   scheduling.value = true
 }
 
+const scheduleCron = computed(
+  () => SCHEDULE_CHOICES.find((choice) => choice.value === scheduleChoice.value)!.cron,
+)
 const scheduleText = computed(() => {
   const source = run.value?.skill_source
   if (!run.value || !source) return ''
   return scheduleYaml({
-    name: listed.value?.name ?? run.value.job,
+    name: scheduleName.value.trim() || 'Skill',
     repository: source.repository,
     path: run.value.skill_path,
     commitSha: source.commit_sha,
-    schedule: SCHEDULE_CHOICES.find((choice) => choice.value === scheduleChoice.value)!.cron,
+    schedule: scheduleCron.value,
     timezone,
     notify: notifyChoice.value,
     pullRequest: offersPullRequest.value && pullRequestChoice.value,
@@ -274,6 +283,41 @@ const scheduleText = computed(() => {
     mcps: [],
   })
 })
+
+// SecondShift can commit the job itself, through a draft pull request.
+const schedulesByPullRequest = computed(
+  () => Boolean(run.value?.schedules_by_pull_request) && app.can(Action.RunJobs),
+)
+const proposing = ref(false)
+const scheduleError = ref('')
+// Kept per run, so reopening the dialog shows the draft instead of offering another.
+const proposed = ref<ScheduledSkill | null>(null)
+watch(
+  () => run.value?.id,
+  () => {
+    proposed.value = null
+  },
+)
+
+async function proposeSchedule(): Promise<void> {
+  if (!run.value || !scheduleName.value.trim()) return
+  proposing.value = true
+  scheduleError.value = ''
+  try {
+    proposed.value = await scheduleSkill(run.value.id, {
+      name: scheduleName.value.trim(),
+      schedule: scheduleCron.value,
+      timezone,
+      notify: notifyChoice.value,
+      open_pull_request: offersPullRequest.value && pullRequestChoice.value,
+      open_issues: offersIssues.value && issuesChoice.value,
+    })
+  } catch (caught) {
+    scheduleError.value = errorMessage(caught)
+  } finally {
+    proposing.value = false
+  }
+}
 
 async function copySchedule(): Promise<void> {
   try {
@@ -787,11 +831,34 @@ onUnmounted(stopPolling)
         header="Schedule this skill"
         :style="{ width: 'min(640px, calc(100vw - 32px))' }"
       >
-        <p class="run-details-muted">
+        <p v-if="proposed" class="schedule-proposed">
+          <AppIcon name="check" />
+          <span
+            >Opened
+            <a :href="proposed.url" target="_blank" rel="noopener noreferrer"
+              >draft pull request #{{ proposed.number }}</a
+            >. The job starts once it is merged and {{ run.repository }} syncs.</span
+          >
+        </p>
+        <p v-else-if="schedulesByPullRequest" class="run-details-muted">
+          SecondShift opens a draft pull request that adds this job to
+          <code>.secondshift.yaml</code> in {{ run.repository }}. It pins the commit this run used.
+        </p>
+        <p v-else class="run-details-muted">
           Add this job to <code>.secondshift.yaml</code> in {{ run.repository }} and commit it. It
           pins the commit this run used.
         </p>
         <div class="schedule-choices">
+          <label class="schedule-label" for="schedule-name">Name</label>
+          <div class="schedule-control">
+            <InputText
+              id="schedule-name"
+              v-model="scheduleName"
+              class="schedule-select"
+              maxlength="200"
+              autocomplete="off"
+            />
+          </div>
           <label class="schedule-label" for="schedule-when">When</label>
           <div class="schedule-control">
             <Select
@@ -830,10 +897,24 @@ onUnmounted(stopPolling)
           It uses {{ usesServices.join(' and ') }}. Add the tools it needs under
           <code>requires</code>, and an owner approves them.
         </p>
+        <small v-if="scheduleError" class="field-error schedule-error">{{ scheduleError }}</small>
         <template #footer>
           <Button label="Close" severity="secondary" text @click="scheduling = false" />
-          <Button :label="copied ? 'Copied' : 'Copy'" class="main-action" @click="copySchedule"
+          <Button
+            :label="copied ? 'Copied' : 'Copy'"
+            :severity="schedulesByPullRequest && !proposed ? 'secondary' : undefined"
+            :class="{ 'main-action': !schedulesByPullRequest || proposed }"
+            @click="copySchedule"
             ><template #icon><AppIcon :name="copied ? 'check' : 'content-copy'" /></template
+          ></Button>
+          <Button
+            v-if="schedulesByPullRequest && !proposed"
+            label="Open pull request"
+            class="main-action"
+            :loading="proposing"
+            :disabled="!scheduleName.trim()"
+            @click="proposeSchedule"
+            ><template #icon><AppIcon name="source-pull" /></template
           ></Button>
         </template>
       </Dialog>
@@ -950,6 +1031,26 @@ onUnmounted(stopPolling)
   .schedule-control + .schedule-label {
     margin-top: 12px;
   }
+}
+.schedule-proposed {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0 0 4px;
+}
+.schedule-proposed .app-icon {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  color: var(--mint);
+}
+.schedule-proposed a {
+  color: var(--ink);
+}
+.schedule-error {
+  display: block;
+  margin-top: 12px;
 }
 .schedule-skill-yaml {
   margin: 20px 0 0;
