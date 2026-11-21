@@ -142,6 +142,15 @@ def local_repository(workspace: Workspace, local_path: str) -> Repository | None
     return Repository.objects.filter(workspace=workspace, local_path=local_path).first()
 
 
+def lock_local_repository(workspace: Workspace, local_path: str) -> Repository | None:
+    """The workspace's repository at this folder, locked. Call inside a transaction."""
+    return (
+        Repository.objects.select_for_update()
+        .filter(workspace=workspace, local_path=local_path)
+        .first()
+    )
+
+
 def save_local_repository(
     workspace: Workspace, local_path: str, fields: dict[str, Any]
 ) -> Repository:

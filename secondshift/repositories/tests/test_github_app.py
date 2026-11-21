@@ -769,3 +769,37 @@ def test_a_repository_added_again_after_its_source_was_deleted_keeps_its_history
     grant.refresh_from_db()
     assert grant.status == JobGrant.Status.APPROVED
     assert grant.connection == webhook
+
+
+def test_a_github_sync_leaves_a_repository_removed_during_it_alone(
+    workspace: Any,
+    source_connection: Any,
+    tmp_path: Any,
+    monkeypatch: Any,
+    settings: Any,
+) -> None:
+    source = tmp_path / "source"
+    create_local_repository(source)
+    repository = Repository.objects.create(
+        workspace=workspace,
+        github_connection=source_connection,
+        full_name="owner/project",
+        external_id="7",
+    )
+    fetch_from_local_source(monkeypatch, source, settings, tmp_path)
+    read = repository_sync.read_committed_config
+
+    def read_then_remove(*args: Any) -> Any:
+        config = read(*args)
+        Repository.objects.filter(pk=repository.pk).update(
+            enabled=False, removed_at=timezone.now()
+        )
+        return config
+
+    monkeypatch.setattr(repository_sync, "read_committed_config", read_then_remove)
+
+    synced = repository_sync.sync_github_repository(repository)
+
+    assert synced.removed_at is not None
+    assert synced.config_sha == ""
+    assert not synced.jobs.exists()

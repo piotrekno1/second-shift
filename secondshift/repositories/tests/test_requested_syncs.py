@@ -1,8 +1,10 @@
 from pathlib import Path
 
 import pytest
+from django.utils import timezone
 
 from secondshift.jobs import repository_sync
+from secondshift.jobs.dao import disable_repository_jobs
 from secondshift.jobs.repository_sync import (
     UNEXPECTED_SYNC_ERROR,
     attach_local_repository,
@@ -81,3 +83,29 @@ def test_an_unexpected_failure_is_shown_and_ends_the_request(
     repository.refresh_from_db()
     assert repository.sync_requested_at is None
     assert repository.last_sync_error == UNEXPECTED_SYNC_ERROR
+
+
+def test_a_removal_during_a_sync_stands(
+    repository: Repository, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    rename_job(tmp_path / "project", "Weekly review")
+    read = repository_sync.read_committed_config
+
+    def read_then_remove(*args: object) -> object:
+        # The owner removes the repository after the worker read the branch.
+        config = read(*args)  # type: ignore[arg-type]
+        Repository.objects.filter(pk=repository.pk).update(
+            enabled=False, removed_at=timezone.now()
+        )
+        disable_repository_jobs(repository)
+        return config
+
+    monkeypatch.setattr(repository_sync, "read_committed_config", read_then_remove)
+    request_sync(repository.pk)
+    run_requested_syncs()
+
+    repository.refresh_from_db()
+    assert repository.removed_at is not None
+    assert repository.enabled is False
+    job = repository.jobs.get()
+    assert (job.name, job.enabled) == ("Review", False)
