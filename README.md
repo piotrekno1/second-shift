@@ -1,16 +1,28 @@
-# SecondShift
+<h1 align="center">
+  <a href="https://second-shift.app/"><img src="dashboard/public/secondshift-mark.svg" width="64" height="64" alt="SecondShift homepage"></a>
+  <br>
+  SecondShift
+</h1>
 
-**Self-hosted agent jobs for recurring engineering work.**
+<p align="center"><strong>Self-hosted agent jobs for recurring engineering work.</strong></p>
+
+<p align="center">
+  <a href="https://github.com/piotrekno1/second-shift/actions/workflows/ci.yml"><img src="https://github.com/piotrekno1/second-shift/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI status on main"></a>
+  <a href="https://pypi.org/project/secondshift/"><img src="https://img.shields.io/pypi/v/secondshift" alt="PyPI version"></a>
+</p>
+
+<p align="center">
+  <a href="#quick-start">Quick start</a> ·
+  <a href="examples/README.md">Skill catalog</a> ·
+  <a href="docs/security-model.md">Security model</a> ·
+  <a href="https://second-shift.app/docs/overview/">Docs</a>
+</p>
 
 Try a skill on your repository, then run it **on demand**, **on a cron schedule**,
 or **from a webhook**. Jobs live in `.secondshift.yaml`.
 
 The agent runs in a **sandbox without direct network access**. A broker
 enforces which tools it can call, and service credentials stay outside the sandbox.
-
-[Quick start](#quick-start) · [Skill catalog](examples/README.md) ·
-[Security model](docs/security-model.md) ·
-[Docs](https://second-shift.app/docs/overview/)
 
 https://github.com/user-attachments/assets/2e48124d-489f-449b-be66-25107697e9b0
 
