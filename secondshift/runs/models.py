@@ -242,6 +242,9 @@ class RunDelivery(models.Model):
     message = models.TextField(blank=True)
     # Where the delivered result lives, such as the draft pull request.
     external_url = models.URLField(max_length=500, blank=True)
+    # The workflow of the latest retry someone asked for. The worker uses it
+    # to recover a retry that ended without saving an outcome.
+    retry_workflow_id = models.CharField(max_length=200, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

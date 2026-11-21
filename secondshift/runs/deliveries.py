@@ -52,25 +52,32 @@ def retry_delivery(run: Run, delivery_id: int) -> RunDelivery:
         raise RunRefused("The connection for this delivery was removed.")
     delivery.status = RunDelivery.Status.RETRYING
     delivery.message = "Waiting to retry."
-    delivery.save(update_fields=["status", "message", "updated_at"])
     # Enqueued inside the transaction, so a queue outage leaves it failed.
     if delivery.kind == RunDelivery.Kind.PULL_REQUEST:
         add_event(run.pk, "Retrying the pull request.")
-        enqueue_retry(RETRY_PULL_REQUEST_WORKFLOW, f"pull-request-{run.pk}", run.pk)
+        workflow_id = enqueue_retry(
+            RETRY_PULL_REQUEST_WORKFLOW, f"pull-request-{run.pk}", run.pk
+        )
     elif delivery.kind == RunDelivery.Kind.ISSUES:
         add_event(run.pk, "Retrying the issues.")
-        enqueue_retry(RETRY_ISSUES_WORKFLOW, f"issues-{run.pk}", run.pk)
+        workflow_id = enqueue_retry(RETRY_ISSUES_WORKFLOW, f"issues-{run.pk}", run.pk)
     elif delivery.kind == RunDelivery.Kind.HAND_BACK:
         add_event(run.pk, "Retrying the hand-back.")
-        enqueue_retry(RETRY_HAND_BACK_WORKFLOW, f"hand-back-{run.pk}", run.pk)
+        workflow_id = enqueue_retry(
+            RETRY_HAND_BACK_WORKFLOW, f"hand-back-{run.pk}", run.pk
+        )
     else:
         add_event(run.pk, f"Retrying the notification to {delivery.target}.")
-        enqueue_retry(
+        workflow_id = enqueue_retry(
             RETRY_NOTIFICATION_WORKFLOW,
             f"{run.pk}-{delivery.connection_id}",
             run.pk,
             delivery.connection_id,
         )
+    delivery.retry_workflow_id = workflow_id
+    delivery.save(
+        update_fields=["status", "message", "retry_workflow_id", "updated_at"]
+    )
     return delivery
 
 
