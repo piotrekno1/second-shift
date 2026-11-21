@@ -31,6 +31,8 @@ type ConnectionType = 'webhook' | 'mcp' | 'api'
 const props = defineProps<{
   /** Fixed binding when opened from a need. */
   binding?: string
+  /** The MCP preset a new connection starts on, such as sentry. */
+  preset?: string
   /** Edit or reconnect an existing connection. Model providers are edited on Models. */
   connection?: Connection
 }>()
@@ -213,6 +215,7 @@ async function submit(): Promise<void> {
     <MCPConnectionForm
       v-else-if="type === 'mcp'"
       :binding="binding"
+      :preset="preset"
       :connection="connection"
       @done="(notice, binding) => emit('done', notice, binding)"
       @cancel="emit('cancel')"
