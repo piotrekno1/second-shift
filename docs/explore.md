@@ -107,4 +107,4 @@ A skill gets listed when:
 - It lives in a public GitHub repository and has a license.
 - It names the services it needs and what it changes in each.
 - A maintainer ran it on a real repository and the result was worth reading.
-  That run is the one Explore quotes.
+  The skill's panel shows an excerpt from that run's report.
