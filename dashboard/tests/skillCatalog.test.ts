@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import bundled from '../src/catalog/skills.json'
+import { ALLOWED_LICENSES } from '../src/catalog/licenses'
 import { ScheduleChoice } from '../src/utils/skills'
 import {
   CODE_CHANGES,
@@ -34,7 +35,7 @@ function read(skill: Record<string, unknown>): CatalogSkill | undefined {
   return readCatalog({ version: 1, skills: [skill] })?.[0]
 }
 
-test('every bundled skill is read, pinned and has a lasting key', async () => {
+test('every bundled skill is read, pinned, allowed by its license and has a lasting key', async () => {
   const skills = await loadCatalog()
   // Skills held back for a fix stay in the file but out of Explore.
   const listed = bundled.skills.filter((skill) => skill.status === 'listed')
@@ -43,7 +44,10 @@ test('every bundled skill is read, pinned and has a lasting key', async () => {
   assert.equal(new Set(skills.map((skill) => skill.key)).size, skills.length)
   for (const skill of skills) {
     assert.match(skill.key, /^[a-z0-9-]+\/[a-z0-9-]+$/, skill.key)
-    assert.ok(skill.license, `${skill.key} has no license`)
+    assert.ok(
+      ALLOWED_LICENSES.includes(skill.license),
+      `${skill.key}: ${skill.license || 'no license'}`,
+    )
   }
 })
 
