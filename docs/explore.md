@@ -90,16 +90,21 @@ from GitHub.
 Every skill is pinned to a commit. A change the author makes later reaches
 Explore only when a release moves the pin.
 
-## Getting a skill listed
+## Suggest a skill
 
-You can't submit skills yet. This is the bar we use for our own list:
+To suggest a skill, open a pull request that adds it to
+[the catalog file](../dashboard/src/catalog/skills.json), pinned to a commit.
+Run `npm run check:catalog` in `dashboard` to check the pin. If you'd rather
+not edit the file, open an issue with a link to the skill's `SKILL.md`.
+Either way, try it on your own code first with **Try from a link**. See
+[contributing](../CONTRIBUTING.md) for the rest.
+
+A skill gets listed when:
 
 - It runs unattended. It doesn't stop to ask questions.
 - It does the work, such as a report, a patch or tickets, rather than only
   giving guidance.
 - It lives in a public GitHub repository and has a license.
 - It names the services it needs and what it changes in each.
-- The SecondShift team ran it on a real repository, and the result was worth
-  reading.
-
-Until submissions open, anyone can run a skill with **Try from a link**.
+- A maintainer ran it on a real repository and the result was worth reading.
+  That run is the one Explore quotes.
