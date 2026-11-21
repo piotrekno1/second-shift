@@ -218,20 +218,27 @@ def unqueued_job_runs(created_before: datetime, limit: int) -> list[Run]:
 
 
 def waiting_tasks(now: datetime, limit: int) -> list[Run]:
-    """Due tasks not yet dispatched, in repositories with nothing dispatched."""
+    """The oldest due task in each repository with nothing dispatched.
+
+    One task per repository, so a long backlog in one repository cannot use
+    up the limit and hold back the others.
+    """
+    due = Run.objects.filter(
+        job__isnull=True,
+        status=Run.Status.QUEUED,
+        dbos_workflow_id="",
+        scheduled_for__lte=now,
+    )
     blocked = (
         active_runs()
         .filter(job__isnull=True, task__repository_id=OuterRef("task__repository_id"))
         .exclude(dbos_workflow_id="")
     )
+    oldest = due.filter(task__repository_id=OuterRef("task__repository_id")).order_by(
+        "scheduled_for", "created_at", "pk"
+    )
     return list(
-        Run.objects.filter(
-            job__isnull=True,
-            status=Run.Status.QUEUED,
-            dbos_workflow_id="",
-            scheduled_for__lte=now,
-        )
-        .filter(~Exists(blocked))
+        due.filter(~Exists(blocked), pk=Subquery(oldest.values("pk")[:1]))
         .select_related("task")
         .order_by("scheduled_for", "created_at", "pk")[:limit]
     )
