@@ -94,10 +94,11 @@ Explore only when a release moves the pin.
 
 To suggest a skill, open a pull request that adds it to
 [the catalog file](../dashboard/src/catalog/skills.json), pinned to a commit.
-Run `npm run check:catalog` in `dashboard` to check the pin. If you'd rather
-not edit the file, open an issue with a link to the skill's `SKILL.md`.
-Either way, try it on your own code first with **Try from a link**. See
-[contributing](../CONTRIBUTING.md) for the rest.
+Run `npm run check:catalog` in `dashboard` to check the pin and the license.
+The pull request runs the same check. If you'd rather not edit the file, open
+an issue with a link to the skill's `SKILL.md`. Either way, try it on your own
+code first with **Try from a link**. See [contributing](../CONTRIBUTING.md)
+for the rest.
 
 A skill gets listed when:
 
