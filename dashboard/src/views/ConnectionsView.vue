@@ -280,6 +280,12 @@ function turnsOnGitHubTools(need: CapabilityNeed): boolean {
   )
 }
 
+/** A job's name, with its repository when another job here has the same name. */
+function needJobLabel(need: CapabilityNeed, job: CapabilityNeed['jobs'][number]): string {
+  const same = need.jobs.filter((item) => item.job_name === job.job_name).length
+  return same > 1 ? `${job.job_name} (${job.repository})` : job.job_name
+}
+
 const openNeeds = computed(() => app.needs.filter((need) => need.status !== 'ready'))
 // What blocks a job comes first: broken, then missing, then waiting on approval. Optional last.
 const SETUP_ORDER: Record<CapabilityNeed['status'], number> = {
@@ -693,7 +699,7 @@ onMounted(async () => {
                 <template v-for="(job, index) in need.jobs" :key="job.job_id"
                   ><template v-if="index">, </template
                   ><RouterLink :to="`/jobs/${job.job_id}`" class="need-job">{{
-                    job.job_name
+                    needJobLabel(need, job)
                   }}</RouterLink></template
                 ></span
               >
@@ -736,7 +742,13 @@ onMounted(async () => {
               <template v-else-if="need.status === 'unavailable' && need.connection">
                 <Button
                   v-if="editable(need.connection)"
-                  :label="isOpen({ mode: 'need', binding: need.binding }) ? 'Cancel' : 'Reconnect'"
+                  :label="
+                    isOpen({ mode: 'need', binding: need.binding })
+                      ? 'Cancel'
+                      : needsReconnect(need.connection)
+                        ? 'Reconnect'
+                        : 'Edit'
+                  "
                   size="small"
                   @click="toggle({ mode: 'need', binding: need.binding })"
                 />
