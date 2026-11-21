@@ -7,6 +7,7 @@
 import bundledCatalog from '../catalog/skills.json'
 import type { Connection } from '../types'
 import { lineIcons } from './icons'
+import { ScheduleChoice } from './skills'
 
 /** The catalog format this dashboard reads. A newer one is ignored. */
 export const CATALOG_VERSION = 1
@@ -261,6 +262,52 @@ export function loadCatalog(): Promise<CatalogSkill[]> {
 
 export function findSkill(skills: CatalogSkill[], key: string): CatalogSkill | undefined {
   return skills.find((skill) => skill.key === key)
+}
+
+/** The listed skill a run used, if it came from the catalog. */
+export function skillForSource(
+  skills: CatalogSkill[],
+  repository: string,
+  path: string,
+): CatalogSkill | undefined {
+  return skills.find(
+    (skill) => skill.source.repository === repository && skill.source.path === path,
+  )
+}
+
+/** The schedule to offer first, from the catalog's cadence. Anything irregular runs by hand. */
+export function scheduleFor(skill: Pick<CatalogSkill, 'cadence'> | undefined): ScheduleChoice {
+  if (!skill) return ScheduleChoice.Weekly
+  const cadences: Record<string, ScheduleChoice> = {
+    daily: ScheduleChoice.Daily,
+    'every weekday': ScheduleChoice.Weekdays,
+    weekly: ScheduleChoice.Weekly,
+    'every monday': ScheduleChoice.Weekly,
+    monthly: ScheduleChoice.Monthly,
+  }
+  return cadences[skill.cadence.toLowerCase()] ?? ScheduleChoice.Manual
+}
+
+/** Notification connections that match where the example job sends its results. */
+export function suggestedNotify(
+  skill: Pick<CatalogSkill, 'suggested_delivery'> | undefined,
+  connections: Pick<Connection, 'kind' | 'status' | 'binding_key' | 'display_name'>[],
+): string[] {
+  const labels = (skill?.suggested_delivery ?? [])
+    .filter((delivery) => delivery.kind === DeliveryKind.Notify && delivery.label)
+    .map((delivery) => delivery.label.toLowerCase())
+  return connections
+    .filter(
+      (connection) =>
+        connection.kind === 'notification' &&
+        connection.status === 'connected' &&
+        labels.some(
+          (label) =>
+            connection.binding_key.toLowerCase() === label ||
+            connection.display_name.toLowerCase().includes(label),
+        ),
+    )
+    .map((connection) => connection.binding_key)
 }
 
 /** Opens the task form for this skill. Nothing runs until someone checks it and queues it. */

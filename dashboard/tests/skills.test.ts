@@ -78,6 +78,7 @@ test('a schedule draft pins the commit the run used', () => {
     repository: 'acme/skills',
     path: 'skills/triage/SKILL.md',
     commitSha: 'a'.repeat(40),
+    schedule: '0 9 * * 1',
     mcps: [{ binding: 'linear', tools: ['create_issue', 'list_issues'], required: false }],
   })
   assert.match(yaml, /^ {2}triage-new-bugs:$/m)
@@ -85,4 +86,29 @@ test('a schedule draft pins the commit the run used', () => {
   assert.match(yaml, new RegExp(`^ {6}ref: ${'a'.repeat(40)}$`, 'm'))
   assert.match(yaml, /^ {10}tools: \[create_issue, list_issues\]$/m)
   assert.equal(jobKey('!!!'), 'skill')
+})
+
+test('the schedule dialog writes the time, the zone and where results go', () => {
+  const draft = {
+    name: 'Alert triage',
+    repository: 'acme/skills',
+    path: 'triage/SKILL.md',
+    commitSha: 'b'.repeat(40),
+    mcps: [],
+  }
+  const yaml = scheduleYaml({
+    ...draft,
+    schedule: '0 9 * * 1-5',
+    timezone: 'Europe/Warsaw',
+    notify: ['alerts-slack'],
+    pullRequest: true,
+  })
+  assert.match(yaml, /^ {4}schedule: "0 9 \* \* 1-5"$/m)
+  assert.match(yaml, /^ {4}timezone: Europe\/Warsaw$/m)
+  assert.match(yaml, /^ {4}notify:\n {6}- binding: alerts-slack$/m)
+  assert.match(yaml, /^ {4}open_pull_request: true$/m)
+  assert.doesNotMatch(yaml, /open_issues/)
+  // A job that only runs by hand has no schedule, so it needs no zone either.
+  const manual = scheduleYaml({ ...draft, schedule: null, timezone: 'Europe/Warsaw' })
+  assert.doesNotMatch(manual, /schedule:|timezone:/)
 })

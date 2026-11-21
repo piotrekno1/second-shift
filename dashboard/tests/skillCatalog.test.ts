@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import bundled from '../src/catalog/skills.json'
+import { ScheduleChoice } from '../src/utils/skills'
 import {
   CODE_CHANGES,
   deliveryPhrase,
@@ -12,6 +13,9 @@ import {
   needsSummary,
   productLabel,
   readCatalog,
+  scheduleFor,
+  skillForSource,
+  suggestedNotify,
   tryLink,
   worksWith,
 } from '../src/utils/skillCatalog'
@@ -184,4 +188,36 @@ test('suggested delivery reads only known kinds and says what the example job do
     'opens a draft pull request',
   ])
   assert.deepEqual(read(SKILL)!.suggested_delivery, [])
+})
+
+test('a run finds the listed skill it used by repository and path', async () => {
+  const skills = await loadCatalog()
+  const health = skills.find((skill) => skill.key === 'secondshift/repository-health')!
+  const { repository, path } = health.source
+  assert.equal(skillForSource(skills, repository, path), health)
+  assert.equal(skillForSource(skills, repository, 'elsewhere/SKILL.md'), undefined)
+})
+
+test('the schedule offered first follows the cadence, and irregular ones run by hand', () => {
+  assert.equal(scheduleFor({ cadence: 'Every weekday' }), ScheduleChoice.Weekdays)
+  assert.equal(scheduleFor({ cadence: 'Every Monday' }), ScheduleChoice.Weekly)
+  assert.equal(scheduleFor({ cadence: 'Monthly' }), ScheduleChoice.Monthly)
+  assert.equal(scheduleFor({ cadence: 'Before each release' }), ScheduleChoice.Manual)
+  // A pasted skill has no cadence to go on.
+  assert.equal(scheduleFor(undefined), ScheduleChoice.Weekly)
+})
+
+test('the suggested channel picks matching webhooks that work', () => {
+  const skill = read({ ...SKILL, suggested_delivery: [{ kind: 'notify', label: 'Slack' }] })!
+  const webhook = { kind: 'notification' as const, status: 'connected' as const }
+  assert.deepEqual(
+    suggestedNotify(skill, [
+      { ...webhook, binding_key: 'alerts', display_name: 'Team Slack' },
+      { ...webhook, binding_key: 'slack', display_name: '', status: 'revoked' },
+      { ...webhook, binding_key: 'email', display_name: 'Email' },
+      { ...webhook, kind: 'mcp', binding_key: 'slack', display_name: 'Slack' },
+    ]),
+    ['alerts'],
+  )
+  assert.deepEqual(suggestedNotify(undefined, []), [])
 })
