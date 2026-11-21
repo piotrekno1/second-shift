@@ -340,7 +340,9 @@ function tryPasted(): void {
 
 <style>
 /* The drawer renders outside the page, so its styles can't be scoped. */
+/* The theme draws a thick border on every side. Only the edge facing the page needs one. */
 .skill-drawer.p-drawer {
+  border: 0;
   border-left: 1px solid var(--border);
   background: var(--night-900);
 }
