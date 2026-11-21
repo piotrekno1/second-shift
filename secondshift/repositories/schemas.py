@@ -21,6 +21,8 @@ class RepositorySchema(Schema):
     github_connection_id: int | None
     # A sync is waiting for the worker or running.
     syncing: bool
+    # Why the newest sync failed, or empty. Jobs keep the last good sync.
+    last_sync_error: str = ""
 
 
 class LocalRepositoryCreateSchema(Schema):

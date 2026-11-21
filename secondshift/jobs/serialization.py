@@ -115,6 +115,7 @@ def serialize_job(
     execution = execution or workspace_execution(job.workspace)
     return JobSchema(
         id=job.id,
+        key=job.key,
         execution_backend=execution.backend,
         execution_label=execution.label,
         execution_problem=execution.problem,
@@ -169,7 +170,6 @@ def serialize_job_detail(job: Job, can_edit_limits: bool) -> JobDetailSchema:
     recent_runs = with_model_usage(newest_job_runs(job))[:20]
     return JobDetailSchema(
         **summary.model_dump(),
-        key=job.key,
         config_hash=job.config_hash,
         history=job.history,
         subagents=job.subagents,

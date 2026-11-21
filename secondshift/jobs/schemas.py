@@ -98,6 +98,8 @@ class LastRunSchema(Schema):
 
 class JobSchema(Schema):
     id: int
+    # The job's name in .secondshift.yaml. It stays the same across syncs.
+    key: str
     execution_backend: str = AgentBackend.PYDANTIC
     execution_label: str = ""
     execution_problem: str = ""
@@ -142,7 +144,6 @@ class OpenIssuesSchema(Schema):
 
 
 class JobDetailSchema(JobSchema):
-    key: str
     config_hash: str
     history: int
     subagents: int
