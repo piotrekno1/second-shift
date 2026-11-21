@@ -21,6 +21,7 @@ import {
 } from '../services/repositories'
 import { useAppStore } from '../stores/app'
 import { useLiveRefresh } from '../composables/useLiveRefresh'
+import { syncFinished } from '../utils/repositorySync'
 import type { RepositoryDetail } from '../types'
 import { Action } from '../utils/permissions'
 import { countLabel, formatDate, formatRelative, jobState, utcTitle } from '../utils/format'
@@ -122,10 +123,10 @@ async function loadRepository(): Promise<void> {
 const syncing = computed(() => repository.value?.syncing ?? false)
 
 async function refreshRepository(): Promise<void> {
-  const wasSyncing = syncing.value
+  const before = repository.value
   await loadRepository()
   // The sync may have added, changed or removed jobs.
-  if (wasSyncing && !syncing.value) await app.refresh()
+  if (repository.value && syncFinished(before, repository.value)) await app.refresh()
 }
 
 const { reschedule } = useLiveRefresh(refreshRepository, () => syncing.value)
