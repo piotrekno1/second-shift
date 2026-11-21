@@ -32,10 +32,14 @@ import {
 
 const agentConnection = useAgentConnectionStore()
 const app = useAppStore()
-// While a run is active only its numbers change. Otherwise refresh everything, since
-// scheduled runs and job changes can happen in other tabs.
+// Repository sync can change discovered jobs while the user is on overview.
 const runActive = (): boolean => app.runs.some((run) => isRunActive(run.status))
-useLiveRefresh(() => (runActive() ? app.refreshRuns() : app.refresh()), runActive)
+const repositorySyncing = (): boolean => app.repositories.some((repository) => repository.syncing)
+useLiveRefresh(
+  () => (runActive() && !repositorySyncing() ? app.refreshRuns() : app.refresh()),
+  () => runActive() || repositorySyncing(),
+  () => app.refresh(),
+)
 const approvalJobs = computed(() => app.jobs.filter((job) => awaitsApproval(job.grant_status)))
 // Approving cannot start before the binding has a connection, so that comes first.
 const missingConnection = computed(

@@ -17,6 +17,7 @@ export function refreshDelay(active: boolean, hidden: boolean): number | null {
 export function useLiveRefresh(
   load: () => Promise<unknown> | void,
   active: () => boolean,
+  loadOnMount?: () => Promise<unknown> | void,
 ): { reschedule: () => void } {
   let timer: number | null = null
   let inFlight = false
@@ -29,11 +30,11 @@ export function useLiveRefresh(
     if (delay !== null && !stopped) timer = window.setTimeout(tick, delay)
   }
 
-  async function tick(): Promise<void> {
+  async function tick(refresh = load): Promise<void> {
     if (inFlight) return
     inFlight = true
     try {
-      await load()
+      await refresh()
     } catch {
       // The view shows its own load errors. Keep refreshing.
     } finally {
@@ -49,7 +50,8 @@ export function useLiveRefresh(
 
   onMounted(() => {
     document.addEventListener('visibilitychange', onVisibility)
-    schedule()
+    if (loadOnMount && !document.hidden) void tick(loadOnMount)
+    else schedule()
   })
   onUnmounted(() => {
     stopped = true
