@@ -79,6 +79,11 @@ name and try again.
 Anywhere else, select **Copy**, add the job to `.secondshift.yaml` in that
 repository and commit it.
 
+Once the repository syncs, Overview says whether the job showed up. If it
+did, it shows the next run, or that an owner still has to approve the
+services it uses. If the sync failed or the job isn't on the branch yet, it
+says so. This browser remembers what you scheduled for two weeks.
+
 The job doesn't list the tools the skill needs. If it uses a service, add
 the tools under `requires`, and an owner approves them. See
 [skills from another repository](repository-configuration.md#skills-from-another-repository).
