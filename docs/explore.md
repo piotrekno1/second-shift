@@ -3,7 +3,7 @@
 Explore is a list of skills you can run once on your own code. If you like
 the result, you schedule it as a job.
 
-<video src="https://github.com/user-attachments/assets/2e48124d-489f-449b-be66-25107697e9b0" controls playsinline preload="metadata" width="100%"></video>
+<video src="https://github.com/user-attachments/assets/2e48124d-489f-449b-be66-25107697e9b0" poster="/media/ci-fixer-walkthrough.jpg" controls playsinline preload="metadata" width="100%"></video>
 
 [Watch the 48-second walkthrough](https://github.com/user-attachments/assets/2e48124d-489f-449b-be66-25107697e9b0). A CI check fails on two pull
 requests. The CI failure fixer from Explore traces both failures to one bug,
@@ -39,6 +39,8 @@ Select a card to read more:
 - how often it is worth running
 - the repository, the pinned commit and the license, with a link to read the
   skill itself
+
+![CI failure review skill details showing the expected output, read-only GitHub access, and the option to try it on a repository](screenshots/explore-skill-details.jpg)
 
 The address of an open skill can be shared. It opens Explore on that skill.
 

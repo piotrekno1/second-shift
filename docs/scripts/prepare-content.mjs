@@ -12,6 +12,8 @@ await mkdir(publicScreenshots, { recursive: true });
 await copyFile(new URL('../../dashboard/public/secondshift-mark.svg', import.meta.url), publicMark);
 await copyFile(new URL('../../dashboard/public/favicon.svg', import.meta.url), publicFavicon);
 await copyFile(new URL('../src/assets/og.png', import.meta.url), publicShareImage);
+await mkdir(new URL('../public/media/', import.meta.url), { recursive: true });
+await copyFile(new URL('../src/assets/ci-fixer-walkthrough.jpg', import.meta.url), new URL('../public/media/ci-fixer-walkthrough.jpg', import.meta.url));
 await copyFile(new URL('../src/assets/apple-touch-icon.png', import.meta.url), new URL('../public/apple-touch-icon.png', import.meta.url));
 const files = (await readdir(root)).filter((name) => name.endsWith('.md'));
 for (const name of files) {
