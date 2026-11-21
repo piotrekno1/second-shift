@@ -3,6 +3,12 @@
 Explore is a list of skills you can run once on your own code. If you like
 the result, you schedule it as a job.
 
+<video src="https://github.com/user-attachments/assets/977391e2-6fd2-49b4-bf30-3645009f73ce" controls playsinline preload="metadata" width="100%"></video>
+
+[Watch the 48-second walkthrough](https://github.com/user-attachments/assets/977391e2-6fd2-49b4-bf30-3645009f73ce). A CI check fails on two pull
+requests. The CI failure fixer from Explore traces both failures to one bug,
+opens a draft fix, and a second draft schedules it.
+
 ![Explore](screenshots/explore.jpg)
 
 ## Find a skill
