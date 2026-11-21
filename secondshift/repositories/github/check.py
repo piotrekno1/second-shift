@@ -17,7 +17,7 @@ from secondshift.connections.models import Connection
 from secondshift.github import app, credentials, permissions
 from secondshift.github.errors import GitHubError
 from secondshift.github.tokens import inspect_token
-from secondshift.repositories.dao import connection_repositories
+from secondshift.repositories.dao import connection_repositories, request_sync
 from secondshift.repositories.github.access import (
     GitHubAccess,
     github_access,
@@ -243,6 +243,18 @@ def check_source(connection: Connection) -> SourceCheck:
         fix_url=result.fix_url,
     )
     return result
+
+
+def recheck_new_token(connection: Connection) -> None:
+    """Check a replaced token at once, and sync what the old one failed to.
+
+    Otherwise the Connections page shows the old token's failed check, and a
+    repository keeps its sync error until someone presses Resync.
+    """
+    check_source(connection)
+    for repository in connection_repositories(connection):
+        if repository.last_sync_error:
+            request_sync(repository.pk)
 
 
 def last_checked(connection: Connection) -> datetime | None:
