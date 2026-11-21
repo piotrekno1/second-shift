@@ -139,8 +139,8 @@ function fixLabel(url: string): string {
       <h3>If it works for you</h3>
       <p>
         Good to run: <strong>{{ skill.cadence.toLowerCase() }}</strong>. After the run, choose
-        <strong>Schedule this skill</strong> to get a job for <code>.secondshift.yaml</code>, pinned
-        to this commit.
+        <strong>Schedule it</strong> to get a job for <code>.secondshift.yaml</code>, pinned to this
+        commit.
       </p>
     </section>
 
