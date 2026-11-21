@@ -3,9 +3,6 @@
 Explore is a list of skills you can run once on your own code. If you like
 the result, you schedule it as a job.
 
-Explore is new. The list of skills and the way it is built may change
-between releases.
-
 ![Explore](screenshots/explore.jpg)
 
 ## Find a skill
