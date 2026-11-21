@@ -136,6 +136,8 @@ class RunDetailSchema(RunSchema):
     job_key: str
     skill_path: str
     skill_source: RunSkillSourceSchema | None = None
+    # A tried skill whose job can be added by a draft pull request.
+    schedules_by_pull_request: bool = False
     created_at: datetime
     exit_code: int | None
     model_provider: str | None
@@ -192,3 +194,20 @@ class TaskSubmissionSchema(Schema):
     task_id: int
     run: RunSchema
     started: bool
+
+
+class ScheduleSkillSchema(Schema):
+    """The job the schedule dialog built for a skill someone tried."""
+
+    name: str = Field(min_length=1, max_length=200)
+    # Five-field cron, or none for a job that runs only when someone starts it.
+    schedule: str | None = Field(default=None, min_length=1, max_length=100)
+    timezone: str = Field(default="UTC", min_length=1, max_length=100)
+    notify: list[str] = Field(default_factory=list, max_length=20)
+    open_pull_request: bool = False
+    open_issues: bool = False
+
+
+class ScheduledSkillSchema(Schema):
+    number: int
+    url: str

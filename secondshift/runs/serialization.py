@@ -9,6 +9,7 @@ from secondshift.runs.reporting.failures import (
     describe_failure,
     model_provider_next_step,
 )
+from secondshift.runs.scheduling import refusal as schedule_refusal
 from secondshift.runs.schemas import (
     RunAccessNeedSchema,
     RunChangesSchema,
@@ -187,6 +188,7 @@ def serialize_run_detail(run: Run) -> RunDetailSchema:
         job_key=run.job_key,
         skill_path=run.plan.job.skill_path,
         skill_source=run_skill_source(run),
+        schedules_by_pull_request=not schedule_refusal(run),
         created_at=run.created_at,
         exit_code=run.exit_code,
         model_provider=model.connection_name if model else None,

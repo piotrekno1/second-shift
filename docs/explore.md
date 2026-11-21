@@ -67,8 +67,17 @@ The dialog starts from what the skill suggests:
   For skills that open issues or give a patch, you can also choose to
   propose GitHub issues or open a draft pull request.
 
-The job below updates as you choose. Copy it into `.secondshift.yaml` in
-that repository and commit it. It pins the commit the run used.
+The job below updates as you choose. It pins the commit the run used.
+
+On a GitHub repository where an owner allows pull requests, select **Open
+pull request**. SecondShift adds the job to `.secondshift.yaml` on the
+default branch and opens a draft pull request with that one change. The rest
+of the file stays as it was. The job starts once you merge it and the
+repository syncs. If the file already has a job with that name, change the
+name and try again.
+
+Anywhere else, select **Copy**, add the job to `.secondshift.yaml` in that
+repository and commit it.
 
 The job doesn't list the tools the skill needs. If it uses a service, add
 the tools under `requires`, and an owner approves them. See

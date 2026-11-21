@@ -74,6 +74,25 @@ export async function runTaskAgain(runId: number, idempotencyKey: string): Promi
   return { id: result.run.id, started: result.started }
 }
 
+export interface ScheduleRequest {
+  name: string
+  schedule: string | null
+  timezone: string
+  notify: string[]
+  open_pull_request: boolean
+  open_issues: boolean
+}
+
+export interface ScheduledSkill {
+  number: number
+  url: string
+}
+
+/** Open a draft pull request that adds a tried skill's job to .secondshift.yaml. */
+export function scheduleSkill(runId: number, request: ScheduleRequest): Promise<ScheduledSkill> {
+  return apiPost<ScheduledSkill>(`/runs/${runId}/schedule`, request)
+}
+
 export function isRunActive(status: Run['status']): boolean {
   return status === 'queued' || status === 'running'
 }
