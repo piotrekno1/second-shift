@@ -177,6 +177,8 @@ export interface Repository {
   github_connection_id: number | null
   /** A sync is waiting for the worker or running. */
   syncing: boolean
+  /** Why the newest sync failed, or ''. Jobs keep the last good sync. */
+  last_sync_error?: string
 }
 
 export interface RepositoryValidation {
@@ -235,6 +237,8 @@ export interface Job {
   /** Why the job's sandbox environment stops it from running, or ''. */
   environment_problem: string
   id: number
+  /** The job's name in .secondshift.yaml. It stays the same across syncs. */
+  key: string
   name: string
   repository_id: number
   repository: string
@@ -257,7 +261,6 @@ export interface Job {
 }
 
 export interface JobDetail extends Job {
-  key: string
   config_hash: string
   /** How many of its own earlier reports each run starts with. */
   history: number

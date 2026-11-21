@@ -49,6 +49,7 @@ def serialize_repository(
         revision=repository.config_sha,
         github_connection_id=repository.github_connection_id,
         syncing=repository.sync_requested_at is not None,
+        last_sync_error=repository.last_sync_error,
     )
 
 

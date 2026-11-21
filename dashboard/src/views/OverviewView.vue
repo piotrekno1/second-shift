@@ -7,6 +7,7 @@ import ExecutionWarning from '../components/ExecutionWarning.vue'
 import PageHeader from '../components/PageHeader.vue'
 import RunRow from '../components/RunRow.vue'
 import RunsChart from '../components/RunsChart.vue'
+import ScheduledSkillNotices from '../components/ScheduledSkillNotices.vue'
 import SetupChecklist from '../components/SetupChecklist.vue'
 import StatCard from '../components/StatCard.vue'
 import StatusPill from '../components/StatusPill.vue'
@@ -159,6 +160,7 @@ const attentionDetail = computed(() => {
     <SetupChecklist v-if="setup" :steps="setup" />
     <!-- The checklist already asks for what runs jobs. -->
     <ExecutionWarning v-if="!setup || !app.overview?.execution?.needs_setup" />
+    <ScheduledSkillNotices />
 
     <!-- Until the first run there is nothing to count or list, and the checklist
          already carries the next step, so the rest of the page waits. -->

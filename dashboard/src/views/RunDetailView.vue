@@ -51,7 +51,8 @@ import {
   skillForSource,
   suggestedNotify,
 } from '../utils/skillCatalog'
-import { SCHEDULE_CHOICES, ScheduleChoice, scheduleYaml } from '../utils/skills'
+import { SCHEDULE_CHOICES, ScheduleChoice, jobKey, scheduleYaml } from '../utils/skills'
+import { rememberScheduledSkill } from '../utils/scheduledSkills'
 
 const POLL_MS = 2000
 
@@ -312,6 +313,7 @@ async function proposeSchedule(): Promise<void> {
       open_pull_request: offersPullRequest.value && pullRequestChoice.value,
       open_issues: offersIssues.value && issuesChoice.value,
     })
+    rememberSchedule()
   } catch (caught) {
     scheduleError.value = errorMessage(caught)
   } finally {
@@ -319,9 +321,22 @@ async function proposeSchedule(): Promise<void> {
   }
 }
 
+/** Overview then confirms once the job shows up, or says why it hasn't. */
+function rememberSchedule(): void {
+  const user = app.user
+  if (!run.value || !user?.workspace_slug) return
+  rememberScheduledSkill(localStorage, user.email, user.workspace_slug, {
+    repositoryId: run.value.repository_id,
+    key: jobKey(scheduleName.value.trim() || 'Skill'),
+    name: scheduleName.value.trim() || 'Skill',
+    at: new Date().toISOString(),
+  })
+}
+
 async function copySchedule(): Promise<void> {
   try {
     await navigator.clipboard.writeText(scheduleText.value)
+    rememberSchedule()
     copied.value = true
     window.setTimeout(() => {
       copied.value = false
