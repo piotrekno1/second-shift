@@ -18,7 +18,7 @@ on your own server in production.
 [Security model](docs/security-model.md) ·
 [Docs](https://second-shift.app/docs/overview/)
 
-https://github.com/user-attachments/assets/977391e2-6fd2-49b4-bf30-3645009f73ce
+https://github.com/user-attachments/assets/2e48124d-489f-449b-be66-25107697e9b0
 
 A CI check fails on two pull requests. The CI failure fixer skill from Explore
 runs once in a sandbox and traces both failures to one bug. It opens a draft
