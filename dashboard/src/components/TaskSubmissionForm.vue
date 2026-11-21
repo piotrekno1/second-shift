@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import Button from 'primevue/button'
 import Dialog from 'primevue/dialog'
@@ -31,6 +31,7 @@ const tasks = useTasksStore()
 tasks.error = null
 const router = useRouter()
 const visible = ref(true)
+const errorLine = ref<HTMLElement | null>(null)
 const instructionSource = ref<'text' | 'skill' | 'external'>(
   props.initialSkill ? 'external' : 'text',
 )
@@ -180,6 +181,9 @@ async function submit(): Promise<void> {
     await router.push(`/runs/${result.run.id}`)
   } catch {
     // The store keeps the failure, and the form retains the retry key and input.
+    // The error sits below a long form, so bring it into view.
+    await nextTick()
+    errorLine.value?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
   }
 }
 </script>
@@ -410,7 +414,7 @@ async function submit(): Promise<void> {
             </div>
           </details>
         </div>
-        <p v-if="tasks.error" class="task-error" role="alert">
+        <p v-if="tasks.error" ref="errorLine" class="task-error" role="alert">
           <AppIcon name="alert-circle-outline" /><span>{{ tasks.error }}</span>
         </p>
       </fieldset>

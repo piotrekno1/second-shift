@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import AppIcon from '../components/AppIcon.vue'
+import ExecutionWarning from '../components/ExecutionWarning.vue'
 import PageHeader from '../components/PageHeader.vue'
 import TaskSubmissionForm from '../components/TaskSubmissionForm.vue'
 import type { SkillReference } from '../services/skills'
+import { useSkillCatalog } from '../composables/useSkillCatalog'
 import { useAppStore } from '../stores/app'
 import type { Repository } from '../types'
 import { Action } from '../utils/permissions'
@@ -26,6 +28,29 @@ const skill = computed<SkillReference>(() => ({
   ref: text(route.query.ref),
 }))
 const repositories = computed(() => app.repositories.filter((repository) => repository.enabled))
+// Coming back from adding a repository, ?on= picks the one just added.
+watch(
+  repositories,
+  (list) => {
+    chosen.value ??= list.find((repository) => String(repository.id) === route.query.on) ?? null
+  },
+  { immediate: true },
+)
+// Adding a repository brings you back here, to the same skill.
+const addRepository = computed(() => ({
+  path: '/repositories/new',
+  query: { next: route.fullPath },
+}))
+// A skill from Explore keeps its name here, so the page says what you are trying.
+const catalog = useSkillCatalog()
+const listed = computed(() =>
+  catalog.value.find(
+    (item) =>
+      item.source.repository === skill.value.repository &&
+      item.source.path === skill.value.path &&
+      item.source.ref === skill.value.ref,
+  ),
+)
 const named = computed(() =>
   skill.value.repository && skill.value.path ? `${skill.value.repository}/${skill.value.path}` : '',
 )
@@ -35,9 +60,12 @@ const named = computed(() =>
   <div class="page">
     <PageHeader
       compact
-      title="Try a skill"
-      description="Run a skill from another repository once, on one of your repositories."
+      :title="listed ? `Try ${listed.name}` : 'Try a skill'"
+      :parent="{ label: 'Explore', to: '/explore' }"
+      :description="listed?.summary"
     />
+    <!-- Without a model every run fails, so say so before anyone fills in the form. -->
+    <ExecutionWarning />
     <div v-if="!app.can(Action.RunJobs)" class="panel empty-state">
       <AppIcon name="lock-outline" /><strong>Your role cannot start runs</strong
       ><span>Ask a workspace owner to try this skill.</span>
@@ -45,7 +73,7 @@ const named = computed(() =>
     <div v-else-if="!repositories.length" class="panel empty-state">
       <AppIcon name="source-repository" /><strong>Add a repository first</strong
       ><span>A skill runs on one of your repositories.</span>
-      <RouterLink to="/repositories/new" class="primary-action"
+      <RouterLink :to="addRepository" class="primary-action"
         >Add repository <AppIcon name="arrow-right"
       /></RouterLink>
     </div>

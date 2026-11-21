@@ -38,7 +38,17 @@ import { runBlocker } from '../utils/readiness'
 import { startedByLabel } from '../utils/triggers'
 import { errorMessage } from '../services/api'
 import Dialog from 'primevue/dialog'
-import { scheduleYaml } from '../utils/skills'
+import Select from 'primevue/select'
+import { useSkillCatalog } from '../composables/useSkillCatalog'
+import {
+  CodeChange,
+  DeliveryKind,
+  productLabel,
+  scheduleFor,
+  skillForSource,
+  suggestedNotify,
+} from '../utils/skillCatalog'
+import { SCHEDULE_CHOICES, ScheduleChoice, scheduleYaml } from '../utils/skills'
 
 const POLL_MS = 2000
 
@@ -201,17 +211,66 @@ function startPolling(): void {
 }
 
 // A task that tried a skill from another repository can become a job.
+const catalog = useSkillCatalog()
+const listed = computed(() => {
+  const source = run.value?.skill_source
+  if (!run.value || !source) return undefined
+  return skillForSource(catalog.value, source.repository, run.value.skill_path)
+})
+// A try that worked is when someone decides to keep it, so that becomes the next step.
+const tried = computed(
+  () =>
+    run.value?.job_id === null &&
+    Boolean(run.value.skill_source) &&
+    run.value.status === 'succeeded',
+)
 const scheduling = ref(false)
 const copied = ref(false)
+const scheduleChoice = ref<ScheduleChoice>(ScheduleChoice.Weekly)
+const notifyChoice = ref<string[]>([])
+const pullRequestChoice = ref(false)
+const issuesChoice = ref(false)
+const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
+const notifyOptions = computed(() =>
+  app.connections.filter(
+    (connection) => connection.kind === 'notification' && connection.status === 'connected',
+  ),
+)
+const suggests = (kind: DeliveryKind): boolean =>
+  Boolean(listed.value?.suggested_delivery.some((delivery) => delivery.kind === kind))
+// A pull request only makes sense for a skill that changes code.
+const offersPullRequest = computed(
+  () => listed.value?.code === CodeChange.Patch || suggests(DeliveryKind.PullRequest),
+)
+const offersIssues = computed(() => suggests(DeliveryKind.Issues))
+const usesServices = computed(() =>
+  (listed.value?.needs ?? [])
+    .filter((need) => !need.optional)
+    .map((need) => productLabel(need.service)),
+)
+
+function openSchedule(): void {
+  scheduleChoice.value = scheduleFor(listed.value)
+  notifyChoice.value = suggestedNotify(listed.value, app.connections)
+  pullRequestChoice.value = suggests(DeliveryKind.PullRequest)
+  issuesChoice.value = suggests(DeliveryKind.Issues)
+  scheduling.value = true
+}
+
 const scheduleText = computed(() => {
   const source = run.value?.skill_source
   if (!run.value || !source) return ''
   return scheduleYaml({
-    name: run.value.job,
+    name: listed.value?.name ?? run.value.job,
     repository: source.repository,
     path: run.value.skill_path,
     commitSha: source.commit_sha,
-    // The run's access is not a binding list, so people add requires themselves.
+    schedule: SCHEDULE_CHOICES.find((choice) => choice.value === scheduleChoice.value)!.cron,
+    timezone,
+    notify: notifyChoice.value,
+    pullRequest: offersPullRequest.value && pullRequestChoice.value,
+    issues: offersIssues.value && issuesChoice.value,
+    // Runs don't record which tools they were given, so people add requires themselves.
     mcps: [],
   })
 })
@@ -283,16 +342,17 @@ onUnmounted(stopPolling)
         @click="cancel"
       />
       <Button
-        v-if="run?.job_id === null && run.skill_source && !active"
+        v-if="run?.job_id === null && run.skill_source && !active && !tried"
         label="Schedule this skill"
         severity="secondary"
-        @click="scheduling = true"
+        @click="openSchedule"
       >
         <template #icon><AppIcon name="calendar-clock-outline" /></template>
       </Button>
       <Button
         v-if="run && !active && app.can(Action.RunJobs)"
-        class="main-action"
+        :class="{ 'main-action': !tried }"
+        :severity="tried ? 'secondary' : undefined"
         label="Run again"
         :title="rerunBlocker || undefined"
         :disabled="Boolean(rerunBlocker)"
@@ -365,6 +425,19 @@ onUnmounted(stopPolling)
             >How the task queue works</DocsLink
           >
         </p>
+      </section>
+
+      <section v-if="tried" class="panel run-keep">
+        <div class="run-keep-text">
+          <strong>Keep {{ listed?.name ?? 'this skill' }} running?</strong>
+          <span v-if="listed?.cadence">Suggested: {{ listed.cadence.toLowerCase() }}.</span>
+        </div>
+        <div class="run-keep-actions">
+          <RouterLink to="/explore" class="run-keep-other">Try another skill</RouterLink>
+          <Button label="Schedule it" class="main-action" @click="openSchedule">
+            <template #icon><AppIcon name="calendar-clock-outline" /></template>
+          </Button>
+        </div>
       </section>
 
       <div class="run-layout">
@@ -716,10 +789,47 @@ onUnmounted(stopPolling)
       >
         <p class="run-details-muted">
           Add this job to <code>.secondshift.yaml</code> in {{ run.repository }} and commit it. It
-          pins the commit this run used, so the skill changes only when you change the commit. Set
-          the schedule you want, and add the access it needs under <code>requires</code>.
+          pins the commit this run used.
         </p>
+        <div class="schedule-choices">
+          <label class="schedule-label" for="schedule-when">When</label>
+          <div class="schedule-control">
+            <Select
+              v-model="scheduleChoice"
+              input-id="schedule-when"
+              class="schedule-select"
+              :options="SCHEDULE_CHOICES"
+              option-label="label"
+              option-value="value"
+            />
+            <small v-if="scheduleChoice !== ScheduleChoice.Manual">{{ timezone }} time</small>
+          </div>
+          <span id="schedule-results" class="schedule-label">Where results go</span>
+          <div class="schedule-control" role="group" aria-labelledby="schedule-results">
+            <span>Every run keeps its report in Runs.</span>
+            <label v-for="connection in notifyOptions" :key="connection.id" class="schedule-check">
+              <input v-model="notifyChoice" type="checkbox" :value="connection.binding_key" />
+              <span>Send it to {{ connection.display_name || connection.binding_key }}</span>
+            </label>
+            <label v-if="offersIssues" class="schedule-check">
+              <input v-model="issuesChoice" type="checkbox" />
+              <span>Propose GitHub issues</span>
+            </label>
+            <label v-if="offersPullRequest" class="schedule-check">
+              <input v-model="pullRequestChoice" type="checkbox" />
+              <span>Open a draft pull request with its changes</span>
+            </label>
+            <small v-if="!notifyOptions.length"
+              >To send it to Slack or email too,
+              <RouterLink to="/connections" class="schedule-link">add a webhook</RouterLink>.</small
+            >
+          </div>
+        </div>
         <pre class="run-output schedule-skill-yaml">{{ scheduleText }}</pre>
+        <p v-if="usesServices.length" class="run-details-muted">
+          It uses {{ usesServices.join(' and ') }}. Add the tools it needs under
+          <code>requires</code>, and an owner approves them.
+        </p>
         <template #footer>
           <Button label="Close" severity="secondary" text @click="scheduling = false" />
           <Button :label="copied ? 'Copied' : 'Copy'" class="main-action" @click="copySchedule"
@@ -762,8 +872,87 @@ onUnmounted(stopPolling)
   margin: 12px 0 0;
   font-size: var(--text-xs);
 }
+.run-keep {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 20px;
+  margin-bottom: 16px;
+  padding: 14px 18px;
+}
+.run-keep-text {
+  display: grid;
+  gap: 2px;
+}
+.run-keep-text span {
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+.run-keep-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.run-keep-other {
+  color: var(--muted);
+  font-size: var(--text-sm);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.run-keep-other:hover {
+  color: var(--ink);
+}
+.schedule-choices {
+  display: grid;
+  grid-template-columns: 130px minmax(0, 1fr);
+  align-items: baseline;
+  gap: 18px 16px;
+  margin: 16px 0 0;
+}
+.schedule-label {
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+.schedule-control {
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+  min-width: 0;
+  font-size: var(--text-sm);
+}
+.schedule-select {
+  width: min(100%, 280px);
+}
+.schedule-control small {
+  color: var(--subtle);
+  font-size: var(--text-xs);
+}
+.schedule-link {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.schedule-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.schedule-check input {
+  margin: 0;
+  accent-color: var(--ink);
+}
+@media (max-width: 560px) {
+  .schedule-choices {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+  }
+  .schedule-control + .schedule-label {
+    margin-top: 12px;
+  }
+}
 .schedule-skill-yaml {
-  margin: 12px 0 0;
+  margin: 20px 0 0;
   white-space: pre;
   overflow-x: auto;
 }

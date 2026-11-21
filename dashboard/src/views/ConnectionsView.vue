@@ -49,8 +49,16 @@ const canTest = computed(() => app.can(Action.TestConnections))
 const route = useRoute()
 const router = useRouter()
 const requestedBinding = typeof route.query.binding === 'string' ? route.query.binding : null
+// Explore's Connect button opens Add connection on that service's preset, with
+// a way back to the skill.
+const requestedPreset = typeof route.query.add === 'string' ? route.query.add : ''
+const returnSkill = typeof route.query.skill === 'string' ? route.query.skill : ''
 const openForm = ref<OpenForm | null>(
-  requestedBinding && canEdit.value ? { mode: 'need', binding: requestedBinding } : null,
+  requestedBinding && canEdit.value
+    ? { mode: 'need', binding: requestedBinding }
+    : requestedPreset && canEdit.value
+      ? { mode: 'add' }
+      : null,
 )
 const busy = ref<string | null>(null)
 const confirmDelete = ref<number | null>(null)
@@ -605,6 +613,13 @@ onMounted(async () => {
   <div class="page">
     <PageHeader compact title="Connections" :description="connectionsSubtitle">
       <RouterLink
+        v-if="returnSkill"
+        :to="{ path: '/explore', query: { skill: returnSkill } }"
+        class="secondary-action"
+      >
+        <AppIcon name="arrow-left" /> Back to skill
+      </RouterLink>
+      <RouterLink
         v-if="returnReview"
         :to="{ path: '/jobs', query: { review: returnReview } }"
         class="secondary-action"
@@ -636,7 +651,11 @@ onMounted(async () => {
     </p>
 
     <section v-if="isOpen({ mode: 'add' })" class="panel add-connection-panel">
-      <ConnectionForm @done="formDone" @cancel="openForm = null" />
+      <ConnectionForm
+        :preset="requestedPreset || undefined"
+        @done="formDone"
+        @cancel="openForm = null"
+      />
     </section>
 
     <section v-if="setupNeeds.length" class="panel needs-panel">

@@ -67,6 +67,8 @@ report deliveries that no longer have access.
 ## Try a skill from GitHub
 
 You can try a skill someone else publishes before you trust it with a schedule.
+For skills we list, start from [Explore](explore.md) instead. It fills in the
+link for you.
 The repository can be public, or private if a GitHub connection in this
 workspace can read it.
 
@@ -112,9 +114,11 @@ link runs nothing.
 
 ### Schedule it
 
-After a run, choose **Schedule this skill** on the run page. It shows a job
-for `.secondshift.yaml` that pins the commit the run used. Commit it to the
-repository and approve its access as for any job. See
+After a run, choose **Schedule this skill** on the run page, or **Schedule it**
+after a successful try. Choose when it runs and where results go, and it
+shows a job for `.secondshift.yaml` that pins the commit the run used. Commit
+it to the repository and approve its access as for any job. See
+[Keep it running](explore.md#keep-it-running). See
 [skills from another repository](repository-configuration.md#skills-from-another-repository).
 
 ## Queue and delayed starts

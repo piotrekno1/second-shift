@@ -35,6 +35,8 @@ interface NavItem {
   icon: string
   note: string
   tone?: 'warning' | 'danger'
+  /** Other paths that belong to this section, such as /try under Explore. */
+  also?: string[]
 }
 
 // Something waiting on the reader is said in words, so "1" is never read as a total.
@@ -55,6 +57,8 @@ const groups = computed<{ label: string; items: NavItem[] }[]>(() => [
     label: 'Operate',
     items: [
       { label: 'Overview', to: '/', icon: 'view-dashboard-outline', note: '' },
+      // Before anyone has a skill, Explore is where they start, so it comes first.
+      { label: 'Explore', to: '/explore', icon: 'compass', note: '', also: ['/try'] },
       { label: 'Repositories', to: '/repositories', icon: 'source-repository', note: '' },
       {
         label: 'Jobs',
@@ -95,7 +99,9 @@ const current = computed(() =>
     .find((item) =>
       item.to === '/'
         ? route.path === '/'
-        : route.path === item.to || route.path.startsWith(`${item.to}/`),
+        : [item.to, ...(item.also ?? [])].some(
+            (path) => route.path === path || route.path.startsWith(`${path}/`),
+          ),
     ),
 )
 

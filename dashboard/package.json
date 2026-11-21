@@ -11,7 +11,8 @@
     "test": "node --import tsx --test tests/*.test.ts",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "check:catalog": "node --import tsx scripts/check-catalog-pins.ts"
   },
   "dependencies": {
     "@mdi/js": "^7.4.47",

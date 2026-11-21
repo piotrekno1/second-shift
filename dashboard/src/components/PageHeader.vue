@@ -5,7 +5,7 @@
 defineProps<{
   title: string
   aside?: string
-  description: string
+  description?: string
   parent?: { label: string; to: string }
   compact?: boolean
 }>()
@@ -20,7 +20,7 @@ defineProps<{
       <h1>
         {{ title }}<span v-if="aside" class="title-aside">{{ aside }}</span>
       </h1>
-      <p>{{ description }}</p>
+      <p v-if="description">{{ description }}</p>
     </div>
     <div class="page-actions"><slot /></div>
   </header>

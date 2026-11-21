@@ -27,6 +27,8 @@ const RISKY_SCOPE = /write|admin|delete|manage|query|full/i
 
 const props = defineProps<{
   binding?: string
+  /** The preset a new connection starts on. Unknown keys start on the first one. */
+  preset?: string
   /** Edit or reconnect this connection instead of creating one. */
   connection?: Connection
 }>()
@@ -34,7 +36,12 @@ const emit = defineEmits<{ done: [notice: Notice, binding: string]; cancel: [] }
 const app = useAppStore()
 const editing = computed(() => Boolean(props.connection))
 const reconnecting = computed(() => needsReconnect(props.connection))
-const providerKey = ref(props.connection?.provider ?? app.mcpProviders[0]?.key ?? '')
+const providerKey = ref(
+  props.connection?.provider ??
+    (props.preset && app.mcpProvider(props.preset) ? props.preset : undefined) ??
+    app.mcpProviders[0]?.key ??
+    '',
+)
 const provider = computed(() => app.mcpProvider(providerKey.value))
 const binding = ref(
   props.connection?.binding_key ?? props.binding ?? provider.value?.default_binding ?? '',

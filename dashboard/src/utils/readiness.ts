@@ -244,7 +244,7 @@ function codeStep(state: SetupState): SetupStep {
   if (state.canAddLocal) {
     // On a local install a folder on disk is the quickest start. GitHub adds draft pull requests.
     step.detail =
-      'Pick a Git repository with a .secondshift.yaml. Connect GitHub instead if jobs should open draft pull requests.'
+      'Pick a Git repository. It needs no .secondshift.yaml to try a skill. Connect GitHub instead if jobs should open draft pull requests.'
     step.actions.push({
       label: 'Add local repository',
       to: { path: '/repositories/new', query: { source: 'local' } },
@@ -253,7 +253,7 @@ function codeStep(state: SetupState): SetupStep {
     if (state.canAddGitHub) step.actions.push(github)
   } else {
     step.detail =
-      'Choose GitHub repositories with a .secondshift.yaml. SecondShift lists their jobs.'
+      'Choose GitHub repositories. SecondShift lists their jobs, and you can try skills on them.'
     if (state.canAddGitHub) step.actions.push(github)
   }
   return step
@@ -294,6 +294,8 @@ function runnerStep(state: SetupState): SetupStep {
   }
 }
 
+const EXPLORE_ACTION = { label: 'Try a skill', to: { path: '/explore' }, icon: 'compass' }
+
 function jobStep(state: SetupState): SetupStep {
   const step: SetupStep = {
     key: 'job',
@@ -311,9 +313,11 @@ function jobStep(state: SetupState): SetupStep {
     step.detail = 'Jobs appear once a repository is added.'
     return step
   }
+  // Trying a skill needs no .secondshift.yaml, so it is the quickest first run.
   if (state.jobs === 0) {
-    step.detail = 'Add a job to .secondshift.yaml, then resync the repository.'
-    step.actions.push({
+    step.detail =
+      'Try a skill on your repository once. To schedule it, add a job to .secondshift.yaml.'
+    step.actions.push(EXPLORE_ACTION, {
       label: 'Open repositories',
       to: { path: '/repositories' },
       icon: 'arrow-right',
@@ -323,7 +327,10 @@ function jobStep(state: SetupState): SetupStep {
   }
   // The Jobs page shows what each job still waits for, so one line is enough here.
   step.detail = 'Run a job or a one-off task.'
-  step.actions.push({ label: 'Open jobs', to: { path: '/jobs' }, icon: 'arrow-right' })
+  step.actions.push(
+    { label: 'Open jobs', to: { path: '/jobs' }, icon: 'arrow-right' },
+    EXPLORE_ACTION,
+  )
   return step
 }
 

@@ -31,6 +31,8 @@ git clone https://github.com/piotrekno1/second-shift.git
 
 ## Try a skill from GitHub
 
+To pick from skills we list, open **Explore**, choose one, and select **Try it on a repository**. See [Explore skills](/docs/explore/).
+
 To try a skill someone else published, open your repository, select **New task**, then **Skill from GitHub**, and paste a link to a `SKILL.md`, such as one from [anthropics/skills](https://github.com/anthropics/skills). SecondShift pins it to a commit and mounts it read-only. If you like the result, select **Run again** or **Schedule this skill**. See [Try a skill from GitHub](/docs/tasks/#try-a-skill-from-github).
 
 Model usage may incur charges. For local sign-in and upgrade details, see [self-hosting](/docs/self-hosting/#local-trial). To hand over one-off work, see [Tasks](/docs/tasks/). To add your own scheduled job, continue with [Repository jobs](/docs/engineering-tasks/).

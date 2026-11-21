@@ -1,0 +1,1094 @@
+{
+  "version": 1,
+  "skills": [
+    {
+      "key": "secondshift/repository-health",
+      "status": "listed",
+      "name": "Repository health",
+      "summary": "Finds defects, test gaps and unsafe configuration, and says what to fix first.",
+      "outcome": "A short list of problems, most urgent first, each with the file and a fix.",
+      "category": "review",
+      "icon": "heart-pulse",
+      "cadence": "Weekly",
+      "fits": "",
+      "source": {
+        "repository": "piotrekno1/second-shift",
+        "path": "examples/repository-health/.agents/skills/repository-health/SKILL.md",
+        "ref": "4a84e52306381864220417d8eea3d13899b52552"
+      },
+      "license": "Apache-2.0",
+      "publisher": {
+        "name": "SecondShift",
+        "kind": "secondshift",
+        "verified": true
+      },
+      "submitter": "the SecondShift team",
+      "needs": [],
+      "code": "unchanged",
+      "suggested_delivery": [],
+      "evidence": {
+        "by": "the SecondShift team",
+        "date": "2026-11-21",
+        "agent": "Codex",
+        "target": {
+          "repository": "piotrekno1/second-shift",
+          "commit": "153371df30c1adb07d221781e52cb5a1b8209646"
+        },
+        "seconds": 107,
+        "tokens": 529427,
+        "changed_files": 0,
+        "headline": "found four bugs to fix first, each with a fix",
+        "excerpt": "Accepting two invitations to the same workspace can return HTTP 500. Each request locks its own invite, so both can see that the user has no membership and attempt the insert. Use the existing get-or-create membership helper.",
+        "note": "",
+        "fixed": []
+      }
+    },
+    {
+      "key": "secondshift/docs-drift",
+      "status": "listed",
+      "name": "Documentation drift",
+      "summary": "Finds places where the docs no longer match the repository's files and commands.",
+      "outcome": "Broken links, paths and commands, and names that went stale, each with a fix.",
+      "category": "docs",
+      "icon": "book-open-variant-outline",
+      "cadence": "Weekly",
+      "fits": "",
+      "source": {
+        "repository": "piotrekno1/second-shift",
+        "path": "examples/docs-drift/.agents/skills/docs-drift/SKILL.md",
+        "ref": "4a84e52306381864220417d8eea3d13899b52552"
+      },
+      "license": "Apache-2.0",
+      "publisher": {
+        "name": "SecondShift",
+        "kind": "secondshift",
+        "verified": true
+      },
+      "submitter": "the SecondShift team",
+      "needs": [],
+      "code": "unchanged",
+      "suggested_delivery": [],
+      "evidence": {
+        "by": "the SecondShift team",
+        "date": "2026-11-21",
+        "agent": "Codex",
+        "target": {
+          "repository": "piotrekno1/second-shift",
+          "commit": "153371df30c1adb07d221781e52cb5a1b8209646"
+        },
+        "seconds": 214,
+        "tokens": 1652309,
+        "changed_files": 0,
+        "headline": "found a wrong menu step and three stale guides",
+        "excerpt": "README.md:47 and docs/mcp.md direct users to Connect your agent in the account menu. The current path is API tokens → Create API token.",
+        "note": "",
+        "fixed": []
+      }
+    },
+    {
+      "key": "secondshift/code-simplifier",
+      "status": "listed",
+      "name": "Code simplifier",
+      "summary": "Suggests simpler versions of recently changed code that behave the same.",
+      "outcome": "Rewrites of last week's changes, with before and after.",
+      "category": "refactoring",
+      "icon": "scissors",
+      "cadence": "Weekly",
+      "fits": "",
+      "source": {
+        "repository": "piotrekno1/second-shift",
+        "path": "examples/code-simplifier/.agents/skills/code-simplifier/SKILL.md",
+        "ref": "4a84e52306381864220417d8eea3d13899b52552"
+      },
+      "license": "Apache-2.0",
+      "publisher": {
+        "name": "SecondShift",
+        "kind": "secondshift",
+        "verified": true
+      },
+      "submitter": "the SecondShift team",
+      "needs": [],
+      "code": "unchanged",
+      "suggested_delivery": [],
+      "evidence": {
+        "by": "the SecondShift team",
+        "date": "2026-11-21",
+        "agent": "Codex",
+        "target": {
+          "repository": "piotrekno1/second-shift",
+          "commit": "153371df30c1adb07d221781e52cb5a1b8209646"
+        },
+        "seconds": 69,
+        "tokens": 300644,
+        "changed_files": 0,
+        "headline": "suggested three simplifications in job and run code",
+        "excerpt": "Resolve the binding’s connection and check its kind once per capability. Use that match to compute changing_tools, access and tool_inputs before constructing the schema.",
+        "note": "The copy it ran on had no Git history, so it reviewed recently changed areas instead of last week’s commits.",
+        "fixed": []
+      }
+    },
+    {
+      "key": "secondshift/implicit-state-machines",
+      "status": "listed",
+      "name": "Implicit state machines",
+      "summary": "Finds the state machines hidden in flags and status fields across the app.",
+      "outcome": "Each hidden state machine, its states, and the transitions that can go wrong.",
+      "category": "review",
+      "icon": "transit-connection-variant",
+      "cadence": "Monthly",
+      "fits": "",
+      "source": {
+        "repository": "piotrekno1/second-shift",
+        "path": "examples/implicit-state-machines/.agents/skills/implicit-state-machines/SKILL.md",
+        "ref": "4a84e52306381864220417d8eea3d13899b52552"
+      },
+      "license": "Apache-2.0",
+      "publisher": {
+        "name": "SecondShift",
+        "kind": "secondshift",
+        "verified": true
+      },
+      "submitter": "the SecondShift team",
+      "needs": [],
+      "code": "unchanged",
+      "suggested_delivery": [],
+      "evidence": {
+        "by": "the SecondShift team",
+        "date": "2026-11-21",
+        "agent": "Codex",
+        "target": {
+          "repository": "piotrekno1/second-shift",
+          "commit": "153371df30c1adb07d221781e52cb5a1b8209646"
+        },
+        "seconds": 106,
+        "tokens": 456386,
+        "changed_files": 0,
+        "headline": "mapped hidden state machines and flagged three that can get stuck",
+        "excerpt": "A delivery retry can stay in retrying. The API records retrying and enqueues a separate workflow. If that workflow ends before recording a result, reconciliation only handles active runs, and the retry endpoint accepts only failed deliveries.",
+        "note": "",
+        "fixed": []
+      }
+    },
+    {
+      "key": "secondshift/django-perf-review",
+      "status": "listed",
+      "name": "Django performance review",
+      "summary": "Finds N+1 queries, unbounded querysets and per-row writes in Django code.",
+      "outcome": "Slow queries, the line that causes each, and a fix.",
+      "category": "review",
+      "icon": "gauge",
+      "cadence": "Monthly",
+      "fits": "Django",
+      "source": {
+        "repository": "piotrekno1/second-shift",
+        "path": "examples/django-perf-review/.agents/skills/django-perf-review/SKILL.md",
+        "ref": "4a84e52306381864220417d8eea3d13899b52552"
+      },
+      "license": "Apache-2.0",
+      "publisher": {
+        "name": "SecondShift",
+        "kind": "secondshift",
+        "verified": true
+      },
+      "submitter": "the SecondShift team",
+      "needs": [],
+      "code": "unchanged",
+      "suggested_delivery": [],
+      "evidence": {
+        "by": "the SecondShift team",
+        "date": "2026-11-20",
+        "agent": "Codex",
+        "target": {
+          "repository": "piotrekno1/second-shift",
+          "commit": "2bcf61e9371f995f7f7dac1e77e7b5413dae33d6"
+        },
+        "seconds": 108,
+        "tokens": null,
+        "changed_files": 0,
+        "headline": "found a slow query",
+        "excerpt": "Repository and job lists load skill previews they never return. The repository list prefetches complete job rows just to compute job_count, and each row can hold a 200,000-character skill preview.",
+        "fixed": [
+          {
+            "url": "https://github.com/piotrekno1/second-shift/pull/441",
+            "title": "Stop loading skill previews in repository and job lists"
+          }
+        ],
+        "note": ""
+      }
+    },
+    {
+      "key": "secondshift/django-access-review",
+      "status": "listed",
+      "name": "Django access review",
+      "summary": "Finds views and queries where one user or tenant could reach another's data.",
+      "outcome": "Endpoints that may leak data between users, and how to check each.",
+      "category": "security",
+      "icon": "lock-outline",
+      "cadence": "Monthly",
+      "fits": "Django",
+      "source": {
+        "repository": "piotrekno1/second-shift",
+        "path": "examples/django-access-review/.agents/skills/django-access-review/SKILL.md",
+        "ref": "4a84e52306381864220417d8eea3d13899b52552"
+      },
+      "license": "Apache-2.0",
+      "publisher": {
+        "name": "SecondShift",
+        "kind": "secondshift",
+        "verified": true
+      },
+      "submitter": "the SecondShift team",
+      "needs": [],
+      "code": "unchanged",
+      "suggested_delivery": [],
+      "evidence": null
+    },
+    {
+      "key": "secondshift/security-regression",
+      "status": "listed",
+      "name": "Security regression",
+      "summary": "Reviews recent changes for security regressions, with GitHub and Sentry as evidence.",
+      "outcome": "Risky changes since the last run, with evidence and severity.",
+      "category": "security",
+      "icon": "shield-alert-outline",
+      "cadence": "Weekly",
+      "fits": "",
+      "source": {
+        "repository": "piotrekno1/second-shift",
+        "path": "examples/security-regression/.agents/skills/security-regression/SKILL.md",
+        "ref": "4a84e52306381864220417d8eea3d13899b52552"
+      },
+      "license": "Apache-2.0",
+      "publisher": {
+        "name": "SecondShift",
+        "kind": "secondshift",
+        "verified": true
+      },
+      "submitter": "the SecondShift team",
+      "needs": [
+        {
+          "service": "github",
+          "optional": true,
+          "writes": false
+        },
+        {
+          "service": "sentry",
+          "optional": true,
+          "writes": false
+        }
+      ],
+      "code": "unchanged",
+      "suggested_delivery": [],
+      "evidence": null
+    },
+    {
+      "key": "secondshift/security-audit",
+      "status": "needs-fix",
+      "name": "Security audit",
+      "summary": "Runs Cloudflare's security audit on one part of the codebase per run.",
+      "outcome": "Checked security findings for one area of the code per run.",
+      "category": "security",
+      "icon": "shield-check-outline",
+      "cadence": "Weekly",
+      "fits": "",
+      "source": {
+        "repository": "piotrekno1/second-shift",
+        "path": "examples/security-audit/.agents/skills/scheduled-security-audit/SKILL.md",
+        "ref": "4a84e52306381864220417d8eea3d13899b52552"
+      },
+      "license": "Apache-2.0",
+      "publisher": {
+        "name": "SecondShift",
+        "kind": "secondshift",
+        "verified": true
+      },
+      "submitter": "the SecondShift team",
+      "needs": [],
+      "code": "unchanged",
+      "suggested_delivery": [],
+      "evidence": null
+    },
+    {
+      "key": "secondshift/release-readiness-review",
+      "status": "listed",
+      "name": "Release readiness",
+      "summary": "Checks a planned release for missing migrations, config and rollout steps.",
+      "outcome": "Steps still missing before you release.",
+      "category": "operations",
+      "icon": "rocket",
+      "cadence": "Before each release",
+      "fits": "",
+      "source": {
+        "repository": "piotrekno1/second-shift",
+        "path": "examples/release-readiness-review/.agents/skills/release-readiness-review/SKILL.md",
+        "ref": "4a84e52306381864220417d8eea3d13899b52552"
+      },
+      "license": "Apache-2.0",
+      "publisher": {
+        "name": "SecondShift",
+        "kind": "secondshift",
+        "verified": true
+      },
+      "submitter": "the SecondShift team",
+      "needs": [],
+      "code": "unchanged",
+      "suggested_delivery": [],
+      "evidence": {
+        "by": "the SecondShift team",
+        "date": "2026-11-21",
+        "agent": "Codex",
+        "target": {
+          "repository": "piotrekno1/second-shift",
+          "commit": "153371df30c1adb07d221781e52cb5a1b8209646"
+        },
+        "seconds": 81,
+        "tokens": 414158,
+        "changed_files": 0,
+        "headline": "flagged two upgrade steps in the wrong order",
+        "excerpt": "The runner migration can fail before it reaches the database. The update steps run it without first converting the retained runner.env, and runner settings reject the legacy image setting.",
+        "note": "Its findings are about SecondShift’s beta 13 upgrade guide. We haven’t checked each one yet.",
+        "fixed": []
+      }
+    },
+    {
+      "key": "secondshift/ci-failure-review",
+      "status": "listed",
+      "name": "CI failure review",
+      "summary": "Looks into recurring CI failures and connects them to the code that causes them.",
+      "outcome": "The tests that keep failing, why, and where to fix them.",
+      "category": "operations",
+      "icon": "close-octagon-outline",
+      "cadence": "Every weekday",
+      "fits": "",
+      "source": {
+        "repository": "piotrekno1/second-shift",
+        "path": "examples/ci-failure-review/.agents/skills/ci-failure-review/SKILL.md",
+        "ref": "4a84e52306381864220417d8eea3d13899b52552"
+      },
+      "license": "Apache-2.0",
+      "publisher": {
+        "name": "SecondShift",
+        "kind": "secondshift",
+        "verified": true
+      },
+      "submitter": "the SecondShift team",
+      "needs": [
+        {
+          "service": "github",
+          "optional": false,
+          "writes": false
+        }
+      ],
+      "code": "unchanged",
+      "suggested_delivery": [],
+      "evidence": null
+    },
+    {
+      "key": "secondshift/production-error-review",
+      "status": "listed",
+      "name": "Production error review",
+      "summary": "Looks into new or worsening Sentry errors and traces them to repository code.",
+      "outcome": "Each new error traced to the code that throws it.",
+      "category": "operations",
+      "icon": "bug",
+      "cadence": "Daily",
+      "fits": "",
+      "source": {
+        "repository": "piotrekno1/second-shift",
+        "path": "examples/production-error-review/.agents/skills/production-error-review/SKILL.md",
+        "ref": "4a84e52306381864220417d8eea3d13899b52552"
+      },
+      "license": "Apache-2.0",
+      "publisher": {
+        "name": "SecondShift",
+        "kind": "secondshift",
+        "verified": true
+      },
+      "submitter": "the SecondShift team",
+      "needs": [
+        {
+          "service": "sentry",
+          "optional": false,
+          "writes": false
+        }
+      ],
+      "code": "unchanged",
+      "suggested_delivery": [],
+      "evidence": null
+    },
+    {
+      "key": "secondshift/alert-triage",
+      "status": "listed",
+      "name": "Alert triage",
+      "summary": "Reads an alert, checks metrics, logs and errors around it, and reports a likely cause.",
+      "outcome": "A likely cause for the alert, with the metrics and logs behind it.",
+      "category": "operations",
+      "icon": "siren",
+      "cadence": "When an alert fires",
+      "fits": "",
+      "source": {
+        "repository": "piotrekno1/second-shift",
+        "path": "examples/alert-triage/.agents/skills/alert-triage/SKILL.md",
+        "ref": "4a84e52306381864220417d8eea3d13899b52552"
+      },
+      "license": "Apache-2.0",
+      "publisher": {
+        "name": "SecondShift",
+        "kind": "secondshift",
+        "verified": true
+      },
+      "submitter": "the SecondShift team",
+      "needs": [
+        {
+          "service": "grafana",
+          "optional": false,
+          "writes": false
+        },
+        {
+          "service": "sentry",
+          "optional": false,
+          "writes": false
+        }
+      ],
+      "code": "unchanged",
+      "suggested_delivery": [
+        {
+          "kind": "notify",
+          "label": "Slack"
+        }
+      ],
+      "evidence": null
+    },
+    {
+      "key": "secondshift/incident-follow-up-review",
+      "status": "listed",
+      "name": "Incident follow-up",
+      "summary": "Checks that incident action items marked done are really in the code and tests.",
+      "outcome": "Action items marked done that the code does not show.",
+      "category": "operations",
+      "icon": "progress-check",
+      "cadence": "Weekly",
+      "fits": "",
+      "source": {
+        "repository": "piotrekno1/second-shift",
+        "path": "examples/incident-follow-up-review/.agents/skills/incident-follow-up-review/SKILL.md",
+        "ref": "4a84e52306381864220417d8eea3d13899b52552"
+      },
+      "license": "Apache-2.0",
+      "publisher": {
+        "name": "SecondShift",
+        "kind": "secondshift",
+        "verified": true
+      },
+      "submitter": "the SecondShift team",
+      "needs": [
+        {
+          "service": "issue-tracker",
+          "optional": true,
+          "writes": false,
+          "changes": ""
+        }
+      ],
+      "code": "unchanged",
+      "suggested_delivery": [],
+      "evidence": null
+    },
+    {
+      "key": "secondshift/monitoring-coverage-review",
+      "status": "listed",
+      "name": "Monitoring coverage",
+      "summary": "Compares alerts and monitoring with the ways the code can fail.",
+      "outcome": "Ways the code can fail that no alert would catch.",
+      "category": "operations",
+      "icon": "activity",
+      "cadence": "Weekly",
+      "fits": "",
+      "source": {
+        "repository": "piotrekno1/second-shift",
+        "path": "examples/monitoring-coverage-review/.agents/skills/monitoring-coverage-review/SKILL.md",
+        "ref": "4a84e52306381864220417d8eea3d13899b52552"
+      },
+      "license": "Apache-2.0",
+      "publisher": {
+        "name": "SecondShift",
+        "kind": "secondshift",
+        "verified": true
+      },
+      "submitter": "the SecondShift team",
+      "needs": [
+        {
+          "service": "grafana",
+          "optional": true,
+          "writes": false,
+          "changes": ""
+        }
+      ],
+      "code": "unchanged",
+      "suggested_delivery": [],
+      "evidence": null
+    },
+    {
+      "key": "secondshift/engineering-briefing",
+      "status": "listed",
+      "name": "Engineering briefing",
+      "summary": "Summarizes the week's pull requests and commits, with links.",
+      "outcome": "A Monday summary of what shipped and what is stuck.",
+      "category": "docs",
+      "icon": "newspaper",
+      "cadence": "Every Monday",
+      "fits": "",
+      "source": {
+        "repository": "piotrekno1/second-shift",
+        "path": "examples/engineering-briefing/.agents/skills/engineering-briefing/SKILL.md",
+        "ref": "4a84e52306381864220417d8eea3d13899b52552"
+      },
+      "license": "Apache-2.0",
+      "publisher": {
+        "name": "SecondShift",
+        "kind": "secondshift",
+        "verified": true
+      },
+      "submitter": "the SecondShift team",
+      "needs": [
+        {
+          "service": "github",
+          "optional": false,
+          "writes": false
+        }
+      ],
+      "code": "unchanged",
+      "suggested_delivery": [
+        {
+          "kind": "notify",
+          "label": "engineering-reports"
+        }
+      ],
+      "evidence": null
+    },
+    {
+      "key": "secondshift/issue-fixer",
+      "status": "listed",
+      "name": "Issue fixer",
+      "summary": "Fixes one GitHub issue a maintainer approved, with a test.",
+      "outcome": "A fix with a test, as a patch or a draft pull request.",
+      "category": "tickets",
+      "icon": "wrench-outline",
+      "cadence": "Every weekday",
+      "fits": "",
+      "source": {
+        "repository": "piotrekno1/second-shift",
+        "path": "examples/issue-fixer/.agents/skills/issue-fixer/SKILL.md",
+        "ref": "4a84e52306381864220417d8eea3d13899b52552"
+      },
+      "license": "Apache-2.0",
+      "publisher": {
+        "name": "SecondShift",
+        "kind": "secondshift",
+        "verified": true
+      },
+      "submitter": "the SecondShift team",
+      "needs": [
+        {
+          "service": "github",
+          "optional": false,
+          "writes": false
+        }
+      ],
+      "code": "patch",
+      "suggested_delivery": [
+        {
+          "kind": "pull_request",
+          "label": ""
+        }
+      ],
+      "evidence": null
+    },
+    {
+      "key": "secondshift/ticket-follow-up",
+      "status": "listed",
+      "name": "Ticket follow-up",
+      "summary": "Finds tickets recent code changes may have finished, and says what to check.",
+      "outcome": "Tickets that look finished, and what to check before closing them.",
+      "category": "tickets",
+      "icon": "ticket",
+      "cadence": "Every weekday",
+      "fits": "",
+      "source": {
+        "repository": "piotrekno1/second-shift",
+        "path": "examples/ticket-follow-up/.agents/skills/ticket-follow-up/SKILL.md",
+        "ref": "4a84e52306381864220417d8eea3d13899b52552"
+      },
+      "license": "Apache-2.0",
+      "publisher": {
+        "name": "SecondShift",
+        "kind": "secondshift",
+        "verified": true
+      },
+      "submitter": "the SecondShift team",
+      "needs": [
+        {
+          "service": "github",
+          "optional": false,
+          "writes": false
+        }
+      ],
+      "code": "unchanged",
+      "suggested_delivery": [],
+      "evidence": null
+    },
+    {
+      "key": "secondshift/ticket-reconciliation",
+      "status": "listed",
+      "name": "Ticket reconciliation",
+      "summary": "Updates or closes linked tickets when the code and tests show the work is done.",
+      "outcome": "Tickets updated or closed, each with the commit that finished it.",
+      "category": "tickets",
+      "icon": "ticket-check",
+      "cadence": "Every weekday",
+      "fits": "",
+      "source": {
+        "repository": "piotrekno1/second-shift",
+        "path": "examples/ticket-reconciliation/.agents/skills/ticket-reconciliation/SKILL.md",
+        "ref": "4a84e52306381864220417d8eea3d13899b52552"
+      },
+      "license": "Apache-2.0",
+      "publisher": {
+        "name": "SecondShift",
+        "kind": "secondshift",
+        "verified": true
+      },
+      "submitter": "the SecondShift team",
+      "needs": [
+        {
+          "service": "github",
+          "optional": false,
+          "writes": false
+        },
+        {
+          "service": "issue-tracker",
+          "optional": true,
+          "writes": true,
+          "changes": "Updates and closes linked tickets."
+        }
+      ],
+      "code": "unchanged",
+      "suggested_delivery": [],
+      "evidence": null
+    },
+    {
+      "key": "wshobson/code-review-excellence",
+      "status": "listed",
+      "name": "Code review excellence",
+      "summary": "A thorough review for bugs, design problems and missing tests.",
+      "outcome": "A verdict, then bugs and design problems, most serious first.",
+      "category": "review",
+      "icon": "text-box-search-outline",
+      "cadence": "Monthly",
+      "fits": "",
+      "source": {
+        "repository": "wshobson/agents",
+        "path": "plugins/developer-essentials/skills/code-review-excellence/SKILL.md",
+        "ref": "42203085cfc5736204bf0f6d436dff7e1da0bf3f"
+      },
+      "license": "MIT",
+      "publisher": {
+        "name": "wshobson",
+        "kind": "community",
+        "verified": false
+      },
+      "submitter": "the SecondShift team",
+      "needs": [],
+      "code": "unchanged",
+      "suggested_delivery": [],
+      "evidence": {
+        "by": "the SecondShift team",
+        "date": "2026-11-18",
+        "agent": "Codex",
+        "target": {
+          "repository": "piotrekno1/second-shift",
+          "commit": "d7da7f0c749708f82fb555aa7ba4817fc0a408f8"
+        },
+        "seconds": 110,
+        "tokens": 450382,
+        "changed_files": 0,
+        "headline": "found three real bugs",
+        "excerpt": "Verdict: Request changes. A process exit between saving a queued job run and handing it to DBOS can leave the run stuck and block future starts for that job.",
+        "fixed": [
+          {
+            "url": "https://github.com/piotrekno1/second-shift/pull/368",
+            "title": "Queue job runs that a stopped process saved but never queued"
+          },
+          {
+            "url": "https://github.com/piotrekno1/second-shift/pull/369",
+            "title": "Reconcile every active run, not only the first 500"
+          },
+          {
+            "url": "https://github.com/piotrekno1/second-shift/pull/370",
+            "title": "Keep a delivery retry that DBOS accepted when closing the client fails"
+          }
+        ],
+        "note": ""
+      }
+    },
+    {
+      "key": "addyosmani/code-review-and-quality",
+      "status": "listed",
+      "name": "Code review and quality",
+      "summary": "Reviews code for correctness, readability, design and tests.",
+      "outcome": "Required and optional changes, each backed by a check.",
+      "category": "review",
+      "icon": "check-decagram-outline",
+      "cadence": "Monthly",
+      "fits": "",
+      "source": {
+        "repository": "addyosmani/agent-skills",
+        "path": "skills/code-review-and-quality/SKILL.md",
+        "ref": "8c99fa36d90068c82d547f7c12a9d67a3e95f4ee"
+      },
+      "license": "MIT",
+      "publisher": {
+        "name": "addyosmani",
+        "kind": "community",
+        "verified": false
+      },
+      "submitter": "the SecondShift team",
+      "needs": [],
+      "code": "unchanged",
+      "suggested_delivery": [],
+      "evidence": {
+        "by": "the SecondShift team",
+        "date": "2026-11-18",
+        "agent": "Codex",
+        "target": {
+          "repository": "piotrekno1/second-shift",
+          "commit": "d7da7f0c749708f82fb555aa7ba4817fc0a408f8"
+        },
+        "seconds": 123,
+        "tokens": 578965,
+        "changed_files": 0,
+        "headline": "found a real bug",
+        "excerpt": "Required: the manifest validator accepts 0 9 * * * 30, a six-field expression that DBOS rejects. When an enabled job has this expression, DBOS rejects the entire batch before applying any schedules.",
+        "fixed": [
+          {
+            "url": "https://github.com/piotrekno1/second-shift/pull/367",
+            "title": "Reject cron schedules the scheduler can't run"
+          }
+        ],
+        "note": ""
+      }
+    },
+    {
+      "key": "jeffallan/code-reviewer",
+      "status": "listed",
+      "name": "Code reviewer",
+      "summary": "Looks for bugs, security holes and performance problems.",
+      "outcome": "Critical, major and minor issues, each with a suggested fix.",
+      "category": "review",
+      "icon": "scan-search",
+      "cadence": "Monthly",
+      "fits": "",
+      "source": {
+        "repository": "Jeffallan/claude-skills",
+        "path": "skills/code-reviewer/SKILL.md",
+        "ref": "67c1961b180dc92cf08983344627109e983e8f51"
+      },
+      "license": "MIT",
+      "publisher": {
+        "name": "Jeffallan",
+        "kind": "community",
+        "verified": false
+      },
+      "submitter": "the SecondShift team",
+      "needs": [],
+      "code": "unchanged",
+      "suggested_delivery": [],
+      "evidence": {
+        "by": "the SecondShift team",
+        "date": "2026-11-18",
+        "agent": "Codex",
+        "target": {
+          "repository": "piotrekno1/second-shift",
+          "commit": "d7da7f0c749708f82fb555aa7ba4817fc0a408f8"
+        },
+        "seconds": 139,
+        "tokens": 427982,
+        "changed_files": 0,
+        "headline": "found two real bugs",
+        "excerpt": "Older runs can fall out of workflow reconciliation. Each pass selects the 500 newest unfinished runs with a workflow ID.",
+        "fixed": [
+          {
+            "url": "https://github.com/piotrekno1/second-shift/pull/369",
+            "title": "Reconcile every active run, not only the first 500"
+          },
+          {
+            "url": "https://github.com/piotrekno1/second-shift/pull/370",
+            "title": "Keep a delivery retry that DBOS accepted when closing the client fails"
+          }
+        ],
+        "note": ""
+      }
+    },
+    {
+      "key": "juliusbrussee/caveman-review",
+      "status": "listed",
+      "name": "Caveman review",
+      "summary": "A short, blunt code review with one line per finding.",
+      "outcome": "One line per finding: where, how bad, and what to do.",
+      "category": "review",
+      "icon": "bone",
+      "cadence": "Weekly",
+      "fits": "",
+      "source": {
+        "repository": "JuliusBrussee/caveman",
+        "path": "skills/caveman-review/SKILL.md",
+        "ref": "a192894723a8f47e7f504c7b5041967ff1f18e55"
+      },
+      "license": "Apache-2.0",
+      "publisher": {
+        "name": "JuliusBrussee",
+        "kind": "community",
+        "verified": false
+      },
+      "submitter": "the SecondShift team",
+      "needs": [],
+      "code": "unchanged",
+      "suggested_delivery": [],
+      "evidence": {
+        "by": "the SecondShift team",
+        "date": "2026-11-18",
+        "agent": "Codex",
+        "target": {
+          "repository": "piotrekno1/second-shift",
+          "commit": "d7da7f0c749708f82fb555aa7ba4817fc0a408f8"
+        },
+        "seconds": 95,
+        "tokens": 347996,
+        "changed_files": 0,
+        "headline": "found a real bug",
+        "excerpt": "manifest.py:L279: 🔴 bug: validate_schedule accepts six-field cron expressions that DBOS interprets differently or rejects, blocking schedule reconciliation for every job in the batch.",
+        "fixed": [
+          {
+            "url": "https://github.com/piotrekno1/second-shift/pull/367",
+            "title": "Reject cron schedules the scheduler can't run"
+          }
+        ],
+        "note": ""
+      }
+    },
+    {
+      "key": "dietrichgebert/ponytail-review",
+      "status": "listed",
+      "name": "Ponytail review",
+      "summary": "Reviews a change and sorts findings into must fix and nice to have.",
+      "outcome": "Findings split into must fix and nice to have, each explained plainly.",
+      "category": "review",
+      "icon": "flag",
+      "cadence": "Monthly",
+      "fits": "",
+      "source": {
+        "repository": "DietrichGebert/ponytail",
+        "path": "skills/ponytail-review/SKILL.md",
+        "ref": "96608e078b2d5ea607c5c3b8b5a54d1c1fba6846"
+      },
+      "license": "MIT",
+      "publisher": {
+        "name": "DietrichGebert",
+        "kind": "community",
+        "verified": false
+      },
+      "submitter": "the SecondShift team",
+      "needs": [],
+      "code": "unchanged",
+      "suggested_delivery": [],
+      "evidence": {
+        "by": "the SecondShift team",
+        "date": "2026-11-18",
+        "agent": "Codex",
+        "target": {
+          "repository": "piotrekno1/second-shift",
+          "commit": "d7da7f0c749708f82fb555aa7ba4817fc0a408f8"
+        },
+        "seconds": 92,
+        "tokens": 459547,
+        "changed_files": 0,
+        "headline": "found a real bug",
+        "excerpt": "Must fix: a web process crash can leave a job stuck in “queued.” The web process saves the run, then hands it to the background queue. If the process dies between those steps, the run stays queued.",
+        "fixed": [
+          {
+            "url": "https://github.com/piotrekno1/second-shift/pull/368",
+            "title": "Queue job runs that a stopped process saved but never queued"
+          }
+        ],
+        "note": ""
+      }
+    },
+    {
+      "key": "addyosmani/performance-optimization",
+      "status": "listed",
+      "name": "Performance optimization",
+      "summary": "Measures a slow path, makes it faster and proves it with numbers.",
+      "outcome": "A faster version of a slow path, with timings before and after, and tests.",
+      "category": "refactoring",
+      "icon": "gauge",
+      "cadence": "Monthly",
+      "fits": "",
+      "source": {
+        "repository": "addyosmani/agent-skills",
+        "path": "skills/performance-optimization/SKILL.md",
+        "ref": "8c99fa36d90068c82d547f7c12a9d67a3e95f4ee"
+      },
+      "license": "MIT",
+      "publisher": {
+        "name": "addyosmani",
+        "kind": "community",
+        "verified": false
+      },
+      "submitter": "the SecondShift team",
+      "needs": [],
+      "code": "patch",
+      "suggested_delivery": [],
+      "evidence": {
+        "by": "the SecondShift team",
+        "date": "2026-11-18",
+        "agent": "Codex",
+        "target": {
+          "repository": "piotrekno1/second-shift",
+          "commit": "d7da7f0c749708f82fb555aa7ba4817fc0a408f8"
+        },
+        "seconds": 280,
+        "tokens": 1894538,
+        "changed_files": 3,
+        "headline": "made a slow path 5× faster, with tests",
+        "excerpt": "Manifest parsing is 5× faster in local benchmarks. The 200-job fixture dropped from 112.3 ms to 22.4 ms. Regression tests cover both paths.",
+        "fixed": [],
+        "note": ""
+      }
+    },
+    {
+      "key": "github/refactor",
+      "status": "listed",
+      "name": "Refactor",
+      "summary": "Small refactors that keep behavior the same, checked by the tests.",
+      "outcome": "One small cleanup as a patch, with the tests still passing.",
+      "category": "refactoring",
+      "icon": "blocks",
+      "cadence": "Weekly",
+      "fits": "",
+      "source": {
+        "repository": "github/awesome-copilot",
+        "path": "skills/refactor/SKILL.md",
+        "ref": "a255a193d1318e5a9ca3e9e575897f9a7845c099"
+      },
+      "license": "MIT",
+      "publisher": {
+        "name": "github",
+        "kind": "community",
+        "verified": false
+      },
+      "submitter": "the SecondShift team",
+      "needs": [],
+      "code": "patch",
+      "suggested_delivery": [],
+      "evidence": {
+        "by": "the SecondShift team",
+        "date": "2026-11-18",
+        "agent": "Codex",
+        "target": {
+          "repository": "piotrekno1/second-shift",
+          "commit": "d7da7f0c749708f82fb555aa7ba4817fc0a408f8"
+        },
+        "seconds": 144,
+        "tokens": 349875,
+        "changed_files": 1,
+        "headline": "made a one-file cleanup with every test passing",
+        "excerpt": "Extracted model token accounting from serialize_run into a typed helper. The API and CLI paths keep their existing calculations. All 36 focused tests passed.",
+        "fixed": [],
+        "note": ""
+      }
+    },
+    {
+      "key": "github/refactor-plan",
+      "status": "listed",
+      "name": "Refactor plan",
+      "summary": "Writes a step-by-step plan for a refactor across many files.",
+      "outcome": "A step-by-step plan you can follow, or give to a job.",
+      "category": "refactoring",
+      "icon": "list-ordered",
+      "cadence": "When you plan one",
+      "fits": "",
+      "source": {
+        "repository": "github/awesome-copilot",
+        "path": "skills/refactor-plan/SKILL.md",
+        "ref": "a255a193d1318e5a9ca3e9e575897f9a7845c099"
+      },
+      "license": "MIT",
+      "publisher": {
+        "name": "github",
+        "kind": "community",
+        "verified": false
+      },
+      "submitter": "the SecondShift team",
+      "needs": [],
+      "code": "unchanged",
+      "suggested_delivery": [],
+      "evidence": {
+        "by": "the SecondShift team",
+        "date": "2026-11-18",
+        "agent": "Codex",
+        "target": {
+          "repository": "piotrekno1/second-shift",
+          "commit": "d7da7f0c749708f82fb555aa7ba4817fc0a408f8"
+        },
+        "seconds": 72,
+        "tokens": 203466,
+        "changed_files": 0,
+        "headline": "wrote a full plan for a refactor across three views",
+        "excerpt": "Refactor plan: centralize dashboard list query handling. useListQuery.ts handles URL reads and updates for all three views. Each view separately defines its allowed filter values, defaults, and clear behavior.",
+        "fixed": [],
+        "note": ""
+      }
+    },
+    {
+      "key": "tech-leads-club/docs-writer",
+      "status": "listed",
+      "name": "Docs writer",
+      "summary": "Writes and fixes documentation to match the code.",
+      "outcome": "Docs changes as a patch, checked against the code.",
+      "category": "docs",
+      "icon": "pencil-outline",
+      "cadence": "Weekly",
+      "fits": "",
+      "source": {
+        "repository": "tech-leads-club/agent-skills",
+        "path": "packages/skills-catalog/skills/(development)/docs-writer/SKILL.md",
+        "ref": "fb02f17d15f40f5410bf0706a79d9226a31b82ce"
+      },
+      "license": "MIT",
+      "publisher": {
+        "name": "tech-leads-club",
+        "kind": "community",
+        "verified": false
+      },
+      "submitter": "the SecondShift team",
+      "needs": [],
+      "code": "patch",
+      "suggested_delivery": [],
+      "evidence": {
+        "by": "the SecondShift team",
+        "date": "2026-11-18",
+        "agent": "Codex",
+        "target": {
+          "repository": "piotrekno1/second-shift",
+          "commit": "d7da7f0c749708f82fb555aa7ba4817fc0a408f8"
+        },
+        "seconds": 94,
+        "tokens": 333594,
+        "changed_files": 2,
+        "headline": "fixed outdated docs in two files",
+        "excerpt": "Fixed a documentation discrepancy about local Git repositories. CONTRIBUTING.md now explains that development and installed local mode both support them, and which branch SecondShift follows.",
+        "fixed": [],
+        "note": ""
+      }
+    }
+  ]
+}

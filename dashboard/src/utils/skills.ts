@@ -53,8 +53,34 @@ export interface ScheduleDraft {
   repository: string
   path: string
   commitSha: string
+  /** Five-field cron, or null for a job that runs only when someone starts it. */
+  schedule: string | null
+  /** IANA timezone for the schedule, such as Europe/Warsaw. */
+  timezone?: string
+  /** Notification bindings that get the result. */
+  notify?: string[]
+  pullRequest?: boolean
+  issues?: boolean
   mcps: TaskCapability[]
 }
+
+export const ScheduleChoice = {
+  Weekdays: 'weekdays',
+  Daily: 'daily',
+  Weekly: 'weekly',
+  Monthly: 'monthly',
+  Manual: 'manual',
+} as const
+export type ScheduleChoice = (typeof ScheduleChoice)[keyof typeof ScheduleChoice]
+
+/** The times the schedule dialog offers. Everything starts at 9:00 local time. */
+export const SCHEDULE_CHOICES: { value: ScheduleChoice; label: string; cron: string | null }[] = [
+  { value: ScheduleChoice.Weekdays, label: 'Every weekday at 9:00', cron: '0 9 * * 1-5' },
+  { value: ScheduleChoice.Daily, label: 'Every day at 9:00', cron: '0 9 * * *' },
+  { value: ScheduleChoice.Weekly, label: 'Mondays at 9:00', cron: '0 9 * * 1' },
+  { value: ScheduleChoice.Monthly, label: 'The 1st of each month at 9:00', cron: '0 9 1 * *' },
+  { value: ScheduleChoice.Manual, label: 'Only when someone runs it', cron: null },
+]
 
 /** A job key: lowercase words joined by hyphens. */
 export function jobKey(name: string): string {
@@ -78,8 +104,17 @@ export function scheduleYaml(draft: ScheduleDraft): string {
     '    skill_source:',
     `      repository: ${draft.repository}`,
     `      ref: ${draft.commitSha}`,
-    '    schedule: "0 9 * * 1"',
   ]
+  if (draft.schedule) {
+    lines.push(`    schedule: "${draft.schedule}"`)
+    if (draft.timezone && draft.timezone !== 'UTC') lines.push(`    timezone: ${draft.timezone}`)
+  }
+  if (draft.notify?.length) {
+    lines.push('    notify:')
+    for (const binding of draft.notify) lines.push(`      - binding: ${binding}`)
+  }
+  if (draft.pullRequest) lines.push('    open_pull_request: true')
+  if (draft.issues) lines.push('    open_issues: true')
   if (draft.mcps.length) {
     lines.push('    requires:', '      mcps:')
     for (const capability of draft.mcps) {

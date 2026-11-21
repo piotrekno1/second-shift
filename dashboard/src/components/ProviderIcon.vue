@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import AppIcon from './AppIcon.vue'
 import { computed } from 'vue'
-import { siSentry } from 'simple-icons'
+import { siDjango, siGithub, siGrafana, siSentry } from 'simple-icons'
 
 // Brand marks the app icon set lacks. Drawn in the text color so they suit both themes.
 const BRAND_PATHS: Record<string, string> = {
+  django: siDjango.path,
+  github: siGithub.path,
+  grafana: siGrafana.path,
   sentry: siSentry.path,
 }
 

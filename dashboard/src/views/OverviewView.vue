@@ -147,6 +147,13 @@ const attentionDetail = computed(() => {
         class="primary-action"
         ><AppIcon name="plus" /> Add repository</RouterLink
       >
+      <!-- Nothing to fix, so the next step is finding more for the agents to do. -->
+      <RouterLink
+        v-else-if="!executionBlocked && app.repositories.length && app.can(Action.RunJobs)"
+        to="/explore"
+        class="primary-action"
+        ><AppIcon name="compass" /> Try a skill</RouterLink
+      >
     </PageHeader>
 
     <SetupChecklist v-if="setup" :steps="setup" />

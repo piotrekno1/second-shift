@@ -122,6 +122,17 @@ function chooseBranch(item: GitHubSource & { key: string }): void {
   void github.loadBranches(item)
 }
 
+// Someone who came from /try goes back to the skill, with the new repository
+// picked. Only /try is allowed, so the link can't send them anywhere else.
+async function showAdded(repositoryId: number): Promise<void> {
+  const next = typeof route.query.next === 'string' ? router.resolve(route.query.next) : null
+  if (next?.path === '/try') {
+    await router.push({ path: '/try', query: { ...next.query, on: String(repositoryId) } })
+    return
+  }
+  await router.push({ path: `/repositories/${repositoryId}`, query: { added: '1' } })
+}
+
 async function importSource(item: GitHubSource & { key: string }): Promise<void> {
   const name = branchRow.value === item.key ? branch.value : item.default_branch
   importingRow.value = item.key
@@ -129,7 +140,7 @@ async function importSource(item: GitHubSource & { key: string }): Promise<void>
   importingRow.value = null
   if (!repository) return
   await app.refresh()
-  await router.push({ path: `/repositories/${repository.id}`, query: { added: '1' } })
+  await showAdded(repository.id)
 }
 
 async function tokenConnected(): Promise<void> {
@@ -155,7 +166,7 @@ async function addLocal(): Promise<void> {
   try {
     const repository = await createLocalRepository(localPath.value)
     await app.refresh()
-    await router.push({ path: `/repositories/${repository.id}`, query: { added: '1' } })
+    await showAdded(repository.id)
   } catch (error) {
     localError.value = errorMessage(error, 'Unable to add repository')
   } finally {
