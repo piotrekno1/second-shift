@@ -5,13 +5,17 @@ from typing import NoReturn
 
 import pytest
 from django.contrib.auth import get_user_model
+from django.db import DatabaseError
 from django.test import override_settings
+from django.utils import timezone
 
+from secondshift.jobs import repository_sync
 from secondshift.jobs.repository_sync import (
+    add_local_repository,
     attach_local_repository,
     run_requested_syncs,
 )
-from secondshift.repositories.dao import request_sync
+from secondshift.repositories.dao import request_sync, requested_syncs
 from secondshift.repositories.local import (
     LocalRepositoryError,
     local_directories,
@@ -628,3 +632,37 @@ def test_resuming_uses_the_last_sync_and_reads_no_skills(
 
     assert refused.status_code == 409
     assert "Invalid .secondshift.yaml" in refused.json()["detail"]
+
+
+def fail_sync_request(row_id: int) -> NoReturn:
+    raise DatabaseError("sync request failed")
+
+
+@pytest.mark.parametrize("removed", [False, True])
+def test_a_local_repository_is_added_only_with_its_sync_request(
+    workspace: Workspace,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    removed: bool,
+) -> None:
+    root = tmp_path / "project"
+    create_local_repository(root)
+    if removed:
+        existing = attach_local_repository(workspace, str(root))
+        Repository.objects.filter(pk=existing.pk).update(
+            enabled=False, removed_at=timezone.now()
+        )
+    request = repository_sync.request_sync
+    monkeypatch.setattr(repository_sync, "request_sync", fail_sync_request)
+
+    with pytest.raises(DatabaseError):
+        add_local_repository(workspace, str(root))
+
+    rows = Repository.objects.filter(workspace=workspace, local_path=str(root))
+    assert [row.removed_at is not None for row in rows] == ([True] if removed else [])
+    monkeypatch.setattr(repository_sync, "request_sync", request)
+
+    added = add_local_repository(workspace, str(root))
+
+    assert added.removed_at is None
+    assert added.pk in [row.pk for row in requested_syncs()]

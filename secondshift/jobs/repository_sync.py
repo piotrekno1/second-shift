@@ -172,11 +172,13 @@ def add_github_repository(
 ) -> Repository:
     """Add a repository, or restore a removed one. The worker syncs it."""
     metadata = connection_access(connection, repository_id).metadata
+    # The sync request commits with the repository, so it is never left
+    # attached with nothing to sync it.
     with transaction.atomic():
         repository = save_attached_repository(
             workspace, connection, repository_id, branch, metadata
         )
-    request_sync(repository.pk)
+        request_sync(repository.pk)
     repository.refresh_from_db()
     return repository
 
@@ -187,10 +189,11 @@ def add_local_repository(workspace: Workspace, raw_path: str) -> Repository:
     Raises LocalRepositoryError when the folder is not a Git repository.
     """
     location = locate_local_repository(raw_path)
-    repository, _ = save_local_location(
-        workspace, location, config_error="", config_read=False, restore=True
-    )
-    request_sync(repository.pk)
+    with transaction.atomic():
+        repository, _ = save_local_location(
+            workspace, location, config_error="", config_read=False, restore=True
+        )
+        request_sync(repository.pk)
     repository.refresh_from_db()
     return repository
 
