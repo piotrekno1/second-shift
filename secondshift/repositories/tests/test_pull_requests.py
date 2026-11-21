@@ -20,6 +20,7 @@ from secondshift.repositories.pull_requests import (
     PublishError,
     commit_patch,
     open_draft,
+    publish_file_change,
     publish_pull_request,
 )
 from secondshift.repositories.tests.github_fakes import fake_github
@@ -395,4 +396,88 @@ def test_an_unknown_publishing_account_stops_before_the_push(
 
     with pytest.raises(PublishError, match="which account publishes"):
         publish_pull_request(repository, base, patch, DRAFT)
+    assert pushes == []
+
+
+def fake_remote(
+    monkeypatch: pytest.MonkeyPatch, source_root: Path, branches: str = ""
+) -> list[tuple[str, ...]]:
+    """GitHub as a local repository: fetches read source_root, pushes are kept."""
+    pushes: list[tuple[str, ...]] = []
+
+    def run(root: Path, token: str, *args: str) -> str:
+        if args[0] == "ls-remote":
+            return branches
+        if args[0] == "fetch":
+            return git(root, "fetch", "-q", str(source_root), args[-1])
+        if args[0] == "push":
+            pushes.append(args)
+            return ""
+        return git(root, *args)
+
+    monkeypatch.setattr(pull_requests, "authenticated_git", run)
+    return pushes
+
+
+def test_a_file_change_is_committed_on_the_newest_commit_of_the_base(
+    repository: Repository,
+    source: tuple[Path, str, Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root, _, _ = source
+    git(root, "branch", "-M", "main")
+    head = git(root, "rev-parse", "HEAD")
+    mirror = bare_mirror(root, mirror_path(repository.pk))
+    fake_github(monkeypatch, "acme/web", "write-token")
+    pushes = fake_remote(monkeypatch, root)
+    github(
+        monkeypatch,
+        httpx.Response(200, json=APP),
+        httpx.Response(200, json=BOT_ACCOUNT),
+        httpx.Response(201, json=PULL),
+    )
+    seen: list[str | None] = []
+
+    def change(text: str | None) -> str:
+        seen.append(text)
+        return "version: 1\njobs: {}\n"
+
+    opened = publish_file_change(repository, ".secondshift.yaml", change, DRAFT)
+
+    assert opened.number == 12
+    assert seen == [None]
+    [push] = pushes
+    commit = push[-1].split(":")[0]
+    assert push[-1].endswith(":refs/heads/secondshift/run-7")
+    assert git(mirror, "rev-parse", f"{commit}^") == head
+    assert git(mirror, "show", f"{commit}:.secondshift.yaml") == "version: 1\njobs: {}"
+    # Everything else stays as it was.
+    assert git(mirror, "show", f"{commit}:README.md") == "Run npm ci."
+
+
+def test_a_branch_pushed_before_opens_the_same_draft_without_a_new_commit(
+    repository: Repository,
+    source: tuple[Path, str, Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root, _, _ = source
+    bare_mirror(root, mirror_path(repository.pk))
+    fake_github(monkeypatch, "acme/web", "write-token")
+    pushes = fake_remote(
+        monkeypatch, root, branches="abc\trefs/heads/secondshift/run-7"
+    )
+    github(
+        monkeypatch,
+        httpx.Response(200, json=APP),
+        httpx.Response(200, json=BOT_ACCOUNT),
+        httpx.Response(422, json={"errors": [{"message": "A pull request exists"}]}),
+        httpx.Response(200, json=[PULL]),
+    )
+
+    def change(text: str | None) -> str:
+        raise AssertionError("the file is not changed again")
+
+    opened = publish_file_change(repository, ".secondshift.yaml", change, DRAFT)
+
+    assert opened.number == 12
     assert pushes == []
