@@ -1,11 +1,13 @@
 import json
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from typing import Any
+from types import SimpleNamespace
+from typing import Any, cast
 from unittest.mock import Mock
 
 import httpx
 import pytest
+from dbos import DBOSClient
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 from django.db import connection as database
@@ -30,8 +32,13 @@ from secondshift.runs.constants import (
     RunStart,
 )
 from secondshift.runs.dao import create_task
-from secondshift.runs.models import Run, RunDelivery
+from secondshift.runs.models import Run, RunDelivery, RunEvent
 from secondshift.runs.orchestration import workflows
+from secondshift.runs.orchestration.reconciliation import (
+    RETRY_STOPPED_MESSAGE,
+    reconcile_delivery_retries,
+)
+from secondshift.runs.tests.test_reconciliation import FakeDBOSClient
 from secondshift.workspaces.models import Workspace, WorkspaceMembership
 
 Setup = tuple[AbstractUser, Workspace, Repository]
@@ -359,3 +366,75 @@ def test_retry_endpoint_locks_only_the_delivery(
     assert " JOIN " not in delivery_query
     if database.features.has_select_for_update:
         assert "FOR UPDATE" in delivery_query
+
+
+def retried(run: Run) -> RunDelivery:
+    """Fail the run's notification, then ask for a retry."""
+    workflows.notify(run.pk)
+    return deliveries.retry_delivery(run, only_delivery(run).pk)
+
+
+def workflow_status(workflow_id: str, status: str) -> SimpleNamespace:
+    return SimpleNamespace(workflow_id=workflow_id, status=status)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("status", ["ERROR", "CANCELLED", "SUCCESS"])
+def test_a_retry_that_ends_without_an_outcome_can_be_retried_again(
+    approved_run: tuple[Run, Connection, JobGrant],
+    receiver: Receiver,
+    queue: Mock,
+    status: str,
+) -> None:
+    run, _, _ = approved_run
+    receiver.codes.append(500)
+    delivery = retried(run)
+    assert delivery.retry_workflow_id
+    client = FakeDBOSClient([workflow_status(delivery.retry_workflow_id, status)])
+
+    assert reconcile_delivery_retries(cast(DBOSClient, client)) == 1
+
+    delivery.refresh_from_db()
+    assert delivery.status == RunDelivery.Status.FAILED
+    assert delivery.message == RETRY_STOPPED_MESSAGE
+    assert RunEvent.objects.filter(run=run, message__contains=RETRY_STOPPED_MESSAGE)
+    assert deliveries.retry_delivery(run, delivery.pk).status == (
+        RunDelivery.Status.RETRYING
+    )
+
+
+@pytest.mark.django_db
+def test_a_running_retry_and_a_newer_retry_are_left_alone(
+    approved_run: tuple[Run, Connection, JobGrant],
+    receiver: Receiver,
+    queue: Mock,
+) -> None:
+    run, _, _ = approved_run
+    receiver.codes.append(500)
+    delivery = retried(run)
+    running = FakeDBOSClient([workflow_status(delivery.retry_workflow_id, "PENDING")])
+
+    assert reconcile_delivery_retries(cast(DBOSClient, running)) == 0
+
+    old_workflow = delivery.retry_workflow_id
+    RunDelivery.objects.filter(pk=delivery.pk).update(retry_workflow_id="newer")
+    ended = FakeDBOSClient([workflow_status(old_workflow, "ERROR")])
+
+    assert reconcile_delivery_retries(cast(DBOSClient, ended)) == 0
+    assert only_delivery(run).status == RunDelivery.Status.RETRYING
+
+
+@pytest.mark.django_db
+def test_a_retry_that_saved_its_outcome_is_left_alone(
+    approved_run: tuple[Run, Connection, JobGrant],
+    receiver: Receiver,
+    queue: Mock,
+) -> None:
+    run, connection, _ = approved_run
+    receiver.codes.append(500)
+    delivery = retried(run)
+    workflows.deliver_notification(run.pk, connection.pk)
+    client = FakeDBOSClient([workflow_status(delivery.retry_workflow_id, "SUCCESS")])
+
+    assert reconcile_delivery_retries(cast(DBOSClient, client)) == 0
+    assert only_delivery(run).status == RunDelivery.Status.DELIVERED

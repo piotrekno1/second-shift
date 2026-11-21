@@ -496,6 +496,30 @@ def lock_delivery(run: Run, delivery_id: int) -> RunDelivery:
     return RunDelivery.objects.select_for_update().get(pk=delivery_id, run=run)
 
 
+def retrying_deliveries(after_id: int, limit: int) -> list[tuple[int, str]]:
+    """Deliveries waiting on a retry someone asked for, as (id, workflow id)."""
+    return list(
+        RunDelivery.objects.filter(status=RunDelivery.Status.RETRYING, pk__gt=after_id)
+        .exclude(retry_workflow_id="")
+        .order_by("pk")
+        .values_list("pk", "retry_workflow_id")[:limit]
+    )
+
+
+def lock_retrying_delivery(delivery_id: int, workflow_id: str) -> RunDelivery | None:
+    """Lock the delivery if it still waits on this retry workflow."""
+    return (
+        RunDelivery.objects.select_for_update()
+        .select_related("run")
+        .filter(
+            pk=delivery_id,
+            status=RunDelivery.Status.RETRYING,
+            retry_workflow_id=workflow_id,
+        )
+        .first()
+    )
+
+
 def notification_delivery(run: Run, connection: Connection) -> RunDelivery:
     """The run's notification delivery to this connection, created when missing."""
     delivery, _ = RunDelivery.objects.get_or_create(

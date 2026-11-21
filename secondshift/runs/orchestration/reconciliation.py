@@ -5,8 +5,14 @@ from dbos import DBOSClient
 from django.conf import settings
 from django.db import transaction
 
-from secondshift.runs.dao import active_workflows, add_event
-from secondshift.runs.models import Run, RunFailure
+from secondshift.runs.dao import (
+    active_workflows,
+    add_event,
+    finish_delivery,
+    lock_retrying_delivery,
+    retrying_deliveries,
+)
+from secondshift.runs.models import Run, RunDelivery, RunFailure
 from secondshift.runs.transitions import finish_run
 
 
@@ -100,3 +106,49 @@ def reconcile_batch(client: DBOSClient, pending_runs: list[tuple[int, str]]) -> 
             )
         )
     return reconciled
+
+
+RETRY_STOPPED_MESSAGE = "The retry stopped before it finished. Try it again."
+
+
+def reconcile_delivery_retries(client: DBOSClient) -> int:
+    """Fail retried deliveries whose retry workflow ended without an outcome.
+
+    Such a delivery would stay retrying, and only a failed one can be retried.
+    """
+    reconciled = 0
+    after_id = 0
+    while batch := retrying_deliveries(after_id, RECONCILE_BATCH):
+        reconciled += reconcile_retry_batch(client, batch)
+        after_id = batch[-1][0]
+    return reconciled
+
+
+def reconcile_retry_batch(client: DBOSClient, pending: list[tuple[int, str]]) -> int:
+    workflows = client.list_workflows(
+        workflow_ids=[workflow_id for _, workflow_id in pending],
+        application_name=settings.DBOS_APPLICATION_NAME,
+        load_input=False,
+        load_output=False,
+    )
+    ended = {
+        workflow.workflow_id
+        for workflow in workflows
+        if workflow.status in TERMINAL_WORKFLOW_STATUSES
+    }
+    return sum(
+        fail_stopped_retry(delivery_id, workflow_id)
+        for delivery_id, workflow_id in pending
+        if workflow_id in ended
+    )
+
+
+@transaction.atomic
+def fail_stopped_retry(delivery_id: int, workflow_id: str) -> bool:
+    # The lock checks the workflow again, so an outcome the retry saved or a
+    # newer retry is left alone.
+    delivery = lock_retrying_delivery(delivery_id, workflow_id)
+    if delivery is None:
+        return False
+    finish_delivery(delivery, RunDelivery.Status.FAILED, RETRY_STOPPED_MESSAGE)
+    return True
