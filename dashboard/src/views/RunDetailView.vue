@@ -792,21 +792,24 @@ onUnmounted(stopPolling)
           pins the commit this run used.
         </p>
         <div class="schedule-choices">
-          <label class="schedule-field">
-            <span class="schedule-label">When</span>
+          <label class="schedule-label" for="schedule-when">When</label>
+          <div class="schedule-control">
             <Select
               v-model="scheduleChoice"
+              input-id="schedule-when"
+              class="schedule-select"
               :options="SCHEDULE_CHOICES"
               option-label="label"
               option-value="value"
             />
             <small v-if="scheduleChoice !== ScheduleChoice.Manual">{{ timezone }} time</small>
-          </label>
-          <fieldset class="schedule-field">
-            <legend class="schedule-label">Where results go</legend>
+          </div>
+          <span id="schedule-results" class="schedule-label">Where results go</span>
+          <div class="schedule-control" role="group" aria-labelledby="schedule-results">
+            <span>Every run keeps its report in Runs.</span>
             <label v-for="connection in notifyOptions" :key="connection.id" class="schedule-check">
               <input v-model="notifyChoice" type="checkbox" :value="connection.binding_key" />
-              <span>{{ connection.display_name || connection.binding_key }}</span>
+              <span>Send it to {{ connection.display_name || connection.binding_key }}</span>
             </label>
             <label v-if="offersIssues" class="schedule-check">
               <input v-model="issuesChoice" type="checkbox" />
@@ -817,10 +820,10 @@ onUnmounted(stopPolling)
               <span>Open a draft pull request with its changes</span>
             </label>
             <small v-if="!notifyOptions.length"
-              >No webhooks connected yet.
-              <RouterLink to="/connections" class="detail-link">Add one</RouterLink></small
+              >To send it to Slack or email too,
+              <RouterLink to="/connections" class="schedule-link">add a webhook</RouterLink>.</small
             >
-          </fieldset>
+          </div>
         </div>
         <pre class="run-output schedule-skill-yaml">{{ scheduleText }}</pre>
         <p v-if="usesServices.length" class="run-details-muted">
@@ -902,36 +905,54 @@ onUnmounted(stopPolling)
 }
 .schedule-choices {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 16px;
-  margin: 14px 0 0;
+  grid-template-columns: 130px minmax(0, 1fr);
+  align-items: baseline;
+  gap: 18px 16px;
+  margin: 16px 0 0;
 }
-.schedule-field {
+.schedule-label {
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+.schedule-control {
   display: grid;
-  align-content: start;
-  gap: 6px;
+  justify-items: start;
+  gap: 8px;
   min-width: 0;
-  margin: 0;
-  padding: 0;
-  border: 0;
+  font-size: var(--text-sm);
 }
-.schedule-field small {
+.schedule-select {
+  width: min(100%, 280px);
+}
+.schedule-control small {
   color: var(--subtle);
   font-size: var(--text-xs);
 }
-.schedule-label {
-  padding: 0;
-  font-size: var(--text-sm);
-  font-weight: 600;
+.schedule-link {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 .schedule-check {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: var(--text-sm);
+}
+.schedule-check input {
+  margin: 0;
+  accent-color: var(--ink);
+}
+@media (max-width: 560px) {
+  .schedule-choices {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+  }
+  .schedule-control + .schedule-label {
+    margin-top: 12px;
+  }
 }
 .schedule-skill-yaml {
-  margin: 12px 0 0;
+  margin: 20px 0 0;
   white-space: pre;
   overflow-x: auto;
 }
