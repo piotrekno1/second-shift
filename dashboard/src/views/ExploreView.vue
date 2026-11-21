@@ -344,8 +344,14 @@ function tryPasted(): void {
   border-left: 1px solid var(--border);
   background: var(--night-900);
 }
+/* The close button sits at the top right, level with the skill's icon, instead
+   of taking a row of its own above it. */
 .skill-drawer .p-drawer-header {
-  padding: 14px 20px 0;
+  position: absolute;
+  top: 22px;
+  right: 20px;
+  z-index: 1;
+  padding: 0;
 }
 /* The panel shows the name in its own heading. Screen readers still get the title. */
 .skill-drawer .p-drawer-title {
@@ -357,6 +363,10 @@ function tryPasted(): void {
   white-space: nowrap;
 }
 .skill-drawer .p-drawer-content {
-  padding: 4px 24px 16px;
+  padding: 24px 24px 16px;
+}
+/* Long names wrap before they reach the close button. */
+.skill-drawer .skill-detail > header {
+  padding-right: 52px;
 }
 </style>
