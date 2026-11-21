@@ -31,3 +31,6 @@
 **/*.sqlite3-*
 secondshift/**/tests
 secondshift/web
+
+# Default sandbox images. Not secret, and the package reads it at runtime.
+!secondshift/config/runner_images.env
