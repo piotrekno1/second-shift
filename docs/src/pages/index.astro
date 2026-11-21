@@ -2,9 +2,9 @@
 const github = 'https://github.com/piotrekno1/second-shift';
 const site = 'https://second-shift.app/';
 const shareImage = new URL(shareImageAsset.src, site).href;
-const headline = 'Give agents the work,';
-const headlineAccent = 'not the keys.';
-const lead = 'Unattended agent jobs for your team, defined in Git. Your service credentials never reach the agent.';
+const headline = 'Automate recurring';
+const headlineAccent = 'engineering work.';
+const lead = 'Try an agent skill on your repo. Run it in a sandbox on demand, by cron, or via webhook.';
 const title = `SecondShift | ${headline} ${headlineAccent}`;
 const description = 'Unattended agent jobs for your team, defined in Git. The agent never holds your service credentials and calls only the tools an owner approved. Open source and self-hosted.';
 const quickstart = '/docs/quickstart/';
@@ -188,6 +188,8 @@ const stackRows = [
         .stack-row[aria-hidden="true"] { display: none; }
       }
       .showcase { min-width: 0; margin: 0; }
+      .showcase figcaption { margin-top: 20px; color: #bbb; font-size: 14px; }
+      .showcase figcaption a { color: inherit; }
       .showcase video { display: block; width: 100%; aspect-ratio: 16 / 9; border: 1px solid #373737; border-radius: 4px; background: #0d0d0d; object-fit: contain; box-shadow: 12px 12px 0 #222; }
       .closing { padding-top: 24px; border-top: 1px solid #303030; }
       .closing h2 { margin: 0; font-size: 25px; font-weight: 500; letter-spacing: -.035em; }
@@ -246,6 +248,10 @@ const stackRows = [
             <p class="hero-wordmark"><img src="/secondshift-mark.svg" alt="" />SecondShift</p>
             <h1>{headline} <span class="hero-accent">{headlineAccent}</span></h1>
             <p class="lead">{lead}</p>
+            <div class="actions">
+              <a class="button" href="#workflow-title">Explore skills →</a>
+              <a class="secondary-action" href={quickstart}>{quickstartLabel}</a>
+            </div>
             <div class="install">
               <pre>{installCommands.map((command) => <div><span class="install-prompt">$ </span>{command}</div>)}</pre>
               <button class="install-copy" type="button" data-copy={installCommands.join('\n')} aria-label="Copy install commands" title="Copy">
@@ -254,10 +260,6 @@ const stackRows = [
               </button>
             </div>
             <p class="install-note">Needs <a href={uvInstall} target="_blank" rel="noopener noreferrer">uv</a> and Docker.</p>
-            <div class="actions">
-              <a class="button" href={quickstart}>{quickstartLabel}</a>
-              <a class="secondary-action" href={deployment}>Deploy for your team →</a>
-            </div>
           </div>
           <figure class="showcase">
             <video controls playsinline preload="metadata" poster={demoPoster.src} aria-label="From a CI check failing on two pull requests to a draft fix and a scheduled skill">
@@ -265,6 +267,7 @@ const stackRows = [
               <track kind="captions" src={demoCaptions} srclang="en" label="English" />
               <a href="https://github.com/user-attachments/assets/2e48124d-489f-449b-be66-25107697e9b0">Watch the walkthrough</a>
             </video>
+            <figcaption><a href="/docs/explore/">From failed CI to a draft fix and a scheduled skill</a></figcaption>
           </figure>
         </div>
         <div class="stack-strip" aria-label="Services that work with SecondShift">
@@ -294,25 +297,25 @@ const stackRows = [
           </div>
         </div>
         <section class="workflow" aria-labelledby="workflow-title">
-          <h2 id="workflow-title">How a skill becomes a job</h2>
+          <h2 id="workflow-title">From first run to recurring job</h2>
           <ol class="workflow-steps" role="list">
             <li>
               <div class="step-top"><span class="step-number">01</span><span class="step-label">Developers</span></div>
-              <h3>Write or reuse a skill.</h3>
-              <p>A skill is a Markdown file of instructions for the agent. Write your own, or <a href="/docs/repository-configuration/#skills-from-another-repository">use one published on GitHub</a>, locked to the version you reviewed.</p>
-              <a href="/docs/mcp/">Connect your coding agent →</a>
+              <h3>Pick a skill.</h3>
+              <p>Browse curated skills that explain failed CI, trace Sentry errors to code, or spot stale docs. See what each skill needs and what it produces.</p>
+              <a href="/docs/skill-catalog/">Browse the skill catalog →</a>
             </li>
             <li>
               <div class="step-top"><span class="step-number">02</span><span class="step-label">Workspace owners</span></div>
-              <h3>Approve the model and tools.</h3>
-              <p>Pick the model the job runs on and approve each tool it may call. A skill can never give itself more access.</p>
+              <h3>Try it on your repo.</h3>
+              <p>Review the skill’s access and inspect the first result. Each run uses an isolated sandbox and approved tools. Service credentials stay outside the agent.</p>
               <a href="/docs/security-model/">See the security model →</a>
             </li>
             <li>
               <div class="step-top"><span class="step-number">03</span><span class="step-label">Your team</span></div>
-              <h3>Run it and read the result.</h3>
-              <p>Run it by hand, on a schedule, or when an alert fires. Each run shows its result, every tool call and what it cost.</p>
-              <a href="/docs/tasks/#try-a-skill-from-github">Try a skill from GitHub →</a>
+              <h3>Keep it running.</h3>
+              <p>Use a draft pull request to add the pinned skill and schedule to your repository. Run jobs on demand, by cron, or when a webhook arrives.</p>
+              <a href="/docs/explore/#keep-it-running">See how scheduling works →</a>
             </li>
           </ol>
         </section>
