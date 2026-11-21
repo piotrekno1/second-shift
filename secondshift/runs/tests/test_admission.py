@@ -91,6 +91,36 @@ def test_ready_order_uses_requested_start_then_acceptance(
     assert not late.dbos_workflow_id
 
 
+def test_a_backlog_in_one_repository_does_not_hold_back_another(
+    repository: Repository,
+    owner: User,
+    client_queue: Mock,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("secondshift.runs.submissions.enqueue_run", lambda run: None)
+    monkeypatch.setattr(dispatch, "DISPATCH_BATCH", 2)
+    other_path = Path(repository.local_path).with_name("other")
+    shutil.copytree(repository.local_path, other_path)
+    other = Repository.objects.create(
+        workspace=repository.workspace,
+        source_type=Repository.SourceType.LOCAL,
+        local_path=str(other_path),
+        full_name="local/other",
+        default_branch="main",
+        enabled=True,
+    )
+    earlier = timezone.now() - timedelta(hours=1)
+    backlog = [
+        start(repository, owner, idempotency_key=f"backlog-{n}", not_before=earlier)
+        for n in range(3)
+    ]
+    waiting = start(other, owner, idempotency_key="other")
+
+    assert dispatch.dispatch_waiting_tasks() == 2
+    dispatched = {call.args[1] for call in client_queue.enqueue.call_args_list}
+    assert dispatched == {backlog[0].pk, waiting.pk}
+
+
 @pytest.mark.parametrize("where", ["connect", "enqueue"])
 def test_queue_unavailable_remains_accepted_then_recovers(
     repository: Repository,

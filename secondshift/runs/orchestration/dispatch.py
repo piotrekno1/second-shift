@@ -28,6 +28,8 @@ from secondshift.runs.transitions import finish_run
 
 logger = logging.getLogger(__name__)
 
+DISPATCH_BATCH = 500
+
 RUN_ENQUEUE_FAILED = "The durable workflow could not be enqueued."
 # A start hands its run to the queue right after saving it. Older than this,
 # the process that saved it has stopped before the handoff or its record.
@@ -131,7 +133,7 @@ def enqueue_task(run: Run) -> str:
 
 def dispatch_waiting_tasks() -> int:
     """Recover committed submissions and advance the queue on each worker pass."""
-    waiting = waiting_tasks(timezone.now(), 500)
+    waiting = waiting_tasks(timezone.now(), DISPATCH_BATCH)
     return sum(bool(enqueue_task(run)) for run in waiting)
 
 
