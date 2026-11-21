@@ -291,13 +291,17 @@ test('the job step sends people to their jobs', () => {
   assert.equal(steps[2]!.detail, 'Run a job or a one-off task.')
   assert.deepEqual(
     steps[2]!.actions.map((action) => action.to),
-    [{ path: '/jobs' }],
+    [{ path: '/jobs' }, { path: '/explore' }],
   )
 })
 
-test('a repository without jobs says how to add one', () => {
+test('a repository without jobs offers to try a skill first', () => {
   const steps = setupSteps(setup({ ...withCode, jobs: 0 }))!
-  assert.match(steps[2]!.detail, /Add a job to \.secondshift\.yaml/)
+  assert.match(steps[2]!.detail, /add a job to \.secondshift\.yaml/)
+  assert.deepEqual(
+    steps[2]!.actions.map((action) => action.to),
+    [{ path: '/explore' }, { path: '/repositories' }],
+  )
 })
 
 test('setup is done once a job is enabled or has run', () => {
