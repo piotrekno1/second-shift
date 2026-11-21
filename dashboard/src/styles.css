@@ -784,7 +784,8 @@ body .account-menu {
   margin-top: 8px;
   font-size: var(--text-xs);
 }
-.not-found-home {
+/* A button under an empty state's text needs room to breathe. */
+.empty-state .primary-action {
   margin-top: 16px;
 }
 .empty-state .detail-link {

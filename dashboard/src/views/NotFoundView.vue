@@ -14,7 +14,7 @@ import PageHeader from '../components/PageHeader.vue'
       <AppIcon name="alert-outline" />
       <strong>Nothing here</strong>
       <span>Check the address, or start again from the overview.</span>
-      <RouterLink to="/" class="primary-action not-found-home">Go to the overview</RouterLink>
+      <RouterLink to="/" class="primary-action">Go to the overview</RouterLink>
     </div>
   </div>
 </template>
