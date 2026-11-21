@@ -6,7 +6,7 @@ from typing import Any
 
 from secondshift.agent.image.outcomes import budget_count
 from secondshift.connections.model_providers import ModelFamily
-from secondshift.gateway.dao import aadd_used_tokens, acreate_model_usage
+from secondshift.gateway.dao import arecord_model_usage
 from secondshift.gateway.models import RunToken
 from secondshift.gateway.pricing import request_cost
 
@@ -159,13 +159,12 @@ def apply_openai_event(usage: Usage, event: dict[str, Any]) -> None:
 async def record_usage(
     run_token: RunToken, family: ModelFamily, model: str, status_code: int, usage: Usage
 ) -> None:
-    await acreate_model_usage(
+    await arecord_model_usage(
         run_token,
         family,
         model[:200],
         status_code,
         asdict(usage),
         request_cost(run_token.connection, model, usage),
+        usage.budget_tokens if usage.total else 0,
     )
-    if usage.total:
-        await aadd_used_tokens(run_token, usage.budget_tokens)
