@@ -44,8 +44,8 @@ The address of an open skill can be shared. It opens Explore on that skill.
    **Back to skill** to return.
 2. Choose one of your repositories. To add one, select **Add repository**.
    You come back to the skill when you're done.
-3. Select **Check skill**. SecondShift shows what the skill asks for. Nothing
-   runs yet.
+3. SecondShift checks the skill and shows what it asks for. Nothing runs
+   yet.
 4. Select **Queue task**.
 
 Trying a skill needs no `.secondshift.yaml`. The skill is mounted read-only
