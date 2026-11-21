@@ -75,7 +75,7 @@ class MCPProvider:
     access_verb: str = "read"
     scope_label: str = "scope"
     missing_scope_reason: AccessReason = AccessReason.MCP_SCOPE_UNKNOWN
-    missing_scope_message: str = "This job has no scope for this provider."
+    missing_scope_message: str = "The repository has no scope for this provider."
     settings: tuple[MCPSetting, ...] = ()
     # Appended to endpoint_url, built only from validated settings.
     endpoint_path: Callable[[MCPSettings], str] = lambda settings: ""
