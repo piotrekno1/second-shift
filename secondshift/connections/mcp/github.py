@@ -272,8 +272,8 @@ GITHUB_MCP = MCPProvider(
     scope_label="repository",
     missing_scope_reason=AccessReason.GITHUB_REPOSITORY_UNKNOWN,
     missing_scope_message=(
-        "This job has no GitHub repository identity. For a local checkout, "
-        "configure a GitHub origin and resync it."
+        "GitHub tools need a repository on GitHub. For a local checkout, "
+        "set its origin to the GitHub repository and resync it."
     ),
     description=(
         "Read pull requests, commits, and Actions runs and logs. "

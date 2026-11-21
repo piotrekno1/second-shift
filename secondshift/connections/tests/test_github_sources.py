@@ -8,11 +8,14 @@ from django.test import Client
 from django.utils import timezone
 
 from secondshift.connections import github
+from secondshift.connections.checks import record_check
 from secondshift.connections.github import connection_source
 from secondshift.connections.models import Connection
 from secondshift.github import credentials
 from secondshift.github.errors import GitHubError
 from secondshift.github.tokens import TokenOwner
+from secondshift.repositories.github import check as check_module
+from secondshift.repositories.models import Repository
 from secondshift.workspaces.dao import create_workspace
 from secondshift.workspaces.models import Workspace, WorkspaceMembership
 
@@ -100,8 +103,21 @@ def test_a_new_token_for_the_same_account_replaces_the_old_one(
     assert second.access_token.endswith("b" * 40)
 
 
+@pytest.fixture
+def checks(monkeypatch: pytest.MonkeyPatch) -> list[int]:
+    """The source checks a request ran, by connection ID. GitHub isn't called."""
+    checked: list[int] = []
+
+    def check(connection: Connection) -> None:
+        checked.append(connection.pk)
+        record_check(connection, True, "Reaches every repository.")
+
+    monkeypatch.setattr(check_module, "check_source", check)
+    return checked
+
+
 def test_replacing_a_connection_keeps_it(
-    owner_client: Client, workspace: Workspace, token_owner: Mock
+    owner_client: Client, workspace: Workspace, token_owner: Mock, checks: list[int]
 ) -> None:
     first = github.connect_token_source(workspace, TOKEN)
     response = owner_client.post(
@@ -113,6 +129,40 @@ def test_replacing_a_connection_keeps_it(
     assert response.json()["id"] == first.pk
     first.refresh_from_db()
     assert first.access_token.endswith("b" * 40)
+
+
+def test_a_replaced_token_is_checked_and_its_failed_syncs_run_again(
+    owner_client: Client, workspace: Workspace, token_owner: Mock, checks: list[int]
+) -> None:
+    first = github.connect_token_source(workspace, TOKEN)
+    record_check(first, False, "GitHub refused the token.")
+    failed, fine = (
+        Repository.objects.create(
+            workspace=workspace,
+            full_name=name,
+            external_id=str(index),
+            github_connection=first,
+            last_sync_error=error,
+        )
+        for index, (name, error) in enumerate(
+            [("acme/web", "GitHub access failed."), ("acme/api", "")]
+        )
+    )
+
+    response = owner_client.post(
+        "/api/connections/github-token",
+        {"token": "github_pat_" + "b" * 40, "connection_id": first.pk},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 200
+    assert checks == [first.pk]
+    # The page shows the new token's check, not the old token's failure.
+    assert response.json()["last_check"]["ok"] is True
+    failed.refresh_from_db()
+    fine.refresh_from_db()
+    assert failed.sync_requested_at is not None
+    assert fine.sync_requested_at is None
 
 
 def test_replacing_refuses_a_token_from_another_account(

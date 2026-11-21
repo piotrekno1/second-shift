@@ -43,6 +43,13 @@ class CapabilityNeed:
     jobs: list[NeedJob] = field(default_factory=list)
 
 
+def join_names(names: list[str]) -> str:
+    """Such as "a", "a and b", or "a, b and c"."""
+    if len(names) < 3:
+        return " and ".join(names)
+    return f"{', '.join(names[:-1])} and {names[-1]}"
+
+
 def connection_problem(
     kind: str,
     connection: Connection | None,
@@ -64,10 +71,18 @@ def connection_problem(
             f"The connection is {Connection.Status(status).label.lower()}.",
         )
     if kind in EXTERNAL_KINDS:
+        refused = {}
         for repository in repositories:
             access = external_access(connection, repository_ref(repository))
             if access and not access.ok:
-                return "unavailable", access.text
+                refused.setdefault(access.text, set()).add(repository.display_name)
+        if refused:
+            # Name the repositories, since the need covers jobs in several.
+            text, names = next(iter(refused.items()))
+            return (
+                "unavailable",
+                f"Jobs in {join_names(sorted(names))} can't use it. {text}",
+            )
     missing_tools = requested_tools - set(connection.available_tools)
     if missing_tools:
         return (

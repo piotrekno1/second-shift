@@ -20,6 +20,7 @@ from secondshift.connections.schemas import (
 )
 from secondshift.connections.serialization import serialize_connection
 from secondshift.github.errors import GitHubError
+from secondshift.repositories.github.check import recheck_new_token
 from secondshift.workspaces.access import Action, require
 
 router = Router(auth=django_auth, tags=["connections"])
@@ -40,6 +41,8 @@ def connect_github_token(
         connection = connect_token_source(workspace, payload.token, replacing)
     except GitHubError as error:
         raise HttpError(422, str(error)) from error
+    if replacing is not None:
+        recheck_new_token(connection)
     return serialize_connection(connection)
 
 
