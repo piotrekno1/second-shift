@@ -1,13 +1,13 @@
 import subprocess
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, NoReturn
 from unittest.mock import Mock, patch
 from urllib.parse import parse_qs, urlparse
 
 import pytest
 from django.contrib.auth import get_user_model
-from django.db import connection
+from django.db import DatabaseError, connection
 from django.test import Client
 from django.utils import timezone
 
@@ -16,6 +16,7 @@ from secondshift.github import repos, rest
 from secondshift.github.errors import GitHubError
 from secondshift.jobs import autosync, repository_sync
 from secondshift.jobs.models import CapabilityRequest, Job, JobGrant
+from secondshift.repositories.dao import requested_syncs
 from secondshift.repositories.github import sync as github_sync
 from secondshift.repositories.github.access import github_access
 from secondshift.repositories.github.views import STATE_KEY
@@ -803,3 +804,39 @@ def test_a_github_sync_leaves_a_repository_removed_during_it_alone(
     assert synced.removed_at is not None
     assert synced.config_sha == ""
     assert not synced.jobs.exists()
+
+
+def fail_sync_request(row_id: int) -> NoReturn:
+    raise DatabaseError("sync request failed")
+
+
+@pytest.mark.parametrize("removed", [False, True])
+def test_a_github_repository_is_added_only_with_its_sync_request(
+    workspace: Any,
+    source_connection: Any,
+    github_metadata: None,
+    monkeypatch: Any,
+    removed: bool,
+) -> None:
+    removed_at = timezone.now() if removed else None
+    if removed:
+        Repository.objects.create(
+            workspace=workspace,
+            github_connection=source_connection,
+            full_name="owner/project",
+            external_id="7",
+            removed_at=removed_at,
+        )
+    request = repository_sync.request_sync
+    monkeypatch.setattr(repository_sync, "request_sync", fail_sync_request)
+
+    with pytest.raises(DatabaseError):
+        repository_sync.add_github_repository(workspace, source_connection, 7, "")
+
+    rows = list(Repository.objects.filter(workspace=workspace, external_id="7"))
+    assert [row.removed_at for row in rows] == ([removed_at] if removed else [])
+    monkeypatch.setattr(repository_sync, "request_sync", request)
+
+    added = repository_sync.add_github_repository(workspace, source_connection, 7, "")
+
+    assert added.pk in [row.pk for row in requested_syncs()]
