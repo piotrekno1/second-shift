@@ -1,0 +1,25 @@
+WEBVTT
+
+00:00:00.000 --> 00:00:04.000
+Demo 1: The same CI check keeps failing across PRs.
+
+00:00:04.000 --> 00:00:06.000
+Two pull requests. The same unit-tests check fails on both.
+
+00:00:06.000 --> 00:00:11.000
+Explore: search the skill catalog for CI failure.
+
+00:00:11.000 --> 00:00:16.000
+See what it produces and what it can access before it runs.
+
+00:00:16.000 --> 00:00:19.000
+Try it once on the demo repo. Ask for a draft pull request.
+
+00:00:19.000 --> 00:00:29.000
+The report traces both failed jobs to one bug in checkout.py.
+
+00:00:29.000 --> 00:00:38.000
+The draft subtracts the discount. unit-tests passes.
+
+00:00:38.000 --> 00:00:48.000
+Schedule it. A second draft adds the job to .secondshift.yaml.

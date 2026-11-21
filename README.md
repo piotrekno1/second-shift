@@ -18,7 +18,12 @@ on your own server in production.
 [Security model](docs/security-model.md) ·
 [Docs](https://second-shift.app/docs/overview/)
 
-https://github.com/user-attachments/assets/69cbc92f-72f6-45fb-98ad-27b4b1056581
+https://github.com/user-attachments/assets/977391e2-6fd2-49b4-bf30-3645009f73ce
+
+A CI check fails on two pull requests. The CI failure fixer skill from Explore
+runs once in a sandbox and traces both failures to one bug. It opens a draft
+fix, and a second draft schedules the skill in `.secondshift.yaml`. There is
+also a [Cloudflare security audit walkthrough](https://github.com/user-attachments/assets/69cbc92f-72f6-45fb-98ad-27b4b1056581).
 
 ## Quick start
 
