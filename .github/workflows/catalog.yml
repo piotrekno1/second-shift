@@ -1,0 +1,40 @@
+name: Explore catalog
+
+# Checks every skill in Explore against GitHub: its pinned commit, its license
+# and the runs it quotes. It needs the network, so it runs apart from CI and
+# doesn't block a merge. The weekly run catches a repository that disappears.
+on:
+  pull_request:
+    paths:
+      - 'dashboard/src/catalog/**'
+      - 'dashboard/scripts/check-catalog-pins.ts'
+      - '.github/workflows/catalog.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'dashboard/src/catalog/**'
+      - 'dashboard/scripts/check-catalog-pins.ts'
+      - '.github/workflows/catalog.yml'
+  schedule:
+    - cron: '17 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pins:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: dashboard/package-lock.json
+      - run: npm --prefix dashboard ci
+      - run: npm --prefix dashboard run check:catalog
+        env:
+          GITHUB_TOKEN: ${{ github.token }}

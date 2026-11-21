@@ -94,17 +94,20 @@ Explore only when a release moves the pin.
 
 To suggest a skill, open a pull request that adds it to
 [the catalog file](../dashboard/src/catalog/skills.json), pinned to a commit.
-Run `npm run check:catalog` in `dashboard` to check the pin. If you'd rather
-not edit the file, open an issue with a link to the skill's `SKILL.md`.
-Either way, try it on your own code first with **Try from a link**. See
-[contributing](../CONTRIBUTING.md) for the rest.
+Run `npm run check:catalog` in `dashboard` to check the pin and the license.
+The pull request runs the same check. If you'd rather not edit the file, open
+an issue with a link to the skill's `SKILL.md`. Either way, try it on your own
+code first with **Try from a link**. See [contributing](../CONTRIBUTING.md)
+for the rest.
 
 A skill gets listed when:
 
 - It runs unattended. It doesn't stop to ask questions.
 - It does the work, such as a report, a patch or tickets, rather than only
   giving guidance.
-- It lives in a public GitHub repository and has a license.
+- It lives in a public GitHub repository under MIT, Apache-2.0, BSD, ISC or
+  CC-BY-4.0. Some repositories license their skills apart from their code.
+  Then the skill's own license counts.
 - It names the services it needs and what it changes in each.
 - A maintainer ran it on a real repository and the result was worth reading.
   The skill's panel shows an excerpt from that run's report.
