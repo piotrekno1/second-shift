@@ -12,8 +12,9 @@ SecondShift runs agent jobs you define in your repository: by hand, on a schedul
   <a href="/docs/production-deployment/"><span class="path-number">03</span><span><strong>Deploy for your team</strong><small>Run the shared service on your own server with Docker Compose.</small></span><span class="path-arrow" aria-hidden="true">↗</span></a>
 </div>
 
-Not sure what to run first? Browse the [skill catalog](/docs/skill-catalog/)
-for ready-made skills, grouped by team. To use a skill someone published on
+Not sure what to run first? Open [Explore](/docs/explore/) in the dashboard
+and try a skill once on your code. The [skill catalog](/docs/skill-catalog/)
+has ready-made skills to copy, grouped by team. To use a skill someone published on
 GitHub, see [skills from another repository](/docs/repository-configuration/#skills-from-another-repository).
 
 Looking for a setting or API? Use the sidebar or search above.
