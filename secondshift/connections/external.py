@@ -17,9 +17,12 @@ from secondshift.connections.http_api.client import (
     send,
     validate_api_connection,
 )
+from secondshift.connections.mcp.base import MCPSessionExpired, MCPSessionRef
 from secondshift.connections.mcp.client import (
     borrows_source,
+    close_mcp_session,
     mcp_request,
+    open_mcp_session,
     validate_mcp_connection,
 )
 from secondshift.connections.mcp.oauth import fresh_connection
@@ -30,6 +33,24 @@ from secondshift.connections.mcp.providers import (
 from secondshift.connections.models import Connection
 from secondshift.connections.outbound import host_label
 from secondshift.connections.repository_ref import RepositoryRef
+
+# Prepended to the result of a call that had to start a new session.
+SESSION_RESTARTED_NOTE = (
+    "SecondShift: the MCP session expired and a new one started. State the "
+    "server kept, such as an open page, was lost."
+)
+
+
+class MCPSessionStore(Protocol):
+    """Where a run keeps its session with one connection."""
+
+    def load(self) -> MCPSessionRef | None: ...
+
+    def keep(self, session: MCPSessionRef) -> MCPSessionRef:
+        """Save the session, or return the one another call saved first."""
+        ...
+
+    def forget(self, session: MCPSessionRef) -> None: ...
 
 
 @dataclass(frozen=True)
@@ -45,6 +66,8 @@ class Authorization:
     scope_label: str
     # The run's repository. Connections that borrow its source need it.
     repository: RepositoryRef | None = None
+    # The run's kept MCP sessions. Without it, each call has its own session.
+    sessions: MCPSessionStore | None = None
 
 
 class ExternalKind(Protocol):
@@ -162,7 +185,46 @@ class MCPKind:
                 raise ExternalToolError("This MCP connection has no repository.")
             # Minted for this call and this repository only. Never stored.
             token = provider.source_token(authorization.repository)
+        if provider.keeps_session and authorization.sessions is not None:
+            return self.call_in_session(
+                connection, authorization.sessions, tool, scoped, token
+            )
         return async_to_sync(mcp_request)(connection, tool, scoped, token)
+
+    def call_in_session(
+        self,
+        connection: Connection,
+        sessions: MCPSessionStore,
+        tool: str,
+        arguments: dict[str, Any],
+        token: str,
+    ) -> dict[str, Any]:
+        """Join the run's session with this connection, starting one if needed.
+
+        A session the server no longer knows is replaced once, and the result
+        says so.
+        """
+        session = sessions.load() or self.start_session(connection, sessions, token)
+        try:
+            return async_to_sync(mcp_request)(
+                connection, tool, arguments, token, session
+            )
+        except MCPSessionExpired:
+            sessions.forget(session)
+        session = self.start_session(connection, sessions, token)
+        result = async_to_sync(mcp_request)(connection, tool, arguments, token, session)
+        note = {"type": "text", "text": SESSION_RESTARTED_NOTE}
+        return {**result, "content": [note, *result.get("content", [])]}
+
+    def start_session(
+        self, connection: Connection, sessions: MCPSessionStore, token: str
+    ) -> MCPSessionRef:
+        opened = async_to_sync(open_mcp_session)(connection, token)
+        kept = sessions.keep(opened)
+        if kept != opened:
+            # Another call of the run started one first. Use that one.
+            async_to_sync(close_mcp_session)(connection, opened, token)
+        return kept
 
 
 class APIKind:

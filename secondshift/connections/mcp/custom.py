@@ -75,6 +75,7 @@ CUSTOM_MCP = MCPProvider(
     ),
     endpoint_path=lambda settings: settings.get(URL, ""),
     owner_selects_tools=True,
+    keeps_session=True,
     auth_methods=(OAUTH, TOKEN),
     token_hint="Enter a bearer token without whitespace.",
     description=(

@@ -4,6 +4,7 @@ from functools import cached_property
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
+from encrypted_model_fields.fields import EncryptedTextField
 
 from secondshift.connections.models import Connection
 from secondshift.jobs.execution_plan import ExecutionPlan
@@ -186,6 +187,31 @@ class Run(models.Model):
 
     def __str__(self) -> str:
         return f"{self.display_name} at {self.scheduled_for:%Y-%m-%d %H:%M}"
+
+
+class RunMCPSession(models.Model):
+    """The MCP session a run keeps with one connection across tool calls.
+
+    Servers that hold state per session, such as a browser, need every call of
+    a run in one session. The id lets anyone with the connection's token use
+    the session, so it is encrypted and never logged or returned.
+    """
+
+    run = models.ForeignKey(Run, on_delete=models.CASCADE, related_name="mcp_sessions")
+    connection = models.ForeignKey(
+        Connection, on_delete=models.CASCADE, related_name="run_mcp_sessions"
+    )
+    # Empty when the server keeps no sessions.
+    session_id = EncryptedTextField(blank=True)
+    protocol_version = models.CharField(max_length=32)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["run", "connection"], name="one_mcp_session_per_run_connection"
+            )
+        ]
 
 
 class RunEvent(models.Model):

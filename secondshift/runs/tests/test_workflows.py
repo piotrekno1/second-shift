@@ -223,6 +223,31 @@ def test_a_failed_run_still_notifies(
 
 
 @pytest.mark.django_db
+def test_a_failed_run_ends_its_mcp_sessions(
+    db, monkeypatch: pytest.MonkeyPatch, fake_stages: list[str]
+) -> None:
+    run = execution_run(db)
+    closed: list[int] = []
+
+    def fail(run: Run, session_id: str) -> None:
+        raise RuntimeError("The agent returned an empty report.")
+
+    def broken_close(run_id: int) -> None:
+        closed.append(run_id)
+        raise ConnectionError("browser server went away")
+
+    monkeypatch.setattr(workflows, "execute_agent_run", fail)
+    monkeypatch.setattr(workflows, "close_run_mcp_sessions", broken_close)
+    monkeypatch.setattr(workflows, "notify", lambda run_id: None)
+
+    # A failure to end the sessions never replaces the run's own failure.
+    with pytest.raises(RuntimeError, match="empty report"):
+        workflows.execute_run(run.pk)
+
+    assert closed == [run.pk]
+
+
+@pytest.mark.django_db
 def test_a_notification_error_keeps_the_run_failure(
     db, monkeypatch: pytest.MonkeyPatch, fake_stages: list[str]
 ) -> None:

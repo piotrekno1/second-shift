@@ -13,7 +13,12 @@ from django.conf import settings
 from django.db import IntegrityError, transaction
 from jsonschema import Draft202012Validator
 from mcp import ClientSession
-from mcp.client.streamable_http import streamable_http_client
+from mcp.client.streamable_http import (
+    MCP_PROTOCOL_VERSION,
+    MCP_SESSION_ID,
+    streamable_http_client,
+)
+from mcp.shared.exceptions import McpError
 
 from secondshift.connections.credential_store import Secret, has_secret, read_secret
 from secondshift.connections.dao import binding_taken, connected_mcp_connections
@@ -23,6 +28,8 @@ from secondshift.connections.mcp.base import (
     MCPError,
     MCPProvider,
     MCPRequestError,
+    MCPSessionExpired,
+    MCPSessionRef,
     MCPSettings,
 )
 from secondshift.connections.mcp.oauth import fresh_connection
@@ -44,6 +51,8 @@ MCP_MAX_PAGES = 10
 MCP_ERROR_REASON_MAX_CHARS = 500
 # Custom servers keep every tool for the owner to choose from, up to this many.
 MCP_MAX_OFFERED_TOOLS = 200
+# The SDK turns a server's 404 for a session into an error with this code.
+SESSION_TERMINATED_CODE = 32600
 AUTH_STRATEGIES = {
     "token": Connection.AuthStrategy.API_KEY,
     "oauth": Connection.AuthStrategy.OAUTH,
@@ -73,56 +82,90 @@ def borrows_source(connection: Connection) -> bool:
     return connection.auth_strategy == Connection.AuthStrategy.MANAGED
 
 
-async def mcp_request(
-    connection: Connection,
-    tool: str | None = None,
-    arguments: dict[str, Any] | None = None,
-    token: str = "",
-) -> dict[str, Any]:
-    """Redact the token and keep HTTP exception text inside this boundary.
-
-    A connection that borrows a source passes the token it minted for the call.
-    """
-    provider = validate_mcp_connection(connection)
+def request_secret(connection: Connection, provider: MCPProvider, token: str) -> str:
+    """The token for one request. A connection that borrows a source passes
+    the token it minted for the call."""
     secret = (
         token if borrows_source(connection) else read_secret(connection, Secret.TOKEN)
     )
     if not secret:
         raise MCPError(f"This {provider.label} MCP connection is unavailable.")
+    return secret
+
+
+def request_headers(
+    provider: MCPProvider, secret: str, session: MCPSessionRef | None
+) -> dict[str, str]:
+    headers = {**provider.headers, "Authorization": f"{provider.auth_scheme} {secret}"}
+    if session is not None and session.id:
+        headers[MCP_SESSION_ID] = session.id
+        headers[MCP_PROTOCOL_VERSION] = session.protocol_version
+    return headers
+
+
+def request_failed(provider: MCPProvider) -> MCPRequestError:
+    return MCPRequestError(
+        f"{provider.label} MCP request failed. Check the token, permissions, "
+        "and service availability."
+    )
+
+
+def session_terminated(error: BaseException) -> bool:
+    """Whether the server answered that it no longer knows the session."""
+    if isinstance(error, McpError):
+        return error.error.code == SESSION_TERMINATED_CODE
+    if isinstance(error, BaseExceptionGroup):
+        return any(session_terminated(inner) for inner in error.exceptions)
+    return False
+
+
+async def mcp_request(
+    connection: Connection,
+    tool: str | None = None,
+    arguments: dict[str, Any] | None = None,
+    token: str = "",
+    session: MCPSessionRef | None = None,
+) -> dict[str, Any]:
+    """Redact the token and keep HTTP exception text inside this boundary.
+
+    With a session that has an id, the call joins it. It skips initialize and
+    leaves the session open for the next call. Without one, the call opens its
+    own session and ends it.
+    """
+    provider = validate_mcp_connection(connection)
+    secret = request_secret(connection, provider, token)
+    resumed = session is not None and bool(session.id)
     try:
         with anyio.fail_after(settings.OUTBOUND_TIMEOUT_SECONDS):
             async with (
-                outbound_client(
-                    {
-                        **provider.headers,
-                        "Authorization": f"{provider.auth_scheme} {secret}",
-                    }
-                ) as client,
-                streamable_http_client(connection.endpoint_url, http_client=client) as (
-                    reader,
-                    writer,
-                    session_id,
-                ),
+                outbound_client(request_headers(provider, secret, session)) as client,
+                streamable_http_client(
+                    connection.endpoint_url,
+                    http_client=client,
+                    terminate_on_close=not resumed,
+                ) as (reader, writer, session_id),
                 ClientSession(
                     reader,
                     writer,
                     read_timeout_seconds=timedelta(
                         seconds=settings.OUTBOUND_TIMEOUT_SECONDS
                     ),
-                ) as session,
+                ) as client_session,
             ):
                 del session_id
-                await session.initialize()
+                if not resumed:
+                    await client_session.initialize()
                 if tool is not None:
-                    payload = await call_tool(session, tool, arguments)
+                    payload = await call_tool(client_session, tool, arguments)
                 else:
-                    payload = await offered_tools(session, provider)
-    except Exception:
+                    payload = await offered_tools(client_session, provider)
+    except Exception as error:
+        if resumed and session_terminated(error):
+            raise MCPSessionExpired(
+                f"The {provider.label} MCP session expired."
+            ) from None
         # SDK exception groups can embed request headers or remote response text.
-        raise MCPRequestError(
-            f"{provider.label} MCP request failed. Check the token, permissions, "
-            "and service availability."
-        ) from None
+        raise request_failed(provider) from None
     if tool is not None and payload.get("isError"):
         # Raised outside the session so the catch-all above keeps its message.
         text = error_text(payload)
@@ -138,6 +181,51 @@ async def mcp_request(
     if len(encoded.encode()) > RESPONSE_MAX_BYTES:
         raise MCPError("The MCP result exceeded the size limit.")
     return json.loads(encoded.replace(secret, "[redacted]"))
+
+
+async def open_mcp_session(connection: Connection, token: str = "") -> MCPSessionRef:
+    """Start a session for later calls to join. The server may keep none."""
+    provider = validate_mcp_connection(connection)
+    secret = request_secret(connection, provider, token)
+    try:
+        with anyio.fail_after(settings.OUTBOUND_TIMEOUT_SECONDS):
+            async with (
+                outbound_client(request_headers(provider, secret, None)) as client,
+                streamable_http_client(
+                    connection.endpoint_url,
+                    http_client=client,
+                    terminate_on_close=False,
+                ) as (reader, writer, session_id),
+                ClientSession(
+                    reader,
+                    writer,
+                    read_timeout_seconds=timedelta(
+                        seconds=settings.OUTBOUND_TIMEOUT_SECONDS
+                    ),
+                ) as client_session,
+            ):
+                result = await client_session.initialize()
+                return MCPSessionRef(session_id() or "", str(result.protocolVersion))
+    except Exception:
+        raise request_failed(provider) from None
+
+
+async def close_mcp_session(
+    connection: Connection, session: MCPSessionRef, token: str = ""
+) -> None:
+    """End a kept session. Best effort: a server that is gone ends it itself."""
+    if not session.id:
+        return
+    try:
+        provider = validate_mcp_connection(connection)
+        secret = request_secret(connection, provider, token)
+        with anyio.fail_after(settings.OUTBOUND_TIMEOUT_SECONDS):
+            async with outbound_client(
+                request_headers(provider, secret, session)
+            ) as client:
+                await client.delete(connection.endpoint_url)
+    except Exception:
+        logger.warning("Could not end an MCP session on connection %s.", connection.pk)
 
 
 async def call_tool(

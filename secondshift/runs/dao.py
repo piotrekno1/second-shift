@@ -5,7 +5,7 @@ from collections.abc import Collection, Iterable
 from datetime import date, datetime
 from typing import Any
 
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import Count, Exists, F, OuterRef, Q, QuerySet, Subquery, Sum
 from django.db.models.functions import Coalesce, TruncDate
 
@@ -24,6 +24,7 @@ from secondshift.runs.models import (
     RunFailure,
     RunHandBack,
     RunIssue,
+    RunMCPSession,
     Task,
 )
 
@@ -451,6 +452,44 @@ def add_event_once(run_id: int, message: str, level: str) -> None:
     """Add a line to the run's timeline unless it is already there."""
     RunEvent.objects.get_or_create(
         run_id=run_id, message=message, defaults={"level": level}
+    )
+
+
+# MCP sessions
+
+
+def run_mcp_session(run_id: int, connection_id: int) -> RunMCPSession | None:
+    return RunMCPSession.objects.filter(
+        run_id=run_id, connection_id=connection_id
+    ).first()
+
+
+def create_run_mcp_session(
+    run_id: int, connection_id: int, session_id: str, protocol_version: str
+) -> RunMCPSession | None:
+    """Save the session, or return None when the run already has one."""
+    try:
+        with transaction.atomic():
+            return RunMCPSession.objects.create(
+                run_id=run_id,
+                connection_id=connection_id,
+                session_id=session_id,
+                protocol_version=protocol_version,
+            )
+    except IntegrityError:
+        return None
+
+
+def delete_run_mcp_session(run_id: int, connection_id: int, session_id: str) -> None:
+    """Delete the session if it is still the one saved."""
+    saved = run_mcp_session(run_id, connection_id)
+    if saved is not None and saved.session_id == session_id:
+        saved.delete()
+
+
+def run_mcp_sessions(run_id: int) -> list[RunMCPSession]:
+    return list(
+        RunMCPSession.objects.filter(run_id=run_id).select_related("connection")
     )
 
 

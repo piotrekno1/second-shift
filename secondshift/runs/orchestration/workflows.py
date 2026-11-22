@@ -41,6 +41,7 @@ from secondshift.runs.dao import (
 )
 from secondshift.runs.execution.budgets import Budget, budget_reached_message
 from secondshift.runs.execution.deadlines import run_deadline, timeout_failure
+from secondshift.runs.execution.mcp_sessions import close_run_mcp_sessions
 from secondshift.runs.execution.result import AgentResult
 from secondshift.runs.execution.run import execute_agent_run
 from secondshift.runs.hand_back_delivery import hand_back_run_issue
@@ -296,6 +297,19 @@ def stop_runner_session_step(session_id: str) -> None:
     get_runner_client().stop(session_id)
 
 
+@durable.step(name="secondshift.close_mcp_sessions")
+def close_mcp_sessions_step(run_id: int) -> None:
+    close_run_mcp_sessions(run_id)
+
+
+def close_mcp_sessions(run_id: int) -> None:
+    """End the run's MCP sessions. A failure here never changes the run."""
+    try:
+        close_mcp_sessions_step(run_id)
+    except Exception:
+        logger.exception("could not end MCP sessions of run %s", run_id)
+
+
 @durable.step(name="secondshift.finish_run")
 @transaction.atomic
 def finish_run_step(run_id: int, stored: dict[str, Any]) -> None:
@@ -505,6 +519,7 @@ def execute_run(run_id: int) -> None:
         timeout = timeout_failure(run)
         result = execute_agent_run(run, session_id)
         stage = RunFailure.FINISHING
+        close_mcp_sessions(run_id)
         collect_outputs(run_id, session_id)
         stop_runner_session_step(session_id)
         session_id = None
@@ -515,6 +530,7 @@ def execute_run(run_id: int) -> None:
                 stop_runner_session_step(session_id)
             except Exception:
                 logger.exception("failed to stop runner session %s", session_id)
+        close_mcp_sessions(run_id)
         details = failure_metadata(stage, error)
         timed_out = deadline is not None and timezone.now() >= deadline
         if stage == RunFailure.SKILL and timeout is not None and timed_out:
