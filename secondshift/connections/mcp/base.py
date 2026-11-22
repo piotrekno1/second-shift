@@ -33,8 +33,25 @@ class CustomMCPToolError(MCPRequestError):
         self.reason = reason
 
 
+class MCPSessionExpired(MCPRequestError):
+    """The server no longer knows the session. A new one can be started."""
+
+
 class MCPArgumentError(MCPError, ToolArgumentError):
     """Arguments outside the approved scope. The model may fix them."""
+
+
+@dataclass(frozen=True)
+class MCPSessionRef:
+    """An MCP session a run keeps across tool calls.
+
+    An empty id means the server keeps no sessions, so each call stands alone.
+    The id lets anyone with the connection's token use the session. Never log
+    or return it.
+    """
+
+    id: str
+    protocol_version: str
 
 
 @dataclass(frozen=True)
@@ -95,6 +112,9 @@ class MCPProvider:
     # Custom servers: keep every tool and let the owner choose. Read-only
     # tools start selected.
     owner_selects_tools: bool = False
+    # Keep one MCP session for a whole run, so a server that holds state per
+    # session, such as a browser, sees every call of the run in one session.
+    keeps_session: bool = False
     # "token" for a pasted bearer token, "oauth" for a browser sign-in,
     # SOURCE_AUTH for the token of the repository's source connection.
     auth_methods: tuple[str, ...] = ("token",)
