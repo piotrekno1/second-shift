@@ -2,7 +2,7 @@
 
 import hashlib
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any
 
 from jsonschema import ValidationError, validate
@@ -15,6 +15,7 @@ from secondshift.jobs.tool_policy import AuthorizedTool, resolve_tool
 from secondshift.repositories.github.scope import repository_ref
 from secondshift.runs.dao import add_event, get_run
 from secondshift.runs.execution.consent import approved_connection
+from secondshift.runs.execution.mcp_sessions import RunMCPSessions
 from secondshift.runs.models import Run
 from secondshift.runs.orchestration import durable
 
@@ -61,8 +62,13 @@ def call_external_tool_step(
     run_id: int, name: str, arguments: dict[str, Any], call_id: str
 ) -> dict[str, Any] | ExternalToolFailure:
     run = get_run(run_id, "job__repository", "task__repository")
-    authorization = broker_connection(run, name)
     tool = resolve_tool(run.plan, name)
+    authorization = broker_connection(run, name)
+    # Every call of the run, sub-agents' too, joins one session per connection.
+    authorization = replace(
+        authorization,
+        sessions=RunMCPSessions(run.pk, authorization.connection.pk, str(tool.binding)),
+    )
     # Owner rules first. The provider's own scope rules run last, inside call,
     # so a restriction can never loosen them.
     try:

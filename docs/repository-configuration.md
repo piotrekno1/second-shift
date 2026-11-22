@@ -634,6 +634,14 @@ Tool calls never run in the sandbox. The broker makes each call after checking
 that the job's grant, the connection, and the tool definitions still match
 the run's plan. A change stops the run.
 
+A run keeps one session with each custom MCP server, from its first call to
+the end of the run. A server that keeps state per session, such as a browser
+server with an open page, sees every call of the run in that session.
+Sub-agents share it. Two runs never share one. If the server forgets the
+session, the broker starts a new one once, the tool result says the server's
+state was lost, and the run's timeline shows it. The built-in GitHub and
+Sentry connections start a new session for each call.
+
 For HTTP APIs, SecondShift builds every request from the spec. The model
 supplies only the path and query values the spec declares, plus a JSON body for
 operations that take one. Requests go only to the base URL the owner confirmed
