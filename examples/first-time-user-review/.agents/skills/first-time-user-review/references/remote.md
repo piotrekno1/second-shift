@@ -36,8 +36,8 @@ Never close the browser. Closing it may lose the saved sign-in.
 ## Before each user
 
 1. If the run has a tool that resets the app's test data, call it. The run
-   prompt says when an optional reset tool is missing. Then say in the report
-   that the app was not reset between users.
+   prompt says when that optional tool is missing. Without it, say in the
+   report that the app was not reset between users.
 2. Open the first page and check that the browser is signed in. Use the sign
    the app notes give, or a sign like an account menu. If you land on a sign-in
    page, stop: the saved sign-in has expired, and the owner must renew it.
