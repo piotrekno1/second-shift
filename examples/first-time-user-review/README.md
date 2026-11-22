@@ -9,18 +9,36 @@ The five users are an impatient one, a skeptic, a phone user on a 375 pixel
 screen, a non-native English speaker and one who tries to break things. Edit
 the list in the skill to match your own users.
 
-## Evidence and setup
+The skill reviews a deployed test copy of the app, such as staging, through a
+browser server you run. The walk and the report live in `SKILL.md`. The rules
+for a deployed copy live in
+[references/remote.md](.agents/skills/first-time-user-review/references/remote.md).
 
-A browser the job can drive, and a test or staging copy of the app with an
-account prepared for the review.
+## Describe the app
 
-1. Save a signed-in browser state for the test account. Sign in once by hand
+Add a short section to your repository's `AGENTS.md` or `README.md`. The skill
+reads it before each run:
+
+```markdown
+## App review
+- First success: create a project and run its first job.
+- Test addresses: https://staging.example.com
+- Signed in when the page shows the account menu.
+- Skip: billing pages.
+```
+
+The skill opens only hosts listed as test addresses, even when a request or a
+webhook names another one. Endpoints never go in the manifest.
+
+## Set up the browser
+
+1. Save a signed-in browser state for a test account. Sign in once by hand
    with `npx playwright codegen --save-storage=auth.json <app address>`. The
    skill never types passwords, so the password stays on this machine.
 2. Run a browser MCP server where SecondShift can reach it, and where the
    browser can reach the app. The sample uses the tool names of
    [Playwright MCP](https://github.com/microsoft/playwright-mcp). For other
-   servers, replace the names in `.secondshift.yaml` with theirs.
+   servers, replace the names in `.secondshift.yaml` and in the skill.
 
    ```bash
    npx @playwright/mcp --port 8931 \
@@ -30,67 +48,78 @@ account prepared for the review.
      --image-responses omit --output-dir ./qa-screenshots
    ```
 
-   - `--isolated --storage-state` starts every run signed in, from the same
-     clean state.
-   - `--shared-browser-context` keeps the page open between tool calls.
-     SecondShift opens a new MCP session for each call, so without it every
-     click starts on a blank page.
+   - `--isolated --storage-state` starts the browser signed in, from a clean
+     profile.
+   - `--shared-browser-context` keeps one page and one sign-in across tool
+     calls. SecondShift opens a new MCP session for each call, so without it
+     every click starts on a blank page.
    - `--allowed-origins` keeps the browser on the app. Playwright says it is
      not a security boundary, so use a test environment.
    - `--image-responses omit` saves screenshots to `--output-dir` and returns
      only the file name. Inline images are too large for a tool result.
 3. Restart the server before each run, so a run never sees the last run's
-   pages or cookies. Saved sign-ins expire. Repeat step 1 when runs start on a
-   sign-in page.
+   pages. Sign-ins the app refreshes during a run are not saved back to
+   `auth.json`. Repeat step 1 when a run reports that the sign-in expired.
 4. Add a custom MCP connection with binding `browser`, and choose the tools
-   above. In local mode, `http://localhost:8931/mcp` works. A hosted
+   above. Leave out `browser_close`: closing the browser can lose the sign-in.
+   In local mode, `http://localhost:8931/mcp` works with any token. A hosted
    SecondShift needs an HTTPS address and a bearer token. Playwright MCP checks
-   neither, so put it behind a proxy that does. Clicking and typing can change
-   data in the app, so the access review marks them. Use a test environment,
-   never production.
-5. Put the test address in the request, or document it in the repository, for
-   example in the README. Endpoints never go in the manifest.
-6. Optional: connect a tool that resets the app's test data. Add its binding
-   and tool to the job's `requires`, then approve it. The skill calls it before
-   each user. Without one, the report says
-   the app was not reset.
+   neither, so put it behind a proxy that checks the token. Clicking and typing
+   can change data in the app, so the access review marks them. Use a test
+   environment, never production.
+5. Optional: connect a tool that resets the app's test data, with binding
+   `test-data`, and put its name in `.secondshift.yaml`. The skill calls it
+   before each user. Without it, the report says the app was not reset.
 
-Screenshots stay in `--output-dir` on the browser server. The report names
-each file.
+Every run shares the one browser. Run one review at a time per browser server.
 
-Five walks take more steps than most jobs. Raise this job's model call and tool
-call limits on its job page, within the server maximums. If the limits stop a
-run early, the report names the users it skipped.
+## Limits
 
-## When to run
+- Each tool call has a time limit of about 10 seconds. A slow page can time
+  out. The skill retries once, then lists it under flaky results.
+- Every user starts signed in, so sign-up is walked only up to the password
+  field. The report says so.
+- Screenshots stay in `--output-dir` on the browser server. The report names
+  each file.
 
-Run it before a release, or after a change to sign-up, onboarding or the first
-steps in the app. The sample has no schedule, because a timer cannot tell when
-the first-run experience changed. Add a weekly schedule if your team ships
-often.
+## Run limits and sub-agents
 
-**Begin with a manual run, check its findings and coverage, then enable a
-schedule if useful.**
+Five walks take more than the defaults of 15 minutes, 24 turns and 150 tool
+calls. On this job's page, start with an hour, 200 turns and 400 tool calls,
+and adjust from the first runs. See
+[run limits](../../docs/self-hosting.md#run-limits).
 
-## Use in another project
+The job sets `subagents: 5`, so each user walks in a fresh agent that does not
+know the route an earlier user found. Sub-agents count toward the run's
+limits. Codex runs cannot start sub-agents yet. Then the main agent walks
+every user itself, and the report says so. See
+[sub-agents](../../docs/repository-configuration.md#sub-agents).
+
+With `history: 1`, each run saves its problems as `findings.json` and the next
+run reports what is new, fixed and still open.
+
+## Try it
 
 1. Copy this example's `.agents/skills/first-time-user-review` into your
    repository's `.agents/skills`, and merge this example's `.secondshift.yaml`
    into your root manifest. Copy the actual example directory, not the
-   discovery symlink from this repository's root `.agents` directory. Commit
-   the files.
-2. Connect a model provider and choose a default model. Set up the browser
-   connection described above. Connection endpoints and credentials belong in
-   SecondShift, never in the manifest or skill.
-3. Import or resync the repository, approve the requested access, and choose
-   **Run now**. Review the findings and coverage before adding a schedule.
+   discovery symlink from this repository's root `.agents` directory.
+2. Add the app section above, set up the browser, and commit the files.
+3. Connect a model provider or an agent subscription. Import or resync the
+   repository, approve the requested access, raise the run limits, and choose
+   **Run now**.
+4. Read the report and its coverage. Run it before releases, or trigger it
+   after each staging deploy with a [webhook](../../docs/repository-configuration.md#webhook-triggers).
+   A timer cannot tell when the first-run experience changed.
 
-For local coding-agent use, copy the same skill and request it explicitly with
-the app address. Use that agent's approved browser tools. A coding agent that
-can start subagents can run the five users in parallel and merge their results.
-Installing a skill does not grant access. The skill returns a report and leaves
-delivery to its host. See [repository configuration](../../docs/repository-configuration.md)
-for connections, schedules, and optional webhook delivery.
+To try the skill once without a manifest, use **Try from a link** with a link
+to its `SKILL.md`. It shows the browser tools it needs from the skill's
+`allowed-tools`.
+
+For local coding-agent use, copy the same skill and request it with the app
+address. If your browser server is not named `browser`, change the
+`mcp__browser__` prefix in `allowed-tools`. Installing a skill does not grant
+access.
 
 ## Use in this repository
 
