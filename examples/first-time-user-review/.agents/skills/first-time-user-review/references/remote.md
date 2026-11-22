@@ -27,6 +27,10 @@ it, and you reach that browser only through the approved browser tools.
 | console | `browser_console_messages` |
 | network | `browser_network_requests` |
 
+Read the page with `browser_snapshot` after you open, click or type. Some
+servers save the snapshot that comes with an action to a file on the server,
+which you cannot read.
+
 Never close the browser. Closing it may lose the saved sign-in.
 
 ## Before each user
