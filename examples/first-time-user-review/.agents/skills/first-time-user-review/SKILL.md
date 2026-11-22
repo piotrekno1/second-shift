@@ -101,6 +101,11 @@ Report something only when you saw it happen. If a repeat does not show it
 again, or it came from a timeout or connection error, list it under flaky
 results with the failed request and its status. Do not rank it.
 
+Some steps need what the review may not give, such as a password, a token or
+an outside account. Stop that user there. Report it as a problem only when the
+app does not explain what the user needs or why. Otherwise list it under
+coverage as a limit of the test setup, not as a blocker.
+
 Judge severity by the user:
 
 - **Blocker:** the user cannot reach the first success.
