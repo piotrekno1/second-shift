@@ -23,8 +23,3 @@ jobs:
             - browser_take_screenshot
             - browser_console_messages
             - browser_network_requests
-        # Optional: a tool that resets the app's test data. Use its real name.
-        - binding: test-data
-          tools:
-            - reset_test_data
-          required: false

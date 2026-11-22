@@ -68,11 +68,44 @@ webhook names another one. Endpoints never go in the manifest.
    neither, so put it behind a proxy that checks the token. Clicking and typing
    can change data in the app, so the access review marks them. Use a test
    environment, never production.
-5. Optional: connect a tool that resets the app's test data, with binding
-   `test-data`, and put its name in `.secondshift.yaml`. The skill calls it
-   before each user. Without it, the report says the app was not reset.
 
 Every run shares the one browser. Run one review at a time per browser server.
+
+## Reset the app between users (optional)
+
+Most teams can skip this. The breaker goes last, and the report says the app
+was not reset. A reset matters when one user's actions change what the next
+one sees, such as a project an earlier user already created.
+
+1. Add an endpoint to the test copy that restores the test account's data,
+   such as `POST /test/reset`. Check a token, and never enable it in
+   production.
+2. Add an HTTP API connection with binding `test-data`. Enter the test copy's
+   address as the base URL, the endpoint's token, and this spec:
+
+   ```yaml
+   openapi: 3.0.3
+   info: { title: Test data, version: "1" }
+   paths:
+     /test/reset:
+       post:
+         operationId: resetTestData
+         responses: { "204": { description: Reset } }
+   ```
+
+   Select `resetTestData`. Only GET operations start selected.
+3. Add it to the job in `.secondshift.yaml`, next to the browser binding:
+
+   ```yaml
+   requires:
+     apis:
+       - binding: test-data
+         tools: [resetTestData]
+         required: false
+   ```
+
+The skill calls it before each user. Calls go only to the base URL you
+confirmed. A hosted SecondShift needs an HTTPS address.
 
 ## Limits
 
