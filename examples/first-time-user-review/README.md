@@ -50,9 +50,10 @@ webhook names another one. Endpoints never go in the manifest.
 
    - `--isolated --storage-state` starts the browser signed in, from a clean
      profile.
-   - `--shared-browser-context` keeps one page and one sign-in across tool
-     calls. SecondShift opens a new MCP session for each call, so without it
-     every click starts on a blank page.
+   - `--shared-browser-context` shares the sign-in across MCP sessions. The
+     page itself belongs to one session. SecondShift keeps one session with a
+     custom MCP server for the whole run, so every call of a run, sub-agents'
+     too, works on the same page.
    - `--allowed-origins` keeps the browser on the app. Playwright says it is
      not a security boundary, so use a test environment.
    - `--image-responses omit` saves screenshots to `--output-dir` and returns
