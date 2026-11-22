@@ -3,7 +3,11 @@ jobs:
   first-time-user-review:
     name: First-time user review
     skill: .agents/skills/first-time-user-review/SKILL.md
-    # No schedule: run it before a release, or add one once the report is useful.
+    # No schedule: run it before a release, or after a staging deploy.
+    # Each run compares its problems with the last run's.
+    history: 1
+    # One fresh sub-agent per user.
+    subagents: 5
     requires:
       mcps:
         # Tool names from Playwright MCP. Use your browser server's own names.
@@ -19,3 +23,8 @@ jobs:
             - browser_take_screenshot
             - browser_console_messages
             - browser_network_requests
+        # Optional: a tool that resets the app's test data. Use its real name.
+        - binding: test-data
+          tools:
+            - reset_test_data
+          required: false
