@@ -4,12 +4,14 @@ from typing import Literal
 from ninja import Schema
 from pydantic import AliasChoices, Field
 
+from secondshift.workspaces.limits import LimitUnit, RunLimit
+
 
 class LimitSchema(Schema):
-    key: str
+    key: RunLimit
     label: str
     help: str
-    unit: str
+    unit: LimitUnit
     value: int
     override: int | None
     inherited: int

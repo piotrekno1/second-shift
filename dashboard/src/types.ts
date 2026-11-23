@@ -1,4 +1,4 @@
-import type { components as ApiComponents } from './generated/run-api'
+import type { components as ApiComponents } from './generated/api'
 
 export interface User {
   email: string
@@ -79,23 +79,8 @@ export interface WorkspaceSettings {
   can_edit_limits: boolean
 }
 
-export type RunLimitKey = 'max_turns' | 'max_tool_calls' | 'token_budget' | 'timeout_seconds'
-
-/** One run limit at one level (workspace or job). */
-export interface RunLimitItem {
-  key: RunLimitKey
-  label: string
-  help: string
-  unit: 'count' | 'tokens' | 'seconds'
-  /** What a run would get now. */
-  value: number
-  /** What this level chose, or null to use `inherited`. */
-  override: number | null
-  /** What applies when this level chooses nothing. */
-  inherited: number
-  minimum: number
-  maximum: number
-}
+export type RunLimitItem = ApiComponents['schemas']['LimitSchema']
+export type RunLimitKey = RunLimitItem['key']
 
 export type RunLimitUpdate = Partial<Record<RunLimitKey, number | null>>
 
@@ -236,95 +221,11 @@ export interface LocalRepositoryDirectoryList {
   directories: LocalRepositoryDirectory[]
 }
 
-export interface Job {
-  execution_backend: string
-  execution_label: string
-  execution_problem: string
-  /** Why the job's sandbox environment stops it from running, or ''. */
-  environment_problem: string
-  id: number
-  name: string
-  repository_id: number
-  repository: string
-  skill_path: string
-  /** Another GitHub repository the skill comes from. Empty when it is in this one. */
-  skill_repository?: string
-  cron: string
-  timezone: string
-  enabled: boolean
-  next_run_at: string | null
-  /** Set when a sync no longer finds the job in .secondshift.yaml. It cannot run then. */
-  removed_at: string | null
-  requested_capabilities: number
-  grant_status: 'approved' | 'pending' | 'denied' | 'not_required'
-  capabilities: Capability[]
-  /** The newest run, finished or not. */
-  last_run: { id: number; status: Run['status']; at: string } | null
-  /** Trigger kinds the configuration names, such as "webhook". */
-  triggers: TriggerKind[]
-}
-
-export interface JobDetail extends Job {
-  key: string
-  config_hash: string
-  /** How many of its own earlier reports each run starts with. */
-  history: number
-  subagents: number
-  /** The sandbox environment the configuration names, or "default". */
-  environment: string
-  /** Commands that install dependencies before the agent starts. */
-  setup: string[]
-  /** The configuration asks for a draft pull request with each run's changes. */
-  open_pull_request: boolean
-  /** A GitHub repository, so drafts could open. Local repositories cannot. */
-  can_open_pull_requests: boolean
-  /** An owner allows pull requests for the repository, so drafts open. */
-  pull_requests_allowed: boolean
-  /** The configuration asks to open the issues each run proposes. Null when it does not. */
-  open_issues: { labels: string[]; max: number } | null
-  /** An owner allows issues for the repository, so they open. */
-  issues_allowed: boolean
-  repository_revision: string
-  /** The commit the skill is read from. The pinned one for a skill from another repository. */
-  skill_revision?: string
-  repository_enabled: boolean
-  /** The skill file at the synced commit. Empty until the repository syncs again. */
-  skill_text: string
-  skill_truncated: boolean
-  /** The skill on GitHub at the synced commit. Empty for local repositories. */
-  skill_url: string
-  recent_runs: Run[]
-  limits: RunLimitItem[]
-  can_edit_limits: boolean
-}
-
-export interface Capability {
-  /** External tools only: what this job could reach through the binding. */
-  access?: Access | null
-  /** Requested tools that may change data on the service. */
-  changing_tools?: string[]
-  id: number
-  binding: string
-  kind: 'mcp' | 'api' | 'notification'
-  requested_tools: string[]
-  required: boolean
-  grant_status: 'approved' | 'pending' | 'denied' | 'unconfigured'
-  connection_id: number | null
-  connection_name: string | null
-  /** The owner's argument rules per approved tool. */
-  tool_rules?: ToolRules
-  /** External tools only: each requested tool's top-level arguments. */
-  tool_inputs?: Record<string, ToolInput>
-}
-
-export type ToolRule =
-  | { type: 'fixed'; value: unknown }
-  | { type: 'allowed'; values: unknown[] }
-  | { type: 'maximum'; value: number }
-  | { type: 'forbidden' }
-
-/** Tool name, then argument name, then the rule. */
-export type ToolRules = Record<string, Record<string, ToolRule>>
+export type Job = ApiComponents['schemas']['JobSchema']
+export type JobDetail = ApiComponents['schemas']['JobDetailSchema']
+export type Capability = ApiComponents['schemas']['CapabilitySchema']
+export type ToolRules = Capability['tool_rules']
+export type ToolRule = ToolRules[string][string]
 
 export interface ToolInputProperty {
   type?: string | string[]
@@ -334,9 +235,8 @@ export interface ToolInputProperty {
   maximum?: number
 }
 
-export interface ToolInput {
+export type ToolInput = Omit<ApiComponents['schemas']['ToolInputSchema'], 'properties'> & {
   properties: Record<string, ToolInputProperty>
-  required: string[]
 }
 
 export type RunFailure = ApiComponents['schemas']['RunFailureSchema']
@@ -502,11 +402,7 @@ export interface MCPSettingInfo {
   placeholder: string
 }
 
-export interface Access {
-  ok: boolean
-  scope: string | null
-  text: string
-}
+export type Access = ApiComponents['schemas']['AccessSchema']
 
 export interface CapabilityNeedJob {
   access?: Access | null
@@ -599,45 +495,11 @@ export interface ApiTokenList {
   max_days: number
 }
 
-export type TriggerKind = 'webhook'
+export type JobTrigger = ApiComponents['schemas']['TriggerSchema']
+export type TriggerKind = JobTrigger['kind']
+export type TriggerEvent = ApiComponents['schemas']['TriggerEventSchema']
+export type TriggerChange = ApiComponents['schemas']['TriggerChangeSchema']
 export type RunStart = ApiComponents['schemas']['RunStart']
-
-export interface TriggerEvent {
-  id: number
-  outcome: 'started' | 'ignored' | 'refused'
-  reason: string
-  run_id: number | null
-  received_at: string
-  /** Requests with the same outcome and reason share one row. */
-  count: number
-}
-
-export interface JobTrigger {
-  kind: TriggerKind
-  /** The repository's configuration names this trigger. */
-  declared: boolean
-  /** It was turned on at least once, so it has a URL and a secret. */
-  set_up: boolean
-  enabled: boolean
-  url: string | null
-  secret_rotated_at: string | null
-  events: TriggerEvent[]
-  /** The cap that applies, the owner's own value if set, and the server's. */
-  runs_per_hour: number
-  custom_runs_per_hour: number | null
-  default_runs_per_hour: number
-  max_runs_per_hour: number
-  /** From the repository's webhook settings. */
-  skip_when: Record<string, string | number | boolean>
-  repeat_key: string | null
-  repeat_window: string | null
-}
-
-export interface TriggerChange {
-  trigger: JobTrigger
-  /** Only right after it was created or rotated. Never returned again. */
-  secret: string | null
-}
 
 export interface AgentConnection {
   id: number
