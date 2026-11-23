@@ -176,7 +176,7 @@ def report_block(run_id: int, run: Run | None, text: str) -> str:
 
 
 def read_report(run: Run) -> str | None:
-    if not run.output_path:
+    if not run.has_output:
         return None
     try:
         with artifact_storage().open(run.output_path, "rb") as stream:

@@ -111,7 +111,7 @@ def draft_for(run: Run) -> DraftPullRequest:
     if plan is None:
         raise PublishError("The run did not ask for a pull request.")
     report = ""
-    if run.output_path:
+    if run.has_output:
         report, _ = read_text(run.output_path, MAX_BODY_CHARS)
     title, report = title_and_report(report, run.display_name)
     report = repository_paths(report)

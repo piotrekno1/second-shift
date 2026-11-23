@@ -178,6 +178,11 @@ class Run(models.Model):
         return self.plan.job.key if self.job_id is not None else ""
 
     @property
+    def has_output(self) -> bool:
+        """Whether an output path was recorded."""
+        return bool(self.output_path)
+
+    @property
     def display_name(self) -> str:
         return (
             self.job.name
