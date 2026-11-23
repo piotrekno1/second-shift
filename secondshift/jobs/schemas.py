@@ -5,7 +5,10 @@ from ninja import Schema
 from pydantic import ConfigDict, Field
 
 from secondshift.connections.schemas import ConnectionSchema
+from secondshift.jobs.manifest import TriggerKind
+from secondshift.jobs.models import CapabilityRequest, JobGrant
 from secondshift.runner_protocol.agents import AgentBackend
+from secondshift.runs.models import Run
 from secondshift.runs.schemas import RunSchema
 from secondshift.workspaces.schemas import LimitSchema
 
@@ -74,54 +77,54 @@ class ToolInputSchema(Schema):
 class CapabilitySchema(Schema):
     id: int
     binding: str
-    kind: str
+    kind: CapabilityRequest.Kind
     requested_tools: list[str]
     required: bool
-    grant_status: str
+    grant_status: JobGrant.Status | Literal["unconfigured"]
     connection_id: int | None
     connection_name: str | None
     # External tools only: what the job could reach through this binding.
-    access: AccessSchema | None = None
+    access: AccessSchema | None
     # Requested tools that may change data on the service.
-    changing_tools: list[str] = Field(default_factory=list)
-    tool_rules: ToolRulesSchema = Field(default_factory=dict)
+    changing_tools: list[str]
+    tool_rules: ToolRulesSchema
     # External tools only: each requested tool's arguments on the connection.
-    tool_inputs: dict[str, ToolInputSchema] = Field(default_factory=dict)
+    tool_inputs: dict[str, ToolInputSchema]
 
 
 class LastRunSchema(Schema):
     id: int
-    status: str
+    status: Run.Status
     # When it finished, or when it was created if it has not finished.
     at: datetime
 
 
 class JobSchema(Schema):
     id: int
-    execution_backend: str = AgentBackend.PYDANTIC
-    execution_label: str = ""
-    execution_problem: str = ""
+    execution_backend: AgentBackend
+    execution_label: str
+    execution_problem: str
     # Why the job's sandbox environment stops it from running, or empty.
-    environment_problem: str = ""
+    environment_problem: str
     name: str
     repository_id: int
     repository: str
     skill_path: str
     # Another public GitHub repository the skill comes from. Empty when the
     # skill is in the job's own repository.
-    skill_repository: str = ""
+    skill_repository: str
     cron: str
     timezone: str
     enabled: bool
     next_run_at: datetime | None
     # When a sync stopped finding the job in the manifest. It cannot run then.
-    removed_at: datetime | None = None
+    removed_at: datetime | None
     requested_capabilities: int
-    grant_status: str
+    grant_status: JobGrant.Status | Literal["not_required"]
     capabilities: list[CapabilitySchema]
-    last_run: LastRunSchema | None = None
+    last_run: LastRunSchema | None
     # Trigger kinds the configuration names, such as "webhook".
-    triggers: list[str] = []
+    triggers: list[TriggerKind]
 
 
 class JobEnabledSchema(Schema):
@@ -163,7 +166,7 @@ class JobDetailSchema(JobSchema):
     repository_revision: str
     # The commit the skill is read from: the repository's, or the pinned
     # commit of the repository in skill_repository.
-    skill_revision: str = ""
+    skill_revision: str
     repository_enabled: bool
     # The skill file at the synced commit. Empty until the next sync.
     skill_text: str

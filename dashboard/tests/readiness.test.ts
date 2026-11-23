@@ -32,6 +32,10 @@ function capability(
     grant_status: grant,
     connection_id: null,
     connection_name: null,
+    access: null,
+    changing_tools: [],
+    tool_rules: {},
+    tool_inputs: {},
   }
 }
 

@@ -4,11 +4,12 @@ from ninja import Schema
 from pydantic import Field
 
 from secondshift.jobs.manifest import TriggerKind
+from secondshift.triggers.models import TriggerEvent
 
 
 class TriggerEventSchema(Schema):
     id: int
-    outcome: str
+    outcome: TriggerEvent.Outcome
     reason: str
     run_id: int | None
     received_at: datetime
@@ -41,7 +42,7 @@ class TriggerSchema(Schema):
 class TriggerChangeSchema(Schema):
     trigger: TriggerSchema
     # Only right after it was created or rotated. Never returned again.
-    secret: str | None = None
+    secret: str | None
 
 
 class TriggerEnabledSchema(Schema):

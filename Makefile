@@ -21,7 +21,7 @@ check-frontend:
 	npm --prefix dashboard run build
 
 check-api-types:
-	npm --prefix dashboard run generate:run-types -- --check
+	npm --prefix dashboard run generate:api-types -- --check
 
 # Rewrites files. Fixes what the linters can and formats everything.
 fix:

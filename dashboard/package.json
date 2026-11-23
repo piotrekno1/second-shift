@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "generate:run-types": "node scripts/generate-run-types.mjs",
+    "generate:api-types": "node scripts/generate-api-types.mjs",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
