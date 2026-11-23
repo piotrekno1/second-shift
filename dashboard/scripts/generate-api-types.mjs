@@ -47,6 +47,15 @@ for (const name of [
   'LocalRepositoryDirectoryListSchema',
   'GitHubAppStatusSchema',
   'SkillInspectionSchema',
+  'ConnectionSchema',
+  'ConnectionTestSchema',
+  'MCPProviderSchema',
+  'MCPInspectResultSchema',
+  'WebhookSampleSchema',
+  'AgentConnectionSchema',
+  'ExecutionConfigurationSchema',
+  'ExecutionStatusSchema',
+  'APISpecSummarySchema',
 ]) {
   includeSchema(name)
 }

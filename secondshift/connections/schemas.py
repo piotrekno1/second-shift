@@ -1,12 +1,14 @@
 from datetime import datetime
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 from ninja import Schema
-from pydantic import Field, SecretStr
+from pydantic import Field, SecretStr, WithJsonSchema
 
 from secondshift.connections.dao import has_pending_cleanup
 from secondshift.connections.execution import recent_login_runs
-from secondshift.connections.models import AgentConnection
+from secondshift.connections.mcp.base import SOURCE_AUTH
+from secondshift.connections.models import AgentConnection, Connection
+from secondshift.runner_protocol.agents import AgentBackend
 from secondshift.workspaces.access import Action, allows
 
 
@@ -41,13 +43,23 @@ class OfferedToolSchema(Schema):
     read_only: bool
 
 
+# Ninja shares component names across endpoints, including other Kind and Status enums.
+ConnectionKind = Annotated[
+    Connection.Kind, WithJsonSchema({"type": "string", "enum": Connection.Kind.values})
+]
+ConnectionStatus = Annotated[
+    Connection.Status,
+    WithJsonSchema({"type": "string", "enum": Connection.Status.values}),
+]
+
+
 class ConnectionSchema(Schema):
     id: int
-    provider: str
-    kind: str
+    provider: Connection.Provider
+    kind: ConnectionKind
     binding_key: str
     display_name: str
-    status: str
+    status: ConnectionStatus
     expires_at: datetime | None
     available_tools: list[str]
     target: str
@@ -55,20 +67,20 @@ class ConnectionSchema(Schema):
     default_model: str
     is_default: bool
     available_models: list[str]
-    last_check: ConnectionCheckSchema | None = None
-    usage: ConnectionUsageSchema | None = None
+    last_check: ConnectionCheckSchema | None
+    usage: ConnectionUsageSchema | None
     # MCP only: the organization or project an owner chose. Never secret.
-    settings: dict[str, str] = Field(default_factory=dict)
+    settings: dict[str, str]
     # MCP only: "oauth" for a browser sign-in, "token" for a pasted token.
-    auth: str = ""
-    scopes: list[str] = Field(default_factory=list)
-    requested_scopes: list[str] = Field(default_factory=list)
+    auth: Literal["oauth", "token", "app", SOURCE_AUTH, ""]
+    scopes: list[str]
+    requested_scopes: list[str]
     # Custom MCP servers: every tool the server offers, for the owner to choose.
-    offered_tools: list[OfferedToolSchema] = Field(default_factory=list)
+    offered_tools: list[OfferedToolSchema]
     # Capability connections: whether each job's request waits for an owner.
-    require_approval: bool = False
+    require_approval: bool
     # GitHub sources: whether pull requests, issues and commits name SecondShift.
-    attribution: bool = False
+    attribution: bool
 
 
 class AttributionSchema(Schema):
@@ -224,7 +236,7 @@ class ConnectionTestSchema(Schema):
     ok: bool
     status_code: int | None
     message: str
-    models: list[str] = Field(default_factory=list)
+    models: list[str] = []
 
 
 class WebhookSampleSchema(Schema):
@@ -234,18 +246,25 @@ class WebhookSampleSchema(Schema):
     summary_max_chars: int
 
 
+class AgentCheckSchema(Schema):
+    ok: bool
+    reason: str
+    message: str
+    checked_at: str
+
+
 class AgentConnectionSchema(Schema):
     id: int
-    backend: str
+    backend: Literal[AgentBackend.CLAUDE_CODE, AgentBackend.CODEX]
     display_name: str
     connected: bool
     owner_id: int
     updated_at: datetime
-    max_runs_per_day: int | None = None
+    max_runs_per_day: int | None
     # Runs in the last 24 hours, the window the cap counts over.
     recent_runs: int = 0
     can_manage: bool = False
-    last_check: dict[str, Any] | None = None
+    last_check: AgentCheckSchema | None
     # The runner still holds a cached copy of an earlier login.
     runner_cleanup_pending: bool = False
 

@@ -29,6 +29,8 @@ function login(id: number, overrides: Partial<AgentConnection> = {}): AgentConne
   return {
     id,
     backend: 'codex',
+    owner_id: 1,
+    updated_at: '2026-01-01T00:00:00Z',
     display_name: `Login ${id}`,
     connected: true,
     can_manage: true,
@@ -127,6 +129,7 @@ test('modelRows shows a failed check in its own words, the same before and after
           ok: false,
           message: 'The API key was refused.',
           checked_at: '2026-11-03T10:00:00Z',
+          fix_url: '',
         },
       }),
     ],

@@ -114,18 +114,7 @@ export interface Overview {
   has_agent_token: boolean
 }
 
-export interface ExecutionStatus {
-  label: string
-  backend: string
-  /** Why every run would fail, or ''. */
-  problem: string
-  /** False until an owner picks a model provider or a login. */
-  chosen: boolean
-  /** No model provider and no login saved yet. */
-  needs_setup: boolean
-  /** The model key to fix, when the problem is about one. */
-  fix_connection_id: number | null
-}
+export type ExecutionStatus = ApiComponents['schemas']['ExecutionStatusSchema']
 
 export interface RunDay {
   /** Local date, "2026-10-27". */
@@ -231,94 +220,15 @@ export interface RunQuery {
   page_size?: number
 }
 
-export interface Connection {
-  id: number
-  provider: 'github' | 'sentry' | 'mcp' | 'api' | 'webhook' | ModelProvider
-  kind: 'source' | 'mcp' | 'api' | 'notification' | 'model'
-  binding_key: string
-  display_name: string
-  status: 'connected' | 'expired' | 'revoked'
-  expires_at: string | null
-  available_tools: string[]
-  /** Capability connections: whether each job's request waits for an owner. */
-  require_approval: boolean
-  /** GitHub sources: whether pull requests, issues and commits name SecondShift. */
-  attribution: boolean
-  /** Redacted delivery target (host only). Never the full URL. */
-  target: string
-  allowed_models: string[]
-  default_model: string
-  is_default: boolean
-  available_models: string[]
-  /** Result of the last check. Sources add what each feature can do. */
-  last_check: ConnectionCheck | null
-  /** Present on the connections list only. */
-  usage?: ConnectionUsage | null
-  /** MCP only: the organization or project the owner chose. */
-  settings?: Record<string, string>
-  /**
-   * How it signs in. MCP: oauth, token, or source (borrows each repository's
-   * GitHub connection). GitHub sources: app or token.
-   */
-  auth?: 'oauth' | 'token' | 'app' | 'source' | ''
-  /** MCP only: OAuth scopes the server granted. */
-  scopes?: string[]
-  /** MCP only: scopes selected when signing in. Required on refresh and reconnect. */
-  requested_scopes?: string[]
-  /** Custom MCP servers: every tool the server offers. */
-  offered_tools?: OfferedTool[]
-}
-
-export interface ConnectionUsage {
-  /** Jobs with approved access through this connection. */
-  jobs: number
-  runs_7d: number
-  spend_7d_usd: number
-  spend_partial: boolean
-  /** Last model call. Services don't record individual calls. */
-  last_used_at: string | null
-}
+export type Connection = ApiComponents['schemas']['ConnectionSchema']
+export type ConnectionUsage = ApiComponents['schemas']['ConnectionUsageSchema']
 
 export type ModelProvider = 'anthropic' | 'openai' | 'openrouter' | 'openai_compatible'
 
-/** A built-in MCP server an owner can connect. */
-export interface MCPProviderInfo {
-  key: string
-  label: string
-  description: string
-  default_binding: string
-  token_label: string
-  token_hint: string
-  setup_url: string
-  setup_help: string
-  /** Values entered when connecting, such as a Sentry organization. */
-  settings: MCPSettingInfo[]
-  tools: string[]
-  /** "token" for a pasted token, "oauth" for a browser sign-in, "source" to borrow GitHub connections. */
-  auth_methods: string[]
-  /** Custom servers: the owner chooses tools after connecting. */
-  owner_selects_tools: boolean
-}
-
-export interface MCPServerInfo {
-  oauth: boolean
-  scopes: string[]
-}
-
-export interface OfferedTool {
-  name: string
-  description: string
-  read_only: boolean
-}
-
-export interface MCPSettingInfo {
-  key: string
-  label: string
-  pattern: string
-  required: boolean
-  help: string
-  placeholder: string
-}
+export type MCPProviderInfo = ApiComponents['schemas']['MCPProviderSchema']
+export type MCPServerInfo = ApiComponents['schemas']['MCPInspectResultSchema']
+export type OfferedTool = ApiComponents['schemas']['OfferedToolSchema']
+export type MCPSettingInfo = ApiComponents['schemas']['MCPSettingSchema']
 
 export type Access = ApiComponents['schemas']['AccessSchema']
 
@@ -343,36 +253,10 @@ export interface CapabilityNeed {
   jobs: CapabilityNeedJob[]
 }
 
-/** A run report as a webhook receives it, built from made-up records. */
-export interface WebhookSample {
-  payload: Record<string, unknown>
-  /** How many characters of the report the summary field holds. */
-  summary_max_chars: number
-}
-
-/** One feature of a source connection. ok is null when it cannot be checked without using it. */
-export interface FeatureCheck {
-  feature: string
-  label: string
-  ok: boolean | null
-  message: string
-}
-
-export interface ConnectionCheck {
-  ok: boolean
-  message: string
-  checked_at: string
-  features?: FeatureCheck[]
-  /** Where to fix a gap on GitHub. Empty when there is nowhere to send the person. */
-  fix_url?: string
-}
-
-export interface ConnectionTest {
-  ok: boolean
-  status_code: number | null
-  message: string
-  models: string[]
-}
+export type WebhookSample = ApiComponents['schemas']['WebhookSampleSchema']
+export type FeatureCheck = ApiComponents['schemas']['FeatureCheckSchema']
+export type ConnectionCheck = ApiComponents['schemas']['ConnectionCheckSchema']
+export type ConnectionTest = ApiComponents['schemas']['ConnectionTestSchema']
 
 export interface Notice {
   ok: boolean
@@ -419,51 +303,11 @@ export type TriggerEvent = ApiComponents['schemas']['TriggerEventSchema']
 export type TriggerChange = ApiComponents['schemas']['TriggerChangeSchema']
 export type RunStart = ApiComponents['schemas']['RunStart']
 
-export interface AgentConnection {
-  id: number
-  backend: 'claude_code' | 'codex'
-  display_name: string
-  connected: boolean
-  can_manage: boolean
-  max_runs_per_day: number | null
-  recent_runs: number
-  /** The last login check. Only a refused sign-in stops runs. */
-  last_check: AgentCheck | null
-  /** The runner still holds a cached copy of an earlier login. The worker removes it. */
-  runner_cleanup_pending: boolean
-}
-
-export interface AgentCheck {
-  ok: boolean
-  reason: string
-  message: string
-  checked_at: string
-}
-
-export interface ExecutionChoice {
-  key: string
-  label: string
-  disabled: boolean
-  /** Why this choice cannot run jobs, or ''. */
-  problem: string
-}
-
-export interface AgentConfiguration {
-  enabled: boolean
-  choices: ExecutionChoice[]
-  selected: string
-  label: string
-  backend: string
-  ready: boolean
-  problem: string
-}
-
-export interface APISpecSummary {
-  title: string
-  servers: string[]
-  operations: number
-  read_only: number
-}
+export type AgentConnection = ApiComponents['schemas']['AgentConnectionSchema']
+export type AgentCheck = ApiComponents['schemas']['AgentCheckSchema']
+export type ExecutionChoice = ApiComponents['schemas']['ExecutionChoiceSchema']
+export type AgentConfiguration = ApiComponents['schemas']['ExecutionConfigurationSchema']
+export type APISpecSummary = ApiComponents['schemas']['APISpecSummarySchema']
 
 export type GitHubSource = ApiComponents['schemas']['GitHubAvailableRepositorySchema']
 export type GitHubAppStatus = ApiComponents['schemas']['GitHubAppStatusSchema']
