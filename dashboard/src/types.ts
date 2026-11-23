@@ -155,71 +155,13 @@ export interface FailingJob {
   paused: boolean
 }
 
-export interface Repository {
-  id: number
-  full_name: string
-  display_name: string
-  default_branch: string
-  enabled: boolean
-  job_count: number
-  last_synced_at: string | null
-  source_type: 'github' | 'local'
-  local_path: string | null
-  revision: string
-  /** The GitHub source connection it syncs through. Null for local folders. */
-  github_connection_id: number | null
-  /** A sync is waiting for the worker or running. */
-  syncing: boolean
-}
-
-export interface RepositoryValidation {
-  status: 'valid' | 'warning' | 'error'
-  message: string
-  current_revision: string | null
-  synced_revision: string
-  needs_sync: boolean
-}
-
-export interface RepositoryJob {
-  id: number
-  name: string
-  skill_path: string
-  cron: string
-  timezone: string
-  enabled: boolean
-  grant_status: 'approved' | 'pending' | 'denied' | 'not_required'
-  /** Set when a sync no longer finds the job in .secondshift.yaml. It cannot run then. */
-  removed_at: string | null
-}
-
-export interface RepositoryDetail extends Repository {
-  config_path: string
-  /** Sync new commits on the branch without pressing Resync. */
-  auto_sync: boolean
-  /** Whether this server syncs in the background at all. */
-  server_syncs: boolean
-  /** A GitHub repository, so tasks could open draft pull requests. */
-  can_open_pull_requests: boolean
-  /** An owner lets tasks open draft pull requests here. */
-  allow_pull_requests: boolean
-  /** CI runs on the draft at once instead of waiting for a review. */
-  pull_request_ci: boolean
-  /** Jobs may open the issues their agent proposes. GitHub repositories only. */
-  allow_issues: boolean
-  validation: RepositoryValidation
-  jobs: RepositoryJob[]
-}
-
-export interface LocalRepositoryDirectory {
-  name: string
-  path: string
-}
-
-export interface LocalRepositoryDirectoryList {
-  path: string
-  parent: string | null
-  directories: LocalRepositoryDirectory[]
-}
+export type Repository = ApiComponents['schemas']['RepositorySchema']
+export type RepositoryValidation = ApiComponents['schemas']['RepositoryValidationSchema']
+export type RepositoryJob = ApiComponents['schemas']['RepositoryJobSchema']
+export type RepositoryDetail = ApiComponents['schemas']['RepositoryDetailSchema']
+export type LocalRepositoryDirectory = ApiComponents['schemas']['LocalRepositoryDirectorySchema']
+export type LocalRepositoryDirectoryList =
+  ApiComponents['schemas']['LocalRepositoryDirectoryListSchema']
 
 export type Job = ApiComponents['schemas']['JobSchema']
 export type JobDetail = ApiComponents['schemas']['JobDetailSchema']
@@ -265,33 +207,9 @@ export type RunAccessNeed = ApiComponents['schemas']['RunAccessNeedSchema']
 
 export type RunFileName = RunFile['name']
 
-export type SkillNeedStatus = 'ready' | 'needs_approval' | 'unavailable' | 'missing'
-
-export interface SkillNeed {
-  binding: string
-  server: string
-  tools: string[]
-  /** declared: in the frontmatter's allowed-tools. mentioned: in the text. */
-  origin: 'declared' | 'mentioned'
-  status: SkillNeedStatus
-  detail: string
-}
-
-/** A skill from another repository, pinned to a commit. */
-export interface SkillInspection {
-  repository: string
-  path: string
-  commit_sha: string
-  url: string
-  name: string
-  description: string
-  file_count: number
-  size_bytes: number
-  /** Someone else's file. Show it as text. */
-  text: string
-  text_truncated: boolean
-  needs: SkillNeed[]
-}
+export type SkillNeed = ApiComponents['schemas']['SkillNeedSchema']
+export type SkillInspection = ApiComponents['schemas']['SkillInspectionSchema']
+export type SkillNeedStatus = SkillNeed['status']
 
 type RunPageResponse = ApiComponents['schemas']['RunPageSchema']
 
@@ -547,18 +465,8 @@ export interface APISpecSummary {
   read_only: number
 }
 
-export interface GitHubSource {
-  connection_id: number
-  repository_id: number
-  full_name: string
-  default_branch: string
-}
-
-export interface GitHubAppStatus {
-  configured: boolean
-  error: string
-  repositories: GitHubSource[]
-}
+export type GitHubSource = ApiComponents['schemas']['GitHubAvailableRepositorySchema']
+export type GitHubAppStatus = ApiComponents['schemas']['GitHubAppStatusSchema']
 
 export interface TaskSubmissionResult {
   task_id: number
