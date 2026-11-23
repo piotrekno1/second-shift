@@ -36,6 +36,8 @@ function includeSchema(name) {
   }
 }
 includeSchema('RunSchema')
+includeSchema('RunDetailSchema')
+includeSchema('RunPageSchema')
 
 const ast = await openapiTS({
   openapi: openapi.openapi,
