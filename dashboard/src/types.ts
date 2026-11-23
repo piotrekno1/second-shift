@@ -343,104 +343,27 @@ export type RunFailure = ApiComponents['schemas']['RunFailureSchema']
 
 export type Run = ApiComponents['schemas']['RunSchema']
 
-export interface RunEvent {
-  id: number
-  level: 'info' | 'warning' | 'error' | string
-  message: string
-  created_at: string
-}
+export type RunEvent = ApiComponents['schemas']['RunEventSchema']
 
-export type RunFileName = 'input' | 'output'
+export type RunFile = ApiComponents['schemas']['RunFileSchema']
 
-export interface RunFile {
-  name: RunFileName
-  label: string
-  filename: string
-  size_bytes: number | null
-  truncated: boolean
-}
+export type RunDelivery = ApiComponents['schemas']['RunDeliverySchema']
 
-export interface RunDelivery {
-  id: number
-  kind: 'notification' | 'pull_request' | 'issues' | 'hand_back' | string
-  target: string
-  status: 'pending' | 'retrying' | 'delivered' | 'skipped' | 'failed'
-  attempts: number
-  message: string
-  /** Where the result lives, such as the draft pull request. Empty if none. */
-  url: string
-  updated_at: string
-  /** Failed, and it can still be sent. */
-  retryable: boolean
-}
+export type RunChanges = ApiComponents['schemas']['RunChangesSchema']
 
-export interface RunChanges {
-  file_count: number
-  /** The first changed paths. The patch holds all of them. */
-  files: string[]
-  too_large: boolean
-  /** False when the changes were not kept, for example past the size limit. */
-  available: boolean
-  size_bytes: number | null
-}
+export type RunSavedFile = ApiComponents['schemas']['RunSavedFileSchema']
 
-export interface RunSavedFile {
-  name: string
-  size_bytes: number
-}
+export type RunSkippedFile = ApiComponents['schemas']['RunSkippedFileSchema']
 
-export interface RunSkippedFile {
-  name: string
-  reason: string
-}
+export type RunIssue = ApiComponents['schemas']['RunIssueSchema']
 
-/** An issue the agent proposed. It has a number once it opens on GitHub. */
-export interface RunIssue {
-  title: string
-  number: number | null
-  url: string
-  /** An open issue already had this title, so none was opened. */
-  already_open: boolean
-}
+export type RunDetail = ApiComponents['schemas']['RunDetailSchema']
 
-export interface RunDetail extends Run {
-  submission_input?: string
-  job_key: string
-  skill_path: string
-  commit_sha: string
-  created_at: string
-  exit_code: number | null
-  model_provider: string | null
-  execution_agent?: string | null
-  output_excerpt: string
-  output_truncated: boolean
-  output_size_bytes: number | null
-  events: RunEvent[]
-  files: RunFile[]
-  deliveries: RunDelivery[]
-  issues: RunIssue[]
-  changes: RunChanges | null
-  saved_files: RunSavedFile[]
-  skipped_files: RunSkippedFile[]
-  /** Another repository the skill came from, at the commit the run used. */
-  skill_source?: RunSkillSource | null
-  /** A tried skill whose job SecondShift can add with a draft pull request. */
-  schedules_by_pull_request?: boolean
-  /** Access the agent reported it needed and did not have. Model output. */
-  access_needs?: RunAccessNeed[]
-}
+export type RunSkillSource = ApiComponents['schemas']['RunSkillSourceSchema']
 
-export interface RunSkillSource {
-  repository: string
-  commit_sha: string
-  url: string
-}
+export type RunAccessNeed = ApiComponents['schemas']['RunAccessNeedSchema']
 
-export interface RunAccessNeed {
-  service: string
-  tools: string[]
-  reason: string
-}
+export type RunFileName = RunFile['name']
 
 export type SkillNeedStatus = 'ready' | 'needs_approval' | 'unavailable' | 'missing'
 
@@ -470,12 +393,10 @@ export interface SkillInspection {
   needs: SkillNeed[]
 }
 
-export interface RunPage {
-  items: Run[]
-  count: number
-  page: number
-  page_size: number
-  status_counts: Partial<Record<Run['status'], number>>
+type RunPageResponse = ApiComponents['schemas']['RunPageSchema']
+
+export type RunPage = Omit<RunPageResponse, 'status_counts'> & {
+  status_counts: Partial<Record<Run['status'], RunPageResponse['status_counts'][string]>>
 }
 
 export type RunPeriod = '24h' | '7d' | '30d'

@@ -5,7 +5,7 @@ from ninja import Schema
 from pydantic import Field
 
 from secondshift.runs.constants import RunStart
-from secondshift.runs.models import Run
+from secondshift.runs.models import Run, RunDelivery
 from secondshift.runs.reporting.queries import Period, RunSort
 
 
@@ -78,7 +78,7 @@ class RunDeliverySchema(Schema):
     id: int
     kind: str
     target: str
-    status: str
+    status: RunDelivery.Status
     attempts: int
     message: str
     # Where the result lives, such as the draft pull request. Empty if none.
@@ -104,7 +104,7 @@ class RunChangesSchema(Schema):
     too_large: bool
     # False when the changes were not kept, for example past the size limit.
     available: bool
-    size_bytes: int | None = None
+    size_bytes: int | None
 
 
 class RunSavedFileSchema(Schema):
@@ -134,30 +134,30 @@ class RunAccessNeedSchema(Schema):
 
 
 class RunDetailSchema(RunSchema):
-    submission_input: str = ""
+    submission_input: str
     job_key: str
     skill_path: str
-    skill_source: RunSkillSourceSchema | None = None
+    skill_source: RunSkillSourceSchema | None
     # A tried skill whose job can be added by a draft pull request.
-    schedules_by_pull_request: bool = False
+    schedules_by_pull_request: bool
     created_at: datetime
     exit_code: int | None
     model_provider: str | None
-    execution_agent: str | None = None
+    execution_agent: str | None
     output_excerpt: str
     output_truncated: bool
     output_size_bytes: int | None
     events: list[RunEventSchema]
     files: list[RunFileSchema]
-    deliveries: list[RunDeliverySchema] = []
+    deliveries: list[RunDeliverySchema]
     # Issues the agent proposed, opened after the run if allowed.
-    issues: list[RunIssueSchema] = []
+    issues: list[RunIssueSchema]
     # What the sandbox left behind. None when nothing was collected.
-    changes: RunChangesSchema | None = None
-    saved_files: list[RunSavedFileSchema] = []
-    skipped_files: list[RunSkippedFileSchema] = []
+    changes: RunChangesSchema | None
+    saved_files: list[RunSavedFileSchema]
+    skipped_files: list[RunSkippedFileSchema]
     # Access the agent reported it needed and did not have.
-    access_needs: list[RunAccessNeedSchema] = []
+    access_needs: list[RunAccessNeedSchema]
 
 
 class RunListQuery(Schema):
@@ -176,7 +176,7 @@ class RunPageSchema(Schema):
     count: int
     page: int
     page_size: int
-    status_counts: dict[str, int]
+    status_counts: dict[Run.Status, int]
 
 
 class RunInProgressSchema(Schema):
