@@ -204,7 +204,7 @@ def sync_repository(repository: Repository) -> Repository:
     Only the worker calls this, through run_requested_syncs. Everything else
     asks for a sync with request_sync.
     """
-    if repository.source_type == Repository.SourceType.GITHUB:
+    if repository.is_github:
         return sync_github_repository(repository)
     return attach_local_repository(
         repository.workspace, repository.local_path, repository.default_branch
@@ -226,7 +226,7 @@ def run_requested_syncs() -> int:
         except (GitHubError, LocalRepositoryError) as error:
             set_sync_error(repository.pk, str(error))
             logger.warning("could not sync %s: %s", repository.display_name, error)
-            if repository.source_type == Repository.SourceType.GITHUB:
+            if repository.is_github:
                 check_after_failure(repository.github_connection)
         except Exception:
             set_sync_error(repository.pk, UNEXPECTED_SYNC_ERROR)

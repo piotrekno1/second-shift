@@ -108,7 +108,7 @@ def serialize_repository_detail(
         config_path=repository.config_path,
         auto_sync=repository.auto_sync,
         server_syncs=server_syncs(),
-        can_open_pull_requests=repository.source_type == Repository.SourceType.GITHUB,
+        can_open_pull_requests=repository.is_github,
         allow_pull_requests=repository.allow_pull_requests,
         pull_request_ci=repository.pull_request_ci,
         allow_issues=repository.allow_issues,

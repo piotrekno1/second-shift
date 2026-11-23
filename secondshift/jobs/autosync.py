@@ -45,7 +45,7 @@ def server_syncs() -> bool:
 
 
 def branch_head(repository: Repository) -> str:
-    if repository.source_type == Repository.SourceType.GITHUB:
+    if repository.is_github:
         access = github_access(repository)
         return repos.branch_head(
             access.token, access.repository_id, repository.default_branch
@@ -60,7 +60,7 @@ def request_moved_syncs() -> int:
     """
     requested = 0
     for repository in repositories_to_sync(settings.LOCAL_REPOSITORIES_ENABLED):
-        is_github = repository.source_type == Repository.SourceType.GITHUB
+        is_github = repository.is_github
         if is_github and not can_check(repository.github_connection):
             continue
         try:

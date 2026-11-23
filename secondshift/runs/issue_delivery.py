@@ -50,7 +50,7 @@ def issues_delivery(run: Run) -> RunDelivery | None:
 
 def skip_reason(run: Run, repository: Repository) -> str:
     """Why this run opens no issues, or an empty string if it should."""
-    if repository.source_type != Repository.SourceType.GITHUB:
+    if not repository.is_github:
         return "Local repositories cannot receive issues."
     if not repository.allow_issues:
         return "An owner has not allowed issues for this repository."

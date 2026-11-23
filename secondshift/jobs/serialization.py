@@ -24,7 +24,6 @@ from secondshift.jobs.schemas import (
 )
 from secondshift.jobs.skill_needs import MAX_INSPECTED_CHARS, SkillInspection
 from secondshift.repositories.github.scope import repository_ref
-from secondshift.repositories.models import Repository
 from secondshift.runner_protocol.environments import DEFAULT_ENVIRONMENT
 from secondshift.runs.dao import (
     job_with_last_run,
@@ -151,10 +150,7 @@ def skill_url(job: Job) -> str:
             f"{source['ref']}/{job.skill_path}"
         )
     repository = job.repository
-    if (
-        repository.source_type != Repository.SourceType.GITHUB
-        or not repository.config_sha
-    ):
+    if not repository.is_github or not repository.config_sha:
         return ""
     return (
         f"{GITHUB_BASE_URL}/{repository.full_name}/blob/"
@@ -164,7 +160,7 @@ def skill_url(job: Job) -> str:
 
 def serialize_job_detail(job: Job, can_edit_limits: bool) -> JobDetailSchema:
     summary = serialize_job(job)
-    is_github = job.repository.source_type == Repository.SourceType.GITHUB
+    is_github = job.repository.is_github
     # Aggregation drops Meta.ordering, so order explicitly: newest first.
     recent_runs = with_model_usage(newest_job_runs(job))[:20]
     return JobDetailSchema(

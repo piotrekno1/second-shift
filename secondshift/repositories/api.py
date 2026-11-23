@@ -33,7 +33,6 @@ from secondshift.repositories.local import (
     LocalRepositoryError,
     local_directories,
 )
-from secondshift.repositories.models import Repository
 from secondshift.repositories.schemas import (
     GitHubAppStatusSchema,
     GitHubAvailableRepositorySchema,
@@ -246,7 +245,7 @@ def set_repository_pull_requests(
     """Let tasks open draft pull requests here, and choose whether CI runs."""
     repository = repository_for_request(request, repository_id)
     require(request, Action.ALLOW_PULL_REQUESTS)
-    if payload.allow and repository.source_type != Repository.SourceType.GITHUB:
+    if payload.allow and not repository.is_github:
         raise HttpError(409, "Only GitHub repositories can receive pull requests.")
     repository.allow_pull_requests = payload.allow
     repository.pull_request_ci = payload.allow and payload.run_ci
@@ -269,7 +268,7 @@ def set_repository_issues(
     """Let jobs open the issues their agent proposes."""
     repository = repository_for_request(request, repository_id)
     require(request, Action.ALLOW_ISSUES)
-    if payload.allow and repository.source_type != Repository.SourceType.GITHUB:
+    if payload.allow and not repository.is_github:
         raise HttpError(409, "Only GitHub repositories can receive issues.")
     repository.allow_issues = payload.allow
     repository.save(update_fields=["allow_issues", "updated_at"])

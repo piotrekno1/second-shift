@@ -65,7 +65,7 @@ def pull_request_delivery(run: Run) -> RunDelivery | None:
 
 def skip_reason(run: Run, repository: Repository) -> str:
     """Why this run opens no pull request, or an empty string if it should."""
-    if repository.source_type != Repository.SourceType.GITHUB:
+    if not repository.is_github:
         return "Local repositories cannot open pull requests."
     if not repository.allow_pull_requests:
         return "An owner has not allowed pull requests for this repository."

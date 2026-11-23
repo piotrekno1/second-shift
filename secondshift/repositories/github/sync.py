@@ -162,7 +162,7 @@ def save_attached_repository(
         return repository
     if (
         repository.removed_at is None
-        or repository.source_type != Repository.SourceType.GITHUB
+        or not repository.is_github
         or repository.external_id != str(repository_id)
     ):
         raise GitHubRepositoryExistsError("This repository is already connected.")
