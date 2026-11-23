@@ -1,88 +1,18 @@
 import type { components as ApiComponents } from './generated/api'
 
-export interface User {
-  email: string
-  workspace_name: string | null
-  workspace_slug: string | null
-  /** The role in the current workspace: owner, admin or member. */
-  role: string | null
-  /** The actions that role allows, e.g. "run jobs". */
-  permissions: string[]
-  /** Staff only. Django admin turns everyone else away. */
-  can_use_admin: boolean
-  /** Anyone when sign-up is open, otherwise staff only. */
-  can_create_workspace: boolean
-  local_repositories_enabled: boolean
-  /** The operator set up the GitHub App, so repositories can come from GitHub. */
-  github_app_configured: boolean
-  /** "Development" or "Production". */
-  environment: string
-  /** How command sandboxes are isolated, e.g. "Trusted Docker". */
-  sandbox: string
-}
-
-/** An invite this browser opened, waiting for the person to confirm. */
-export interface PendingInvite {
-  workspace_name: string
-  role: string
-  invited_by: string | null
-}
-
-export interface Member {
-  id: number
-  email: string
-  role: string
-  joined_at: string
-  /** The signed-in person. */
-  you: boolean
-}
-
-/** An invite that can still be accepted. Its link is never shown again. */
-export interface Invite {
-  id: number
-  role: string
-  note: string
-  created_by: string | null
-  created_at: string
-  expires_at: string
-}
-
-export interface NewInvite extends Invite {
-  /** Shown once, right after creating the invite. */
-  link: string
-}
-
-export interface WorkspaceChoice {
-  id: number
-  name: string
-  slug: string
-  role: string
-  current: boolean
-}
-
-export interface SettingValue {
-  label: string
-  value: string
-  /** Environment variable that changes it. Empty when it is fixed. */
-  env: string
-  help: string
-}
-
-export interface WorkspaceSettings {
-  workspace_name: string | null
-  workspace_slug: string | null
-  environment: string
-  sandbox: string
-  groups: { title: string; items: SettingValue[] }[]
-  /** Run limits for the whole workspace. Each job can choose its own. */
-  limits: RunLimitItem[]
-  can_edit_limits: boolean
-}
+export type User = ApiComponents['schemas']['UserSchema']
+export type PendingInvite = ApiComponents['schemas']['PendingInviteSchema']
+export type Member = ApiComponents['schemas']['MemberSchema']
+export type Invite = ApiComponents['schemas']['InviteSchema']
+export type NewInvite = ApiComponents['schemas']['NewInviteSchema']
+export type WorkspaceChoice = ApiComponents['schemas']['WorkspaceChoiceSchema']
+export type SettingValue = ApiComponents['schemas']['SettingValueSchema']
+export type WorkspaceSettings = ApiComponents['schemas']['WorkspaceSettingsSchema']
 
 export type RunLimitItem = ApiComponents['schemas']['LimitSchema']
 export type RunLimitKey = RunLimitItem['key']
 
-export type RunLimitUpdate = Partial<Record<RunLimitKey, number | null>>
+export type RunLimitUpdate = ApiComponents['schemas']['RunLimitsUpdateSchema']
 
 export interface OnboardingRun {
   id: number
@@ -263,39 +193,11 @@ export interface Notice {
   text: string
 }
 
-export type ApiTokenScope = 'read' | 'run'
-
-export interface ApiToken {
-  id: number
-  name: string
-  scope: ApiTokenScope
-  workspace_id: number
-  workspace_name: string
-  workspace_slug: string
-  created_at: string
-  expires_at: string
-  last_used_at: string | null
-}
-
-export interface NewApiToken extends ApiToken {
-  /** Shown once, right after creating the token. */
-  token: string
-}
-
-/** A workspace the signed-in person can create a token for. */
-export interface TokenWorkspace {
-  id: number
-  name: string
-  slug: string
-  current: boolean
-  can_create_run_tokens: boolean
-}
-
-export interface ApiTokenList {
-  items: ApiToken[]
-  workspaces: TokenWorkspace[]
-  max_days: number
-}
+export type ApiToken = ApiComponents['schemas']['ApiTokenSchema']
+export type NewApiToken = ApiComponents['schemas']['NewApiTokenSchema']
+export type TokenWorkspace = ApiComponents['schemas']['TokenWorkspaceSchema']
+export type ApiTokenList = ApiComponents['schemas']['ApiTokenListSchema']
+export type ApiTokenScope = ApiToken['scope']
 
 export type JobTrigger = ApiComponents['schemas']['TriggerSchema']
 export type TriggerKind = JobTrigger['kind']

@@ -51,11 +51,14 @@ class WorkspaceSettingsSchema(Schema):
     can_edit_limits: bool
 
 
+RoleName = Literal["owner", "admin", "member"]
+
+
 class WorkspaceChoiceSchema(Schema):
     id: int
     name: str
     slug: str
-    role: str
+    role: RoleName
     current: bool
 
 
@@ -70,12 +73,9 @@ class WorkspaceCreateSchema(Schema):
 class MemberSchema(Schema):
     id: int
     email: str
-    role: str
+    role: RoleName
     joined_at: datetime
     you: bool
-
-
-RoleName = Literal["owner", "admin", "member"]
 
 
 class RoleChangeSchema(Schema):
@@ -89,7 +89,7 @@ class InviteCreateSchema(Schema):
 
 class InviteSchema(Schema):
     id: int
-    role: str
+    role: RoleName
     note: str
     created_by: str | None
     created_at: datetime
@@ -103,7 +103,7 @@ class NewInviteSchema(InviteSchema):
 
 class PendingInviteSchema(Schema):
     workspace_name: str
-    role: str
+    role: RoleName
     invited_by: str | None
 
 
@@ -113,7 +113,7 @@ ScopeName = Literal["read", "run"]
 class ApiTokenSchema(Schema):
     id: int
     name: str
-    scope: str
+    scope: ScopeName
     workspace_id: int
     workspace_name: str = Field(
         validation_alias=AliasChoices("workspace_name", "workspace.name")

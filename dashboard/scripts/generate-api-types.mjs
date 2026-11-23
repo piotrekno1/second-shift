@@ -56,6 +56,17 @@ for (const name of [
   'ExecutionConfigurationSchema',
   'ExecutionStatusSchema',
   'APISpecSummarySchema',
+  'UserSchema',
+  'WorkspaceChoiceSchema',
+  'WorkspaceSettingsSchema',
+  'RunLimitsUpdateSchema',
+  'MemberSchema',
+  'NewInviteSchema',
+  'InviteSchema',
+  'PendingInviteSchema',
+  'ApiTokenListSchema',
+  'NewApiTokenSchema',
+  'ApiTokenCreateSchema',
 ]) {
   includeSchema(name)
 }
