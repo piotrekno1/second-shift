@@ -71,6 +71,7 @@ def overview(request: HttpRequest) -> OverviewSchema:
             runs_today=0,
             failed_runs=0,
             connected_services=0,
+            execution=None,
         )
     today = timezone.localdate()
     repositories = active_repositories(workspace.pk)

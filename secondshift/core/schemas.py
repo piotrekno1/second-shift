@@ -3,6 +3,7 @@ from datetime import date, datetime
 from ninja import Schema
 
 from secondshift.connections.schemas import ExecutionStatusSchema
+from secondshift.runs.models import Run
 from secondshift.workspaces.schemas import RoleName
 
 
@@ -52,7 +53,7 @@ class RunDaySchema(Schema):
 
 class OnboardingRunSchema(Schema):
     id: int
-    status: str
+    status: Run.Status
 
 
 class OverviewSchema(Schema):
@@ -73,6 +74,6 @@ class OverviewSchema(Schema):
     spend_partial: bool = False
     spend_by_job: list[JobSpendSchema] = []
     run_days: list[RunDaySchema] = []
-    execution: ExecutionStatusSchema | None = None
+    execution: ExecutionStatusSchema | None
     # Whether this person has a usable MCP token in this workspace.
     has_agent_token: bool = False

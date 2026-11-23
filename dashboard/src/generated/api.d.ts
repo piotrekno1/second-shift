@@ -1470,6 +1470,211 @@ export interface components {
       /** Expires In Days */
       expires_in_days: number
     }
+    /** OverviewSchema */
+    OverviewSchema: {
+      /** Repositories */
+      repositories: number
+      /** Local Repositories */
+      local_repositories: number
+      /** Enabled Jobs */
+      enabled_jobs: number
+      onboarding_run?: components['schemas']['OnboardingRunSchema'] | null
+      /** Runs Today */
+      runs_today: number
+      /** Failed Runs */
+      failed_runs: number
+      /** Connected Services */
+      connected_services: number
+      /**
+       * Failing Jobs
+       * @default []
+       */
+      failing_jobs: components['schemas']['FailingJobSchema'][]
+      /**
+       * Runs 7D
+       * @default 0
+       */
+      runs_7d: number
+      /**
+       * Runs Previous 7D
+       * @default 0
+       */
+      runs_previous_7d: number
+      /**
+       * Finished 7D
+       * @default 0
+       */
+      finished_7d: number
+      /**
+       * Succeeded 7D
+       * @default 0
+       */
+      succeeded_7d: number
+      /**
+       * Spend 7D Usd
+       * @default 0
+       */
+      spend_7d_usd: number
+      /**
+       * Spend Previous 7D Usd
+       * @default 0
+       */
+      spend_previous_7d_usd: number
+      /**
+       * Spend Partial
+       * @default false
+       */
+      spend_partial: boolean
+      /**
+       * Spend By Job
+       * @default []
+       */
+      spend_by_job: components['schemas']['JobSpendSchema'][]
+      /**
+       * Run Days
+       * @default []
+       */
+      run_days: components['schemas']['RunDaySchema'][]
+      execution: components['schemas']['ExecutionStatusSchema'] | null
+      /**
+       * Has Agent Token
+       * @default false
+       */
+      has_agent_token: boolean
+    }
+    /** OnboardingRunSchema */
+    OnboardingRunSchema: {
+      /** Id */
+      id: number
+      status: components['schemas']['Status']
+    }
+    /** FailingJobSchema */
+    FailingJobSchema: {
+      /** Job Id */
+      job_id: number
+      /** Job */
+      job: string
+      /** Repository */
+      repository: string
+      /** Run Id */
+      run_id: number
+      /** Failed At */
+      failed_at: string | null
+      /** Label */
+      label: string
+      /** Reason */
+      reason: string
+      /**
+       * Paused
+       * @default false
+       */
+      paused: boolean
+    }
+    /** JobSpendSchema */
+    JobSpendSchema: {
+      /** Job Id */
+      job_id: number
+      /** Job */
+      job: string
+      /** Repository */
+      repository: string
+      /** Runs */
+      runs: number
+      /** Spend Usd */
+      spend_usd: number
+      /** Partial */
+      partial: boolean
+    }
+    /** RunDaySchema */
+    RunDaySchema: {
+      /**
+       * Day
+       * Format: date
+       */
+      day: string
+      /** Succeeded */
+      succeeded: number
+      /** Failed */
+      failed: number
+      /** Canceled */
+      canceled: number
+    }
+    /** CapabilityNeedSchema */
+    CapabilityNeedSchema: {
+      /** Binding */
+      binding: string
+      kind: components['schemas']['Kind']
+      /** Required */
+      required: boolean
+      /** Requested Tools */
+      requested_tools: string[]
+      /**
+       * Status
+       * @enum {string}
+       */
+      status: 'missing' | 'unavailable' | 'needs_approval' | 'ready'
+      /** Detail */
+      detail: string
+      connection: components['schemas']['ConnectionSchema'] | null
+      /** Jobs */
+      jobs: components['schemas']['NeedJobSchema'][]
+    }
+    /** NeedJobSchema */
+    NeedJobSchema: {
+      /** Job Id */
+      job_id: number
+      /** Job Name */
+      job_name: string
+      /** Repository */
+      repository: string
+      /** Capability Id */
+      capability_id: number
+      /** Required */
+      required: boolean
+      /** Grant Status */
+      grant_status: ('pending' | 'approved' | 'denied') | 'unconfigured'
+      access?: components['schemas']['AccessSchema'] | null
+    }
+    /** TaskSubmissionSchema */
+    TaskSubmissionSchema: {
+      /** Task Id */
+      task_id: number
+      run: components['schemas']['RunSchema']
+      /** Started */
+      started: boolean
+    }
+    /** ModelConnectionCreateSchema */
+    ModelConnectionCreateSchema: {
+      /**
+       * Provider
+       * @enum {string}
+       */
+      provider: 'anthropic' | 'openai' | 'openrouter' | 'openai_compatible'
+      /**
+       * Display Name
+       * @default
+       */
+      display_name: string
+      /**
+       * Api Key
+       * @default
+       */
+      api_key: string
+      /**
+       * Base Url
+       * @default
+       */
+      base_url: string
+      /** Allowed Models */
+      allowed_models?: string[]
+      /**
+       * Default Model
+       * @default
+       */
+      default_model: string
+      /** Is Default */
+      is_default?: boolean | null
+    }
   }
   responses: never
   parameters: never

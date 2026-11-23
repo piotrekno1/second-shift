@@ -21,22 +21,32 @@ class AccessSchema(Schema):
     text: str
 
 
+# Ninja merges components by name across endpoints. Inline this enum so its
+# generic model class name does not overwrite the run status component.
+GrantStatus = Annotated[
+    JobGrant.Status, WithJsonSchema({"type": "string", "enum": JobGrant.Status.values})
+]
+
+
+CapabilityGrantStatus = GrantStatus | Literal["unconfigured"]
+
+
 class NeedJobSchema(Schema):
     job_id: int
     job_name: str
     repository: str
     capability_id: int
     required: bool
-    grant_status: str
+    grant_status: CapabilityGrantStatus
     access: AccessSchema | None = None
 
 
 class CapabilityNeedSchema(Schema):
     binding: str
-    kind: str
+    kind: CapabilityRequest.Kind
     required: bool
     requested_tools: list[str]
-    status: Literal["missing", "unavailable", "needs_approval", "ready"]
+    status: NeedStatus
     detail: str
     connection: ConnectionSchema | None
     jobs: list[NeedJobSchema]
@@ -76,20 +86,13 @@ class ToolInputSchema(Schema):
     required: list[str]
 
 
-# Ninja merges components by name across endpoints. Inline this enum so its
-# generic model class name does not overwrite the run status component.
-GrantStatus = Annotated[
-    JobGrant.Status, WithJsonSchema({"type": "string", "enum": JobGrant.Status.values})
-]
-
-
 class CapabilitySchema(Schema):
     id: int
     binding: str
     kind: CapabilityRequest.Kind
     requested_tools: list[str]
     required: bool
-    grant_status: GrantStatus | Literal["unconfigured"]
+    grant_status: CapabilityGrantStatus
     connection_id: int | None
     connection_name: str | None
     # External tools only: what the job could reach through this binding.
