@@ -2,11 +2,13 @@ from datetime import datetime
 from typing import Annotated, Any, Literal
 
 from ninja import Schema
-from pydantic import ConfigDict, Field
+from pydantic import ConfigDict, Field, WithJsonSchema
 
 from secondshift.connections.schemas import ConnectionSchema
+from secondshift.jobs.capability_needs import NeedStatus
 from secondshift.jobs.manifest import TriggerKind
 from secondshift.jobs.models import CapabilityRequest, JobGrant
+from secondshift.jobs.skill_needs import Origin
 from secondshift.runner_protocol.agents import AgentBackend
 from secondshift.runs.models import Run
 from secondshift.runs.schemas import RunSchema
@@ -74,13 +76,20 @@ class ToolInputSchema(Schema):
     required: list[str]
 
 
+# Ninja merges components by name across endpoints. Inline this enum so its
+# generic model class name does not overwrite the run status component.
+GrantStatus = Annotated[
+    JobGrant.Status, WithJsonSchema({"type": "string", "enum": JobGrant.Status.values})
+]
+
+
 class CapabilitySchema(Schema):
     id: int
     binding: str
     kind: CapabilityRequest.Kind
     requested_tools: list[str]
     required: bool
-    grant_status: JobGrant.Status | Literal["unconfigured"]
+    grant_status: GrantStatus | Literal["unconfigured"]
     connection_id: int | None
     connection_name: str | None
     # External tools only: what the job could reach through this binding.
@@ -97,6 +106,9 @@ class LastRunSchema(Schema):
     status: Run.Status
     # When it finished, or when it was created if it has not finished.
     at: datetime
+
+
+JobGrantStatus = GrantStatus | Literal["not_required"]
 
 
 class JobSchema(Schema):
@@ -120,7 +132,7 @@ class JobSchema(Schema):
     # When a sync stopped finding the job in the manifest. It cannot run then.
     removed_at: datetime | None
     requested_capabilities: int
-    grant_status: JobGrant.Status | Literal["not_required"]
+    grant_status: JobGrantStatus
     capabilities: list[CapabilitySchema]
     last_run: LastRunSchema | None
     # Trigger kinds the configuration names, such as "webhook".
@@ -195,8 +207,10 @@ class SkillNeedSchema(Schema):
     binding: str
     server: str
     tools: list[str]
-    origin: str
-    status: str
+    origin: Origin = Field(
+        description="Declared in allowed-tools or mentioned in the skill text."
+    )
+    status: NeedStatus
     detail: str
 
 

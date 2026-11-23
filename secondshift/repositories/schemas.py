@@ -3,6 +3,8 @@ from datetime import datetime
 from ninja import Schema
 from pydantic import Field
 
+from secondshift.jobs.schemas import JobGrantStatus
+from secondshift.repositories.models import Repository
 from secondshift.repositories.status import ValidationStatus
 
 
@@ -14,7 +16,7 @@ class RepositorySchema(Schema):
     enabled: bool
     job_count: int
     last_synced_at: datetime | None
-    source_type: str
+    source_type: Repository.SourceType
     local_path: str | None
     revision: str
     # The GitHub source connection it syncs through. None for local folders.
@@ -66,8 +68,8 @@ class RepositoryJobSchema(Schema):
     cron: str
     timezone: str
     enabled: bool
-    grant_status: str
-    removed_at: datetime | None = None
+    grant_status: JobGrantStatus
+    removed_at: datetime | None
 
 
 class RepositoryDetailSchema(RepositorySchema):
@@ -100,5 +102,5 @@ class GitHubAvailableRepositorySchema(Schema):
 
 class GitHubAppStatusSchema(Schema):
     configured: bool
-    error: str = ""
+    error: str
     repositories: list[GitHubAvailableRepositorySchema]

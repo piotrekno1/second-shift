@@ -42,6 +42,11 @@ for (const name of [
   'JobSchema',
   'JobDetailSchema',
   'TriggerChangeSchema',
+  'RepositorySchema',
+  'RepositoryDetailSchema',
+  'LocalRepositoryDirectoryListSchema',
+  'GitHubAppStatusSchema',
+  'SkillInspectionSchema',
 ]) {
   includeSchema(name)
 }

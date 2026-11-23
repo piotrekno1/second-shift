@@ -388,8 +388,7 @@ export interface components {
       /** Requested Capabilities */
       requested_capabilities: number
       /** Grant Status */
-      grant_status:
-        components['schemas']['secondshift__jobs__models__JobGrant__Status'] | 'not_required'
+      grant_status: ('pending' | 'approved' | 'denied') | 'not_required'
       /** Capabilities */
       capabilities: components['schemas']['CapabilitySchema'][]
       last_run: components['schemas']['LastRunSchema'] | null
@@ -402,11 +401,6 @@ export interface components {
      * @enum {string}
      */
     AgentBackend: 'pydantic' | 'claude_code' | 'codex'
-    /**
-     * Status
-     * @enum {string}
-     */
-    secondshift__jobs__models__JobGrant__Status: 'pending' | 'approved' | 'denied'
     /** CapabilitySchema */
     CapabilitySchema: {
       /** Id */
@@ -419,8 +413,7 @@ export interface components {
       /** Required */
       required: boolean
       /** Grant Status */
-      grant_status:
-        components['schemas']['secondshift__jobs__models__JobGrant__Status'] | 'unconfigured'
+      grant_status: ('pending' | 'approved' | 'denied') | 'unconfigured'
       /** Connection Id */
       connection_id: number | null
       /** Connection Name */
@@ -513,7 +506,7 @@ export interface components {
     LastRunSchema: {
       /** Id */
       id: number
-      status: components['schemas']['secondshift__runs__models__Run__Status']
+      status: components['schemas']['Status']
       /**
        * At
        * Format: date-time
@@ -560,8 +553,7 @@ export interface components {
       /** Requested Capabilities */
       requested_capabilities: number
       /** Grant Status */
-      grant_status:
-        components['schemas']['secondshift__jobs__models__JobGrant__Status'] | 'not_required'
+      grant_status: ('pending' | 'approved' | 'denied') | 'not_required'
       /** Capabilities */
       capabilities: components['schemas']['CapabilitySchema'][]
       last_run: components['schemas']['LastRunSchema'] | null
@@ -706,6 +698,199 @@ export interface components {
      * @enum {string}
      */
     Outcome: 'started' | 'ignored' | 'refused'
+    /** RepositorySchema */
+    RepositorySchema: {
+      /** Id */
+      id: number
+      /** Full Name */
+      full_name: string
+      /** Display Name */
+      display_name: string
+      /** Default Branch */
+      default_branch: string
+      /** Enabled */
+      enabled: boolean
+      /** Job Count */
+      job_count: number
+      /** Last Synced At */
+      last_synced_at: string | null
+      source_type: components['schemas']['SourceType']
+      /** Local Path */
+      local_path: string | null
+      /** Revision */
+      revision: string
+      /** Github Connection Id */
+      github_connection_id: number | null
+      /** Syncing */
+      syncing: boolean
+    }
+    /**
+     * SourceType
+     * @enum {string}
+     */
+    SourceType: 'github' | 'local'
+    /** RepositoryDetailSchema */
+    RepositoryDetailSchema: {
+      /** Id */
+      id: number
+      /** Full Name */
+      full_name: string
+      /** Display Name */
+      display_name: string
+      /** Default Branch */
+      default_branch: string
+      /** Enabled */
+      enabled: boolean
+      /** Job Count */
+      job_count: number
+      /** Last Synced At */
+      last_synced_at: string | null
+      source_type: components['schemas']['SourceType']
+      /** Local Path */
+      local_path: string | null
+      /** Revision */
+      revision: string
+      /** Github Connection Id */
+      github_connection_id: number | null
+      /** Syncing */
+      syncing: boolean
+      /** Config Path */
+      config_path: string
+      /** Auto Sync */
+      auto_sync: boolean
+      /** Server Syncs */
+      server_syncs: boolean
+      /** Can Open Pull Requests */
+      can_open_pull_requests: boolean
+      /** Allow Pull Requests */
+      allow_pull_requests: boolean
+      /** Pull Request Ci */
+      pull_request_ci: boolean
+      /** Allow Issues */
+      allow_issues: boolean
+      validation: components['schemas']['RepositoryValidationSchema']
+      /** Jobs */
+      jobs: components['schemas']['RepositoryJobSchema'][]
+    }
+    /** RepositoryValidationSchema */
+    RepositoryValidationSchema: {
+      status: components['schemas']['ValidationStatus']
+      /** Message */
+      message: string
+      /** Current Revision */
+      current_revision: string | null
+      /** Synced Revision */
+      synced_revision: string
+      /** Needs Sync */
+      needs_sync: boolean
+    }
+    /**
+     * ValidationStatus
+     * @enum {string}
+     */
+    ValidationStatus: 'valid' | 'warning' | 'error'
+    /** RepositoryJobSchema */
+    RepositoryJobSchema: {
+      /** Id */
+      id: number
+      /** Name */
+      name: string
+      /** Skill Path */
+      skill_path: string
+      /** Cron */
+      cron: string
+      /** Timezone */
+      timezone: string
+      /** Enabled */
+      enabled: boolean
+      /** Grant Status */
+      grant_status: ('pending' | 'approved' | 'denied') | 'not_required'
+      /** Removed At */
+      removed_at: string | null
+    }
+    /** LocalRepositoryDirectoryListSchema */
+    LocalRepositoryDirectoryListSchema: {
+      /** Path */
+      path: string
+      /** Parent */
+      parent: string | null
+      /** Directories */
+      directories: components['schemas']['LocalRepositoryDirectorySchema'][]
+    }
+    /** LocalRepositoryDirectorySchema */
+    LocalRepositoryDirectorySchema: {
+      /** Name */
+      name: string
+      /** Path */
+      path: string
+    }
+    /** GitHubAppStatusSchema */
+    GitHubAppStatusSchema: {
+      /** Configured */
+      configured: boolean
+      /** Error */
+      error: string
+      /** Repositories */
+      repositories: components['schemas']['GitHubAvailableRepositorySchema'][]
+    }
+    /** GitHubAvailableRepositorySchema */
+    GitHubAvailableRepositorySchema: {
+      /** Connection Id */
+      connection_id: number
+      /** Repository Id */
+      repository_id: number
+      /** Full Name */
+      full_name: string
+      /** Default Branch */
+      default_branch: string
+    }
+    /** SkillInspectionSchema */
+    SkillInspectionSchema: {
+      /** Repository */
+      repository: string
+      /** Path */
+      path: string
+      /** Commit Sha */
+      commit_sha: string
+      /** Url */
+      url: string
+      /** Name */
+      name: string
+      /** Description */
+      description: string
+      /** File Count */
+      file_count: number
+      /** Size Bytes */
+      size_bytes: number
+      /** Text */
+      text: string
+      /** Text Truncated */
+      text_truncated: boolean
+      /** Needs */
+      needs: components['schemas']['SkillNeedSchema'][]
+    }
+    /** SkillNeedSchema */
+    SkillNeedSchema: {
+      /** Binding */
+      binding: string
+      /** Server */
+      server: string
+      /** Tools */
+      tools: string[]
+      /**
+       * Origin
+       * @description Declared in allowed-tools or mentioned in the skill text.
+       * @enum {string}
+       */
+      origin: 'declared' | 'mentioned'
+      /**
+       * Status
+       * @enum {string}
+       */
+      status: 'missing' | 'unavailable' | 'needs_approval' | 'ready'
+      /** Detail */
+      detail: string
+    }
   }
   responses: never
   parameters: never
