@@ -133,6 +133,14 @@ def workspace_runs(workspace_id: int | None) -> QuerySet[Run]:
     return Run.objects.filter(task__repository__workspace_id=workspace_id)
 
 
+def onboarding_run(workspace_id: int) -> Run | None:
+    runs = workspace_runs(workspace_id).only("status")
+    first_success = (
+        runs.filter(status=Run.Status.SUCCEEDED).order_by("finished_at", "pk").first()
+    )
+    return first_success or runs.order_by("-created_at", "-pk").first()
+
+
 def runs_by_id(run_ids: Iterable[int]) -> dict[int, Run]:
     return Run.objects.in_bulk(list(run_ids))
 

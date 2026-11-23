@@ -9,6 +9,7 @@ from secondshift.connections.execution import execution_status
 from secondshift.core.schemas import (
     FailingJobSchema,
     JobSpendSchema,
+    OnboardingRunSchema,
     OverviewSchema,
     RunDaySchema,
     UserSchema,
@@ -17,7 +18,7 @@ from secondshift.github.app import configured as github_app_configured
 from secondshift.jobs.dao import enabled_job_count
 from secondshift.repositories.dao import active_repositories
 from secondshift.repositories.models import Repository
-from secondshift.runs.dao import run_counts_today
+from secondshift.runs.dao import onboarding_run, run_counts_today
 from secondshift.runs.reporting.health import (
     failing_jobs,
     runs_by_day,
@@ -75,12 +76,19 @@ def overview(request: HttpRequest) -> OverviewSchema:
     repositories = active_repositories(workspace.pk)
     counts = run_counts_today(workspace.pk, today)
     week = week_summary(workspace)
+    first_run = onboarding_run(workspace.pk)
     return OverviewSchema(
         repositories=repositories.count(),
         local_repositories=repositories.filter(
             source_type=Repository.SourceType.LOCAL
         ).count(),
         enabled_jobs=enabled_job_count(workspace.pk),
+        onboarding_run=OnboardingRunSchema(
+            id=first_run.pk,
+            status=first_run.status,
+        )
+        if first_run
+        else None,
         runs_today=counts["today"],
         failed_runs=counts["failed"],
         connected_services=connected_count(workspace.pk),

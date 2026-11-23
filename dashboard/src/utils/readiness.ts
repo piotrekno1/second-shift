@@ -1,5 +1,5 @@
 import type { RouteLocationRaw } from 'vue-router'
-import type { Capability, Connection, ExecutionStatus, Job } from '../types'
+import type { Capability, Connection, ExecutionStatus, Job, OnboardingRun } from '../types'
 
 /** Why a job removed from the manifest cannot run. The server says the same. */
 export const REMOVED_JOB = 'This job is no longer in .secondshift.yaml. Add it back to run it.'
@@ -191,7 +191,7 @@ export interface SetupState {
   execution: ExecutionStatus | null | undefined
   jobs: number
   enabledJobs: number
-  hasRuns: boolean
+  onboardingRun: OnboardingRun | null
   canAddGitHub: boolean
   canAddLocal: boolean
   /** Only owners add model keys and fix connections. */
@@ -301,13 +301,31 @@ function jobStep(state: SetupState): SetupStep {
     key: 'job',
     title: 'Run your first job',
     detail: '',
-    done: state.enabledJobs > 0 || state.hasRuns,
+    done: false,
     actions: [],
     agentHint: null,
   }
-  if (step.done) {
-    step.detail = state.enabledJobs > 0 ? 'A job is on the schedule.' : 'A job has run.'
-    return step
+  const attempt = state.onboardingRun
+  if (attempt && attempt.status !== 'succeeded') {
+    const messages = {
+      queued: ['Your first run is queued', 'Open the run to follow its progress.'],
+      running: ['Your first run is in progress', 'Open the run to follow its progress.'],
+      failed: ['Your first run failed', 'Open the run to see what happened and retry.'],
+      canceled: ['Your first run was canceled', 'Open the run to review it or try again.'],
+    } as const
+    const [title, detail] = messages[attempt.status]
+    return {
+      ...step,
+      title,
+      detail,
+      actions: [
+        {
+          label: 'View run',
+          to: { path: `/runs/${attempt.id}` },
+          icon: 'arrow-right',
+        },
+      ],
+    }
   }
   if (state.repositories === 0) {
     step.detail = 'Jobs appear once a repository is added.'
@@ -326,7 +344,10 @@ function jobStep(state: SetupState): SetupStep {
     return step
   }
   // The Jobs page shows what each job still waits for, so one line is enough here.
-  step.detail = 'Run a job or a one-off task.'
+  step.detail =
+    state.enabledJobs > 0
+      ? 'A job is scheduled. Open Jobs to check when it runs or run it now.'
+      : 'Run a job or a one-off task.'
   step.actions.push(
     { label: 'Open jobs', to: { path: '/jobs' }, icon: 'arrow-right' },
     EXPLORE_ACTION,
@@ -335,14 +356,14 @@ function jobStep(state: SetupState): SetupStep {
 }
 
 /**
- * The three steps before the first run, or null once all are done.
+ * The three steps that lead to a successful run.
  * Code comes first: importing a repository shows its jobs before any model spend.
  * Local repositories exist only where the server allows them, so a hosted
  * server offers GitHub alone.
  */
 export function setupSteps(state: SetupState): SetupStep[] | null {
-  const steps = [codeStep(state), runnerStep(state), jobStep(state)]
-  return steps.every((step) => step.done) ? null : steps
+  if (state.onboardingRun?.status === 'succeeded') return null
+  return [codeStep(state), runnerStep(state), jobStep(state)]
 }
 
 /** Connections opens the binding's form, then links back to the job's access review. */

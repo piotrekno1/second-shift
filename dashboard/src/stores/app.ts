@@ -104,7 +104,7 @@ export const useAppStore = defineStore('app', {
             execution: state.overview.execution,
             jobs: state.jobs.length,
             enabledJobs: state.overview.enabled_jobs,
-            hasRuns: state.runs.length > 0,
+            onboardingRun: state.overview.onboarding_run ?? null,
             canAddGitHub: allows(state.user, Action.AddGitHubRepositories),
             canAddLocal:
               Boolean(state.user?.local_repositories_enabled) &&

@@ -36,7 +36,8 @@ const doneCount = computed(() => props.steps.filter((step) => step.done).length)
           }}</template></span
         >
         <div class="setup-copy">
-          <strong>{{ step.title }}</strong><span>{{ step.detail }}</span>
+          <strong :aria-live="step.key === 'job' ? 'polite' : undefined">{{ step.title }}</strong>
+          <span>{{ step.detail }}</span>
           <span v-if="index === current && step.agentHint" class="setup-hint"
             >{{ step.agentHint.lead }}
             <button type="button" class="link-button" @click="agentConnection.visible = true">

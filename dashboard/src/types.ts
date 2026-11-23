@@ -97,7 +97,13 @@ export interface RunLimitItem {
 
 export type RunLimitUpdate = Partial<Record<RunLimitKey, number | null>>
 
+export interface OnboardingRun {
+  id: number
+  status: Run['status']
+}
+
 export interface Overview {
+  onboarding_run?: OnboardingRun | null
   repositories: number
   local_repositories: number
   enabled_jobs: number
