@@ -45,6 +45,36 @@ ephemeral sandbox, and delivers results to connected services.
 - Every Python function has type hints.
 - Use generated migrations. Do not hand-edit migration files.
 
+### Django transactions and async
+
+- Keep transaction boundaries in services and queries in DAOs. Use
+  `transaction.atomic()` for related writes and preserve the row locks that
+  serialize admission and state transitions. For ad hoc submissions, enqueue
+  with `transaction.on_commit()` after the task and run have been saved.
+- Keep blocking I/O off the event loop. In async code, await async clients and
+  DAO helpers. Use Django's async ORM methods for simple queries. For
+  transaction-sensitive ORM work, wrap the whole synchronous operation with
+  `asgiref.sync.sync_to_async` and keep its default thread sensitivity.
+  Resolve lazy querysets and any needed related fields within that boundary.
+  Use `async_to_sync` when synchronous code calls an async client.
+
+### DBOS workflows
+
+- Keep orchestration in `secondshift/runs/orchestration/`. Use the
+  [`durable.workflow` and `durable.step` wrappers](secondshift/runs/orchestration/durable.py)
+  so worker threads refresh stale Django connections.
+- Keep workflow names, step names, schedule names, and workflow IDs stable
+  across releases. Put I/O and state changes in named steps. Account for a
+  crash after a write or external call succeeds but before DBOS records the
+  result. Use stable IDs and make repeated side effects safe.
+- Preserve the dispatch behavior for each run type. Queued ad hoc runs with
+  no workflow ID are the durable outbox and reuse the same ID on retry. Job
+  runs record an enqueue failure immediately when the queue rejects the
+  handoff. The worker also recovers job runs stranded by a process crash.
+  See [Starting and queueing runs](docs/backend-architecture.md#starting-and-queueing-runs).
+- When changing dispatch or a step with side effects, test retries and recovery
+  at the affected boundary.
+
 ### Public interfaces
 
 When changing a public contract, update the affected docs and examples.
