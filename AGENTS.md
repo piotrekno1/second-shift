@@ -58,6 +58,16 @@ and [MCP reference](docs/mcp.md). The HTTP routers are composed in
   server-backed and cross-view state, and services own HTTP.
 - In `dashboard/src/`, start at `router.ts` for routing, `views/` for pages,
   `components/` for shared UI, `stores/` for Pinia, and `services/` for API calls.
+- Reuse the shared tokens in [`dashboard/src/styles.css`](dashboard/src/styles.css).
+  Use flat neutral greys for surfaces. Reserve amber for states that need
+  attention, danger for failures, and mint for success. Apply those colors
+  to text, icons, dots, and borders. Pair status color with a label or icon.
+- Check affected screens in a browser at desktop and narrow mobile widths,
+  including 320 px. Check that content fits, navigation and primary actions
+  stay reachable, and menus and dialogs work at both sizes.
+- For visible UI changes, attach screenshots of the affected screens to the PR
+  description and label the view and viewport. Show desktop and mobile when
+  the layout differs, and include before and after for a visual redesign.
 - Use `npm --prefix dashboard run dev` for the development server and
   `make check-frontend` to verify dashboard changes.
 
