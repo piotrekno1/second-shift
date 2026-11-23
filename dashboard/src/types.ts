@@ -14,65 +14,12 @@ export type RunLimitKey = RunLimitItem['key']
 
 export type RunLimitUpdate = ApiComponents['schemas']['RunLimitsUpdateSchema']
 
-export interface OnboardingRun {
-  id: number
-  status: Run['status']
-}
-
-export interface Overview {
-  onboarding_run?: OnboardingRun | null
-  repositories: number
-  local_repositories: number
-  enabled_jobs: number
-  runs_today: number
-  failed_runs: number
-  connected_services: number
-  failing_jobs: FailingJob[]
-  runs_7d: number
-  runs_previous_7d: number
-  finished_7d: number
-  succeeded_7d: number
-  spend_7d_usd: number
-  spend_previous_7d_usd: number
-  spend_partial: boolean
-  spend_by_job: JobSpend[]
-  /** Finished runs per day, oldest first, ending today. */
-  run_days: RunDay[]
-  /** What runs the workspace's jobs and why runs would fail. */
-  execution: ExecutionStatus | null
-  /** Whether this person has a usable MCP token in this workspace. */
-  has_agent_token: boolean
-}
-
+export type OnboardingRun = ApiComponents['schemas']['OnboardingRunSchema']
+export type Overview = ApiComponents['schemas']['OverviewSchema']
 export type ExecutionStatus = ApiComponents['schemas']['ExecutionStatusSchema']
-
-export interface RunDay {
-  /** Local date, "2026-10-27". */
-  day: string
-  succeeded: number
-  failed: number
-  canceled: number
-}
-
-export interface JobSpend {
-  job_id: number
-  job: string
-  repository: string
-  runs: number
-  spend_usd: number
-  partial: boolean
-}
-
-export interface FailingJob {
-  job_id: number
-  job: string
-  repository: string
-  run_id: number
-  failed_at: string | null
-  label: string
-  reason: string
-  paused: boolean
-}
+export type RunDay = ApiComponents['schemas']['RunDaySchema']
+export type JobSpend = ApiComponents['schemas']['JobSpendSchema']
+export type FailingJob = ApiComponents['schemas']['FailingJobSchema']
 
 export type Repository = ApiComponents['schemas']['RepositorySchema']
 export type RepositoryValidation = ApiComponents['schemas']['RepositoryValidationSchema']
@@ -153,7 +100,7 @@ export interface RunQuery {
 export type Connection = ApiComponents['schemas']['ConnectionSchema']
 export type ConnectionUsage = ApiComponents['schemas']['ConnectionUsageSchema']
 
-export type ModelProvider = 'anthropic' | 'openai' | 'openrouter' | 'openai_compatible'
+export type ModelProvider = ApiComponents['schemas']['ModelConnectionCreateSchema']['provider']
 
 export type MCPProviderInfo = ApiComponents['schemas']['MCPProviderSchema']
 export type MCPServerInfo = ApiComponents['schemas']['MCPInspectResultSchema']
@@ -162,26 +109,8 @@ export type MCPSettingInfo = ApiComponents['schemas']['MCPSettingSchema']
 
 export type Access = ApiComponents['schemas']['AccessSchema']
 
-export interface CapabilityNeedJob {
-  access?: Access | null
-  job_id: number
-  job_name: string
-  repository: string
-  capability_id: number
-  required: boolean
-  grant_status: Capability['grant_status']
-}
-
-export interface CapabilityNeed {
-  binding: string
-  kind: Capability['kind']
-  required: boolean
-  requested_tools: string[]
-  status: 'missing' | 'unavailable' | 'needs_approval' | 'ready'
-  detail: string
-  connection: Connection | null
-  jobs: CapabilityNeedJob[]
-}
+export type CapabilityNeedJob = ApiComponents['schemas']['NeedJobSchema']
+export type CapabilityNeed = ApiComponents['schemas']['CapabilityNeedSchema']
 
 export type WebhookSample = ApiComponents['schemas']['WebhookSampleSchema']
 export type FeatureCheck = ApiComponents['schemas']['FeatureCheckSchema']
@@ -214,8 +143,4 @@ export type APISpecSummary = ApiComponents['schemas']['APISpecSummarySchema']
 export type GitHubSource = ApiComponents['schemas']['GitHubAvailableRepositorySchema']
 export type GitHubAppStatus = ApiComponents['schemas']['GitHubAppStatusSchema']
 
-export interface TaskSubmissionResult {
-  task_id: number
-  run: Run
-  started: boolean
-}
+export type TaskSubmissionResult = ApiComponents['schemas']['TaskSubmissionSchema']

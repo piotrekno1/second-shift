@@ -67,6 +67,10 @@ for (const name of [
   'ApiTokenListSchema',
   'NewApiTokenSchema',
   'ApiTokenCreateSchema',
+  'OverviewSchema',
+  'CapabilityNeedSchema',
+  'TaskSubmissionSchema',
+  'ModelConnectionCreateSchema',
 ]) {
   includeSchema(name)
 }
