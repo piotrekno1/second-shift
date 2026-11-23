@@ -1,4 +1,3 @@
-from secondshift.config.constants import GITHUB_BASE_URL
 from secondshift.connections.dao import connections_by_binding
 from secondshift.connections.execution import (
     ExecutionSelection,
@@ -6,6 +5,7 @@ from secondshift.connections.execution import (
 )
 from secondshift.connections.external import changing_tools, external_access
 from secondshift.connections.models import Connection
+from secondshift.github.urls import blob_url
 from secondshift.jobs.dao import active_jobs_with_grants
 from secondshift.jobs.environments import environment_missing
 from secondshift.jobs.limits import job_limit_views
@@ -146,20 +146,14 @@ def job_environment_problem(job: Job) -> str:
 def skill_url(job: Job) -> str:
     """The skill file on GitHub at the synced commit, or empty when there is none."""
     if source := job.skill_source:
-        return (
-            f"{GITHUB_BASE_URL}/{source['repository']}/blob/"
-            f"{source['ref']}/{job.skill_path}"
-        )
+        return blob_url(source["repository"], source["ref"], job.skill_path)
     repository = job.repository
     if (
         repository.source_type != Repository.SourceType.GITHUB
         or not repository.config_sha
     ):
         return ""
-    return (
-        f"{GITHUB_BASE_URL}/{repository.full_name}/blob/"
-        f"{repository.config_sha}/{job.skill_path}"
-    )
+    return blob_url(repository.full_name, repository.config_sha, job.skill_path)
 
 
 def serialize_job_detail(job: Job, can_edit_limits: bool) -> JobDetailSchema:
@@ -209,7 +203,7 @@ def serialize_inspection(inspection: SkillInspection) -> SkillInspectionSchema:
         repository=skill.repository,
         path=skill.path,
         commit_sha=skill.commit_sha,
-        url=f"{GITHUB_BASE_URL}/{skill.repository}/blob/{skill.commit_sha}/{skill.path}",
+        url=blob_url(skill.repository, skill.commit_sha, skill.path),
         name=inspection.details.name,
         description=inspection.details.description,
         file_count=skill.file_count,
