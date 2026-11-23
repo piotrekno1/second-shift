@@ -1188,6 +1188,288 @@ export interface components {
       /** Read Only */
       read_only: number
     }
+    /** UserSchema */
+    UserSchema: {
+      /** Email */
+      email: string
+      /** Workspace Name */
+      workspace_name: string | null
+      /** Workspace Slug */
+      workspace_slug: string | null
+      /** Role */
+      role: ('owner' | 'admin' | 'member') | null
+      /** Permissions */
+      permissions: string[]
+      /** Can Use Admin */
+      can_use_admin: boolean
+      /** Can Create Workspace */
+      can_create_workspace: boolean
+      /** Local Repositories Enabled */
+      local_repositories_enabled: boolean
+      /**
+       * Github App Configured
+       * @default false
+       */
+      github_app_configured: boolean
+      /**
+       * Environment
+       * @default Production
+       */
+      environment: string
+      /**
+       * Sandbox
+       * @default gVisor sandbox
+       */
+      sandbox: string
+    }
+    /** WorkspaceChoiceSchema */
+    WorkspaceChoiceSchema: {
+      /** Id */
+      id: number
+      /** Name */
+      name: string
+      /** Slug */
+      slug: string
+      /**
+       * Role
+       * @enum {string}
+       */
+      role: 'owner' | 'admin' | 'member'
+      /** Current */
+      current: boolean
+    }
+    /** WorkspaceSettingsSchema */
+    WorkspaceSettingsSchema: {
+      /** Workspace Name */
+      workspace_name: string | null
+      /** Workspace Slug */
+      workspace_slug: string | null
+      /** Environment */
+      environment: string
+      /** Sandbox */
+      sandbox: string
+      /** Groups */
+      groups: components['schemas']['SettingGroupSchema'][]
+      /** Limits */
+      limits: components['schemas']['LimitSchema'][]
+      /** Can Edit Limits */
+      can_edit_limits: boolean
+    }
+    /** SettingGroupSchema */
+    SettingGroupSchema: {
+      /** Title */
+      title: string
+      /** Items */
+      items: components['schemas']['SettingValueSchema'][]
+    }
+    /** SettingValueSchema */
+    SettingValueSchema: {
+      /** Label */
+      label: string
+      /** Value */
+      value: string
+      /** Env */
+      env: string
+      /** Help */
+      help: string
+    }
+    /**
+     * RunLimitsUpdateSchema
+     * @description Fields left out stay as they are. Null uses the inherited value.
+     */
+    RunLimitsUpdateSchema: {
+      /** Max Turns */
+      max_turns?: number | null
+      /** Max Tool Calls */
+      max_tool_calls?: number | null
+      /** Token Budget */
+      token_budget?: number | null
+      /** Timeout Seconds */
+      timeout_seconds?: number | null
+    }
+    /** MemberSchema */
+    MemberSchema: {
+      /** Id */
+      id: number
+      /** Email */
+      email: string
+      /**
+       * Role
+       * @enum {string}
+       */
+      role: 'owner' | 'admin' | 'member'
+      /**
+       * Joined At
+       * Format: date-time
+       */
+      joined_at: string
+      /** You */
+      you: boolean
+    }
+    /** NewInviteSchema */
+    NewInviteSchema: {
+      /** Id */
+      id: number
+      /**
+       * Role
+       * @enum {string}
+       */
+      role: 'owner' | 'admin' | 'member'
+      /** Note */
+      note: string
+      /** Created By */
+      created_by: string | null
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string
+      /**
+       * Expires At
+       * Format: date-time
+       */
+      expires_at: string
+      /** Link */
+      link: string
+    }
+    /** InviteSchema */
+    InviteSchema: {
+      /** Id */
+      id: number
+      /**
+       * Role
+       * @enum {string}
+       */
+      role: 'owner' | 'admin' | 'member'
+      /** Note */
+      note: string
+      /** Created By */
+      created_by: string | null
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string
+      /**
+       * Expires At
+       * Format: date-time
+       */
+      expires_at: string
+    }
+    /** PendingInviteSchema */
+    PendingInviteSchema: {
+      /** Workspace Name */
+      workspace_name: string
+      /**
+       * Role
+       * @enum {string}
+       */
+      role: 'owner' | 'admin' | 'member'
+      /** Invited By */
+      invited_by: string | null
+    }
+    /** ApiTokenListSchema */
+    ApiTokenListSchema: {
+      /** Items */
+      items: components['schemas']['ApiTokenSchema'][]
+      /** Workspaces */
+      workspaces: components['schemas']['TokenWorkspaceSchema'][]
+      /** Max Days */
+      max_days: number
+    }
+    /** ApiTokenSchema */
+    ApiTokenSchema: {
+      /** Id */
+      id: number
+      /** Name */
+      name: string
+      /**
+       * Scope
+       * @enum {string}
+       */
+      scope: 'read' | 'run'
+      /** Workspace Id */
+      workspace_id: number
+      /** Workspace Name */
+      workspace_name: string
+      /** Workspace Slug */
+      workspace_slug: string
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string
+      /**
+       * Expires At
+       * Format: date-time
+       */
+      expires_at: string
+      /** Last Used At */
+      last_used_at: string | null
+    }
+    /**
+     * TokenWorkspaceSchema
+     * @description A workspace the person can create a token for.
+     */
+    TokenWorkspaceSchema: {
+      /** Id */
+      id: number
+      /** Name */
+      name: string
+      /** Slug */
+      slug: string
+      /** Current */
+      current: boolean
+      /** Can Create Run Tokens */
+      can_create_run_tokens: boolean
+    }
+    /** NewApiTokenSchema */
+    NewApiTokenSchema: {
+      /** Id */
+      id: number
+      /** Name */
+      name: string
+      /**
+       * Scope
+       * @enum {string}
+       */
+      scope: 'read' | 'run'
+      /** Workspace Id */
+      workspace_id: number
+      /** Workspace Name */
+      workspace_name: string
+      /** Workspace Slug */
+      workspace_slug: string
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string
+      /**
+       * Expires At
+       * Format: date-time
+       */
+      expires_at: string
+      /** Last Used At */
+      last_used_at: string | null
+      /** Token */
+      token: string
+    }
+    /** ApiTokenCreateSchema */
+    ApiTokenCreateSchema: {
+      /** Workspace Id */
+      workspace_id: number
+      /** Name */
+      name: string
+      /**
+       * Scope
+       * @default read
+       * @enum {string}
+       */
+      scope: 'read' | 'run'
+      /** Expires In Days */
+      expires_in_days: number
+    }
   }
   responses: never
   parameters: never

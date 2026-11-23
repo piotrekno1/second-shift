@@ -3,6 +3,7 @@ from datetime import date, datetime
 from ninja import Schema
 
 from secondshift.connections.schemas import ExecutionStatusSchema
+from secondshift.workspaces.schemas import RoleName
 
 
 class UserSchema(Schema):
@@ -10,7 +11,7 @@ class UserSchema(Schema):
     workspace_name: str | None
     workspace_slug: str | None
     # The person's role in the current workspace and what it lets them do.
-    role: str | None
+    role: RoleName | None
     permissions: list[str]
     # Django admin only lets staff in, so links to it are shown only to them.
     can_use_admin: bool
