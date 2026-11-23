@@ -160,6 +160,34 @@ def test_overview_reports_failing_jobs_and_weekly_numbers(client: Client) -> Non
 
 
 @pytest.mark.django_db
+def test_overview_onboarding_prefers_first_success_to_latest_attempt(
+    client: Client,
+) -> None:
+    workspace = make_workspace("team")
+    job = make_job(workspace, "acme/api", "review")
+    client.force_login(workspace_owner(workspace))
+
+    assert client.get("/api/overview").json()["onboarding_run"] is None
+    failed = add_run(job, Run.Status.FAILED, 90)
+    assert client.get("/api/overview").json()["onboarding_run"] == {
+        "id": failed.pk,
+        "status": "failed",
+        "has_report": False,
+    }
+
+    success = add_run(job, Run.Status.SUCCEEDED, 60)
+    success.output_excerpt = "Report"
+    success.save(update_fields=["output_excerpt"])
+    add_run(job, Run.Status.SUCCEEDED, 30)
+    add_run(job, Run.Status.QUEUED, 5)
+    assert client.get("/api/overview").json()["onboarding_run"] == {
+        "id": success.pk,
+        "status": "succeeded",
+        "has_report": True,
+    }
+
+
+@pytest.mark.django_db
 def test_runs_by_day_counts_finished_runs_per_day_and_fills_empty_days() -> None:
     workspace = make_workspace("team")
     job = make_job(workspace, "acme/api", "review")

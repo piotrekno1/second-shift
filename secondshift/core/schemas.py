@@ -49,10 +49,17 @@ class RunDaySchema(Schema):
     canceled: int
 
 
+class OnboardingRunSchema(Schema):
+    id: int
+    status: str
+    has_report: bool
+
+
 class OverviewSchema(Schema):
     repositories: int
     local_repositories: int
     enabled_jobs: int
+    onboarding_run: OnboardingRunSchema | None = None
     runs_today: int
     failed_runs: int
     connected_services: int

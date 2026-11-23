@@ -32,7 +32,12 @@ import {
 const agentConnection = useAgentConnectionStore()
 const app = useAppStore()
 // Repository sync can change discovered jobs while the user is on overview.
-const runActive = (): boolean => app.runs.some((run) => isRunActive(run.status))
+const runActive = (): boolean => {
+  const status = app.overview?.onboarding_run?.status
+  return (
+    (status !== undefined && isRunActive(status)) || app.runs.some((run) => isRunActive(run.status))
+  )
+}
 const repositorySyncing = (): boolean => app.repositories.some((repository) => repository.syncing)
 useLiveRefresh(
   () => (runActive() && !repositorySyncing() ? app.refreshRuns() : app.refresh()),
@@ -47,8 +52,34 @@ const missingConnection = computed(
 // While nothing can run jobs every run fails, so fixing that is the one next step.
 const executionBlocked = computed(() => Boolean(app.overview?.execution?.problem))
 const failing = computed(() => app.overview?.failing_jobs ?? [])
-// First-time setup replaces the single next step until a job is on the schedule or has run.
-const setup = computed(() => app.setupChecklist)
+const firstSuccessSeen = ref<string | null>(null)
+const firstSuccessKey = computed(() => {
+  const user = app.user
+  const run = app.overview?.onboarding_run
+  return user?.workspace_slug && run?.status === 'succeeded'
+    ? `secondshift:first-success:${JSON.stringify([user.email, user.workspace_slug, run.id])}`
+    : null
+})
+const setup = computed(() => {
+  const key = firstSuccessKey.value
+  if (key && firstSuccessSeen.value === key) return null
+  try {
+    if (key && localStorage.getItem(key)) return null
+  } catch {
+    // The acknowledgement is still remembered in this view if storage is unavailable.
+  }
+  return app.setupChecklist
+})
+function acknowledgeFirstSuccess(): void {
+  const key = firstSuccessKey.value
+  if (!key) return
+  firstSuccessSeen.value = key
+  try {
+    localStorage.setItem(key, '1')
+  } catch {
+    // The current view is already dismissed.
+  }
+}
 // A token made in the agent dialog takes the offer off the page.
 watch(
   () => agentConnection.visible,
@@ -124,7 +155,7 @@ const attentionDetail = computed(() => {
     <PageHeader
       v-if="setup"
       title="Overview"
-      description="Finish these steps and your jobs start running on schedule."
+      :description="firstSuccessKey ? undefined : 'Follow these steps to run your first job.'"
     />
     <PageHeader v-else title="This week" :aside="weekRange(new Date())" :description="subtitle">
       <!-- After setup, the one next step: approve what blocks a job, or add a repository.
@@ -156,7 +187,12 @@ const attentionDetail = computed(() => {
       >
     </PageHeader>
 
-    <SetupChecklist v-if="setup" :steps="setup" />
+    <SetupChecklist
+      v-if="setup"
+      :steps="setup"
+      :succeeded="Boolean(firstSuccessKey)"
+      @acknowledge="acknowledgeFirstSuccess"
+    />
     <!-- The checklist already asks for what runs jobs. -->
     <ExecutionWarning v-if="!setup || !app.overview?.execution?.needs_setup" />
 
