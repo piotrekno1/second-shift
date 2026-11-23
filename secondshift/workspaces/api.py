@@ -34,6 +34,7 @@ from secondshift.workspaces.models import (
 from secondshift.workspaces.schemas import (
     ApiTokenCreateSchema,
     ApiTokenListSchema,
+    ApiTokenSchema,
     InviteCreateSchema,
     InviteSchema,
     MemberSchema,
@@ -49,7 +50,6 @@ from secondshift.workspaces.schemas import (
 )
 from secondshift.workspaces.serialization import (
     limit_error_detail,
-    serialize_api_token,
     serialize_choice,
     serialize_invite,
     serialize_member,
@@ -231,7 +231,9 @@ def api_tokens(request: HttpRequest) -> ApiTokenListSchema:
     current = current_workspace(request)
     current_id = current.pk if current else None
     return ApiTokenListSchema(
-        items=[serialize_api_token(token) for token in own_tokens(request.user)],
+        items=[
+            ApiTokenSchema.model_validate(token) for token in own_tokens(request.user)
+        ],
         workspaces=[
             serialize_token_workspace(membership, current_id)
             for membership in user_memberships(request)
@@ -254,7 +256,7 @@ def new_api_token(
     except TokenError as error:
         raise HttpError(422, str(error)) from error
     return NewApiTokenSchema(
-        **serialize_api_token(new.token).model_dump(), token=new.secret
+        **ApiTokenSchema.model_validate(new.token).model_dump(), token=new.secret
     )
 
 
