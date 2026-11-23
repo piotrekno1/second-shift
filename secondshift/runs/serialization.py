@@ -1,5 +1,5 @@
 from secondshift.agent.image.outcomes import cache_reads, usage_budget
-from secondshift.config.constants import GITHUB_BASE_URL
+from secondshift.github.urls import blob_url
 from secondshift.runs.dao import run_events
 from secondshift.runs.deliveries import retryable
 from secondshift.runs.models import Run, RunDelivery, RunFailure
@@ -241,8 +241,7 @@ def run_skill_source(run: Run) -> RunSkillSourceSchema | None:
     return RunSkillSourceSchema(
         repository=source.repository,
         commit_sha=source.commit_sha,
-        url=f"{GITHUB_BASE_URL}/{source.repository}/blob/"
-        f"{source.commit_sha}/{job.skill_path}",
+        url=blob_url(source.repository, source.commit_sha, job.skill_path),
     )
 
 
