@@ -13,7 +13,6 @@ from secondshift.workspaces.models import (
     WorkspaceMembership,
 )
 from secondshift.workspaces.schemas import (
-    ApiTokenSchema,
     InviteSchema,
     LimitSchema,
     MemberSchema,
@@ -97,20 +96,6 @@ def serialize_member(
         role=membership.role,
         joined_at=membership.created_at,
         you=membership.user_id == request.user.pk,
-    )
-
-
-def serialize_api_token(token: ApiToken) -> ApiTokenSchema:
-    return ApiTokenSchema(
-        id=token.pk,
-        name=token.name,
-        scope=token.scope,
-        workspace_id=token.workspace_id,
-        workspace_name=token.workspace.name,
-        workspace_slug=token.workspace.slug,
-        created_at=token.created_at,
-        expires_at=token.expires_at,
-        last_used_at=token.last_used_at,
     )
 
 

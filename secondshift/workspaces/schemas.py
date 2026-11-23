@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Literal
 
 from ninja import Schema
-from pydantic import Field
+from pydantic import AliasChoices, Field
 
 
 class LimitSchema(Schema):
@@ -113,8 +113,12 @@ class ApiTokenSchema(Schema):
     name: str
     scope: str
     workspace_id: int
-    workspace_name: str
-    workspace_slug: str
+    workspace_name: str = Field(
+        validation_alias=AliasChoices("workspace_name", "workspace.name")
+    )
+    workspace_slug: str = Field(
+        validation_alias=AliasChoices("workspace_slug", "workspace.slug")
+    )
     created_at: datetime
     expires_at: datetime
     last_used_at: datetime | None
