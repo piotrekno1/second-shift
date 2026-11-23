@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "generate:run-types": "node scripts/generate-run-types.mjs",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
@@ -34,6 +35,7 @@
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-vue": "^10.12.1",
     "globals": "^17.14.0",
+    "openapi-typescript": "^7.13.0",
     "prettier": "^3.10.1",
     "tsx": "^4.20.6",
     "typescript": "^5.9.3",
