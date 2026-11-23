@@ -14,7 +14,7 @@ def github_repository_scope(repository: Repository) -> str | None:
 
 def repository_ref(repository: Repository) -> RepositoryRef:
     """What external tools may know about the repository a job works on."""
-    from_github = repository.source_type == Repository.SourceType.GITHUB
+    from_github = repository.is_github
     return RepositoryRef(
         workspace_id=repository.workspace_id,
         github_name=github_repository_scope(repository),

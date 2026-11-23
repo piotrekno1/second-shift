@@ -72,7 +72,7 @@ class WriteAccess:
 
 
 def write_access(repository: Repository) -> WriteAccess:
-    if repository.source_type != Repository.SourceType.GITHUB:
+    if not repository.is_github:
         raise PublishError("Only GitHub repositories can receive pull requests.")
     with_token = (
         repository.github_connection is not None
