@@ -891,6 +891,303 @@ export interface components {
       /** Detail */
       detail: string
     }
+    /** ConnectionSchema */
+    ConnectionSchema: {
+      /** Id */
+      id: number
+      provider: components['schemas']['Provider']
+      /** @enum {string} */
+      kind: 'source' | 'mcp' | 'api' | 'notification' | 'model'
+      /** Binding Key */
+      binding_key: string
+      /** Display Name */
+      display_name: string
+      /** @enum {string} */
+      status: 'connected' | 'expired' | 'revoked'
+      /** Expires At */
+      expires_at: string | null
+      /** Available Tools */
+      available_tools: string[]
+      /** Target */
+      target: string
+      /** Allowed Models */
+      allowed_models: string[]
+      /** Default Model */
+      default_model: string
+      /** Is Default */
+      is_default: boolean
+      /** Available Models */
+      available_models: string[]
+      last_check: components['schemas']['ConnectionCheckSchema'] | null
+      usage: components['schemas']['ConnectionUsageSchema'] | null
+      /** Settings */
+      settings: {
+        [key: string]: string
+      }
+      /**
+       * Auth
+       * @enum {string}
+       */
+      auth: 'oauth' | 'token' | 'app' | 'source' | ''
+      /** Scopes */
+      scopes: string[]
+      /** Requested Scopes */
+      requested_scopes: string[]
+      /** Offered Tools */
+      offered_tools: components['schemas']['OfferedToolSchema'][]
+      /** Require Approval */
+      require_approval: boolean
+      /** Attribution */
+      attribution: boolean
+    }
+    /**
+     * Provider
+     * @enum {string}
+     */
+    Provider:
+      | 'github'
+      | 'sentry'
+      | 'mcp'
+      | 'api'
+      | 'webhook'
+      | 'anthropic'
+      | 'openai'
+      | 'openrouter'
+      | 'openai_compatible'
+    /** ConnectionCheckSchema */
+    ConnectionCheckSchema: {
+      /** Ok */
+      ok: boolean
+      /** Message */
+      message: string
+      /**
+       * Checked At
+       * Format: date-time
+       */
+      checked_at: string
+      /** Features */
+      features?: components['schemas']['FeatureCheckSchema'][]
+      /**
+       * Fix Url
+       * @default
+       */
+      fix_url: string
+    }
+    /** FeatureCheckSchema */
+    FeatureCheckSchema: {
+      /** Feature */
+      feature: string
+      /** Label */
+      label: string
+      /** Ok */
+      ok: boolean | null
+      /** Message */
+      message: string
+    }
+    /** ConnectionUsageSchema */
+    ConnectionUsageSchema: {
+      /** Jobs */
+      jobs: number
+      /** Runs 7D */
+      runs_7d: number
+      /** Spend 7D Usd */
+      spend_7d_usd: number
+      /** Spend Partial */
+      spend_partial: boolean
+      /** Last Used At */
+      last_used_at: string | null
+    }
+    /** OfferedToolSchema */
+    OfferedToolSchema: {
+      /** Name */
+      name: string
+      /** Description */
+      description: string
+      /** Read Only */
+      read_only: boolean
+    }
+    /** ConnectionTestSchema */
+    ConnectionTestSchema: {
+      /** Ok */
+      ok: boolean
+      /** Status Code */
+      status_code: number | null
+      /** Message */
+      message: string
+      /**
+       * Models
+       * @default []
+       */
+      models: string[]
+    }
+    /** MCPProviderSchema */
+    MCPProviderSchema: {
+      /** Key */
+      key: string
+      /** Label */
+      label: string
+      /** Description */
+      description: string
+      /** Default Binding */
+      default_binding: string
+      /** Token Label */
+      token_label: string
+      /** Token Hint */
+      token_hint: string
+      /** Setup Url */
+      setup_url: string
+      /** Setup Help */
+      setup_help: string
+      /** Settings */
+      settings: components['schemas']['MCPSettingSchema'][]
+      /** Tools */
+      tools: string[]
+      /** Auth Methods */
+      auth_methods: string[]
+      /** Owner Selects Tools */
+      owner_selects_tools: boolean
+    }
+    /** MCPSettingSchema */
+    MCPSettingSchema: {
+      /** Key */
+      key: string
+      /** Label */
+      label: string
+      /** Pattern */
+      pattern: string
+      /** Required */
+      required: boolean
+      /** Help */
+      help: string
+      /** Placeholder */
+      placeholder: string
+    }
+    /** MCPInspectResultSchema */
+    MCPInspectResultSchema: {
+      /** Oauth */
+      oauth: boolean
+      /** Scopes */
+      scopes: string[]
+    }
+    /** WebhookSampleSchema */
+    WebhookSampleSchema: {
+      /** Payload */
+      payload: {
+        [key: string]: unknown
+      }
+      /** Summary Max Chars */
+      summary_max_chars: number
+    }
+    /** AgentConnectionSchema */
+    AgentConnectionSchema: {
+      /** Id */
+      id: number
+      /**
+       * Backend
+       * @enum {string}
+       */
+      backend: 'claude_code' | 'codex'
+      /** Display Name */
+      display_name: string
+      /** Connected */
+      connected: boolean
+      /** Owner Id */
+      owner_id: number
+      /**
+       * Updated At
+       * Format: date-time
+       */
+      updated_at: string
+      /** Max Runs Per Day */
+      max_runs_per_day: number | null
+      /**
+       * Recent Runs
+       * @default 0
+       */
+      recent_runs: number
+      /**
+       * Can Manage
+       * @default false
+       */
+      can_manage: boolean
+      last_check: components['schemas']['AgentCheckSchema'] | null
+      /**
+       * Runner Cleanup Pending
+       * @default false
+       */
+      runner_cleanup_pending: boolean
+    }
+    /** AgentCheckSchema */
+    AgentCheckSchema: {
+      /** Ok */
+      ok: boolean
+      /** Reason */
+      reason: string
+      /** Message */
+      message: string
+      /** Checked At */
+      checked_at: string
+    }
+    /** ExecutionConfigurationSchema */
+    ExecutionConfigurationSchema: {
+      /** Enabled */
+      enabled: boolean
+      /** Choices */
+      choices: components['schemas']['ExecutionChoiceSchema'][]
+      /** Selected */
+      selected: string
+      /** Label */
+      label: string
+      /** Backend */
+      backend: string
+      /** Ready */
+      ready: boolean
+      /** Problem */
+      problem: string
+    }
+    /** ExecutionChoiceSchema */
+    ExecutionChoiceSchema: {
+      /** Key */
+      key: string
+      /** Label */
+      label: string
+      /**
+       * Disabled
+       * @default false
+       */
+      disabled: boolean
+      /**
+       * Problem
+       * @default
+       */
+      problem: string
+    }
+    /** ExecutionStatusSchema */
+    ExecutionStatusSchema: {
+      /** Label */
+      label: string
+      /** Backend */
+      backend: string
+      /** Problem */
+      problem: string
+      /** Chosen */
+      chosen: boolean
+      /** Needs Setup */
+      needs_setup: boolean
+      /** Fix Connection Id */
+      fix_connection_id: number | null
+    }
+    /** APISpecSummarySchema */
+    APISpecSummarySchema: {
+      /** Title */
+      title: string
+      /** Servers */
+      servers: string[]
+      /** Operations */
+      operations: number
+      /** Read Only */
+      read_only: number
+    }
   }
   responses: never
   parameters: never
