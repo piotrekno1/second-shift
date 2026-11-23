@@ -1,3 +1,5 @@
+import type { components as ApiComponents } from './generated/run-api'
+
 export interface User {
   email: string
   workspace_name: string | null
@@ -337,53 +339,9 @@ export interface ToolInput {
   required: string[]
 }
 
-export interface RunFailure {
-  /** Where it failed, e.g. "Model provider" or "Sandbox". */
-  label: string
-  reason: string
-  /** The run stopped at one of its limits, which an owner can change. */
-  limit?: boolean
-  /** The connection the failure came from, when there is one to fix. */
-  connection_id?: number | null
-  /** The subscription login to fix, for a run on one. */
-  login_id?: number | null
-  next_step?: string
-}
+export type RunFailure = ApiComponents['schemas']['RunFailureSchema']
 
-export interface Run {
-  id: number
-  job_id: number | null
-  job: string
-  repository_id: number
-  repository: string
-  status: 'queued' | 'running' | 'succeeded' | 'failed' | 'canceled'
-  scheduled_for: string
-  /** What started the run: a schedule, a person, a webhook or an MCP client. */
-  started_by: RunStart
-  started_at: string | null
-  finished_at: string | null
-  summary: string
-  plan_ready: boolean
-  commit_sha: string
-  model: string | null
-  max_turns: number | null
-  /** The token budget frozen into the run. Older runs have none. */
-  token_budget: number | null
-  model_requests: number
-  model_input_tokens: number
-  model_output_tokens: number
-  /** Cached input, already inside model_input_tokens. */
-  model_cache_read_tokens?: number
-  failure: RunFailure | null
-  has_input: boolean
-  has_output: boolean
-  model_tokens: number | null
-  /** What counts toward token_budget. Cached input counts as a tenth. */
-  model_budget_tokens?: number | null
-  model_usage_source?: 'api' | 'agent'
-  model_cost_usd: number | null
-  model_cost_partial: boolean
-}
+export type Run = ApiComponents['schemas']['RunSchema']
 
 export interface RunEvent {
   id: number
@@ -721,7 +679,7 @@ export interface ApiTokenList {
 }
 
 export type TriggerKind = 'webhook'
-export type RunStart = 'schedule' | 'manual' | 'webhook' | 'mcp'
+export type RunStart = ApiComponents['schemas']['RunStart']
 
 export interface TriggerEvent {
   id: number

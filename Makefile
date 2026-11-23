@@ -3,9 +3,9 @@
 
 BENCHMARKS = uv run pytest secondshift/benchmarks -o python_files='bench_*.py'
 
-.PHONY: check check-backend check-frontend fix
+.PHONY: check check-backend check-frontend check-api-types fix
 
-check: check-backend check-frontend
+check: check-backend check-frontend check-api-types
 
 check-backend:
 	uv run ruff check --no-cache .
@@ -19,6 +19,9 @@ check-frontend:
 	npm --prefix dashboard run typecheck
 	npm --prefix dashboard run test
 	npm --prefix dashboard run build
+
+check-api-types:
+	npm --prefix dashboard run generate:run-types -- --check
 
 # Rewrites files. Fixes what the linters can and formats everything.
 fix:

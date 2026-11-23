@@ -290,10 +290,13 @@ function run(
     model_requests: 1,
     model_input_tokens: 0,
     model_output_tokens: 0,
+    model_cache_read_tokens: 0,
     failure: null,
     has_input: false,
     has_output: false,
     model_tokens: 0,
+    model_budget_tokens: 0,
+    model_usage_source: 'api',
     model_cost_usd: cost,
     model_cost_partial: false,
   }
