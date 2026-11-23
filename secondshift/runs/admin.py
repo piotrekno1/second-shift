@@ -62,7 +62,7 @@ class RunAdmin(admin.ModelAdmin):
 
     @admin.display(description="Full output")
     def full_output(self, run: Run) -> str:
-        if not run.output_path:
+        if not run.has_output:
             return "-"
         url = reverse("admin:runs_run_output", args=[run.pk])
         return format_html('<a href="{}">Download output.log</a>', url)
@@ -72,7 +72,7 @@ class RunAdmin(admin.ModelAdmin):
             run = get_run(run_id)
         except Run.DoesNotExist:
             raise Http404 from None
-        if not self.has_view_permission(request, run) or not run.output_path:
+        if not self.has_view_permission(request, run) or not run.has_output:
             raise Http404
         return FileResponse(
             artifact_storage().open(run.output_path, "rb"),

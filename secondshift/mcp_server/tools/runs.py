@@ -79,7 +79,7 @@ def get_run(context: ToolContext, arguments: RunArguments) -> RunResult:
 def get_run_report(context: ToolContext, arguments: RunArguments) -> RunReportResult:
     run = run_for_request(call_request(context), arguments.run_id)
     report, truncated = (
-        read_text(run.output_path, REPORT_MAX_BYTES) if run.output_path else ("", False)
+        read_text(run.output_path, REPORT_MAX_BYTES) if run.has_output else ("", False)
     )
     return RunReportResult(
         run_id=run.pk, status=run.status, report=report, truncated=truncated

@@ -106,7 +106,7 @@ def serialize_run(run: Run) -> RunSchema:
         model_cache_read_tokens=cached_tokens,
         failure=run_failure(run),
         has_input=bool(run.input_path),
-        has_output=bool(run.output_path),
+        has_output=run.has_output,
         model_tokens=tokens,
         model_budget_tokens=budget_tokens,
         model_usage_source="api" if api else "agent",
@@ -133,7 +133,7 @@ def run_files(run: Run) -> list[RunFileSchema]:
                 truncated=False,
             )
         )
-    if run.output_path:
+    if run.has_output:
         files.append(
             RunFileSchema(
                 name="output",
