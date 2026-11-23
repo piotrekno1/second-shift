@@ -52,7 +52,6 @@ class RunDaySchema(Schema):
 class OnboardingRunSchema(Schema):
     id: int
     status: str
-    has_report: bool
 
 
 class OverviewSchema(Schema):

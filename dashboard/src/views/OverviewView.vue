@@ -52,34 +52,7 @@ const missingConnection = computed(
 // While nothing can run jobs every run fails, so fixing that is the one next step.
 const executionBlocked = computed(() => Boolean(app.overview?.execution?.problem))
 const failing = computed(() => app.overview?.failing_jobs ?? [])
-const firstSuccessSeen = ref<string | null>(null)
-const firstSuccessKey = computed(() => {
-  const user = app.user
-  const run = app.overview?.onboarding_run
-  return user?.workspace_slug && run?.status === 'succeeded'
-    ? `secondshift:first-success:${JSON.stringify([user.email, user.workspace_slug, run.id])}`
-    : null
-})
-const setup = computed(() => {
-  const key = firstSuccessKey.value
-  if (key && firstSuccessSeen.value === key) return null
-  try {
-    if (key && localStorage.getItem(key)) return null
-  } catch {
-    // The acknowledgement is still remembered in this view if storage is unavailable.
-  }
-  return app.setupChecklist
-})
-function acknowledgeFirstSuccess(): void {
-  const key = firstSuccessKey.value
-  if (!key) return
-  firstSuccessSeen.value = key
-  try {
-    localStorage.setItem(key, '1')
-  } catch {
-    // The current view is already dismissed.
-  }
-}
+const setup = computed(() => app.setupChecklist)
 // A token made in the agent dialog takes the offer off the page.
 watch(
   () => agentConnection.visible,
@@ -155,7 +128,7 @@ const attentionDetail = computed(() => {
     <PageHeader
       v-if="setup"
       title="Overview"
-      :description="firstSuccessKey ? undefined : 'Follow these steps to run your first job.'"
+      description="Follow these steps to run your first job."
     />
     <PageHeader v-else title="This week" :aside="weekRange(new Date())" :description="subtitle">
       <!-- After setup, the one next step: approve what blocks a job, or add a repository.
@@ -187,12 +160,7 @@ const attentionDetail = computed(() => {
       >
     </PageHeader>
 
-    <SetupChecklist
-      v-if="setup"
-      :steps="setup"
-      :succeeded="Boolean(firstSuccessKey)"
-      @acknowledge="acknowledgeFirstSuccess"
-    />
+    <SetupChecklist v-if="setup" :steps="setup" />
     <!-- The checklist already asks for what runs jobs. -->
     <ExecutionWarning v-if="!setup || !app.overview?.execution?.needs_setup" />
 

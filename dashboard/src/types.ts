@@ -100,7 +100,6 @@ export type RunLimitUpdate = Partial<Record<RunLimitKey, number | null>>
 export interface OnboardingRun {
   id: number
   status: Run['status']
-  has_report: boolean
 }
 
 export interface Overview {

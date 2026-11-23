@@ -43,7 +43,7 @@ interface NavItem {
 // During first-time setup the Overview checklist says what to do, so these stay empty.
 const notes = computed(() =>
   sidebarNotes({
-    inSetup: app.setupChecklist !== null && app.overview?.onboarding_run?.status !== 'succeeded',
+    inSetup: app.setupChecklist !== null,
     jobsAwaitingApproval: app.jobsAwaitingApproval,
     brokenConnections: app.brokenConnections,
     bindingsToSetUp: app.bindingsToSetUp,

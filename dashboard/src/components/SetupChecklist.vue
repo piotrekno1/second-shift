@@ -5,11 +5,8 @@ import { useAgentConnectionStore } from '../stores/agentConnection'
 import type { SetupStep } from '../utils/readiness'
 
 /** First-time setup. Only the first open step shows its actions, so there is one clear next step. */
-const props = defineProps<{ steps: SetupStep[]; succeeded: boolean }>()
-const emit = defineEmits<{ acknowledge: [] }>()
-const current = computed(() =>
-  props.succeeded ? props.steps.length - 1 : props.steps.findIndex((step) => !step.done),
-)
+const props = defineProps<{ steps: SetupStep[] }>()
+const current = computed(() => props.steps.findIndex((step) => !step.done))
 const agentConnection = useAgentConnectionStore()
 const doneCount = computed(() => props.steps.filter((step) => step.done).length)
 </script>
@@ -18,12 +15,9 @@ const doneCount = computed(() => props.steps.filter((step) => step.done).length)
   <section class="panel setup-checklist" aria-labelledby="setup-heading">
     <div class="setup-heading">
       <div>
-        <h2 id="setup-heading">{{ succeeded ? 'First run complete' : 'Get to your first run' }}</h2>
-        <p v-if="!succeeded">{{ doneCount }} of {{ steps.length }} done</p>
+        <h2 id="setup-heading">Get to your first run</h2>
+        <p>{{ doneCount }} of {{ steps.length }} done</p>
       </div>
-      <button v-if="succeeded" type="button" class="link-button" @click="emit('acknowledge')">
-        Dismiss
-      </button>
     </div>
     <ol>
       <li
@@ -57,7 +51,6 @@ const doneCount = computed(() => props.steps.filter((step) => step.done).length)
             :key="action.label"
             :to="action.to"
             :class="actionIndex === 0 ? 'primary-action' : 'secondary-action'"
-            @click="succeeded && emit('acknowledge')"
             ><AppIcon :name="action.icon" /> {{ action.label }}</RouterLink
           >
         </div>

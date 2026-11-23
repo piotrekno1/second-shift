@@ -134,7 +134,7 @@ def workspace_runs(workspace_id: int | None) -> QuerySet[Run]:
 
 
 def onboarding_run(workspace_id: int) -> Run | None:
-    runs = workspace_runs(workspace_id).only("status", "output_path", "output_excerpt")
+    runs = workspace_runs(workspace_id).only("status")
     first_success = (
         runs.filter(status=Run.Status.SUCCEEDED).order_by("finished_at", "pk").first()
     )

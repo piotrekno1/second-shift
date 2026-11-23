@@ -306,23 +306,21 @@ function jobStep(state: SetupState): SetupStep {
     agentHint: null,
   }
   const attempt = state.onboardingRun
-  if (attempt) {
+  if (attempt && attempt.status !== 'succeeded') {
     const messages = {
       queued: ['Your first run is queued', 'Open the run to follow its progress.'],
       running: ['Your first run is in progress', 'Open the run to follow its progress.'],
       failed: ['Your first run failed', 'Open the run to see what happened and retry.'],
       canceled: ['Your first run was canceled', 'Open the run to review it or try again.'],
-      succeeded: ['Your first run succeeded', 'Open the result to see what the job produced.'],
     } as const
     const [title, detail] = messages[attempt.status]
     return {
       ...step,
       title,
       detail,
-      done: attempt.status === 'succeeded',
       actions: [
         {
-          label: attempt.status === 'succeeded' && attempt.has_report ? 'View report' : 'View run',
+          label: 'View run',
           to: { path: `/runs/${attempt.id}` },
           icon: 'arrow-right',
         },
@@ -363,7 +361,8 @@ function jobStep(state: SetupState): SetupStep {
  * Local repositories exist only where the server allows them, so a hosted
  * server offers GitHub alone.
  */
-export function setupSteps(state: SetupState): SetupStep[] {
+export function setupSteps(state: SetupState): SetupStep[] | null {
+  if (state.onboardingRun?.status === 'succeeded') return null
   return [codeStep(state), runnerStep(state), jobStep(state)]
 }
 

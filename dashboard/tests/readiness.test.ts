@@ -307,14 +307,16 @@ test('a repository without jobs offers to try a skill first', () => {
 
 test('first-run setup completes only after a successful run', () => {
   assert.equal(setupSteps(setup({ ...withCode, enabledJobs: 1 }))![2]!.done, false)
-  for (const status of ['queued', 'running', 'failed', 'canceled', 'succeeded'] as const) {
-    const step = setupSteps(
-      setup({ ...withCode, onboardingRun: { id: 12, status, has_report: status === 'succeeded' } }),
-    )![2]!
-    assert.equal(step.done, status === 'succeeded')
-    assert.equal(step.actions[0]?.label, status === 'succeeded' ? 'View report' : 'View run')
+  for (const status of ['queued', 'running', 'failed', 'canceled'] as const) {
+    const step = setupSteps(setup({ ...withCode, onboardingRun: { id: 12, status } }))![2]!
+    assert.equal(step.done, false)
+    assert.equal(step.actions[0]?.label, 'View run')
     assert.deepEqual(step.actions[0]?.to, { path: '/runs/12' })
   }
+  assert.equal(
+    setupSteps(setup({ ...withCode, onboardingRun: { id: 13, status: 'succeeded' } })),
+    null,
+  )
 })
 
 test('connecting an agent is offered while there is configuration to write', () => {

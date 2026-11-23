@@ -86,7 +86,6 @@ def overview(request: HttpRequest) -> OverviewSchema:
         onboarding_run=OnboardingRunSchema(
             id=first_run.pk,
             status=first_run.status,
-            has_report=bool(first_run.output_excerpt or first_run.output_path),
         )
         if first_run
         else None,
