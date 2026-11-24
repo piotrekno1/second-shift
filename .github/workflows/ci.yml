@@ -12,6 +12,9 @@ on:
       - 'CONTRIBUTING.md'
       - 'docs/**'
 
+env:
+  UV_LOCKED: "1"
+
 permissions:
   contents: read
 
@@ -25,9 +28,10 @@ jobs:
           persist-credentials: false
       - uses: astral-sh/setup-uv@v10.3.3
         with:
+          version: "0.13.8"
           python-version: "3.13"
           enable-cache: true
-      - run: uv sync --frozen
+      - run: uv sync --locked
       - run: make check-backend
 
   frontend:
@@ -45,9 +49,10 @@ jobs:
       - run: make check-frontend
       - uses: astral-sh/setup-uv@v10.3.3
         with:
+          version: "0.13.8"
           python-version: "3.13"
           enable-cache: true
-      - run: uv sync --frozen
+      - run: uv sync --locked
       - run: make check-api-types
 
   # Fails if a workflow uses an action that is missing from actions.lock.
@@ -74,5 +79,6 @@ jobs:
           persist-credentials: false
       - uses: astral-sh/setup-uv@v10.3.3
         with:
+          version: "0.13.8"
           enable-cache: false
-      - run: uvx zizmor@1.32.0 --format github .
+      - run: uv run --locked --only-group zizmor --isolated zizmor --format github .

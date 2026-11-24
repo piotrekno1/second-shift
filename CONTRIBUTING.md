@@ -139,7 +139,8 @@ running:
 
 ```bash
 npm --prefix dashboard run build
-uv build --wheel
+uv sync --locked --only-group build
+uv build --wheel --no-build-isolation
 uv run --no-project python scripts/release_smoke/run.py dist/*.whl
 ```
 
@@ -285,3 +286,21 @@ for an owner email and password because the network can now reach it.
 Local mode is for one person on their own machine. It uses plain Docker and
 can read Git repositories from disk. For a shared server, see
 [self-hosting guide](docs/self-hosting.md).
+
+### Dependency integrity
+
+Use uv 0.13.8 or newer. `uv.lock` pins runtime, development, build, and CI tool
+artifacts with hashes. CI and `make check` reject stale lockfiles. Run `uv lock`
+after changing dependencies and review its diff before merging.
+
+New Python artifacts have a seven-day cooldown. For an urgent security update,
+use a temporary, documented `[tool.uv.exclude-newer-package]` exception for that
+package and remove it once the release has aged. A cooldown does not vet code.
+Third-party source builds are disabled; supported environments need wheels.
+SecondShift itself builds with the Hatchling environment installed from the lockfile,
+without isolated build dependency resolution. Plain `uv sync` installs this build
+group too. Run CI's workflow audit locally with:
+
+```bash
+uv run --locked --only-group zizmor --isolated zizmor --format github .
+```
