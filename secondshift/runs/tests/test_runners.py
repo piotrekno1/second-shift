@@ -13,7 +13,7 @@ from secondshift.runner_protocol.sessions import (
     CommandResult,
     RunnerProtocolError,
 )
-from secondshift.runner_protocol.tests.test_client import public_key_pem
+from secondshift.runner_protocol.tests.keys import public_key_pem
 from secondshift.runs import runners
 from secondshift.runs.dao import all_runners, find_runner, update_run
 from secondshift.runs.execution.workspace_tools import execute_runner_command_step

@@ -3,12 +3,10 @@ from typing import Any
 
 import httpx
 import pytest
-from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.asymmetric import rsa
 
 from secondshift.runner_protocol.client import HttpRunnerClient
-from secondshift.runner_protocol.credentials import key_fingerprint, same_key
 from secondshift.runner_protocol.sessions import CommandRequest, RunnerProtocolError
+from secondshift.runner_protocol.tests.keys import public_key_pem
 
 Handler = Callable[[httpx.Request], httpx.Response]
 
@@ -119,18 +117,6 @@ def test_the_client_closes_its_connections_when_the_block_ends() -> None:
     assert client.session.is_closed
 
 
-def public_key_pem() -> str:
-    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
-    return (
-        key.public_key()
-        .public_bytes(
-            serialization.Encoding.PEM,
-            serialization.PublicFormat.SubjectPublicKeyInfo,
-        )
-        .decode()
-    )
-
-
 PINNED = public_key_pem()
 IMPOSTOR = public_key_pem()
 
@@ -182,12 +168,6 @@ def test_first_contact_checks_against_a_key_pinned_meanwhile() -> None:
 
     with pytest.raises(RunnerProtocolError, match="does not match"):
         client.encrypted_auth("login")
-
-
-def test_fingerprints_compare_keys_not_text() -> None:
-    assert same_key(PINNED, PINNED.replace("\n", "\r\n"))
-    assert not same_key(PINNED, IMPOSTOR)
-    assert key_fingerprint(PINNED).startswith("SHA256:")
 
 
 def test_a_runner_answering_with_no_valid_key_is_refused() -> None:

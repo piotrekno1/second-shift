@@ -4,12 +4,11 @@ from datetime import timedelta
 from typing import Any
 
 import pytest
-from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.asymmetric import rsa
 from django.utils import timezone
 
 from secondshift.runner_protocol.environments import RunnerEnvironments
 from secondshift.runner_protocol.sessions import RunnerProtocolError
+from secondshift.runner_protocol.tests.keys import public_key_pem
 from secondshift.runs import runners
 from secondshift.runs.dao import (
     find_runner,
@@ -244,18 +243,6 @@ def test_a_run_fails_when_no_runner_is_in_the_default_pool(run: Run) -> None:
 
 
 # Learning each runner's environments
-
-
-def public_key_pem() -> str:
-    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
-    return (
-        key.public_key()
-        .public_bytes(
-            serialization.Encoding.PEM,
-            serialization.PublicFormat.SubjectPublicKeyInfo,
-        )
-        .decode()
-    )
 
 
 KEY = public_key_pem()
