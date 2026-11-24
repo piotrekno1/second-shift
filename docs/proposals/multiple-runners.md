@@ -153,14 +153,17 @@ own.
 ### Subscription logins
 
 - Seal each login to the assigned runner's public key when its session starts.
-  `client.encrypted_auth` already happens per call, so only the key source
-  changes.
-- Cached logins: record which runners hold a copy of each `credential_key`,
-  in a `RunnerCredentialCopy` row written when a session starts with it. On
-  disconnect, `queue_cleanup` creates one cleanup per copy, and
-  `retry_credential_cleanups` retries each one against its runner.
-- Login checks (`check_agent_connection`) run on any active runner that offers
-  the agent backend.
+  This holds since routing (#485), because `cli_agent` asks the run's runner
+  for its key.
+- Cached logins: a disconnect or reconnect asks **every** registered runner to
+  remove its copy, instead of tracking which runners hold one. Tracking could
+  miss copies: a login check caches one too, and a crash between the session
+  start and a tracking write would leave one untracked. The runner's DELETE is
+  safe to repeat. `AgentCredentialCleanup.removed_from` lists the runners that
+  confirmed. A runner that is down is not asked, but the cleanup stays until it
+  confirms.
+- Login checks (`check_agent_connection`) run on the active `default`-pool
+  runner with the most free sessions.
 
 ### Environments
 
@@ -226,7 +229,7 @@ runtime placement or flags.
 ## Migration and compatibility
 
 1. Add the schema: `Runner`, `Run.runner` (nullable) and
-   `RunnerCredentialCopy`, from generated migrations.
+   `AgentCredentialCleanup.removed_from`, from generated migrations.
 2. The worker registers `default` from the existing env vars. Installs without
    those vars, such as some dev setups, register nothing, and the control plane
    reports "no runner registered".
@@ -247,7 +250,8 @@ Each step is a separate PR that ships on its own:
    switch every session-scoped caller. `assign_runner` always picks `default`.
 3. **Placement and capacity** (#488). Choose by environment and free sessions,
    wait while runners are full, and refresh each runner's environments.
-4. **Logins.** Seal per runner, record copies and fan out cleanup.
+4. **Logins** (#489). Clean up on every runner, and check logins on an
+   active runner.
 5. **Environments.** Use the union from the registry, with a periodic
    refresh.
 6. **Health, drain and recovery.** Add the `down` state, the `runner_lost`
