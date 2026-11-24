@@ -275,12 +275,16 @@ Each step is a separate PR that ships on its own:
    before a runner is removed.
 5. **Environments** (#492). Readiness and the settings page read the
    registry rows the worker's check fills in, and never ask a runner.
-6. **Health, drain and recovery.** `failing_since`, the `runner` failure,
+6. **Health, drain and recovery** (#491). `failing_since`, the `runner` failure,
    failing runs on a lost runner, and stopping their sessions when it returns.
-7. **Docs.** Update `architecture.md`, `backend-architecture.md#starting-and-queueing-runs`,
-   `self-hosting.md`, `production-deployment.md` and
-   `environment-variables.md`, and extend the production end-to-end suite to two
-   runners.
+7. **Docs** (#493). Update `architecture.md`, `self-hosting.md`,
+   `production-deployment.md` and `environment-variables.md`, and add
+   `runner_key` so an operator can compare a runner's key fingerprint.
+8. **Subscription agents on another host.** Agent containers reach the
+   gateway's broker over the runner host's internal agent network, which a
+   runner on another host isn't on, and placement doesn't know which runners
+   can run agents. Both need a design before the production end-to-end suite
+   is extended to two runners.
 
 ## Testing
 

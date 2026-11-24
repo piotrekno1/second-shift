@@ -69,7 +69,7 @@ needed by web for GitHub repository imports, and the token is shared with runner
 | `SECONDSHIFT_RUN_SUBAGENTS_MAX` | The most sub-agents one run may start, when its job sets `subagents`. A manifest above it fails to sync. Lowering it also caps jobs already synced. `0` turns sub-agents off. Default `5`. |
 | `SECONDSHIFT_RUN_HISTORY_MAX_CHARS` | Total characters of a job's earlier reports a run starts with, when the job sets `history`. Newest first. What does not fit is cut or left out. Default `65536`. |
 | `SECONDSHIFT_WORKFLOW_DATABASE_URL` | Optional DBOS workflow database URL, also needed by web when set. Defaults to `workflows.sqlite3` in `SECONDSHIFT_DATA_DIR` for SQLite; otherwise defaults to `SECONDSHIFT_DATABASE_URL`. Back it up consistently with the application database. |
-| `SECONDSHIFT_RUNNER_SERVICE_URL` | Required private runner address. Generated value: `http://secondshift-runner:8002`. |
+| `SECONDSHIFT_RUNNER_SERVICE_URL` | Required private runner address. Generated value: `http://secondshift-runner:8002`. The worker keeps this runner registered as `default`. |
 | `SECONDSHIFT_RUNNER_SERVICE_TOKEN` | Required auth token of at least 32 characters. Identical in web, gateway, worker and runner. Generated automatically. |
 | `SECONDSHIFT_MODEL_GATEWAY_URL` | Required private model endpoint. Generated value: `http://secondshift-gateway:8001`. |
 
@@ -81,6 +81,10 @@ also contains unused application tables. Do not overwrite an existing workflow
 database. Changing the URL alone does not migrate workflows. Explicit workflow
 URLs remain unchanged, but must point to a different SQLite file from the
 application database to avoid dispatch write-lock conflicts.
+
+Other runners are not set by env vars. Register them with
+`secondshift runners add`, each with its own token. See
+[runners](production-deployment.md#runners).
 
 Do not publish the gateway or runner ports. The web process needs the runner
 URL/token for GitHub imports. It does not need the model gateway endpoint.
