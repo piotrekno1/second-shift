@@ -16,6 +16,7 @@ from secondshift.runner_protocol.tests.keys import public_key_pem
 from secondshift.runs import runner_health
 from secondshift.runs.dao import find_runner, login_home, run_events, set_login_home
 from secondshift.runs.models import Run, RunFailure, Runner, SessionCleanup
+from secondshift.runs.orchestration import workflows
 from secondshift.runs.reporting.failures import stage_failure
 from secondshift.runs.runner_health import (
     LOST_SECONDS,
@@ -275,6 +276,34 @@ def test_lost_sessions_stop_when_the_runner_answers_again(
 
     run.refresh_from_db()
     assert fake.stopped == [session_id_for(run.pk, run.runner_session_key.hex)]
+    assert not SessionCleanup.objects.exists()
+
+
+def test_a_session_the_run_could_not_stop_is_stopped_later(
+    run: Run,
+    fake: FakeRunners,
+    fake_stages: list[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    pinned_running(run, make_runner("runner-b"))
+
+    def unreachable(*args: object) -> None:
+        raise RunnerUnreachable("The runner did not answer. Its proxy answered 502.")
+
+    monkeypatch.setattr(workflows, "execute_agent_run", unreachable)
+    monkeypatch.setattr(workflows, "stop_runner_session_step", unreachable)
+    monkeypatch.setattr(workflows, "notify", lambda run_id: None)
+
+    with pytest.raises(RunnerUnreachable):
+        workflows.execute_run(run.pk)
+
+    cleanup = SessionCleanup.objects.get()
+    assert cleanup.session_id == f"run-{run.pk}"
+
+    fake.answers["runner-b"] = RunnerEnvironments(images={}, default="")
+    refresh_runners()
+
+    assert fake.stopped == [f"run-{run.pk}"]
     assert not SessionCleanup.objects.exists()
 
 

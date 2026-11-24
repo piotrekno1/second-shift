@@ -71,6 +71,15 @@ def test_transport_errors_are_named_without_their_text(
     assert "runner:8002" not in str(caught.value)
 
 
+@pytest.mark.parametrize("status", [502, 503, 504])
+def test_a_proxy_answering_for_a_stopped_runner_is_unreachable(status: int) -> None:
+    # Caddy in front of a stopped runner answers for it.
+    client, _ = runner(lambda request: httpx.Response(status, text="Bad Gateway"))
+
+    with pytest.raises(RunnerUnreachable, match=f"HTTP {status}"):
+        client.stop("run-7")
+
+
 def test_source_upload_is_skipped_when_the_runner_has_it(tmp_path) -> None:
     snapshot = tmp_path / "source.tar.gz"
     snapshot.write_bytes(b"snapshot")
