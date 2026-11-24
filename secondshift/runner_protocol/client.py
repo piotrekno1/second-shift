@@ -20,6 +20,7 @@ from secondshift.runner_protocol.sessions import (
     CommandResult,
     RunnerProtocolError,
     RunnerSessionSpec,
+    RunnerUnreachable,
 )
 
 
@@ -78,9 +79,9 @@ class HttpRunnerClient:
                 method, path, timeout=timeout or self.timeout, **kwargs
             )
         except httpx.TimeoutException as error:
-            raise RunnerProtocolError("The runner did not answer in time.") from error
+            raise RunnerUnreachable("The runner did not answer in time.") from error
         except httpx.HTTPError as error:
-            raise RunnerProtocolError(
+            raise RunnerUnreachable(
                 "The runner service could not be reached."
             ) from error
 

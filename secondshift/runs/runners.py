@@ -16,6 +16,7 @@ import logging
 import math
 import time
 from collections.abc import Callable
+from datetime import datetime, timedelta
 from urllib.parse import urlsplit
 
 from django.conf import settings
@@ -40,8 +41,9 @@ DEFAULT_POOL = "default"
 MIN_TOKEN_LENGTH = 32
 # How long a run waits between looks for a runner with room.
 CAPACITY_POLL_SECONDS = 5
-# A runner that hangs must not hold up the worker's other tasks.
-ENVIRONMENTS_TIMEOUT_SECONDS = 3
+# After its checks have failed for this long, a runner takes no new runs, and
+# logins whose home it is move. The worker checks every minute.
+UNREACHABLE_SECONDS = 2 * 60
 
 
 class RunnerRegistryError(ValueError):
@@ -282,10 +284,16 @@ def choose_runner(
     )
 
 
+def unreachable_cutoff() -> datetime:
+    """Runners failing since before this take no runs."""
+    return timezone.now() - timedelta(seconds=UNREACHABLE_SECONDS)
+
+
 def placement_problem(environment: str) -> str:
     """Why no runner could ever take this run, or nothing when one could.
 
-    Waiting helps a full or draining runner, but not a missing one.
+    Waiting helps a runner that is full, draining or not answering, but not a
+    missing one.
     """
     ensure_configured_runner()
     if not dao.all_runners():
@@ -306,8 +314,8 @@ def login_candidates(
 ) -> list[Runner]:
     """The runners a run may go to, given the subscription login it uses.
 
-    A login's runs go to its home runner while that runner is active and
-    offers the environment. Otherwise the login moves, and the runner chosen
+    A login's runs go to its home runner while that runner is active,
+    answering, and offers the environment. Otherwise the login moves, and the runner chosen
     becomes its home. Codex may then need a reconnect, since the old home kept
     the tokens it last refreshed.
     """
@@ -337,7 +345,9 @@ def try_assign_runner(
         run = dao.lock_run(run_id)
         if run.runner_id is not None:
             return run.runner
-        runners = dao.lock_runners_in(DEFAULT_POOL, Runner.State.ACTIVE)
+        runners = dao.lock_runners_in(
+            DEFAULT_POOL, Runner.State.ACTIVE, unreachable_cutoff()
+        )
         candidates = login_candidates(runners, credential_key, environment)
         counts = dao.unfinished_run_counts([runner.pk for runner in candidates])
         runner = choose_runner(candidates, counts, environment)
@@ -351,8 +361,9 @@ def try_assign_runner(
 def assign_runner(run_id: int, sleep: Callable[[float], None] = time.sleep) -> Runner:
     """The runner this run is pinned to, choosing one the first time.
 
-    While every runner that could take it is full or draining, it waits, up to
-    the run's time limit. It fails at once when no runner could ever take it.
+    While every runner that could take it is full, draining or not answering,
+    it waits, up to the run's time limit. It fails at once when no runner could
+    ever take it.
     """
     run = dao.get_run(run_id, "runner")
     # A retried step keeps its runner, whatever has changed since.
@@ -370,32 +381,6 @@ def assign_runner(run_id: int, sleep: Callable[[float], None] = time.sleep) -> R
             raise RuntimeError("No runner had room before the run's time limit.")
         dao.add_event_once(run_id, "Waiting for a runner with room.", "info")
         sleep(CAPACITY_POLL_SECONDS)
-
-
-def refresh_runners() -> int:
-    """Ask each runner which environments it offers, and pin its provisioning
-    key at first contact. Returns how many answered.
-
-    A runner that does not answer keeps what it said last.
-    """
-    answered = 0
-    for runner in dao.all_runners():
-        if runner.state == Runner.State.DOWN:
-            continue
-        try:
-            with runner_client(runner) as client:
-                offered = client.environments(timeout=ENVIRONMENTS_TIMEOUT_SECONDS)
-                key = runner.provisioning_key or client.current_provisioning_key(
-                    timeout=ENVIRONMENTS_TIMEOUT_SECONDS
-                )
-        except RunnerProtocolError:
-            logger.warning("runner %s did not answer", runner.name)
-            continue
-        dao.set_runner_environments(runner.pk, sorted(offered.images))
-        if not runner.provisioning_key:
-            pin_first_key(runner, key)
-        answered += 1
-    return answered
 
 
 def runner_client_for(run_id: int) -> HttpRunnerClient:
@@ -422,11 +407,13 @@ def runner_for_login(credential_key: str) -> Runner | None:
 
     A login with no active home gets the active default-pool runner with the
     most free sessions, which becomes its home. None when every one is full,
-    draining or down.
+    draining, down or not answering.
     """
     ensure_configured_runner()
     with transaction.atomic():
-        runners = dao.lock_runners_in(DEFAULT_POOL, Runner.State.ACTIVE)
+        runners = dao.lock_runners_in(
+            DEFAULT_POOL, Runner.State.ACTIVE, unreachable_cutoff()
+        )
         home = dao.login_home(credential_key)
         for runner in runners:
             # A check is short, so the home takes it even when full.

@@ -19,8 +19,21 @@ from secondshift.runner_protocol.sandbox import (
 )
 
 
+def session_id_for(run_id: int, session_key: str) -> str:
+    """The runner's id for a run's session.
+
+    The key is random per run, so a reset or restored database that reuses a
+    run ID never matches an older session.
+    """
+    return f"run-{run_id}-{session_key}"
+
+
 class RunnerProtocolError(RuntimeError):
     pass
+
+
+class RunnerUnreachable(RunnerProtocolError):
+    """The runner could not be reached or did not answer in time."""
 
 
 REPOSITORY_NAME = re.compile(r"^[A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)+$")
@@ -110,9 +123,7 @@ class RunnerSessionSpec:
 
     @property
     def session_id(self) -> str:
-        # The key is random per run, so a reset or restored database that
-        # reuses a run ID never matches an older session.
-        return f"run-{self.run_id}-{self.session_key}"
+        return session_id_for(self.run_id, self.session_key)
 
 
 @dataclass(frozen=True)

@@ -30,6 +30,8 @@ class RunFailure(models.TextChoices):
     BUDGET = "budget", "Budget used up"
     MODEL_PROVIDER = "model_provider", "Model provider"
     TOOL_RULE = "tool_rule", "Tool restriction"
+    # The run's runner could not be reached, or stopped answering mid-run.
+    RUNNER = "runner", "Runner"
     # The queue never took the run, so it does not count as started.
     NOT_QUEUED = "not_queued", "Run"
     OTHER = "other", "Run"
@@ -434,7 +436,11 @@ class Runner(models.Model):
     # Its public provisioning key, pinned at first contact. Logins are sealed
     # only to it, so whoever answers in its place can't read them.
     provisioning_key = models.TextField(blank=True)
+    # The operator's choice. Health is kept apart, so a runner that comes back
+    # stays drained if the operator drained it.
     state = models.CharField(max_length=16, choices=State, default=State.ACTIVE)
+    # When the worker's checks of it started failing. Empty while it answers.
+    failing_since = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -443,6 +449,22 @@ class Runner(models.Model):
 
     def __str__(self) -> str:
         return self.name
+
+
+class SessionCleanup(models.Model):
+    """A session left on a runner that stopped answering, to stop when it's back.
+
+    The runner keeps a session's containers and workspace until it is told to
+    stop it.
+    """
+
+    run = models.OneToOneField(Run, on_delete=models.CASCADE, related_name="+")
+    runner = models.ForeignKey(Runner, on_delete=models.CASCADE, related_name="+")
+    session_id = models.CharField(max_length=200)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["pk"]
 
 
 class LoginHome(models.Model):

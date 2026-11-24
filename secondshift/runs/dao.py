@@ -28,6 +28,7 @@ from secondshift.runs.models import (
     RunIssue,
     RunMCPSession,
     Runner,
+    SessionCleanup,
     Task,
 )
 
@@ -807,13 +808,18 @@ def runner_has_unfinished_runs(runner_id: int) -> bool:
     )
 
 
-def lock_runners_in(pool: str, state: str) -> list[Runner]:
+def lock_runners_in(pool: str, state: str, failing_before: datetime) -> list[Runner]:
     """Lock these runners for this transaction, oldest first.
 
-    Every caller locks in the same order, so placements never deadlock.
+    Runners whose checks have been failing since before `failing_before` are
+    left out. Every caller locks in the same order, so placements never
+    deadlock.
     """
     return list(
-        Runner.objects.select_for_update().filter(pool=pool, state=state).order_by("pk")
+        Runner.objects.select_for_update()
+        .filter(pool=pool, state=state)
+        .exclude(failing_since__lte=failing_before)
+        .order_by("pk")
     )
 
 
@@ -867,3 +873,40 @@ def replace_provisioning_key(runner_id: int, key: str) -> None:
 
 def pinned_provisioning_key(runner_id: int) -> str:
     return Runner.objects.values_list("provisioning_key", flat=True).get(pk=runner_id)
+
+
+def mark_runner_failing(runner_id: int, now: datetime) -> None:
+    """Record when its checks started failing. A later failure keeps the first."""
+    Runner.objects.filter(pk=runner_id, failing_since__isnull=True).update(
+        failing_since=now
+    )
+
+
+def mark_runner_answering(runner_id: int) -> bool:
+    """Clear its failing time. True when it had one."""
+    updated = Runner.objects.filter(pk=runner_id, failing_since__isnull=False).update(
+        failing_since=None
+    )
+    return bool(updated)
+
+
+def runners_failing_since(before: datetime) -> list[Runner]:
+    return list(Runner.objects.filter(failing_since__lte=before).order_by("pk"))
+
+
+def active_run_ids_on(runner_id: int) -> list[int]:
+    return list(
+        Run.objects.filter(runner_id=runner_id, status__in=Run.ACTIVE_STATUSES)
+        .order_by("pk")
+        .values_list("pk", flat=True)
+    )
+
+
+def add_session_cleanup(run_id: int, runner_id: int, session_id: str) -> None:
+    SessionCleanup.objects.get_or_create(
+        run_id=run_id, defaults={"runner_id": runner_id, "session_id": session_id}
+    )
+
+
+def session_cleanups_on(runner_id: int) -> list[SessionCleanup]:
+    return list(SessionCleanup.objects.filter(runner_id=runner_id))

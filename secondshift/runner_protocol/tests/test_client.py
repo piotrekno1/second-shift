@@ -5,7 +5,11 @@ import httpx
 import pytest
 
 from secondshift.runner_protocol.client import HttpRunnerClient
-from secondshift.runner_protocol.sessions import CommandRequest, RunnerProtocolError
+from secondshift.runner_protocol.sessions import (
+    CommandRequest,
+    RunnerProtocolError,
+    RunnerUnreachable,
+)
 from secondshift.runner_protocol.tests.keys import public_key_pem
 
 Handler = Callable[[httpx.Request], httpx.Response]
@@ -59,7 +63,7 @@ def test_transport_errors_are_named_without_their_text(
 
     client, _ = runner(fail)
 
-    with pytest.raises(RunnerProtocolError, match=message) as caught:
+    with pytest.raises(RunnerUnreachable, match=message) as caught:
         client.stop("run-7")
 
     assert "runner:8002" not in str(caught.value)
