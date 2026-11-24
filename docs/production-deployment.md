@@ -321,6 +321,11 @@ waits. A subscription login stays on the runner it first ran on, since Codex
 keeps its refreshed tokens there, and moves only when that runner drains,
 stops answering or lacks the environment.
 
+The worker runs at most `SECONDSHIFT_RUN_CONCURRENCY` runs at once, two by
+default, whatever the runners can take. When you add a runner, raise it in
+`worker.env` to the sessions you want in use across all runners, and restart
+the worker.
+
 The worker checks each runner every minute:
 
 - After two minutes without an answer, a runner takes no new runs.
