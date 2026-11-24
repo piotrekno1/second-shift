@@ -450,7 +450,9 @@ worker ──answer─────────────▶ runner ──answe
   collection request open while there are none keeps this under a second.
 - Each waiting tool call and each collection holds an open request, and a
   thread, on the runner. An agent may have 16 calls waiting.
-- The worker answers one agent's calls one at a time.
+- The worker answers up to four of an agent's calls at once, each on its own
+  database connection, as the gateway answers parallel calls in parallel. The
+  tool call budget is still counted under the lease's row lock.
 - Tool audit and rate limits run in the worker instead of the gateway. It is
   the same code.
 

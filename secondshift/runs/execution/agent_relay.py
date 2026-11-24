@@ -10,6 +10,7 @@ import json
 import logging
 import threading
 from collections.abc import Callable, Iterator
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 
 from django.db import connections
@@ -28,6 +29,10 @@ logger = logging.getLogger(__name__)
 
 # How long to wait before asking a runner again after a failed collection.
 RETRY_SECONDS = 2
+# Calls of one agent answered at once. Claude Code may call several tools at
+# once, and the gateway answers those in parallel too. The runner lets an
+# agent have 16 calls waiting.
+PARALLEL_CALLS = 4
 # How long the agent's step waits for the relay to finish its last call.
 STOP_WAIT_SECONDS = COLLECT_WAIT_SECONDS + 20
 
@@ -38,14 +43,31 @@ def relayed_answer(lease: AgentLease, call: RelayedCall) -> RelayedAnswer:
     return RelayedAnswer(status, body)
 
 
+Submit = Callable[[Callable[[], None]], object]
+
+
+def answer_call(
+    client: HttpRunnerClient, session_id: str, lease: AgentLease, call: RelayedCall
+) -> None:
+    try:
+        answer = relayed_answer(lease, call)
+        client.answer_agent_call(session_id, call.id, answer)
+    except RunnerProtocolError as error:
+        # The agent's call times out and the agent sees an error.
+        logger.warning("could not answer agent call %s: %s", call.id, error)
+    except Exception:
+        logger.exception("answering agent call %s failed", call.id)
+
+
 def relay_calls(
     client: HttpRunnerClient,
     session_id: str,
     lease: AgentLease,
     stop: threading.Event,
+    submit: Submit,
 ) -> None:
     """Answer the session's relayed calls until `stop` is set, or the runner
-    says it doesn't relay.
+    says it doesn't relay. `submit` runs each answer, in parallel with others.
     """
     while not stop.is_set():
         try:
@@ -59,12 +81,19 @@ def relay_calls(
         if calls is None:
             return
         for call in calls:
-            answer = relayed_answer(lease, call)
-            try:
-                client.answer_agent_call(session_id, call.id, answer)
-            except RunnerProtocolError as error:
-                # The agent's call times out and the agent sees an error.
-                logger.warning("could not answer agent call %s: %s", call.id, error)
+            submit(lambda call=call: answer_call(client, session_id, lease, call))
+
+
+def with_own_connections(work: Callable[[], None]) -> Callable[[], None]:
+    """Close the database connections the work opened in its pool thread."""
+
+    def run() -> None:
+        try:
+            work()
+        finally:
+            connections.close_all()
+
+    return run
 
 
 def relay_thread(
@@ -74,8 +103,19 @@ def relay_thread(
     stop: threading.Event,
 ) -> None:
     try:
-        with client_for() as client:
-            relay_calls(client, session_id, lease, stop)
+        with (
+            client_for() as client,
+            ThreadPoolExecutor(
+                PARALLEL_CALLS, thread_name_prefix=f"agent-call-{session_id}"
+            ) as pool,
+        ):
+            relay_calls(
+                client,
+                session_id,
+                lease,
+                stop,
+                lambda work: pool.submit(with_own_connections(work)),
+            )
     except Exception:
         logger.exception("relaying agent calls for %s failed", session_id)
     finally:

@@ -3,6 +3,7 @@
 import hashlib
 import json
 import threading
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any, Self
 
@@ -28,6 +29,11 @@ INITIALIZED = json.dumps(
 @pytest.fixture(autouse=True)
 def auth_root(settings: Any, tmp_path: Path) -> None:
     settings.AGENT_AUTH_ROOT = tmp_path / "agent-auth"
+
+
+def inline(work: Callable[[], None]) -> None:
+    """Answer in this thread, so the test's database transaction is seen."""
+    work()
 
 
 def lease_for(run: Run) -> AgentLease:
@@ -78,7 +84,7 @@ def test_relayed_calls_get_the_broker_s_answers(
         [[RelayedCall("a", LIST_TOOLS), RelayedCall("b", INITIALIZED)]], stop
     )
 
-    relay_calls(runner, "run-1", lease, stop)  # type: ignore[arg-type]
+    relay_calls(runner, "run-1", lease, stop, inline)  # type: ignore[arg-type]
 
     status, payload = broker_answer(lease, LIST_TOOLS)
     assert runner.answers["a"] == RelayedAnswer(status, json.dumps(payload).encode())
@@ -98,7 +104,7 @@ def test_a_relayed_call_after_the_agent_ended_is_refused(
     stop = threading.Event()
     runner = RelayingRunner([[RelayedCall("a", LIST_TOOLS)]], stop)
 
-    relay_calls(runner, "run-1", lease, stop)  # type: ignore[arg-type]
+    relay_calls(runner, "run-1", lease, stop, inline)  # type: ignore[arg-type]
 
     error = json.loads(runner.answers["a"].body)["error"]
     assert error["message"] == "Agent access denied or tool request invalid."
@@ -119,7 +125,7 @@ def test_collection_goes_on_after_the_runner_did_not_answer(
         stop,
     )
 
-    relay_calls(runner, "run-1", lease_for(run), stop)  # type: ignore[arg-type]
+    relay_calls(runner, "run-1", lease_for(run), stop, inline)  # type: ignore[arg-type]
 
     assert "a" in runner.answers
 
@@ -131,7 +137,7 @@ def test_collection_ends_when_the_runner_does_not_relay() -> None:
 
     stop = threading.Event()
 
-    relay_calls(LocalRunner([], stop), "run-1", None, stop)  # type: ignore[arg-type]
+    relay_calls(LocalRunner([], stop), "run-1", None, stop, inline)  # type: ignore[arg-type]
 
     assert not stop.is_set()
 
@@ -194,3 +200,25 @@ def test_an_agent_s_tool_call_is_answered_while_it_runs(
 
     assert result["succeeded"] is True
     assert json.loads(answers["a"].body)["result"]["tools"]
+
+
+def test_an_agent_s_parallel_calls_are_answered_in_parallel(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    both_running = threading.Barrier(2, timeout=5)
+
+    def slow_tool(lease: AgentLease, call: RelayedCall) -> RelayedAnswer:
+        # Answered one at a time, the first call would wait here for good.
+        both_running.wait()
+        return RelayedAnswer(200, call.body)
+
+    monkeypatch.setattr(agent_relay, "relayed_answer", slow_tool)
+    stop = threading.Event()
+    runner = RelayingRunner([[RelayedCall("a", b"1"), RelayedCall("b", b"2")]], stop)
+
+    agent_relay.relay_thread(lambda: runner, "run-1", None, stop)  # type: ignore[arg-type,return-value]
+
+    assert runner.answers == {
+        "a": RelayedAnswer(200, b"1"),
+        "b": RelayedAnswer(200, b"2"),
+    }

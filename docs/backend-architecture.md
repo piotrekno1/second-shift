@@ -213,8 +213,9 @@ A runner on another host can't reach the gateway's agent broker. With
 the runner instead, on that port only, and the runner keeps them in
 `AgentCall` without reading them. While `run_agent` blocks,
 `runs.execution.agent_relay` runs a thread in the agent step that collects
-them over the worker's own connection to the runner, answers each with
-`broker_answer`, the function behind `agent_mcp`, and posts the answer back.
+them over the worker's own connection to the runner, answers up to four at
+once with `broker_answer`, the function behind `agent_mcp`, and posts each
+answer back.
 A runner without the relay answers the first collection with 404, and the
 thread ends. Nothing calls into the control plane.
 
