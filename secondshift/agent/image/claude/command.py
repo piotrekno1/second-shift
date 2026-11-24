@@ -77,6 +77,7 @@ def start(config: AgentConfig) -> tuple[list[str], dict[str, str]]:
         "--setting-sources",
         "",
         "--no-session-persistence",
+        *outcomes.model_options(config),
     ]
     token = (outcomes.AUTH / AUTH_FILES["claude_code"]).read_text().strip()
     return argv, {"CLAUDE_CODE_OAUTH_TOKEN": token}

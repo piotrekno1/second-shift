@@ -1106,6 +1106,8 @@ export interface components {
       updated_at: string
       /** Max Runs Per Day */
       max_runs_per_day: number | null
+      /** Default Model */
+      default_model: string
       /**
        * Recent Runs
        * @default 0

@@ -10,6 +10,8 @@ from django.contrib.auth.models import User
 from secondshift.connections.agents import AgentConnectionError, sign_in_refused
 from secondshift.connections.models import AgentConnection
 from secondshift.connections.tests.fixtures import TOKEN
+from secondshift.jobs.models import Job
+from secondshift.jobs.planner import build_execution_plan
 from secondshift.runner.agent_credentials import (
     decrypt_agent_auth,
 )
@@ -250,6 +252,48 @@ def test_a_login_run_shows_the_models_its_cli_reported(
 
     assert response.model == "claude-opus-5-5"
     assert response.models == ["claude-opus-5-5", "claude-haiku-5-5"]
+
+
+@pytest.mark.django_db
+def test_a_login_run_uses_the_model_frozen_into_its_plan(
+    agent_run: tuple[Run, User], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run, _ = agent_run
+    login = AgentConnection.objects.get(pk=run.plan.execution.connection_id)
+    login.default_model = "opus"
+    login.save()
+    run.execution_plan = build_execution_plan(Job.objects.get(pk=run.job_id)).stored()
+    run.save(update_fields=["execution_plan"])
+    # A change after the run was planned does not reach it.
+    login.default_model = "haiku"
+    login.save()
+    sent = fake_runner(monkeypatch, {"report": "Done", "succeeded": True, "usage": {}})
+
+    execute_cli_step(run.pk, "run-1", "Read the skill")
+
+    assert sent[-1]["json"]["model"] == "opus"
+    # Codex reports no models, so the run shows the one chosen for it.
+    response = serialize_run(
+        with_model_usage(Run.objects.select_related("job", "task__repository")).get(
+            pk=run.pk
+        )
+    )
+    assert (response.model, response.models) == ("opus", ["opus"])
+
+
+@pytest.mark.django_db
+def test_a_model_the_plan_cannot_use_fails_the_run_with_next_steps(
+    agent_run: tuple[Run, User], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run, _ = agent_run
+    fake_runner(
+        monkeypatch, {"succeeded": False, "reason": "model_unavailable", "usage": {}}
+    )
+
+    result = execute_cli_step(run.pk, "run-1", "Read the skill")
+
+    assert result["failure"] == RunFailure.MODEL_PROVIDER
+    assert "Choose another model on Models" in result["summary"]
 
 
 @pytest.mark.django_db

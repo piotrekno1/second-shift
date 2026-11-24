@@ -35,6 +35,7 @@ function login(id: number, overrides: Partial<AgentConnection> = {}): AgentConne
     connected: true,
     can_manage: true,
     max_runs_per_day: null,
+    default_model: '',
     recent_runs: 2,
     last_check: null,
     runner_cleanup_pending: false,
@@ -80,7 +81,7 @@ test('modelRows puts what runs jobs first and offers the rest', () => {
       ['model:2', false, false],
     ],
   )
-  assert.equal(rows[0].summary, 'Codex subscription · 2 runs in the last 24 hours')
+  assert.equal(rows[0].summary, 'Codex subscription · default model · 2 runs in the last 24 hours')
   assert.equal(rows[1].summary, 'Anthropic · claude-opus-5-5 · api.anthropic.com')
   assert.equal(rows[2].problem, 'The model provider Key 2 failed its last check.')
 })

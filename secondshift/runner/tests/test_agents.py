@@ -21,6 +21,7 @@ from secondshift.runner.agents import agent_command, require_agent_configuration
 from secondshift.runner.egress import AgentEgress
 from secondshift.runner.models import RunnerSession
 from secondshift.runner.services import DockerRunnerService, sandbox_flags
+from secondshift.runner_protocol.client import agent_payload
 from secondshift.runner_protocol.credentials import encrypt_agent_auth
 from secondshift.runner_protocol.schemas import AgentCheckInput, AgentInput
 from secondshift.runner_protocol.sessions import RunnerProtocolError
@@ -360,6 +361,90 @@ def test_the_runner_passes_subagents_only_to_claude_code(
     )
 
     assert launched.call_args.args[2]["subagents"] == sent
+
+
+# The login's model
+
+
+AGENT_VALUES: dict[str, Any] = {
+    "backend": "claude_code",
+    "credential_key": "a" * 32,
+    "auth": TOKEN,
+    "broker_token": "broker",
+    "prompt": "read skill",
+    "max_turns": 5,
+    "token_budget": 1000,
+    "timeout_seconds": 60,
+}
+
+
+@pytest.mark.parametrize(
+    "model",
+    [
+        "--dangerously-skip-permissions",
+        "-m",
+        "sonnet --tools Bash",
+        "opus\n",
+        "<synthetic>",
+        "x" * 201,
+    ],
+)
+def test_a_model_name_can_never_become_a_cli_option(model: str) -> None:
+    with pytest.raises(ValidationError):
+        AgentInput(**AGENT_VALUES, model=model)
+    with pytest.raises(ValidationError):
+        AgentCheckInput(**CHECK, auth=TOKEN, model=model)
+
+
+@pytest.mark.parametrize(
+    "model", ["sonnet", "claude-sonnet-5-5", "claude-opus-5-5[1m]", "gpt-5.1-codex"]
+)
+def test_model_names_and_aliases_are_accepted(model: str) -> None:
+    assert AgentInput(**AGENT_VALUES, model=model).model == model
+
+
+def test_a_request_without_a_model_still_suits_older_runners() -> None:
+    # Older runners refuse fields they do not know.
+    assert "model" not in agent_payload(AgentInput(**AGENT_VALUES))
+    assert "model" not in agent_payload(AgentCheckInput(**CHECK, auth=TOKEN))
+    assert agent_payload(AgentInput(**AGENT_VALUES, model="opus"))["model"] == "opus"
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("model", ["", "opus"])
+def test_the_runner_passes_the_chosen_model_only_when_there_is_one(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, settings: Any, model: str
+) -> None:
+    settings.AGENT_BROKER_URL = "http://gateway:8001/gateway/agent/mcp"
+    settings.AGENT_AUTH_ROOT = tmp_path / "agent-auth"
+    RunnerSession.objects.create(
+        session_id="run-1",
+        run_id=1,
+        repository="example/agents",
+        commit_sha="a" * 40,
+        image="test",
+        container_name="sandbox",
+        workspace_path=str(tmp_path / "workspace"),
+        status="active",
+    )
+    monkeypatch.setattr(agents, "require_agent_configuration", lambda: IMAGE)
+    monkeypatch.setattr(
+        agents.DockerRunnerService, "reserve_command", Mock(return_value=None)
+    )
+    launched = Mock(return_value=agents.AgentOutput())
+    monkeypatch.setattr(agents, "run_agent_container", launched)
+    auth = encrypt_agent_auth(provisioning_public_key(), TOKEN)
+
+    agents.execute_agent(
+        "run-1", AgentInput(**(AGENT_VALUES | {"auth": auth}), model=model)
+    )
+    agents.check_agent(AgentCheckInput(**CHECK, auth=auth, model=model))
+
+    for call in launched.call_args_list:
+        configuration = call.args[2]
+        assert configuration.get("model") == (model or None)
+        # The model is data for the image, never part of the container command.
+        assert model not in call.args[1] or not model
 
 
 # Runs and checks sharing a login

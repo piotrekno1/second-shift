@@ -188,3 +188,19 @@ def test_each_codex_run_has_its_own_home_sharing_only_the_login(
     # A second start in the same container keeps the link.
     codex.start(BROKER)
     assert (home / "auth.json").is_symlink()
+
+
+@pytest.mark.parametrize("cli", [claude, codex])
+def test_the_chosen_model_reaches_each_cli_as_one_option(
+    container: Path, cli: Any
+) -> None:
+    argv, _ = cli.start({**BROKER, "model": "opus"})
+    assert option(argv, "--model") == "opus"
+    assert argv.count("--model") == 1
+
+    argv, _ = cli.start(BROKER)
+    assert "--model" not in argv
+
+    # The runner refuses such names. The image refuses them again.
+    with pytest.raises(ValueError):
+        cli.start({**BROKER, "model": "--dangerously-skip-permissions"})

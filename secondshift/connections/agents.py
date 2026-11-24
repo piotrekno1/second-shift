@@ -10,7 +10,7 @@ from django.db import transaction
 from django.utils import timezone
 from pydantic import ValidationError
 
-from secondshift.agent.image.outcomes import AgentOutcome
+from secondshift.agent.image.outcomes import MODEL_NAME, AgentOutcome
 from secondshift.connections.dao import (
     count_cleanup_attempt,
     pending_cleanups,
@@ -97,6 +97,24 @@ def save_agent_connection(
     return connection
 
 
+def set_agent_model(connection: AgentConnection, model: str) -> AgentConnection:
+    """Choose the model the login's runs use. Empty keeps the CLI's default."""
+    model = model.strip()
+    if model and not MODEL_NAME.fullmatch(model):
+        raise AgentConnectionError(
+            "Use a model name such as sonnet or claude-sonnet-5-5, "
+            "with letters, digits and . _ - : / only."
+        )
+    connection.default_model = model
+    update = ["default_model", "updated_at"]
+    if (connection.last_check or {}).get("ok"):
+        # A passed check proved another model. A refused sign-in still holds.
+        connection.last_check = None
+        update.append("last_check")
+    connection.save(update_fields=update)
+    return connection
+
+
 def reconnect_agent_connection(
     connection: AgentConnection,
     owner: User,
@@ -175,7 +193,7 @@ def retry_credential_cleanups() -> int:
 # What a check's outcome means for the login. Only a finished check and a
 # used-up allowance prove the sign-in works.
 CHECK_RESULTS: dict[str, tuple[bool, str]] = {
-    AgentOutcome.COMPLETED: (True, "Signed in. {product} answered a test message."),
+    AgentOutcome.COMPLETED: (True, "Signed in. {model} answered a test message."),
     AgentOutcome.QUOTA_EXHAUSTED: (
         True,
         "Signed in, but the plan's usage allowance is used up for now.",
@@ -183,6 +201,11 @@ CHECK_RESULTS: dict[str, tuple[bool, str]] = {
     AgentOutcome.RECONNECT_REQUIRED: (
         False,
         "{product} refused the sign-in. Get a new login and reconnect.",
+    ),
+    AgentOutcome.MODEL_UNAVAILABLE: (
+        False,
+        "Signed in, but this plan cannot use {model}. Choose another model, "
+        "or leave it empty for {product}'s default.",
     ),
     AgentOutcome.TIMED_OUT: (
         False,
@@ -215,6 +238,7 @@ def check_agent_connection(connection: AgentConnection) -> AgentConnection:
                 backend=connection.backend,
                 credential_key=connection.credential_key.hex,
                 auth=client.encrypted_auth(connection.auth_data),
+                model=connection.default_model,
             )
         except ValidationError:
             raise AgentConnectionError(
@@ -228,10 +252,13 @@ def check_agent_connection(connection: AgentConnection) -> AgentConnection:
             ) from None
     reason = result.reason
     ok, message = CHECK_RESULTS.get(reason, CHECK_FAILED)
+    product = product_name(connection.backend)
     connection.last_check = {
         "ok": ok,
         "reason": reason if reason in CHECK_RESULTS else AgentOutcome.AGENT_FAILED,
-        "message": message.format(product=product_name(connection.backend)),
+        "message": message.format(
+            product=product, model=connection.default_model or product
+        ),
         "checked_at": timezone.now().isoformat(),
     }
     connection.save(update_fields=["last_check", "updated_at"])

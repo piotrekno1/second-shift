@@ -53,11 +53,22 @@ SIGN_IN_WORDS = (
 )
 
 
+# How Claude Code and Codex say the login cannot use the chosen model.
+MODEL_WORDS = (
+    "selected model",
+    "model is not supported",
+    "model_not_found",
+    "model not found",
+)
+
+
 def failure_reason(error: str) -> str:
     """A reason the control plane can explain, from the CLI's last error."""
     text = error.lower()
     if any(word in text for word in ("rate limit", "usage limit", "quota")):
         return AgentOutcome.QUOTA_EXHAUSTED
+    if any(word in text for word in MODEL_WORDS):
+        return AgentOutcome.MODEL_UNAVAILABLE
     if any(word in text for word in SIGN_IN_WORDS):
         return AgentOutcome.RECONNECT_REQUIRED
     return AgentOutcome.AGENT_FAILED

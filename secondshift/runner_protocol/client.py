@@ -33,6 +33,17 @@ from secondshift.runner_protocol.sessions import (
 PROXY_FAILURE_STATUSES = frozenset({502, 503, 504})
 
 
+def agent_payload(request: AgentInput | AgentCheckInput) -> dict[str, Any]:
+    """The request as JSON, without a model when none was chosen.
+
+    Runners refuse fields they do not know, so a login that keeps the CLI's
+    default model still runs on a runner older than the model choice.
+    """
+    return request.model_dump(
+        mode="json", exclude={"model"} if not request.model else None
+    )
+
+
 class HttpRunnerClient:
     """Trusted control-plane client for a separately deployed runner."""
 
@@ -250,7 +261,7 @@ class HttpRunnerClient:
             "POST",
             f"/v1/sessions/{session_id}/agent",
             timeout=request.timeout_seconds + 30,
-            json=request.model_dump(mode="json")
+            json=agent_payload(request)
             | {
                 "auth": request.auth.get_secret_value(),
                 "broker_token": request.broker_token.get_secret_value(),
@@ -264,8 +275,7 @@ class HttpRunnerClient:
             "/v1/agent-checks",
             # The runner stops the CLI after its own limit. This covers startup.
             timeout=28,
-            json=request.model_dump(mode="json")
-            | {"auth": request.auth.get_secret_value()},
+            json=agent_payload(request) | {"auth": request.auth.get_secret_value()},
         )
         return AgentOutput.model_validate(self.response_payload(response))
 

@@ -215,6 +215,8 @@ class AgentConnection(models.Model):
     max_runs_per_day = models.PositiveIntegerField(
         null=True, blank=True, validators=[MinValueValidator(1)]
     )
+    # The model the CLI runs, as the owner wrote it. Empty means its default.
+    default_model = models.CharField(max_length=200, blank=True)
     # The last login check: ok, reason, message and checked_at. Never CLI output.
     last_check = models.JSONField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

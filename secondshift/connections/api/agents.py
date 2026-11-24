@@ -12,6 +12,7 @@ from secondshift.connections.agents import (
     disconnect_agent_connection,
     reconnect_agent_connection,
     save_agent_connection,
+    set_agent_model,
 )
 from secondshift.connections.dao import (
     own_agent_connections,
@@ -22,6 +23,7 @@ from secondshift.connections.models import AgentConnection
 from secondshift.connections.schemas import (
     AgentConnectionInput,
     AgentConnectionSchema,
+    AgentModelInput,
     AgentRunLimitInput,
 )
 from secondshift.connections.serialization import with_recent_runs
@@ -105,6 +107,21 @@ def set_agent_run_limit(
     connection.max_runs_per_day = payload.max_runs_per_day
     connection.save(update_fields=["max_runs_per_day", "updated_at"])
     return connection
+
+
+@router.post("/agent-connections/{connection_id}/model", response=AgentConnectionSchema)
+def set_agent_connection_model(
+    request: HttpRequest, connection_id: int, payload: AgentModelInput
+) -> AgentConnection:
+    """Only the login's owner picks its model. It is their subscription."""
+    workspace = require(request, Action.EDIT_CONNECTIONS)
+    connection = get_object_or_404(
+        own_agent_connections(workspace, request.user), pk=connection_id
+    )
+    try:
+        return set_agent_model(connection, payload.model)
+    except AgentConnectionError as error:
+        raise HttpError(422, str(error)) from None
 
 
 @router.delete("/agent-connections/{connection_id}", response={204: None})

@@ -91,6 +91,29 @@ run. **Check** on the login's menu tries again.
 This version imports a login you already have. It has no browser or device-code
 sign-in of its own.
 
+## Model
+
+A login runs the CLI's default model until its owner chooses another under
+**Model** on the login's menu.
+
+- **Claude Code** takes an alias such as `sonnet`, `opus` or `haiku`, or a
+  full model name. An alias follows the newest model of that kind your plan
+  includes.
+- **Codex** takes a model name your ChatGPT plan offers.
+- Leave it empty for the CLI's default.
+
+Runs planned after the change use the new model. Queued and running runs keep
+the model they were planned with. Repository configuration never chooses a
+model, and a name that could be read as a CLI option is refused.
+
+Changing the model clears a passed check, because it tried the old model.
+**Check** tries the new one. If your plan can't use the model, the check fails
+with that reason and runs fail the same way, without stopping the login.
+
+A run's page shows the models it used. Claude Code reports them, including a
+small model it uses for its own chores. Codex reports none, so its runs show
+the model chosen for the login, if any.
+
 ## What runs jobs
 
 **Models** decides what runs every job in the workspace. It is either one model

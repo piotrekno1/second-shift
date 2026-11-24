@@ -444,3 +444,16 @@ def test_a_codex_login_that_cannot_refresh_needs_a_reconnect(
     failed = outcome_of(codex_events.read, [event(message)])
     assert failed["reason"] == "reconnect_required"
     assert failed["report"] == ""
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        "There's an issue with the selected model (claude-opus-9). It may not "
+        "exist or you may not have access to it.",
+        "The 'gpt-9' model is not supported when using Codex with a ChatGPT account.",
+        '{"error": {"code": "model_not_found"}}',
+    ],
+)
+def test_a_model_the_plan_cannot_use_is_not_blamed_on_the_sign_in(error: str) -> None:
+    assert agent.failure_reason(error) == "model_unavailable"

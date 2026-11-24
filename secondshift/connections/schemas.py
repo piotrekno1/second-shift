@@ -261,6 +261,8 @@ class AgentConnectionSchema(Schema):
     owner_id: int
     updated_at: datetime
     max_runs_per_day: int | None
+    # Empty means the CLI's default model.
+    default_model: str
     # Runs in the last 24 hours, the window the cap counts over.
     recent_runs: int = 0
     can_manage: bool = False
@@ -291,6 +293,11 @@ class AgentConnectionSchema(Schema):
 class AgentRunLimitInput(Schema):
     # Empty removes the cap.
     max_runs_per_day: int | None = Field(default=None, ge=1, le=1000)
+
+
+class AgentModelInput(Schema):
+    # Empty keeps the CLI's default.
+    model: str = Field(default="", max_length=200)
 
 
 class AgentConnectionInput(Schema):

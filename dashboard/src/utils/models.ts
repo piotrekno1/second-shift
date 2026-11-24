@@ -31,6 +31,15 @@ export const SUBSCRIPTION_NAMES: Record<AgentConnection['backend'], string> = {
   codex: 'Codex',
 }
 
+/**
+ * Names to suggest for a login's model. Claude Code's aliases follow the
+ * newest model of each kind that the plan includes. Codex takes a full name.
+ */
+export const SUBSCRIPTION_MODEL_HINTS: Record<AgentConnection['backend'], string[]> = {
+  claude_code: ['sonnet', 'opus', 'haiku'],
+  codex: [],
+}
+
 function modelSummary(connection: Connection): string {
   const parts = [providerLabel(connection.provider)]
   parts.push(connection.default_model || 'no model selected')
@@ -87,7 +96,11 @@ export function modelRows(
       key,
       name: login.display_name,
       provider: login.backend === 'codex' ? 'openai' : 'anthropic',
-      summary: `${SUBSCRIPTION_NAMES[login.backend]} subscription · ${runUsageLabel(login.recent_runs, login.max_runs_per_day)}`,
+      summary: [
+        `${SUBSCRIPTION_NAMES[login.backend]} subscription`,
+        login.default_model || 'default model',
+        runUsageLabel(login.recent_runs, login.max_runs_per_day),
+      ].join(' · '),
       chosen: key === selected,
       choosable: Boolean(choice && !choice.disabled),
       problem,

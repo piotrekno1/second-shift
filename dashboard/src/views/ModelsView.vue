@@ -17,7 +17,14 @@ import { useAppStore } from '../stores/app'
 import type { Notice } from '../types'
 import { parseRunCap } from '../utils/agents'
 import { formatRelative } from '../utils/format'
-import { modelRows, requestedRow, SIGN_IN_REFUSED, type ModelRow } from '../utils/models'
+import {
+  modelRows,
+  requestedRow,
+  SIGN_IN_REFUSED,
+  SUBSCRIPTION_MODEL_HINTS,
+  SUBSCRIPTION_NAMES,
+  type ModelRow,
+} from '../utils/models'
 import { Action } from '../utils/permissions'
 import { errorMessage } from '../services/api'
 
@@ -39,6 +46,9 @@ const confirming = ref<{ key: string; action: 'disconnect' | 'delete' } | null>(
 const limitKey = ref<string | null>(null)
 const limitDraft = ref('')
 const limitProblem = ref('')
+const modelKey = ref<string | null>(null)
+const modelDraft = ref('')
+const modelProblem = ref('')
 
 const configuration = computed(() => agents.configuration)
 const rows = computed(() => modelRows(app.connections, agents.connections, configuration.value))
@@ -63,6 +73,7 @@ function toggle(form: OpenForm): void {
   openForm.value = isOpen(form) ? null : form
   confirming.value = null
   limitKey.value = null
+  modelKey.value = null
 }
 
 async function refresh(): Promise<void> {
@@ -159,6 +170,7 @@ async function confirm(row: ModelRow): Promise<void> {
 function openLimit(row: ModelRow): void {
   openForm.value = null
   confirming.value = null
+  modelKey.value = null
   limitKey.value = row.key
   limitDraft.value = row.login?.max_runs_per_day == null ? '' : String(row.login.max_runs_per_day)
   limitProblem.value = ''
@@ -174,6 +186,27 @@ async function saveLimit(row: ModelRow): Promise<void> {
     limitKey.value = null
   } catch (error) {
     limitProblem.value = errorMessage(error, 'Unable to save the limit.')
+  } finally {
+    busy.value = null
+  }
+}
+
+function openModel(row: ModelRow): void {
+  openForm.value = null
+  confirming.value = null
+  limitKey.value = null
+  modelKey.value = row.key
+  modelDraft.value = row.login?.default_model ?? ''
+  modelProblem.value = ''
+}
+
+async function saveModel(row: ModelRow): Promise<void> {
+  busy.value = row.key
+  try {
+    await agents.setModel(row.login!.id, modelDraft.value.trim())
+    modelKey.value = null
+  } catch (error) {
+    modelProblem.value = errorMessage(error, 'Unable to save the model.')
   } finally {
     busy.value = null
   }
@@ -204,6 +237,7 @@ function menuItems(row: ModelRow): MenuItem[] {
   const ask = (action: 'disconnect' | 'delete') => () => {
     openForm.value = null
     limitKey.value = null
+    modelKey.value = null
     confirming.value = { key: row.key, action }
   }
   if (row.connection) {
@@ -233,8 +267,10 @@ function menuItems(row: ModelRow): MenuItem[] {
   } else if (row.login?.can_manage) {
     if (row.login.connected && app.can(Action.TestConnections))
       items.push({ label: 'Check', appIcon: 'send-outline', command: () => checkLogin(row) })
-    if (row.login.connected)
+    if (row.login.connected) {
+      items.push({ label: 'Model', appIcon: 'creation-outline', command: () => openModel(row) })
       items.push({ label: 'Run limit', appIcon: 'timer-sand', command: () => openLimit(row) })
+    }
     if (agents.enabled)
       items.push({
         label: 'Reconnect',
@@ -482,6 +518,51 @@ onMounted(async () => {
             <small v-if="limitProblem" role="alert">{{ limitProblem }}</small>
             <small v-else>Runs past the limit are refused. Leave it empty for no limit.</small>
           </form>
+          <form
+            v-if="modelKey === row.key && row.login"
+            class="confirm-strip run-limit login-model"
+            @submit.prevent="saveModel(row)"
+          >
+            <label>
+              <span>Model</span>
+              <InputText
+                v-model="modelDraft"
+                name="agent-model"
+                autocomplete="off"
+                size="10"
+                spellcheck="false"
+                :list="`agent-model-hints-${row.login.id}`"
+                :placeholder="`${SUBSCRIPTION_NAMES[row.login.backend]}'s default`"
+                :disabled="busy === row.key"
+                :aria-invalid="Boolean(modelProblem)"
+                @input="modelProblem = ''"
+              />
+              <datalist :id="`agent-model-hints-${row.login.id}`">
+                <option
+                  v-for="hint in SUBSCRIPTION_MODEL_HINTS[row.login.backend]"
+                  :key="hint"
+                  :value="hint"
+                />
+              </datalist>
+            </label>
+            <Button
+              label="Cancel"
+              severity="secondary"
+              text
+              size="small"
+              @click="modelKey = null"
+            />
+            <Button type="submit" label="Save" size="small" :loading="busy === row.key" />
+            <small v-if="modelProblem" role="alert">{{ modelProblem }}</small>
+            <small v-else-if="row.login.backend === 'claude_code'"
+              >New runs and checks use it. Leave it empty for Claude Code's default. An alias like
+              sonnet follows the newest model of that kind your plan includes.</small
+            >
+            <small v-else
+              >New runs and checks use it. Leave it empty for Codex's default. Check the login after
+              changing it.</small
+            >
+          </form>
           <div v-if="confirming?.key === row.key" class="confirm-strip" role="alert">
             <span>{{ confirmText(row) }}</span>
             <Button
@@ -584,8 +665,9 @@ onMounted(async () => {
 .model-note summary {
   cursor: pointer;
 }
+/* Settings, not a destructive confirmation, so the border stays neutral. */
 .run-limit {
-  border-left: 1px solid var(--border);
+  border-color: var(--border);
 }
 .run-limit label {
   display: inline-flex;
@@ -601,5 +683,15 @@ onMounted(async () => {
 }
 .run-limit small[role='alert'] {
   color: var(--danger);
+}
+.login-model label {
+  flex: 1 1 12em;
+  min-width: 0;
+}
+.login-model .p-inputtext {
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+  max-width: 16em;
 }
 </style>
