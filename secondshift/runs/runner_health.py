@@ -63,7 +63,7 @@ def check_runner(runner: Runner) -> bool:
         logger.warning("runner %s did not answer: %s", runner.name, error)
         dao.mark_runner_failing(runner.pk)
         return False
-    dao.set_runner_environments(runner.pk, sorted(offered.images))
+    dao.set_runner_environments(runner.pk, offered.images, offered.default)
     if not runner.provisioning_key:
         pin_first_key(runner, key)
     if dao.mark_runner_answering(runner.pk):

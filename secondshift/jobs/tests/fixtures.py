@@ -1,34 +1,32 @@
-from collections.abc import Iterator
-
 import pytest
-from django.conf import settings
 from django.contrib.auth.models import User
 from django.utils import timezone
 
 from secondshift.connections.models import AgentConnection
-from secondshift.jobs import environments
 from secondshift.jobs.models import Job
 from secondshift.jobs.planner import build_execution_plan
 from secondshift.repositories.models import Repository
+from secondshift.runner_protocol.environments import RunnerEnvironments
 from secondshift.runs.constants import RunStart
 from secondshift.runs.dao import create_task
-from secondshift.runs.models import Run
+from secondshift.runs.models import Run, Runner
 from secondshift.workspaces.models import Workspace
 
 
-@pytest.fixture(autouse=True)
-def runner_environments(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
-    """The control plane asks the runner for its environments. In tests the
-    runner's settings answer, so a test changes them with settings.
+def offer_environments(environments: RunnerEnvironments, name: str = "default") -> None:
+    """Register a runner that answered with these environments, as the
+    worker's check would leave it.
     """
-    monkeypatch.setattr(
-        environments,
-        "fetch_environments",
-        lambda: settings.RUNNER_ENVIRONMENTS,
+    Runner.objects.update_or_create(
+        name=name,
+        defaults={
+            "url": f"https://{name}:8002",
+            "token": f"{name}-token".ljust(32, "x"),
+            "environments": sorted(environments.images),
+            "images": environments.images,
+            "default_environment": environments.default,
+        },
     )
-    environments.forget_runner_environments()
-    yield
-    environments.forget_runner_environments()
 
 
 @pytest.fixture

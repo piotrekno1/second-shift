@@ -861,8 +861,12 @@ def unfinished_run_counts(runner_ids: Collection[int]) -> dict[int, int]:
     return dict(rows)
 
 
-def set_runner_environments(runner_id: int, environments: list[str]) -> None:
-    Runner.objects.filter(pk=runner_id).update(environments=environments)
+def set_runner_environments(
+    runner_id: int, images: dict[str, str], default: str
+) -> None:
+    Runner.objects.filter(pk=runner_id).update(
+        environments=sorted(images), images=images, default_environment=default
+    )
 
 
 def login_home(credential_key: str) -> LoginHome | None:

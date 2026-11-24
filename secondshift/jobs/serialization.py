@@ -7,7 +7,7 @@ from secondshift.connections.external import changing_tools, external_access
 from secondshift.connections.models import Connection
 from secondshift.github.urls import blob_url
 from secondshift.jobs.dao import active_jobs_with_grants
-from secondshift.jobs.environments import environment_missing
+from secondshift.jobs.environments import EnvironmentOffer, environment_offer
 from secondshift.jobs.limits import job_limit_views
 from secondshift.jobs.models import Job
 from secondshift.jobs.readiness import environment_problem
@@ -62,8 +62,9 @@ def serialize_job(
     job: Job,
     connections: dict[str, Connection] | None = None,
     execution: ExecutionSelection | None = None,
+    offer: EnvironmentOffer | None = None,
 ) -> JobSchema:
-    """`connections` and `execution` are shared by every job in a list."""
+    """`connections`, `execution` and `offer` are shared by every job in a list."""
     requests = list(job.capability_requests.all())
     if connections is None and requests:
         connections = connections_by_binding(job.workspace_id)
@@ -117,7 +118,7 @@ def serialize_job(
         execution_backend=execution.backend,
         execution_label=execution.label,
         execution_problem=execution.problem,
-        environment_problem=job_environment_problem(job),
+        environment_problem=job_environment_problem(job, offer or environment_offer()),
         name=job.name,
         repository_id=job.repository_id,
         repository=job.repository.display_name,
@@ -136,10 +137,10 @@ def serialize_job(
     )
 
 
-def job_environment_problem(job: Job) -> str:
+def job_environment_problem(job: Job, offer: EnvironmentOffer) -> str:
     """Why the job's environment stops it from running, or empty."""
     name = job.environment or DEFAULT_ENVIRONMENT
-    return environment_problem(name) if environment_missing(name) else ""
+    return environment_problem(name) if offer.missing(name) else ""
 
 
 def skill_url(job: Job) -> str:
@@ -190,7 +191,8 @@ def serialize_workspace_jobs(workspace: Workspace) -> list[JobSchema]:
     connections = connections_by_binding(workspace.pk)
     # Every job runs on the workspace default, so resolve it once.
     execution = workspace_execution(workspace)
-    return [serialize_job(item, connections, execution) for item in queryset]
+    offer = environment_offer()
+    return [serialize_job(item, connections, execution, offer) for item in queryset]
 
 
 def serialize_inspection(inspection: SkillInspection) -> SkillInspectionSchema:

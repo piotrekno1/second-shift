@@ -4,10 +4,9 @@ import pytest
 from django.contrib.auth import get_user_model
 from django.test import Client
 
-from secondshift.jobs import environments
+from secondshift.jobs.tests.fixtures import offer_environments
 from secondshift.runner.tests.fakes import sandboxes
-from secondshift.runner_protocol.environments import RunnerEnvironments
-from secondshift.runner_protocol.sessions import RunnerProtocolError
+from secondshift.runs.models import Runner
 from secondshift.workspaces.dao import create_workspace
 from secondshift.workspaces.models import WorkspaceMembership
 from secondshift.workspaces.server_settings import image_label, setting_groups
@@ -91,6 +90,7 @@ def test_only_staff_see_the_server_variables(client: Client) -> None:
     )
 
 
+@pytest.mark.django_db
 def test_background_sync_is_listed_with_local_repositories(settings: object) -> None:
     settings.LOCAL_REPOSITORIES_ENABLED = True  # type: ignore[attr-defined]
     settings.REPOSITORY_SYNC_INTERVAL_SECONDS = 300  # type: ignore[attr-defined]
@@ -106,9 +106,10 @@ def test_background_sync_is_listed_with_local_repositories(settings: object) -> 
     assert "Background sync" not in values
 
 
-def test_each_named_environment_is_listed_with_its_env_var(settings: object) -> None:
-    settings.RUNNER_ENVIRONMENTS = sandboxes(  # type: ignore[attr-defined]
-        "python:3.13-slim", node="ghcr.io/org/runner-node@sha256:" + "b" * 64
+@pytest.mark.django_db
+def test_each_named_environment_is_listed_with_its_env_var() -> None:
+    offer_environments(
+        sandboxes("python:3.13-slim", node="ghcr.io/org/runner-node@sha256:" + "b" * 64)
     )
     items = {item.label: item for g in setting_groups() for item in g.items}
 
@@ -122,14 +123,34 @@ def test_each_named_environment_is_listed_with_its_env_var(settings: object) -> 
     assert "environment: node" in node.help
 
 
-def test_the_page_says_when_the_runner_cannot_list_environments(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    def unreachable() -> RunnerEnvironments:
-        raise RunnerProtocolError("The runner service could not be reached.")
+@pytest.mark.django_db
+def test_runners_that_offer_the_same_are_listed_once() -> None:
+    offer_environments(sandboxes("python:3.13-slim"), name="runner-a")
+    offer_environments(sandboxes("python:3.13-slim"), name="runner-b")
+    labels = [item.label for g in setting_groups() for item in g.items]
 
-    monkeypatch.setattr(environments, "fetch_environments", unreachable)
+    assert labels.count("Environment: python") == 1
+
+
+@pytest.mark.django_db
+def test_runners_that_differ_are_listed_each_by_name() -> None:
+    offer_environments(sandboxes("python:3.13-slim"), name="runner-a")
+    offer_environments(sandboxes("python:3.14-slim", node="node:22"), name="runner-b")
+    # One that has not answered yet is left out.
+    offer_environments(sandboxes("other"), name="runner-c")
+    Runner.objects.filter(name="runner-c").update(images=None)
+    items = {item.label: item.value for g in setting_groups() for item in g.items}
+
+    assert items["Environment: python on runner-a"] == "python:3.13-slim"
+    assert items["Environment: python on runner-b"] == "python:3.14-slim"
+    assert items["Environment: node on runner-b"] == "node:22"
+    assert items["Default environment on runner-a"] == "python"
+    assert not any("runner-c" in label for label in items)
+
+
+@pytest.mark.django_db
+def test_the_page_says_when_no_runner_has_listed_environments() -> None:
     items = {item.label: item for g in setting_groups() for item in g.items}
 
-    assert items["Environments"].value == "Runner unreachable"
+    assert items["Environments"].value == "No runner has answered"
     assert "Environment: default" not in items

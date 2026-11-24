@@ -1,60 +1,60 @@
-"""The sandbox environments the runner offers.
+"""The sandbox environments the runners offer.
 
-Only the runner maps an environment's name to an image. The control plane
-asks it which names exist, and a run sends just the name.
+Only a runner maps an environment's name to an image, and a run sends just the
+name. The worker asks each runner what it offers every minute and keeps the
+answer in the runner registry, so pages read the database and never wait on a
+runner.
 """
 
-import time
 from dataclasses import dataclass
 
-from secondshift.runner_protocol.client import get_runner_client
 from secondshift.runner_protocol.environments import RunnerEnvironments
-from secondshift.runner_protocol.sessions import RunnerProtocolError
-
-# A runner's environments change only when it restarts. Remembering its answer
-# for a minute saves a call on every page, and a restart still shows soon.
-REMEMBER_SECONDS = 60
-# Pages wait on this call, so a runner that hangs must not hold them up.
-ASK_TIMEOUT_SECONDS = 3
+from secondshift.runs.dao import runners_in_pool
+from secondshift.runs.models import Runner
+from secondshift.runs.runners import DEFAULT_POOL, offers
 
 
-@dataclass
-class Answer:
-    asked_at: float
-    environments: RunnerEnvironments | None
+@dataclass(frozen=True)
+class OfferedEnvironments:
+    """What one runner offered when it last answered."""
+
+    runner: str
+    environments: RunnerEnvironments
 
 
-last_answer = Answer(asked_at=float("-inf"), environments=None)
-
-
-def fetch_environments() -> RunnerEnvironments:
-    with get_runner_client() as client:
-        return client.environments(timeout=ASK_TIMEOUT_SECONDS)
-
-
-def runner_environments() -> RunnerEnvironments | None:
-    """The runner's environments, or None while it can't be reached."""
-    global last_answer
-    now = time.monotonic()
-    if now - last_answer.asked_at < REMEMBER_SECONDS:
-        return last_answer.environments
-    try:
-        environments = fetch_environments()
-    except RunnerProtocolError:
-        environments = None
-    last_answer = Answer(asked_at=now, environments=environments)
-    return environments
-
-
-def forget_runner_environments() -> None:
-    """Ask the runner again next time."""
-    global last_answer
-    last_answer = Answer(asked_at=float("-inf"), environments=None)
-
-
-def environment_missing(name: str) -> bool:
-    """True when the runner answered and has no such environment. While it
-    can't be reached, a run may still start, and the runner then refuses it.
+def runner_environments() -> list[OfferedEnvironments]:
+    """What each runner that takes runs offered. A runner that has not
+    answered yet is left out.
     """
-    environments = runner_environments()
-    return environments is not None and not environments.offers(name)
+    return [
+        OfferedEnvironments(
+            runner.name,
+            RunnerEnvironments(
+                images=runner.images, default=runner.default_environment
+            ),
+        )
+        for runner in runners_in_pool(DEFAULT_POOL)
+        if runner.images is not None
+    ]
+
+
+@dataclass(frozen=True)
+class EnvironmentOffer:
+    """The runners that take runs, read once for a whole list of jobs."""
+
+    runners: list[Runner]
+
+    def missing(self, name: str) -> bool:
+        """True when no runner that takes runs offers it.
+
+        A runner that has not answered yet may offer anything, as placement
+        assumes, and it refuses a session it can't run. With no runner
+        registered nothing is known yet, so nothing is missing.
+        """
+        return bool(self.runners) and not any(
+            offers(runner, name) for runner in self.runners
+        )
+
+
+def environment_offer() -> EnvironmentOffer:
+    return EnvironmentOffer(runners_in_pool(DEFAULT_POOL))

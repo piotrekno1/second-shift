@@ -17,7 +17,7 @@ from secondshift.jobs.argument_rules import ToolRules, broken_rules, kept_rules
 from secondshift.jobs.automatic_grants import approves_automatically
 from secondshift.jobs.capabilities import RequestedCapability, manifest_capabilities
 from secondshift.jobs.dao import job_requests_with_grants
-from secondshift.jobs.environments import environment_missing
+from secondshift.jobs.environments import EnvironmentOffer, environment_offer
 from secondshift.jobs.execution_plan import (
     AgentPlan,
     ApprovedIssuesPlan,
@@ -95,12 +95,14 @@ class WorkspacePlanning:
     execution: ExecutionSelection
     # The workspace's bound connections, by binding key.
     connections: Mapping[str, Connection]
+    environments: EnvironmentOffer
 
 
 def workspace_planning(workspace: Workspace) -> WorkspacePlanning:
     return WorkspacePlanning(
         execution=workspace_execution(workspace),
         connections=connections_by_binding(workspace.pk),
+        environments=environment_offer(),
     )
 
 
@@ -264,7 +266,9 @@ def compile_execution_plan(
     connection = selection.connection
     ready = (
         selection.ready
-        and not environment_missing(definition.environment)
+        and not (shared.environments if shared else environment_offer()).missing(
+            definition.environment
+        )
         and all(item.authorized for item in capabilities if item.required)
     )
     agent = AgentPlan(

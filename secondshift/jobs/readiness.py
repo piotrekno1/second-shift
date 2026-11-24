@@ -2,7 +2,7 @@
 
 from collections.abc import Iterable
 
-from secondshift.jobs.environments import environment_missing
+from secondshift.jobs.environments import EnvironmentOffer, environment_offer
 from secondshift.jobs.execution_plan import ExecutionPlan, PlanReason
 from secondshift.jobs.models import Job
 from secondshift.jobs.planner import build_execution_plan, workspace_planning
@@ -40,13 +40,19 @@ def environment_problem(name: str) -> str:
     )
 
 
-def execution_problems(repository: Repository, plan: ExecutionPlan) -> list[str]:
+def execution_problems(
+    repository: Repository,
+    plan: ExecutionPlan,
+    environments: EnvironmentOffer | None = None,
+) -> list[str]:
+    """`environments` is shared by every job in a list."""
     problems = []
+    environments = environments or environment_offer()
     if not repository.accepts_runs:
         problems.append("The repository is disabled.")
     if not plan.execution.ready:
         problems.append(plan.execution.problem)
-    if environment_missing(plan.runner.environment):
+    if environments.missing(plan.runner.environment):
         problems.append(environment_problem(plan.runner.environment))
     for capability in plan.capabilities:
         if not capability.required or capability.authorized:
@@ -83,6 +89,7 @@ def listed_readiness_problems(
                     requests=job.capability_requests.all(),
                     shared=shared,
                 ),
+                shared.environments,
             ),
         )
         for job in jobs
