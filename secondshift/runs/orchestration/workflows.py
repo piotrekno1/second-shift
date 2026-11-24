@@ -181,39 +181,39 @@ def start_runner_session_step(run_id: int) -> str:
         raise RuntimeError("The run commit does not match its execution plan.")
     snapshot = source_snapshot(run.repository, run.commit_sha)
     assign_runner(run.pk)
-    client = runner_client_for(run.pk)
-    client.upload_source(snapshot.sha256, snapshot.path)
-    with tempfile.TemporaryDirectory(prefix="secondshift-history-") as folder:
-        archive = Path(folder) / "history.tar.gz"
-        history = pack_earlier_files(run, archive)
-        if history is not None:
-            client.upload_source(history.sha256, archive)
-            inputs = run.inputs.model_copy(update={"history_files": history.files})
-            update_run(run.pk, input_snapshot=inputs.stored())
-    skill_sha256 = ""
-    if source := plan.job.skill_source:
-        skill = skill_snapshot(
-            run.repository.workspace_id,
-            source.repository,
-            plan.job.skill_path,
-            source.commit_sha,
+    with runner_client_for(run.pk) as client:
+        client.upload_source(snapshot.sha256, snapshot.path)
+        with tempfile.TemporaryDirectory(prefix="secondshift-history-") as folder:
+            archive = Path(folder) / "history.tar.gz"
+            history = pack_earlier_files(run, archive)
+            if history is not None:
+                client.upload_source(history.sha256, archive)
+                inputs = run.inputs.model_copy(update={"history_files": history.files})
+                update_run(run.pk, input_snapshot=inputs.stored())
+        skill_sha256 = ""
+        if source := plan.job.skill_source:
+            skill = skill_snapshot(
+                run.repository.workspace_id,
+                source.repository,
+                plan.job.skill_path,
+                source.commit_sha,
+            )
+            client.upload_source(skill.sha256, skill.path)
+            skill_sha256 = skill.sha256
+        session_id = client.start(
+            RunnerSessionSpec(
+                run_id=run.pk,
+                session_key=run.runner_session_key.hex,
+                repository=plan.repository.full_name,
+                commit_sha=run.commit_sha,
+                environment=plan.runner.environment,
+                source_sha256=snapshot.sha256,
+                collect_changes=plan.runner.collect_changes,
+                history_sha256=history.sha256 if history is not None else "",
+                skill_sha256=skill_sha256,
+                setup=plan.runner.setup,
+            )
         )
-        client.upload_source(skill.sha256, skill.path)
-        skill_sha256 = skill.sha256
-    session_id = client.start(
-        RunnerSessionSpec(
-            run_id=run.pk,
-            session_key=run.runner_session_key.hex,
-            repository=plan.repository.full_name,
-            commit_sha=run.commit_sha,
-            environment=plan.runner.environment,
-            source_sha256=snapshot.sha256,
-            collect_changes=plan.runner.collect_changes,
-            history_sha256=history.sha256 if history is not None else "",
-            skill_sha256=skill_sha256,
-            setup=plan.runner.setup,
-        )
-    )
     update_run(run.pk, sandbox_runtime=RunSandbox.ISOLATED_RUNNER)
     add_event(run.pk, "Sandbox started without network access.")
     return session_id
@@ -230,7 +230,8 @@ def run_setup_step(run_id: int, session_id: str, index: int) -> str:
     The runner keeps each result, so a retried step never runs it twice.
     """
     command = get_run(run_id).plan.runner.setup[index]
-    result = runner_client_for(run_id).setup(session_id, index)
+    with runner_client_for(run_id) as client:
+        result = client.setup(session_id, index)
     failure = setup_failure(command, result)
     if not failure:
         add_event(
@@ -264,7 +265,8 @@ def collect_outputs_step(run_id: int, session_id: str) -> None:
     run = get_run(run_id, "job", "task__repository")
     with tempfile.TemporaryDirectory(prefix="secondshift-collection-") as folder:
         archive = Path(folder) / "collection.tar.gz"
-        runner_client_for(run_id).collect(session_id, archive)
+        with runner_client_for(run_id) as client:
+            client.collect(session_id, archive)
         outputs = store_collection(run, archive)
     update_run(run_id, outputs=outputs.stored())
     if message := collection_summary(outputs):
@@ -295,7 +297,8 @@ def collect_outputs(run_id: int, session_id: str) -> None:
     max_attempts=3,
 )
 def stop_runner_session_step(run_id: int, session_id: str) -> None:
-    runner_client_for(run_id).stop(session_id)
+    with runner_client_for(run_id) as client:
+        client.stop(session_id)
 
 
 @durable.step(name="secondshift.close_mcp_sessions")

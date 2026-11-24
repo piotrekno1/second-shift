@@ -106,3 +106,10 @@ def test_collect_reports_the_runner_error(tmp_path) -> None:
 
     with pytest.raises(RunnerProtocolError, match="files are gone"):
         client.collect("run-7", tmp_path / "collection.tar.gz")
+
+
+def test_the_client_closes_its_connections_when_the_block_ends() -> None:
+    with HttpRunnerClient("http://runner:8002", "t" * 32) as client:
+        assert not client.session.is_closed
+
+    assert client.session.is_closed

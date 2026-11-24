@@ -286,17 +286,18 @@ def capture_run_input_step(run_id: int, session_id: str) -> None:
     skill: CommandResult | None = None
     if skill_path:
         try:
-            skill = runner_client_for(run_id).execute(
-                session_id,
-                CommandRequest(
-                    call_id=hashlib.sha256(
-                        f"{run_id}:input:skill".encode()
-                    ).hexdigest(),
-                    argv=("cat", "--", sandbox_path(skill_path)),
-                    cwd=".",
-                    timeout_seconds=30,
-                ),
-            )
+            with runner_client_for(run_id) as client:
+                skill = client.execute(
+                    session_id,
+                    CommandRequest(
+                        call_id=hashlib.sha256(
+                            f"{run_id}:input:skill".encode()
+                        ).hexdigest(),
+                        argv=("cat", "--", sandbox_path(skill_path)),
+                        cwd=".",
+                        timeout_seconds=30,
+                    ),
+                )
         except Exception:
             logger.warning("could not read the skill for run %s input", run_id)
             skill = None

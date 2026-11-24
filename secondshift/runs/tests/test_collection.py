@@ -6,6 +6,7 @@ from typing import Any
 import pytest
 
 from secondshift.runner.collection import collect, record_baseline
+from secondshift.runner.tests.fakes import ClosableFake
 from secondshift.runner_protocol.collection import OUTPUTS_DIR
 from secondshift.runs.artifacts import (
     CollectionError,
@@ -136,7 +137,7 @@ def test_deleting_a_run_deletes_its_collected_files(
     assert not any(artifact_storage().exists(path) for path in paths)
 
 
-class CollectingRunner:
+class CollectingRunner(ClosableFake):
     def __init__(self, archive: Path | None) -> None:
         self.archive = archive
         self.collected: list[str] = []

@@ -12,6 +12,7 @@ from dbos import DBOS, SetWorkflowID
 from pydantic_ai.messages import ModelMessage, ModelResponse, TextPart, ToolCallPart
 from pydantic_ai.models.function import AgentInfo, FunctionModel
 
+from secondshift.runner.tests.fakes import ClosableFake
 from secondshift.runner_protocol.sessions import CommandRequest, CommandResult
 from secondshift.runs.execution.run import execute_agent_run
 from secondshift.runs.execution.subagents import TOOL_NAME
@@ -30,7 +31,7 @@ def agent_run_workflow(run_id: int) -> str:
     return str(execute_agent_run(run, f"run-{run_id}").summary)
 
 
-class CountingRunner:
+class CountingRunner(ClosableFake):
     def __init__(self) -> None:
         self.commands: list[tuple[str, ...]] = []
 

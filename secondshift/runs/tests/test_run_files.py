@@ -6,6 +6,7 @@ from django.db import transaction
 from django.test import Client
 
 from secondshift.jobs.tests.plans import stored_plan
+from secondshift.runner.tests.fakes import ClosableFake
 from secondshift.runner_protocol.sessions import CommandRequest, CommandResult
 from secondshift.runs.artifacts import artifact_storage, store_run_input, store_run_text
 from secondshift.runs.execution import run as execution
@@ -33,7 +34,7 @@ def storage(request, settings, tmp_path: Path) -> str:
     return request.param
 
 
-class FakeRunner:
+class FakeRunner(ClosableFake):
     def __init__(self, result: CommandResult | Exception) -> None:
         self.result = result
         self.requests: list[CommandRequest] = []

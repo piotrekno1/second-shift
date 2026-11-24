@@ -4,6 +4,7 @@ import pytest
 from django.core.management import call_command
 from django.db import connection
 
+from secondshift.runner.tests.fakes import ClosableFake
 from secondshift.runner_protocol.sessions import CommandRequest, CommandResult
 from secondshift.runs import runners
 from secondshift.runs.dao import all_runners, find_runner, update_run
@@ -197,7 +198,7 @@ def test_add_command_reads_the_token_from_the_environment(
 # Routing a run's calls to its runner
 
 
-class RecordingClient:
+class RecordingClient(ClosableFake):
     """Stands in for HttpRunnerClient and records which runner it reached."""
 
     reached: list[tuple[str, str]] = []

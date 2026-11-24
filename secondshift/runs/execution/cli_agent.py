@@ -120,25 +120,25 @@ def execute_cli_step(run_id: int, session_id: str, prompt: str) -> dict[str, Any
     lease = create_lease(run, hashlib.sha256(token.encode()).hexdigest(), session_id)
     limits = run.plan.agent.limits
     try:
-        client = runner_client_for(run_id)
-        try:
-            agent_input = AgentInput(
-                backend=connection.backend,
-                credential_key=connection.credential_key.hex,
-                auth=client.encrypted_auth(connection.auth_data),
-                broker_token=token,
-                prompt=prompt,
-                max_turns=limits.max_turns,
-                token_budget=limits.token_budget,
-                timeout_seconds=remaining,
-                subagents=run.plan.agent.subagents,
-            )
-        except ValidationError:
-            # The message would repeat the prompt, so it is not shown.
-            raise RuntimeError(
-                "The agent's input is larger than the runner accepts."
-            ) from None
-        result = client.run_agent(session_id, agent_input)
+        with runner_client_for(run_id) as client:
+            try:
+                agent_input = AgentInput(
+                    backend=connection.backend,
+                    credential_key=connection.credential_key.hex,
+                    auth=client.encrypted_auth(connection.auth_data),
+                    broker_token=token,
+                    prompt=prompt,
+                    max_turns=limits.max_turns,
+                    token_budget=limits.token_budget,
+                    timeout_seconds=remaining,
+                    subagents=run.plan.agent.subagents,
+                )
+            except ValidationError:
+                # The message would repeat the prompt, so it is not shown.
+                raise RuntimeError(
+                    "The agent's input is larger than the runner accepts."
+                ) from None
+            result = client.run_agent(session_id, agent_input)
     finally:
         end_lease(lease.pk)
     report = result.report.strip()

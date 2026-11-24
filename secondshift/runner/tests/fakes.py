@@ -1,11 +1,29 @@
 import json
-from typing import Any
+from typing import Any, Self
+from unittest.mock import MagicMock
 
 import httpx
 
 from secondshift.runner.agent_credentials import provisioning_public_key
 from secondshift.runner_protocol.client import HttpRunnerClient
 from secondshift.runner_protocol.environments import RunnerEnvironments
+
+
+class ClosableFake:
+    """Lets a fake runner client stand where callers write `with client:`."""
+
+    def __enter__(self) -> Self:
+        return self
+
+    def __exit__(self, *exc_info: object) -> None:
+        return None
+
+
+def closable_mock() -> MagicMock:
+    """A mock runner client that is its own context."""
+    client = MagicMock()
+    client.__enter__.return_value = client
+    return client
 
 
 def sandboxes(default: str, **others: str) -> RunnerEnvironments:

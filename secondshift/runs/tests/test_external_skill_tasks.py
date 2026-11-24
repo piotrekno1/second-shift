@@ -3,7 +3,6 @@
 import subprocess
 from pathlib import Path
 from typing import Any
-from unittest.mock import Mock
 
 import pytest
 from django.contrib.auth.models import User
@@ -11,6 +10,7 @@ from django.contrib.auth.models import User
 from secondshift.mcp_server.tests.test_job_tools import call, error_text, token
 from secondshift.repositories.models import Repository
 from secondshift.repositories.tests.fixtures import PATH, REPOSITORY
+from secondshift.runner.tests.fakes import closable_mock
 from secondshift.runner_protocol.sessions import CommandResult
 from secondshift.runs.constants import RunStart
 from secondshift.runs.execution import run as execution
@@ -83,7 +83,7 @@ def test_the_runner_gets_only_the_skill_folder_beside_the_repository(
 ) -> None:
     run = start(repository, owner)
     prepare_source_step.__wrapped__(run.pk)
-    runner = Mock()
+    runner = closable_mock()
     runner.start.return_value = "sandbox-1"
     monkeypatch.setattr(
         "secondshift.runs.orchestration.workflows.runner_client_for",
@@ -108,7 +108,7 @@ def test_the_stored_input_shows_the_skill_from_its_folder(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     run = start(repository, owner)
-    runner = Mock()
+    runner = closable_mock()
     runner.execute.return_value = CommandResult(
         call_id="c", exit_code=0, output="# Triage"
     )

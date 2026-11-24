@@ -10,6 +10,7 @@ from secondshift.jobs.models import Job
 from secondshift.jobs.tests.plans import stored_plan
 from secondshift.repositories.models import Repository
 from secondshift.repositories.sources import SourceSnapshot
+from secondshift.runner.tests.fakes import ClosableFake
 from secondshift.runner_protocol.sessions import CommandResult, RunnerSessionSpec
 from secondshift.runs.constants import RunSandbox, RunStart
 from secondshift.runs.dao import create_task
@@ -23,7 +24,7 @@ from secondshift.runs.orchestration.workflows import (
 from secondshift.workspaces.dao import create_workspace
 
 
-class FakeRunnerClient:
+class FakeRunnerClient(ClosableFake):
     def __init__(self) -> None:
         self.started: list[RunnerSessionSpec] = []
         self.stopped: list[str] = []

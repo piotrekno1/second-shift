@@ -126,15 +126,16 @@ def execute_runner_command_step(
     timeout_seconds: int,
 ) -> CommandResult:
     """Cross the authenticated runner boundary in one durable, idempotent step."""
-    return runner_client_for(run_id).execute(
-        session_id,
-        CommandRequest(
-            call_id=call_id,
-            argv=tuple(argv),
-            cwd=cwd,
-            timeout_seconds=timeout_seconds,
-        ),
-    )
+    with runner_client_for(run_id) as client:
+        return client.execute(
+            session_id,
+            CommandRequest(
+                call_id=call_id,
+                argv=tuple(argv),
+                cwd=cwd,
+                timeout_seconds=timeout_seconds,
+            ),
+        )
 
 
 def workspace_path(value: str) -> str:
