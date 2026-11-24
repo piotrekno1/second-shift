@@ -3,6 +3,7 @@ import { computed, nextTick, onMounted, reactive, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
+import Select from 'primevue/select'
 import Menu from 'primevue/menu'
 import type { MenuItem } from 'primevue/menuitem'
 import AppIcon from '../components/AppIcon.vue'
@@ -21,8 +22,8 @@ import {
   modelRows,
   requestedRow,
   SIGN_IN_REFUSED,
-  SUBSCRIPTION_MODEL_HINTS,
-  SUBSCRIPTION_NAMES,
+  OTHER_MODEL,
+  modelChoices,
   type ModelRow,
 } from '../utils/models'
 import { Action } from '../utils/permissions'
@@ -47,6 +48,8 @@ const limitKey = ref<string | null>(null)
 const limitDraft = ref('')
 const limitProblem = ref('')
 const modelKey = ref<string | null>(null)
+// A listed model's name, or OTHER_MODEL to type a full name into modelDraft.
+const modelChoice = ref('')
 const modelDraft = ref('')
 const modelProblem = ref('')
 
@@ -196,14 +199,27 @@ function openModel(row: ModelRow): void {
   confirming.value = null
   limitKey.value = null
   modelKey.value = row.key
-  modelDraft.value = row.login?.default_model ?? ''
+  const current = row.login?.default_model ?? ''
+  const listed = row.login?.model_choices.some((choice) => choice.value === current)
+  modelChoice.value = listed ? current : OTHER_MODEL
+  modelDraft.value = listed ? '' : current
   modelProblem.value = ''
 }
 
+function modelHelp(row: ModelRow): string {
+  const choice = modelChoices(row.login!).find((item) => item.value === modelChoice.value)
+  return `${choice?.description ?? ''} New runs and checks use it.`
+}
+
 async function saveModel(row: ModelRow): Promise<void> {
+  const model = modelChoice.value === OTHER_MODEL ? modelDraft.value.trim() : modelChoice.value
+  if (modelChoice.value === OTHER_MODEL && !model) {
+    modelProblem.value = 'Enter a model name, or choose one from the list.'
+    return
+  }
   busy.value = row.key
   try {
-    await agents.setModel(row.login!.id, modelDraft.value.trim())
+    await agents.setModel(row.login!.id, model)
     modelKey.value = null
   } catch (error) {
     modelProblem.value = errorMessage(error, 'Unable to save the model.')
@@ -523,28 +539,30 @@ onMounted(async () => {
             class="confirm-strip run-limit login-model"
             @submit.prevent="saveModel(row)"
           >
-            <label>
-              <span>Model</span>
-              <InputText
-                v-model="modelDraft"
-                name="agent-model"
-                autocomplete="off"
-                size="10"
-                spellcheck="false"
-                :list="`agent-model-hints-${row.login.id}`"
-                :placeholder="`${SUBSCRIPTION_NAMES[row.login.backend]}'s default`"
-                :disabled="busy === row.key"
-                :aria-invalid="Boolean(modelProblem)"
-                @input="modelProblem = ''"
-              />
-              <datalist :id="`agent-model-hints-${row.login.id}`">
-                <option
-                  v-for="hint in SUBSCRIPTION_MODEL_HINTS[row.login.backend]"
-                  :key="hint"
-                  :value="hint"
-                />
-              </datalist>
-            </label>
+            <label :for="`agent-model-${row.login.id}`">Model</label>
+            <Select
+              v-model="modelChoice"
+              :input-id="`agent-model-${row.login.id}`"
+              class="login-model-select"
+              :options="modelChoices(row.login)"
+              option-label="label"
+              option-value="value"
+              :disabled="busy === row.key"
+              @change="modelProblem = ''"
+            />
+            <InputText
+              v-if="modelChoice === OTHER_MODEL"
+              v-model="modelDraft"
+              name="agent-model"
+              aria-label="Full model name"
+              autocomplete="off"
+              size="10"
+              spellcheck="false"
+              :placeholder="row.login.backend === 'claude_code' ? 'claude-opus-5-5' : 'Model name'"
+              :disabled="busy === row.key"
+              :aria-invalid="Boolean(modelProblem)"
+              @input="modelProblem = ''"
+            />
             <Button
               label="Cancel"
               severity="secondary"
@@ -554,14 +572,7 @@ onMounted(async () => {
             />
             <Button type="submit" label="Save" size="small" :loading="busy === row.key" />
             <small v-if="modelProblem" role="alert">{{ modelProblem }}</small>
-            <small v-else-if="row.login.backend === 'claude_code'"
-              >New runs and checks use it. Leave it empty for Claude Code's default. An alias like
-              sonnet follows the newest model of that kind your plan includes.</small
-            >
-            <small v-else
-              >New runs and checks use it. Leave it empty for Codex's default. Check the login after
-              changing it.</small
-            >
+            <small v-else>{{ modelHelp(row) }}</small>
           </form>
           <div v-if="confirming?.key === row.key" class="confirm-strip" role="alert">
             <span>{{ confirmText(row) }}</span>
@@ -684,14 +695,10 @@ onMounted(async () => {
 .run-limit small[role='alert'] {
   color: var(--danger);
 }
-.login-model label {
-  flex: 1 1 12em;
-  min-width: 0;
-}
+.login-model .login-model-select,
 .login-model .p-inputtext {
-  flex: 1 1 auto;
-  width: 100%;
+  flex: 0 1 12em;
+  width: 12em;
   min-width: 0;
-  max-width: 16em;
 }
 </style>

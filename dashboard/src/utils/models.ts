@@ -31,13 +31,31 @@ export const SUBSCRIPTION_NAMES: Record<AgentConnection['backend'], string> = {
   codex: 'Codex',
 }
 
+/** The choice to type a full model name. No model name starts with _. */
+export const OTHER_MODEL = '_other'
+
+/** The server's choices for a login, then one to type a full model name. */
+export function modelChoices(login: AgentConnection): AgentConnection['model_choices'] {
+  return [
+    ...login.model_choices,
+    {
+      value: OTHER_MODEL,
+      label: 'Other…',
+      description:
+        "A full model name, to pin one version. Runs fail if your plan doesn't offer it.",
+    },
+  ]
+}
+
 /**
- * Names to suggest for a login's model. Claude Code's aliases follow the
- * newest model of each kind that the plan includes. Codex takes a full name.
+ * The login's model as its owner chose it, and the model it became at the
+ * last passed check, when the CLI said. An alias moves to newer models.
  */
-export const SUBSCRIPTION_MODEL_HINTS: Record<AgentConnection['backend'], string[]> = {
-  claude_code: ['sonnet', 'opus', 'haiku'],
-  codex: [],
+export function loginModelLabel(login: AgentConnection): string {
+  const choice = login.model_choices.find((item) => item.value === login.default_model)
+  const chosen = choice ? (choice.value ? choice.label : 'Default model') : login.default_model
+  const answered = login.last_check?.ok ? login.last_check.models?.[0] : undefined
+  return answered && answered !== login.default_model ? `${chosen} → ${answered}` : chosen
 }
 
 function modelSummary(connection: Connection): string {
@@ -98,7 +116,7 @@ export function modelRows(
       provider: login.backend === 'codex' ? 'openai' : 'anthropic',
       summary: [
         `${SUBSCRIPTION_NAMES[login.backend]} subscription`,
-        login.default_model || 'default model',
+        loginModelLabel(login),
         runUsageLabel(login.recent_runs, login.max_runs_per_day),
       ].join(' · '),
       chosen: key === selected,

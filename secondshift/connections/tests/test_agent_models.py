@@ -74,20 +74,61 @@ def test_only_the_logins_owner_chooses_its_model(
     assert AgentConnection.objects.get(pk=login.pk).default_model == ""
 
 
-def test_a_check_tries_the_chosen_model(
+def test_the_api_offers_each_clis_choices(
+    agent_login: tuple[Workspace, AgentConnection, User], client: Client
+) -> None:
+    _, _, owner = agent_login
+    client.force_login(owner)
+
+    (listed,) = client.get("/api/agent-connections").json()
+
+    assert [choice["value"] for choice in listed["model_choices"]] == [
+        "",
+        "opus",
+        "sonnet",
+        "haiku",
+    ]
+    assert listed["model_choices"][1]["description"].startswith("The newest Opus")
+
+
+def test_a_check_names_the_model_the_alias_became(
     agent_login: tuple[Workspace, AgentConnection, User],
     client: Client,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _, login, owner = agent_login
-    runner, sent = agent_runner({"reason": "completed", "succeeded": True})
+    runner, sent = agent_runner(
+        {
+            "reason": "completed",
+            "succeeded": True,
+            "models": ["claude-opus-5-5", "claude-haiku-5-5"],
+        }
+    )
     monkeypatch.setattr(agent_logins, "runner_client", lambda target: runner)
     choose_model(client, owner, login, "opus")
 
     last = client.post(f"/api/agent-connections/{login.pk}/check").json()["last_check"]
 
     assert sent[-1]["json"]["model"] == "opus"
+    assert last["message"] == "Signed in. claude-opus-5-5 answered a test message."
+    assert last["models"] == ["claude-opus-5-5", "claude-haiku-5-5"]
+
+
+def test_a_check_without_reported_models_names_the_choice(
+    agent_login: tuple[Workspace, AgentConnection, User],
+    client: Client,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Codex reports no models.
+    _, login, owner = agent_login
+    runner, _ = agent_runner({"reason": "completed", "succeeded": True})
+    monkeypatch.setattr(agent_logins, "runner_client", lambda target: runner)
+    choose_model(client, owner, login, "opus")
+
+    last = client.post(f"/api/agent-connections/{login.pk}/check").json()["last_check"]
+
     assert last["message"] == "Signed in. opus answered a test message."
+    assert last["models"] == []
 
 
 def test_a_plan_without_the_model_fails_the_check_but_keeps_the_login(

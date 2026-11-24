@@ -2,7 +2,13 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 import type { AgentConfiguration, AgentConnection, Connection } from '../src/types'
-import { modelRows, requestedRow } from '../src/utils/models'
+import {
+  loginModelLabel,
+  modelChoices,
+  modelRows,
+  OTHER_MODEL,
+  requestedRow,
+} from '../src/utils/models'
 
 function model(id: number, overrides: Partial<Connection> = {}): Connection {
   return {
@@ -36,6 +42,7 @@ function login(id: number, overrides: Partial<AgentConnection> = {}): AgentConne
     can_manage: true,
     max_runs_per_day: null,
     default_model: '',
+    model_choices: [{ value: '', label: 'Default', description: 'Codex picks the model.' }],
     recent_runs: 2,
     last_check: null,
     runner_cleanup_pending: false,
@@ -81,7 +88,7 @@ test('modelRows puts what runs jobs first and offers the rest', () => {
       ['model:2', false, false],
     ],
   )
-  assert.equal(rows[0].summary, 'Codex subscription · default model · 2 runs in the last 24 hours')
+  assert.equal(rows[0].summary, 'Codex subscription · Default model · 2 runs in the last 24 hours')
   assert.equal(rows[1].summary, 'Anthropic · claude-opus-5-5 · api.anthropic.com')
   assert.equal(rows[2].problem, 'The model provider Key 2 failed its last check.')
 })
@@ -152,4 +159,45 @@ test('a link opens the provider or subscription it names', () => {
   assert.equal(requestedRow({ login: '7' }), 'agent:7')
   assert.equal(requestedRow({}), '')
   assert.equal(requestedRow({ login: ['7', '8'] }), '')
+})
+
+test('a login names its chosen model and what an alias became', () => {
+  const choices = [
+    { value: '', label: 'Default', description: '' },
+    { value: 'opus', label: 'Opus', description: '' },
+  ]
+  const check = (models: string[]) => ({
+    ok: true,
+    reason: 'completed',
+    message: '',
+    checked_at: '2026-01-01T00:00:00Z',
+    models,
+  })
+  const named = (overrides: Partial<AgentConnection>) =>
+    loginModelLabel(login(1, { model_choices: choices, ...overrides }))
+
+  assert.equal(named({ default_model: 'opus' }), 'Opus')
+  assert.equal(
+    named({ default_model: 'opus', last_check: check(['claude-opus-5-5']) }),
+    'Opus → claude-opus-5-5',
+  )
+  assert.equal(
+    named({ default_model: '', last_check: check(['claude-sonnet-5-5']) }),
+    'Default model → claude-sonnet-5-5',
+  )
+  assert.equal(
+    named({ default_model: 'claude-opus-5-5', last_check: check(['claude-opus-5-5']) }),
+    'claude-opus-5-5',
+  )
+  // A failed check proves nothing about the model.
+  assert.equal(
+    named({ default_model: 'opus', last_check: { ...check(['claude-opus-5-5']), ok: false } }),
+    'Opus',
+  )
+})
+
+test('the model list ends with a choice to type a full name', () => {
+  const choices = modelChoices(login(1))
+  assert.equal(choices.at(-1)?.value, OTHER_MODEL)
+  assert.equal(choices[0].value, '')
 })

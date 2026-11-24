@@ -4,6 +4,7 @@ from typing import Annotated, Any, Literal
 from ninja import Schema
 from pydantic import Field, SecretStr, WithJsonSchema
 
+from secondshift.connections.agents import MODEL_CHOICES, ModelChoice
 from secondshift.connections.dao import has_pending_cleanup
 from secondshift.connections.execution import recent_login_runs
 from secondshift.connections.mcp.base import SOURCE_AUTH
@@ -251,6 +252,16 @@ class AgentCheckSchema(Schema):
     reason: str
     message: str
     checked_at: str
+    # The models the CLI reported, the one that answered first. Older checks
+    # and Codex have none.
+    models: list[str] = Field(default_factory=list)
+
+
+class AgentModelChoiceSchema(Schema):
+    # The name sent to the CLI. Empty means its default.
+    value: str
+    label: str
+    description: str
 
 
 class AgentConnectionSchema(Schema):
@@ -263,6 +274,8 @@ class AgentConnectionSchema(Schema):
     max_runs_per_day: int | None
     # Empty means the CLI's default model.
     default_model: str
+    # Names to offer for default_model. Any full model name works too.
+    model_choices: list[AgentModelChoiceSchema]
     # Runs in the last 24 hours, the window the cap counts over.
     recent_runs: int = 0
     can_manage: bool = False
@@ -277,6 +290,10 @@ class AgentConnectionSchema(Schema):
         if counted is None:
             counted = recent_login_runs(obj.workspace_id)[obj.pk]
         return counted
+
+    @staticmethod
+    def resolve_model_choices(obj: AgentConnection) -> list[ModelChoice]:
+        return list(MODEL_CHOICES.get(obj.backend, ()))
 
     @staticmethod
     def resolve_runner_cleanup_pending(obj: AgentConnection) -> bool:

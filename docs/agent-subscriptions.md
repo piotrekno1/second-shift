@@ -96,11 +96,16 @@ sign-in of its own.
 A login runs the CLI's default model until its owner chooses another under
 **Model** on the login's menu.
 
-- **Claude Code** takes an alias such as `sonnet`, `opus` or `haiku`, or a
-  full model name. An alias follows the newest model of that kind your plan
-  includes.
-- **Codex** takes a model name your ChatGPT plan offers.
-- Leave it empty for the CLI's default.
+- **Claude Code** offers **Default**, **Opus**, **Sonnet** and **Haiku**. Opus,
+  Sonnet and Haiku each mean the newest model of that family your plan
+  includes, so the choice moves to a new version when one comes out.
+- **Codex** offers **Default**.
+- **Other…** takes a full model name, such as `claude-opus-5-5`, to pin one
+  version. Runs fail if your plan doesn't offer it.
+
+After a check, the login shows the model the choice became, such as
+**Opus → claude-opus-5-5**. Codex doesn't report its model, so a Codex login
+shows only the choice.
 
 Runs planned after the change use the new model. Queued and running runs keep
 the model they were planned with. Repository configuration never chooses a

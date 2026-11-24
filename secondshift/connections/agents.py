@@ -3,6 +3,7 @@
 import json
 import logging
 import uuid
+from dataclasses import dataclass
 
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -34,6 +35,46 @@ logger = logging.getLogger(__name__)
 
 class AgentConnectionError(ValueError):
     pass
+
+
+@dataclass(frozen=True)
+class ModelChoice:
+    """A model a login's owner can pick by name. Any full model name works too."""
+
+    value: str
+    label: str
+    description: str
+
+
+def default_choice(product: str) -> ModelChoice:
+    return ModelChoice("", "Default", f"{product} picks the model.")
+
+
+# Claude Code turns each alias into the newest model of that family the plan
+# includes. Codex has no aliases, and its models vary by plan.
+MODEL_CHOICES: dict[str, tuple[ModelChoice, ...]] = {
+    AgentBackend.CLAUDE_CODE: (
+        default_choice("Claude Code"),
+        ModelChoice(
+            "opus",
+            "Opus",
+            "The newest Opus your plan includes. Most capable, and uses your "
+            "allowance fastest.",
+        ),
+        ModelChoice(
+            "sonnet",
+            "Sonnet",
+            "The newest Sonnet your plan includes. Balances capability and allowance.",
+        ),
+        ModelChoice(
+            "haiku",
+            "Haiku",
+            "The newest Haiku your plan includes. Fastest, and uses the least "
+            "allowance.",
+        ),
+    ),
+    AgentBackend.CODEX: (default_choice("Codex"),),
+}
 
 
 def validate_agent_auth(backend: str, value: str) -> str:
@@ -193,7 +234,7 @@ def retry_credential_cleanups() -> int:
 # What a check's outcome means for the login. Only a finished check and a
 # used-up allowance prove the sign-in works.
 CHECK_RESULTS: dict[str, tuple[bool, str]] = {
-    AgentOutcome.COMPLETED: (True, "Signed in. {model} answered a test message."),
+    AgentOutcome.COMPLETED: (True, "Signed in. {answered} answered a test message."),
     AgentOutcome.QUOTA_EXHAUSTED: (
         True,
         "Signed in, but the plan's usage allowance is used up for now.",
@@ -253,12 +294,18 @@ def check_agent_connection(connection: AgentConnection) -> AgentConnection:
     reason = result.reason
     ok, message = CHECK_RESULTS.get(reason, CHECK_FAILED)
     product = product_name(connection.backend)
+    chosen = connection.default_model or product
     connection.last_check = {
         "ok": ok,
         "reason": reason if reason in CHECK_RESULTS else AgentOutcome.AGENT_FAILED,
         "message": message.format(
-            product=product, model=connection.default_model or product
+            product=product,
+            model=chosen,
+            # The model an alias or the default became, when the CLI says.
+            answered=result.models[0] if result.models else chosen,
         ),
+        # Names only, as the CLI reported them. Codex reports none.
+        "models": result.models,
         "checked_at": timezone.now().isoformat(),
     }
     connection.save(update_fields=["last_check", "updated_at"])
