@@ -29,7 +29,7 @@ from secondshift.gateway.proxy import upstream_client
 from secondshift.gateway.tokens import GatewayUnavailable, authenticate
 from secondshift.gateway.views import model_gateway
 from secondshift.jobs.models import Job
-from secondshift.jobs.tests.plans import stored_plan
+from secondshift.jobs.tests.plans import MODEL, stored_plan
 from secondshift.repositories.models import Repository
 from secondshift.runs.constants import RunStart
 from secondshift.runs.dao import create_task
@@ -72,7 +72,12 @@ def workspace(db: object) -> Workspace:
     return create_workspace(name="Test", slug="test", owner=user)
 
 
-def make_run(workspace: Workspace, status: str = Run.Status.RUNNING) -> Run:
+def make_run(
+    workspace: Workspace,
+    status: str = Run.Status.RUNNING,
+    allowed: list[str] | None = None,
+    model: bool = True,
+) -> Run:
     repository = Repository.objects.create(
         workspace=workspace, full_name=f"local/{workspace.slug}", config_sha="abc"
     )
@@ -88,7 +93,9 @@ def make_run(workspace: Workspace, status: str = Run.Status.RUNNING) -> Run:
     return Run.objects.create(
         task=create_task(repository=job.repository),
         started_by=RunStart.SCHEDULE,
-        execution_plan=stored_plan(),
+        execution_plan=stored_plan(
+            model={**MODEL, "allowed_models": allowed or []} if model else None
+        ),
         job=job,
         status=status,
         commit_sha="abc",
@@ -219,8 +226,12 @@ def test_gateway_injects_provider_key_and_meters_usage(
 def test_gateway_enforces_auth_paths_models_and_budget(
     client: Client, monkeypatch: pytest.MonkeyPatch, workspace: Workspace
 ) -> None:
-    run = make_run(workspace)
-    token = issue_run_token(run, provider(workspace, allowed=["claude-sonnet-5-5"]))
+    run = make_run(workspace, allowed=["claude-sonnet-5-5"])
+    connection = provider(workspace, allowed=["claude-sonnet-5-5"])
+    token = issue_run_token(run, connection)
+    # The run keeps the list it started with.
+    connection.allowed_models = ["claude-sonnet-5-5", "claude-opus-5-5"]
+    connection.save(update_fields=["allowed_models"])
     calls = capture_post(monkeypatch, fake_upstream())
     message = {"model": "claude-sonnet-5-5", "max_tokens": 10, "messages": []}
 
@@ -257,6 +268,24 @@ def test_gateway_enforces_auth_paths_models_and_budget(
     assert over_budget.status_code == 429
     # The provider SDK must not retry a run that has used its budget.
     assert over_budget["x-should-retry"] == "false"
+    assert calls == []
+
+
+@pytest.mark.django_db
+def test_gateway_refuses_a_run_planned_without_a_model(
+    client: Client, monkeypatch: pytest.MonkeyPatch, workspace: Workspace
+) -> None:
+    token = issue_run_token(make_run(workspace, model=False), provider(workspace))
+    calls = capture_post(monkeypatch, fake_upstream())
+
+    response = post(
+        client,
+        "/gateway/anthropic/v1/messages",
+        {"model": "claude-opus-5-5", "max_tokens": 10, "messages": []},
+        **{"x-api-key": token},
+    )
+
+    assert response.status_code == 403
     assert calls == []
 
 
