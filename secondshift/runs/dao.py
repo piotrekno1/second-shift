@@ -8,6 +8,7 @@ from typing import Any
 from django.db import IntegrityError, transaction
 from django.db.models import Count, Exists, F, OuterRef, Q, QuerySet, Subquery, Sum
 from django.db.models.functions import Coalesce, TruncDate
+from django.utils import timezone
 
 from secondshift.agent.image.outcomes import CACHE_READ_DIVISOR
 from secondshift.connections.models import Connection
@@ -25,6 +26,7 @@ from secondshift.runs.models import (
     RunHandBack,
     RunIssue,
     RunMCPSession,
+    Runner,
     Task,
 )
 
@@ -750,3 +752,47 @@ def jobs_whose_last_run_failed(workspace_id: int) -> list[Job]:
         .filter(latest_status=Run.Status.FAILED)
         .order_by("name")
     )
+
+
+# Runners
+
+
+def all_runners() -> list[Runner]:
+    return list(Runner.objects.order_by("name"))
+
+
+def find_runner(name: str) -> Runner | None:
+    return Runner.objects.filter(name=name).first()
+
+
+def create_runner(
+    name: str, url: str, token: str, pool: str, max_sessions: int | None
+) -> Runner:
+    return Runner.objects.create(
+        name=name, url=url, token=token, pool=pool, max_sessions=max_sessions
+    )
+
+
+def upsert_runner_address(name: str, url: str, token: str) -> Runner:
+    """Create the runner, or point an existing one at this address and token.
+
+    Its state, pool and capacity stay as they are.
+    """
+    runner, _ = Runner.objects.update_or_create(
+        name=name, defaults={"url": url, "token": token}
+    )
+    return runner
+
+
+def set_runner_state(name: str, state: str) -> bool:
+    """True when a runner with this name exists."""
+    updated = Runner.objects.filter(name=name).update(
+        state=state, updated_at=timezone.now()
+    )
+    return bool(updated)
+
+
+def delete_runner(name: str) -> bool:
+    """True when a runner with this name existed."""
+    deleted, _ = Runner.objects.filter(name=name).delete()
+    return bool(deleted)
