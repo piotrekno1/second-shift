@@ -43,7 +43,7 @@ model provider or subscription login on **Models**, and every job uses it.
 
 ## Agent backends
 
-![The built-in agent runs in the worker on the control plane and reaches models through the model gateway. Claude Code and Codex run in an agent container on the runner. They reach their provider only through the egress proxy, and tools through the MCP broker, part of the gateway. Both agents use the same run tools, which reach the command sandbox and approved services.](images/architecture/agent-backends.svg)
+![The built-in agent runs in the worker on the control plane and reaches models through the model gateway. Claude Code and Codex run in an agent container on the runner. They reach their provider only through the egress proxy, and tools through the MCP broker, which their runner relays to the worker. Both agents use the same run tools, which reach the command sandbox and approved services.](images/architecture/agent-backends.svg)
 
 Both kinds of agent get the same plan, tools, sandbox and limits. They differ in
 how they pay for models and where their loop runs.
@@ -53,7 +53,7 @@ how they pay for models and where their loop runs.
 | Pays with | A provider API key, per use | A person's subscription |
 | Loop runs in | The worker, on the control plane | A container on the runner |
 | Reaches models | Through the gateway | Through the egress proxy, with the login |
-| Reaches tools | Direct calls in the worker | The MCP broker on the gateway |
+| Reaches tools | Direct calls in the worker | The MCP broker, relayed by the runner |
 | Token usage | Metered by the gateway | Reported by the CLI |
 | Out of budget | Writes a partial report | Stops without a report |
 | After a crash | Resumes from the last model call | Stops. Start a new run. |
@@ -94,9 +94,10 @@ agent waits for each report before it goes on. Codex runs without sub-agents.
 - Each run goes to one runner: one that offers its environment and has the
   most sessions free. A subscription login stays on one runner, where its runs
   can run at once.
-- An agent container on another host reaches the MCP broker through its
-  runner. The runner passes each tool call on to the control plane and its
-  answer back, so the gateway is never exposed to that host.
+- An agent container reaches the MCP broker through its runner, wherever the
+  runner is. The runner holds each tool call until the worker collects it and
+  passes the answer back, so nothing on the agents network reaches the control
+  plane.
 - A job's setup commands run before the agent, in their own container that
   reaches package registries only, through a second egress proxy.
 - An agent container reaches the internet only through the egress proxy, which

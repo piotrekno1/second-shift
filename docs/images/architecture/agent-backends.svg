@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 600" role="img" aria-labelledby="title desc">
   <title id="title">Agent backends</title>
-  <desc id="desc">On the control plane, the built-in agent loop runs in the worker and reaches model providers through the model gateway with an API key. On the runner, Claude Code or Codex runs in an agent container, reaches its provider with a subscription login only through the egress proxy and calls tools through the MCP broker, which is part of the gateway. Both agents use the same run tools, checked against the frozen plan. The tools reach the networkless command sandbox and the approved services.</desc>
+  <desc id="desc">On the control plane, the built-in agent loop runs in the worker and reaches model providers through the model gateway with an API key. On the runner, Claude Code or Codex runs in an agent container, reaches its provider with a subscription login only through the egress proxy and calls tools through the MCP broker, which its runner relays to the worker. Both agents use the same run tools, checked against the frozen plan. The tools reach the networkless command sandbox and the approved services.</desc>
   <style>
     .card { fill: #171717; stroke: #292929; }
     .lane { fill: #1b1b1b; stroke: #2e2e2e; }
@@ -60,7 +60,7 @@
 
   <rect class="box" x="328" y="228" width="260" height="64" rx="10"/>
   <text class="t" x="344" y="255">MCP broker</text>
-  <text class="p" x="344" y="276">Part of the gateway</text>
+  <text class="p" x="344" y="276">In the worker, via the runner</text>
 
   <rect class="hi" x="52" y="316" width="260" height="84" rx="10"/>
   <text class="t" x="68" y="343">Built-in agent</text>

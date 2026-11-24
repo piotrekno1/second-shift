@@ -55,6 +55,20 @@ def check_egress() -> None:
     assert connect_status(proxy, "example.com") == 403
 
 
+def check_no_control_plane(broker_url: str) -> None:
+    """Tool calls go to the runner's relay through the proxy, and nothing of
+    the control plane is on the agents network."""
+    proxy = urllib.parse.urlsplit(os.environ["HTTPS_PROXY"]).hostname
+    assert urllib.parse.urlsplit(broker_url).hostname == proxy, broker_url
+    # Where earlier releases put the gateway.
+    try:
+        socket.create_connection(("172.30.0.2", 8001), timeout=5).close()
+    except OSError:
+        pass
+    else:
+        raise RuntimeError("Agent reached the gateway's old address")
+
+
 def main() -> None:
     config = json.load(sys.stdin)
     check_egress()
@@ -68,10 +82,11 @@ def main() -> None:
     else:
         raise RuntimeError("Agent can resolve the application database")
     if config.get("broker_url"):
+        check_no_control_plane(config["broker_url"])
         result = call_tool(config, "trigger_payload", 1)
         payload = json.loads(result["content"][0]["text"])
         assert payload["body"] == "production-agent-payload-probe", payload
-        # Workspace tools cross from the gateway to the runner.
+        # Workspace tools cross from the worker back to the runner.
         call_tool(config, "workspace_list_files", 2)
     print(
         json.dumps(
