@@ -222,11 +222,12 @@ class AgentConnection(models.Model):
 
 
 class AgentCredentialCleanup(models.Model):
-    """A runner's cached copy of a login that is still to be removed.
+    """Cached copies of a login that runners still have to remove.
 
     The row is saved with the disconnect or reconnect that replaced the login.
-    It is deleted once the runner confirms the copy is gone. The worker
-    retries the rows that remain.
+    Any runner may hold a copy, so every registered runner is asked. The row is
+    deleted once each one confirms its copy is gone. The worker retries the
+    rows that remain.
     """
 
     credential_key = models.UUIDField(unique=True)
@@ -238,6 +239,8 @@ class AgentCredentialCleanup(models.Model):
         blank=True,
         related_name="credential_cleanups",
     )
+    # The names of the runners that confirmed their copy is gone.
+    removed_from = models.JSONField(default=list, blank=True)
     attempts = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

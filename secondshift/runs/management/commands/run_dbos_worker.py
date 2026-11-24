@@ -58,7 +58,7 @@ TICK_SECONDS = 1
 
 def remove_cached_logins() -> None:
     if removed := retry_credential_cleanups():
-        logger.info("removed %s cached agent login(s) from the runner", removed)
+        logger.info("removed %s cached agent login(s) from the runners", removed)
 
 
 def find_new_commits() -> None:

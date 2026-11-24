@@ -144,8 +144,17 @@ uploading anything, while it holds the run's row lock. A retried step finds the
 saved runner and reaches it again. Every later call for the run, including
 gateway tool calls, goes through `runner_client_for(run_id)`. A run with no
 runner, which can only be one that started before the upgrade, uses the
-configured runner. Login checks and the environment list on pages still ask the
-configured runner.
+configured runner. The environment list on pages still asks the configured
+runner.
+
+Each subscription login is sealed to the provisioning key of the runner that
+uses it, and that runner caches a copy. Any runner may hold one, from a run it
+took or a check it ran. A disconnect or reconnect queues an
+`AgentCredentialCleanup`, which asks every registered runner to remove its copy.
+`removed_from` records the runners that confirmed. A runner that is down is not
+asked until it comes back, but the cleanup stays until it confirms. A login
+check runs on the active runner in the `default` pool with the most free
+sessions.
 
 Placement chooses among the active runners in the `default` pool. Runners in
 other pools take no runs until pools are routed. A runner qualifies when it

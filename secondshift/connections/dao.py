@@ -282,7 +282,7 @@ def find_agent_connection(
 
 
 def queue_cleanup(connection: AgentConnection) -> AgentCredentialCleanup:
-    """Ask the runner to forget the login's cached credentials."""
+    """Ask the runners to forget the login's cached credentials."""
     cleanup, _ = AgentCredentialCleanup.objects.get_or_create(
         credential_key=connection.credential_key,
         defaults={"connection": connection},
@@ -290,14 +290,19 @@ def queue_cleanup(connection: AgentConnection) -> AgentCredentialCleanup:
     return cleanup
 
 
-def count_cleanup_attempt(cleanup: AgentCredentialCleanup) -> None:
+def count_cleanup_attempt(
+    cleanup: AgentCredentialCleanup, removed_from: list[str]
+) -> None:
+    """Record a pass that left copies behind, and the runners that confirmed."""
     AgentCredentialCleanup.objects.filter(pk=cleanup.pk).update(
-        attempts=F("attempts") + 1, updated_at=timezone.now()
+        attempts=F("attempts") + 1,
+        removed_from=removed_from,
+        updated_at=timezone.now(),
     )
 
 
 def pending_cleanups(limit: int) -> list[AgentCredentialCleanup]:
-    """The oldest cleanups the runner has not done yet."""
+    """The oldest cleanups some runner has not done yet."""
     return list(AgentCredentialCleanup.objects.order_by("pk")[:limit])
 
 

@@ -295,3 +295,15 @@ def test_a_runner_with_unfinished_runs_cannot_be_removed(
     remove_runner("runner-b")
     run.refresh_from_db()
     assert run.runner_id is None
+
+
+@pytest.mark.django_db
+def test_the_configured_runner_is_registered_even_after_another(
+    configured: Any,
+) -> None:
+    # An operator added a runner before the worker's first pass.
+    add_runner("runner-b", "http://runner-b:8002", OTHER_TOKEN)
+
+    names = [runner.name for runner in runners.registered_runners()]
+
+    assert names == [DEFAULT_RUNNER, "runner-b"]

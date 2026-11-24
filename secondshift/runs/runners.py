@@ -67,6 +67,16 @@ def sync_configured_runner() -> Runner | None:
     return dao.upsert_runner_address(DEFAULT_RUNNER, url, token)
 
 
+def ensure_configured_runner() -> None:
+    """Register the configured runner if the worker has not yet.
+
+    The worker registers it on its first pass. A run or a login may come
+    first on a new install, or after an operator added another runner.
+    """
+    if dao.find_runner(DEFAULT_RUNNER) is None:
+        sync_configured_runner()
+
+
 def check_runner_fields(name: str, url: str, token: str, pool: str) -> None:
     if not name or slugify(name) != name:
         raise RunnerRegistryError(
@@ -174,15 +184,13 @@ def placement_problem(environment: str) -> str:
 
     Waiting helps a full or draining runner, but not a missing one.
     """
+    ensure_configured_runner()
+    if not dao.all_runners():
+        return (
+            "No runner is registered. Set SECONDSHIFT_RUNNER_SERVICE_URL "
+            "or add one with secondshift runners add."
+        )
     pool = dao.runners_in_pool(DEFAULT_POOL)
-    if not pool:
-        # A new install may start a run before the worker registers its runner.
-        if sync_configured_runner() is None:
-            return (
-                "No runner is registered. Set SECONDSHIFT_RUNNER_SERVICE_URL "
-                "or add one with secondshift runners add."
-            )
-        pool = dao.runners_in_pool(DEFAULT_POOL)
     if not pool:
         return "No runner is in the default pool."
     if not any(offers(runner, environment) for runner in pool):
@@ -264,3 +272,25 @@ def runner_client_for(run_id: int) -> HttpRunnerClient:
     if runner is None:
         return get_runner_client()
     return runner_client(runner)
+
+
+def registered_runners() -> list[Runner]:
+    """Every registered runner, the configured one included."""
+    ensure_configured_runner()
+    return dao.all_runners()
+
+
+def runner_for_checks() -> Runner | None:
+    """An active runner in the default pool to check a login on.
+
+    The one with the most free sessions, since a check briefly runs an agent.
+    None when every one is full, draining or down.
+    """
+    registered_runners()
+    runners = [
+        runner
+        for runner in dao.runners_in_pool(DEFAULT_POOL)
+        if runner.state == Runner.State.ACTIVE
+    ]
+    counts = dao.unfinished_run_counts([runner.pk for runner in runners])
+    return choose_runner(runners, counts, DEFAULT_ENVIRONMENT)
