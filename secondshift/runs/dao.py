@@ -849,3 +849,21 @@ def set_login_home(credential_key: str, runner: Runner) -> None:
     LoginHome.objects.update_or_create(
         credential_key=credential_key, defaults={"runner": runner}
     )
+
+
+def pin_provisioning_key(runner_id: int, key: str) -> bool:
+    """Keep the runner's first key. False when it already had one."""
+    updated = Runner.objects.filter(pk=runner_id, provisioning_key="").update(
+        provisioning_key=key
+    )
+    return bool(updated)
+
+
+def replace_provisioning_key(runner_id: int, key: str) -> None:
+    Runner.objects.filter(pk=runner_id).update(
+        provisioning_key=key, updated_at=timezone.now()
+    )
+
+
+def pinned_provisioning_key(runner_id: int) -> str:
+    return Runner.objects.values_list("provisioning_key", flat=True).get(pk=runner_id)

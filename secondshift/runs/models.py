@@ -431,6 +431,9 @@ class Runner(models.Model):
     # The sandbox environments it offers, by name, as it last answered. Empty
     # until it first answers, which placement treats as offering any.
     environments = models.JSONField(null=True, blank=True)
+    # Its public provisioning key, pinned at first contact. Logins are sealed
+    # only to it, so whoever answers in its place can't read them.
+    provisioning_key = models.TextField(blank=True)
     state = models.CharField(max_length=16, choices=State, default=State.ACTIVE)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

@@ -146,7 +146,8 @@ because it may already have changed external services. Start a new run to retry.
 
 - The control plane stores logins encrypted.
 - To start a run, it seals the login to the runner's public key. Only the runner
-  can read it.
+  can read it. The key is pinned the first time SecondShift reaches the runner,
+  and a runner that answers with another key gets no login.
 - The runner keeps each login's CLI files in its private `agent-auth` directory,
   as the CLIs do on a laptop. Protect that directory and its backups as secrets.
 - Logins never appear in run plans, workflow arguments, results, Docker

@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from dataclasses import asdict
 from pathlib import Path
 from types import TracebackType
@@ -6,7 +7,11 @@ from typing import Any, Self
 import httpx
 from django.conf import settings
 
-from secondshift.runner_protocol.credentials import encrypt_agent_auth
+from secondshift.runner_protocol.credentials import (
+    encrypt_agent_auth,
+    key_fingerprint,
+    same_key,
+)
 from secondshift.runner_protocol.environments import RunnerEnvironments
 from secondshift.runner_protocol.schemas import AgentCheckInput, AgentInput, AgentOutput
 from secondshift.runner_protocol.sessions import (
@@ -27,11 +32,18 @@ class HttpRunnerClient:
         auth_token: str,
         timeout: int = 30,
         transport: httpx.BaseTransport | None = None,
+        provisioning_key: str = "",
+        first_key: Callable[[str], str] | None = None,
     ) -> None:
         if not base_url.strip() or not auth_token:
             raise ValueError("Runner URL and authentication token are required.")
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
+        # The key registered for this runner. Logins are sealed only to it.
+        self.provisioning_key = provisioning_key
+        # Called with the runner's key while none is pinned. Returns the key to
+        # trust, so a first contact pins it once.
+        self.first_key = first_key
         self.session = httpx.Client(
             base_url=self.base_url,
             trust_env=False,
@@ -149,10 +161,35 @@ class HttpRunnerClient:
                 "The runner service could not be reached."
             ) from error
 
+    def current_provisioning_key(self, timeout: float | None = None) -> str:
+        """The public key the runner answers with now."""
+        payload = self.response_payload(
+            self.send("GET", "/v1/agent-provisioning-key", timeout=timeout)
+        )
+        key = payload.get("public_key")
+        if not isinstance(key, str):
+            raise RunnerProtocolError("Runner returned an invalid response.")
+        try:
+            key_fingerprint(key)
+        except ValueError:
+            raise RunnerProtocolError("Runner returned an invalid key.") from None
+        return key
+
     def encrypted_auth(self, auth: str) -> str:
-        """An agent login, encrypted so that only the runner can read it."""
-        key = self.response_payload(self.send("GET", "/v1/agent-provisioning-key"))
-        return encrypt_agent_auth(str(key["public_key"]), auth)
+        """An agent login, encrypted so that only the runner can read it.
+
+        With a registered key, a different answer is refused: whoever answered
+        could read the login.
+        """
+        key = self.current_provisioning_key()
+        if not self.provisioning_key and self.first_key is not None:
+            self.provisioning_key = self.first_key(key)
+        if self.provisioning_key and not same_key(key, self.provisioning_key):
+            raise RunnerProtocolError(
+                "The runner's provisioning key does not match the one registered "
+                "for it. No login was sent."
+            )
+        return encrypt_agent_auth(key, auth)
 
     def run_agent(self, session_id: str, request: AgentInput) -> AgentOutput:
         response = self.send(

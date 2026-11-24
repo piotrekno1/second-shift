@@ -7,11 +7,13 @@ from django.db import connection
 
 from secondshift.connections.models import AgentCredentialCleanup
 from secondshift.runner.tests.fakes import ClosableFake
+from secondshift.runner_protocol.credentials import key_fingerprint
 from secondshift.runner_protocol.sessions import (
     CommandRequest,
     CommandResult,
     RunnerProtocolError,
 )
+from secondshift.runner_protocol.tests.keys import public_key_pem
 from secondshift.runs import runners
 from secondshift.runs.dao import all_runners, find_runner, update_run
 from secondshift.runs.execution.workspace_tools import execute_runner_command_step
@@ -59,14 +61,14 @@ def test_sync_follows_settings_but_keeps_the_operator_state(
 ) -> None:
     sync_configured_runner()
     change_runner_state(DEFAULT_RUNNER, Runner.State.DRAINING)
-    configured.RUNNER_SERVICE_URL = "http://runner-b:8002"
+    configured.RUNNER_SERVICE_URL = "https://runner-b:8002"
     configured.RUNNER_SERVICE_TOKEN = OTHER_TOKEN
 
     sync_configured_runner()
 
     runner = find_runner(DEFAULT_RUNNER)
     assert runner is not None
-    assert (runner.url, runner.token) == ("http://runner-b:8002", OTHER_TOKEN)
+    assert (runner.url, runner.token) == ("https://runner-b:8002", OTHER_TOKEN)
     assert runner.state == Runner.State.DRAINING
     assert len(all_runners()) == 1
 
@@ -83,7 +85,7 @@ def test_sync_without_a_configured_runner_registers_nothing(
 
 @pytest.mark.django_db
 def test_the_token_is_encrypted_at_rest() -> None:
-    runner = add_runner("runner-b", "http://runner-b:8002", TOKEN)
+    runner = add_runner("runner-b", "https://runner-b:8002", TOKEN)
 
     with connection.cursor() as cursor:
         cursor.execute("SELECT token FROM runs_runner WHERE id = %s", [runner.pk])
@@ -108,12 +110,12 @@ def test_add_keeps_pool_and_session_limit() -> None:
 @pytest.mark.parametrize(
     ("name", "url", "token", "pool", "max_sessions"),
     [
-        ("Runner B", "http://runner-b:8002", TOKEN, "default", None),
+        ("Runner B", "https://runner-b:8002", TOKEN, "default", None),
         ("runner-b", "runner-b:8002", TOKEN, "default", None),
         ("runner-b", "file:///etc/passwd", TOKEN, "default", None),
-        ("runner-b", "http://runner-b:8002", "short", "default", None),
-        ("runner-b", "http://runner-b:8002", TOKEN, "GPU pool", None),
-        ("runner-b", "http://runner-b:8002", TOKEN, "default", 0),
+        ("runner-b", "https://runner-b:8002", "short", "default", None),
+        ("runner-b", "https://runner-b:8002", TOKEN, "GPU pool", None),
+        ("runner-b", "https://runner-b:8002", TOKEN, "default", 0),
     ],
 )
 def test_add_refuses_invalid_runners(
@@ -126,10 +128,10 @@ def test_add_refuses_invalid_runners(
 
 @pytest.mark.django_db
 def test_add_refuses_a_taken_name() -> None:
-    add_runner("runner-b", "http://runner-b:8002", TOKEN)
+    add_runner("runner-b", "https://runner-b:8002", TOKEN)
 
     with pytest.raises(RunnerRegistryError, match="exists"):
-        add_runner("runner-b", "http://runner-c:8002", TOKEN)
+        add_runner("runner-b", "https://runner-c:8002", OTHER_TOKEN)
 
 
 @pytest.mark.django_db
@@ -143,7 +145,7 @@ def test_remove_refuses_the_configured_default(configured: Any) -> None:
 
 @pytest.mark.django_db
 def test_remove_and_state_changes_need_an_existing_runner() -> None:
-    add_runner("runner-b", "http://runner-b:8002", TOKEN)
+    add_runner("runner-b", "https://runner-b:8002", TOKEN)
 
     remove_runner("runner-b")
 
@@ -156,11 +158,11 @@ def test_remove_and_state_changes_need_an_existing_runner() -> None:
 
 @pytest.mark.django_db
 def test_runner_client_uses_the_runner_address_and_token() -> None:
-    runner = add_runner("runner-b", "http://runner-b:8002", OTHER_TOKEN)
+    runner = add_runner("runner-b", "https://runner-b:8002", OTHER_TOKEN)
 
     client = runner_client(runner)
 
-    assert client.base_url == "http://runner-b:8002"
+    assert client.base_url == "https://runner-b:8002"
     assert client.session.headers["Authorization"] == f"Bearer {OTHER_TOKEN}"
 
 
@@ -168,7 +170,7 @@ def test_runner_client_uses_the_runner_address_and_token() -> None:
 def test_list_command_never_prints_tokens(
     configured: Any, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    add_runner("gpu-1", "http://gpu-1:8002", OTHER_TOKEN, pool="gpu", max_sessions=2)
+    add_runner("gpu-1", "https://gpu-1:8002", OTHER_TOKEN, pool="gpu", max_sessions=2)
 
     call_command("runners", "list")
 
@@ -186,7 +188,7 @@ def test_add_command_reads_the_token_from_the_environment(
     monkeypatch.setenv("RUNNER_B_TOKEN", TOKEN)
     refreshed: list[bool] = []
     monkeypatch.setattr(
-        "secondshift.runs.management.commands.runners.refresh_runner_environments",
+        "secondshift.runs.management.commands.runners.refresh_runners",
         lambda: refreshed.append(True),
     )
 
@@ -194,7 +196,7 @@ def test_add_command_reads_the_token_from_the_environment(
         "runners",
         "add",
         "runner-b",
-        "http://runner-b:8002",
+        "https://runner-b:8002",
         "--token-env",
         "RUNNER_B_TOKEN",
     )
@@ -215,7 +217,7 @@ class RecordingClient(ClosableFake):
 
     reached: list[tuple[str, str]] = []
 
-    def __init__(self, base_url: str, auth_token: str) -> None:
+    def __init__(self, base_url: str, auth_token: str, **pinning: Any) -> None:
         self.base_url = base_url
         self.auth_token = auth_token
 
@@ -252,7 +254,7 @@ def test_a_run_is_pinned_to_the_default_runner(configured: Any, run: Run) -> Non
 
 def test_a_pinned_run_keeps_its_runner(configured: Any, run: Run) -> None:
     # As if the session step was retried after a crash, once runner-b was chosen.
-    other = add_runner("runner-b", "http://runner-b:8002", OTHER_TOKEN)
+    other = add_runner("runner-b", "https://runner-b:8002", OTHER_TOKEN)
     update_run(run.pk, runner=other)
 
     assert assign_runner(run.pk) == other
@@ -268,15 +270,15 @@ def test_a_run_cannot_start_without_a_runner(settings: Any, run: Run) -> None:
 def test_session_calls_go_to_the_run_runner(
     configured: Any, run: Run, recording: list[tuple[str, str]]
 ) -> None:
-    other = add_runner("runner-b", "http://runner-b:8002", OTHER_TOKEN)
+    other = add_runner("runner-b", "https://runner-b:8002", OTHER_TOKEN)
     update_run(run.pk, runner=other)
 
     execute_runner_command_step.__wrapped__(run.pk, "session", "call", ["ls"], ".", 30)
     stop_runner_session_step.__wrapped__(run.pk, "session")
 
     assert recording == [
-        ("http://runner-b:8002", "execute"),
-        ("http://runner-b:8002", "stop"),
+        ("https://runner-b:8002", "execute"),
+        ("https://runner-b:8002", "stop"),
     ]
 
 
@@ -291,7 +293,7 @@ def test_a_run_from_before_the_registry_uses_the_configured_runner(
 def test_a_runner_with_unfinished_runs_cannot_be_removed(
     configured: Any, run: Run
 ) -> None:
-    other = add_runner("runner-b", "http://runner-b:8002", OTHER_TOKEN)
+    other = add_runner("runner-b", "https://runner-b:8002", OTHER_TOKEN)
     update_run(run.pk, runner=other)
 
     with pytest.raises(RunnerRegistryError, match="unfinished runs"):
@@ -308,7 +310,7 @@ def test_the_configured_runner_is_registered_even_after_another(
     configured: Any,
 ) -> None:
     # An operator added a runner before the worker's first pass.
-    add_runner("runner-b", "http://runner-b:8002", OTHER_TOKEN)
+    add_runner("runner-b", "https://runner-b:8002", OTHER_TOKEN)
 
     names = [runner.name for runner in runners.registered_runners()]
 
@@ -345,7 +347,7 @@ def test_remove_deletes_every_login_copy_first(
 ) -> None:
     _, login, _ = agent_login
     replaced = AgentCredentialCleanup.objects.create(credential_key=uuid.uuid4())
-    add_runner("runner-b", "http://runner-b:8002", OTHER_TOKEN)
+    add_runner("runner-b", "https://runner-b:8002", OTHER_TOKEN)
 
     assert remove_runner("runner-b") is True
 
@@ -359,7 +361,7 @@ def test_remove_deletes_every_login_copy_first(
 def test_remove_keeps_a_runner_that_cannot_confirm_unless_forced(
     agent_login: Any, wiping: type[WipingClient], capsys: pytest.CaptureFixture[str]
 ) -> None:
-    add_runner("runner-b", "http://runner-b:8002", OTHER_TOKEN)
+    add_runner("runner-b", "https://runner-b:8002", OTHER_TOKEN)
     wiping.reachable = False
 
     with pytest.raises(RunnerRegistryError, match="did not confirm"):
@@ -370,3 +372,90 @@ def test_remove_keeps_a_runner_that_cannot_confirm_unless_forced(
 
     assert find_runner("runner-b") is None
     assert "agent-auth" in capsys.readouterr().err
+
+
+# Transport: https, one token per runner, pinned keys
+
+
+@pytest.mark.django_db
+def test_a_runner_needs_https_unless_http_is_allowed() -> None:
+    with pytest.raises(RunnerRegistryError, match="https"):
+        add_runner("runner-b", "http://runner-b:8002", TOKEN)
+    assert all_runners() == []
+
+    runner = add_runner("runner-b", "http://10.0.0.2:8002", TOKEN, allow_http=True)
+    assert runner.url == "http://10.0.0.2:8002"
+
+
+@pytest.mark.django_db
+def test_each_runner_needs_its_own_token(configured: Any) -> None:
+    with pytest.raises(RunnerRegistryError, match="own"):
+        # The configured runner's token, even before the worker registers it.
+        add_runner("runner-b", "https://runner-b:8002", TOKEN)
+
+    add_runner("runner-b", "https://runner-b:8002", OTHER_TOKEN)
+    with pytest.raises(RunnerRegistryError, match="own"):
+        add_runner("runner-c", "https://runner-c:8002", OTHER_TOKEN)
+
+
+@pytest.mark.django_db
+def test_the_first_key_is_pinned_and_later_ones_are_not() -> None:
+    runner = add_runner("runner-b", "https://runner-b:8002", TOKEN)
+    first, second = public_key_pem(), public_key_pem()
+
+    assert runners.pin_first_key(runner, first) == first
+    assert runners.pin_first_key(runner, second) == first
+    assert find_runner("runner-b").provisioning_key == first
+
+
+@pytest.mark.django_db
+def test_runner_client_pins_through_the_registry() -> None:
+    runner = add_runner("runner-b", "https://runner-b:8002", TOKEN)
+
+    client = runner_client(runner)
+
+    assert client.provisioning_key == ""
+    assert client.first_key is not None
+    key = public_key_pem()
+    assert client.first_key(key) == key
+    assert find_runner("runner-b").provisioning_key == key
+
+
+class KeyClient(ClosableFake):
+    key = ""
+
+    def __init__(self, runner: Runner) -> None:
+        self.runner = runner
+
+    def current_provisioning_key(self, timeout: float | None = None) -> str:
+        return self.key
+
+
+@pytest.mark.django_db
+def test_trust_key_pins_the_key_the_runner_answers_with_now(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    old, new = public_key_pem(), public_key_pem()
+    runner = add_runner("runner-b", "https://runner-b:8002", TOKEN)
+    runners.pin_first_key(runner, old)
+    KeyClient.key = new
+    monkeypatch.setattr(runners, "runner_client", KeyClient)
+
+    call_command("runners", "trust-key", "runner-b", "--yes")
+
+    assert find_runner("runner-b").provisioning_key == new
+
+
+@pytest.mark.django_db
+def test_list_shows_each_runner_key(
+    configured: Any, capsys: pytest.CaptureFixture[str]
+) -> None:
+    key = public_key_pem()
+    runner = add_runner("runner-b", "https://runner-b:8002", OTHER_TOKEN)
+    runners.pin_first_key(runner, key)
+
+    call_command("runners", "list")
+
+    output = capsys.readouterr().out
+    assert "key=not pinned yet" in output
+    assert f"key={key_fingerprint(key)}" in output

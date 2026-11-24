@@ -53,7 +53,7 @@ class Runners:
 
 @pytest.fixture
 def runners(monkeypatch: pytest.MonkeyPatch) -> Runners:
-    add_runner("runner-b", "http://runner-b:8002", TOKEN)
+    add_runner("runner-b", "https://runner-b:8002", TOKEN)
     return Runners(monkeypatch)
 
 
@@ -111,7 +111,7 @@ def test_a_check_runs_on_an_active_runner(
     settings.AGENT_AUTH_ROOT = tmp_path / "agent-auth"
     _, login, _ = agent_login
     sync_configured_runner()
-    add_runner("runner-b", "http://runner-b:8002", TOKEN)
+    add_runner("runner-b", "https://runner-b:8002", TOKEN)
     change_runner_state("default", Runner.State.DRAINING)
     used: list[str] = []
     client, _ = agent_runner({"reason": "completed", "succeeded": True})
@@ -132,7 +132,7 @@ def test_a_check_waits_for_an_active_runner(
 ) -> None:
     _, login, _ = agent_login
     sync_configured_runner()
-    add_runner("runner-b", "http://runner-b:8002", TOKEN)
+    add_runner("runner-b", "https://runner-b:8002", TOKEN)
     change_runner_state("runner-b", Runner.State.DRAINING)
     change_runner_state("default", Runner.State.DOWN)
 
@@ -149,7 +149,7 @@ def test_a_check_goes_to_the_login_home_and_sets_it(
     settings.AGENT_AUTH_ROOT = tmp_path / "agent-auth"
     _, login, _ = agent_login
     sync_configured_runner()
-    home = add_runner("runner-b", "http://runner-b:8002", TOKEN, max_sessions=1)
+    home = add_runner("runner-b", "https://runner-b:8002", TOKEN, max_sessions=1)
     set_login_home(str(login.credential_key), home)
     used: list[str] = []
 

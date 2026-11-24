@@ -11,6 +11,7 @@ free sessions. Runners in other pools take no runs until pools are routed. See
 docs/proposals/multiple-runners.md for the rollout.
 """
 
+import hmac
 import logging
 import math
 import time
@@ -24,6 +25,7 @@ from django.utils.text import slugify
 
 from secondshift.connections.dao import known_credential_keys
 from secondshift.runner_protocol.client import HttpRunnerClient, get_runner_client
+from secondshift.runner_protocol.credentials import key_fingerprint
 from secondshift.runner_protocol.environments import DEFAULT_ENVIRONMENT
 from secondshift.runner_protocol.sessions import RunnerProtocolError
 from secondshift.runs import dao
@@ -78,7 +80,20 @@ def ensure_configured_runner() -> None:
         sync_configured_runner()
 
 
-def check_runner_fields(name: str, url: str, token: str, pool: str) -> None:
+def token_in_use(token: str) -> bool:
+    """Whether another runner, or the configured one, has this token.
+
+    Each runner gets its own, so one that is taken over can't call the others.
+    """
+    tokens = [runner.token for runner in dao.all_runners()]
+    if address := configured_runner_address():
+        tokens.append(address[1])
+    return any(hmac.compare_digest(token.encode(), other.encode()) for other in tokens)
+
+
+def check_runner_fields(
+    name: str, url: str, token: str, pool: str, allow_http: bool = False
+) -> None:
     if not name or slugify(name) != name:
         raise RunnerRegistryError(
             "A runner name uses lowercase letters, digits and hyphens."
@@ -89,7 +104,14 @@ def check_runner_fields(name: str, url: str, token: str, pool: str) -> None:
         )
     parts = urlsplit(url)
     if parts.scheme not in ("http", "https") or not parts.hostname:
-        raise RunnerRegistryError("A runner URL starts with http:// or https://.")
+        raise RunnerRegistryError("A runner URL starts with https://.")
+    # Its token, repository snapshots and command output cross the network.
+    if parts.scheme == "http" and not allow_http:
+        raise RunnerRegistryError(
+            "A runner URL uses https://. Plain http:// sends the runner's token, "
+            "repository files and command output unencrypted. Allow it only on "
+            "a private network you trust."
+        )
     if len(token) < MIN_TOKEN_LENGTH:
         raise RunnerRegistryError(
             f"A runner token has at least {MIN_TOKEN_LENGTH} characters."
@@ -102,10 +124,15 @@ def add_runner(
     token: str,
     pool: str = DEFAULT_POOL,
     max_sessions: int | None = None,
+    allow_http: bool = False,
 ) -> Runner:
-    check_runner_fields(name, url, token, pool)
+    check_runner_fields(name, url, token, pool, allow_http)
     if max_sessions is not None and max_sessions < 1:
         raise RunnerRegistryError("A runner's session limit is at least 1.")
+    if token_in_use(token):
+        raise RunnerRegistryError(
+            "Another runner has this token. Give each runner its own."
+        )
     try:
         return dao.create_runner(name, url.rstrip("/"), token, pool, max_sessions)
     except IntegrityError:
@@ -165,8 +192,53 @@ def remove_runner(name: str, force: bool = False) -> bool:
 
 
 def runner_client(runner: Runner) -> HttpRunnerClient:
-    """A client for this runner, with its own token."""
-    return HttpRunnerClient(base_url=runner.url, auth_token=runner.token)
+    """A client for this runner, with its own token and pinned key."""
+    return HttpRunnerClient(
+        base_url=runner.url,
+        auth_token=runner.token,
+        provisioning_key=runner.provisioning_key,
+        first_key=lambda key: pin_first_key(runner, key),
+    )
+
+
+def pin_first_key(runner: Runner, key: str) -> str:
+    """Pin this key if the runner has none yet, and return the one pinned.
+
+    The worker's refresh usually pins it first. Whichever comes first wins,
+    and the other is checked against it.
+    """
+    if dao.pin_provisioning_key(runner.pk, key):
+        logger.info(
+            "pinned runner %s provisioning key %s", runner.name, key_fingerprint(key)
+        )
+    return dao.pinned_provisioning_key(runner.pk)
+
+
+def fingerprint(runner: Runner) -> str:
+    """Its pinned key's fingerprint, or why there is none."""
+    if not runner.provisioning_key:
+        return "not pinned yet"
+    return key_fingerprint(runner.provisioning_key)
+
+
+def trust_current_key(name: str) -> tuple[str, str]:
+    """Pin the key the runner answers with now. Returns the old and new
+    fingerprints.
+
+    For a runner whose key changed on purpose, such as after its agent-auth
+    directory was replaced.
+    """
+    runner = dao.find_runner(name)
+    if runner is None:
+        raise RunnerRegistryError(f"There is no runner named {name}.")
+    try:
+        with runner_client(runner) as client:
+            key = client.current_provisioning_key()
+    except RunnerProtocolError as error:
+        raise RunnerRegistryError(f"Runner {name} did not answer: {error}") from None
+    old = fingerprint(runner)
+    dao.replace_provisioning_key(runner.pk, key)
+    return old, key_fingerprint(key)
 
 
 def offers(runner: Runner, environment: str) -> bool:
@@ -300,8 +372,9 @@ def assign_runner(run_id: int, sleep: Callable[[float], None] = time.sleep) -> R
         sleep(CAPACITY_POLL_SECONDS)
 
 
-def refresh_runner_environments() -> int:
-    """Ask each runner which environments it offers. Returns how many answered.
+def refresh_runners() -> int:
+    """Ask each runner which environments it offers, and pin its provisioning
+    key at first contact. Returns how many answered.
 
     A runner that does not answer keeps what it said last.
     """
@@ -312,10 +385,15 @@ def refresh_runner_environments() -> int:
         try:
             with runner_client(runner) as client:
                 offered = client.environments(timeout=ENVIRONMENTS_TIMEOUT_SECONDS)
+                key = runner.provisioning_key or client.current_provisioning_key(
+                    timeout=ENVIRONMENTS_TIMEOUT_SECONDS
+                )
         except RunnerProtocolError:
-            logger.warning("runner %s did not list its environments", runner.name)
+            logger.warning("runner %s did not answer", runner.name)
             continue
         dao.set_runner_environments(runner.pk, sorted(offered.images))
+        if not runner.provisioning_key:
+            pin_first_key(runner, key)
         answered += 1
     return answered
 

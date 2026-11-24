@@ -9,9 +9,11 @@ from secondshift.runs.runners import (
     RunnerRegistryError,
     add_runner,
     change_runner_state,
-    refresh_runner_environments,
+    fingerprint,
+    refresh_runners,
     remove_runner,
     sync_configured_runner,
+    trust_current_key,
 )
 
 
@@ -44,7 +46,8 @@ def list_runners() -> None:
         )
         click.echo(
             f"{runner.name}\t{runner.state}\tpool={runner.pool}\t"
-            f"sessions={limit}\tenvironments={offered}\t{runner.url}"
+            f"sessions={limit}\tenvironments={offered}\t"
+            f"key={fingerprint(runner)}\t{runner.url}"
         )
 
 
@@ -59,12 +62,19 @@ def list_runners() -> None:
 )
 @click.option("--pool", default=DEFAULT_POOL, show_default=True)
 @click.option("--max-sessions", type=click.IntRange(min=1), default=None)
+@click.option(
+    "--allow-http",
+    is_flag=True,
+    help="Accept an http:// URL. Only on a private network you trust, such as "
+    "WireGuard: the token, repository files and output cross it unencrypted.",
+)
 def add(
     name: str,
     url: str,
     token_env: str | None,
     pool: str,
     max_sessions: int | None,
+    allow_http: bool,
 ) -> None:
     """Register a runner at URL. Its token stays out of shell history."""
     if token_env:
@@ -74,12 +84,20 @@ def add(
     else:
         token = click.prompt("Runner token", hide_input=True)
     try:
-        add_runner(name, url, token, pool, max_sessions)
+        runner = add_runner(name, url, token, pool, max_sessions, allow_http)
     except RunnerRegistryError as error:
         raise refused(error) from None
     click.echo(f"Added runner {name}.")
-    # Placement learns its environments now instead of on the worker's next pass.
-    refresh_runner_environments()
+    # Pin its key and learn its environments now, not on the worker's next pass.
+    refresh_runners()
+    runner.refresh_from_db()
+    click.echo(f"Provisioning key: {fingerprint(runner)}")
+    if not runner.provisioning_key:
+        click.echo(
+            "Warning: the runner did not answer. Its key is pinned when it "
+            "first answers. Check the fingerprint with secondshift runners list.",
+            err=True,
+        )
 
 
 @command.command("drain")
@@ -124,3 +142,24 @@ def remove(name: str, force: bool) -> None:
             "agent-auth directory and its backups on the host.",
             err=True,
         )
+
+
+@command.command("trust-key")
+@click.argument("name")
+@click.option("--yes", is_flag=True, help="Don't ask before pinning.")
+def trust_key(name: str, yes: bool) -> None:
+    """Pin the provisioning key a runner answers with now.
+
+    Only after its key changed on purpose, such as when its agent-auth
+    directory was replaced. Logins are sealed only to the pinned key.
+    """
+    if not yes:
+        click.confirm(
+            f"Trust whatever answers at runner {name}'s address with its logins?",
+            abort=True,
+        )
+    try:
+        old, new = trust_current_key(name)
+    except RunnerRegistryError as error:
+        raise refused(error) from None
+    click.echo(f"Runner {name} key: {old} -> {new}")

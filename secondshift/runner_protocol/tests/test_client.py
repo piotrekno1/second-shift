@@ -1,10 +1,12 @@
 from collections.abc import Callable
+from typing import Any
 
 import httpx
 import pytest
 
 from secondshift.runner_protocol.client import HttpRunnerClient
 from secondshift.runner_protocol.sessions import CommandRequest, RunnerProtocolError
+from secondshift.runner_protocol.tests.keys import public_key_pem
 
 Handler = Callable[[httpx.Request], httpx.Response]
 
@@ -113,3 +115,61 @@ def test_the_client_closes_its_connections_when_the_block_ends() -> None:
         assert not client.session.is_closed
 
     assert client.session.is_closed
+
+
+PINNED = public_key_pem()
+IMPOSTOR = public_key_pem()
+
+
+def answering(key: str, **pinning: Any) -> HttpRunnerClient:
+    """A client whose runner answers the provisioning key with this key."""
+    return HttpRunnerClient(
+        "https://runner:8002/",
+        "secret",
+        transport=httpx.MockTransport(
+            lambda request: httpx.Response(200, json={"public_key": key})
+        ),
+        **pinning,
+    )
+
+
+def test_a_login_is_sealed_to_the_pinned_key() -> None:
+    sealed = answering(PINNED, provisioning_key=PINNED).encrypted_auth("login")
+
+    assert "login" not in sealed
+
+
+def test_a_login_is_never_sealed_to_a_key_that_is_not_pinned() -> None:
+    # Whoever answers in the runner's place can't read the login.
+    client = answering(IMPOSTOR, provisioning_key=PINNED)
+
+    with pytest.raises(RunnerProtocolError, match="does not match"):
+        client.encrypted_auth("login")
+
+
+def test_first_contact_pins_the_key_once() -> None:
+    pinned: list[str] = []
+
+    def first_key(key: str) -> str:
+        pinned.append(key)
+        return key
+
+    client = answering(PINNED, first_key=first_key)
+    client.encrypted_auth("login")
+    client.encrypted_auth("login")
+
+    assert pinned == [PINNED]
+    assert client.provisioning_key == PINNED
+
+
+def test_first_contact_checks_against_a_key_pinned_meanwhile() -> None:
+    # Another process pinned the runner's real key first.
+    client = answering(IMPOSTOR, first_key=lambda key: PINNED)
+
+    with pytest.raises(RunnerProtocolError, match="does not match"):
+        client.encrypted_auth("login")
+
+
+def test_a_runner_answering_with_no_valid_key_is_refused() -> None:
+    with pytest.raises(RunnerProtocolError, match="invalid key"):
+        answering("not a key").encrypted_auth("login")
