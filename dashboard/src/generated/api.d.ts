@@ -190,6 +190,8 @@ export interface components {
       model_provider: string | null
       /** Execution Agent */
       execution_agent: string | null
+      /** Runner */
+      runner: string | null
       /** Output Excerpt */
       output_excerpt: string
       /** Output Truncated */

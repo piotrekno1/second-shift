@@ -33,7 +33,10 @@ CHECK_TIMEOUT_SECONDS = 3
 # enough that a restart or a short network outage does not end them.
 LOST_SECONDS = 10 * 60
 LOST_SUMMARY = "Runner: it stopped answering, so the run could not finish."
-LOST_REASON = "The runner stopped answering for 10 minutes."
+
+
+def lost_reason(runner: Runner) -> str:
+    return f"Runner {runner.name} stopped answering for 10 minutes."
 
 
 def refresh_runners() -> int:
@@ -95,7 +98,7 @@ def fail_lost_run(run_id: int, runner: Runner) -> bool:
         Run.Status.FAILED,
         LOST_SUMMARY,
         failure=RunFailure.RUNNER,
-        reason=LOST_REASON,
+        reason=lost_reason(runner),
     )
     if run is None:
         return False

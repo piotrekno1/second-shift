@@ -774,6 +774,10 @@ def all_runners() -> list[Runner]:
     return list(Runner.objects.order_by("name"))
 
 
+def several_runners() -> bool:
+    return Runner.objects.all()[:2].count() > 1
+
+
 def find_runner(name: str) -> Runner | None:
     return Runner.objects.filter(name=name).first()
 

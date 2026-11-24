@@ -144,6 +144,8 @@ class RunDetailSchema(RunSchema):
     exit_code: int | None
     model_provider: str | None
     execution_agent: str | None
+    # The runner it was placed on, named only when there are several.
+    runner: str | None
     output_excerpt: str
     output_truncated: bool
     output_size_bytes: int | None

@@ -1,8 +1,10 @@
 import json
+from datetime import timedelta
 
 import pytest
 from django.contrib.auth import get_user_model
 from django.test import Client
+from django.utils import timezone
 
 from secondshift.jobs.tests.fixtures import offer_environments
 from secondshift.runner.tests.fakes import sandboxes
@@ -154,3 +156,40 @@ def test_the_page_says_when_no_runner_has_listed_environments() -> None:
 
     assert items["Environments"].value == "No runner has answered"
     assert "Environment: default" not in items
+
+
+@pytest.mark.django_db
+def test_only_staff_see_the_runners(client: Client) -> None:
+    owner = get_user_model().objects.create_user(username="owner", email="o@x.dev")
+    create_workspace(name="Team", slug="team", owner=owner)
+    offer_environments(sandboxes("python:3.13-slim"), name="runner-a")
+    Runner.objects.filter(name="runner-a").update(agents=False, max_sessions=4)
+    offer_environments(sandboxes("python:3.13-slim"), name="runner-b")
+    Runner.objects.filter(name="runner-b").update(
+        state=Runner.State.DRAINING,
+        failing_since=timezone.now() - timedelta(minutes=15),
+    )
+    client.force_login(owner)
+
+    def runners() -> dict[str, dict[str, str]]:
+        body = client.get("/api/settings").json()
+        groups = {group["title"]: group["items"] for group in body["groups"]}
+        return {item["label"]: item for item in groups.get("Runners", [])}
+
+    assert runners() == {}
+
+    owner.is_staff = True
+    owner.save(update_fields=["is_staff"])
+    shown = runners()
+
+    assert shown["runner-a"]["value"] == "Active · answering"
+    assert shown["runner-a"]["help"].startswith("0 runs of 4 at once.")
+    assert "Environments: python." in shown["runner-a"]["help"]
+    assert "No agent image" in shown["runner-a"]["help"]
+    assert shown["runner-b"]["value"] == (
+        "Draining · not answering for 15 minutes, its runs failed"
+    )
+    # Never the address or the token.
+    text = json.dumps(shown)
+    assert "https://" not in text
+    assert "token" not in text.lower()
