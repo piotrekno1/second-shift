@@ -87,10 +87,16 @@ agent waits for each report before it goes on. Codex runs without sub-agents.
 
 ## Where things run
 
-![The control plane holds every secret and talks to GitHub, Slack and webhooks, MCP servers and APIs, and model providers. The runner owns Docker and runs the agent container, which reaches its provider only through the egress proxy, and the networkless command sandbox.](images/architecture/trust-zones.svg)
+![The control plane holds every secret and talks to GitHub, Slack and webhooks, MCP servers and APIs, and model providers. It uses one or more runners. Each runner owns Docker on its host and runs the agent container, which reaches its provider only through the egress proxy, and the networkless command sandbox.](images/architecture/trust-zones.svg)
 
 - Only the runner can start containers. Each sandbox is fresh, capped on
   memory, CPU and processes, and has no network or credentials.
+- Each run goes to one runner: one that offers its environment and has the
+  most sessions free. A subscription login stays on one runner, where its runs
+  can run at once.
+- An agent container on another host reaches the MCP broker through its
+  runner. The runner passes each tool call on to the control plane and its
+  answer back, so the gateway is never exposed to that host.
 - A job's setup commands run before the agent, in their own container that
   reaches package registries only, through a second egress proxy.
 - An agent container reaches the internet only through the egress proxy, which
