@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 616" role="img" aria-labelledby="title desc">
   <title id="title">Where things run</title>
-  <desc id="desc">The control plane holds every secret and talks to GitHub, notification targets, MCP servers and APIs, and model providers. The runner owns Docker. It runs the command sandbox with no network, and for subscription runs an agent container on an internal network. The agent container reaches its provider with the login only through the egress proxy, which allows only provider hosts, and SecondShift tools through the gateway.</desc>
+  <desc id="desc">The control plane holds every secret and talks to GitHub, notification targets, MCP servers and APIs, and model providers. It uses one or more runners, and each run goes to one of them. A runner owns Docker on its host. It runs the command sandbox with no network, and for subscription runs an agent container on an internal network. The agent container reaches its provider with the login only through the egress proxy, which allows only provider hosts, and SecondShift tools through the gateway.</desc>
   <style>
     .card { fill: #171717; stroke: #292929; }
     .zone { fill: #1b1b1b; stroke: #2e2e2e; }
@@ -48,7 +48,7 @@
   <rect class="card" x="0.5" y="0.5" width="959" height="615" rx="16"/>
 
   <text class="eyebrow" x="32" y="44">WHERE THINGS RUN</text>
-  <text class="h" x="32" y="72">What runs on the control plane and the runner</text>
+  <text class="h" x="32" y="72">What runs on the control plane and the runners</text>
 
   <!-- Outside services -->
   <rect class="ext" x="52" y="104" width="200" height="56" rx="12"/>
@@ -84,10 +84,12 @@
   <text class="p" x="68" y="522">subscription logins, encrypted at rest. A login reaches only</text>
   <text class="p" x="68" y="542">its own agent container. No secret reaches the sandbox.</text>
 
-  <!-- Runner -->
+  <!-- Runners: one or more, each a host of its own -->
+  <rect class="zone" x="664" y="260" width="280" height="340" rx="14"/>
+  <rect class="zone" x="656" y="252" width="280" height="340" rx="14"/>
   <rect class="zone" x="648" y="244" width="280" height="340" rx="14"/>
-  <text class="eyebrow" x="668" y="272">RUNNER</text>
-  <text class="lbl" x="848" y="272" text-anchor="end">owns Docker</text>
+  <text class="eyebrow" x="668" y="272">RUNNERS</text>
+  <text class="lbl" x="908" y="272" text-anchor="end">one or more</text>
 
   <rect class="hi" x="668" y="292" width="240" height="88" rx="10"/>
   <text class="t" x="684" y="319">Agent container</text>

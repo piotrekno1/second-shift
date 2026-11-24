@@ -1,6 +1,6 @@
 # Proposal: multiple runners per control plane
 
-Status: draft · November 2026
+Status: implemented · November 2026
 
 ## Summary
 
@@ -171,6 +171,10 @@ own.
   moves only when its home drains, goes down or lacks the environment.
 - Removing a runner first asks it to delete every login copy it could hold,
   and refuses unless forced when it can't confirm.
+- A login's runs on its home run at the same time (#501). Claude Code tokens
+  don't refresh. Each Codex run gets its own `CODEX_HOME` linked to the
+  login's one `auth.json`, so a refresh reaches later runs while Codex's
+  SQLite state and memories stay with the run.
 
 ### Environments
 
@@ -280,10 +284,13 @@ Each step is a separate PR that ships on its own:
 7. **Docs** (#493). Update `architecture.md`, `self-hosting.md`,
    `production-deployment.md` and `environment-variables.md`, and add
    `runner_key` so an operator can compare a runner's key fingerprint.
-8. **Subscription agents on another host.** Relay the agent's tool calls
-   through the runner, as in the
+8. **Subscription agents on another host** (#494, #495, #497). Relay the
+   agent's tool calls through the runner, as in the
    [addendum](#addendum-agent-tool-calls-from-another-host). Then extend the
    production end-to-end suite to two runners.
+9. **Follow-ups from testing** (#498, #501). A proxy's 502, 503 or 504 counts
+   as the runner not answering, a session stop the runner missed is retried
+   when it answers again, and a login's runs run in parallel.
 
 ## Testing
 
@@ -476,5 +483,5 @@ worker ──answer─────────────▶ runner ──answe
 2. The relay (#495), the pending call table, the two endpoints and the
    worker's collection, used only by runners configured for it.
 3. A Compose file for a runner on another host, with the relay port and the
-   egress proxy's forward, and the deployment guide.
-4. The production end-to-end suite with two runners.
+   egress proxy's forward, and the deployment guide (#497).
+4. The production end-to-end suite with two runners (#497).
