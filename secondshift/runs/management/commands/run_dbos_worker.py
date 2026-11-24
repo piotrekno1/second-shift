@@ -35,7 +35,7 @@ from secondshift.runs.orchestration.reconciliation import (
 from secondshift.runs.orchestration.schedules import synchronize_schedules
 from secondshift.runs.retention import prune_runs
 from secondshift.runs.runners import (
-    refresh_runner_environments,
+    refresh_runners,
     sync_configured_runner,
 )
 
@@ -109,11 +109,12 @@ def worker_tasks(client: DBOSClient, every_pass: float) -> list[PeriodicTask]:
             every=RUNNER_SYNC_SECONDS,
             run=sync_configured_runner,
         ),
-        # Placement sends a run only to a runner that offers its environment.
+        # Placement sends a run only to a runner that offers its environment,
+        # and logins are sealed only to a runner's pinned key.
         PeriodicTask(
-            "refresh runner environments",
+            "refresh runners",
             every=RUNNER_ENVIRONMENTS_SECONDS,
-            run=refresh_runner_environments,
+            run=refresh_runners,
         ),
         PeriodicTask("reconcile runs", every=every_pass, run=reconcile),
         PeriodicTask(

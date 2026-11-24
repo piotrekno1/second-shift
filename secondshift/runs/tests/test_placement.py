@@ -4,6 +4,8 @@ from datetime import timedelta
 from typing import Any
 
 import pytest
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
 from django.utils import timezone
 
 from secondshift.runner_protocol.environments import RunnerEnvironments
@@ -22,7 +24,7 @@ from secondshift.runs.runners import (
     assign_runner,
     change_runner_state,
     choose_runner,
-    refresh_runner_environments,
+    refresh_runners,
     sync_configured_runner,
     try_assign_runner,
 )
@@ -40,6 +42,11 @@ def run(db: None, settings: Any) -> Run:
     return execution_run(db)
 
 
+def token_for(name: str) -> str:
+    """Each runner has its own token."""
+    return f"{name}-token".ljust(32, "x")
+
+
 def make_runner(
     name: str,
     max_sessions: int | None = None,
@@ -47,7 +54,11 @@ def make_runner(
     pool: str = "default",
 ) -> Runner:
     runner = add_runner(
-        name, f"http://{name}:8002", TOKEN, pool=pool, max_sessions=max_sessions
+        name,
+        f"https://{name}:8002",
+        token_for(name),
+        pool=pool,
+        max_sessions=max_sessions,
     )
     runner.environments = environments
     runner.save(update_fields=["environments"])
@@ -235,6 +246,21 @@ def test_a_run_fails_when_no_runner_is_in_the_default_pool(run: Run) -> None:
 # Learning each runner's environments
 
 
+def public_key_pem() -> str:
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    return (
+        key.public_key()
+        .public_bytes(
+            serialization.Encoding.PEM,
+            serialization.PublicFormat.SubjectPublicKeyInfo,
+        )
+        .decode()
+    )
+
+
+KEY = public_key_pem()
+
+
 class EnvironmentsClient:
     answers: dict[str, RunnerEnvironments | Exception] = {}
 
@@ -246,6 +272,9 @@ class EnvironmentsClient:
 
     def __exit__(self, *exc_info: object) -> None:
         return None
+
+    def current_provisioning_key(self, timeout: float | None = None) -> str:
+        return KEY
 
     def environments(self, timeout: float | None = None) -> RunnerEnvironments:
         answer = self.answers[self.name]
@@ -270,9 +299,12 @@ def test_refresh_keeps_what_each_runner_offers(
     }
     monkeypatch.setattr(runners, "runner_client", EnvironmentsClient)
 
-    assert refresh_runner_environments() == 1
+    assert refresh_runners() == 1
 
     assert find_runner("runner-b").environments == [NODE, "python"]
+    # Its key is pinned at first contact.
+    assert find_runner("runner-b").provisioning_key == KEY
+    assert find_runner("runner-c").provisioning_key == ""
     # A runner that did not answer keeps its last answer.
     assert find_runner("runner-c").environments == ["python"]
     # A down runner is not asked.

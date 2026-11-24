@@ -89,6 +89,7 @@ All credentials are encrypted in the database with `SECONDSHIFT_ENCRYPTION_KEY`.
 | Gateway run token | Held by the built-in agent for one model call | The sandbox. Only its hash is stored |
 | Subscription login | The control plane, to seal it for the runner. The runner, for its agent container | The sandbox, plans, logs, API responses |
 | Broker run token | Held by the agent container for one run | The sandbox. Only its hash is stored |
+| Runner service token | The web app, gateway and worker, for each call to that runner | The sandbox, the model, other runners |
 
 The built-in agent and the broker run in the same worker process. The model
 never receives MCP or API credentials, but no process boundary separates them
@@ -96,6 +97,13 @@ from the agent loop. The web app, gateway and worker also share the encryption
 key, so a compromise of any of them exposes every stored credential. The runner
 and the sandbox do not have the key. The runner does keep the CLI files of each
 subscription login that has run on it.
+
+Each runner has its own service token, and SecondShift refuses one that
+another runner already uses, so a runner that is taken over can't call the
+others. A runner added on another host needs `https://`, unless the operator
+allows plain HTTP for a private network. Logins are sealed only to the
+provisioning key pinned for a runner the first time SecondShift reaches it. A
+runner that later answers with another key gets no login.
 
 Audit events record the tool name and the connection, never the arguments,
 credentials, or responses.

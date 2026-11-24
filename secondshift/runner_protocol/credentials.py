@@ -5,6 +5,8 @@ can read what the control plane sends.
 """
 
 import base64
+import hashlib
+import hmac
 import json
 
 from cryptography.fernet import Fernet
@@ -33,3 +35,19 @@ def encrypt_agent_auth(public_key: str, auth: str) -> str:
             "data": Fernet(envelope_key).encrypt(auth.encode()).decode(),
         }
     )
+
+
+def key_fingerprint(public_key: str) -> str:
+    """SHA-256 of the key's DER form, as operators compare it."""
+    key = serialization.load_pem_public_key(public_key.encode())
+    der = key.public_bytes(
+        serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo
+    )
+    return "SHA256:" + base64.b64encode(hashlib.sha256(der).digest()).decode()
+
+
+def same_key(first: str, second: str) -> bool:
+    try:
+        return hmac.compare_digest(key_fingerprint(first), key_fingerprint(second))
+    except ValueError:
+        return False

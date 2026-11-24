@@ -182,6 +182,15 @@ environment, the run fails at once. Placement stays inside
 workflows recover across releases and a new step would shift their step
 numbers.
 
+Runners added with `secondshift runners add` need `https://` unless the operator
+passes `--allow-http`, and each needs a token no other runner has. The configured
+runner keeps its URL, since it shares the host's Docker network. Each runner's
+public provisioning key is pinned at first contact in `Runner.provisioning_key`,
+by the worker's refresh or by the first login sealed for it, whichever comes
+first. `HttpRunnerClient.encrypted_auth` fetches the key on every seal and
+refuses one that doesn't match. `secondshift runners trust-key` pins a runner's
+new key after a deliberate change.
+
 The runs app has three internal packages:
 
 - `execution`: agent construction, workspace and external tools, budget and
