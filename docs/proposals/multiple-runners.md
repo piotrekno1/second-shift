@@ -80,11 +80,15 @@ fields:
 - `last_seen_at`
 
 Runners are registered by the operator, from a management command
-(`secondshift runners add|drain|remove`) or from config. On upgrade, a data
-migration seeds a runner named `default` from `RUNNER_SERVICE_URL` and
-`RUNNER_SERVICE_TOKEN` when they are set, so existing installs behave the
-same. The migration copies only references. The token is encrypted the same way
-as connection credentials.
+(`secondshift runners list|add|drain|activate|remove`). The worker keeps a
+runner named `default` registered from `RUNNER_SERVICE_URL` and
+`RUNNER_SERVICE_TOKEN` when they are set, so existing installs behave the same.
+This is the first of the worker's periodic tasks, so it also retries if the
+database is not up yet. Settings own `default`'s URL and token. The operator
+owns its state, pool and capacity, so a drain survives restarts. Tokens are
+encrypted the same way as connection credentials. This is not a data migration,
+because migrations must not read service env vars, which differ by role, and
+migrations here are generated only.
 
 Each runner keeps its own token. A compromised runner then cannot call another
 runner, and revoking one does not touch the rest.
@@ -217,21 +221,22 @@ runtime placement or flags.
 
 1. Add the schema: `Runner`, `Run.runner_id` (nullable), `AgentLease.runner_id`
    and `RunnerCredentialCopy`, from generated migrations.
-2. Add a data migration that seeds `default` from the existing env vars.
-   Installs without those vars, such as some dev setups, seed nothing, and the
-   control plane reports "no runner registered".
+2. The worker registers `default` from the existing env vars. Installs without
+   those vars, such as some dev setups, register nothing, and the control plane
+   reports "no runner registered".
 3. Treat a null `run.runner_id` as `default`. This covers runs that started
    before the upgrade.
-4. Keep `RUNNER_SERVICE_URL` working as the seed for `default`. Deprecate it
-   once registry management is documented, and remove it a release later.
+4. Keep `RUNNER_SERVICE_URL` as the way to configure `default`. A
+   single-runner install never needs the `runners` command.
 5. Local mode (`secondshift up`) keeps one runner and registers it at startup.
 
 ## Rollout plan
 
 Each step is a separate PR that ships on its own:
 
-1. **Registry and seed.** Add the model, migration and CLI. Behaviour is
-   unchanged because everything still goes to `default`.
+1. **Registry and seed** (#484). Add the model, the CLI and the worker task
+   that registers `default`. Behaviour is unchanged because everything still
+   goes to `default`.
 2. **Routing.** Add `runner_client_for(run)` and switch all callers, then put
    `runner_id` on `Run` and `AgentLease`. `assign_runner` always picks
    `default`.
