@@ -17,6 +17,8 @@ and try a skill once on your code. The [skill catalog](/docs/skill-catalog/)
 has ready-made skills to copy, grouped by team. To use a skill someone published on
 GitHub, see [skills from another repository](/docs/repository-configuration/#skills-from-another-repository).
 
+Comparing tools? See how SecondShift [differs from the alternatives](/docs/comparisons/).
+
 Looking for a setting or API? Use the sidebar or search above.
 
 To run something once and review it later, follow the
