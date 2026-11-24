@@ -428,6 +428,9 @@ class Runner(models.Model):
     pool = models.SlugField(max_length=64, default="default")
     # The most sessions it runs at once. Empty means no limit.
     max_sessions = models.PositiveIntegerField(null=True, blank=True)
+    # The sandbox environments it offers, by name, as it last answered. Empty
+    # until it first answers, which placement treats as offering any.
+    environments = models.JSONField(null=True, blank=True)
     state = models.CharField(max_length=16, choices=State, default=State.ACTIVE)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

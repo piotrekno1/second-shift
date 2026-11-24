@@ -144,8 +144,23 @@ uploading anything, while it holds the run's row lock. A retried step finds the
 saved runner and reaches it again. Every later call for the run, including
 gateway tool calls, goes through `runner_client_for(run_id)`. A run with no
 runner, which can only be one that started before the upgrade, uses the
-configured runner. For now every run is pinned to `default`. Login checks and
-the environment list still ask the configured runner.
+configured runner. Login checks and the environment list on pages still ask the
+configured runner.
+
+Placement chooses among the active runners in the `default` pool. Runners in
+other pools take no runs until pools are routed. A runner qualifies when it
+offers the run's environment and has fewer unfinished runs pinned to it than
+its `max_sessions`. Among those, the one with the most free sessions wins. The
+worker asks each runner for its environments every minute. A runner that has
+never answered may take any environment, and it refuses a session it can't
+run. Choosing locks the run and the candidate runners, always in the same
+order, so two workers never both take a runner's last session. When every
+runner that could take the run is full or draining, the step waits in short
+transactions until the run's time limit. When no runner offers the run's
+environment, the run fails at once. Placement stays inside
+`start_runner_session` and never becomes a step of its own, because
+workflows recover across releases and a new step would shift their step
+numbers.
 
 The runs app has three internal packages:
 
