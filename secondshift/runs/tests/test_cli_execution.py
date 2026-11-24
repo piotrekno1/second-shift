@@ -1,4 +1,5 @@
 import json
+from contextlib import nullcontext
 from pathlib import Path
 from typing import Any
 from unittest.mock import Mock
@@ -36,6 +37,11 @@ def fake_runner(
 ) -> list[dict[str, Any]]:
     runner, sent = agent_runner(result)
     monkeypatch.setattr(cli_agent, "runner_client_for", lambda run_id: runner)
+    # The fake hands out one client, which the relay would close when it ends.
+    # test_agent_relay covers relaying.
+    monkeypatch.setattr(
+        cli_agent, "relaying", lambda client_for, session_id, lease: nullcontext()
+    )
     return sent
 
 

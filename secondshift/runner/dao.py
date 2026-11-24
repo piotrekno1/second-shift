@@ -1,8 +1,16 @@
-"""Queries and writes on runner sessions and the commands run in them."""
+"""Queries and writes on runner sessions, their commands and relayed agent calls."""
 
 from typing import Any
+from uuid import UUID, uuid4
 
-from secondshift.runner.models import RunnerCommand, RunnerSession
+from django.db import transaction
+
+from secondshift.runner.models import (
+    AgentCall,
+    AgentRelay,
+    RunnerCommand,
+    RunnerSession,
+)
 
 
 def has_sessions() -> bool:
@@ -67,4 +75,61 @@ def complete_command(
         exit_code=exit_code,
         output=output,
         timed_out=timed_out,
+    )
+
+
+def open_relay(session_id: str, token_hash: str) -> None:
+    AgentRelay.objects.update_or_create(
+        session_id=session_id, defaults={"token_hash": token_hash}
+    )
+
+
+def close_relay(session_id: str) -> None:
+    """Remove the relay and every call it still holds."""
+    AgentRelay.objects.filter(session_id=session_id).delete()
+
+
+def relay_for_token(token_hash: str) -> AgentRelay | None:
+    return AgentRelay.objects.filter(token_hash=token_hash).first()
+
+
+def unanswered_call_count(relay_id: int) -> int:
+    return AgentCall.objects.filter(relay_id=relay_id, answer_status=None).count()
+
+
+def add_call(relay_id: int, body: bytes) -> AgentCall:
+    return AgentCall.objects.create(id=uuid4(), relay_id=relay_id, body=body)
+
+
+def find_call(call_id: UUID) -> AgentCall | None:
+    return AgentCall.objects.filter(pk=call_id).first()
+
+
+def delete_call(call_id: UUID) -> None:
+    AgentCall.objects.filter(pk=call_id).delete()
+
+
+def take_calls(session_id: str) -> list[AgentCall]:
+    """The session's calls nobody has collected, marked collected."""
+    with transaction.atomic():
+        calls = list(
+            AgentCall.objects.select_for_update()
+            .filter(relay__session_id=session_id, collected=False)
+            .order_by("created_at")
+        )
+        AgentCall.objects.filter(pk__in=[call.pk for call in calls]).update(
+            collected=True
+        )
+    return calls
+
+
+def set_call_answer(session_id: str, call_id: UUID, status: int, body: bytes) -> bool:
+    """Store the answer to a collected call. False when it is gone or answered."""
+    return bool(
+        AgentCall.objects.filter(
+            pk=call_id,
+            relay__session_id=session_id,
+            collected=True,
+            answer_status=None,
+        ).update(answer_status=status, answer=body)
     )

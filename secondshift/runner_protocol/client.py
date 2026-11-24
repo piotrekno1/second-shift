@@ -1,8 +1,10 @@
+import base64
 from collections.abc import Callable
 from dataclasses import asdict
 from pathlib import Path
 from types import TracebackType
 from typing import Any, Self
+from uuid import UUID
 
 import httpx
 from django.conf import settings
@@ -13,6 +15,11 @@ from secondshift.runner_protocol.credentials import (
     same_key,
 )
 from secondshift.runner_protocol.environments import RunnerEnvironments
+from secondshift.runner_protocol.relay import (
+    COLLECT_WAIT_SECONDS,
+    RelayedAnswer,
+    RelayedCall,
+)
 from secondshift.runner_protocol.schemas import AgentCheckInput, AgentInput, AgentOutput
 from secondshift.runner_protocol.sessions import (
     MAX_SETUP_SECONDS,
@@ -197,6 +204,44 @@ class HttpRunnerClient:
                 "for it. No login was sent."
             )
         return encrypt_agent_auth(key, auth)
+
+    def agent_calls(self, session_id: str) -> list[RelayedCall] | None:
+        """The agent's tool calls nobody has collected yet. The runner holds
+        the request a few seconds while there are none. None when the runner
+        doesn't relay agent calls.
+        """
+        response = self.send(
+            "GET",
+            f"/v1/sessions/{session_id}/agent/calls",
+            timeout=COLLECT_WAIT_SECONDS + 15,
+        )
+        if response.status_code == 404:
+            return None
+        calls = self.response_payload(response).get("calls")
+        if not isinstance(calls, list):
+            raise RunnerProtocolError("Runner returned an invalid response.")
+        try:
+            return [
+                RelayedCall(
+                    str(UUID(item["id"])), base64.b64decode(item["body"], validate=True)
+                )
+                for item in calls
+            ]
+        except (KeyError, TypeError, ValueError):
+            raise RunnerProtocolError("Runner returned an invalid response.") from None
+
+    def answer_agent_call(
+        self, session_id: str, call_id: str, answer: RelayedAnswer
+    ) -> None:
+        response = self.send(
+            "POST",
+            f"/v1/sessions/{session_id}/agent/calls/{call_id}",
+            params={"status": answer.status},
+            content=answer.body,
+            headers={"Content-Type": "application/octet-stream"},
+        )
+        if response.status_code != 204:
+            self.response_payload(response)
 
     def run_agent(self, session_id: str, request: AgentInput) -> AgentOutput:
         response = self.send(

@@ -19,6 +19,7 @@ from secondshift.runs.dao import (
     run_has_lease,
 )
 from secondshift.runs.execution.agent_broker import AgentAccessError, run_connection
+from secondshift.runs.execution.agent_relay import relaying
 from secondshift.runs.execution.budgets import Budget, budget_failure
 from secondshift.runs.execution.deadlines import run_deadline, timeout_failure
 from secondshift.runs.execution.result import AgentResult
@@ -138,7 +139,9 @@ def execute_cli_step(run_id: int, session_id: str, prompt: str) -> dict[str, Any
                 raise RuntimeError(
                     "The agent's input is larger than the runner accepts."
                 ) from None
-            result = client.run_agent(session_id, agent_input)
+            # A runner on another host relays the agent's tool calls.
+            with relaying(lambda: runner_client_for(run_id), session_id, lease):
+                result = client.run_agent(session_id, agent_input)
     finally:
         end_lease(lease.pk)
     report = result.report.strip()

@@ -99,6 +99,26 @@ def test_environment_overrides_reach_each_service(
     assert config["accesslog"] is None
 
 
+@pytest.mark.parametrize(
+    ("role", "bind"),
+    [
+        (Service.RUNNER, ["0.0.0.0:8002", "0.0.0.0:8003"]),
+        # Only a runner relays agent calls.
+        (Service.GATEWAY, ["0.0.0.0:8002"]),
+    ],
+)
+def test_a_relaying_runner_also_listens_on_the_relay_port(
+    tmp_path: Path, role: Service, bind: list[str]
+) -> None:
+    config = server_config(
+        role,
+        tmp_path,
+        {AppEnv.HTTP_BIND: "0.0.0.0:8002", AppEnv.RUNNER_AGENT_RELAY_PORT: "8003"},
+    )
+
+    assert config["bind"] == bind
+
+
 def test_worker_cannot_be_started_as_an_http_service(tmp_path: Path) -> None:
     with pytest.raises(subprocess.CalledProcessError) as error:
         server_config(Service.WORKER, tmp_path)

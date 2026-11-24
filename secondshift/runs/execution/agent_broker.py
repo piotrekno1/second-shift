@@ -13,6 +13,7 @@ from pydantic_ai import ModelRetry, RunContext, RunUsage, Tool, ToolFailed
 from secondshift.connections.agents import usable_agent_connection
 from secondshift.connections.dao import find_agent_connection
 from secondshift.connections.models import AgentConnection
+from secondshift.runner_protocol.relay import MAX_CALL_BYTES
 from secondshift.runs.artifacts import run_payload
 from secondshift.runs.dao import active_lease, get_run, lock_lease
 from secondshift.runs.execution.access_needs import access_tool
@@ -179,6 +180,38 @@ def mcp_request(lease: AgentLease, message: dict[str, Any]) -> dict[str, Any] | 
     raise MethodNotFound(str(method))
 
 
+def broker_answer(lease: AgentLease, body: bytes) -> tuple[int, dict[str, Any] | None]:
+    """The HTTP status and JSON body that answer one MCP message, for the
+    gateway's endpoint and for calls relayed through a runner alike.
+    """
+    if len(body) > MAX_CALL_BYTES:
+        return 413, None
+    message: dict[str, Any] = {}
+    try:
+        message = json.loads(body)
+        if not isinstance(message, dict):
+            return 400, None
+        result = mcp_request(lease, message)
+        if "id" not in message:
+            return 202, None
+        return 200, {"jsonrpc": "2.0", "id": message["id"], "result": result}
+    except MethodNotFound:
+        return 200, {
+            "jsonrpc": "2.0",
+            "id": message.get("id"),
+            "error": {"code": -32601, "message": "Method not found."},
+        }
+    except Exception:
+        return 200, {
+            "jsonrpc": "2.0",
+            "id": message.get("id"),
+            "error": {
+                "code": -32000,
+                "message": "Agent access denied or tool request invalid.",
+            },
+        }
+
+
 @csrf_exempt
 def agent_mcp(request: HttpRequest) -> HttpResponse:
     if request.method != "POST":
@@ -187,33 +220,9 @@ def agent_mcp(request: HttpRequest) -> HttpResponse:
     lease = active_lease(hashlib.sha256(token.encode()).hexdigest()) if token else None
     if lease is None:
         return HttpResponse(status=401)
-    if len(request.body) > 1024 * 1024:
+    if len(request.body) > MAX_CALL_BYTES:
         return HttpResponse(status=413)
-    message: dict[str, Any] = {}
-    try:
-        message = json.loads(request.body)
-        if not isinstance(message, dict):
-            return HttpResponse(status=400)
-        result = mcp_request(lease, message)
-        if "id" not in message:
-            return HttpResponse(status=202)
-        return JsonResponse({"jsonrpc": "2.0", "id": message["id"], "result": result})
-    except MethodNotFound:
-        return JsonResponse(
-            {
-                "jsonrpc": "2.0",
-                "id": message.get("id"),
-                "error": {"code": -32601, "message": "Method not found."},
-            }
-        )
-    except Exception:
-        return JsonResponse(
-            {
-                "jsonrpc": "2.0",
-                "id": message.get("id"),
-                "error": {
-                    "code": -32000,
-                    "message": "Agent access denied or tool request invalid.",
-                },
-            }
-        )
+    status, payload = broker_answer(lease, request.body)
+    if payload is None:
+        return HttpResponse(status=status)
+    return JsonResponse(payload, status=status)

@@ -7,6 +7,7 @@ has its own apps, database credentials, authentication token, and network policy
 import os
 import secrets
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from django.core.exceptions import ImproperlyConfigured
 from environ import Env
@@ -162,6 +163,14 @@ AGENT_BROKER_URL = env.str(
     if SINGLE_HOST
     else "",
 )
+
+# When set, this runner's agents send their tool calls to the runner on this
+# port, and the worker collects them. For a runner on another host, which
+# can't reach the gateway. The agent broker URL then names the egress proxy's
+# forward to this port.
+AGENT_RELAY_PORT = env.int(AppEnv.RUNNER_AGENT_RELAY_PORT, default=0)
+if AGENT_RELAY_PORT and (relay_host := urlsplit(AGENT_BROKER_URL).hostname):
+    ALLOWED_HOSTS = [*ALLOWED_HOSTS, relay_host]
 
 AGENT_AUTH_ROOT = RUNNER_WORK_ROOT / "agent-auth"
 # Agents reach their provider only through the egress proxy. A server runs it
