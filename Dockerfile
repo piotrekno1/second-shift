@@ -13,11 +13,11 @@ RUN npm run build
 
 # Build dependencies and static files without retaining uv or its build cache.
 FROM python-base AS builder
-COPY --from=ghcr.io/astral-sh/uv:python3.13-bookworm-slim@sha256:531f855bda2c73cd6ef67d56b733b357cea384185b3022bd09f05e002cd144ca /usr/local/bin/uv /usr/local/bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.13.8@sha256:5cc1805e2426484abca4ad46ea783bab281fdb225fd82d8ce6d66a81254bac85 /uv /usr/local/bin/uv
 ENV UV_LINK_MODE=copy SECONDSHIFT_ENV=production PYTHONDONTWRITEBYTECODE=1
 WORKDIR /app
 COPY pyproject.toml uv.lock ./
-RUN --mount=type=cache,target=/root/.cache/uv uv sync --frozen --no-dev --no-install-project
+RUN --mount=type=cache,target=/root/.cache/uv uv sync --locked --no-dev --group build --no-install-project
 COPY README.md LICENSE manage.py ./
 COPY secondshift/ ./secondshift/
 COPY --from=frontend /app/secondshift/web /app/secondshift/web
@@ -27,7 +27,7 @@ COPY --from=frontend /app/secondshift/web /app/secondshift/web
 # API documentation still ships, without its development source maps.
 # Refresh the local wheel when application source or bundled frontend changes.
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-dev --no-editable --reinstall-package secondshift && \
+    uv sync --locked --no-dev --group build --no-editable --reinstall-package secondshift && \
     cd /tmp && \
     SECONDSHIFT_ENCRYPTION_KEY="$(/app/.venv/bin/python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())')" \
     DJANGO_SETTINGS_MODULE=secondshift.config.settings.base /app/.venv/bin/python -m django collectstatic --noinput && \

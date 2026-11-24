@@ -5,6 +5,9 @@ on:
     tags:
       - 'v*'
 
+env:
+  UV_LOCKED: "1"
+
 permissions:
   contents: read
 
@@ -24,6 +27,7 @@ jobs:
         run: git merge-base --is-ancestor HEAD origin/main
       - uses: astral-sh/setup-uv@v10.3.3
         with:
+          version: "0.13.8"
           python-version: '3.13'
           # The release builds from a clean install. A poisoned cache could
           # change what ships.
@@ -45,7 +49,7 @@ jobs:
           if tag != f'v{version}':
               raise SystemExit(f'Tag {tag} must match project version {version}')
           PY
-      - run: uv sync --frozen
+      - run: uv sync --locked
       - uses: actions/setup-node@v7.1.0
         with:
           node-version: 24
@@ -55,7 +59,7 @@ jobs:
       # The same checks as CI. check-frontend also builds the dashboard the
       # wheel bundles.
       - run: make check
-      - run: uv build --wheel
+      - run: uv build --wheel --no-build-isolation
       - name: Verify bundled dashboard
         run: |
           uv run --no-project python - <<'PY'

@@ -1,6 +1,8 @@
 # The checks CI runs, in one place. Run `make check` before pushing.
 # Install dependencies first with `uv sync` and `npm --prefix dashboard ci`.
 
+export UV_LOCKED = 1
+
 BENCHMARKS = uv run pytest secondshift/benchmarks -o python_files='bench_*.py'
 
 .PHONY: check check-backend check-frontend check-api-types fix
