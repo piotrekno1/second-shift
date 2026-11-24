@@ -100,8 +100,10 @@ time. An operator may set a lower limit.
 
 ### Placement
 
-Add a durable step, `secondshift.assign_runner`, at the start of
-`execute_run`, before `prepare_source` and `start_runner_session`:
+`runs.runners.assign_runner(run_id)` runs at the top of the existing
+`secondshift.start_runner_session` step, before any upload. It is not a step of
+its own, because a new step would shift DBOS step numbers in workflows already
+in flight.
 
 1. In `transaction.atomic()`, lock the run row. If `run.runner_id` is already
    set, return it. A replay after a crash then lands on the same runner.
@@ -134,15 +136,15 @@ Replace `get_runner_client()` with:
 - `runner_client(runner)`, which fleet operations use: environment refresh,
   login checks and cleanup.
 
-Keep step names and argument lists unchanged. Steps such as
-`execute_runner_command(session_id, …)` resolve the runner from the run inside
-the step, not from a new argument. Workflows already in flight across the
-upgrade then replay with the same recorded inputs, and they land on the
-`default` runner that the migration created. To keep tool calls cheap, the
-lookup is one indexed read (`runs.dao.runner_for_run`), and its result is cached
-for the life of the agent loop.
+Keep step names unchanged. `execute_runner_command` and `stop_runner_session`
+take the run ID first, so they can find the run's runner. DBOS checks only the
+recorded step name on replay, so workflows already in flight across the upgrade
+replay correctly. A run with no runner, which can only be one that started
+before the upgrade, uses the configured runner. The lookup is one read of the run
+with its runner.
 
-`AgentLease` gains `runner_id`, which `agent_broker` uses for gateway tool calls.
+The broker gets the run from the lease, so `AgentLease` needs no runner of its
+own.
 
 ### Subscription logins
 
@@ -219,8 +221,8 @@ runtime placement or flags.
 
 ## Migration and compatibility
 
-1. Add the schema: `Runner`, `Run.runner_id` (nullable), `AgentLease.runner_id`
-   and `RunnerCredentialCopy`, from generated migrations.
+1. Add the schema: `Runner`, `Run.runner` (nullable) and
+   `RunnerCredentialCopy`, from generated migrations.
 2. The worker registers `default` from the existing env vars. Installs without
    those vars, such as some dev setups, register nothing, and the control plane
    reports "no runner registered".
@@ -237,9 +239,8 @@ Each step is a separate PR that ships on its own:
 1. **Registry and seed** (#484). Add the model, the CLI and the worker task
    that registers `default`. Behaviour is unchanged because everything still
    goes to `default`.
-2. **Routing.** Add `runner_client_for(run)` and switch all callers, then put
-   `runner_id` on `Run` and `AgentLease`. `assign_runner` always picks
-   `default`.
+2. **Routing** (#485). Add `Run.runner` and `runner_client_for(run_id)`, and
+   switch every session-scoped caller. `assign_runner` always picks `default`.
 3. **Placement and capacity.** Add a real choice, `/v1/info`,
    `max_sessions`, and the retry when capacity is full.
 4. **Logins.** Seal per runner, record copies and fan out cleanup.
