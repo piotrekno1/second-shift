@@ -21,7 +21,7 @@ from secondshift.config.first_run import default_runner_images
 ROLE_FILES = {role: f"{role}.env" for role in Service}
 
 
-def generate_environment(hostname: str, directory: Path) -> None:
+def prepare_directory(hostname: str, directory: Path) -> Path:
     if len(hostname) > 253 or not all(
         re.fullmatch(r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?", label)
         for label in hostname.split(".")
@@ -36,6 +36,49 @@ def generate_environment(hostname: str, directory: Path) -> None:
         raise FileExistsError(
             "Configuration already exists; reuse it rather than generating new keys"
         )
+    return directory
+
+
+def runner_values(token: str, allowed_host: str, directory: Path) -> dict[str, str]:
+    runner = directory / "runner"
+    runner.mkdir(mode=0o700, exist_ok=True)
+    return {
+        AppEnv.HTTP_BIND: "0.0.0.0:8002",
+        AppEnv.HTTP_PROCESSES: "1",
+        AppEnv.HTTP_TIMEOUT_SECONDS: "180",
+        AppEnv.RUNNER_ALLOWED_HOSTS: allowed_host,
+        AppEnv.RUNNER_SERVICE_TOKEN: token,
+        AppEnv.RUNNER_RUNTIME: SandboxRuntime.GVISOR,
+        AppEnv.DATA_DIR: str(runner),
+        AppEnv.RUNNER_WORK_ROOT: str(runner),
+    }
+
+
+def write_env(directory: Path, role: Service, values: dict[str, str]) -> None:
+    descriptor = os.open(
+        directory / ROLE_FILES[role], os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600
+    )
+    with os.fdopen(descriptor, "w") as output:
+        output.write(f"{ENVIRONMENT_VAR}={Environment.PRODUCTION}\n")
+        output.write(f"{SERVICE_VAR}={role}\n")
+        for name, value in values.items():
+            output.write(f"{name}={value}\n")
+        if role == Service.RUNNER:
+            output.write("\n" + default_runner_images())
+
+
+def generate_runner_environment(hostname: str, directory: Path) -> None:
+    """Only runner.env, for a runner on another host. The control plane
+    registers it with the token in that file."""
+    directory = prepare_directory(hostname, directory)
+    token = secrets.token_urlsafe(48)
+    write_env(
+        directory, Service.RUNNER, runner_values(token, hostname.lower(), directory)
+    )
+
+
+def generate_environment(hostname: str, directory: Path) -> None:
+    directory = prepare_directory(hostname, directory)
     common = {
         AppEnv.SECRET_KEY: secrets.token_urlsafe(48),
         AppEnv.ENCRYPTION_KEY: Fernet.generate_key().decode(),
@@ -46,8 +89,6 @@ def generate_environment(hostname: str, directory: Path) -> None:
         AppEnv.RUNNER_RUNTIME: SandboxRuntime.GVISOR,
     }
     token = secrets.token_urlsafe(48)
-    runner = directory / "runner"
-    runner.mkdir(mode=0o700, exist_ok=True)
     configs = {
         Service.WEB: {
             **common,
@@ -72,28 +113,10 @@ def generate_environment(hostname: str, directory: Path) -> None:
             AppEnv.RUNNER_SERVICE_TOKEN: token,
             AppEnv.MODEL_GATEWAY_URL: "http://secondshift-gateway:8001",
         },
-        Service.RUNNER: {
-            AppEnv.HTTP_BIND: "0.0.0.0:8002",
-            AppEnv.HTTP_PROCESSES: "1",
-            AppEnv.HTTP_TIMEOUT_SECONDS: "180",
-            AppEnv.RUNNER_ALLOWED_HOSTS: "secondshift-runner",
-            AppEnv.RUNNER_SERVICE_TOKEN: token,
-            AppEnv.RUNNER_RUNTIME: SandboxRuntime.GVISOR,
-            AppEnv.DATA_DIR: str(runner),
-            AppEnv.RUNNER_WORK_ROOT: str(runner),
-        },
+        Service.RUNNER: runner_values(token, "secondshift-runner", directory),
     }
     for role, values in configs.items():
-        descriptor = os.open(
-            directory / ROLE_FILES[role], os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600
-        )
-        with os.fdopen(descriptor, "w") as output:
-            output.write(f"{ENVIRONMENT_VAR}={Environment.PRODUCTION}\n")
-            output.write(f"{SERVICE_VAR}={role}\n")
-            for name, value in values.items():
-                output.write(f"{name}={value}\n")
-            if role == Service.RUNNER:
-                output.write("\n" + default_runner_images())
+        write_env(directory, role, values)
 
 
 def main() -> None:
@@ -107,14 +130,24 @@ def main() -> None:
         default=Path.cwd(),
         help="Output directory (default: current directory)",
     )
+    parser.add_argument(
+        "--runner",
+        action="store_true",
+        help="Only runner.env, for a runner on another host. --hostname is its own.",
+    )
     args = parser.parse_args()
+    generate = generate_runner_environment if args.runner else generate_environment
     try:
-        generate_environment(args.hostname, args.directory)
+        generate(args.hostname, args.directory)
     except (ValueError, OSError) as error:
         parser.exit(1, f"{error}\n")
-    print(
-        "Created web.env, gateway.env, worker.env and runner.env. Keep these files private."
-    )
+    if args.runner:
+        print("Created runner.env. Keep it private.")
+    else:
+        print(
+            "Created web.env, gateway.env, worker.env and runner.env. "
+            "Keep these files private."
+        )
 
 
 if __name__ == "__main__":

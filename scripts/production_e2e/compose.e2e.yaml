@@ -14,14 +14,21 @@ services:
       - ./scripts:/scripts:ro
       - ${E2E_CA_BUNDLE:?}:/etc/ssl/certs/ca-certificates.crt:ro
       - ${E2E_CA_BUNDLE:?}:${E2E_CERTIFI:?}:ro
+    extra_hosts:
+      - runner-b.e2e.test:${RUNNER_B_ADDRESS:-127.0.0.1}
   gateway:
     volumes:
       - ${E2E_CA_BUNDLE:?}:/etc/ssl/certs/ca-certificates.crt:ro
       - ${E2E_CA_BUNDLE:?}:${E2E_CERTIFI:?}:ro
+    extra_hosts:
+      - runner-b.e2e.test:${RUNNER_B_ADDRESS:-127.0.0.1}
   worker:
     volumes:
       - ${E2E_CA_BUNDLE:?}:/etc/ssl/certs/ca-certificates.crt:ro
       - ${E2E_CA_BUNDLE:?}:${E2E_CERTIFI:?}:ro
+    # The second test host, where compose.runner.yaml runs.
+    extra_hosts:
+      - runner-b.e2e.test:${RUNNER_B_ADDRESS:-127.0.0.1}
 
   caddy:
     volumes:

@@ -64,6 +64,13 @@ token and secret replaced by `[redacted]`. The test host is removed either way.
    other database, and web and worker refuse to start without a required
    credential, without printing any secret.
 
+10. A runner on a second gVisor host, from `compose.runner.yaml` with its own
+    PostgreSQL, Caddy and egress proxy, set up and registered as the guide
+    says. With the first runner drained, a report runs there and reaches the
+    webhook, and the run names it. The deterministic agent runs there too, and
+    its tool calls reach the worker through that runner's relay, since that
+    host has no route to the gateway. The runner is then removed.
+
 The backup, restore and update steps run the bash blocks of the guide's
 "Update and back up" section, so the published commands are what is tested.
 
@@ -77,7 +84,9 @@ still need an operator smoke test.
 
 `run.sh` builds the image, starts a `docker:dind` host, installs a pinned gVisor
 release and registers `runsc`, copies in the working tree and runs the steps
-in `host.sh`. Everything else runs in the app image, so there are no extra
+in `host.sh`. For the last step it starts a second such host on a shared Docker
+network. `compose.runner-e2e.yaml` gives its Caddy a certificate from the test
+CA, and the control plane's services resolve `runner-b.e2e.test` to it. Everything else runs in the app image, so there are no extra
 dependencies:
 
 - `compose.e2e.yaml` adds the test services to `compose.production.yaml`:
@@ -103,5 +112,6 @@ key here, so the gateway reads with the application key.
 
 If a step fails, the host is kept and the step's log is printed. See service
 logs with `docker exec secondshift-e2e-host sh
-/opt/secondshift/scripts/production_e2e/host.sh logs`, and remove the host with
-`docker rm -f -v secondshift-e2e-host`.
+/opt/secondshift/scripts/production_e2e/host.sh logs`, and remove the hosts with
+`docker rm -f -v secondshift-e2e-host secondshift-e2e-runner-host` and
+`docker network rm secondshift-e2e`.

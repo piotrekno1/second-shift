@@ -1,0 +1,7 @@
+# Test-only override for compose.runner.yaml on the second test host. Caddy
+# serves a certificate from the test CA instead of asking a public CA.
+services:
+  caddy:
+    volumes:
+      - ./scripts/production_e2e/Caddyfile.runner:/etc/caddy/Caddyfile:ro
+      - ./scripts/production_e2e/certs:/certs:ro

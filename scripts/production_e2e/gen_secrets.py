@@ -42,7 +42,14 @@ ca = (
     .sign(ca_key, hashes.SHA256())
 )
 leaf_key = key()
-names = ["api.github.com", "github.com", "model.e2e.test", "hooks.e2e.test"]
+names = [
+    "api.github.com",
+    "github.com",
+    "model.e2e.test",
+    "hooks.e2e.test",
+    # The runner on the second host.
+    "runner-b.e2e.test",
+]
 leaf = (
     x509.CertificateBuilder()
     .subject_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, names[0])]))

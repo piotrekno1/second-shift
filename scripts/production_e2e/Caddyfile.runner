@@ -1,0 +1,4 @@
+{$RUNNER_DOMAIN} {
+	tls /certs/fake.pem /certs/fake.key
+	reverse_proxy runner:8002
+}

@@ -3,6 +3,7 @@
 Runs inside the deployment's network; host.sh starts it:
     python drive.py first INVITE_LINK
     python drive.py after-restart
+    python drive.py second-runner
 """
 
 import json
@@ -502,6 +503,49 @@ def after_restart() -> None:
     )
 
 
+def commit_and_sync(client: Client, repository_id: int, name: str) -> tuple[str, str]:
+    """Push a commit with a new marker and wait for the worker to sync it."""
+    marker = "smoke-" + secrets.token_hex(6)
+    with urllib.request.urlopen(
+        urllib.request.Request(
+            FAKE + "/_e2e/commit",
+            data=json.dumps({"marker": marker}).encode(),
+            method="POST",
+        ),
+        timeout=30,
+    ) as response:
+        head = json.load(response)["sha"]
+    deadline = time.monotonic() + 90
+    while time.monotonic() < deadline:
+        detail = client.json("GET", f"/api/repositories/{repository_id}")
+        if detail["revision"] == head:
+            break
+        time.sleep(2)
+    check(name, detail["revision"] == head, detail)
+    return marker, head
+
+
+def second_runner() -> None:
+    """A report run while only the runner on the second host is active."""
+    client = Client()
+    sign_in(client)
+    repository = next(
+        item
+        for item in client.json("GET", "/api/repositories")
+        if item["full_name"] == "acme/e2e-fixture"
+    )
+    marker, head = commit_and_sync(
+        client, repository["id"], "worker syncs a new commit"
+    )
+    saved = json.loads(STATE.read_text())
+    run = check_report(client, saved["report_job"], marker, head)
+    check(
+        "the run ran on the runner on the second host",
+        run.get("runner") == "runner-b",
+        run.get("runner"),
+    )
+
+
 def pat_only() -> None:
     client = Client()
     sign_in(client)
@@ -530,26 +574,10 @@ def pat_only() -> None:
     client.json(
         "POST", f"/api/repositories/{imported['id']}/enabled", {"enabled": True}
     )
-    marker = "smoke-" + secrets.token_hex(6)
-    with urllib.request.urlopen(
-        urllib.request.Request(
-            FAKE + "/_e2e/commit",
-            data=json.dumps({"marker": marker}).encode(),
-            method="POST",
-        ),
-        timeout=30,
-    ) as response:
-        head = json.load(response)["sha"]
-    deadline = time.monotonic() + 90
-    while time.monotonic() < deadline:
-        detail = client.json("GET", f"/api/repositories/{imported['id']}")
-        if detail["revision"] == head:
-            break
-        time.sleep(2)
-    check(
+    marker, head = commit_and_sync(
+        client,
+        imported["id"],
         "worker automatically syncs PAT repository without App",
-        detail["revision"] == head,
-        detail,
     )
     saved = json.loads(STATE.read_text())
     check_report(client, saved["report_job"], marker, head)
@@ -565,6 +593,8 @@ def main() -> int:
             first(sys.argv[2])
         elif sys.argv[1] == "pat-only":
             pat_only()
+        elif sys.argv[1] == "second-runner":
+            second_runner()
         else:
             after_restart()
     except Failure as error:
