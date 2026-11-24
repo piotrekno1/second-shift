@@ -187,6 +187,11 @@ a periodic worker task (`runner_health.refresh_runners`), which also records
   answer. Health is kept apart from `state`: if it flipped `state` to `down`
   and back to `active`, a runner the operator drained would be reactivated
   when it came back.
+  - **Clocks.** Health never reads a time from a runner, so a runner's clock
+    can be off. `failing_since` is stamped by the database (`Now()`), and the
+    thresholds compare against the database's time, not the host's. The web
+    app and the worker may run on different hosts, and skew between them
+    would otherwise shift both thresholds by that amount.
   - After 2 minutes of failing, placement and login routing skip the runner,
     and logins whose home it is move.
   - After 10 minutes, the refresh fails its active runs with the `runner`

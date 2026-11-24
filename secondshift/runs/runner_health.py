@@ -16,10 +16,8 @@ back stays drained.
 """
 
 import logging
-from datetime import timedelta
 
 from django.db import transaction
-from django.utils import timezone
 
 from secondshift.runner_protocol.sessions import RunnerProtocolError, session_id_for
 from secondshift.runs import dao
@@ -63,7 +61,7 @@ def check_runner(runner: Runner) -> bool:
             )
     except RunnerProtocolError as error:
         logger.warning("runner %s did not answer: %s", runner.name, error)
-        dao.mark_runner_failing(runner.pk, timezone.now())
+        dao.mark_runner_failing(runner.pk)
         return False
     dao.set_runner_environments(runner.pk, sorted(offered.images))
     if not runner.provisioning_key:
@@ -81,9 +79,8 @@ def fail_runs_on_lost_runners() -> int:
     the runner. When that call ends, the run is already finished and the
     workflow changes nothing.
     """
-    cutoff = timezone.now() - timedelta(seconds=LOST_SECONDS)
     failed = 0
-    for runner in dao.runners_failing_since(cutoff):
+    for runner in dao.runners_failing_for(LOST_SECONDS):
         for run_id in dao.active_run_ids_on(runner.pk):
             failed += int(fail_lost_run(run_id, runner))
     return failed

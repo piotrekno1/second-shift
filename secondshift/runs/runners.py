@@ -16,7 +16,6 @@ import logging
 import math
 import time
 from collections.abc import Callable
-from datetime import datetime, timedelta
 from urllib.parse import urlsplit
 
 from django.conf import settings
@@ -284,11 +283,6 @@ def choose_runner(
     )
 
 
-def unreachable_cutoff() -> datetime:
-    """Runners failing since before this take no runs."""
-    return timezone.now() - timedelta(seconds=UNREACHABLE_SECONDS)
-
-
 def placement_problem(environment: str) -> str:
     """Why no runner could ever take this run, or nothing when one could.
 
@@ -346,7 +340,7 @@ def try_assign_runner(
         if run.runner_id is not None:
             return run.runner
         runners = dao.lock_runners_in(
-            DEFAULT_POOL, Runner.State.ACTIVE, unreachable_cutoff()
+            DEFAULT_POOL, Runner.State.ACTIVE, UNREACHABLE_SECONDS
         )
         candidates = login_candidates(runners, credential_key, environment)
         counts = dao.unfinished_run_counts([runner.pk for runner in candidates])
@@ -412,7 +406,7 @@ def runner_for_login(credential_key: str) -> Runner | None:
     ensure_configured_runner()
     with transaction.atomic():
         runners = dao.lock_runners_in(
-            DEFAULT_POOL, Runner.State.ACTIVE, unreachable_cutoff()
+            DEFAULT_POOL, Runner.State.ACTIVE, UNREACHABLE_SECONDS
         )
         home = dao.login_home(credential_key)
         for runner in runners:

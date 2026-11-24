@@ -283,3 +283,33 @@ def test_a_runner_that_cannot_be_reached_is_named_as_the_cause() -> None:
     assert lost.kind == RunFailure.RUNNER
     assert lost.reason == "The runner did not answer in time."
     assert refused.kind == RunFailure.SANDBOX
+
+
+def test_a_control_plane_clock_that_is_off_does_not_move_the_thresholds(
+    run: Run, fake: FakeRunners, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    sync_configured_runner()
+    change_runner_state("default", Runner.State.DRAINING)
+    runner = make_runner("runner-b")
+    pinned_running(run, runner)
+    # The worker found it failing just now.
+    refresh_runners()
+    # Another host, whose clock runs an hour ahead, reads that.
+    ahead = timezone.now() + timedelta(hours=1)
+    monkeypatch.setattr(timezone, "now", lambda: ahead)
+
+    # Ten minutes have not passed by the database's clock, so its run goes on.
+    assert fail_runs_on_lost_runners() == 0
+    # Nor have two, so it still takes runs.
+    Run.objects.filter(pk=run.pk).update(status=Run.Status.SUCCEEDED)
+    assert assign_runner(another_run(run).pk) == runner
+
+
+def another_run(run: Run) -> Run:
+    copy = Run.objects.get(pk=run.pk)
+    copy.pk = None
+    copy.runner = None
+    copy.status = Run.Status.QUEUED
+    copy.scheduled_for = run.scheduled_for + timedelta(minutes=1)
+    copy.save()
+    return copy

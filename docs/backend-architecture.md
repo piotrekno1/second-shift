@@ -193,7 +193,9 @@ new key after a deliberate change.
 
 `runs/runner_health.py` checks every runner each minute, except those an
 operator marked down. A runner that doesn't answer gets `Runner.failing_since`,
-which clears at its next answer. Health never changes `state`, so a drained
+which clears at its next answer. The database stamps it and compares against
+it with `Now()`, so the thresholds don't depend on which control-plane host
+reads them, and the runner's clock is never used. Health never changes `state`, so a drained
 runner that comes back stays drained. After two minutes of failing, placement
 and login routing skip the runner, and logins whose home it is move. After ten,
 its active runs fail with the `runner` failure and its sessions go into
