@@ -458,8 +458,8 @@ worker ──answer─────────────▶ runner ──answe
 
 ### Rollout
 
-1. Agents configured: the runner reports it, `runners list` shows it, `runners
-   add` warns.
+1. Agents configured (#494): the runner reports it, `runners list` shows it,
+   `runners add` warns.
 2. The relay, the pending call table, the two endpoints and the worker's
    collection, used only by runners configured for it.
 3. A Compose file for a runner on another host, with the relay port and the

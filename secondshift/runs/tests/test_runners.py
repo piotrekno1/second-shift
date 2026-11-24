@@ -34,6 +34,7 @@ from secondshift.runs.tests.test_workflows import execution_run
 
 TOKEN = "t" * 32
 OTHER_TOKEN = "o" * 32
+TOKEN_C = "c" * 32
 
 
 @pytest.fixture
@@ -472,3 +473,49 @@ def test_list_shows_a_runner_that_does_not_answer(
     call_command("runners", "list")
 
     assert "runner-b\tactive\tnot answering since " in capsys.readouterr().out
+
+
+@pytest.mark.django_db
+def test_list_shows_whether_each_runner_can_run_agents(
+    configured: Any, capsys: pytest.CaptureFixture[str]
+) -> None:
+    add_runner("runner-b", "https://runner-b:8002", OTHER_TOKEN)
+    add_runner("runner-c", "https://runner-c:8002", TOKEN_C)
+    Runner.objects.filter(name="runner-b").update(agents=True)
+    Runner.objects.filter(name="runner-c").update(agents=False)
+
+    call_command("runners", "list")
+
+    lines = capsys.readouterr().out.splitlines()
+    agents = {line.split("\t")[0]: line for line in lines}
+    assert "agents=unknown" in agents["default"]
+    assert "agents=yes" in agents["runner-b"]
+    assert "agents=no" in agents["runner-c"]
+
+
+@pytest.mark.django_db
+def test_add_warns_about_a_runner_without_agents(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv("RUNNER_B_TOKEN", TOKEN)
+
+    def answers_without_agents(runner: Runner) -> None:
+        Runner.objects.filter(pk=runner.pk).update(
+            provisioning_key=public_key_pem(), agents=False
+        )
+
+    monkeypatch.setattr(
+        "secondshift.runs.management.commands.runners.check_runner",
+        answers_without_agents,
+    )
+
+    call_command(
+        "runners",
+        "add",
+        "runner-b",
+        "https://runner-b:8002",
+        "--token-env",
+        "RUNNER_B_TOKEN",
+    )
+
+    assert "runner-b has no agent image" in capsys.readouterr().err

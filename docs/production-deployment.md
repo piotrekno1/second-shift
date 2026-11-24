@@ -307,7 +307,7 @@ dc exec web python manage.py runners activate default
 ```
 
 `list` shows each runner's state, whether it answers, its pool, session limit,
-environments, the fingerprint of its provisioning key and its address. Tokens
+environments, whether it can run Claude Code and Codex, the fingerprint of its provisioning key and its address. Tokens
 are never shown.
 
 Runs go to active runners in the `default` pool. A run goes to a runner that
@@ -345,7 +345,8 @@ host only where workspaces use a model provider rather than a subscription.
 
 If workspaces use Claude Code or Codex, every runner needs the agent image from
 [optional subscription agents](#optional-subscription-agents). Placement
-doesn't check, and a runner without it refuses their runs.
+doesn't check, and a runner without it refuses their runs. `runners add` warns
+about a runner without it, and `runners list` shows `agents=no` for it.
 
 Use `--allow-http` only on a private network you trust, such as WireGuard: the
 token, repository files and run output cross it unencrypted. Each runner must

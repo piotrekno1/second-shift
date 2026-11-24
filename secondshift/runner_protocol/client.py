@@ -111,11 +111,17 @@ class HttpRunnerClient:
         )
         images = payload.get("environments")
         default = payload.get("default")
-        if not isinstance(images, dict) or not isinstance(default, str):
+        agents = payload.get("agents")
+        if (
+            not isinstance(images, dict)
+            or not isinstance(default, str)
+            or not isinstance(agents, bool | None)
+        ):
             raise RunnerProtocolError("Runner returned an invalid response.")
         return RunnerEnvironments(
             images={str(name): str(image) for name, image in images.items()},
             default=default,
+            agents=agents,
         )
 
     def start(self, spec: RunnerSessionSpec) -> str:

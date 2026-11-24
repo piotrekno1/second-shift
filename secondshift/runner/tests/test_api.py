@@ -57,7 +57,20 @@ def test_the_runner_lists_its_environments_to_the_control_plane_only(
             "node": "registry.example/node@sha256:def",
         },
         "default": "python",
+        "agents": False,
     }
+
+
+def test_the_runner_says_when_it_can_run_agents(settings) -> None:
+    settings.AGENT_IMAGE = "secondshift-agent@sha256:" + "a" * 64
+    settings.AGENT_BROKER_URL = "http://172.30.0.2:8001/gateway/agent/mcp"
+
+    answer = Client().get(
+        "/v1/environments",
+        HTTP_AUTHORIZATION=f"Bearer {settings.RUNNER_SERVICE_TOKEN}",
+    )
+
+    assert answer.json()["agents"] is True
 
 
 @pytest.mark.django_db

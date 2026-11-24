@@ -862,10 +862,13 @@ def unfinished_run_counts(runner_ids: Collection[int]) -> dict[int, int]:
 
 
 def set_runner_environments(
-    runner_id: int, images: dict[str, str], default: str
+    runner_id: int, images: dict[str, str], default: str, agents: bool | None
 ) -> None:
     Runner.objects.filter(pk=runner_id).update(
-        environments=sorted(images), images=images, default_environment=default
+        environments=sorted(images),
+        images=images,
+        default_environment=default,
+        agents=agents,
     )
 
 

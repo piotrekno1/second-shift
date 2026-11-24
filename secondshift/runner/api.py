@@ -7,6 +7,7 @@ from ninja.security import HttpBearer
 
 from secondshift.runner.agent_credentials import provisioning_public_key
 from secondshift.runner.agents import (
+    agents_configured,
     check_agent,
     execute_agent,
     remove_agent_credentials,
@@ -62,11 +63,17 @@ def health(request: HttpRequest) -> dict[str, bool]:
     return {"ok": True}
 
 
-@api.get("/v1/environments", response=dict[str, dict[str, str] | str])
-def environments(request: HttpRequest) -> dict[str, dict[str, str] | str]:
-    """Each environment this runner offers, its image, and the default's name."""
+@api.get("/v1/environments", response=dict[str, dict[str, str] | str | bool])
+def environments(request: HttpRequest) -> dict[str, dict[str, str] | str | bool]:
+    """Each environment this runner offers, its image, the default's name, and
+    whether it can run Claude Code and Codex.
+    """
     offered = settings.RUNNER_ENVIRONMENTS
-    return {"environments": offered.images, "default": offered.default}
+    return {
+        "environments": offered.images,
+        "default": offered.default,
+        "agents": agents_configured(),
+    }
 
 
 @api.post("/v1/sessions", response={201: SessionOutput})
