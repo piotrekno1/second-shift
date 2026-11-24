@@ -384,37 +384,46 @@ worker ──waiting calls?──────▶ runner ◀──tool call (wait
 worker ──answer─────────────▶ runner ──answer──────────────▶ agent
 ```
 
-- **Runner relay.** The runner listens on a second port, which serves only
-  the relay. The runner host's egress proxy forwards the agents' broker port
-  to it, so agents never reach the runner API. The relay accepts the same
-  JSON-RPC POST as `agent_mcp`, checks the lease token against the
-  `broker_token` the runner received in `run_agent`, stores the request as a
-  pending call for that session, and waits for its answer. A call without an
-  id, a notification, is answered `202` at once. The relay never reads MCP.
-- **Pending calls.** A runner table holds the call's id, session, request
-  body, answer and times. A runner serves requests from several processes, and the
+- **Runner relay.** With `SECONDSHIFT_RUNNER_AGENT_RELAY_PORT` set, the runner
+  also listens on that port. The relay is served only there, at the broker's
+  own path, and the runner API never is: the API refuses any request that
+  arrived on the relay port, judged by the listening socket's port. The
+  runner host's egress proxy forwards the agents' broker port to the relay,
+  and `SECONDSHIFT_AGENT_BROKER_URL` names that forward. The relay accepts the
+  same POST as `agent_mcp`, checks the lease token against the `broker_token`
+  the runner received in `run_agent`, stores the body as a pending call, and
+  waits for the answer, which it returns with the broker's status. It never
+  reads MCP, so a notification waits for its `202` like any other call.
+- **Pending calls.** `AgentRelay` registers a running agent by the hash of
+  its token, and `AgentCall` holds each call's body, whether it was collected,
+  and its answer. A runner serves requests from several processes, and the
   relay's wait and the worker's answer may land in different ones, so the
-  database is what they share. A session's pending calls are deleted when
-  it stops.
+  database is what they share. The relay and its calls are deleted when the
+  agent ends, and a call is deleted once its answer is returned or its wait
+  of ten minutes runs out.
 - **Runner API.** Two session-scoped endpoints behind the service token:
   `GET /v1/sessions/{id}/agent/calls` returns waiting calls, holding the
   request a few seconds while there are none, and
-  `POST /v1/sessions/{id}/agent/calls/{call}` stores an answer. Both are
-  async views, so waiting holds no thread.
+  `POST /v1/sessions/{id}/agent/calls/{call}?status=` stores an answer as the
+  raw body, read as a stream past the runner's 64 KiB upload limit. A call is
+  handed out once, so a tool never runs twice for one call. Under ASGI each
+  request runs in a thread of its own, so a waiting request holds a thread
+  but blocks no other.
 - **Worker.** While `run_agent` blocks, `execute_cli_step` runs a thread that
   collects waiting calls through `runner_client_for(run_id)`, answers each
-  with `mcp_request(lease, message)` and posts the answer. The thread stops
+  with `broker_answer(lease, body)`, which `agent_mcp` now uses too, and posts
+  the answer. The thread stops
   when `run_agent` returns. Every check stays where it is: the lease, the
   run's status and deadline, the tool call budget and the approved tools.
 - **Durability.** The thread lives inside the existing
   `secondshift.execute_cli_agent` step, so no step is added or renamed. A
   retried step refuses to start the agent again, as it does today when a
   lease exists. An answer posted after the session stopped is dropped.
-- **Where it applies.** A runner whose `SECONDSHIFT_AGENT_BROKER_URL` is empty
-  and whose relay is configured uses the relay. It says so in its environments
-  answer, the worker's check stores it on the `Runner` row, and the step
-  collects calls only for such a runner. Single-host and local installs keep the gateway path at
-  first, and nothing changes for them. Moving them to the relay later removes
+- **Where it applies.** The thread runs for every agent run. A runner without
+  the relay answers its first collection with 404 and "This runner does not
+  relay agent calls.", as does a runner from before this change, and the
+  thread ends. Nothing is stored about it, so nothing can go stale. Single-host
+  and local installs keep the gateway path, and nothing changes for them. Moving them to the relay later removes
   the gateway from the agent network.
 - **Agents configured.** The runner reports whether it has an agent image in
   its environments answer. `runners list` shows it and `runners add` warns
@@ -426,8 +435,9 @@ worker ──answer─────────────▶ runner ──answe
 - No new inbound route to the control plane, no new credential and no
   certificate. Every call goes from the control plane to the runner, over the
   pinned, token-authenticated channel it already uses.
-- The lease token never leaves the runner host. A token the agent writes out
-  is useless anywhere else.
+- The runner relay accepts the lease token only from that runner's own
+  agents, and the gateway only on the control plane's private networks. A
+  token the agent writes out is useless from anywhere else.
 - Agents reach the relay port only, through the egress proxy. The runner API,
   which starts containers, stays off the agent network.
 - The relay bounds request size as `agent_mcp` does (1 MiB), and the number of
@@ -438,8 +448,11 @@ worker ──answer─────────────▶ runner ──answe
 
 - Each tool call waits for the worker's next collection. Holding the
   collection request open while there are none keeps this under a second.
-- Each waiting tool call and each collection holds an open request on the
-  runner. Async views keep that from tying up threads.
+- Each waiting tool call and each collection holds an open request, and a
+  thread, on the runner. An agent may have 16 calls waiting.
+- The worker answers up to four of an agent's calls at once, each on its own
+  database connection, as the gateway answers parallel calls in parallel. The
+  tool call budget is still counted under the lease's row lock.
 - Tool audit and rate limits run in the worker instead of the gateway. It is
   the same code.
 
@@ -460,8 +473,8 @@ worker ──answer─────────────▶ runner ──answe
 
 1. Agents configured (#494): the runner reports it, `runners list` shows it,
    `runners add` warns.
-2. The relay, the pending call table, the two endpoints and the worker's
-   collection, used only by runners configured for it.
+2. The relay (#495), the pending call table, the two endpoints and the
+   worker's collection, used only by runners configured for it.
 3. A Compose file for a runner on another host, with the relay port and the
    egress proxy's forward, and the deployment guide.
 4. The production end-to-end suite with two runners.

@@ -1,3 +1,4 @@
+import base64
 from collections.abc import Callable
 from typing import Any
 
@@ -5,6 +6,7 @@ import httpx
 import pytest
 
 from secondshift.runner_protocol.client import HttpRunnerClient
+from secondshift.runner_protocol.relay import RelayedAnswer, RelayedCall
 from secondshift.runner_protocol.sessions import (
     CommandRequest,
     RunnerProtocolError,
@@ -205,3 +207,50 @@ def test_the_client_refuses_an_invalid_agents_answer() -> None:
 
     with pytest.raises(RunnerProtocolError, match="invalid response"):
         client.environments()
+
+
+def test_the_client_collects_relayed_calls() -> None:
+    call_id = "6f1c1c2e-8f43-4d5c-9a8e-3c0b7f0d2a11"
+    client, seen = runner(
+        lambda request: httpx.Response(
+            200,
+            json={"calls": [{"id": call_id, "body": base64.b64encode(b"{}").decode()}]},
+        )
+    )
+
+    assert client.agent_calls("run-1") == [RelayedCall(call_id, b"{}")]
+    assert seen[0].url.path == "/v1/sessions/run-1/agent/calls"
+
+
+def test_a_runner_that_does_not_relay_gives_no_calls() -> None:
+    client, _ = runner(
+        lambda request: httpx.Response(404, json={"detail": "Not Found"})
+    )
+
+    assert client.agent_calls("run-1") is None
+
+
+@pytest.mark.parametrize(
+    "calls",
+    [
+        {"calls": "nope"},
+        {"calls": [{"id": "not-a-uuid", "body": ""}]},
+        {"calls": [{"id": "6f1c1c2e-8f43-4d5c-9a8e-3c0b7f0d2a11", "body": "%%"}]},
+    ],
+)
+def test_the_client_refuses_invalid_relayed_calls(calls: dict[str, Any]) -> None:
+    client, _ = runner(lambda request: httpx.Response(200, json=calls))
+
+    with pytest.raises(RunnerProtocolError, match="invalid response"):
+        client.agent_calls("run-1")
+
+
+def test_the_client_sends_an_answer_as_its_raw_body() -> None:
+    client, seen = runner(lambda request: httpx.Response(204))
+
+    client.answer_agent_call("run-1", "call-1", RelayedAnswer(202, b""))
+    client.answer_agent_call("run-1", "call-2", RelayedAnswer(200, b'{"id": 1}'))
+
+    assert seen[0].url.path == "/v1/sessions/run-1/agent/calls/call-1"
+    assert seen[0].url.params["status"] == "202"
+    assert seen[1].content == b'{"id": 1}'

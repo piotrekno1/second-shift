@@ -22,6 +22,7 @@ from secondshift.docker.commands import DockerError, resolve_image_id
 from secondshift.runner.agent_credentials import decrypt_agent_auth
 from secondshift.runner.dao import is_session_active
 from secondshift.runner.egress import AgentEgress, prepare_egress
+from secondshift.runner.relay import relaying
 from secondshift.runner.services import DockerRunnerService, agent_name, sandbox_flags
 from secondshift.runner_protocol.schemas import AgentCheckInput, AgentInput, AgentOutput
 from secondshift.runner_protocol.sessions import CommandRequest, RunnerProtocolError
@@ -156,12 +157,13 @@ def execute_locked_agent(session_id: str, request: AgentInput) -> AgentOutput:
         "token_budget": request.token_budget,
         "subagents": request.subagents if request.backend.starts_subagents else 0,
     }
-    return run_agent_container(
-        agent_name(session_id),
-        agent_command(session_id, auth_path, image, egress),
-        configuration,
-        request.timeout_seconds,
-    )
+    with relaying(session_id, request.broker_token.get_secret_value()):
+        return run_agent_container(
+            agent_name(session_id),
+            agent_command(session_id, auth_path, image, egress),
+            configuration,
+            request.timeout_seconds,
+        )
 
 
 def check_agent(request: AgentCheckInput) -> AgentOutput:

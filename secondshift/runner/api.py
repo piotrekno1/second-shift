@@ -1,4 +1,6 @@
+import base64
 import hmac
+from uuid import UUID
 
 from django.conf import settings
 from django.http import FileResponse, HttpRequest
@@ -13,6 +15,12 @@ from secondshift.runner.agents import (
     remove_agent_credentials,
 )
 from secondshift.runner.dao import has_sessions
+from secondshift.runner.relay import (
+    answer_call,
+    collect_calls,
+    on_relay_port,
+    relay_enabled,
+)
 from secondshift.runner.schemas import (
     CommandInput,
     CommandOutput,
@@ -22,6 +30,12 @@ from secondshift.runner.schemas import (
 from secondshift.runner.services import get_runner_service
 from secondshift.runner.setup import run_setup
 from secondshift.runner.sources import has_source, receive_source
+from secondshift.runner_protocol.relay import (
+    COLLECT_WAIT_SECONDS,
+    MAX_ANSWER_BYTES,
+    RELAY_OFF,
+    RelayedAnswer,
+)
 from secondshift.runner_protocol.schemas import AgentCheckInput, AgentInput, AgentOutput
 from secondshift.runner_protocol.sessions import (
     CommandRequest,
@@ -32,6 +46,9 @@ from secondshift.runner_protocol.sessions import (
 
 class RunnerBearer(HttpBearer):
     def authenticate(self, request: HttpRequest, token: str) -> str | None:
+        # Agents reach the relay port. The API is never served there.
+        if on_relay_port(request):
+            return None
         if hmac.compare_digest(token, settings.RUNNER_SERVICE_TOKEN):
             return token
         return None
@@ -126,6 +143,44 @@ def run_agent(
     request: HttpRequest, session_id: str, payload: AgentInput
 ) -> AgentOutput:
     return execute_agent(session_id, payload)
+
+
+@api.get("/v1/sessions/{session_id}/agent/calls")
+def agent_calls(request: HttpRequest, session_id: str):
+    """The agent's tool calls nobody has collected, waiting briefly for one.
+
+    Each call is handed out once.
+    """
+    if not relay_enabled():
+        return api.create_response(request, {"error": RELAY_OFF}, status=404)
+    calls = collect_calls(session_id, COLLECT_WAIT_SECONDS)
+    return {
+        "calls": [
+            {"id": call.id, "body": base64.b64encode(call.body).decode()}
+            for call in calls
+        ]
+    }
+
+
+@api.post("/v1/sessions/{session_id}/agent/calls/{call_id}", response={204: None})
+def answer_agent_call(
+    request: HttpRequest, session_id: str, call_id: UUID, status: int
+) -> Status[None]:
+    """The broker's answer to a call, as the raw body and its HTTP status.
+
+    An answer for a call that is gone, because the agent ended or stopped
+    waiting, is dropped.
+    """
+    if not relay_enabled():
+        return api.create_response(request, {"error": RELAY_OFF}, status=404)
+    if not 100 <= status <= 599:
+        raise ValueError("Invalid answer status.")
+    # Read the stream: the runner's upload limit is far smaller than an answer.
+    body = request.read(MAX_ANSWER_BYTES + 1)
+    if len(body) > MAX_ANSWER_BYTES:
+        raise ValueError("The answer is too large.")
+    answer_call(session_id, call_id, RelayedAnswer(status, body))
+    return Status(204, None)
 
 
 @api.post("/v1/agent-checks", response=AgentOutput)

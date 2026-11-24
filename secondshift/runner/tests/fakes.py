@@ -7,6 +7,7 @@ import httpx
 from secondshift.runner.agent_credentials import provisioning_public_key
 from secondshift.runner_protocol.client import HttpRunnerClient
 from secondshift.runner_protocol.environments import RunnerEnvironments
+from secondshift.runner_protocol.relay import RELAY_OFF
 
 
 class ClosableFake:
@@ -39,6 +40,9 @@ def agent_runner(
     sent: list[dict[str, Any]] = []
 
     def handle(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("/agent/calls"):
+            # A runner on this host doesn't relay agent calls.
+            return httpx.Response(404, json={"error": RELAY_OFF})
         body = json.loads(request.content) if request.content else None
         sent.append({"method": request.method, "path": request.url.path, "json": body})
         if request.url.path == "/v1/agent-provisioning-key":

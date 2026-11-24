@@ -33,6 +33,11 @@ bind = env.list(AppEnv.HTTP_BIND, default=["0.0.0.0:8000"])
 # opens the same addresses itself.
 if service == Service.GATEWAY and os.environ.get(ENVIRONMENT_VAR) == Environment.DEV:
     bind = with_container_binds(bind)
+# A runner that relays its agents' tool calls also listens on the relay port.
+if service == Service.RUNNER and (
+    relay_port := env.int(AppEnv.RUNNER_AGENT_RELAY_PORT, default=0)
+):
+    bind = [*bind, f"0.0.0.0:{relay_port}"]
 workers = env.int(AppEnv.HTTP_PROCESSES, default=2)
 timeout = env.int(AppEnv.HTTP_TIMEOUT_SECONDS, default=30)
 graceful_timeout = env.int(AppEnv.HTTP_GRACEFUL_TIMEOUT_SECONDS, default=30)

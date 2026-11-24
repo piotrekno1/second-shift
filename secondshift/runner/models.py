@@ -59,3 +59,31 @@ class RunnerCommand(models.Model):
                 fields=("session", "call_id"), name="runner_unique_session_call"
             )
         ]
+
+
+class AgentRelay(models.Model):
+    """A running agent whose tool calls the runner relays. Removed when the
+    agent ends, with its calls.
+    """
+
+    session = models.OneToOneField(
+        RunnerSession, on_delete=models.CASCADE, related_name="+"
+    )
+    # SHA-256 of the broker token the agent sends. The token itself is kept
+    # only in the agent's configuration.
+    token_hash = models.CharField(max_length=64, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
+class AgentCall(models.Model):
+    """One tool call an agent sent, until the worker answers it."""
+
+    id = models.UUIDField(primary_key=True)
+    relay = models.ForeignKey(AgentRelay, on_delete=models.CASCADE, related_name="+")
+    body = models.BinaryField()
+    # Set when the worker collects it. A call is handed out only once, so a
+    # tool never runs twice for one call.
+    collected = models.BooleanField(default=False)
+    answer_status = models.PositiveSmallIntegerField(null=True, blank=True)
+    answer = models.BinaryField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)

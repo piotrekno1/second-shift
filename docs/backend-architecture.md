@@ -208,6 +208,17 @@ on the lost runner. When that call ends, the run has already finished and
 `finish_run` changes nothing. Any step that can't reach its runner also fails
 the run as `runner`, through `RunnerUnreachable`.
 
+A runner on another host can't reach the gateway's agent broker. With
+`SECONDSHIFT_RUNNER_AGENT_RELAY_PORT` set, its agents send their tool calls to
+the runner instead, on that port only, and the runner keeps them in
+`AgentCall` without reading them. While `run_agent` blocks,
+`runs.execution.agent_relay` runs a thread in the agent step that collects
+them over the worker's own connection to the runner, answers up to four at
+once with `broker_answer`, the function behind `agent_mcp`, and posts each
+answer back.
+A runner without the relay answers the first collection with 404, and the
+thread ends. Nothing calls into the control plane.
+
 The runs app has three internal packages:
 
 - `execution`: agent construction, workspace and external tools, budget and
