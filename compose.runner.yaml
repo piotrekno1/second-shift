@@ -1,0 +1,154 @@
+# A runner on another host. See "Add a runner on another host" in
+# docs/production-deployment.md. The control plane reaches it over HTTPS
+# through Caddy. Its agents send their tool calls to the runner's relay,
+# and the worker collects them, so nothing here reaches the control plane.
+name: secondshift-runner
+
+x-application: &application
+  image: ${SECONDSHIFT_IMAGE:?Set SECONDSHIFT_IMAGE in deploy/runner/compose.env}
+  restart: unless-stopped
+
+services:
+  # The runner's own database: sessions, commands and relayed calls.
+  postgres:
+    image: postgres:18-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: secondshift_runner
+      POSTGRES_DB: secondshift_runner
+      POSTGRES_PASSWORD: ${RUNNER_DATABASE_PASSWORD:?Set RUNNER_DATABASE_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -h 127.0.0.1 -U secondshift_runner -d secondshift_runner"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  runner:
+    <<: *application
+    user: "0:0"
+    env_file: ./deploy/runner/runner.env
+    environment:
+      SECONDSHIFT_AGENT_IMAGE: ${AGENT_IMAGE:-}
+      # Agents call the relay through the egress proxy's forward below.
+      SECONDSHIFT_AGENT_BROKER_URL: http://${AGENT_PROXY_ADDRESS:-172.30.0.3}:${RELAY_FORWARD_PORT:-8001}/gateway/agent/mcp
+      SECONDSHIFT_RUNNER_AGENT_RELAY_PORT: "8003"
+      SECONDSHIFT_AGENT_NETWORK: ${AGENT_NETWORK:-secondshift_runner_agents}
+      SECONDSHIFT_AGENT_PROXY_ADDRESS: ${AGENT_PROXY_ADDRESS:-172.30.0.3}
+      # Empty turns setup commands off. See setup-proxy below.
+      SECONDSHIFT_RUNNER_SETUP_PROXY_ADDRESS: ${SETUP_PROXY_ADDRESS:-}
+      SECONDSHIFT_RUNNER_SETUP_NETWORK: ${SETUP_NETWORK:-secondshift_runner_setup}
+      SECONDSHIFT_RUNNER_DATABASE_URL: postgres://secondshift_runner:${RUNNER_DATABASE_PASSWORD:?}@postgres:5432/secondshift_runner
+      SECONDSHIFT_DATA_DIR: ${RUNNER_ROOT:?Set RUNNER_ROOT to an absolute host path}
+      SECONDSHIFT_RUNNER_WORK_ROOT: ${RUNNER_ROOT:?}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      # The host daemon must see sandbox workspaces at the identical path.
+      - type: bind
+        source: ${RUNNER_ROOT:?}
+        target: ${RUNNER_ROOT:?}
+        bind:
+          create_host_path: false
+    networks:
+      default: {}
+      relay: {}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    stop_grace_period: 40s
+    # The runner accepts only its own hostname, so the check sends it.
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request as u; u.urlopen(u.Request('http://127.0.0.1:8002/-/health/', headers={'Host': '${RUNNER_DOMAIN:?}'}), timeout=5).close()"]
+      interval: 10s
+      timeout: 6s
+      retries: 3
+      start_period: 120s
+
+  # Agents' only way out. It opens HTTPS tunnels to their providers, and
+  # passes one port through to the runner's relay. It reaches nothing else.
+  agent-proxy:
+    <<: *application
+    command:
+      - python
+      - -m
+      - secondshift.agent.image.egress
+      - --forward
+      - ${RELAY_FORWARD_PORT:-8001}:runner:8003
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    networks:
+      agents:
+        ipv4_address: ${AGENT_PROXY_ADDRESS:-172.30.0.3}
+      relay: {}
+      egress: {}
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+  # Setup commands' only way out, to package registries only. Off unless the
+  # setup profile is on and SETUP_PROXY_ADDRESS is set.
+  setup-proxy:
+    <<: *application
+    profiles: [setup]
+    command: [python, -m, secondshift.agent.image.egress, --allow-registries]
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    networks:
+      setup:
+        ipv4_address: ${SETUP_PROXY_ADDRESS:-172.31.0.3}
+      setup-egress: {}
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+  # HTTPS for the runner API. The control plane is its only client.
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      RUNNER_DOMAIN: ${RUNNER_DOMAIN:?Set RUNNER_DOMAIN to this runner's hostname}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/runner/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      runner:
+        condition: service_healthy
+
+networks:
+  # No route out. Agents reach the relay and the internet only through
+  # agent-proxy. The runner refuses an agent network that isn't internal.
+  agents:
+    name: ${AGENT_NETWORK:-secondshift_runner_agents}
+    internal: true
+    ipam:
+      config:
+        - subnet: ${AGENT_SUBNET:-172.30.0.0/24}
+  # Only the runner and agent-proxy, for the relay forward.
+  relay:
+    internal: true
+  # Only agent-proxy joins it.
+  egress: {}
+  # No route out. Setup containers reach the internet only through setup-proxy.
+  setup:
+    name: ${SETUP_NETWORK:-secondshift_runner_setup}
+    internal: true
+    ipam:
+      config:
+        - subnet: ${SETUP_SUBNET:-172.31.0.0/24}
+  setup-egress: {}
+
+volumes:
+  postgres_data:
+  caddy_data:
+  caddy_config:

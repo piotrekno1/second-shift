@@ -321,6 +321,11 @@ waits. A subscription login stays on the runner it first ran on, since Codex
 keeps its refreshed tokens there, and moves only when that runner drains,
 stops answering or lacks the environment.
 
+The worker runs at most `SECONDSHIFT_RUN_CONCURRENCY` runs at once, two by
+default, whatever the runners can take. When you add a runner, raise it in
+`worker.env` to the sessions you want in use across all runners, and restart
+the worker.
+
 The worker checks each runner every minute:
 
 - After two minutes without an answer, a runner takes no new runs.
@@ -331,26 +336,60 @@ The worker checks each runner every minute:
 
 ### Add a runner
 
-A runner on another host needs its own token, an `https://` address, and the
-setup of the runner service in this Compose file: Docker, gVisor, the sandbox
-images in its `runner.env` and the Docker socket. Register it. `add` asks for
-the token, so it stays out of shell history:
+A runner on another host needs Docker and gVisor, like this one. It runs
+`compose.runner.yaml`: the runner, its own PostgreSQL, the agents' egress
+proxy and Caddy, which serves the runner over HTTPS. The control plane is its
+only client. Its agents can't reach this host's gateway, so they send their
+tool calls to their runner, and the worker collects and answers them.
+
+On the runner host, with a checkout of the same release, copy the template and
+set `RUNNER_DOMAIN` to the runner's hostname, `RUNNER_DATABASE_PASSWORD`
+and `RUNNER_ROOT`. Its DNS must point at the host, and ports 80 and 443 must be
+open for Caddy's certificate. Then generate its `runner.env`:
+
+```bash
+cp deploy/runner/compose.env.example deploy/runner/compose.env
+rc() { docker compose --env-file deploy/runner/compose.env -f compose.runner.yaml "$@"; }
+image=$(sed -n 's/^SECONDSHIFT_IMAGE=//p' deploy/runner/compose.env)
+docker run --rm --user "$(id -u):$(id -g)" \
+  -v "$PWD/deploy/runner:$PWD/deploy/runner" \
+  -w "$PWD/deploy/runner" "$image" \
+  python -m secondshift.config.container_env --runner --hostname runner-b.example.com
+```
+
+`runner.env` starts with the default sandbox images. Give it the same ones as
+this host's `runner.env`. If workspaces use Claude
+Code or Codex, build the agent image there with the command in
+[optional subscription agents](#optional-subscription-agents), using `rc` for
+`dc`, and set `AGENT_IMAGE` in that host's `compose.env`. Create `RUNNER_ROOT`
+and start it:
+
+```bash
+rc up -d --wait postgres
+rc run --rm --no-deps runner python manage.py migrate --noinput \
+  --settings=secondshift.config.settings.runner
+rc up -d --wait
+```
+
+Back on this host, register it. Take the token from
+`SECONDSHIFT_RUNNER_SERVICE_TOKEN` in the runner's `runner.env`. `add` asks for
+it, so it stays out of shell history:
 
 ```bash
 dc exec web python manage.py runners add runner-b \
-  https://runner-b.internal:8002 --max-sessions 4
+  https://runner-b.example.com --max-sessions 4
 ```
 
-Claude Code and Codex can't run on a runner on another host yet. Their tool
-calls reach the gateway over this host's internal agent network, which another
-host isn't on. Built-in agent runs work there, since that agent runs in the
-worker. Placement doesn't tell these runs apart yet, so add a runner on another
-host only where workspaces use a model provider rather than a subscription.
+Subscriptions are on when this host's `compose.env` sets `AGENT_IMAGE`. Each
+runner then runs the agent image its own configuration names. Every runner
+that takes subscription runs needs one, since placement doesn't check yet. A
+runner without it refuses their runs. `runners add` warns about a runner
+without it, and `runners list` shows `agents=no` for it.
 
-If workspaces use Claude Code or Codex, every runner needs the agent image from
-[optional subscription agents](#optional-subscription-agents). Placement
-doesn't check, and a runner without it refuses their runs. `runners add` warns
-about a runner without it, and `runners list` shows `agents=no` for it.
+The agents on that host reach the internet and their runner only through its
+egress proxy, which passes `RELAY_FORWARD_PORT` through to the runner's relay.
+The relay takes only a running agent's own token, and the runner API is never
+served on its port.
 
 Use `--allow-http` only on a private network you trust, such as WireGuard: the
 token, repository files and run output cross it unencrypted. Each runner must
@@ -365,7 +404,7 @@ the runner's own:
 dc exec runner python manage.py runner_key --settings=secondshift.config.settings.runner
 ```
 
-On another host, run the same in its runner container.
+On another host, run the same with `rc` in place of `dc`.
 
 From then on, logins are sealed only to that key. A runner that answers with
 another key gets no login.

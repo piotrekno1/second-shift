@@ -3,7 +3,10 @@ from pathlib import Path
 import pytest
 from cryptography.fernet import Fernet
 
-from secondshift.config.container_env import generate_environment
+from secondshift.config.container_env import (
+    generate_environment,
+    generate_runner_environment,
+)
 
 
 def read_env(path: Path) -> dict[str, str]:
@@ -62,6 +65,20 @@ def test_role_files_are_private_and_have_only_their_required_settings(
     assert "SECONDSHIFT_SANDBOX_PYTHON_NODE" in runner
     for values in (web, gateway, worker):
         assert not any(name.startswith("SECONDSHIFT_SANDBOX_") for name in values)
+
+
+def test_a_runner_on_another_host_gets_only_its_own_file(tmp_path: Path) -> None:
+    generate_runner_environment("Runner-B.example", tmp_path)
+    assert [path.name for path in tmp_path.glob("*.env")] == ["runner.env"]
+    runner = read_env(tmp_path / "runner.env")
+    assert (tmp_path / "runner.env").stat().st_mode & 0o777 == 0o600
+    assert runner["SECONDSHIFT_SERVICE"] == "runner"
+    # Caddy passes on the runner's own hostname.
+    assert runner["SECONDSHIFT_RUNNER_ALLOWED_HOSTS"] == "runner-b.example"
+    assert len(runner["SECONDSHIFT_RUNNER_SERVICE_TOKEN"]) >= 32
+    assert runner["SECONDSHIFT_RUNNER_RUNTIME"] == "runsc"
+    assert "SECONDSHIFT_SANDBOX_PYTHON" in runner
+    assert "SECONDSHIFT_ENCRYPTION_KEY" not in runner
 
 
 @pytest.mark.parametrize("existing", ["web.env", "runner.env", ".env"])

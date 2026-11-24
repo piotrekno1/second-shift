@@ -1,0 +1,3 @@
+{$RUNNER_DOMAIN} {
+	reverse_proxy runner:8002
+}

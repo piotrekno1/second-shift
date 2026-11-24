@@ -85,4 +85,6 @@ jobs:
           if-no-files-found: ignore
       - name: Remove the test host
         if: always()
-        run: docker rm -f -v secondshift-e2e-host >/dev/null 2>&1 || true
+        run: |
+          docker rm -f -v secondshift-e2e-host secondshift-e2e-runner-host >/dev/null 2>&1 || true
+          docker network rm secondshift-e2e >/dev/null 2>&1 || true

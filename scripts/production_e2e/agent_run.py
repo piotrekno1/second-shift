@@ -52,6 +52,10 @@ def main() -> None:
         assert run.status == Run.Status.SUCCEEDED, (run.status, run.summary)
         output = read_text(run.output_path, 4000)[0]
         assert output == "production-agent-payload-probe", output
+        # The second-runner step drains the first, so the run lands elsewhere.
+        if expected := os.environ.get("E2E_RUNNER"):
+            run.refresh_from_db()
+            assert run.runner is not None and run.runner.name == expected, run.runner
         print(
             "1 checks passed: agent reads its payload and lists workspace files without storage or database access, and leaves only through the egress proxy"
         )

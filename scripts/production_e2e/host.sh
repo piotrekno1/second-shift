@@ -12,6 +12,8 @@
 #   host.sh wipe               lose the server: volumes, config and runner data
 #   host.sh restore            the guide's restore commands, latest backup
 #   host.sh upgrade IMAGE      the guide's update commands
+#   host.sh runner-host IMAGE  on the second host: compose.runner.yaml, as in the guide
+#   host.sh second-runner      register it, run there, relay agent calls, remove it
 #   host.sh images             the images tested and their digests
 #   host.sh logs [SERVICE...]
 #   host.sh diagnostics DIR    step and service logs, with configured secrets redacted
@@ -309,6 +311,79 @@ agent-probe)
   done
   printf '\nARTIFACT_STORAGE=s3\nAGENT_IMAGE=\n' >> deploy/production/compose.env
   dc up -d --wait web gateway worker runner
+  ;;
+runner-host)
+  SECONDSHIFT_IMAGE=$2
+  rc() {
+    docker compose --env-file deploy/runner/compose.env \
+      -f compose.runner.yaml -f "$E/compose.runner-e2e.yaml" "$@"
+  }
+  step "Configuration for a runner on another host, as in the deployment guide"
+  umask 077
+  cp deploy/runner/compose.env.example deploy/runner/compose.env
+  sed -i "s#^SECONDSHIFT_IMAGE=.*#SECONDSHIFT_IMAGE=$SECONDSHIFT_IMAGE#
+s#^RUNNER_DOMAIN=.*#RUNNER_DOMAIN=runner-b.e2e.test#
+s#^RUNNER_DATABASE_PASSWORD=.*#RUNNER_DATABASE_PASSWORD=$(hex)#" deploy/runner/compose.env
+  docker run --rm --user 0:0 -v "$PWD/deploy/runner:$PWD/deploy/runner" \
+    -w "$PWD/deploy/runner" "$SECONDSHIFT_IMAGE" \
+    python -m secondshift.config.container_env --runner --hostname runner-b.e2e.test
+  # The deterministic agent, built here: each host builds its own agent image.
+  docker build -q -t secondshift-agent:e2e-probe -f "$E/Dockerfile.agent-probe" "$E" >/dev/null
+  image=$(docker image inspect --format '{{.Id}}' secondshift-agent:e2e-probe)
+  sed -i "s#^AGENT_IMAGE=.*#AGENT_IMAGE=$image#" deploy/runner/compose.env
+  # shellcheck disable=SC1091
+  . deploy/runner/compose.env
+  mkdir -p "$RUNNER_ROOT"
+
+  step "Start"
+  rc config --quiet
+  rc up -d --wait postgres
+  rc run --rm --no-deps runner python manage.py migrate --noinput \
+    --settings=secondshift.config.settings.runner | tail -1
+  rc up -d --wait
+  rc ps --format 'table {{.Service}}\t{{.Image}}\t{{.Status}}'
+  ;;
+second-runner)
+  load_env
+  passed=0
+  pass() { echo "PASS  $1"; passed=$((passed + 1)); }
+  step "Reach the second host"
+  printf '\nRUNNER_B_ADDRESS=%s\n' "$RUNNER_B_ADDRESS" >> deploy/production/compose.env
+  # Subscriptions are on when the control plane names an agent image. Each
+  # runner runs the one in its own configuration.
+  image=$(docker image inspect --format '{{.Id}}' secondshift-agent:e2e-probe)
+  printf '\nAGENT_IMAGE=%s\n' "$image" >> deploy/production/compose.env
+  load_env
+  dc up -d --wait web gateway worker runner agent-proxy
+
+  step "Register it, as in the deployment guide"
+  dc exec -T -e RUNNER_B_TOKEN web python manage.py runners add runner-b \
+    https://runner-b.e2e.test --max-sessions 2 --token-env RUNNER_B_TOKEN
+  dc exec -T web python manage.py runners list | tee "$STATE/runners.txt"
+  grep runner-b "$STATE/runners.txt" | grep -q "agents=yes"
+  pass "the runner on the second host answers and can run agents"
+
+  step "Only the runner on the second host takes runs"
+  dc exec -T web python manage.py runners drain default
+  sh "$0" drive second-runner
+  pass "a sandbox run on the second host reads the repository and reaches the webhook"
+  dc exec -T -e E2E_RUNNER=runner-b web python /scripts/production_e2e/agent_run.py
+  pass "an agent there reaches its tools through the runner's relay"
+
+  step "Remove it, as in the deployment guide"
+  dc exec -T web python manage.py runners activate default
+  dc exec -T web python manage.py runners drain runner-b
+  dc exec -T web python manage.py runners remove runner-b
+  if dc exec -T web python manage.py runners list | grep -q runner-b; then
+    echo "runner-b is still registered" >&2
+    exit 1
+  fi
+  pass "the runner is removed after deleting its logins"
+  printf '\nAGENT_IMAGE=\n' >> deploy/production/compose.env
+  load_env
+  dc up -d --wait web gateway worker runner
+  echo
+  echo "$passed checks passed"
   ;;
 pat-only)
   load_env
