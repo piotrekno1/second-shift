@@ -34,6 +34,7 @@ from secondshift.runs.orchestration.reconciliation import (
 )
 from secondshift.runs.orchestration.schedules import synchronize_schedules
 from secondshift.runs.retention import prune_runs
+from secondshift.runs.runners import sync_configured_runner
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +43,8 @@ PRUNE_INTERVAL_SECONDS = 24 * 60 * 60
 SOURCE_CHECK_POLL_SECONDS = 60 * 60
 # How often to ask the runner again to remove logins it kept.
 CREDENTIAL_CLEANUP_SECONDS = 60
+# How often to register the configured runner again, should the first try fail.
+RUNNER_SYNC_SECONDS = 60 * 60
 # How often the loop wakes. Requested syncs start within this, and the other
 # tasks wait for their own interval.
 TICK_SECONDS = 1
@@ -93,6 +96,13 @@ def worker_tasks(client: DBOSClient, every_pass: float) -> list[PeriodicTask]:
             logger.info("checked %s GitHub connection(s)", checked)
 
     return [
+        # Settings own the default runner's address. Running first keeps the
+        # registry current after a restart that changed it.
+        PeriodicTask(
+            "register the configured runner",
+            every=RUNNER_SYNC_SECONDS,
+            run=sync_configured_runner,
+        ),
         PeriodicTask("reconcile runs", every=every_pass, run=reconcile),
         PeriodicTask(
             "dispatch waiting tasks", every=every_pass, run=dispatch_waiting_tasks

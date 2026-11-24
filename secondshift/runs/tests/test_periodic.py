@@ -7,6 +7,7 @@ from secondshift.runs.management.commands.run_dbos_worker import (
     worker_tasks,
 )
 from secondshift.runs.orchestration.periodic import PeriodicTask
+from secondshift.runs.runners import sync_configured_runner
 
 
 class Clock:
@@ -96,3 +97,11 @@ def test_the_worker_syncs_repositories_only_when_the_server_does(
 
     settings.REPOSITORY_SYNC_INTERVAL_SECONDS = 0  # type: ignore[attr-defined]
     assert tasks["find new commits"].enabled() is False
+
+
+def test_the_worker_registers_the_configured_runner_first() -> None:
+    tasks = worker_tasks(client=object(), every_pass=15)  # type: ignore[arg-type]
+
+    assert tasks[0].name == "register the configured runner"
+    assert tasks[0].run is sync_configured_runner
+    assert tasks[0].due()

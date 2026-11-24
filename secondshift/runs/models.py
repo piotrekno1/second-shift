@@ -398,3 +398,36 @@ class AgentLease(models.Model):
     session_id = models.CharField(max_length=100)
     active = models.BooleanField(default=True)
     tool_calls = models.PositiveIntegerField(default=0)
+
+
+class Runner(models.Model):
+    """One runner host the control plane can place runs on.
+
+    The operator registers runners. Repository content never names one. The
+    runner configured by SECONDSHIFT_RUNNER_SERVICE_URL is kept as the one
+    named `default`.
+    """
+
+    class State(models.TextChoices):
+        ACTIVE = "active", "Active"
+        # Takes no new runs and finishes the ones it has.
+        DRAINING = "draining", "Draining"
+        DOWN = "down", "Down"
+
+    name = models.SlugField(max_length=64, unique=True)
+    url = models.URLField(max_length=500)
+    # The runner's service token. Each runner may have its own.
+    token = EncryptedTextField()
+    # An operator label that groups runners for placement.
+    pool = models.SlugField(max_length=64, default="default")
+    # The most sessions it runs at once. Empty means no limit.
+    max_sessions = models.PositiveIntegerField(null=True, blank=True)
+    state = models.CharField(max_length=16, choices=State, default=State.ACTIVE)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["name"]
+
+    def __str__(self) -> str:
+        return self.name
