@@ -31,7 +31,7 @@ def container_paths(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
 def test_a_broker_url_cannot_add_codex_settings(tmp_path: Path) -> None:
     codex.start(BROKER)
 
-    config = tomllib.loads((tmp_path / "config.toml").read_text())
+    config = tomllib.loads((tmp_path / "codex" / "config.toml").read_text())
     assert config["approval_policy"] == "never"
     assert config["mcp_servers"]["secondshift"]["url"] == ESCAPING_URL
 

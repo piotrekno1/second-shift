@@ -251,7 +251,8 @@ def test_runner_checks_a_login_with_a_fixed_prompt(
         "token_budget": agents.CHECK_TOKEN_BUDGET,
     }
     assert TOKEN not in str(seen["command"])
-    remove.assert_called_once_with(f"secondshift-agent-check-{'c' * 32}")
+    (name,) = remove.call_args.args
+    assert name.startswith(f"secondshift-agent-check-{'c' * 32}-")
 
 
 @pytest.mark.parametrize(
@@ -359,3 +360,107 @@ def test_the_runner_passes_subagents_only_to_claude_code(
     )
 
     assert launched.call_args.args[2]["subagents"] == sent
+
+
+# Runs and checks sharing a login
+
+
+def login_entries(root: Path) -> list[str]:
+    """The login's folder, lock or staging copies, beside the runner's key."""
+    return sorted(p.name for p in root.iterdir() if "c" * 32 in p.name)
+
+
+def test_a_login_runs_several_agents_at_once(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, settings: Any
+) -> None:
+    settings.AGENT_AUTH_ROOT = tmp_path / "agent-auth"
+    monkeypatch.setattr(agents, "require_agent_configuration", lambda: IMAGE)
+    monkeypatch.setattr(agents.DockerRunnerService, "remove_container", Mock())
+    request = AgentCheckInput(
+        **CHECK, auth=encrypt_agent_auth(provisioning_public_key(), TOKEN)
+    )
+    names: list[str] = []
+
+    def run(command: list[str], **kwargs: Any) -> Any:
+        names.append(command[command.index("--name") + 1])
+        # A second check starts while the first is still running.
+        if len(names) == 1:
+            assert agents.check_agent(request).reason == "completed"
+        kwargs["stdout"].write(b'{"succeeded": true, "reason": "completed"}')
+        return subprocess.CompletedProcess(command, 0)
+
+    monkeypatch.setattr(agents.subprocess, "run", run)
+
+    assert agents.check_agent(request).reason == "completed"
+    # Each gets its own container, and both use the login's one folder.
+    assert len(set(names)) == 2
+    assert login_entries(settings.AGENT_AUTH_ROOT) == ["c" * 32]
+
+
+def test_a_login_folder_created_meanwhile_is_kept(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, settings: Any
+) -> None:
+    settings.AGENT_AUTH_ROOT = tmp_path / "agent-auth"
+    request = AgentCheckInput(
+        **CHECK, auth=encrypt_agent_auth(provisioning_public_key(), TOKEN)
+    )
+    original = Path.rename
+
+    def another_run_wins(self: Path, target: Path) -> Path:
+        # Another run renames its own copy into place first.
+        target.mkdir()
+        (target / "claude-token").write_text("theirs")
+        return original(self, target)
+
+    monkeypatch.setattr(Path, "rename", another_run_wins)
+
+    path = agents.provision_auth(request)
+
+    assert (path / "claude-token").read_text() == "theirs"
+    assert login_entries(settings.AGENT_AUTH_ROOT) == ["c" * 32]
+
+
+def test_removing_a_login_deletes_its_folder_and_old_lock(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, settings: Any
+) -> None:
+    settings.AGENT_AUTH_ROOT = tmp_path / "agent-auth"
+    request = AgentCheckInput(
+        **CHECK, auth=encrypt_agent_auth(provisioning_public_key(), TOKEN)
+    )
+    agents.provision_auth(request)
+    (settings.AGENT_AUTH_ROOT / f"{'c' * 32}.lock").touch()
+    monkeypatch.setattr(
+        DockerRunnerService,
+        "run_command",
+        staticmethod(
+            lambda command, timeout=30: subprocess.CompletedProcess(command, 0, "")
+        ),
+    )
+
+    agents.remove_agent_credentials("c" * 32)
+
+    assert login_entries(settings.AGENT_AUTH_ROOT) == []
+
+
+def test_a_login_folder_keeps_only_the_login(tmp_path: Path, settings: Any) -> None:
+    settings.AGENT_AUTH_ROOT = tmp_path / "agent-auth"
+    request = AgentCheckInput(
+        **CHECK, auth=encrypt_agent_auth(provisioning_public_key(), TOKEN)
+    )
+    path = agents.provision_auth(request)
+    # What older releases let Codex leave here, with the folder as its home.
+    (path / "memories_1.sqlite").write_text("an earlier run")
+    (path / "shell_snapshots").mkdir()
+    (path / "shell_snapshots" / "one.sh").write_text("echo")
+
+    agents.provision_auth(request)
+
+    assert sorted(p.name for p in path.iterdir()) == ["claude-token"]
+
+
+def test_the_runner_leaves_the_codex_home_to_the_image(
+    tmp_path: Path, settings: Any
+) -> None:
+    command = agent_command("run-7", tmp_path, IMAGE, EGRESS)
+
+    assert not any("CODEX_HOME" in part for part in command)

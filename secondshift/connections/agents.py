@@ -224,8 +224,7 @@ def check_agent_connection(connection: AgentConnection) -> AgentConnection:
             result = client.check_agent(check_input)
         except RunnerProtocolError:
             raise AgentConnectionError(
-                "The runner could not check the login now. It may be running a job "
-                "with it. Try again in a moment."
+                "The runner could not check the login now. Try again in a moment."
             ) from None
     reason = result.reason
     ok, message = CHECK_RESULTS.get(reason, CHECK_FAILED)
