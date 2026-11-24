@@ -24,7 +24,7 @@ from secondshift.runs.models import Runner
 from secondshift.runs.runners import (
     registered_runners,
     runner_client,
-    runner_for_checks,
+    runner_for_login,
 )
 from secondshift.workspaces.dao import is_owner
 from secondshift.workspaces.models import Workspace
@@ -204,7 +204,7 @@ def check_agent_connection(connection: AgentConnection) -> AgentConnection:
     """
     if not connection.connected:
         raise AgentConnectionError("Reconnect this login before checking it.")
-    runner = runner_for_checks()
+    runner = runner_for_login(str(connection.credential_key))
     if runner is None:
         raise AgentConnectionError(
             "No runner can check the login now. Try again in a moment."

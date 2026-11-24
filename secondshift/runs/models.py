@@ -440,3 +440,21 @@ class Runner(models.Model):
 
     def __str__(self) -> str:
         return self.name
+
+
+class LoginHome(models.Model):
+    """The runner a subscription login's runs and checks go to.
+
+    Codex refreshes its tokens into the runner's copy of the login, and the
+    old refresh token stops working. Keeping each login on one runner keeps a
+    single live copy, and that runner's lock lets one run use it at a time.
+    A reconnect gives the login a new key, and so a new home.
+    """
+
+    credential_key = models.UUIDField(unique=True)
+    runner = models.ForeignKey(Runner, on_delete=models.CASCADE, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self) -> str:
+        return f"{self.credential_key.hex} on {self.runner_id}"

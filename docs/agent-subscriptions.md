@@ -151,13 +151,14 @@ because it may already have changed external services. Start a new run to retry.
   as the CLIs do on a laptop. Protect that directory and its backups as secrets.
 - Logins never appear in run plans, workflow arguments, results, Docker
   arguments or environment, container logs or API responses.
-- Codex can refresh its login during a run. A runner lock lets only one run use
-  a login at a time. A second run with the same login fails instead of racing
-  the refresh. Keep each login's runs on one runner host.
+- Codex can refresh its login during a run. SecondShift sends each login's runs
+  and checks to one runner, which keeps the only live copy, and a lock there
+  lets one run use the login at a time. A second run with the same login fails
+  instead of racing the refresh.
 
-Disconnecting blocks the broker at once. It then asks the runner to stop the
-login's containers and delete its files. If the runner can't be reached, the
-login stays disconnected and you can disconnect again later. Leaving the
+Disconnecting blocks the broker at once. It then asks every runner to stop the
+login's containers and delete its files. If a runner can't be reached, the
+login stays disconnected and the worker keeps asking until it confirms. Leaving the
 workspace or losing the owner role also blocks the broker. An agent that loses
 access keeps going without tools until the run's time limit.
 

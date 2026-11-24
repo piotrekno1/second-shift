@@ -16,7 +16,8 @@ from secondshift.connections.agents import (
 from secondshift.connections.models import AgentConnection, AgentCredentialCleanup
 from secondshift.runner.tests.fakes import agent_runner, closable_mock
 from secondshift.runner_protocol.sessions import RunnerProtocolError
-from secondshift.runs.models import Runner
+from secondshift.runs.dao import login_home, set_login_home
+from secondshift.runs.models import LoginHome, Runner
 from secondshift.runs.runners import (
     add_runner,
     change_runner_state,
@@ -137,3 +138,37 @@ def test_a_check_waits_for_an_active_runner(
 
     with pytest.raises(AgentConnectionError, match="No runner can check"):
         check_agent_connection(login)
+
+
+def test_a_check_goes_to_the_login_home_and_sets_it(
+    agent_login: tuple[Workspace, AgentConnection, User],
+    monkeypatch: pytest.MonkeyPatch,
+    settings: Any,
+    tmp_path: Any,
+) -> None:
+    settings.AGENT_AUTH_ROOT = tmp_path / "agent-auth"
+    _, login, _ = agent_login
+    sync_configured_runner()
+    home = add_runner("runner-b", "http://runner-b:8002", TOKEN, max_sessions=1)
+    set_login_home(str(login.credential_key), home)
+    used: list[str] = []
+
+    def chosen(runner: Runner) -> Any:
+        used.append(runner.name)
+        # Each check closes its client, so each gets its own.
+        client, _ = agent_runner({"reason": "completed", "succeeded": True})
+        return client
+
+    monkeypatch.setattr(agent_logins, "runner_client", chosen)
+
+    # default has no session limit, but the login's copy is on runner-b.
+    check_agent_connection(login)
+    assert used == ["runner-b"]
+
+    # A login with no home gets one from its first check.
+    LoginHome.objects.all().delete()
+    used.clear()
+    check_agent_connection(login)
+    assert used == ["default"]
+    home_now = login_home(str(login.credential_key))
+    assert home_now is not None and home_now.runner.name == "default"

@@ -22,6 +22,7 @@ from django.db import IntegrityError, transaction
 from django.utils import timezone
 from django.utils.text import slugify
 
+from secondshift.connections.dao import known_credential_keys
 from secondshift.runner_protocol.client import HttpRunnerClient, get_runner_client
 from secondshift.runner_protocol.environments import DEFAULT_ENVIRONMENT
 from secondshift.runner_protocol.sessions import RunnerProtocolError
@@ -116,7 +117,29 @@ def change_runner_state(name: str, state: Runner.State) -> None:
         raise RunnerRegistryError(f"There is no runner named {name}.")
 
 
-def remove_runner(name: str) -> None:
+def remove_logins_from(runner: Runner) -> bool:
+    """Ask the runner to delete every login copy it could hold.
+
+    True once it confirmed each one. Copies live only on the runner, so this
+    is the last chance to remove them through SecondShift.
+    """
+    try:
+        with runner_client(runner) as client:
+            for key in sorted(known_credential_keys()):
+                response = client.send("DELETE", f"/v1/agent-credentials/{key.hex}")
+                if response.status_code != 204:
+                    return False
+    except RunnerProtocolError:
+        return False
+    return True
+
+
+def remove_runner(name: str, force: bool = False) -> bool:
+    """Forget a runner. True when it confirmed it deleted its login copies.
+
+    A runner that does not confirm is kept, unless forced. Then its
+    agent-auth directory has to be deleted on the host by hand.
+    """
     if name == DEFAULT_RUNNER and configured_runner_address() is not None:
         raise RunnerRegistryError(
             "The default runner comes from SECONDSHIFT_RUNNER_SERVICE_URL. "
@@ -129,8 +152,16 @@ def remove_runner(name: str) -> None:
         raise RunnerRegistryError(
             f"Runner {name} has unfinished runs. Drain it and wait for them."
         )
+    removed = remove_logins_from(runner)
+    if not removed and not force:
+        raise RunnerRegistryError(
+            f"Runner {name} did not confirm it deleted its cached agent logins. "
+            "Make it reachable and try again, or force the removal and delete "
+            "its agent-auth directory yourself."
+        )
     if not dao.delete_runner(name):
         raise RunnerRegistryError(f"There is no runner named {name}.")
+    return removed
 
 
 def runner_client(runner: Runner) -> HttpRunnerClient:
@@ -198,7 +229,30 @@ def placement_problem(environment: str) -> str:
     return ""
 
 
-def try_assign_runner(run_id: int, environment: str) -> Runner | None:
+def login_candidates(
+    active: list[Runner], credential_key: str | None, environment: str
+) -> list[Runner]:
+    """The runners a run may go to, given the subscription login it uses.
+
+    A login's runs go to its home runner while that runner is active and
+    offers the environment. Otherwise the login moves, and the runner chosen
+    becomes its home. Codex may then need a reconnect, since the old home kept
+    the tokens it last refreshed.
+    """
+    if not credential_key:
+        return active
+    home = dao.login_home(credential_key)
+    if home is None:
+        return active
+    homes = [runner for runner in active if runner.pk == home.runner_id]
+    if homes and offers(homes[0], environment):
+        return homes
+    return active
+
+
+def try_assign_runner(
+    run_id: int, environment: str, credential_key: str | None = None
+) -> Runner | None:
     """Pin the run to a runner with room. None when every one is full.
 
     The run row and the candidate runners stay locked while choosing, so two
@@ -212,10 +266,13 @@ def try_assign_runner(run_id: int, environment: str) -> Runner | None:
         if run.runner_id is not None:
             return run.runner
         runners = dao.lock_runners_in(DEFAULT_POOL, Runner.State.ACTIVE)
-        counts = dao.unfinished_run_counts([runner.pk for runner in runners])
-        runner = choose_runner(runners, counts, environment)
+        candidates = login_candidates(runners, credential_key, environment)
+        counts = dao.unfinished_run_counts([runner.pk for runner in candidates])
+        runner = choose_runner(candidates, counts, environment)
         if runner is not None:
             dao.update_run(run_id, runner=runner)
+            if credential_key:
+                dao.set_login_home(credential_key, runner)
         return runner
 
 
@@ -230,11 +287,12 @@ def assign_runner(run_id: int, sleep: Callable[[float], None] = time.sleep) -> R
     if run.runner is not None:
         return run.runner
     environment = run.plan.runner.environment
+    credential_key = run.plan.execution.credential_key
     deadline = run_deadline(run)
     while True:
         if problem := placement_problem(environment):
             raise RuntimeError(problem)
-        if runner := try_assign_runner(run_id, environment):
+        if runner := try_assign_runner(run_id, environment, credential_key):
             return runner
         if timezone.now() >= deadline:
             raise RuntimeError("No runner had room before the run's time limit.")
@@ -280,17 +338,24 @@ def registered_runners() -> list[Runner]:
     return dao.all_runners()
 
 
-def runner_for_checks() -> Runner | None:
-    """An active runner in the default pool to check a login on.
+def runner_for_login(credential_key: str) -> Runner | None:
+    """The runner to check a login on: its home, so the check sees the copy
+    its runs use.
 
-    The one with the most free sessions, since a check briefly runs an agent.
-    None when every one is full, draining or down.
+    A login with no active home gets the active default-pool runner with the
+    most free sessions, which becomes its home. None when every one is full,
+    draining or down.
     """
-    registered_runners()
-    runners = [
-        runner
-        for runner in dao.runners_in_pool(DEFAULT_POOL)
-        if runner.state == Runner.State.ACTIVE
-    ]
-    counts = dao.unfinished_run_counts([runner.pk for runner in runners])
-    return choose_runner(runners, counts, DEFAULT_ENVIRONMENT)
+    ensure_configured_runner()
+    with transaction.atomic():
+        runners = dao.lock_runners_in(DEFAULT_POOL, Runner.State.ACTIVE)
+        home = dao.login_home(credential_key)
+        for runner in runners:
+            # A check is short, so the home takes it even when full.
+            if home is not None and runner.pk == home.runner_id:
+                return runner
+        counts = dao.unfinished_run_counts([runner.pk for runner in runners])
+        chosen = choose_runner(runners, counts, DEFAULT_ENVIRONMENT)
+        if chosen is not None:
+            dao.set_login_home(credential_key, chosen)
+        return chosen

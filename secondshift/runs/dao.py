@@ -18,6 +18,7 @@ from secondshift.jobs.models import Job
 from secondshift.runner_protocol.agents import AgentBackend
 from secondshift.runs.models import (
     AgentLease,
+    LoginHome,
     Run,
     RunAccessNeed,
     RunDelivery,
@@ -834,3 +835,17 @@ def unfinished_run_counts(runner_ids: Collection[int]) -> dict[int, int]:
 
 def set_runner_environments(runner_id: int, environments: list[str]) -> None:
     Runner.objects.filter(pk=runner_id).update(environments=environments)
+
+
+def login_home(credential_key: str) -> LoginHome | None:
+    return (
+        LoginHome.objects.select_related("runner")
+        .filter(credential_key=credential_key)
+        .first()
+    )
+
+
+def set_login_home(credential_key: str, runner: Runner) -> None:
+    LoginHome.objects.update_or_create(
+        credential_key=credential_key, defaults={"runner": runner}
+    )

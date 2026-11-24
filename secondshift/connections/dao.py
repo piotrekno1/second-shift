@@ -1,5 +1,6 @@
 """Queries and writes on connections, sign-ins and agent logins."""
 
+import uuid
 from collections import Counter
 from collections.abc import Collection
 from datetime import datetime
@@ -319,3 +320,11 @@ def login_run_counts(workspace_id: int, since: datetime) -> Counter[int]:
             .values_list("pk", "recent")
         )
     )
+
+
+def known_credential_keys() -> set[uuid.UUID]:
+    """The key of every login a runner may still hold a copy of: each login's
+    current key, and the replaced keys still waiting for cleanup."""
+    current = AgentConnection.objects.values_list("credential_key", flat=True)
+    replaced = AgentCredentialCleanup.objects.values_list("credential_key", flat=True)
+    return {*current, *replaced}
