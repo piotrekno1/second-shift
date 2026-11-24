@@ -30,6 +30,8 @@ from secondshift.runner_protocol.sessions import (
     RunnerUnreachable,
 )
 
+PROXY_FAILURE_STATUSES = frozenset({502, 503, 504})
+
 
 class HttpRunnerClient:
     """Trusted control-plane client for a separately deployed runner."""
@@ -274,6 +276,13 @@ class HttpRunnerClient:
 
     @staticmethod
     def response_payload(response: httpx.Response) -> dict[str, object]:
+        # A proxy in front of the runner, like Caddy on another host, answers
+        # these when the runner itself doesn't.
+        if response.status_code in PROXY_FAILURE_STATUSES:
+            raise RunnerUnreachable(
+                f"The runner did not answer. Its proxy answered HTTP "
+                f"{response.status_code}."
+            )
         try:
             payload = response.json()
         except ValueError as error:
