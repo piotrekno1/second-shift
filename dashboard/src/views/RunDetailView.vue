@@ -720,6 +720,10 @@ onUnmounted(stopPolling)
               <dt>Agent</dt>
               <dd>{{ run.execution_agent ?? run.model_provider ?? 'None' }}</dd>
             </div>
+            <div v-if="run.runner">
+              <dt>Runner</dt>
+              <dd>{{ run.runner }}</dd>
+            </div>
             <div>
               <dt>Started by</dt>
               <dd>

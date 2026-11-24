@@ -144,7 +144,7 @@ async function confirm(row: ModelRow): Promise<void> {
         const id = row.login.id
         await agents.disconnect(id)
         return agents.connections.find((login) => login.id === id)?.runner_cleanup_pending
-          ? 'Disconnected. The runner did not answer, so its cached copy is removed once it does.'
+          ? 'Disconnected. A runner with a cached copy did not answer. SecondShift removes it once that runner answers.'
           : 'Disconnected.'
       }
       if (step.action === 'delete') await deleteConnection(row.connection!.id)
@@ -390,8 +390,8 @@ onMounted(async () => {
                   {{ formatRelative(row.lastCheck.checked_at) }}
                 </small>
                 <small v-if="row.login?.runner_cleanup_pending"
-                  >The runner still holds a cached copy of an earlier login. SecondShift removes it
-                  once the runner answers.</small
+                  >A runner still holds a cached copy of an earlier login. SecondShift removes it
+                  once that runner answers.</small
                 >
               </template>
             </div>

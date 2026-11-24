@@ -1,5 +1,6 @@
 from django.http import HttpRequest
 
+from secondshift.runs.runner_settings import runner_group
 from secondshift.workspaces.access import (
     Action,
     allows,
@@ -23,6 +24,7 @@ from secondshift.workspaces.schemas import (
     WorkspaceSettingsSchema,
 )
 from secondshift.workspaces.server_settings import (
+    SettingGroup,
     SettingValue,
     environment_label,
     sandbox_label,
@@ -35,6 +37,12 @@ def serialize_setting(request: HttpRequest, item: SettingValue) -> SettingValueS
     # Only people who run the server can set the variable, so only they see it.
     env = item.env if is_operator(request) else ""
     return SettingValueSchema(**{**vars(item), "env": env})
+
+
+def server_groups(request: HttpRequest) -> list[SettingGroup]:
+    # Runner health and keys are for the people who run the server.
+    runners = [runner_group()] if is_operator(request) else []
+    return [*setting_groups(), *runners]
 
 
 def serialize_settings(
@@ -50,7 +58,7 @@ def serialize_settings(
                 title=group.title,
                 items=[serialize_setting(request, item) for item in group.items],
             )
-            for group in setting_groups()
+            for group in server_groups(request)
         ],
         limits=serialize_limits(workspace_limit_views(workspace)) if workspace else [],
         can_edit_limits=allows(request, Action.CHANGE_RUN_LIMITS),

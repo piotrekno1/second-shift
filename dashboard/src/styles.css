@@ -4270,6 +4270,20 @@ body .row-menu .p-menu-separator {
   font-weight: 500;
   overflow-wrap: anywhere;
 }
+/* A dot marks a value that is a problem. The text already says which. */
+.server-row dd strong.attention::before,
+.server-row dd strong.danger::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: var(--amber);
+}
+.server-row dd strong.danger::before {
+  background: var(--danger);
+}
 .server-row dd small {
   color: var(--subtle);
   font-size: var(--text-xs);

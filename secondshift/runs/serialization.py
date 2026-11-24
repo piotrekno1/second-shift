@@ -1,6 +1,6 @@
 from secondshift.agent.image.outcomes import cache_reads, usage_budget
 from secondshift.github.urls import blob_url
-from secondshift.runs.dao import run_events
+from secondshift.runs.dao import run_events, several_runners
 from secondshift.runs.deliveries import retryable
 from secondshift.runs.models import Run, RunDelivery, RunFailure
 from secondshift.runs.outputs import RunOutputs
@@ -179,6 +179,13 @@ def saved_file_path(run: Run, name: str) -> str:
     return saved.path if saved else ""
 
 
+def runner_name(run: Run) -> str | None:
+    """With one runner, every run is on it, so the name says nothing."""
+    if run.runner_id is None or not several_runners():
+        return None
+    return run.runner.name if run.runner else None
+
+
 def serialize_run_detail(run: Run) -> RunDetailSchema:
     model = run.plan.model
     outputs = run.collected or RunOutputs()
@@ -193,6 +200,7 @@ def serialize_run_detail(run: Run) -> RunDetailSchema:
         exit_code=run.exit_code,
         model_provider=model.connection_name if model else None,
         execution_agent=run.plan.execution.label or None,
+        runner=runner_name(run),
         output_excerpt=run.output_excerpt,
         output_truncated=run.output_truncated,
         output_size_bytes=run.output_size_bytes,

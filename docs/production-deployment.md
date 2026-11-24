@@ -310,6 +310,10 @@ dc exec web python manage.py runners activate default
 environments, whether it can run Claude Code and Codex, the fingerprint of its provisioning key and its address. Tokens
 are never shown.
 
+Staff see the same on the dashboard's Settings page, under Runners, without
+addresses. When there are several runners, a run's details name the one it ran
+on.
+
 Runs go to active runners in the `default` pool. A run goes to a runner that
 offers its environment and has a session free, preferring the one with the most
 free sessions. When every runner that could take it is full or draining, it

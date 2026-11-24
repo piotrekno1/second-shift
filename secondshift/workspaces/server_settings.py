@@ -7,6 +7,7 @@ Nothing secret is included: no keys, connection URLs or filesystem paths.
 """
 
 from dataclasses import dataclass
+from enum import StrEnum
 
 from django.conf import settings
 
@@ -25,12 +26,21 @@ from secondshift.runner_protocol.environments import (
 )
 
 
+class Tone(StrEnum):
+    """Whether a value is a problem, so the page can mark it."""
+
+    NONE = ""
+    ATTENTION = "attention"
+    DANGER = "danger"
+
+
 @dataclass(frozen=True)
 class SettingValue:
     label: str
     value: str
     env: str
     help: str
+    tone: Tone = Tone.NONE
 
 
 @dataclass(frozen=True)

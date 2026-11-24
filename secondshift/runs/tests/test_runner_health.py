@@ -29,6 +29,7 @@ from secondshift.runs.runners import (
     change_runner_state,
     sync_configured_runner,
 )
+from secondshift.runs.serialization import serialize_run_detail
 from secondshift.runs.tests.test_workflows import execution_run
 
 TOKEN = "t" * 32
@@ -233,6 +234,7 @@ def test_runs_on_a_lost_runner_fail_and_keep_their_session(run: Run) -> None:
     run.refresh_from_db()
     assert run.status == Run.Status.FAILED
     assert run.failure == RunFailure.RUNNER
+    assert run.failure_reason == "Runner runner-b stopped answering for 10 minutes."
     assert any("runner-b stopped answering" in e.message for e in run_events(run))
     cleanup = SessionCleanup.objects.get()
     assert cleanup.session_id == session_id_for(run.pk, run.runner_session_key.hex)
@@ -318,3 +320,17 @@ def another_run(run: Run) -> Run:
     copy.scheduled_for = run.scheduled_for + timedelta(minutes=1)
     copy.save()
     return copy
+
+
+# Run details
+
+
+def test_a_run_names_its_runner_only_when_there_are_several(run: Run) -> None:
+    default = sync_configured_runner()
+    assert default is not None
+    pinned_running(run, default)
+    assert serialize_run_detail(run).runner is None
+
+    make_runner("runner-b")
+
+    assert serialize_run_detail(run).runner == "default"
