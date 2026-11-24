@@ -343,6 +343,10 @@ host isn't on. Built-in agent runs work there, since that agent runs in the
 worker. Placement doesn't tell these runs apart yet, so add a runner on another
 host only where workspaces use a model provider rather than a subscription.
 
+If workspaces use Claude Code or Codex, every runner needs the agent image from
+[optional subscription agents](#optional-subscription-agents). Placement
+doesn't check, and a runner without it refuses their runs.
+
 Use `--allow-http` only on a private network you trust, such as WireGuard: the
 token, repository files and run output cross it unencrypted. Each runner must
 have a token no other runner has, so one that is taken over can't call the
