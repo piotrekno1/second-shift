@@ -876,6 +876,19 @@ def set_runner_environments(
     )
 
 
+def login_in_use(credential_key: str, run_id: int) -> bool:
+    """Whether another unfinished run with this login is pinned to a runner."""
+    return (
+        Run.objects.filter(
+            runner__isnull=False,
+            execution_plan__execution__credential_key=credential_key,
+        )
+        .exclude(status__in=Run.FINISHED_STATUSES)
+        .exclude(pk=run_id)
+        .exists()
+    )
+
+
 def login_home(credential_key: str) -> LoginHome | None:
     return (
         LoginHome.objects.select_related("runner")

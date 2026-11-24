@@ -40,6 +40,13 @@ DEFAULT_POOL = "default"
 MIN_TOKEN_LENGTH = 32
 # How long a run waits between looks for a runner with room.
 CAPACITY_POLL_SECONDS = 5
+CAPACITY_WAIT = "Waiting for a runner with room."
+CAPACITY_TIMEOUT = "No runner had room before the run's time limit."
+LOGIN_WAIT = "Waiting for another run using this login to finish."
+LOGIN_TIMEOUT = (
+    "Another run used this login until the run's time limit. A login runs one "
+    "job at a time."
+)
 # After its checks have failed for this long, a runner takes no new runs, and
 # logins whose home it is move. The worker checks every minute.
 UNREACHABLE_SECONDS = 2 * 60
@@ -327,11 +334,14 @@ def login_candidates(
 def try_assign_runner(
     run_id: int, environment: str, credential_key: str | None = None
 ) -> Runner | None:
-    """Pin the run to a runner with room. None when every one is full.
+    """Pin the run to a runner with room. None when every one is full, or
+    when another run is using the run's subscription login.
 
-    The run row and the candidate runners stay locked while choosing, so two
-    workers never both take a runner's last session, and a step that is
-    retried after a crash finds the runner it saved.
+    A runner lets one run use a login at a time and fails any other, so the
+    run waits here instead. The run row and the candidate runners stay locked
+    while choosing, so two workers never both take a runner's last session or
+    a login, and a step that is retried after a crash finds the runner it
+    saved.
     """
     with transaction.atomic():
         # PostgreSQL can't lock the nullable side of a join, so the runner
@@ -342,6 +352,8 @@ def try_assign_runner(
         runners = dao.lock_runners_in(
             DEFAULT_POOL, Runner.State.ACTIVE, UNREACHABLE_SECONDS
         )
+        if credential_key and dao.login_in_use(credential_key, run_id):
+            return None
         candidates = login_candidates(runners, credential_key, environment)
         counts = dao.unfinished_run_counts([runner.pk for runner in candidates])
         runner = choose_runner(candidates, counts, environment)
@@ -356,8 +368,8 @@ def assign_runner(run_id: int, sleep: Callable[[float], None] = time.sleep) -> R
     """The runner this run is pinned to, choosing one the first time.
 
     While every runner that could take it is full, draining or not answering,
-    it waits, up to the run's time limit. It fails at once when no runner could
-    ever take it.
+    or another run is using its subscription login, it waits, up to the run's
+    time limit. It fails at once when no runner could ever take it.
     """
     run = dao.get_run(run_id, "runner")
     # A retried step keeps its runner, whatever has changed since.
@@ -371,9 +383,12 @@ def assign_runner(run_id: int, sleep: Callable[[float], None] = time.sleep) -> R
             raise RuntimeError(problem)
         if runner := try_assign_runner(run_id, environment, credential_key):
             return runner
+        login_busy = (
+            dao.login_in_use(credential_key, run_id) if credential_key else False
+        )
         if timezone.now() >= deadline:
-            raise RuntimeError("No runner had room before the run's time limit.")
-        dao.add_event_once(run_id, "Waiting for a runner with room.", "info")
+            raise RuntimeError(LOGIN_TIMEOUT if login_busy else CAPACITY_TIMEOUT)
+        dao.add_event_once(run_id, LOGIN_WAIT if login_busy else CAPACITY_WAIT, "info")
         sleep(CAPACITY_POLL_SECONDS)
 
 

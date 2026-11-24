@@ -154,8 +154,9 @@ because it may already have changed external services. Start a new run to retry.
   arguments or environment, container logs or API responses.
 - Codex can refresh its login during a run. SecondShift sends each login's runs
   and checks to one runner, which keeps the only live copy, and a lock there
-  lets one run use the login at a time. A second run with the same login fails
-  instead of racing the refresh.
+  lets one run use the login at a time. A second run with the same login waits
+  for the first to finish, up to its own time limit, instead of racing the
+  refresh. Its timeline says it is waiting for the login.
 
 Disconnecting blocks the broker at once. It then asks every runner to stop the
 login's containers and delete its files. If a runner can't be reached, the

@@ -309,3 +309,57 @@ def test_runs_without_a_login_set_no_home(run: Run) -> None:
     assign_runner(run.pk)
 
     assert not LoginHome.objects.exists()
+
+
+# One run per login at a time
+
+
+def test_a_run_waits_while_another_uses_its_login(run: Run) -> None:
+    sync_configured_runner()
+    # Room for both runs, so only the login makes the second one wait.
+    make_runner("runner-b")
+    first = with_login(run)
+    assert assign_runner(first.pk) is not None
+    second = with_login(another_run(run, 1))
+    sleeps: list[float] = []
+
+    def finish_the_first_run(seconds: float) -> None:
+        sleeps.append(seconds)
+        if len(sleeps) == 2:
+            Run.objects.filter(pk=first.pk).update(status=Run.Status.SUCCEEDED)
+
+    first.refresh_from_db()
+    assert assign_runner(second.pk, sleep=finish_the_first_run) == first.runner
+    assert sleeps == [runners.CAPACITY_POLL_SECONDS] * 2
+    waits = [e.message for e in run_events(second) if e.message.startswith("Waiting")]
+    assert waits == [runners.LOGIN_WAIT]
+
+
+def test_runs_with_different_logins_do_not_wait_for_each_other(run: Run) -> None:
+    sync_configured_runner()
+    assert assign_runner(with_login(run).pk) is not None
+    other = with_login(another_run(run, 1), "0d6b1b62-1a1c-4b8e-8f0e-6a3f6f4a1b22")
+
+    assert try_assign_runner(other.pk, NODE, other.plan.execution.credential_key)
+
+
+def test_runs_without_a_login_never_wait_for_one(run: Run) -> None:
+    sync_configured_runner()
+    assert assign_runner(run.pk) is not None
+
+    assert try_assign_runner(another_run(run, 1).pk, NODE) is not None
+
+
+def test_a_login_wait_stops_at_the_run_time_limit(run: Run) -> None:
+    sync_configured_runner()
+    first = with_login(run)
+    assert assign_runner(first.pk) is not None
+    second = with_login(another_run(run, 1))
+    Run.objects.filter(pk=second.pk).update(
+        started_at=timezone.now() - timedelta(days=30)
+    )
+
+    with pytest.raises(RuntimeError, match="one job at a time"):
+        assign_runner(second.pk, sleep=lambda seconds: None)
+    second.refresh_from_db()
+    assert second.runner_id is None
