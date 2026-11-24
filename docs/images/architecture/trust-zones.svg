@@ -89,7 +89,6 @@
   <rect class="zone" x="656" y="252" width="280" height="340" rx="14"/>
   <rect class="zone" x="648" y="244" width="280" height="340" rx="14"/>
   <text class="eyebrow" x="668" y="272">RUNNERS</text>
-  <text class="lbl" x="908" y="272" text-anchor="end">one or more</text>
 
   <rect class="hi" x="668" y="292" width="240" height="88" rx="10"/>
   <text class="t" x="684" y="319">Agent container</text>
