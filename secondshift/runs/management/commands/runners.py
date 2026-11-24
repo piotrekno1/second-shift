@@ -106,10 +106,21 @@ def activate(name: str) -> None:
 
 @command.command("remove")
 @click.argument("name")
-def remove(name: str) -> None:
-    """Forget a runner."""
+@click.option(
+    "--force",
+    is_flag=True,
+    help="Remove it even if it can't confirm it deleted its cached logins.",
+)
+def remove(name: str, force: bool) -> None:
+    """Forget a runner, after it deletes its cached agent logins."""
     try:
-        remove_runner(name)
+        removed = remove_runner(name, force=force)
     except RunnerRegistryError as error:
         raise refused(error) from None
     click.echo(f"Removed runner {name}.")
+    if not removed:
+        click.echo(
+            f"Warning: {name} may still hold agent logins. Delete its "
+            "agent-auth directory and its backups on the host.",
+            err=True,
+        )

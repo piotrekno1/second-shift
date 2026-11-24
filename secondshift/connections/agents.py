@@ -18,9 +18,14 @@ from secondshift.connections.dao import (
 )
 from secondshift.connections.models import AgentConnection, AgentCredentialCleanup
 from secondshift.runner_protocol.agents import AgentBackend
-from secondshift.runner_protocol.client import get_runner_client
 from secondshift.runner_protocol.schemas import AgentCheckInput
 from secondshift.runner_protocol.sessions import RunnerProtocolError
+from secondshift.runs.models import Runner
+from secondshift.runs.runners import (
+    registered_runners,
+    runner_client,
+    runner_for_login,
+)
 from secondshift.workspaces.dao import is_owner
 from secondshift.workspaces.models import Workspace
 
@@ -113,9 +118,9 @@ def reconnect_agent_connection(
 
 
 def disconnect_agent_connection(connection: AgentConnection) -> bool:
-    """True when the runner's cached copy is gone too.
+    """True when every runner's cached copy is gone too.
 
-    False means the runner did not answer. The worker removes the copy later.
+    False means some runner did not answer. The worker removes the rest later.
     """
     with transaction.atomic():
         connection.connected = False
@@ -125,21 +130,40 @@ def disconnect_agent_connection(connection: AgentConnection) -> bool:
     return remove_cached_credentials(cleanup)
 
 
-def remove_cached_credentials(cleanup: AgentCredentialCleanup) -> bool:
-    """Ask the runner to remove one cached login. True once it is gone."""
+def remove_from_runner(cleanup: AgentCredentialCleanup, runner: Runner) -> bool:
+    """Ask one runner to remove its cached copy. True once it is gone."""
     try:
-        with get_runner_client() as client:
+        with runner_client(runner) as client:
             response = client.send(
                 "DELETE", f"/v1/agent-credentials/{cleanup.credential_key.hex}"
             )
-        removed = response.status_code == 204
     except RunnerProtocolError:
-        removed = False
-    if removed:
+        return False
+    return response.status_code == 204
+
+
+def remove_cached_credentials(cleanup: AgentCredentialCleanup) -> bool:
+    """Ask every runner to remove one cached login. True once all copies are gone.
+
+    Any runner may hold a copy: the runs it took and the checks it ran cached
+    one. A runner that is down is not asked, so a disconnect never waits on it,
+    but the cleanup stays until it comes back and confirms.
+    """
+    runners = registered_runners()
+    removed = set(cleanup.removed_from)
+    for runner in runners:
+        if runner.name in removed or runner.state == Runner.State.DOWN:
+            continue
+        if remove_from_runner(cleanup, runner):
+            removed.add(runner.name)
+    left = [runner.name for runner in runners if runner.name not in removed]
+    if not left:
         cleanup.delete()
         return True
-    count_cleanup_attempt(cleanup)
-    logger.warning("the runner kept agent login %s; will retry", cleanup.pk)
+    count_cleanup_attempt(cleanup, sorted(removed))
+    logger.warning(
+        "runner(s) %s kept agent login %s; will retry", ", ".join(left), cleanup.pk
+    )
     return False
 
 
@@ -180,7 +204,12 @@ def check_agent_connection(connection: AgentConnection) -> AgentConnection:
     """
     if not connection.connected:
         raise AgentConnectionError("Reconnect this login before checking it.")
-    with get_runner_client() as client:
+    runner = runner_for_login(str(connection.credential_key))
+    if runner is None:
+        raise AgentConnectionError(
+            "No runner can check the login now. Try again in a moment."
+        )
+    with runner_client(runner) as client:
         try:
             check_input = AgentCheckInput(
                 backend=connection.backend,

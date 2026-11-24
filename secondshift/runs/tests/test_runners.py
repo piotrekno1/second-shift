@@ -1,11 +1,17 @@
+import uuid
 from typing import Any
 
 import pytest
 from django.core.management import call_command
 from django.db import connection
 
+from secondshift.connections.models import AgentCredentialCleanup
 from secondshift.runner.tests.fakes import ClosableFake
-from secondshift.runner_protocol.sessions import CommandRequest, CommandResult
+from secondshift.runner_protocol.sessions import (
+    CommandRequest,
+    CommandResult,
+    RunnerProtocolError,
+)
 from secondshift.runs import runners
 from secondshift.runs.dao import all_runners, find_runner, update_run
 from secondshift.runs.execution.workspace_tools import execute_runner_command_step
@@ -295,3 +301,72 @@ def test_a_runner_with_unfinished_runs_cannot_be_removed(
     remove_runner("runner-b")
     run.refresh_from_db()
     assert run.runner_id is None
+
+
+@pytest.mark.django_db
+def test_the_configured_runner_is_registered_even_after_another(
+    configured: Any,
+) -> None:
+    # An operator added a runner before the worker's first pass.
+    add_runner("runner-b", "http://runner-b:8002", OTHER_TOKEN)
+
+    names = [runner.name for runner in runners.registered_runners()]
+
+    assert names == [DEFAULT_RUNNER, "runner-b"]
+
+
+class WipingClient(ClosableFake):
+    """Records each login copy a runner is asked to delete."""
+
+    deleted: list[str] = []
+    reachable = True
+
+    def __init__(self, runner: Runner) -> None:
+        self.runner = runner
+
+    def send(self, method: str, path: str, **kwargs: Any) -> Any:
+        if not self.reachable:
+            raise RunnerProtocolError("unreachable")
+        self.deleted.append(path.rsplit("/", 1)[1])
+        return type("Response", (), {"status_code": 204})()
+
+
+@pytest.fixture
+def wiping(monkeypatch: pytest.MonkeyPatch) -> type[WipingClient]:
+    WipingClient.deleted = []
+    WipingClient.reachable = True
+    monkeypatch.setattr(runners, "runner_client", WipingClient)
+    return WipingClient
+
+
+@pytest.mark.django_db
+def test_remove_deletes_every_login_copy_first(
+    agent_login: Any, wiping: type[WipingClient]
+) -> None:
+    _, login, _ = agent_login
+    replaced = AgentCredentialCleanup.objects.create(credential_key=uuid.uuid4())
+    add_runner("runner-b", "http://runner-b:8002", OTHER_TOKEN)
+
+    assert remove_runner("runner-b") is True
+
+    assert sorted(wiping.deleted) == sorted(
+        [login.credential_key.hex, replaced.credential_key.hex]
+    )
+    assert find_runner("runner-b") is None
+
+
+@pytest.mark.django_db
+def test_remove_keeps_a_runner_that_cannot_confirm_unless_forced(
+    agent_login: Any, wiping: type[WipingClient], capsys: pytest.CaptureFixture[str]
+) -> None:
+    add_runner("runner-b", "http://runner-b:8002", OTHER_TOKEN)
+    wiping.reachable = False
+
+    with pytest.raises(RunnerRegistryError, match="did not confirm"):
+        remove_runner("runner-b")
+    assert find_runner("runner-b") is not None
+
+    call_command("runners", "remove", "runner-b", "--force")
+
+    assert find_runner("runner-b") is None
+    assert "agent-auth" in capsys.readouterr().err

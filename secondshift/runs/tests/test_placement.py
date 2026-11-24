@@ -9,8 +9,14 @@ from django.utils import timezone
 from secondshift.runner_protocol.environments import RunnerEnvironments
 from secondshift.runner_protocol.sessions import RunnerProtocolError
 from secondshift.runs import runners
-from secondshift.runs.dao import find_runner, run_events, update_run
-from secondshift.runs.models import Run, Runner
+from secondshift.runs.dao import (
+    find_runner,
+    login_home,
+    run_events,
+    set_login_home,
+    update_run,
+)
+from secondshift.runs.models import LoginHome, Run, Runner
 from secondshift.runs.runners import (
     add_runner,
     assign_runner,
@@ -18,6 +24,7 @@ from secondshift.runs.runners import (
     choose_runner,
     refresh_runner_environments,
     sync_configured_runner,
+    try_assign_runner,
 )
 from secondshift.runs.tests.test_workflows import execution_run
 
@@ -270,3 +277,77 @@ def test_refresh_keeps_what_each_runner_offers(
     assert find_runner("runner-c").environments == ["python"]
     # A down runner is not asked.
     assert find_runner("runner-d").environments == ["python"]
+
+
+# Keeping a subscription login on one runner
+
+LOGIN = "6f1c1c2e-8f43-4d5c-9a8e-3c0b7f0d2a11"
+
+
+def with_login(run: Run, key: str = LOGIN) -> Run:
+    run.execution_plan["execution"]["credential_key"] = key
+    run.save(update_fields=["execution_plan"])
+    return run
+
+
+def another_run(run: Run, minutes: int) -> Run:
+    copy = Run.objects.get(pk=run.pk)
+    copy.pk = None
+    copy.runner = None
+    copy.scheduled_for = run.scheduled_for + timedelta(minutes=minutes)
+    copy.save()
+    return copy
+
+
+def test_a_login_stays_on_its_first_runner(run: Run) -> None:
+    sync_configured_runner()
+    change_runner_state("default", Runner.State.DRAINING)
+    first = make_runner("runner-b", max_sessions=1)
+    with_login(run)
+
+    assert assign_runner(run.pk) == first
+    assert login_home(LOGIN).runner == first
+
+    # runner-c has more room, but the login's copy lives on runner-b.
+    make_runner("runner-c")
+    Run.objects.filter(pk=run.pk).update(status=Run.Status.SUCCEEDED)
+    assert assign_runner(another_run(run, 1).pk) == first
+
+
+def test_a_login_waits_for_its_home_instead_of_moving(run: Run) -> None:
+    sync_configured_runner()
+    change_runner_state("default", Runner.State.DRAINING)
+    home = make_runner("runner-b", max_sessions=1)
+    make_runner("runner-c")
+    set_login_home(LOGIN, home)
+    occupy(run, home)
+
+    assert try_assign_runner(with_login(run).pk, NODE, LOGIN) is None
+
+
+def test_a_login_moves_when_its_home_drains(run: Run) -> None:
+    sync_configured_runner()
+    change_runner_state("default", Runner.State.DRAINING)
+    old = make_runner("runner-b")
+    new = make_runner("runner-c")
+    set_login_home(LOGIN, old)
+    change_runner_state("runner-b", Runner.State.DRAINING)
+
+    assert assign_runner(with_login(run).pk) == new
+    assert login_home(LOGIN).runner == new
+
+
+def test_a_login_moves_when_its_home_lacks_the_environment(run: Run) -> None:
+    sync_configured_runner()
+    change_runner_state("default", Runner.State.DRAINING)
+    old = make_runner("runner-b", environments=["python"])
+    new = make_runner("runner-c", environments=[NODE])
+    set_login_home(LOGIN, old)
+
+    assert assign_runner(with_login(run).pk) == new
+
+
+def test_runs_without_a_login_set_no_home(run: Run) -> None:
+    assign_runner(run.pk)
+
+    assert not LoginHome.objects.exists()

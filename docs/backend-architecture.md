@@ -144,8 +144,28 @@ uploading anything, while it holds the run's row lock. A retried step finds the
 saved runner and reaches it again. Every later call for the run, including
 gateway tool calls, goes through `runner_client_for(run_id)`. A run with no
 runner, which can only be one that started before the upgrade, uses the
-configured runner. Login checks and the environment list on pages still ask the
-configured runner.
+configured runner. The environment list on pages still asks the configured
+runner.
+
+Each subscription login is sealed to the provisioning key of the runner that
+uses it, and that runner caches a copy. Any runner may hold one, from a run it
+took or a check it ran. A disconnect or reconnect queues an
+`AgentCredentialCleanup`, which asks every registered runner to remove its copy.
+`removed_from` records the runners that confirmed. A runner that is down is not
+asked until it comes back, but the cleanup stays until it confirms.
+
+Each login has a home runner, `runs.LoginHome`, set the first time a run or a
+check uses it. Its runs and checks go only there while it is active and offers
+the run's environment, and wait when it is full. Codex refreshes its tokens
+into that runner's copy and the old refresh token stops working, so the home
+keeps the only live copy. Its file lock lets one run use the login at a time.
+When the home drains, goes down or lacks the environment, the login moves, and
+Codex may need a reconnect. A reconnect issues a new key, and so a new home.
+
+Removing a runner first asks it to delete every login copy it could hold: each
+login's current key and the replaced keys still waiting for cleanup. A runner
+that can't confirm is kept unless the operator forces it, and then its
+`agent-auth` directory has to be deleted on the host.
 
 Placement chooses among the active runners in the `default` pool. Runners in
 other pools take no runs until pools are routed. A runner qualifies when it

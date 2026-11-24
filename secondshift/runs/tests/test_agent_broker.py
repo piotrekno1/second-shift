@@ -188,7 +188,7 @@ def test_disconnect_blocks_the_broker_while_the_runner_is_down(
     run, lease, owner = leased_run
     runner = closable_mock()
     runner.send.side_effect = RunnerProtocolError("unavailable")
-    monkeypatch.setattr(agent_logins, "get_runner_client", lambda: runner)
+    monkeypatch.setattr(agent_logins, "runner_client", lambda target: runner)
     client.force_login(owner)
     response = client.delete(
         f"/api/agent-connections/{run.job.workspace.default_agent_connection_id}"

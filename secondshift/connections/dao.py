@@ -1,5 +1,6 @@
 """Queries and writes on connections, sign-ins and agent logins."""
 
+import uuid
 from collections import Counter
 from collections.abc import Collection
 from datetime import datetime
@@ -282,7 +283,7 @@ def find_agent_connection(
 
 
 def queue_cleanup(connection: AgentConnection) -> AgentCredentialCleanup:
-    """Ask the runner to forget the login's cached credentials."""
+    """Ask the runners to forget the login's cached credentials."""
     cleanup, _ = AgentCredentialCleanup.objects.get_or_create(
         credential_key=connection.credential_key,
         defaults={"connection": connection},
@@ -290,14 +291,19 @@ def queue_cleanup(connection: AgentConnection) -> AgentCredentialCleanup:
     return cleanup
 
 
-def count_cleanup_attempt(cleanup: AgentCredentialCleanup) -> None:
+def count_cleanup_attempt(
+    cleanup: AgentCredentialCleanup, removed_from: list[str]
+) -> None:
+    """Record a pass that left copies behind, and the runners that confirmed."""
     AgentCredentialCleanup.objects.filter(pk=cleanup.pk).update(
-        attempts=F("attempts") + 1, updated_at=timezone.now()
+        attempts=F("attempts") + 1,
+        removed_from=removed_from,
+        updated_at=timezone.now(),
     )
 
 
 def pending_cleanups(limit: int) -> list[AgentCredentialCleanup]:
-    """The oldest cleanups the runner has not done yet."""
+    """The oldest cleanups some runner has not done yet."""
     return list(AgentCredentialCleanup.objects.order_by("pk")[:limit])
 
 
@@ -314,3 +320,11 @@ def login_run_counts(workspace_id: int, since: datetime) -> Counter[int]:
             .values_list("pk", "recent")
         )
     )
+
+
+def known_credential_keys() -> set[uuid.UUID]:
+    """The key of every login a runner may still hold a copy of: each login's
+    current key, and the replaced keys still waiting for cleanup."""
+    current = AgentConnection.objects.values_list("credential_key", flat=True)
+    replaced = AgentCredentialCleanup.objects.values_list("credential_key", flat=True)
+    return {*current, *replaced}

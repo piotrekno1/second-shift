@@ -31,7 +31,7 @@ def runner_cleanup(
         runner.send.side_effect = error
     else:
         runner.send.return_value = Mock(status_code=204)
-    monkeypatch.setattr(agent_logins, "get_runner_client", lambda: runner)
+    monkeypatch.setattr(agent_logins, "runner_client", lambda target: runner)
     return runner
 
 
