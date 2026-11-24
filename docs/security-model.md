@@ -95,8 +95,9 @@ The built-in agent and the broker run in the same worker process. The model
 never receives MCP or API credentials, but no process boundary separates them
 from the agent loop. The web app, gateway and worker also share the encryption
 key, so a compromise of any of them exposes every stored credential. The runner
-and the sandbox do not have the key. The runner does keep the CLI files of each
-subscription login that has run on it.
+and the sandbox do not have the key. The runner does keep the login file of
+each subscription login that has run on it. Runs that share a login share only
+that file. Each Codex run's state, logs and memories end with the run.
 
 Each runner has its own service token, and SecondShift refuses one that
 another runner already uses, so a runner that is taken over can't call the
