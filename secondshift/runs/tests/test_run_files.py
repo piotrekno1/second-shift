@@ -6,6 +6,7 @@ from django.db import transaction
 from django.test import Client
 
 from secondshift.jobs.tests.plans import stored_plan
+from secondshift.runner.tests.fakes import ClosableFake
 from secondshift.runner_protocol.sessions import CommandRequest, CommandResult
 from secondshift.runs.artifacts import artifact_storage, store_run_input, store_run_text
 from secondshift.runs.execution import run as execution
@@ -33,7 +34,7 @@ def storage(request, settings, tmp_path: Path) -> str:
     return request.param
 
 
-class FakeRunner:
+class FakeRunner(ClosableFake):
     def __init__(self, result: CommandResult | Exception) -> None:
         self.result = result
         self.requests: list[CommandRequest] = []
@@ -118,7 +119,7 @@ def test_capture_stores_the_skill_read_from_the_sandbox(
     runner = FakeRunner(
         CommandResult(call_id="c", exit_code=0, timed_out=False, output=SKILL)
     )
-    monkeypatch.setattr(execution, "get_runner_client", lambda: runner)
+    monkeypatch.setattr(execution, "runner_client_for", lambda run_id: runner)
 
     capture_run_input_step(run.pk, "session-1")
 
@@ -141,7 +142,7 @@ def test_capture_still_stores_input_when_the_skill_is_unreadable(
     run.save(update_fields=["execution_plan"])
     run = Run.objects.get(pk=run.pk)
     runner = FakeRunner(RuntimeError("runner down"))
-    monkeypatch.setattr(execution, "get_runner_client", lambda: runner)
+    monkeypatch.setattr(execution, "runner_client_for", lambda run_id: runner)
 
     capture_run_input_step(run.pk, "session-1")
 

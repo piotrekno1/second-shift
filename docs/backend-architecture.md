@@ -137,6 +137,16 @@ notifications both ask it.
 A failed run records a `RunFailure` kind and a reason. Pages and queries read
 these fields. The summary is text for people.
 
+`runs.runners` holds the runners registered with `secondshift runners`. The
+worker keeps the configured runner registered as `default`. The
+`start_runner_session` step pins the run to a runner with `Run.runner` before
+uploading anything, while it holds the run's row lock. A retried step finds the
+saved runner and reaches it again. Every later call for the run, including
+gateway tool calls, goes through `runner_client_for(run_id)`. A run with no
+runner, which can only be one that started before the upgrade, uses the
+configured runner. For now every run is pinned to `default`. Login checks and
+the environment list still ask the configured runner.
+
 The runs app has three internal packages:
 
 - `execution`: agent construction, workspace and external tools, budget and

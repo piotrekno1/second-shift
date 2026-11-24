@@ -17,6 +17,7 @@ from secondshift.connections.agents import (
 )
 from secondshift.connections.models import AgentConnection, AgentCredentialCleanup
 from secondshift.connections.tests.fixtures import TOKEN
+from secondshift.runner.tests.fakes import closable_mock
 from secondshift.runner_protocol.sessions import RunnerProtocolError
 from secondshift.workspaces.dao import create_workspace
 from secondshift.workspaces.models import Workspace, WorkspaceMembership
@@ -25,7 +26,7 @@ from secondshift.workspaces.models import Workspace, WorkspaceMembership
 def runner_cleanup(
     monkeypatch: pytest.MonkeyPatch, error: Exception | None = None
 ) -> Mock:
-    runner = Mock()
+    runner = closable_mock()
     if error:
         runner.send.side_effect = error
     else:

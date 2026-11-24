@@ -28,7 +28,8 @@ last_answer = Answer(asked_at=float("-inf"), environments=None)
 
 
 def fetch_environments() -> RunnerEnvironments:
-    return get_runner_client().environments(timeout=ASK_TIMEOUT_SECONDS)
+    with get_runner_client() as client:
+        return client.environments(timeout=ASK_TIMEOUT_SECONDS)
 
 
 def runner_environments() -> RunnerEnvironments | None:

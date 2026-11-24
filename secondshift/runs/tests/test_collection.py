@@ -6,6 +6,7 @@ from typing import Any
 import pytest
 
 from secondshift.runner.collection import collect, record_baseline
+from secondshift.runner.tests.fakes import ClosableFake
 from secondshift.runner_protocol.collection import OUTPUTS_DIR
 from secondshift.runs.artifacts import (
     CollectionError,
@@ -136,7 +137,7 @@ def test_deleting_a_run_deletes_its_collected_files(
     assert not any(artifact_storage().exists(path) for path in paths)
 
 
-class CollectingRunner:
+class CollectingRunner(ClosableFake):
     def __init__(self, archive: Path | None) -> None:
         self.archive = archive
         self.collected: list[str] = []
@@ -157,7 +158,7 @@ def test_the_workflow_keeps_what_the_agent_left_behind(
 ) -> None:
     run = execution_run(db)
     runner = CollectingRunner(agent_session(tmp_path))
-    monkeypatch.setattr(workflows, "get_runner_client", lambda: runner)
+    monkeypatch.setattr(workflows, "runner_client_for", lambda run_id: runner)
 
     workflows.collect_outputs(run.pk, "run-session")
 
@@ -174,7 +175,9 @@ def test_a_failed_collection_is_noted_and_keeps_the_run(
     db: object, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     run = execution_run(db)
-    monkeypatch.setattr(workflows, "get_runner_client", lambda: CollectingRunner(None))
+    monkeypatch.setattr(
+        workflows, "runner_client_for", lambda run_id: CollectingRunner(None)
+    )
 
     workflows.collect_outputs(run.pk, "run-session")
 

@@ -23,6 +23,7 @@ from secondshift.jobs.models import Job
 from secondshift.mcp_server.tests.test_job_tools import call, error_text, token
 from secondshift.repositories.local import committed_file, git
 from secondshift.repositories.models import Repository
+from secondshift.runner.tests.fakes import closable_mock
 from secondshift.runs.artifacts import artifact_storage, store_run_text
 from secondshift.runs.constants import RunStart
 from secondshift.runs.execution.agent_broker import run_connection
@@ -264,10 +265,11 @@ def test_worker_source_sandbox_output_and_retention(
 ) -> None:
     run = start(repository, owner)
     prepare_source_step.__wrapped__(run.pk)
-    runner = Mock()
+    runner = closable_mock()
     runner.start.return_value = "sandbox-1"
     monkeypatch.setattr(
-        "secondshift.runs.orchestration.workflows.get_runner_client", lambda: runner
+        "secondshift.runs.orchestration.workflows.runner_client_for",
+        lambda run_id: runner,
     )
     assert start_runner_session_step.__wrapped__(run.pk) == "sandbox-1"
     spec = runner.start.call_args.args[0]
@@ -462,7 +464,7 @@ def test_written_task_needs_no_skill_file_and_keeps_original_instructions(
     runner = Mock(
         side_effect=AssertionError("Written tasks must not read a skill file")
     )
-    monkeypatch.setattr("secondshift.runs.execution.run.get_runner_client", runner)
+    monkeypatch.setattr("secondshift.runs.execution.run.runner_client_for", runner)
     capture_run_input_step.__wrapped__(run.pk, "no-sandbox-read")
     runner.assert_not_called()
     run.refresh_from_db()

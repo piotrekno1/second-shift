@@ -128,9 +128,10 @@ def disconnect_agent_connection(connection: AgentConnection) -> bool:
 def remove_cached_credentials(cleanup: AgentCredentialCleanup) -> bool:
     """Ask the runner to remove one cached login. True once it is gone."""
     try:
-        response = get_runner_client().send(
-            "DELETE", f"/v1/agent-credentials/{cleanup.credential_key.hex}"
-        )
+        with get_runner_client() as client:
+            response = client.send(
+                "DELETE", f"/v1/agent-credentials/{cleanup.credential_key.hex}"
+            )
         removed = response.status_code == 204
     except RunnerProtocolError:
         removed = False
@@ -179,24 +180,24 @@ def check_agent_connection(connection: AgentConnection) -> AgentConnection:
     """
     if not connection.connected:
         raise AgentConnectionError("Reconnect this login before checking it.")
-    client = get_runner_client()
-    try:
-        check_input = AgentCheckInput(
-            backend=connection.backend,
-            credential_key=connection.credential_key.hex,
-            auth=client.encrypted_auth(connection.auth_data),
-        )
-    except ValidationError:
-        raise AgentConnectionError(
-            "This login is larger than the runner accepts. Sign in again."
-        ) from None
-    try:
-        result = client.check_agent(check_input)
-    except RunnerProtocolError:
-        raise AgentConnectionError(
-            "The runner could not check the login now. It may be running a job "
-            "with it. Try again in a moment."
-        ) from None
+    with get_runner_client() as client:
+        try:
+            check_input = AgentCheckInput(
+                backend=connection.backend,
+                credential_key=connection.credential_key.hex,
+                auth=client.encrypted_auth(connection.auth_data),
+            )
+        except ValidationError:
+            raise AgentConnectionError(
+                "This login is larger than the runner accepts. Sign in again."
+            ) from None
+        try:
+            result = client.check_agent(check_input)
+        except RunnerProtocolError:
+            raise AgentConnectionError(
+                "The runner could not check the login now. It may be running a job "
+                "with it. Try again in a moment."
+            ) from None
     reason = result.reason
     ok, message = CHECK_RESULTS.get(reason, CHECK_FAILED)
     connection.last_check = {

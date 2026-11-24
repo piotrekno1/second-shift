@@ -10,7 +10,6 @@ from pydantic import ValidationError
 from secondshift.agent.image.outcomes import AgentOutcome
 from secondshift.connections.agents import AgentConnectionError, check_agent_connection
 from secondshift.connections.models import AgentConnection
-from secondshift.runner_protocol.client import get_runner_client
 from secondshift.runner_protocol.schemas import AgentInput
 from secondshift.runs.dao import (
     add_event,
@@ -27,6 +26,7 @@ from secondshift.runs.execution.subagents import FINISHED, finish
 from secondshift.runs.models import Run, RunFailure
 from secondshift.runs.orchestration import durable
 from secondshift.runs.reporting.failures import StageFailure
+from secondshift.runs.runners import runner_client_for
 
 FAILURE_SUMMARIES = {
     AgentOutcome.QUOTA_EXHAUSTED: "Subscription usage exhausted. Wait for your provider's allowance to reset, then start a new run.",
@@ -120,25 +120,25 @@ def execute_cli_step(run_id: int, session_id: str, prompt: str) -> dict[str, Any
     lease = create_lease(run, hashlib.sha256(token.encode()).hexdigest(), session_id)
     limits = run.plan.agent.limits
     try:
-        client = get_runner_client()
-        try:
-            agent_input = AgentInput(
-                backend=connection.backend,
-                credential_key=connection.credential_key.hex,
-                auth=client.encrypted_auth(connection.auth_data),
-                broker_token=token,
-                prompt=prompt,
-                max_turns=limits.max_turns,
-                token_budget=limits.token_budget,
-                timeout_seconds=remaining,
-                subagents=run.plan.agent.subagents,
-            )
-        except ValidationError:
-            # The message would repeat the prompt, so it is not shown.
-            raise RuntimeError(
-                "The agent's input is larger than the runner accepts."
-            ) from None
-        result = client.run_agent(session_id, agent_input)
+        with runner_client_for(run_id) as client:
+            try:
+                agent_input = AgentInput(
+                    backend=connection.backend,
+                    credential_key=connection.credential_key.hex,
+                    auth=client.encrypted_auth(connection.auth_data),
+                    broker_token=token,
+                    prompt=prompt,
+                    max_turns=limits.max_turns,
+                    token_budget=limits.token_budget,
+                    timeout_seconds=remaining,
+                    subagents=run.plan.agent.subagents,
+                )
+            except ValidationError:
+                # The message would repeat the prompt, so it is not shown.
+                raise RuntimeError(
+                    "The agent's input is larger than the runner accepts."
+                ) from None
+            result = client.run_agent(session_id, agent_input)
     finally:
         end_lease(lease.pk)
     report = result.report.strip()

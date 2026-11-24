@@ -35,7 +35,7 @@ def fake_runner(
     monkeypatch: pytest.MonkeyPatch, result: dict[str, Any] | Exception
 ) -> list[dict[str, Any]]:
     runner, sent = agent_runner(result)
-    monkeypatch.setattr(cli_agent, "get_runner_client", lambda: runner)
+    monkeypatch.setattr(cli_agent, "runner_client_for", lambda run_id: runner)
     return sent
 
 

@@ -11,7 +11,6 @@ from pydantic_ai import ModelRetry, RunContext, Tool
 from pydantic_ai.tools import ToolDefinition
 
 from secondshift.jobs.tool_policy import LOCAL_TOOLS
-from secondshift.runner_protocol.client import get_runner_client
 from secondshift.runner_protocol.sandbox import (
     SANDBOX_HISTORY_DIR,
     SANDBOX_OUTPUTS_DIR,
@@ -24,6 +23,7 @@ from secondshift.runs.execution.deadlines import (
 )
 from secondshift.runs.inputs import Payload
 from secondshift.runs.orchestration import durable
+from secondshift.runs.runners import runner_client_for
 
 MODEL_TOOL_NAMES = {
     "workspace.list_files": "workspace_list_files",
@@ -96,6 +96,7 @@ class WorkspaceToolDeps:
         check_deadline(self.deadline)
         call_id = hashlib.sha256(f"{self.run_id}:{tool_call_id}".encode()).hexdigest()
         result = execute_runner_command_step(
+            self.run_id,
             self.session_id,
             call_id,
             argv,
@@ -117,6 +118,7 @@ class WorkspaceToolDeps:
     max_attempts=3,
 )
 def execute_runner_command_step(
+    run_id: int,
     session_id: str,
     call_id: str,
     argv: list[str],
@@ -124,15 +126,16 @@ def execute_runner_command_step(
     timeout_seconds: int,
 ) -> CommandResult:
     """Cross the authenticated runner boundary in one durable, idempotent step."""
-    return get_runner_client().execute(
-        session_id,
-        CommandRequest(
-            call_id=call_id,
-            argv=tuple(argv),
-            cwd=cwd,
-            timeout_seconds=timeout_seconds,
-        ),
-    )
+    with runner_client_for(run_id) as client:
+        return client.execute(
+            session_id,
+            CommandRequest(
+                call_id=call_id,
+                argv=tuple(argv),
+                cwd=cwd,
+                timeout_seconds=timeout_seconds,
+            ),
+        )
 
 
 def workspace_path(value: str) -> str:

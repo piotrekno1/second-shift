@@ -4,17 +4,24 @@ import pytest
 from django.core.management import call_command
 from django.db import connection
 
-from secondshift.runs.dao import all_runners, find_runner
-from secondshift.runs.models import Runner
+from secondshift.runner.tests.fakes import ClosableFake
+from secondshift.runner_protocol.sessions import CommandRequest, CommandResult
+from secondshift.runs import runners
+from secondshift.runs.dao import all_runners, find_runner, update_run
+from secondshift.runs.execution.workspace_tools import execute_runner_command_step
+from secondshift.runs.models import Run, Runner
+from secondshift.runs.orchestration.workflows import stop_runner_session_step
 from secondshift.runs.runners import (
     DEFAULT_RUNNER,
     RunnerRegistryError,
     add_runner,
+    assign_runner,
     change_runner_state,
     remove_runner,
     runner_client,
     sync_configured_runner,
 )
+from secondshift.runs.tests.test_workflows import execution_run
 
 TOKEN = "t" * 32
 OTHER_TOKEN = "o" * 32
@@ -186,3 +193,99 @@ def test_add_command_reads_the_token_from_the_environment(
     assert runner is not None
     assert runner.token == TOKEN
     assert runner.state == Runner.State.DRAINING
+
+
+# Routing a run's calls to its runner
+
+
+class RecordingClient(ClosableFake):
+    """Stands in for HttpRunnerClient and records which runner it reached."""
+
+    reached: list[tuple[str, str]] = []
+
+    def __init__(self, base_url: str, auth_token: str) -> None:
+        self.base_url = base_url
+        self.auth_token = auth_token
+
+    def execute(self, session_id: str, request: CommandRequest) -> CommandResult:
+        self.reached.append((self.base_url, "execute"))
+        return CommandResult(call_id=request.call_id, exit_code=0, output="")
+
+    def stop(self, session_id: str) -> None:
+        self.reached.append((self.base_url, "stop"))
+
+
+@pytest.fixture
+def run(db: None) -> Run:
+    return execution_run(db)
+
+
+@pytest.fixture
+def recording(monkeypatch: pytest.MonkeyPatch) -> list[tuple[str, str]]:
+    RecordingClient.reached = []
+    monkeypatch.setattr(runners, "HttpRunnerClient", RecordingClient)
+    monkeypatch.setattr(
+        runners, "get_runner_client", lambda: RecordingClient("configured", "")
+    )
+    return RecordingClient.reached
+
+
+def test_a_run_is_pinned_to_the_default_runner(configured: Any, run: Run) -> None:
+    runner = assign_runner(run.pk)
+
+    run.refresh_from_db()
+    assert runner.name == DEFAULT_RUNNER
+    assert run.runner_id == runner.pk
+
+
+def test_a_pinned_run_keeps_its_runner(configured: Any, run: Run) -> None:
+    # As if the session step was retried after a crash, once runner-b was chosen.
+    other = add_runner("runner-b", "http://runner-b:8002", OTHER_TOKEN)
+    update_run(run.pk, runner=other)
+
+    assert assign_runner(run.pk) == other
+
+
+def test_a_run_cannot_start_without_a_runner(settings: Any, run: Run) -> None:
+    settings.RUNNER_SERVICE_URL = ""
+
+    with pytest.raises(RuntimeError, match="No runner is registered"):
+        assign_runner(run.pk)
+
+
+def test_session_calls_go_to_the_run_runner(
+    configured: Any, run: Run, recording: list[tuple[str, str]]
+) -> None:
+    other = add_runner("runner-b", "http://runner-b:8002", OTHER_TOKEN)
+    update_run(run.pk, runner=other)
+
+    execute_runner_command_step.__wrapped__(run.pk, "session", "call", ["ls"], ".", 30)
+    stop_runner_session_step.__wrapped__(run.pk, "session")
+
+    assert recording == [
+        ("http://runner-b:8002", "execute"),
+        ("http://runner-b:8002", "stop"),
+    ]
+
+
+def test_a_run_from_before_the_registry_uses_the_configured_runner(
+    configured: Any, run: Run, recording: list[tuple[str, str]]
+) -> None:
+    stop_runner_session_step.__wrapped__(run.pk, "session")
+
+    assert recording == [("configured", "stop")]
+
+
+def test_a_runner_with_unfinished_runs_cannot_be_removed(
+    configured: Any, run: Run
+) -> None:
+    other = add_runner("runner-b", "http://runner-b:8002", OTHER_TOKEN)
+    update_run(run.pk, runner=other)
+
+    with pytest.raises(RunnerRegistryError, match="unfinished runs"):
+        remove_runner("runner-b")
+
+    Run.objects.filter(pk=run.pk).update(status=Run.Status.SUCCEEDED)
+    remove_runner("runner-b")
+    run.refresh_from_db()
+    assert run.runner_id is None

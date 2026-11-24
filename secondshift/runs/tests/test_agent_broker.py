@@ -2,7 +2,6 @@ import hashlib
 import json
 from datetime import timedelta
 from typing import Any
-from unittest.mock import Mock
 
 import pytest
 from django.contrib.auth.models import User
@@ -12,6 +11,7 @@ from pydantic_ai import ModelRetry, RunContext, Tool
 
 from secondshift.connections import agents as agent_logins
 from secondshift.connections.models import AgentConnection, AgentCredentialCleanup
+from secondshift.runner.tests.fakes import closable_mock
 from secondshift.runner_protocol.sessions import CommandResult, RunnerProtocolError
 from secondshift.runs.artifacts import store_run_payload
 from secondshift.runs.execution.agent_broker import (
@@ -45,7 +45,12 @@ def test_mcp_exposes_and_calls_only_frozen_tools(
     calls = []
 
     def execute(
-        session_id: str, call_id: str, argv: list[str], cwd: str, timeout: int
+        run_id: int,
+        session_id: str,
+        call_id: str,
+        argv: list[str],
+        cwd: str,
+        timeout: int,
     ) -> CommandResult:
         calls.append((call_id, argv))
         return CommandResult(call_id=call_id, exit_code=0, output="skill text")
@@ -181,7 +186,7 @@ def test_disconnect_blocks_the_broker_while_the_runner_is_down(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     run, lease, owner = leased_run
-    runner = Mock()
+    runner = closable_mock()
     runner.send.side_effect = RunnerProtocolError("unavailable")
     monkeypatch.setattr(agent_logins, "get_runner_client", lambda: runner)
     client.force_login(owner)

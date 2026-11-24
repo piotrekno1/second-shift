@@ -1,6 +1,7 @@
 from dataclasses import asdict
 from pathlib import Path
-from typing import Any
+from types import TracebackType
+from typing import Any, Self
 
 import httpx
 from django.conf import settings
@@ -40,6 +41,21 @@ class HttpRunnerClient:
                 "Accept": "application/json",
             },
         )
+
+    def close(self) -> None:
+        """Close the connection pool. The client sends nothing after this."""
+        self.session.close()
+
+    def __enter__(self) -> Self:
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
+        self.close()
 
     def send(
         self, method: str, path: str, timeout: float | None = None, **kwargs: Any

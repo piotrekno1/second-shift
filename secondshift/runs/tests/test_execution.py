@@ -86,7 +86,7 @@ def test_runner_call_is_stable_bounded_and_contains_no_runtime_configuration(
     def execute(*args: Any) -> CommandResult:
         calls.append(args)
         return CommandResult(
-            call_id=str(args[1]),
+            call_id=str(args[2]),
             exit_code=0,
             output="a" * 500,
         )
@@ -106,9 +106,9 @@ def test_runner_call_is_stable_bounded_and_contains_no_runtime_configuration(
     assert result["output_truncated"] is True
     assert len(result["output"]) == 80
     assert calls[0] == calls[1]
-    assert calls[0][0] == "run-7"
-    assert calls[0][2:] == (["python", "-m", "pytest"], "src", 30)
-    assert len(calls[0][1]) == 64
+    assert calls[0][:2] == (7, "run-7")
+    assert calls[0][3:] == (["python", "-m", "pytest"], "src", 30)
+    assert len(calls[0][2]) == 64
     assert not any(
         value in str(calls) for value in ("--mount", "--network", "--runtime", "secret")
     )
@@ -118,6 +118,7 @@ def test_pydantic_agent_calls_the_runner_backed_tool(monkeypatch) -> None:
     requests: list[CommandRequest] = []
 
     def execute(
+        run_id: int,
         session_id: str,
         call_id: str,
         argv: list[str],
