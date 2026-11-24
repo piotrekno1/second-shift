@@ -157,7 +157,7 @@ def test_the_workflow_keeps_what_the_agent_left_behind(
 ) -> None:
     run = execution_run(db)
     runner = CollectingRunner(agent_session(tmp_path))
-    monkeypatch.setattr(workflows, "get_runner_client", lambda: runner)
+    monkeypatch.setattr(workflows, "runner_client_for", lambda run_id: runner)
 
     workflows.collect_outputs(run.pk, "run-session")
 
@@ -174,7 +174,9 @@ def test_a_failed_collection_is_noted_and_keeps_the_run(
     db: object, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     run = execution_run(db)
-    monkeypatch.setattr(workflows, "get_runner_client", lambda: CollectingRunner(None))
+    monkeypatch.setattr(
+        workflows, "runner_client_for", lambda run_id: CollectingRunner(None)
+    )
 
     workflows.collect_outputs(run.pk, "run-session")
 

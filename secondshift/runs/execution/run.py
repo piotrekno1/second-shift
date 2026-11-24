@@ -11,7 +11,6 @@ from pydantic_ai.toolsets import FunctionToolset
 
 from secondshift.jobs.execution_plan import ExecutionPlan, JobPlan
 from secondshift.jobs.models import CapabilityRequest
-from secondshift.runner_protocol.client import get_runner_client
 from secondshift.runner_protocol.sandbox import SANDBOX_OUTPUTS_DIR, SANDBOX_SKILL_DIR
 from secondshift.runner_protocol.sessions import CommandRequest, CommandResult
 from secondshift.runs.artifacts import (
@@ -53,6 +52,7 @@ from secondshift.runs.history import previous_reports
 from secondshift.runs.models import Run
 from secondshift.runs.orchestration import durable
 from secondshift.runs.reporting.failures import root_error
+from secondshift.runs.runners import runner_client_for
 from secondshift.workspaces.limits import RunLimit
 
 SYSTEM_INSTRUCTIONS = """You execute one repository task for SecondShift.
@@ -286,7 +286,7 @@ def capture_run_input_step(run_id: int, session_id: str) -> None:
     skill: CommandResult | None = None
     if skill_path:
         try:
-            skill = get_runner_client().execute(
+            skill = runner_client_for(run_id).execute(
                 session_id,
                 CommandRequest(
                     call_id=hashlib.sha256(

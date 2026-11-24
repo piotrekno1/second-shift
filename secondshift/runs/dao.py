@@ -796,3 +796,11 @@ def delete_runner(name: str) -> bool:
     """True when a runner with this name existed."""
     deleted, _ = Runner.objects.filter(name=name).delete()
     return bool(deleted)
+
+
+def runner_has_unfinished_runs(runner_id: int) -> bool:
+    return (
+        Run.objects.filter(runner_id=runner_id)
+        .exclude(status__in=Run.FINISHED_STATUSES)
+        .exists()
+    )

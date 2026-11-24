@@ -135,6 +135,12 @@ class Run(models.Model):
     # Sent to the runner so its session can never match one from an older run
     # that had the same ID, for example after a database reset or restore.
     runner_session_key = models.UUIDField(default=uuid.uuid4, editable=False)
+    # Where its sandbox runs, set when the session starts. Every later call for
+    # the run goes there. Empty for runs that started before runners were
+    # registered, which use the configured runner.
+    runner = models.ForeignKey(
+        "Runner", on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

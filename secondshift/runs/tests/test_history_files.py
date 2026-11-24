@@ -191,7 +191,7 @@ def test_the_session_mounts_the_packed_files(repository, monkeypatch) -> None:
         ),
     )
     client = FakeRunnerClient()
-    monkeypatch.setattr(workflows, "get_runner_client", lambda: client)
+    monkeypatch.setattr(workflows, "runner_client_for", lambda run_id: client)
     monkeypatch.setattr(
         workflows,
         "source_snapshot",

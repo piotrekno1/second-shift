@@ -53,7 +53,7 @@ def budget_run(
     )
     monkeypatch.setattr(
         "secondshift.runs.execution.workspace_tools.execute_runner_command_step",
-        lambda session_id, call_id, *args: CommandResult(
+        lambda run_id, session_id, call_id, *args: CommandResult(
             call_id=call_id, exit_code=0, output="# Project"
         ),
     )

@@ -66,7 +66,8 @@ def test_a_forked_run_replays_its_subagent_from_records(
         "secondshift.runs.execution.run.capture_run_input_step", lambda *args: None
     )
     monkeypatch.setattr(
-        "secondshift.runs.execution.workspace_tools.get_runner_client", lambda: runner
+        "secondshift.runs.execution.workspace_tools.runner_client_for",
+        lambda run_id: runner,
     )
     calls: list[str] = []
 

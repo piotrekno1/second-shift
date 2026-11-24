@@ -267,7 +267,8 @@ def test_worker_source_sandbox_output_and_retention(
     runner = Mock()
     runner.start.return_value = "sandbox-1"
     monkeypatch.setattr(
-        "secondshift.runs.orchestration.workflows.get_runner_client", lambda: runner
+        "secondshift.runs.orchestration.workflows.runner_client_for",
+        lambda run_id: runner,
     )
     assert start_runner_session_step.__wrapped__(run.pk) == "sandbox-1"
     spec = runner.start.call_args.args[0]
@@ -462,7 +463,7 @@ def test_written_task_needs_no_skill_file_and_keeps_original_instructions(
     runner = Mock(
         side_effect=AssertionError("Written tasks must not read a skill file")
     )
-    monkeypatch.setattr("secondshift.runs.execution.run.get_runner_client", runner)
+    monkeypatch.setattr("secondshift.runs.execution.run.runner_client_for", runner)
     capture_run_input_step.__wrapped__(run.pk, "no-sandbox-read")
     runner.assert_not_called()
     run.refresh_from_db()

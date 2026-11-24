@@ -86,7 +86,8 @@ def test_the_runner_gets_only_the_skill_folder_beside_the_repository(
     runner = Mock()
     runner.start.return_value = "sandbox-1"
     monkeypatch.setattr(
-        "secondshift.runs.orchestration.workflows.get_runner_client", lambda: runner
+        "secondshift.runs.orchestration.workflows.runner_client_for",
+        lambda run_id: runner,
     )
 
     start_runner_session_step.__wrapped__(run.pk)
@@ -111,7 +112,7 @@ def test_the_stored_input_shows_the_skill_from_its_folder(
     runner.execute.return_value = CommandResult(
         call_id="c", exit_code=0, output="# Triage"
     )
-    monkeypatch.setattr(execution, "get_runner_client", lambda: runner)
+    monkeypatch.setattr(execution, "runner_client_for", lambda run_id: runner)
 
     capture_run_input_step(run.pk, "sandbox-1")
 

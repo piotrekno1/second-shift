@@ -118,7 +118,7 @@ def test_capture_stores_the_skill_read_from_the_sandbox(
     runner = FakeRunner(
         CommandResult(call_id="c", exit_code=0, timed_out=False, output=SKILL)
     )
-    monkeypatch.setattr(execution, "get_runner_client", lambda: runner)
+    monkeypatch.setattr(execution, "runner_client_for", lambda run_id: runner)
 
     capture_run_input_step(run.pk, "session-1")
 
@@ -141,7 +141,7 @@ def test_capture_still_stores_input_when_the_skill_is_unreadable(
     run.save(update_fields=["execution_plan"])
     run = Run.objects.get(pk=run.pk)
     runner = FakeRunner(RuntimeError("runner down"))
-    monkeypatch.setattr(execution, "get_runner_client", lambda: runner)
+    monkeypatch.setattr(execution, "runner_client_for", lambda run_id: runner)
 
     capture_run_input_step(run.pk, "session-1")
 

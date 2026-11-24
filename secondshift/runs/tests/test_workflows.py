@@ -77,7 +77,7 @@ def test_only_a_plan_that_publishes_changes_records_them(db, monkeypatch) -> Non
     run.execution_plan["runner"]["collect_changes"] = True
     run.save()
     client = FakeRunnerClient()
-    monkeypatch.setattr(workflows, "get_runner_client", lambda: client)
+    monkeypatch.setattr(workflows, "runner_client_for", lambda run_id: client)
     monkeypatch.setattr(workflows, "source_snapshot", lambda *args: SNAPSHOT)
 
     start_runner_session_step(run.pk)
@@ -93,7 +93,8 @@ def test_runner_session_uses_only_the_frozen_server_plan(db, monkeypatch) -> Non
     run = execution_run(db)
     client = FakeRunnerClient()
     monkeypatch.setattr(
-        "secondshift.runs.orchestration.workflows.get_runner_client", lambda: client
+        "secondshift.runs.orchestration.workflows.runner_client_for",
+        lambda run_id: client,
     )
     snapshots = []
 
@@ -104,7 +105,7 @@ def test_runner_session_uses_only_the_frozen_server_plan(db, monkeypatch) -> Non
     monkeypatch.setattr(workflows, "source_snapshot", source_snapshot)
 
     session_id = start_runner_session_step(run.pk)
-    stop_runner_session_step(session_id)
+    stop_runner_session_step(run.pk, session_id)
 
     assert client.started == [
         RunnerSessionSpec(
@@ -121,6 +122,9 @@ def test_runner_session_uses_only_the_frozen_server_plan(db, monkeypatch) -> Non
     assert client.stopped == [session_id]
     run.refresh_from_db()
     assert run.sandbox_runtime == RunSandbox.ISOLATED_RUNNER
+    # Pinned before the snapshot upload, so a retried step reaches the same runner.
+    assert run.runner is not None
+    assert run.runner.name == "default"
 
 
 @pytest.mark.django_db
@@ -130,7 +134,8 @@ def test_runner_session_rejects_a_networked_plan(db, monkeypatch) -> None:
     run.save(update_fields=["execution_plan"])
     client = FakeRunnerClient()
     monkeypatch.setattr(
-        "secondshift.runs.orchestration.workflows.get_runner_client", lambda: client
+        "secondshift.runs.orchestration.workflows.runner_client_for",
+        lambda run_id: client,
     )
 
     with pytest.raises(ValidationError, match="network_policy"):
@@ -288,7 +293,7 @@ def setup_run(db, commands: list[str]) -> Run:
 def test_the_session_spec_carries_the_plans_setup(db, monkeypatch) -> None:
     run = setup_run(db, ["npm ci --ignore-scripts"])
     client = FakeRunnerClient()
-    monkeypatch.setattr(workflows, "get_runner_client", lambda: client)
+    monkeypatch.setattr(workflows, "runner_client_for", lambda run_id: client)
     monkeypatch.setattr(workflows, "source_snapshot", lambda *args: SNAPSHOT)
 
     start_runner_session_step(run.pk)
@@ -305,7 +310,7 @@ def test_setup_runs_each_command_before_the_agent(
         [CommandResult("setup-0", 0, "ok"), CommandResult("setup-1", 0, "ok")]
     )
     order: list[str] = []
-    monkeypatch.setattr(workflows, "get_runner_client", lambda: client)
+    monkeypatch.setattr(workflows, "runner_client_for", lambda run_id: client)
 
     def agent(run: Run, session_id: str) -> None:
         order.append(f"agent after {len(client.setups)} setup commands")
@@ -337,7 +342,7 @@ def test_a_failed_setup_command_stops_the_run_before_the_agent(
     client = SetupRunnerClient(
         [CommandResult("setup-0", 1, "npm ERR! 404 Not Found - left-pad")]
     )
-    monkeypatch.setattr(workflows, "get_runner_client", lambda: client)
+    monkeypatch.setattr(workflows, "runner_client_for", lambda run_id: client)
     monkeypatch.setattr(
         workflows, "execute_agent_run", lambda *args: pytest.fail("agent ran")
     )
