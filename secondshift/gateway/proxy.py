@@ -225,7 +225,14 @@ def check_request(
 ) -> tuple[str, bool]:
     """The model, and whether the call counts against the token budget."""
     model = payload["model"]
-    allowed = run_token.connection.allowed_models
+    # The run's frozen plan decides, so editing the provider mid-run changes
+    # nothing for runs already started.
+    model_plan = run_token.run.plan.model
+    if model_plan is None:
+        raise GatewayRefusal(
+            family, 403, "permission_error", "This run has no model provider."
+        )
+    allowed = model_plan.allowed_models
     if allowed and model not in allowed:
         raise GatewayRefusal(
             family,

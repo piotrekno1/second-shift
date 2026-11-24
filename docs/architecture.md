@@ -101,8 +101,8 @@ agent waits for each report before it goes on. Codex runs without sub-agents.
   reaches package registries only, through a second egress proxy.
 - An agent container reaches the internet only through the egress proxy, which
   allows its provider's hosts. The proxy holds no secrets.
-- For the built-in agent, the gateway picks the model, enforces the token
-  budget and meters usage.
+- For the built-in agent, the gateway allows only the models frozen into the
+  run's plan, enforces the token budget and meters usage.
 - The control plane runs only approved MCP tools and API operations, for
   either agent. These can change data in other services when the workspace
   owner allows it. The built-in GitHub and Sentry tools only read.
