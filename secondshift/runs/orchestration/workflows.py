@@ -32,6 +32,7 @@ from secondshift.runs.constants import (
 )
 from secondshift.runs.dao import (
     add_event,
+    add_session_cleanup,
     fail_notification_delivery,
     finish_delivery,
     get_run,
@@ -301,6 +302,15 @@ def stop_runner_session_step(run_id: int, session_id: str) -> None:
         client.stop(session_id)
 
 
+@durable.step(name="secondshift.queue_session_cleanup")
+def queue_session_cleanup_step(run_id: int, session_id: str) -> None:
+    """Keep a session its runner did not stop. The worker's runner check stops
+    it once that runner answers."""
+    run = get_run(run_id)
+    if run.runner_id is not None:
+        add_session_cleanup(run_id, run.runner_id, session_id)
+
+
 @durable.step(name="secondshift.close_mcp_sessions")
 def close_mcp_sessions_step(run_id: int) -> None:
     close_run_mcp_sessions(run_id)
@@ -534,6 +544,7 @@ def execute_run(run_id: int) -> None:
                 stop_runner_session_step(run_id, session_id)
             except Exception:
                 logger.exception("failed to stop runner session %s", session_id)
+                queue_session_cleanup_step(run_id, session_id)
         close_mcp_sessions(run_id)
         details = failure_metadata(stage, error)
         timed_out = deadline is not None and timezone.now() >= deadline

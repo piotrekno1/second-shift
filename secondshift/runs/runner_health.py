@@ -115,7 +115,8 @@ def fail_lost_run(run_id: int, runner: Runner) -> bool:
 
 
 def stop_lost_sessions(runner: Runner) -> int:
-    """Stop the sessions of runs that failed while this runner was lost.
+    """Stop the sessions this runner kept: of runs that failed while it was
+    lost, and ones it did not stop when their run ended.
 
     Returns how many it stopped. Stopping a session the runner never started
     or already stopped is fine.
