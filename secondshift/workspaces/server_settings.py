@@ -20,6 +20,7 @@ from secondshift.config.formatting import duration_label
 from secondshift.jobs.environments import runner_environments
 from secondshift.runner_protocol.environments import (
     DEFAULT_SANDBOX,
+    RunnerEnvironments,
     environment_variable,
 )
 
@@ -65,29 +66,45 @@ def image_label(image: str) -> str:
 
 
 def environment_items() -> list[SettingValue]:
-    """Which environment jobs get by default, then each one the runner offers.
-    The runner owns their images, so the page asks it.
+    """Which environment jobs get by default, then each one the runners offer.
+    The runners own their images. When they all offer the same, the page
+    shows it once; otherwise it shows each runner's.
     """
-    environments = runner_environments()
-    if environments is None:
+    offered = runner_environments()
+    if not offered:
         return [
             SettingValue(
                 "Environments",
-                "Runner unreachable",
+                "No runner has answered",
                 "",
-                "The runner lists its environments and images when it answers.",
+                "Each runner lists its environments and images when the worker "
+                "reaches it, once a minute.",
             )
         ]
+    if all(item.environments == offered[0].environments for item in offered):
+        return runner_environment_items(offered[0].environments, "")
+    return [
+        value
+        for item in offered
+        for value in runner_environment_items(item.environments, item.runner)
+    ]
+
+
+def runner_environment_items(
+    environments: RunnerEnvironments, runner: str
+) -> list[SettingValue]:
+    """One runner's environments. Labels name the runner when it is given."""
+    where = f" on {runner}" if runner else ""
     return [
         SettingValue(
-            "Default environment",
+            f"Default environment{where}",
             environments.default,
             DEFAULT_SANDBOX,
             "Jobs that set no environment run here.",
         ),
         *(
             SettingValue(
-                f"Environment: {name}",
+                f"Environment: {name}{where}",
                 image_label(image),
                 environment_variable(name),
                 f"Jobs that set environment: {name} run on this image.",

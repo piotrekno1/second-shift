@@ -23,6 +23,7 @@ from secondshift.jobs.models import CapabilityRequest, Job, JobGrant
 from secondshift.jobs.planner import build_execution_plan, build_skill_execution_plan
 from secondshift.jobs.readiness import execution_problems
 from secondshift.jobs.serialization import serialize_job_detail
+from secondshift.jobs.tests.fixtures import offer_environments
 from secondshift.repositories.models import Repository
 from secondshift.runner.tests.fakes import sandboxes
 from secondshift.runner_protocol.agents import AgentBackend
@@ -273,10 +274,10 @@ def test_definition_cannot_choose_credentials_or_runtime(field: str) -> None:
 
 
 def test_a_plan_names_the_environment_and_never_an_image(
-    repository: Repository, settings: Any
+    repository: Repository,
 ) -> None:
-    settings.RUNNER_ENVIRONMENTS = sandboxes(
-        "python:3.13-slim", node="registry.example/node@sha256:def"
+    offer_environments(
+        sandboxes("python:3.13-slim", node="registry.example/node@sha256:def")
     )
 
     result = plan(repository, definition(requires={}, environment="node"))
@@ -286,11 +287,9 @@ def test_a_plan_names_the_environment_and_never_an_image(
     assert "image" not in result["runner"]
 
 
-def test_an_environment_the_server_lacks_stops_the_run(
-    repository: Repository, settings: Any
-) -> None:
-    settings.RUNNER_ENVIRONMENTS = sandboxes(
-        "python:3.13-slim", node="registry.example/node@sha256:def"
+def test_an_environment_the_server_lacks_stops_the_run(repository: Repository) -> None:
+    offer_environments(
+        sandboxes("python:3.13-slim", node="registry.example/node@sha256:def")
     )
     sync_jobs(
         repository,

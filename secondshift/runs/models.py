@@ -433,6 +433,10 @@ class Runner(models.Model):
     # The sandbox environments it offers, by name, as it last answered. Empty
     # until it first answers, which placement treats as offering any.
     environments = models.JSONField(null=True, blank=True)
+    # The image behind each of those names, and the name jobs that set none
+    # get. Shown on the settings page; placement reads only the names.
+    images = models.JSONField(null=True, blank=True)
+    default_environment = models.CharField(max_length=40, blank=True)
     # Its public provisioning key, pinned at first contact. Logins are sealed
     # only to it, so whoever answers in its place can't read them.
     provisioning_key = models.TextField(blank=True)

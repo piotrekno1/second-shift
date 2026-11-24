@@ -74,6 +74,8 @@ fields:
 - `token`: encrypted, one per runner
 - `provisioning_public_key`: fetched from the runner
 - `environments`: the names it offers, refreshed from `GET /v1/environments`
+- `images` and `default_environment`: the rest of that answer, for the
+  settings page
 - `pool`: an operator label, default `default`
 - `max_sessions`
 - `state`: `active`, `draining` or `down`
@@ -172,11 +174,18 @@ own.
 
 ### Environments
 
-`jobs.environments` changes from asking one runner to returning the union of
-the active runners' registry rows. `environment_missing(name)` means no active
-runner offers `name`. The refresh moves from a per-process 60-second cache to
-a periodic worker task (`runner_health.refresh_runners`), which also records
-`failing_since`. Pages read the database and never wait on a runner.
+`jobs.environments` changes from asking one runner to reading the registry
+rows of the runners in the `default` pool. An environment is missing when none
+of them offers it. Drained and unanswering runners still count, because
+placement waits for them rather than failing the run. A runner that has never
+answered may offer anything, as in placement. The refresh moves from a
+per-process 60-second cache to a periodic worker task
+(`runner_health.refresh_runners`), which also records `failing_since`. Pages
+read the database and never wait on a runner. A list of jobs reads the runners
+once.
+
+The settings page shows each runner's images and default. When every runner
+offers the same, it shows them once, as it does for one runner today.
 
 ### Draining, failure and recovery
 
@@ -264,8 +273,8 @@ Each step is a separate PR that ships on its own:
    wait while runners are full, and refresh each runner's environments.
 4. **Logins** (#489). Login homes, cleanup on every runner, and wiping logins
    before a runner is removed.
-5. **Environments.** Use the union from the registry, with a periodic
-   refresh.
+5. **Environments** (this PR). Readiness and the settings page read the
+   registry rows the worker's check fills in, and never ask a runner.
 6. **Health, drain and recovery.** `failing_since`, the `runner` failure,
    failing runs on a lost runner, and stopping their sessions when it returns.
 7. **Docs.** Update `architecture.md`, `backend-architecture.md#starting-and-queueing-runs`,

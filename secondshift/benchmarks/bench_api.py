@@ -34,7 +34,8 @@ RUNS_PAGE_QUERIES = 8
 # whether the person has an MCP token.
 OVERVIEW_QUERIES = 21
 MCP_LIST_RUNS_QUERIES = 13
-MCP_LIST_JOBS_QUERIES = 14
+# One reads the runners, for which environments exist.
+MCP_LIST_JOBS_QUERIES = 15
 GATEWAY_AUTH_QUERIES = 1
 
 

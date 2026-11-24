@@ -121,6 +121,9 @@ def test_a_check_keeps_what_each_runner_offers(fake: FakeRunners) -> None:
 
     answering = find_runner("runner-b")
     assert answering.environments == ["node", "python"]
+    # The settings page shows the images behind them.
+    assert answering.images == {"python": "p", "node": "n"}
+    assert answering.default_environment == "python"
     # Its key is pinned at first contact.
     assert answering.provisioning_key == KEY
     assert answering.failing_since is None

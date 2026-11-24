@@ -144,8 +144,7 @@ uploading anything, while it holds the run's row lock. A retried step finds the
 saved runner and reaches it again. Every later call for the run, including
 gateway tool calls, goes through `runner_client_for(run_id)`. A run with no
 runner, which can only be one that started before the upgrade, uses the
-configured runner. The environment list on pages still asks the configured
-runner.
+configured runner.
 
 Each subscription login is sealed to the provisioning key of the runner that
 uses it, and that runner caches a copy. Any runner may hold one, from a run it
@@ -171,9 +170,13 @@ Placement chooses among the active runners in the `default` pool. Runners in
 other pools take no runs until pools are routed. A runner qualifies when it
 offers the run's environment and has fewer unfinished runs pinned to it than
 its `max_sessions`. Among those, the one with the most free sessions wins. The
-worker asks each runner for its environments every minute. A runner that has
-never answered may take any environment, and it refuses a session it can't
-run. Choosing locks the run and the candidate runners, always in the same
+worker asks each runner for its environments every minute and stores their
+names, images and default on its registry row. A runner that has never
+answered may take any environment, and it refuses a session it can't run.
+`jobs.environments` reads those rows, so job readiness and the settings page
+never wait on a runner. An environment is missing only when no runner in the
+`default` pool offers it, counting drained runners, since they may come back.
+A list of jobs reads the runners once. Choosing locks the run and the candidate runners, always in the same
 order, so two workers never both take a runner's last session. When every
 runner that could take the run is full or draining, the step waits in short
 transactions until the run's time limit. When no runner offers the run's

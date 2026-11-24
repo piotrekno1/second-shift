@@ -1,48 +1,58 @@
+"""Which environments the runners offer, as the registry last heard."""
+
 import pytest
 
-from secondshift.jobs import environments
+from secondshift.jobs.environments import environment_offer, runner_environments
+from secondshift.jobs.tests.fixtures import offer_environments
 from secondshift.runner.tests.fakes import sandboxes
-from secondshift.runner_protocol.environments import RunnerEnvironments
-from secondshift.runner_protocol.sessions import RunnerProtocolError
+from secondshift.runs.models import Runner
+
+pytestmark = pytest.mark.django_db
 
 
-def test_the_control_plane_asks_the_runner_once_a_minute(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    answers = [sandboxes("python:3.13-slim"), sandboxes("other")]
-    monkeypatch.setattr(environments, "fetch_environments", lambda: answers.pop(0))
-    clock = [100.0]
-    monkeypatch.setattr(environments.time, "monotonic", lambda: clock[0])
-
-    assert environments.runner_environments() == sandboxes("python:3.13-slim")
-    clock[0] += 59
-    assert environments.runner_environments() == sandboxes("python:3.13-slim")
-    clock[0] += 2
-    assert environments.runner_environments() == sandboxes("other")
+def missing(name: str) -> bool:
+    return environment_offer().missing(name)
 
 
-def test_an_unreachable_runner_blocks_no_environment(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    def unreachable() -> RunnerEnvironments:
-        raise RunnerProtocolError("The runner service could not be reached.")
-
-    monkeypatch.setattr(environments, "fetch_environments", unreachable)
-
-    assert environments.runner_environments() is None
-    assert environments.environment_missing("python_node") is False
+def test_nothing_is_missing_before_any_runner_is_registered() -> None:
+    assert missing("browser") is False
 
 
-def test_an_environment_the_runner_lacks_is_missing(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr(
-        environments,
-        "fetch_environments",
-        lambda: sandboxes("python:3.13-slim", node="node:22"),
-    )
+def test_an_environment_no_runner_offers_is_missing() -> None:
+    offer_environments(sandboxes("python:3.13-slim", node="node:22"))
 
-    assert environments.environment_missing("default") is False
-    assert environments.environment_missing("python") is False
-    assert environments.environment_missing("node") is False
-    assert environments.environment_missing("browser") is True
+    assert missing("default") is False
+    assert missing("python") is False
+    assert missing("node") is False
+    assert missing("browser") is True
+
+
+def test_any_runner_that_takes_runs_may_offer_it() -> None:
+    offer_environments(sandboxes("python:3.13-slim"), name="runner-a")
+    offer_environments(sandboxes("python:3.13-slim", node="node:22"), name="runner-b")
+    # A drained runner may come back, so its environments still count.
+    Runner.objects.filter(name="runner-b").update(state=Runner.State.DRAINING)
+    offer_environments(sandboxes("python:3.13-slim", browser="b"), name="runner-c")
+    # Runners in another pool take no runs yet.
+    Runner.objects.filter(name="runner-c").update(pool="gpu")
+
+    assert missing("node") is False
+    assert missing("browser") is True
+
+
+def test_a_runner_that_has_not_answered_may_offer_anything() -> None:
+    offer_environments(sandboxes("python:3.13-slim"))
+    Runner.objects.update(environments=None, images=None)
+
+    assert missing("browser") is False
+    assert runner_environments() == []
+
+
+def test_each_runner_that_answered_is_listed() -> None:
+    offer_environments(sandboxes("python:3.13-slim"), name="runner-a")
+    offer_environments(sandboxes("other", node="node:22"), name="runner-b")
+
+    assert [(item.runner, item.environments) for item in runner_environments()] == [
+        ("runner-a", sandboxes("python:3.13-slim")),
+        ("runner-b", sandboxes("other", node="node:22")),
+    ]

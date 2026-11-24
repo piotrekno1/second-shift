@@ -108,8 +108,9 @@ def worker_tasks(client: DBOSClient, every_pass: float) -> list[PeriodicTask]:
             run=sync_configured_runner,
         ),
         # Placement sends a run only to a runner that answers and offers its
-        # environment, logins are sealed only to a runner's pinned key, and
-        # runs on a runner that stopped answering fail.
+        # environment, pages read the environments it stores, logins are
+        # sealed only to a runner's pinned key, and runs on a runner that
+        # stopped answering fail.
         PeriodicTask(
             "refresh runners",
             every=RUNNER_CHECK_SECONDS,
