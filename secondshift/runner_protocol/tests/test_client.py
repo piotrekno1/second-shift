@@ -177,3 +177,31 @@ def test_first_contact_checks_against_a_key_pinned_meanwhile() -> None:
 def test_a_runner_answering_with_no_valid_key_is_refused() -> None:
     with pytest.raises(RunnerProtocolError, match="invalid key"):
         answering("not a key").encrypted_auth("login")
+
+
+@pytest.mark.parametrize(
+    ("answer", "agents"),
+    [({"agents": True}, True), ({"agents": False}, False), ({}, None)],
+)
+def test_the_client_reads_whether_the_runner_can_run_agents(
+    answer: dict[str, Any], agents: bool | None
+) -> None:
+    client, _ = runner(
+        lambda request: httpx.Response(
+            200, json={"environments": {"python": "p"}, "default": "python"} | answer
+        )
+    )
+
+    assert client.environments().agents is agents
+
+
+def test_the_client_refuses_an_invalid_agents_answer() -> None:
+    client, _ = runner(
+        lambda request: httpx.Response(
+            200,
+            json={"environments": {}, "default": "python", "agents": "yes"},
+        )
+    )
+
+    with pytest.raises(RunnerProtocolError, match="invalid response"):
+        client.environments()

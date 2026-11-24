@@ -44,6 +44,7 @@ def list_runners() -> None:
             if runner.environments is None
             else ",".join(runner.environments)
         )
+        agents = {True: "yes", False: "no", None: "unknown"}[runner.agents]
         health = (
             "answering"
             if runner.failing_since is None
@@ -51,7 +52,7 @@ def list_runners() -> None:
         )
         click.echo(
             f"{runner.name}\t{runner.state}\t{health}\tpool={runner.pool}\t"
-            f"sessions={limit}\tenvironments={offered}\t"
+            f"sessions={limit}\tenvironments={offered}\tagents={agents}\t"
             f"key={fingerprint(runner)}\t{runner.url}"
         )
 
@@ -101,6 +102,13 @@ def add(
         click.echo(
             "Warning: the runner did not answer. Its key is pinned when it "
             "first answers. Check the fingerprint with secondshift runners list.",
+            err=True,
+        )
+    elif runner.agents is False:
+        click.echo(
+            f"Warning: {name} has no agent image. Claude Code and Codex runs "
+            "placed on it fail. Build the agent image on its host if "
+            "workspaces use them.",
             err=True,
         )
 

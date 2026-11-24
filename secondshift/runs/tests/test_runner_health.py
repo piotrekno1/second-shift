@@ -113,7 +113,7 @@ def test_a_check_keeps_what_each_runner_offers(fake: FakeRunners) -> None:
     change_runner_state("runner-d", Runner.State.DOWN)
     fake.answers = {
         "runner-b": RunnerEnvironments(
-            images={"python": "p", "node": "n"}, default="python"
+            images={"python": "p", "node": "n"}, default="python", agents=True
         )
     }
 
@@ -124,11 +124,13 @@ def test_a_check_keeps_what_each_runner_offers(fake: FakeRunners) -> None:
     # The settings page shows the images behind them.
     assert answering.images == {"python": "p", "node": "n"}
     assert answering.default_environment == "python"
+    assert answering.agents is True
     # Its key is pinned at first contact.
     assert answering.provisioning_key == KEY
     assert answering.failing_since is None
     silent = find_runner("runner-c")
     assert silent.provisioning_key == ""
+    assert silent.agents is None
     # A runner that did not answer keeps its last answer, and is failing.
     assert silent.environments == ["python"]
     assert silent.failing_since is not None

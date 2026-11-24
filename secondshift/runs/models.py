@@ -437,6 +437,9 @@ class Runner(models.Model):
     # get. Shown on the settings page; placement reads only the names.
     images = models.JSONField(null=True, blank=True)
     default_environment = models.CharField(max_length=40, blank=True)
+    # Whether it can run Claude Code and Codex, as it last answered. Empty
+    # until it answers, or from a runner too old to say.
+    agents = models.BooleanField(null=True, blank=True)
     # Its public provisioning key, pinned at first contact. Logins are sealed
     # only to it, so whoever answers in its place can't read them.
     provisioning_key = models.TextField(blank=True)

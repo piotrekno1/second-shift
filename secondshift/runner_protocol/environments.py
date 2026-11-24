@@ -29,6 +29,9 @@ class RunnerEnvironments:
 
     images: dict[str, str]
     default: str
+    # Whether it can run Claude Code and Codex. None from a runner too old to
+    # say.
+    agents: bool | None = None
 
     def offers(self, name: str) -> bool:
         return name == DEFAULT_ENVIRONMENT or name in self.images

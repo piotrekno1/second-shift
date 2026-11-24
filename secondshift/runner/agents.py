@@ -32,9 +32,14 @@ CHECK_TOKEN_BUDGET = 50_000
 CHECK_TIMEOUT_SECONDS = 20
 
 
+def agents_configured() -> bool:
+    """Whether this runner can run Claude Code and Codex."""
+    return bool(settings.AGENT_IMAGE and settings.AGENT_BROKER_URL)
+
+
 def require_agent_configuration() -> str:
     """The exact image to run. Only a local runner may resolve a tag."""
-    if not settings.AGENT_IMAGE or not settings.AGENT_BROKER_URL:
+    if not agents_configured():
         raise RunnerProtocolError(
             "CLI agent execution is not configured on the runner."
         )
