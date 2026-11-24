@@ -804,3 +804,33 @@ def runner_has_unfinished_runs(runner_id: int) -> bool:
         .exclude(status__in=Run.FINISHED_STATUSES)
         .exists()
     )
+
+
+def lock_runners_in(pool: str, state: str) -> list[Runner]:
+    """Lock these runners for this transaction, oldest first.
+
+    Every caller locks in the same order, so placements never deadlock.
+    """
+    return list(
+        Runner.objects.select_for_update().filter(pool=pool, state=state).order_by("pk")
+    )
+
+
+def runners_in_pool(pool: str) -> list[Runner]:
+    return list(Runner.objects.filter(pool=pool).order_by("pk"))
+
+
+def unfinished_run_counts(runner_ids: Collection[int]) -> dict[int, int]:
+    """How many unfinished runs are pinned to each of these runners."""
+    rows = (
+        Run.objects.filter(runner_id__in=runner_ids)
+        .exclude(status__in=Run.FINISHED_STATUSES)
+        .values("runner_id")
+        .annotate(count=Count("pk"))
+        .values_list("runner_id", "count")
+    )
+    return dict(rows)
+
+
+def set_runner_environments(runner_id: int, environments: list[str]) -> None:
+    Runner.objects.filter(pk=runner_id).update(environments=environments)

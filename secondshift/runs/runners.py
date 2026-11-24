@@ -5,24 +5,40 @@ SECONDSHIFT_RUNNER_SERVICE_URL and SECONDSHIFT_RUNNER_SERVICE_TOKEN is kept as
 `default`, so an install with one runner needs no registration.
 
 A run is pinned to one runner when its session starts, and every later call for
-the run goes there. For now every run is pinned to `default`. See
+the run goes there. Placement picks an active runner in the default pool that
+offers the run's environment and has room, preferring the one with the most
+free sessions. Runners in other pools take no runs until pools are routed. See
 docs/proposals/multiple-runners.md for the rollout.
 """
 
+import logging
+import math
+import time
+from collections.abc import Callable
 from urllib.parse import urlsplit
 
 from django.conf import settings
 from django.db import IntegrityError, transaction
+from django.utils import timezone
 from django.utils.text import slugify
 
 from secondshift.runner_protocol.client import HttpRunnerClient, get_runner_client
+from secondshift.runner_protocol.environments import DEFAULT_ENVIRONMENT
+from secondshift.runner_protocol.sessions import RunnerProtocolError
 from secondshift.runs import dao
+from secondshift.runs.execution.deadlines import run_deadline
 from secondshift.runs.models import Runner
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_RUNNER = "default"
 DEFAULT_POOL = "default"
 # The same minimum production settings require of the configured token.
 MIN_TOKEN_LENGTH = 32
+# How long a run waits between looks for a runner with room.
+CAPACITY_POLL_SECONDS = 5
+# A runner that hangs must not hold up the worker's other tasks.
+ENVIRONMENTS_TIMEOUT_SECONDS = 3
 
 
 class RunnerRegistryError(ValueError):
@@ -112,11 +128,74 @@ def runner_client(runner: Runner) -> HttpRunnerClient:
     return HttpRunnerClient(base_url=runner.url, auth_token=runner.token)
 
 
-def assign_runner(run_id: int) -> Runner:
-    """The runner this run is pinned to, choosing one the first time.
+def offers(runner: Runner, environment: str) -> bool:
+    """Whether the runner offers this environment. Unknown counts as yes, so a
+    runner that has not answered yet is not left out; it refuses a session
+    for an environment it lacks."""
+    return (
+        environment == DEFAULT_ENVIRONMENT
+        or runner.environments is None
+        or environment in runner.environments
+    )
 
-    The run row stays locked while choosing, so a step that is retried after a
-    crash finds the runner it saved and opens its session there again.
+
+def free_sessions(runner: Runner, unfinished: int) -> float:
+    if runner.max_sessions is None:
+        return math.inf
+    return runner.max_sessions - unfinished
+
+
+def choose_runner(
+    runners: list[Runner], counts: dict[int, int], environment: str
+) -> Runner | None:
+    """The runner with the most free sessions that offers the environment.
+
+    Ties go to the oldest runner. None when every such runner is full.
+    """
+    fitting = [
+        runner
+        for runner in runners
+        if offers(runner, environment)
+        and free_sessions(runner, counts.get(runner.pk, 0)) > 0
+    ]
+    if not fitting:
+        return None
+    return min(
+        fitting,
+        key=lambda runner: (
+            -free_sessions(runner, counts.get(runner.pk, 0)),
+            runner.pk,
+        ),
+    )
+
+
+def placement_problem(environment: str) -> str:
+    """Why no runner could ever take this run, or nothing when one could.
+
+    Waiting helps a full or draining runner, but not a missing one.
+    """
+    pool = dao.runners_in_pool(DEFAULT_POOL)
+    if not pool:
+        # A new install may start a run before the worker registers its runner.
+        if sync_configured_runner() is None:
+            return (
+                "No runner is registered. Set SECONDSHIFT_RUNNER_SERVICE_URL "
+                "or add one with secondshift runners add."
+            )
+        pool = dao.runners_in_pool(DEFAULT_POOL)
+    if not pool:
+        return "No runner is in the default pool."
+    if not any(offers(runner, environment) for runner in pool):
+        return f"No runner offers the {environment} environment."
+    return ""
+
+
+def try_assign_runner(run_id: int, environment: str) -> Runner | None:
+    """Pin the run to a runner with room. None when every one is full.
+
+    The run row and the candidate runners stay locked while choosing, so two
+    workers never both take a runner's last session, and a step that is
+    retried after a crash finds the runner it saved.
     """
     with transaction.atomic():
         # PostgreSQL can't lock the nullable side of a join, so the runner
@@ -124,14 +203,55 @@ def assign_runner(run_id: int) -> Runner:
         run = dao.lock_run(run_id)
         if run.runner_id is not None:
             return run.runner
-        runner = dao.find_runner(DEFAULT_RUNNER) or sync_configured_runner()
-        if runner is None:
-            raise RuntimeError(
-                "No runner is registered. Set SECONDSHIFT_RUNNER_SERVICE_URL "
-                "or add one with secondshift runners add."
-            )
-        dao.update_run(run_id, runner=runner)
+        runners = dao.lock_runners_in(DEFAULT_POOL, Runner.State.ACTIVE)
+        counts = dao.unfinished_run_counts([runner.pk for runner in runners])
+        runner = choose_runner(runners, counts, environment)
+        if runner is not None:
+            dao.update_run(run_id, runner=runner)
         return runner
+
+
+def assign_runner(run_id: int, sleep: Callable[[float], None] = time.sleep) -> Runner:
+    """The runner this run is pinned to, choosing one the first time.
+
+    While every runner that could take it is full or draining, it waits, up to
+    the run's time limit. It fails at once when no runner could ever take it.
+    """
+    run = dao.get_run(run_id, "runner")
+    # A retried step keeps its runner, whatever has changed since.
+    if run.runner is not None:
+        return run.runner
+    environment = run.plan.runner.environment
+    deadline = run_deadline(run)
+    while True:
+        if problem := placement_problem(environment):
+            raise RuntimeError(problem)
+        if runner := try_assign_runner(run_id, environment):
+            return runner
+        if timezone.now() >= deadline:
+            raise RuntimeError("No runner had room before the run's time limit.")
+        dao.add_event_once(run_id, "Waiting for a runner with room.", "info")
+        sleep(CAPACITY_POLL_SECONDS)
+
+
+def refresh_runner_environments() -> int:
+    """Ask each runner which environments it offers. Returns how many answered.
+
+    A runner that does not answer keeps what it said last.
+    """
+    answered = 0
+    for runner in dao.all_runners():
+        if runner.state == Runner.State.DOWN:
+            continue
+        try:
+            with runner_client(runner) as client:
+                offered = client.environments(timeout=ENVIRONMENTS_TIMEOUT_SECONDS)
+        except RunnerProtocolError:
+            logger.warning("runner %s did not list its environments", runner.name)
+            continue
+        dao.set_runner_environments(runner.pk, sorted(offered.images))
+        answered += 1
+    return answered
 
 
 def runner_client_for(run_id: int) -> HttpRunnerClient:

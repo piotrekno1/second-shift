@@ -9,6 +9,7 @@ from secondshift.runs.runners import (
     RunnerRegistryError,
     add_runner,
     change_runner_state,
+    refresh_runner_environments,
     remove_runner,
     sync_configured_runner,
 )
@@ -22,7 +23,7 @@ def refused(error: RunnerRegistryError) -> click.ClickException:
 def command() -> None:
     """Register and manage the runners that execute runs.
 
-    Every run still goes to the runner named default for now.
+    Runs go to active runners in the default pool.
     """
 
 
@@ -36,9 +37,14 @@ def list_runners() -> None:
         return
     for runner in runners:
         limit = runner.max_sessions or "no limit"
+        offered = (
+            "not asked yet"
+            if runner.environments is None
+            else ",".join(runner.environments)
+        )
         click.echo(
             f"{runner.name}\t{runner.state}\tpool={runner.pool}\t"
-            f"sessions={limit}\t{runner.url}"
+            f"sessions={limit}\tenvironments={offered}\t{runner.url}"
         )
 
 
@@ -72,6 +78,8 @@ def add(
     except RunnerRegistryError as error:
         raise refused(error) from None
     click.echo(f"Added runner {name}.")
+    # Placement learns its environments now instead of on the worker's next pass.
+    refresh_runner_environments()
 
 
 @command.command("drain")

@@ -178,6 +178,11 @@ def test_add_command_reads_the_token_from_the_environment(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("RUNNER_B_TOKEN", TOKEN)
+    refreshed: list[bool] = []
+    monkeypatch.setattr(
+        "secondshift.runs.management.commands.runners.refresh_runner_environments",
+        lambda: refreshed.append(True),
+    )
 
     call_command(
         "runners",
@@ -193,6 +198,7 @@ def test_add_command_reads_the_token_from_the_environment(
     assert runner is not None
     assert runner.token == TOKEN
     assert runner.state == Runner.State.DRAINING
+    assert refreshed == [True]
 
 
 # Routing a run's calls to its runner
