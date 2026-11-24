@@ -2,12 +2,23 @@
 and leases."""
 
 from collections.abc import Collection, Iterable
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import Any
 
 from django.db import IntegrityError, transaction
-from django.db.models import Count, Exists, F, OuterRef, Q, QuerySet, Subquery, Sum
-from django.db.models.functions import Coalesce, TruncDate
+from django.db.models import (
+    Count,
+    DateTimeField,
+    Exists,
+    ExpressionWrapper,
+    F,
+    OuterRef,
+    Q,
+    QuerySet,
+    Subquery,
+    Sum,
+)
+from django.db.models.functions import Coalesce, Now, TruncDate
 from django.utils import timezone
 
 from secondshift.agent.image.outcomes import CACHE_READ_DIVISOR
@@ -28,6 +39,7 @@ from secondshift.runs.models import (
     RunIssue,
     RunMCPSession,
     Runner,
+    SessionCleanup,
     Task,
 )
 
@@ -807,13 +819,29 @@ def runner_has_unfinished_runs(runner_id: int) -> bool:
     )
 
 
-def lock_runners_in(pool: str, state: str) -> list[Runner]:
+def database_time_ago(seconds: int) -> ExpressionWrapper:
+    """The database's time, this many seconds ago.
+
+    Health times are stamped and compared on the database's clock, so a
+    control-plane host whose clock is off can't move a runner's thresholds.
+    """
+    return ExpressionWrapper(
+        Now() - timedelta(seconds=seconds), output_field=DateTimeField()
+    )
+
+
+def lock_runners_in(pool: str, state: str, failing_for: int) -> list[Runner]:
     """Lock these runners for this transaction, oldest first.
 
-    Every caller locks in the same order, so placements never deadlock.
+    Runners whose checks have been failing for `failing_for` seconds or more
+    are left out. Every caller locks in the same order, so placements never
+    deadlock.
     """
     return list(
-        Runner.objects.select_for_update().filter(pool=pool, state=state).order_by("pk")
+        Runner.objects.select_for_update()
+        .filter(pool=pool, state=state)
+        .exclude(failing_since__lte=database_time_ago(failing_for))
+        .order_by("pk")
     )
 
 
@@ -867,3 +895,48 @@ def replace_provisioning_key(runner_id: int, key: str) -> None:
 
 def pinned_provisioning_key(runner_id: int) -> str:
     return Runner.objects.values_list("provisioning_key", flat=True).get(pk=runner_id)
+
+
+def mark_runner_failing(runner_id: int) -> None:
+    """Record, on the database's clock, when its checks started failing.
+
+    A later failure keeps the first time.
+    """
+    Runner.objects.filter(pk=runner_id, failing_since__isnull=True).update(
+        failing_since=Now()
+    )
+
+
+def mark_runner_answering(runner_id: int) -> bool:
+    """Clear its failing time. True when it had one."""
+    updated = Runner.objects.filter(pk=runner_id, failing_since__isnull=False).update(
+        failing_since=None
+    )
+    return bool(updated)
+
+
+def runners_failing_for(seconds: int) -> list[Runner]:
+    """Runners whose checks have been failing for this many seconds or more."""
+    return list(
+        Runner.objects.filter(failing_since__lte=database_time_ago(seconds)).order_by(
+            "pk"
+        )
+    )
+
+
+def active_run_ids_on(runner_id: int) -> list[int]:
+    return list(
+        Run.objects.filter(runner_id=runner_id, status__in=Run.ACTIVE_STATUSES)
+        .order_by("pk")
+        .values_list("pk", flat=True)
+    )
+
+
+def add_session_cleanup(run_id: int, runner_id: int, session_id: str) -> None:
+    SessionCleanup.objects.get_or_create(
+        run_id=run_id, defaults={"runner_id": runner_id, "session_id": session_id}
+    )
+
+
+def session_cleanups_on(runner_id: int) -> list[SessionCleanup]:
+    return list(SessionCleanup.objects.filter(runner_id=runner_id))

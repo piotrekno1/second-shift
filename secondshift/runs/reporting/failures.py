@@ -7,7 +7,11 @@ from pydantic_ai.exceptions import ModelHTTPError
 from secondshift.connections.errors import ExternalRequestError, ExternalToolError
 from secondshift.github.errors import GitHubError
 from secondshift.jobs.argument_rules import ToolRuleViolation
-from secondshift.runner_protocol.sessions import CommandResult, RunnerProtocolError
+from secondshift.runner_protocol.sessions import (
+    CommandResult,
+    RunnerProtocolError,
+    RunnerUnreachable,
+)
 from secondshift.runs.models import Run, RunFailure
 
 STAGE_FAILURES: dict[str, str] = {
@@ -113,6 +117,8 @@ def stage_failure(stage: RunFailure, error: BaseException) -> StageFailure:
         return StageFailure(RunFailure.MODEL_PROVIDER, reason, summary)
     if isinstance(root, ToolRuleViolation):
         return StageFailure(RunFailure.TOOL_RULE, one_line(str(root)), summary)
+    if isinstance(root, RunnerUnreachable):
+        return StageFailure(RunFailure.RUNNER, detail, summary)
     return StageFailure(stage, detail, summary)
 
 

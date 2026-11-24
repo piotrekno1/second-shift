@@ -34,10 +34,8 @@ from secondshift.runs.orchestration.reconciliation import (
 )
 from secondshift.runs.orchestration.schedules import synchronize_schedules
 from secondshift.runs.retention import prune_runs
-from secondshift.runs.runners import (
-    refresh_runners,
-    sync_configured_runner,
-)
+from secondshift.runs.runner_health import refresh_runners
+from secondshift.runs.runners import sync_configured_runner
 
 logger = logging.getLogger(__name__)
 
@@ -48,9 +46,9 @@ SOURCE_CHECK_POLL_SECONDS = 60 * 60
 CREDENTIAL_CLEANUP_SECONDS = 60
 # How often to register the configured runner again, should the first try fail.
 RUNNER_SYNC_SECONDS = 60 * 60
-# How often to ask each runner which environments it offers. A runner's
-# environments change only when it restarts.
-RUNNER_ENVIRONMENTS_SECONDS = 60
+# How often to check each runner: that it answers, and which environments it
+# offers.
+RUNNER_CHECK_SECONDS = 60
 # How often the loop wakes. Requested syncs start within this, and the other
 # tasks wait for their own interval.
 TICK_SECONDS = 1
@@ -109,11 +107,12 @@ def worker_tasks(client: DBOSClient, every_pass: float) -> list[PeriodicTask]:
             every=RUNNER_SYNC_SECONDS,
             run=sync_configured_runner,
         ),
-        # Placement sends a run only to a runner that offers its environment,
-        # and logins are sealed only to a runner's pinned key.
+        # Placement sends a run only to a runner that answers and offers its
+        # environment, logins are sealed only to a runner's pinned key, and
+        # runs on a runner that stopped answering fail.
         PeriodicTask(
             "refresh runners",
-            every=RUNNER_ENVIRONMENTS_SECONDS,
+            every=RUNNER_CHECK_SECONDS,
             run=refresh_runners,
         ),
         PeriodicTask("reconcile runs", every=every_pass, run=reconcile),

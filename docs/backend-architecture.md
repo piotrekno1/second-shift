@@ -191,6 +191,20 @@ first. `HttpRunnerClient.encrypted_auth` fetches the key on every seal and
 refuses one that doesn't match. `secondshift runners trust-key` pins a runner's
 new key after a deliberate change.
 
+`runs/runner_health.py` checks every runner each minute, except those an
+operator marked down. A runner that doesn't answer gets `Runner.failing_since`,
+which clears at its next answer. The database stamps it and compares against
+it with `Now()`, so the thresholds don't depend on which control-plane host
+reads them, and the runner's clock is never used. Health never changes `state`, so a drained
+runner that comes back stays drained. After two minutes of failing, placement
+and login routing skip the runner, and logins whose home it is move. After ten,
+its active runs fail with the `runner` failure and its sessions go into
+`SessionCleanup`. The runner keeps a session until it is told to stop it, so
+those are stopped when it answers again. A run's workflow may still be waiting
+on the lost runner. When that call ends, the run has already finished and
+`finish_run` changes nothing. Any step that can't reach its runner also fails
+the run as `runner`, through `RunnerUnreachable`.
+
 The runs app has three internal packages:
 
 - `execution`: agent construction, workspace and external tools, budget and

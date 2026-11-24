@@ -4,13 +4,13 @@ import djclick as click
 
 from secondshift.runs.dao import all_runners
 from secondshift.runs.models import Runner
+from secondshift.runs.runner_health import check_runner
 from secondshift.runs.runners import (
     DEFAULT_POOL,
     RunnerRegistryError,
     add_runner,
     change_runner_state,
     fingerprint,
-    refresh_runners,
     remove_runner,
     sync_configured_runner,
     trust_current_key,
@@ -44,8 +44,13 @@ def list_runners() -> None:
             if runner.environments is None
             else ",".join(runner.environments)
         )
+        health = (
+            "answering"
+            if runner.failing_since is None
+            else f"not answering since {runner.failing_since:%Y-%m-%d %H:%M:%S}"
+        )
         click.echo(
-            f"{runner.name}\t{runner.state}\tpool={runner.pool}\t"
+            f"{runner.name}\t{runner.state}\t{health}\tpool={runner.pool}\t"
             f"sessions={limit}\tenvironments={offered}\t"
             f"key={fingerprint(runner)}\t{runner.url}"
         )
@@ -89,7 +94,7 @@ def add(
         raise refused(error) from None
     click.echo(f"Added runner {name}.")
     # Pin its key and learn its environments now, not on the worker's next pass.
-    refresh_runners()
+    check_runner(runner)
     runner.refresh_from_db()
     click.echo(f"Provisioning key: {fingerprint(runner)}")
     if not runner.provisioning_key:

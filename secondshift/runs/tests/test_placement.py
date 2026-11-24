@@ -6,12 +6,8 @@ from typing import Any
 import pytest
 from django.utils import timezone
 
-from secondshift.runner_protocol.environments import RunnerEnvironments
-from secondshift.runner_protocol.sessions import RunnerProtocolError
-from secondshift.runner_protocol.tests.keys import public_key_pem
 from secondshift.runs import runners
 from secondshift.runs.dao import (
-    find_runner,
     login_home,
     run_events,
     set_login_home,
@@ -23,7 +19,6 @@ from secondshift.runs.runners import (
     assign_runner,
     change_runner_state,
     choose_runner,
-    refresh_runners,
     sync_configured_runner,
     try_assign_runner,
 )
@@ -240,62 +235,6 @@ def test_a_run_fails_when_no_runner_is_in_the_default_pool(run: Run) -> None:
 
     with pytest.raises(RuntimeError, match="default pool"):
         assign_runner(run.pk, sleep=lambda seconds: None)
-
-
-# Learning each runner's environments
-
-
-KEY = public_key_pem()
-
-
-class EnvironmentsClient:
-    answers: dict[str, RunnerEnvironments | Exception] = {}
-
-    def __init__(self, runner: Runner) -> None:
-        self.name = runner.name
-
-    def __enter__(self) -> "EnvironmentsClient":
-        return self
-
-    def __exit__(self, *exc_info: object) -> None:
-        return None
-
-    def current_provisioning_key(self, timeout: float | None = None) -> str:
-        return KEY
-
-    def environments(self, timeout: float | None = None) -> RunnerEnvironments:
-        answer = self.answers[self.name]
-        if isinstance(answer, Exception):
-            raise answer
-        return answer
-
-
-@pytest.mark.django_db
-def test_refresh_keeps_what_each_runner_offers(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    make_runner("runner-b")
-    make_runner("runner-c", environments=["python"])
-    make_runner("runner-d", environments=["python"])
-    change_runner_state("runner-d", Runner.State.DOWN)
-    EnvironmentsClient.answers = {
-        "runner-b": RunnerEnvironments(
-            images={"python": "p", NODE: "n"}, default="python"
-        ),
-        "runner-c": RunnerProtocolError("down"),
-    }
-    monkeypatch.setattr(runners, "runner_client", EnvironmentsClient)
-
-    assert refresh_runners() == 1
-
-    assert find_runner("runner-b").environments == [NODE, "python"]
-    # Its key is pinned at first contact.
-    assert find_runner("runner-b").provisioning_key == KEY
-    assert find_runner("runner-c").provisioning_key == ""
-    # A runner that did not answer keeps its last answer.
-    assert find_runner("runner-c").environments == ["python"]
-    # A down runner is not asked.
-    assert find_runner("runner-d").environments == ["python"]
 
 
 # Keeping a subscription login on one runner

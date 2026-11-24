@@ -4,6 +4,7 @@ from typing import Any
 import pytest
 from django.core.management import call_command
 from django.db import connection
+from django.utils import timezone
 
 from secondshift.connections.models import AgentCredentialCleanup
 from secondshift.runner.tests.fakes import ClosableFake
@@ -175,8 +176,8 @@ def test_list_command_never_prints_tokens(
     call_command("runners", "list")
 
     output = capsys.readouterr().out
-    assert "default\tactive\tpool=default\tsessions=no limit" in output
-    assert "gpu-1\tactive\tpool=gpu\tsessions=2" in output
+    assert "default\tactive\tanswering\tpool=default\tsessions=no limit" in output
+    assert "gpu-1\tactive\tanswering\tpool=gpu\tsessions=2" in output
     assert TOKEN not in output
     assert OTHER_TOKEN not in output
 
@@ -188,8 +189,8 @@ def test_add_command_reads_the_token_from_the_environment(
     monkeypatch.setenv("RUNNER_B_TOKEN", TOKEN)
     refreshed: list[bool] = []
     monkeypatch.setattr(
-        "secondshift.runs.management.commands.runners.refresh_runners",
-        lambda: refreshed.append(True),
+        "secondshift.runs.management.commands.runners.check_runner",
+        lambda runner: refreshed.append(True),
     )
 
     call_command(
@@ -459,3 +460,15 @@ def test_list_shows_each_runner_key(
     output = capsys.readouterr().out
     assert "key=not pinned yet" in output
     assert f"key={key_fingerprint(key)}" in output
+
+
+@pytest.mark.django_db
+def test_list_shows_a_runner_that_does_not_answer(
+    configured: Any, capsys: pytest.CaptureFixture[str]
+) -> None:
+    add_runner("runner-b", "https://runner-b:8002", OTHER_TOKEN)
+    Runner.objects.filter(name="runner-b").update(failing_since=timezone.now())
+
+    call_command("runners", "list")
+
+    assert "runner-b\tactive\tnot answering since " in capsys.readouterr().out

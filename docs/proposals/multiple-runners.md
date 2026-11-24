@@ -77,7 +77,7 @@ fields:
 - `pool`: an operator label, default `default`
 - `max_sessions`
 - `state`: `active`, `draining` or `down`
-- `last_seen_at`
+- `failing_since`: when its checks started failing
 
 Runners are registered by the operator, from a management command
 (`secondshift runners list|add|drain|activate|remove`). The worker keeps a
@@ -175,27 +175,34 @@ own.
 `jobs.environments` changes from asking one runner to returning the union of
 the active runners' registry rows. `environment_missing(name)` means no active
 runner offers `name`. The refresh moves from a per-process 60-second cache to
-a periodic worker task (`secondshift.refresh_runners`), which also records
-`last_seen_at`. Pages read the database and never wait on a runner.
+a periodic worker task (`runner_health.refresh_runners`), which also records
+`failing_since`. Pages read the database and never wait on a runner.
 
 ### Draining, failure and recovery
 
 - **Drain.** Placement skips a `draining` runner, and its in-flight runs finish
   normally. A draining runner with no active runs can be upgraded or removed.
-- **Health.** The periodic refresh calls `GET /-/health/`. After N consecutive
-  failures (default 3, about 90 seconds) the runner becomes `down`, and it
-  returns to `active` after one success.
-- **Runs on a down runner.** The sandbox is gone or unreachable, so these runs
-  cannot resume. A reconciliation pass in `orchestration/reconciliation.py`
-  handles them:
-  - It fails runs that are still active on a `down` runner and whose current
-    step failed with `RunnerProtocolError`, using a new `RunFailure` kind,
-    `runner_lost`.
+- **Health.** The worker's minute-by-minute refresh is the health check. A
+  runner that doesn't answer gets `failing_since`, which clears at its next
+  answer. Health is kept apart from `state`: if it flipped `state` to `down`
+  and back to `active`, a runner the operator drained would be reactivated
+  when it came back.
+  - **Clocks.** Health never reads a time from a runner, so a runner's clock
+    can be off. `failing_since` is stamped by the database (`Now()`), and the
+    thresholds compare against the database's time, not the host's. The web
+    app and the worker may run on different hosts, and skew between them
+    would otherwise shift both thresholds by that amount.
+  - After 2 minutes of failing, placement and login routing skip the runner,
+    and logins whose home it is move.
+  - After 10 minutes, the refresh fails its active runs with the `runner`
+    failure. The workflow may still be blocked on the runner. When that call
+    ends, `finish_run` finds the run finished and changes nothing.
+  - A step that can't reach its runner raises `RunnerUnreachable`, so a run
+    that fails on its own is also labelled `runner`.
+  - The runner has no session expiry of its own, so a lost run's session goes
+    into `SessionCleanup` and is stopped when the runner answers again.
   - Ad hoc tasks keep their existing outbox semantics. Whether to start them
     again automatically on another runner is an open question; see below.
-  - Session cleanup (`stop_runner_session`) against a down runner is queued
-    and retried, like credential cleanup. When the runner returns, it also
-    expires its own sessions with its existing snapshot and session TTLs.
 - **Retries inside a step.** `RunnerProtocolError` keeps today's
   `max_attempts`. Placement is not repeated mid-run.
 
@@ -259,8 +266,8 @@ Each step is a separate PR that ships on its own:
    before a runner is removed.
 5. **Environments.** Use the union from the registry, with a periodic
    refresh.
-6. **Health, drain and recovery.** Add the `down` state, the `runner_lost`
-   failure and the reconciliation pass.
+6. **Health, drain and recovery.** `failing_since`, the `runner` failure,
+   failing runs on a lost runner, and stopping their sessions when it returns.
 7. **Docs.** Update `architecture.md`, `backend-architecture.md#starting-and-queueing-runs`,
    `self-hosting.md`, `production-deployment.md` and
    `environment-variables.md`, and extend the production end-to-end suite to two
@@ -275,7 +282,7 @@ Each step is a separate PR that ships on its own:
   succeeds never opens a second session on another runner.
 - **Concurrency:** two workers placing at once never go over `max_sessions`,
   tested against PostgreSQL row locks.
-- **Recovery:** a runner goes down mid-run, the run ends `runner_lost`, and
+- **Recovery:** a runner goes down mid-run, the run ends with the `runner` failure, and
   session cleanup is retried after the runner comes back.
 - **Logins:** a login sealed for A is refused by B, and disconnecting removes
   every copy.
