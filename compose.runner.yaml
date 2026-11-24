@@ -57,6 +57,13 @@ services:
       postgres:
         condition: service_healthy
     stop_grace_period: 40s
+    # The runner accepts only its own hostname, so the check sends it.
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request as u; u.urlopen(u.Request('http://127.0.0.1:8002/-/health/', headers={'Host': '${RUNNER_DOMAIN:?}'}), timeout=5).close()"]
+      interval: 10s
+      timeout: 6s
+      retries: 3
+      start_period: 120s
 
   # Agents' only way out. It opens HTTPS tunnels to their providers, and
   # passes one port through to the runner's relay. It reaches nothing else.
@@ -116,7 +123,7 @@ services:
       - caddy_config:/config
     depends_on:
       runner:
-        condition: service_started
+        condition: service_healthy
 
 networks:
   # No route out. Agents reach the relay and the internet only through
