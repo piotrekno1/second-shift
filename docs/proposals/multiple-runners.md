@@ -93,10 +93,11 @@ migrations here are generated only.
 Each runner keeps its own token. A compromised runner then cannot call another
 runner, and revoking one does not touch the rest.
 
-The runner reports `max_sessions` (a new `SECONDSHIFT_RUNNER_MAX_SESSIONS`, set
-from its CPU and memory caps) in a small `GET /v1/info` response alongside the
-environments and the public key. The control plane stores the value at refresh
-time. An operator may set a lower limit.
+The operator sets `max_sessions` with `secondshift runners add
+--max-sessions`. A runner-reported limit (a `GET /v1/info` with
+`SECONDSHIFT_RUNNER_MAX_SESSIONS`) can come later if operators want it. The
+worker asks every runner that isn't down for `GET /v1/environments` once a
+minute, and stores the names in `Runner.environments`.
 
 ### Placement
 
@@ -109,7 +110,7 @@ in flight.
    set, return it. A replay after a crash then lands on the same runner.
 2. Lock the candidate runner rows (`select_for_update(skip_locked=False)`, in a
    fixed order) and choose an `active` runner in the job's pool that offers the
-   run's environment and has fewer active runs than `max_sessions`. Prefer the
+   run's environment and has fewer unfinished runs than `max_sessions`. Prefer the
    one with the most free slots. Ties go to the lowest ID, so tests stay
    deterministic.
 3. Save `run.runner_id` and commit.
@@ -120,12 +121,15 @@ tie-break) stay in the service, as AGENTS.md requires.
 
 If no runner fits:
 
-- **Capacity is full.** The step raises a retryable "no capacity" error with
-  backoff, so the run stays queued and is not failed. A cleaner option is to
-  keep the DBOS global limit at or below total capacity, so this path is rare.
-  See [Concurrency](#concurrency).
-- **No runner offers the environment.** The run fails with a clear
-  `RunFailure` kind, as `environment_missing` does today.
+- **Every runner that could take it is full or draining.** The step waits in
+  place, checking again in short transactions every few seconds, up to the
+  run's time limit. A DBOS retry would fail the run after a few attempts, and
+  a new step can't be added. Keeping the DBOS global limit at or below total
+  capacity makes this path rare. See [Concurrency](#concurrency).
+- **No runner offers the environment, or the pool is empty.** The run fails
+  at once with a clear reason.
+
+Until pools are routed (open question 2), only the `default` pool takes runs.
 
 ### Routing calls
 
@@ -241,8 +245,8 @@ Each step is a separate PR that ships on its own:
    goes to `default`.
 2. **Routing** (#485). Add `Run.runner` and `runner_client_for(run_id)`, and
    switch every session-scoped caller. `assign_runner` always picks `default`.
-3. **Placement and capacity.** Add a real choice, `/v1/info`,
-   `max_sessions`, and the retry when capacity is full.
+3. **Placement and capacity** (#488). Choose by environment and free sessions,
+   wait while runners are full, and refresh each runner's environments.
 4. **Logins.** Seal per runner, record copies and fan out cleanup.
 5. **Environments.** Use the union from the registry, with a periodic
    refresh.
