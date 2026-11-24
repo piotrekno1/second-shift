@@ -42,7 +42,9 @@ const serverGroups = computed(() => {
   if (!data.value) return []
   const deployment = {
     title: 'Deployment',
-    items: [{ label: 'Environment', value: data.value.environment, help: '', env: '' }],
+    items: [
+      { label: 'Environment', value: data.value.environment, help: '', env: '', tone: '' as const },
+    ],
   }
   return [deployment, ...data.value.groups]
 })
@@ -109,7 +111,10 @@ onMounted(async () => {
             <div v-for="item in group.items" :key="item.label" class="server-row">
               <dt>{{ item.label }}</dt>
               <dd>
-                <strong>{{ item.value }}</strong><small v-if="item.help">{{ item.help }}</small>
+                <strong :class="item.tone || undefined">{{ item.value }}</strong><small
+                  v-if="item.help"
+                  >{{ item.help }}</small
+                >
                 <button
                   v-if="isOperator && item.env"
                   type="button"

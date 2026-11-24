@@ -12,7 +12,7 @@ from secondshift.runs import dao
 from secondshift.runs.models import Runner
 from secondshift.runs.runner_health import LOST_SECONDS
 from secondshift.runs.runners import UNREACHABLE_SECONDS, fingerprint
-from secondshift.workspaces.server_settings import SettingGroup, SettingValue
+from secondshift.workspaces.server_settings import SettingGroup, SettingValue, Tone
 
 AGENTS_LABELS = {
     True: "Runs Claude Code and Codex.",
@@ -40,6 +40,13 @@ def health_label(runner: Runner) -> str:
     return f"missed a check {since} ago"
 
 
+def health_tone(runner: Runner) -> Tone:
+    if runner.state == Runner.State.DOWN or runner.failing_since is None:
+        return Tone.NONE
+    lost = (timezone.now() - runner.failing_since).total_seconds() >= LOST_SECONDS
+    return Tone.DANGER if lost else Tone.ATTENTION
+
+
 def sessions_label(runner: Runner, unfinished: int) -> str:
     runs = "1 run" if unfinished == 1 else f"{unfinished} runs"
     if runner.max_sessions is None:
@@ -65,6 +72,7 @@ def runner_item(runner: Runner, unfinished: int) -> SettingValue:
                 f"Key {fingerprint(runner)}.",
             ]
         ),
+        health_tone(runner),
     )
 
 

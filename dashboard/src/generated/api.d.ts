@@ -1274,7 +1274,15 @@ export interface components {
       env: string
       /** Help */
       help: string
+      /** @default  */
+      tone: components['schemas']['Tone']
     }
+    /**
+     * Tone
+     * @description Whether a value is a problem, so the page can mark it.
+     * @enum {string}
+     */
+    Tone: '' | 'attention' | 'danger'
     /**
      * RunLimitsUpdateSchema
      * @description Fields left out stay as they are. Null uses the inherited value.

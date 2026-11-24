@@ -5,6 +5,7 @@ from ninja import Schema
 from pydantic import AliasChoices, Field
 
 from secondshift.workspaces.limits import LimitUnit, RunLimit
+from secondshift.workspaces.server_settings import Tone
 
 
 class LimitSchema(Schema):
@@ -33,6 +34,7 @@ class SettingValueSchema(Schema):
     value: str
     env: str
     help: str
+    tone: Tone = Tone.NONE
 
 
 class SettingGroupSchema(Schema):

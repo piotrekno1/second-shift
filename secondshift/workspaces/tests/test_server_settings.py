@@ -189,6 +189,8 @@ def test_only_staff_see_the_runners(client: Client) -> None:
     assert shown["runner-b"]["value"] == (
         "Draining · not answering for 15 minutes, its runs failed"
     )
+    assert shown["runner-a"]["tone"] == ""
+    assert shown["runner-b"]["tone"] == "danger"
     # Never the address or the token.
     text = json.dumps(shown)
     assert "https://" not in text
