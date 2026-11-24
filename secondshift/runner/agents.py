@@ -1,14 +1,12 @@
 """Server-owned agent containers. Repository command sessions stay offline."""
 
-import fcntl
 import json
 import os
 import re
 import shutil
 import subprocess
 import tempfile
-from collections.abc import Iterator
-from contextlib import contextmanager
+import uuid
 from pathlib import Path
 
 from django.conf import settings
@@ -79,7 +77,6 @@ def agent_command(
         f"--mount=type=bind,src={auth_path},dst=/auth",
         "--workdir=/tmp",
         "--env=HOME=/tmp",
-        "--env=CODEX_HOME=/auth",
         "--env=CLAUDE_CONFIG_DIR=/tmp/claude",
         "--env=DISABLE_AUTOUPDATER=1",
         f"--label=secondshift.agent-credential={auth_path.name}",
@@ -92,49 +89,57 @@ def agent_command(
 
 
 def provision_auth(request: AgentInput | AgentCheckInput) -> Path:
+    """The login's directory, created on its first run or check.
+
+    A login's runs share it, as terminals on a laptop share the CLI's home, so
+    Codex's refreshed tokens reach every later run. It is built beside its
+    final name and renamed into place, so runs starting together never see it
+    half written.
+    """
     root = settings.AGENT_AUTH_ROOT.resolve()
     root.mkdir(parents=True, exist_ok=True, mode=0o700)
     path = root / request.credential_key
     # Keys are random, server-issued, immutable per reconnect. No paths from repos.
-    if path.exists():
-        if path.is_symlink() or not path.is_dir():
-            raise RunnerProtocolError("Invalid agent credential directory.")
-        return path
-    auth = decrypt_agent_auth(request.auth.get_secret_value())
-    path.mkdir(mode=0o700)
-    target = path / AUTH_FILES[request.backend]
-    target.write_text(auth)
-    target.chmod(0o600)
-    uid, gid = settings.RUNNER_SANDBOX_UID, settings.RUNNER_SANDBOX_GID
-    if os.geteuid() == 0:
-        os.chown(target, uid, gid)
-        os.chown(path, uid, gid)
+    if not path.exists():
+        auth = decrypt_agent_auth(request.auth.get_secret_value())
+        staging = Path(tempfile.mkdtemp(dir=root, prefix=f".{request.credential_key}-"))
+        target = staging / AUTH_FILES[request.backend]
+        target.write_text(auth)
+        target.chmod(0o600)
+        uid, gid = settings.RUNNER_SANDBOX_UID, settings.RUNNER_SANDBOX_GID
+        if os.geteuid() == 0:
+            os.chown(target, uid, gid)
+            os.chown(staging, uid, gid)
+        try:
+            staging.rename(path)
+        except OSError:
+            # Another run or check created it first.
+            shutil.rmtree(staging)
+    if path.is_symlink() or not path.is_dir():
+        raise RunnerProtocolError("Invalid agent credential directory.")
+    forget_cli_state(path)
     return path
 
 
-@contextmanager
-def credential_lock(key: str) -> Iterator[None]:
-    root = settings.AGENT_AUTH_ROOT.resolve()
-    root.mkdir(parents=True, exist_ok=True, mode=0o700)
-    with (root / f"{key}.lock").open("a") as stream:
-        try:
-            fcntl.flock(stream, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except BlockingIOError:
-            raise RunnerProtocolError(
-                "This agent login is already running another job."
-            ) from None
-        try:
-            yield
-        finally:
-            fcntl.flock(stream, fcntl.LOCK_UN)
+def forget_cli_state(path: Path) -> None:
+    """Keep only the login in its folder.
+
+    Older releases ran Codex with this folder as its home, so its state,
+    logs and memories from earlier runs may be here. Each run now has a home
+    of its own.
+    """
+    logins = set(AUTH_FILES.values())
+    for entry in path.iterdir():
+        if entry.name in logins:
+            continue
+        if entry.is_dir() and not entry.is_symlink():
+            shutil.rmtree(entry, ignore_errors=True)
+        else:
+            entry.unlink(missing_ok=True)
 
 
 def execute_agent(session_id: str, request: AgentInput) -> AgentOutput:
-    with credential_lock(request.credential_key):
-        return execute_locked_agent(session_id, request)
-
-
-def execute_locked_agent(session_id: str, request: AgentInput) -> AgentOutput:
+    """Run the agent. Runs with the same login may run at once."""
     image = require_agent_configuration()
     if not is_session_active(session_id):
         raise RunnerProtocolError("Unknown or inactive runner session.")
@@ -168,22 +173,21 @@ def execute_locked_agent(session_id: str, request: AgentInput) -> AgentOutput:
 
 def check_agent(request: AgentCheckInput) -> AgentOutput:
     """Run the login's CLI once with a fixed prompt, no tools and no repository."""
-    with credential_lock(request.credential_key):
-        image = require_agent_configuration()
-        auth_path = provision_auth(request)
-        name = f"check-{request.credential_key}"
-        configuration: AgentConfig = {
-            "backend": request.backend,
-            "prompt": CHECK_PROMPT,
-            "max_turns": 1,
-            "token_budget": CHECK_TOKEN_BUDGET,
-        }
-        return run_agent_container(
-            agent_name(name),
-            agent_command(name, auth_path, image, prepare_egress(image)),
-            configuration,
-            CHECK_TIMEOUT_SECONDS,
-        )
+    image = require_agent_configuration()
+    auth_path = provision_auth(request)
+    name = f"check-{request.credential_key}-{uuid.uuid4().hex[:8]}"
+    configuration: AgentConfig = {
+        "backend": request.backend,
+        "prompt": CHECK_PROMPT,
+        "max_turns": 1,
+        "token_budget": CHECK_TOKEN_BUDGET,
+    }
+    return run_agent_container(
+        agent_name(name),
+        agent_command(name, auth_path, image, prepare_egress(image)),
+        configuration,
+        CHECK_TIMEOUT_SECONDS,
+    )
 
 
 def run_agent_container(
@@ -240,9 +244,11 @@ def remove_agent_credentials(key: str) -> None:
                 "Docker returned an invalid container identifier."
             )
         service.remove_container(container)
-    with credential_lock(key):
-        path = settings.AGENT_AUTH_ROOT.resolve() / key
-        if path.is_symlink():
-            raise RunnerProtocolError("Invalid agent credential directory.")
-        if path.exists():
-            shutil.rmtree(path)
+    root = settings.AGENT_AUTH_ROOT.resolve()
+    path = root / key
+    if path.is_symlink():
+        raise RunnerProtocolError("Invalid agent credential directory.")
+    if path.exists():
+        shutil.rmtree(path)
+    # Left by releases that let a login run one job at a time.
+    (root / f"{key}.lock").unlink(missing_ok=True)

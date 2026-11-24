@@ -3,7 +3,12 @@
 from pathlib import Path
 
 from secondshift.agent.image import outcomes
-from secondshift.agent.image.outcomes import AgentConfig, fill_template, private_file
+from secondshift.agent.image.outcomes import (
+    AUTH_FILES,
+    AgentConfig,
+    fill_template,
+    private_file,
+)
 
 BINARY = "codex"
 HERE = Path(__file__).parent
@@ -24,11 +29,29 @@ def start(config: AgentConfig) -> tuple[list[str], dict[str, str]]:
             url=config["broker_url"],
             token_var=BROKER_TOKEN_VAR,
         )
-    # Codex keeps its refreshed login in CODEX_HOME, which is /auth, so its
-    # config must live there too. It is rewritten on every run, so nothing a
-    # previous run wrote survives.
-    private_file(outcomes.AUTH / "config.toml", settings)
+    home = codex_home()
     argv = [BINARY, "exec", "--skip-git-repo-check", "--ephemeral"]
     argv += ["--strict-config", "--json", "-"]
-    env = {BROKER_TOKEN_VAR: config["broker_token"]} if config.get("broker_url") else {}
+    env = {"CODEX_HOME": str(home)}
+    if config.get("broker_url"):
+        env[BROKER_TOKEN_VAR] = config["broker_token"]
+    private_file(home / "config.toml", settings)
     return argv, env
+
+
+def codex_home() -> Path:
+    """This run's own Codex home, sharing only the login with the login's
+    other runs.
+
+    Codex keeps SQLite state, logs and memories in its home. Runs that share
+    a login run at once in separate sandboxes, where SQLite's locks don't
+    reach each other, and one run's state must not reach the next. So only
+    auth.json is shared, through a link: Codex writes a refreshed login in
+    place, so the refresh reaches the login's folder and later runs.
+    """
+    home = outcomes.TMP / "codex"
+    home.mkdir(mode=0o700, exist_ok=True)
+    link = home / AUTH_FILES["codex"]
+    if not link.is_symlink():
+        link.symlink_to(outcomes.AUTH / AUTH_FILES["codex"])
+    return home

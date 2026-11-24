@@ -84,7 +84,6 @@ run. **Check** on the login's menu tries again.
 
 - A refused sign-in stops runs until you reconnect the login.
 - A used-up allowance, or a check that did not finish, does not stop runs.
-- The check waits while a job is using the same login.
 - A run that fails as if signed out checks the login too. Only that check marks
   it refused. If the check signs in, the run reports a general failure instead,
   because the words came from somewhere else, such as a tool's error.
@@ -153,9 +152,14 @@ because it may already have changed external services. Start a new run to retry.
 - Logins never appear in run plans, workflow arguments, results, Docker
   arguments or environment, container logs or API responses.
 - Codex can refresh its login during a run. SecondShift sends each login's runs
-  and checks to one runner, which keeps the only live copy, and a lock there
-  lets one run use the login at a time. A second run with the same login fails
-  instead of racing the refresh.
+  and checks to one runner, which keeps the only live copy. A login's runs run
+  at the same time and share only that copy, so a refresh in one run reaches
+  the others. Each run gets its own Codex home for state, logs and memories,
+  which ends with the run. Claude Code tokens from `claude setup-token` don't
+  refresh.
+- Codex can't coordinate a refresh across sandboxes the way it does across
+  terminals. If two runs refresh at the same moment, one may fail as signed
+  out. Its login check then finds the refreshed login and keeps it connected.
 
 Disconnecting blocks the broker at once. It then asks every runner to stop the
 login's containers and delete its files. If a runner can't be reached, the

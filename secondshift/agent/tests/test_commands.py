@@ -47,8 +47,11 @@ def test_packaged_agents_disable_native_tools_and_use_only_the_broker(
 
     argv, env = codex.start(BROKER)
     assert "--skip-git-repo-check" in argv
-    assert env == {"SECONDSHIFT_BROKER_TOKEN": "broker-secret"}
-    config = (tmp_path / "config.toml").read_text()
+    assert env == {
+        "CODEX_HOME": str(tmp_path / "codex"),
+        "SECONDSHIFT_BROKER_TOKEN": "broker-secret",
+    }
+    config = (tmp_path / "codex" / "config.toml").read_text()
     parsed = tomllib.loads(config)
     assert parsed["approval_policy"] == "never"
     assert parsed["sandbox_mode"] == "read-only"
@@ -98,8 +101,8 @@ def test_a_login_check_has_no_tools_at_all(
     assert not (tmp_path / "mcp.json").exists()
 
     argv, env = codex.start(check)
-    assert env == {}
-    parsed = tomllib.loads((tmp_path / "config.toml").read_text())
+    assert env == {"CODEX_HOME": str(tmp_path / "codex")}
+    parsed = tomllib.loads((tmp_path / "codex" / "config.toml").read_text())
     assert "mcp_servers" not in parsed
     assert parsed["features"]["shell_tool"] is False
 
@@ -161,3 +164,27 @@ def test_without_subagents_claude_has_no_tools_of_its_own(
 
     assert option(argv, "--tools") == ""
     assert "--agents" not in argv and "--settings" not in argv
+
+
+def test_each_codex_run_has_its_own_home_sharing_only_the_login(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_tmp, login = tmp_path / "tmp", tmp_path / "auth"
+    run_tmp.mkdir()
+    login.mkdir()
+    monkeypatch.setattr(outcomes, "TMP", run_tmp)
+    monkeypatch.setattr(outcomes, "AUTH", login)
+    (login / "auth.json").write_text("{}")
+
+    _, env = codex.start(BROKER)
+
+    home = Path(env["CODEX_HOME"])
+    assert home.parent == run_tmp
+    # A refresh Codex writes through the link lands in the login's folder.
+    (home / "auth.json").write_text('{"refreshed": true}')
+    assert (login / "auth.json").read_text() == '{"refreshed": true}'
+    # Its config and anything else it writes stay with this run.
+    assert sorted(p.name for p in login.iterdir()) == ["auth.json"]
+    # A second start in the same container keeps the link.
+    codex.start(BROKER)
+    assert (home / "auth.json").is_symlink()

@@ -157,7 +157,8 @@ Each login has a home runner, `runs.LoginHome`, set the first time a run or a
 check uses it. Its runs and checks go only there while it is active and offers
 the run's environment, and wait when it is full. Codex refreshes its tokens
 into that runner's copy and the old refresh token stops working, so the home
-keeps the only live copy. Its file lock lets one run use the login at a time.
+keeps the only live copy. Its runs may run at once and share only the login
+file. Each Codex run links its own temporary `CODEX_HOME` to it.
 When the home drains, goes down or lacks the environment, the login moves, and
 Codex may need a reconnect. A reconnect issues a new key, and so a new home.
 
