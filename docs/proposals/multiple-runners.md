@@ -162,8 +162,13 @@ own.
   safe to repeat. `AgentCredentialCleanup.removed_from` lists the runners that
   confirmed. A runner that is down is not asked, but the cleanup stays until it
   confirms.
-- Login checks (`check_agent_connection`) run on the active `default`-pool
-  runner with the most free sessions.
+- Each login has a home runner (`runs.LoginHome`). Its runs and checks go only
+  there while it is active and offers the environment. Codex refreshes its
+  tokens into the runner's copy and the old refresh token stops working, so
+  spreading a login across runners would break it on all but one. The login
+  moves only when its home drains, goes down or lacks the environment.
+- Removing a runner first asks it to delete every login copy it could hold,
+  and refuses unless forced when it can't confirm.
 
 ### Environments
 
@@ -250,8 +255,8 @@ Each step is a separate PR that ships on its own:
    switch every session-scoped caller. `assign_runner` always picks `default`.
 3. **Placement and capacity** (#488). Choose by environment and free sessions,
    wait while runners are full, and refresh each runner's environments.
-4. **Logins** (#489). Clean up on every runner, and check logins on an
-   active runner.
+4. **Logins** (#489). Login homes, cleanup on every runner, and wiping logins
+   before a runner is removed.
 5. **Environments.** Use the union from the registry, with a periodic
    refresh.
 6. **Health, drain and recovery.** Add the `down` state, the `runner_lost`
