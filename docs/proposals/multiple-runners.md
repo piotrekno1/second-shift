@@ -273,7 +273,7 @@ Each step is a separate PR that ships on its own:
    wait while runners are full, and refresh each runner's environments.
 4. **Logins** (#489). Login homes, cleanup on every runner, and wiping logins
    before a runner is removed.
-5. **Environments** (this PR). Readiness and the settings page read the
+5. **Environments** (#492). Readiness and the settings page read the
    registry rows the worker's check fills in, and never ask a runner.
 6. **Health, drain and recovery.** `failing_since`, the `runner` failure,
    failing runs on a lost runner, and stopping their sessions when it returns.
