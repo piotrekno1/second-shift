@@ -223,6 +223,53 @@ def test_cli_usage_in_run_responses(
     assert response.model_requests == 0
 
 
+@pytest.mark.django_db
+def test_a_login_run_shows_the_models_its_cli_reported(
+    agent_run: tuple[Run, User],
+    monkeypatch: pytest.MonkeyPatch,
+    django_assert_num_queries: Any,
+) -> None:
+    run, _ = agent_run
+    fake_runner(
+        monkeypatch,
+        {
+            "report": "Done",
+            "succeeded": True,
+            "usage": {},
+            "models": ["claude-opus-5-5", "claude-haiku-5-5"],
+        },
+    )
+    execute_cli_step(run.pk, "run-1", "Read the skill")
+
+    with django_assert_num_queries(1):
+        response = serialize_run(
+            with_model_usage(Run.objects.select_related("job", "task__repository")).get(
+                pk=run.pk
+            )
+        )
+
+    assert response.model == "claude-opus-5-5"
+    assert response.models == ["claude-opus-5-5", "claude-haiku-5-5"]
+
+
+@pytest.mark.django_db
+def test_a_login_run_without_reported_models_shows_none(
+    agent_run: tuple[Run, User], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Codex and older runners report no models.
+    run, _ = agent_run
+    fake_runner(monkeypatch, {"report": "Done", "succeeded": True, "usage": {}})
+    execute_cli_step(run.pk, "run-1", "Read the skill")
+
+    response = serialize_run(
+        with_model_usage(Run.objects.select_related("job", "task__repository")).get(
+            pk=run.pk
+        )
+    )
+
+    assert (response.model, response.models) == (None, [])
+
+
 @pytest.mark.parametrize(
     ("check", "summary", "refused"),
     [
