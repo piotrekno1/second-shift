@@ -11,6 +11,11 @@ It has two parts. The **control plane** serves the dashboard and API, holds
 every credential and runs each run's steps in a worker process. The **runner**
 owns Docker and starts every container a run needs.
 
+A control plane can use several runners. Each run goes to one of them, chosen
+by the environment it needs and the sessions free, and stays there until it
+ends. The operator registers runners. A repository can never pick one. See
+[runners](production-deployment.md#runners).
+
 ## How a run works
 
 ![A run goes from its trigger through six steps: freeze the plan, open a sandbox, run the agent, save outputs, publish and notify.](images/architecture/run-lifecycle.svg)

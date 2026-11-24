@@ -134,11 +134,13 @@ Rules the runner checks when it starts:
   one machine also accepts tags.
 - The runner pulls every image when it starts, and refuses to run any other
   image.
-- Only the runner knows the images. The web app and worker ask it which
-  environments exist, and a run sends just the name.
+- Only the runner knows the images. The worker asks each runner which
+  environments it offers once a minute, the web app reads that, and a run
+  sends just the name. With several runners, a job's environment needs to be
+  offered by only one of them, and its runs go there.
 - Every job may use every environment. Vet an image before you add it.
 - The settings page shows the default and lists every sandbox with its image
-  and env var.
+  and env var. When runners offer different sandboxes, it lists each runner's.
 
 ### Setup commands
 

@@ -275,12 +275,15 @@ Each step is a separate PR that ships on its own:
    before a runner is removed.
 5. **Environments** (#492). Readiness and the settings page read the
    registry rows the worker's check fills in, and never ask a runner.
-6. **Health, drain and recovery.** `failing_since`, the `runner` failure,
+6. **Health, drain and recovery** (#491). `failing_since`, the `runner` failure,
    failing runs on a lost runner, and stopping their sessions when it returns.
-7. **Docs.** Update `architecture.md`, `backend-architecture.md#starting-and-queueing-runs`,
-   `self-hosting.md`, `production-deployment.md` and
-   `environment-variables.md`, and extend the production end-to-end suite to two
-   runners.
+7. **Docs** (#493). Update `architecture.md`, `self-hosting.md`,
+   `production-deployment.md` and `environment-variables.md`, and add
+   `runner_key` so an operator can compare a runner's key fingerprint.
+8. **Subscription agents on another host.** Relay the agent's tool calls
+   through the runner, as in the
+   [addendum](#addendum-agent-tool-calls-from-another-host). Then extend the
+   production end-to-end suite to two runners.
 
 ## Testing
 
@@ -330,3 +333,135 @@ Each step is a separate PR that ships on its own:
    slots?
 4. Should runner registration also support runners that register themselves
    with a one-time join token, for operators adding hosts often?
+
+## Addendum: agent tool calls from another host
+
+### Problem
+
+Claude Code and Codex call the run's tools through the agent broker,
+`POST /gateway/agent/mcp` on the gateway, with the run's lease token. On one
+host, the gateway sits on the runner host's internal agent network at a fixed
+address, and agents reach it there. A runner on another host has its own
+agent network, which the gateway isn't on, and the agent network has no route
+out except the egress proxy to the providers' hosts. So subscription runs on
+such a runner can't reach their tools.
+
+Every other call already goes from the control plane to the runner. This one
+is the only call in the other direction.
+
+### Options considered
+
+- **A private network between hosts.** WireGuard or Tailscale, with the
+  gateway published on the control plane's private address and the runner
+  host's egress proxy forwarding the agents' port to it (`--forward`). This is
+  mostly Compose files, plus a way for the gateway to accept the forwarded
+  host name. It relies on the operator's network, and a leaked lease token is
+  usable from anywhere on that network until the run ends.
+- **The broker on the public address.** Caddy routes the broker path, on a
+  host name of its own, and the egress proxy lets agents reach it. Anyone can
+  reach the endpoint, though only a live lease token gets anything. The lease
+  token is the weak point: the agent holds it and is untrusted, and could write
+  it out through a tool it is allowed, such as a GitHub comment. Today a leaked
+  token is useless outside the agent network. Here it would work from anywhere
+  until the run ends.
+- **The public address with a per-runner client certificate.** As above, but
+  the runner host's proxy forwards over TLS with a key the runner generates and
+  the control plane pins, as it pins the provisioning key. Caddy requires a
+  client certificate, and the gateway checks its key against the run's runner.
+  A leaked token is then useless without that key. It works on any network,
+  but adds an internet-facing route, a second Caddy site and a header only
+  Caddy may set.
+- **Relaying through the runner (chosen).** The control plane already holds an
+  authenticated connection to the run's runner for the agent's whole run:
+  `run_agent` blocks until the agent finishes. The tool calls ride back over
+  that direction instead of calling in.
+
+### Design
+
+```
+worker ──run_agent (blocks)──▶ runner ──starts──▶ agent container
+worker ──waiting calls?──────▶ runner ◀──tool call (waits)──┘
+worker ──answer─────────────▶ runner ──answer──────────────▶ agent
+```
+
+- **Runner relay.** The runner listens on a second port, which serves only
+  the relay. The runner host's egress proxy forwards the agents' broker port
+  to it, so agents never reach the runner API. The relay accepts the same
+  JSON-RPC POST as `agent_mcp`, checks the lease token against the
+  `broker_token` the runner received in `run_agent`, stores the request as a
+  pending call for that session, and waits for its answer. A call without an
+  id, a notification, is answered `202` at once. The relay never reads MCP.
+- **Pending calls.** A runner table holds the call's id, session, request
+  body, answer and times. A runner serves requests from several processes, and the
+  relay's wait and the worker's answer may land in different ones, so the
+  database is what they share. A session's pending calls are deleted when
+  it stops.
+- **Runner API.** Two session-scoped endpoints behind the service token:
+  `GET /v1/sessions/{id}/agent/calls` returns waiting calls, holding the
+  request a few seconds while there are none, and
+  `POST /v1/sessions/{id}/agent/calls/{call}` stores an answer. Both are
+  async views, so waiting holds no thread.
+- **Worker.** While `run_agent` blocks, `execute_cli_step` runs a thread that
+  collects waiting calls through `runner_client_for(run_id)`, answers each
+  with `mcp_request(lease, message)` and posts the answer. The thread stops
+  when `run_agent` returns. Every check stays where it is: the lease, the
+  run's status and deadline, the tool call budget and the approved tools.
+- **Durability.** The thread lives inside the existing
+  `secondshift.execute_cli_agent` step, so no step is added or renamed. A
+  retried step refuses to start the agent again, as it does today when a
+  lease exists. An answer posted after the session stopped is dropped.
+- **Where it applies.** A runner whose `SECONDSHIFT_AGENT_BROKER_URL` is empty
+  and whose relay is configured uses the relay. It says so in its environments
+  answer, the worker's check stores it on the `Runner` row, and the step
+  collects calls only for such a runner. Single-host and local installs keep the gateway path at
+  first, and nothing changes for them. Moving them to the relay later removes
+  the gateway from the agent network.
+- **Agents configured.** The runner reports whether it has an agent image in
+  its environments answer. `runners list` shows it and `runners add` warns
+  when it is missing. Placement doesn't use it yet. Until mixed fleets need
+  it, every runner that takes subscription runs needs the agent image.
+
+### Security
+
+- No new inbound route to the control plane, no new credential and no
+  certificate. Every call goes from the control plane to the runner, over the
+  pinned, token-authenticated channel it already uses.
+- The lease token never leaves the runner host. A token the agent writes out
+  is useless anywhere else.
+- Agents reach the relay port only, through the egress proxy. The runner API,
+  which starts containers, stays off the agent network.
+- The relay bounds request size as `agent_mcp` does (1 MiB), and the number of
+  pending calls per session. A call nobody answers times out and the agent
+  gets an error.
+
+### Costs and limits
+
+- Each tool call waits for the worker's next collection. Holding the
+  collection request open while there are none keeps this under a second.
+- Each waiting tool call and each collection holds an open request on the
+  runner. Async views keep that from tying up threads.
+- Tool audit and rate limits run in the worker instead of the gateway. It is
+  the same code.
+
+### Testing
+
+- The relay refuses a missing, wrong or ended lease token, an oversized body
+  and calls beyond the pending limit.
+- A tool call relayed end to end with a fake agent gets the same answer as
+  through `agent_mcp`, including the tool call budget and a refused tool.
+- A call left unanswered times out. An answer after the session stops is
+  dropped. A retried step does not start the agent again.
+- The runner boundary test still passes. The relay imports no control plane
+  code.
+- The production end-to-end suite runs its deterministic agent on a second
+  runner with no route to the gateway.
+
+### Rollout
+
+1. Agents configured: the runner reports it, `runners list` shows it, `runners
+   add` warns.
+2. The relay, the pending call table, the two endpoints and the worker's
+   collection, used only by runners configured for it.
+3. A Compose file for a runner on another host, with the relay port and the
+   egress proxy's forward, and the deployment guide.
+4. The production end-to-end suite with two runners.

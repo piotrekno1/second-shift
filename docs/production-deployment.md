@@ -294,6 +294,103 @@ metadata, job definitions and history.
 A rerun of a commit that a force push removed from GitHub can fail once the
 cache no longer has it.
 
+## Runners
+
+The runner in this Compose file is registered as `default`, from
+`SECONDSHIFT_RUNNER_SERVICE_URL` and its token. Manage runners from the web
+container:
+
+```bash
+dc exec web python manage.py runners list
+dc exec web python manage.py runners drain default     # finish its runs, take no new ones
+dc exec web python manage.py runners activate default
+```
+
+`list` shows each runner's state, whether it answers, its pool, session limit,
+environments, the fingerprint of its provisioning key and its address. Tokens
+are never shown.
+
+Runs go to active runners in the `default` pool. A run goes to a runner that
+offers its environment and has a session free, preferring the one with the most
+free sessions. When every runner that could take it is full or draining, it
+waits. A subscription login stays on the runner it first ran on, since Codex
+keeps its refreshed tokens there, and moves only when that runner drains,
+stops answering or lacks the environment.
+
+The worker checks each runner every minute:
+
+- After two minutes without an answer, a runner takes no new runs.
+- After ten, its runs fail with the reason that the runner stopped answering.
+  When it answers again, it is told to stop their sessions.
+- Draining and activating are your choice. A drained runner that comes back
+  stays drained.
+
+### Add a runner
+
+A runner on another host needs its own token, an `https://` address, and the
+setup of the runner service in this Compose file: Docker, gVisor, the sandbox
+images in its `runner.env` and the Docker socket. Register it. `add` asks for
+the token, so it stays out of shell history:
+
+```bash
+dc exec web python manage.py runners add runner-b \
+  https://runner-b.internal:8002 --max-sessions 4
+```
+
+Claude Code and Codex can't run on a runner on another host yet. Their tool
+calls reach the gateway over this host's internal agent network, which another
+host isn't on. Built-in agent runs work there, since that agent runs in the
+worker. Placement doesn't tell these runs apart yet, so add a runner on another
+host only where workspaces use a model provider rather than a subscription.
+
+If workspaces use Claude Code or Codex, every runner needs the agent image from
+[optional subscription agents](#optional-subscription-agents). Placement
+doesn't check, and a runner without it refuses their runs.
+
+Use `--allow-http` only on a private network you trust, such as WireGuard: the
+token, repository files and run output cross it unencrypted. Each runner must
+have a token no other runner has, so one that is taken over can't call the
+others.
+
+`add` asks the runner for its environments and pins the public key that
+subscription logins are sealed to, and prints its fingerprint. Compare it with
+the runner's own:
+
+```bash
+dc exec runner python manage.py runner_key --settings=secondshift.config.settings.runner
+```
+
+On another host, run the same in its runner container.
+
+From then on, logins are sealed only to that key. A runner that answers with
+another key gets no login.
+
+### Remove a runner
+
+Drain it and wait until `list` shows it has no runs, then:
+
+```bash
+dc exec web python manage.py runners remove runner-b
+```
+
+`remove` first asks the runner to delete every subscription login it may hold.
+If it can't confirm, the runner stays registered. `--force` removes it anyway,
+and then delete its `agent-auth` directory and its backups on that host.
+
+### When a runner's key changes
+
+A runner keeps its key in `agent-auth/provisioning-key.pem` in its runner
+directory. The backup below keeps it in `runner.tgz`. A runner whose directory
+was lost or restored without that archive makes a new key, and it gets no
+logins until you pin the new one:
+
+```bash
+dc exec web python manage.py runners trust-key default
+```
+
+Run it only when you know why the key changed. Otherwise check the runner's
+address first: logins would go to whatever answers there.
+
 ## Update and back up
 
 Back up both PostgreSQL databases, all private env files, the runner directory,
