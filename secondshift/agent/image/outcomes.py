@@ -5,6 +5,7 @@ standard library. The control plane imports AgentOutcome from here too.
 """
 
 import json
+import re
 import tomllib
 from dataclasses import dataclass, field
 from enum import StrEnum
@@ -23,6 +24,12 @@ TOKEN_KEYS = (
     "cache_creation_input_tokens",
     "cache_read_input_tokens",
 )
+# A model name as providers spell it, such as claude-opus-5-5 or
+# openai/gpt-5. Anything else a CLI reports, like Claude Code's <synthetic>,
+# is not a model.
+MODEL_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:/@\[\]-]{0,199}")
+# A run rarely uses more than two: the agent's model and a small helper one.
+MAX_MODELS = 10
 # Cache reads cost about a tenth of fresh input on Anthropic and OpenAI, so
 # they count as a tenth toward a run's token budget.
 CACHE_READ_DIVISOR = 10
@@ -83,6 +90,17 @@ class Outcome:
     subagents: dict[str, dict[str, int]] = field(default_factory=dict)
     # Tool calls already counted, by ID. One call can arrive more than once.
     tool_calls: set[str] = field(default_factory=set)
+    # The models that answered, the agent's own first.
+    models: list[str] = field(default_factory=list)
+
+    def add_model(self, name: Any) -> None:
+        if (
+            isinstance(name, str)
+            and MODEL_NAME.fullmatch(name)
+            and name not in self.models
+            and len(self.models) < MAX_MODELS
+        ):
+            self.models.append(name)
 
 
 def numbers(values: dict[str, Any]) -> dict[str, int]:

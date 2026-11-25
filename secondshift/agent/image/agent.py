@@ -79,6 +79,7 @@ def result(outcome: Outcome, exit_code: int) -> dict[str, Any]:
         "usage": outcome.usage,
         # Only counts, in the order the sub-agents started.
         "subagents": list(outcome.subagents.values()),
+        "models": outcome.models,
     }
 
 

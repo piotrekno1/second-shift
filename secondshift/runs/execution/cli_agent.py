@@ -158,6 +158,7 @@ def execute_cli_step(run_id: int, session_id: str, prompt: str) -> dict[str, Any
             "reason": reason,
             "versions": result.versions,
             "usage": result.usage,
+            "models": result.models,
         },
     )
     details = {"backend": connection.backend, "reason": reason, "usage": result.usage}

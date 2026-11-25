@@ -3,12 +3,12 @@
 The control plane sends only fixed agent choices, never Docker options.
 """
 
-from typing import Literal
+from typing import Annotated, Literal
 
 from ninja import Schema
 from pydantic import ConfigDict, Field, SecretStr
 
-from secondshift.agent.image.outcomes import AgentOutcome
+from secondshift.agent.image.outcomes import MAX_MODELS, MODEL_NAME, AgentOutcome
 from secondshift.runner_protocol.agents import AgentBackend
 
 
@@ -43,3 +43,7 @@ class AgentOutput(Schema):
     # Each sub-agent's model requests and tool calls, in the order they started.
     subagents: list[dict[str, int]] = Field(default_factory=list, max_length=100)
     versions: dict[str, str] = Field(default_factory=dict)
+    # The models the CLI reported, the agent's own first. Older runners send none.
+    models: list[Annotated[str, Field(pattern=f"^{MODEL_NAME.pattern}$")]] = Field(
+        default_factory=list, max_length=MAX_MODELS
+    )

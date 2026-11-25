@@ -285,6 +285,7 @@ function run(
     plan_ready: true,
     commit_sha: 'abc',
     model: null,
+    models: [],
     max_turns: 24,
     token_budget: null,
     model_requests: 1,

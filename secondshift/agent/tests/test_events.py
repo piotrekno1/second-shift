@@ -39,6 +39,7 @@ def test_agent_events_keep_only_final_report_and_numeric_usage() -> None:
         "reason": "completed",
         "usage": {"input_tokens": 20},
         "subagents": [],
+        "models": [],
     }
     codex_done = outcome_of(
         codex_events.read,
@@ -99,6 +100,40 @@ def test_claude_usage_adds_up_each_reply_once_with_sub_agents() -> None:
         "cache_read_input_tokens": 7000,
         "output_tokens": 1500,
     }
+
+
+def test_claude_runs_keep_the_models_that_answered_the_agents_first() -> None:
+    main = reply("msg_1", input_tokens=1)
+    main["message"]["model"] = "claude-opus-5-5"
+    helper = reply("msg_2", sub_agent=True, input_tokens=1)
+    helper["message"]["model"] = "claude-opus-5-5"
+    # Claude Code marks replies it made up itself, like an error notice.
+    synthetic = reply("msg_3", input_tokens=0)
+    synthetic["message"]["model"] = "<synthetic>"
+    result = {
+        "type": "result",
+        "result": "Done",
+        "is_error": False,
+        "modelUsage": {
+            "claude-haiku-5-5": {"inputTokens": 3},
+            "claude-opus-5-5": {"inputTokens": 2},
+            "--model=evil": {"inputTokens": 1},
+        },
+    }
+
+    done = outcome_of(claude_events.read, [main, helper, synthetic, result])
+
+    assert done["models"] == ["claude-opus-5-5", "claude-haiku-5-5"]
+
+
+def test_a_run_keeps_at_most_a_few_models() -> None:
+    outcome = outcomes.Outcome()
+    for number in range(outcomes.MAX_MODELS + 5):
+        outcome.add_model(f"model-{number}")
+    outcome.add_model(None)
+    outcome.add_model("x" * 201)
+
+    assert len(outcome.models) == outcomes.MAX_MODELS
 
 
 def test_the_token_budget_stops_claude_mid_run(monkeypatch) -> None:

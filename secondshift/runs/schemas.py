@@ -35,7 +35,9 @@ class RunSchema(Schema):
     summary: str
     plan_ready: bool
     commit_sha: str
+    # The model that ran the agent, and every model the run used.
     model: str | None
+    models: list[str]
     max_turns: int | None
     token_budget: int | None
     model_requests: int

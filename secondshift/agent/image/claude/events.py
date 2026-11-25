@@ -130,6 +130,7 @@ def read(event: dict[str, Any], outcome: Outcome) -> None:
         if not isinstance(message_id, str):
             return
         new = message_id not in outcome.replies
+        outcome.add_model(message.get("model"))
         usage = numbers(message.get("usage") or {})
         earlier = outcome.replies.get(message_id, {})
         outcome.replies[message_id] = {
@@ -151,6 +152,11 @@ def read(event: dict[str, Any], outcome: Outcome) -> None:
         for key, value in totals.items():
             final[key] = max(final.get(key, 0), value)
     outcome.usage = final
+    # Claude Code also calls a small model for its own chores, which no reply
+    # shows. Its per-model usage names it.
+    model_usage = event.get("modelUsage")
+    for name in model_usage if isinstance(model_usage, dict) else ():
+        outcome.add_model(name)
     if event.get("subtype") == "error_max_turns":
         outcome.reason = AgentOutcome.TURN_BUDGET_EXHAUSTED
     elif event.get("is_error", True):

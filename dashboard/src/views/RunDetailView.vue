@@ -720,6 +720,14 @@ onUnmounted(stopPolling)
               <dt>Agent</dt>
               <dd>{{ run.execution_agent ?? run.model_provider ?? 'None' }}</dd>
             </div>
+            <div v-if="run.models.length">
+              <dt>{{ run.models.length === 1 ? 'Model' : 'Models' }}</dt>
+              <dd>
+                <template v-for="(name, index) in run.models" :key="name"
+                  ><template v-if="index">, </template><code>{{ name }}</code></template
+                >
+              </dd>
+            </div>
             <div v-if="run.runner">
               <dt>Runner</dt>
               <dd>{{ run.runner }}</dd>

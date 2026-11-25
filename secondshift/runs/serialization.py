@@ -59,8 +59,23 @@ def run_failure(run: Run) -> RunFailureSchema | None:
     )
 
 
+def run_models(run: Run, api: bool) -> list[str]:
+    """The models that ran, the agent's own first.
+
+    The built-in agent and its sub-agents call only the plan's model. A login's
+    CLI picks its own, so its run keeps the ones the CLI reported. Older runs,
+    and Codex, which reports none, show none.
+    """
+    if api:
+        model = run.plan.model.default_model if run.plan.model else ""
+        return [model] if model else []
+    models = getattr(run, "agent_models", None)
+    return [str(name) for name in models] if isinstance(models, list) else []
+
+
 def serialize_run(run: Run) -> RunSchema:
     api = run.plan.execution.backend.uses_model_api
+    models = run_models(run, api)
     input_tokens = getattr(run, "model_input_tokens", None) or 0
     output_tokens = getattr(run, "model_output_tokens", None) or 0
     tokens = getattr(run, "model_tokens", None) or 0
@@ -96,7 +111,8 @@ def serialize_run(run: Run) -> RunSchema:
         summary=run.summary,
         plan_ready=run.plan.ready,
         commit_sha=run.commit_sha,
-        model=(run.plan.model.default_model if run.plan.model else "") or None,
+        model=models[0] if models else None,
+        models=models,
         # Agent CLIs do not report model calls, so a turn count would read 0.
         max_turns=run.plan.limit(RunLimit.MAX_TURNS) if api else None,
         token_budget=run.plan.limit(RunLimit.TOKEN_BUDGET),

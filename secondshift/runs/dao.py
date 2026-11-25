@@ -87,20 +87,18 @@ def update_run(run_id: int, **fields: Any) -> None:
 
 
 def with_model_usage(runs: QuerySet[Run]) -> QuerySet[Run]:
-    """Annotate each run with its model usage totals and agent login usage."""
-    agent_usage = (
-        RunEvent.objects.filter(
-            run_id=OuterRef("pk"),
-            metadata__backend__in=[
-                backend for backend in AgentBackend if not backend.uses_model_api
-            ],
-            metadata__has_key="usage",
-        )
-        .order_by("-pk")
-        .values("metadata__usage")[:1]
-    )
+    """Annotate each run with its model usage totals, and a login run's usage
+    and models."""
+    finished = RunEvent.objects.filter(
+        run_id=OuterRef("pk"),
+        metadata__backend__in=[
+            backend for backend in AgentBackend if not backend.uses_model_api
+        ],
+        metadata__has_key="usage",
+    ).order_by("-pk")
     return runs.annotate(
-        agent_usage=Subquery(agent_usage),
+        agent_usage=Subquery(finished.values("metadata__usage")[:1]),
+        agent_models=Subquery(finished.values("metadata__models")[:1]),
         model_tokens=Sum(
             F("model_usage__input_tokens")
             + F("model_usage__output_tokens")

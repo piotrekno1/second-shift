@@ -34,6 +34,8 @@ export interface components {
       commit_sha: string
       /** Model */
       model: string | null
+      /** Models */
+      models: string[]
       /** Max Turns */
       max_turns: number | null
       /** Token Budget */
@@ -134,6 +136,8 @@ export interface components {
       commit_sha: string
       /** Model */
       model: string | null
+      /** Models */
+      models: string[]
       /** Max Turns */
       max_turns: number | null
       /** Token Budget */
