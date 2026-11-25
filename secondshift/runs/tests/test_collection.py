@@ -1,9 +1,12 @@
+import hashlib
 import io
 import tarfile
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
+from storages.backends.s3 import S3Storage
 
 from secondshift.runner.collection import collect, record_baseline
 from secondshift.runner.tests.fakes import ClosableFake
@@ -81,6 +84,41 @@ def test_collected_changes_and_files_are_stored_with_the_run(
     assert saved.size_bytes == len("file,issue\nREADME.md,stale\n")
     assert len(saved.sha256) == 64
     assert outputs.skipped == ()
+
+
+@pytest.mark.django_db
+def test_collected_files_upload_to_s3(
+    db: object, settings: Any, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The S3 backend probes the file before uploading, unlike the others."""
+    settings.STORAGES = {
+        **settings.STORAGES,
+        "run_artifacts": {
+            "BACKEND": "storages.backends.s3.S3Storage",
+            "OPTIONS": {"bucket_name": "artifacts", "region_name": "us-east-1"},
+        },
+    }
+    uploaded: dict[str, bytes] = {}
+
+    class Object:
+        def __init__(self, name: str) -> None:
+            self.name = name
+
+        def upload_fileobj(self, content: Any, **kwargs: Any) -> None:
+            uploaded[self.name] = content.read()
+
+    bucket = SimpleNamespace(Object=Object)
+    monkeypatch.setattr(S3Storage, "bucket", property(lambda self: bucket))
+    monkeypatch.setattr(S3Storage, "delete", lambda self, name: None)
+    monkeypatch.setattr(S3Storage, "exists", lambda self, name: False)
+    run = execution_run(db)
+
+    outputs = store_collection(run, agent_session(tmp_path))
+
+    [saved] = outputs.files
+    assert uploaded[saved.path] == b"file,issue\nREADME.md,stale\n"
+    assert saved.sha256 == hashlib.sha256(uploaded[saved.path]).hexdigest()
+    assert b"+new" in uploaded[outputs.changes.path]
 
 
 @pytest.mark.django_db
