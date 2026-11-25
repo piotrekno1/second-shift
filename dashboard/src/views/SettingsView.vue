@@ -5,6 +5,7 @@ import InvitesPanel from '../components/InvitesPanel.vue'
 import MembersPanel from '../components/MembersPanel.vue'
 import PageHeader from '../components/PageHeader.vue'
 import RunLimitsPanel from '../components/RunLimitsPanel.vue'
+import RunnersPanel from '../components/RunnersPanel.vue'
 import { fetchSettings, saveWorkspaceLimits } from '../services/settings'
 import { useAppStore } from '../stores/app'
 import type { RunLimitUpdate, WorkspaceSettings } from '../types'
@@ -37,7 +38,7 @@ const subtitle = computed(() =>
 )
 // Environment variable names help whoever runs the server, not the people using it.
 const isOperator = computed(() => app.user?.can_use_admin ?? false)
-// The deployment is part of the server settings, so it leads that section.
+// The deployment rarely matters once the server runs, so it comes last.
 const serverGroups = computed(() => {
   if (!data.value) return []
   const deployment = {
@@ -46,7 +47,7 @@ const serverGroups = computed(() => {
       { label: 'Environment', value: data.value.environment, help: '', env: '', tone: '' as const },
     ],
   }
-  return [deployment, ...data.value.groups]
+  return [...data.value.groups, deployment]
 })
 
 async function copy(env: string): Promise<void> {
@@ -94,6 +95,7 @@ onMounted(async () => {
         @save="saveLimits"
       />
 
+      <RunnersPanel v-if="isOperator" :runners="data.runners" />
       <section class="panel server-settings">
         <div class="panel-heading">
           <div>

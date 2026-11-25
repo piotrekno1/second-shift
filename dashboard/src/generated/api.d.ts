@@ -1271,6 +1271,8 @@ export interface components {
       sandbox: string
       /** Groups */
       groups: components['schemas']['SettingGroupSchema'][]
+      /** Runners */
+      runners: components['schemas']['RunnerSettingsSchema'][]
       /** Limits */
       limits: components['schemas']['LimitSchema'][]
       /** Can Edit Limits */
@@ -1302,6 +1304,40 @@ export interface components {
      * @enum {string}
      */
     Tone: '' | 'attention' | 'danger'
+    /**
+     * RunnerSettingsSchema
+     * @description One runner on the settings page, for the people who run the server.
+     */
+    RunnerSettingsSchema: {
+      /** Name */
+      name: string
+      /** State */
+      state: string
+      /** Health */
+      health: string
+      tone: components['schemas']['Tone']
+      /** Running */
+      running: number
+      /** Max Sessions */
+      max_sessions: number | null
+      /** Environments */
+      environments: components['schemas']['RunnerEnvironmentSchema'][] | null
+      /** Agents */
+      agents: boolean | null
+      /** Key Fingerprint */
+      key_fingerprint: string
+    }
+    /** RunnerEnvironmentSchema */
+    RunnerEnvironmentSchema: {
+      /** Name */
+      name: string
+      /** Image */
+      image: string
+      /** Env */
+      env: string
+      /** Default */
+      default: boolean
+    }
     /**
      * RunLimitsUpdateSchema
      * @description Fields left out stay as they are. Null uses the inherited value.

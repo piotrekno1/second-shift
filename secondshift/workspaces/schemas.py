@@ -4,6 +4,7 @@ from typing import Literal
 from ninja import Schema
 from pydantic import AliasChoices, Field
 
+from secondshift.runs.schemas import RunnerSettingsSchema
 from secondshift.workspaces.limits import LimitUnit, RunLimit
 from secondshift.workspaces.server_settings import Tone
 
@@ -48,6 +49,8 @@ class WorkspaceSettingsSchema(Schema):
     environment: str
     sandbox: str
     groups: list[SettingGroupSchema]
+    # Each runner, for the people who run the server. Empty for everyone else.
+    runners: list[RunnerSettingsSchema]
     # Run limits for the whole workspace. Each job can choose its own.
     limits: list[LimitSchema]
     can_edit_limits: bool

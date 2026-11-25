@@ -171,10 +171,9 @@ def test_only_staff_see_the_runners(client: Client) -> None:
     )
     client.force_login(owner)
 
-    def runners() -> dict[str, dict[str, str]]:
+    def runners() -> dict[str, dict[str, object]]:
         body = client.get("/api/settings").json()
-        groups = {group["title"]: group["items"] for group in body["groups"]}
-        return {item["label"]: item for item in groups.get("Runners", [])}
+        return {runner["name"]: runner for runner in body["runners"]}
 
     assert runners() == {}
 
@@ -182,16 +181,40 @@ def test_only_staff_see_the_runners(client: Client) -> None:
     owner.save(update_fields=["is_staff"])
     shown = runners()
 
-    assert shown["runner-a"]["value"] == "Active · answering"
-    assert shown["runner-a"]["help"].startswith("0 runs of 4 at once.")
-    assert "Environments: python." in shown["runner-a"]["help"]
-    assert "No agent image" in shown["runner-a"]["help"]
-    assert shown["runner-b"]["value"] == (
-        "Draining · not answering for 15 minutes, its runs failed"
-    )
-    assert shown["runner-a"]["tone"] == ""
-    assert shown["runner-b"]["tone"] == "danger"
+    a, b = shown["runner-a"], shown["runner-b"]
+    assert (a["state"], a["health"], a["tone"]) == ("Active", "answering", "")
+    assert (a["running"], a["max_sessions"], a["agents"]) == (0, 4, False)
+    assert a["environments"] == [
+        {
+            "name": "python",
+            "image": "python:3.13-slim",
+            "env": "SECONDSHIFT_SANDBOX_PYTHON",
+            "default": True,
+        }
+    ]
+    assert (b["state"], b["tone"]) == ("Draining", "danger")
+    assert b["health"] == "not answering for 15 minutes, its runs failed"
+    assert b["key_fingerprint"] == ""
     # Never the address or the token.
     text = json.dumps(shown)
     assert "https://" not in text
     assert "token" not in text.lower()
+
+
+@pytest.mark.django_db
+def test_runner_cards_take_over_environments_that_differ() -> None:
+    offer_environments(sandboxes("python:3.13-slim"), name="runner-a")
+    offer_environments(sandboxes("python:3.14-slim", node="node:22"), name="runner-b")
+    items = {
+        item.label: item.value
+        for g in setting_groups(runner_cards=True)
+        for item in g.items
+    }
+
+    assert items["Environments"] == "Differ by runner"
+    assert not any("runner-" in label for label in items)
+
+
+@pytest.mark.django_db
+def test_isolation_leads_the_server_settings() -> None:
+    assert [g.title for g in setting_groups()][:2] == ["Sandbox", "Runs"]
