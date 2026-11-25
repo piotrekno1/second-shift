@@ -15,9 +15,12 @@ x-artifacts: &artifacts
   SECONDSHIFT_ARTIFACT_ROOT: /var/lib/secondshift/artifacts
   SECONDSHIFT_ARTIFACT_ADDRESSING_STYLE: ${ARTIFACT_ADDRESSING_STYLE:-auto}
 
+# Agents call the runner's relay through the egress proxy's forward, the same
+# way on every runner. The worker collects their tool calls from the runner,
+# so nothing on the agents network reaches the control plane.
 x-agents: &agents
   SECONDSHIFT_AGENT_IMAGE: ${AGENT_IMAGE:-}
-  SECONDSHIFT_AGENT_BROKER_URL: http://${AGENT_GATEWAY_ADDRESS:-172.30.0.2}:8001/gateway/agent/mcp
+  SECONDSHIFT_AGENT_BROKER_URL: http://${AGENT_PROXY_ADDRESS:-172.30.0.3}:${RELAY_FORWARD_PORT:-8001}/gateway/agent/mcp
 
 services:
   postgres:
@@ -67,8 +70,6 @@ services:
     networks:
       default:
         aliases: [secondshift-gateway]
-      agents:
-        ipv4_address: ${AGENT_GATEWAY_ADDRESS:-172.30.0.2}
     volumes:
       - artifacts:/var/lib/secondshift/artifacts:ro
     depends_on:
@@ -100,6 +101,7 @@ services:
     env_file: ./deploy/production/runner.env
     environment:
       <<: *agents
+      SECONDSHIFT_RUNNER_AGENT_RELAY_PORT: "8003"
       SECONDSHIFT_AGENT_NETWORK: ${AGENT_NETWORK:-secondshift_agents}
       SECONDSHIFT_AGENT_PROXY_ADDRESS: ${AGENT_PROXY_ADDRESS:-172.30.0.3}
       # Empty turns setup commands off. See setup-proxy below.
@@ -119,22 +121,30 @@ services:
     networks:
       default:
         aliases: [secondshift-runner]
+      relay: {}
     depends_on:
       postgres:
         condition: service_healthy
     stop_grace_period: 40s
 
-  # Agents' only way out. It opens HTTPS tunnels to their providers only.
-  # It holds no secrets and reaches no other service.
+  # Agents' only way out. It opens HTTPS tunnels to their providers, and
+  # passes one port through to the runner's relay. It holds no secrets and
+  # reaches nothing else.
   agent-proxy:
     <<: *application
-    command: [python, -m, secondshift.agent.image.egress]
+    command:
+      - python
+      - -m
+      - secondshift.agent.image.egress
+      - --forward
+      - ${RELAY_FORWARD_PORT:-8001}:runner:8003
     read_only: true
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]
     networks:
       agents:
         ipv4_address: ${AGENT_PROXY_ADDRESS:-172.30.0.3}
+      relay: {}
       egress: {}
     logging:
       driver: json-file
@@ -180,14 +190,17 @@ services:
         condition: service_healthy
 
 networks:
-  # No route out. Agents reach the gateway here and the internet only
-  # through agent-proxy. The runner refuses an agent network that isn't internal.
+  # No route out. Agents reach the relay and the internet only through
+  # agent-proxy. The runner refuses an agent network that isn't internal.
   agents:
     name: ${AGENT_NETWORK:-secondshift_agents}
     internal: true
     ipam:
       config:
         - subnet: ${AGENT_SUBNET:-172.30.0.0/24}
+  # Only the runner and agent-proxy, for the relay forward.
+  relay:
+    internal: true
   # Only agent-proxy joins it, so the proxy can reach nothing else of ours.
   egress: {}
   # No route out. Setup containers reach the internet only through setup-proxy.

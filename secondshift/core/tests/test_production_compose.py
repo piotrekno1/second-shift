@@ -3,6 +3,7 @@
 from pathlib import Path
 from typing import Any
 
+import pytest
 import yaml
 
 from secondshift.runner_protocol.agents import AGENT_BROKER_PATH
@@ -14,25 +15,29 @@ def production_services() -> dict[str, Any]:
     return yaml.safe_load((ROOT / "compose.production.yaml").read_text())["services"]
 
 
-def test_only_gateway_joins_the_agent_network() -> None:
+def compose_file(name: str) -> dict[str, Any]:
+    return yaml.safe_load((ROOT / name).read_text())
+
+
+def test_nothing_of_the_control_plane_joins_the_agent_network() -> None:
     services = production_services()
-    assert "agents" in services["gateway"]["networks"]
-    for role in ("web", "worker", "runner", "postgres", "caddy"):
-        assert "agents" not in services[role].get("networks", {})
+    for role, service in services.items():
+        if role != "agent-proxy":
+            assert "agents" not in service.get("networks", {})
     for role in ("web", "worker", "gateway", "runner"):
         assert "SECONDSHIFT_AGENT_IMAGE" in services[role]["environment"]
         assert (
-            "AGENT_GATEWAY_ADDRESS"
+            "AGENT_PROXY_ADDRESS"
             in services[role]["environment"]["SECONDSHIFT_AGENT_BROKER_URL"]
         )
 
 
 def test_agents_leave_only_through_the_egress_proxy() -> None:
-    compose = yaml.safe_load((ROOT / "compose.production.yaml").read_text())
+    compose = compose_file("compose.production.yaml")
     services = compose["services"]
     assert compose["networks"]["agents"]["internal"] is True
     proxy = services["agent-proxy"]
-    assert set(proxy["networks"]) == {"agents", "egress"}
+    assert set(proxy["networks"]) == {"agents", "relay", "egress"}
     assert "environment" not in proxy and "env_file" not in proxy
     assert "volumes" not in proxy
     for role, service in services.items():
@@ -41,6 +46,29 @@ def test_agents_leave_only_through_the_egress_proxy() -> None:
     address = proxy["networks"]["agents"]["ipv4_address"]
     assert services["runner"]["environment"]["SECONDSHIFT_AGENT_PROXY_ADDRESS"] == (
         address
+    )
+
+
+@pytest.mark.parametrize("name", ["compose.production.yaml", "compose.runner.yaml"])
+def test_agents_reach_tools_only_through_their_runners_relay(name: str) -> None:
+    compose = compose_file(name)
+    services = compose["services"]
+    assert compose["networks"]["relay"]["internal"] is True
+    joined = {
+        role
+        for role, service in services.items()
+        if "relay" in service.get("networks", {})
+    }
+    assert joined == {"runner", "agent-proxy"}
+    runner = services["runner"]["environment"]
+    relay_port = runner["SECONDSHIFT_RUNNER_AGENT_RELAY_PORT"]
+    forward = services["agent-proxy"]["command"]
+    listen = forward[forward.index("--forward") + 1]
+    assert listen == f"${{RELAY_FORWARD_PORT:-8001}}:runner:{relay_port}"
+    # The broker URL is the proxy's forward, on every runner.
+    assert runner["SECONDSHIFT_AGENT_BROKER_URL"] == (
+        "http://${AGENT_PROXY_ADDRESS:-172.30.0.3}:${RELAY_FORWARD_PORT:-8001}/"
+        f"{AGENT_BROKER_PATH}"
     )
 
 
@@ -61,13 +89,6 @@ def test_setup_leaves_only_through_a_registry_proxy_and_is_off_by_default() -> N
     assert (
         runner["SECONDSHIFT_RUNNER_SETUP_PROXY_ADDRESS"] == "${SETUP_PROXY_ADDRESS:-}"
     )
-
-
-def test_agents_reach_the_broker_at_the_gateways_route() -> None:
-    services = production_services()
-    for role in ("web", "worker", "gateway", "runner"):
-        url = services[role]["environment"]["SECONDSHIFT_AGENT_BROKER_URL"]
-        assert url.endswith(f":8001/{AGENT_BROKER_PATH}")
 
 
 def test_gateway_artifacts_are_read_only_and_runner_has_no_store() -> None:

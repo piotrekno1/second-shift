@@ -95,12 +95,15 @@ On more than one host, push the image to your private registry instead and set
 `AGENT_IMAGE` to its immutable `registry/name@sha256:...` reference. Pull that
 exact image on each Docker host before enabling it.
 
-Agents need no DNS. They reach the gateway and the egress proxy at reserved
-addresses, and the proxy looks up provider names itself. This also suits
-gVisor, which can't use Docker's embedded DNS. Set `AGENT_SUBNET`,
-`AGENT_GATEWAY_ADDRESS` and `AGENT_PROXY_ADDRESS` together if the default
-`172.30.0.0/24`, `172.30.0.2` and `172.30.0.3` overlap an existing host route.
-Both addresses must be inside the subnet. Image architecture must match
+Agents need no DNS. They reach only the egress proxy, at a reserved address,
+and the proxy looks up provider names itself. This also suits gVisor, which
+can't use Docker's embedded DNS. Agents send their tool calls to the runner
+through the proxy, which passes `RELAY_FORWARD_PORT` through to the runner's
+relay, so nothing on the agents network reaches the control plane. Set
+`AGENT_SUBNET` and `AGENT_PROXY_ADDRESS` together if the default
+`172.30.0.0/24` and `172.30.0.3` overlap an existing host route. The address
+must be inside the subnet. An `AGENT_GATEWAY_ADDRESS` from an earlier release
+is no longer used. Image architecture must match
 the runner host. The main
 application release workflow does not publish this separate image.
 
@@ -387,9 +390,8 @@ runner without it refuses their runs. `runners add` warns about a runner
 without it, and `runners list` shows `agents=no` for it.
 
 The agents on that host reach the internet and their runner only through its
-egress proxy, which passes `RELAY_FORWARD_PORT` through to the runner's relay.
-The relay takes only a running agent's own token, and the runner API is never
-served on its port.
+egress proxy, as on the first host. The relay takes only a running agent's own
+token, and the runner API is never served on its port.
 
 Use `--allow-http` only on a private network you trust, such as WireGuard: the
 token, repository files and run output cross it unencrypted. Each runner must

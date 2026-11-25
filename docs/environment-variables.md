@@ -104,7 +104,7 @@ Put these in `runner.env` unless the table names other services:
 | `SECONDSHIFT_RUNNER_RUNTIME` | Sandbox OCI runtime, not the HTTP server. Use `runsc` in web, worker and runner for production. Gateway does not need it. |
 | `SECONDSHIFT_SANDBOX_<NAME>` | A sandbox image that jobs choose with `environment: <name>`, such as `SECONDSHIFT_SANDBOX_PYTHON_NODE` for `python_node`. One variable per sandbox. Runner only. Servers require an image pinned by digest. Generated `runner.env` files offer `python` and `python_node`. See [sandboxes](self-hosting.md#sandboxes). |
 | `SECONDSHIFT_SANDBOX_DEFAULT` | Required. The sandbox for jobs that name no environment, such as `python`. Runner only. |
-| `SECONDSHIFT_RUNNER_AGENT_RELAY_PORT` | Runner only. For a runner on another host, which can't reach the gateway: the runner also listens on this port, and its agents send their tool calls there, through the egress proxy's forward, for the worker to collect. Set `SECONDSHIFT_AGENT_BROKER_URL` to that forward. Empty by default, and agents call the gateway. |
+| `SECONDSHIFT_RUNNER_AGENT_RELAY_PORT` | Runner only. The runner also listens on this port, and its agents send their tool calls there, through the egress proxy's forward, for the worker to collect. Set `SECONDSHIFT_AGENT_BROKER_URL` to that forward. Both Compose files set it, so agents never reach the control plane. Empty by default, and agents call the gateway, as with `secondshift up`. |
 | `SECONDSHIFT_RUNNER_SETUP_PROXY_ADDRESS` | Runner-only address of the setup proxy, which lets [setup commands](repository-configuration.md#setup-commands) reach package registries. Empty on a server turns setup off. On one machine the runner starts its own proxy. See [setup commands](self-hosting.md#setup-commands). |
 | `SECONDSHIFT_RUNNER_SETUP_NETWORK` | Runner-only internal Docker network for setup containers. Default `secondshift-setup`. The runner refuses a network that isn't internal. On one machine it creates the network. |
 | `SECONDSHIFT_RUNNER_SETUP_TIMEOUT_SECONDS` | Runner-only time limit for each setup command. Default `600`, at most `900`. |
@@ -199,7 +199,7 @@ The production Compose example sets these from its server-owned env file:
 | Variable | Meaning and default |
 | --- | --- |
 | `SECONDSHIFT_AGENT_IMAGE` | Agent image pinned by digest. Empty disables subscriptions on servers. On one machine it defaults to the tag that mode builds, `secondshift-agent:local` or `secondshift-agent:dev`. |
-| `SECONDSHIFT_AGENT_BROKER_URL` | Agent-reachable run-scoped MCP URL on the gateway. |
+| `SECONDSHIFT_AGENT_BROKER_URL` | Agent-reachable run-scoped MCP URL: the egress proxy's forward to the runner's relay on a server, or the gateway with `secondshift up`. |
 | `SECONDSHIFT_AGENT_NETWORK` | Internal Docker network for transient agent containers. Default `secondshift-agents`. The runner refuses a network that isn't internal. On one machine it creates the network. |
 | `SECONDSHIFT_AGENT_PROXY_ADDRESS` | Runner-only address of the egress proxy on the agent network. Compose sets `172.30.0.3`. Empty on a server stops subscription runs. On one machine the runner starts its own proxy. |
 

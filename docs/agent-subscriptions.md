@@ -157,9 +157,11 @@ command sandbox. The container:
   only through the egress proxy, which opens HTTPS tunnels to
   `api.anthropic.com`, `chatgpt.com` and `auth.openai.com` and nothing else.
 
-The agent reaches the run's tools only through a run-scoped MCP broker on the
-gateway. These are the same workspace and approved external tools a model API
-run gets. Workspace commands still run in the offline command sandbox.
+The agent reaches the run's tools only through a run-scoped MCP broker. On a
+server it sends each call to its runner, through the egress proxy, and the
+worker collects it, answers and sends the answer back. With `secondshift up`
+it calls the gateway on the same machine. These are the same workspace and
+approved external tools a model API run gets. Workspace commands still run in the offline command sandbox.
 
 Every broker request checks that the run is still active and within its
 deadline, that the login is still connected, and that its owner is still a
