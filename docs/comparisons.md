@@ -12,9 +12,13 @@
 | **[Grok Bot](https://docs.x.ai/grok-bot/overview)** | Browser work with persistent logins | Your logins on a hosted computer | Set up in the app |
 | **[Hermes Agent](https://hermes-agent.nousresearch.com/docs)** | A personal assistant you host | Depends on the backend | Whoever hosts it |
 | **[Viktor](https://viktor.com/)** | Work assigned from Slack or Teams | [Kept outside model context](https://viktor.com/security) | Access controls and approval gates |
+| **[Executor](https://executor.sh/docs)** | One MCP endpoint for the agents you already run | [None. Apps attach credentials](https://executor.sh/docs/author-an-app) | App editors, plus per-tool approval policies |
 
 OpenCode's [permissions](https://github.com/anomalyco/opencode/blob/dev/SECURITY.md)
 are a prompt, not a sandbox.
+
+Executor runs no agent. Its schedules run app code, and the agent calling its
+tools runs unsandboxed wherever you run it.
 
 An agent can still misuse a write tool an owner approved. See the
 [remaining risks](security-model.md#remaining-risks). To try SecondShift, start
