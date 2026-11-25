@@ -32,6 +32,7 @@ export interface components {
       plan_ready: boolean
       /** Commit Sha */
       commit_sha: string
+      agent_backend: components['schemas']['AgentBackend']
       /** Model */
       model: string | null
       /** Models */
@@ -84,6 +85,12 @@ export interface components {
      * @enum {string}
      */
     RunStart: 'schedule' | 'manual' | 'webhook' | 'mcp'
+    /**
+     * AgentBackend
+     * @description Who runs the agent: SecondShift's own loop, or a subscription CLI.
+     * @enum {string}
+     */
+    AgentBackend: 'pydantic' | 'claude_code' | 'codex'
     /** RunFailureSchema */
     RunFailureSchema: {
       /** Label */
@@ -134,6 +141,7 @@ export interface components {
       plan_ready: boolean
       /** Commit Sha */
       commit_sha: string
+      agent_backend: components['schemas']['AgentBackend']
       /** Model */
       model: string | null
       /** Models */
@@ -401,12 +409,6 @@ export interface components {
       /** Triggers */
       triggers: components['schemas']['TriggerKind'][]
     }
-    /**
-     * AgentBackend
-     * @description Who runs the agent: SecondShift's own loop, or a subscription CLI.
-     * @enum {string}
-     */
-    AgentBackend: 'pydantic' | 'claude_code' | 'codex'
     /** CapabilitySchema */
     CapabilitySchema: {
       /** Id */
@@ -939,6 +941,8 @@ export interface components {
       scopes: string[]
       /** Requested Scopes */
       requested_scopes: string[]
+      /** Signin Scopes */
+      signin_scopes: string[]
       /** Offered Tools */
       offered_tools: components['schemas']['OfferedToolSchema'][]
       /** Require Approval */

@@ -17,7 +17,10 @@ from secondshift.connections.mcp.client import (
     create_mcp_connection,
     update_mcp_connection,
 )
-from secondshift.connections.mcp.oauth import inspect_server, requested_scopes
+from secondshift.connections.mcp.oauth import (
+    inspect_server,
+    requested_scopes,
+)
 from secondshift.connections.mcp.providers import MCP_PROVIDERS
 from secondshift.connections.mcp.signin import (
     SignInError,

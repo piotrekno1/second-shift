@@ -241,6 +241,19 @@ def requested_scopes(connection: Connection) -> list[str]:
     return list(connection.metadata.get("oauth", {}).get("requested_scopes", []))
 
 
+def additional_scopes(connection: Connection) -> list[str]:
+    """Scopes the server granted beyond what the connection asked for."""
+    requested = set(requested_scopes(connection))
+    return sorted(set(connection.scopes) - requested)
+
+
+def signin_scopes(connection: Connection) -> list[str]:
+    """What the server granted when someone last signed in. A refresh that
+    grants more than this is worth a look; a reconnect resets it."""
+    stored = connection.metadata.get("oauth", {}).get("signin_scopes")
+    return list(connection.scopes if stored is None else stored)
+
+
 def apply_tokens(connection: Connection, tokens: dict[str, Any]) -> None:
     connection.access_token = str(tokens["access_token"])
     if tokens.get("refresh_token"):
@@ -323,10 +336,12 @@ def refresh_locked(connection: Connection) -> str | None:
     granted = granted_scopes(tokens, locked.scopes)
     if set(required) - set(granted):
         return "{label} did not grant the required access. Reconnect it."
+    # Connections signed in before the baseline was kept take it from here.
+    baseline = signin_scopes(locked)
     locked.scopes = granted
     locked.metadata = {
         **locked.metadata,
-        "oauth": {**oauth, "requested_scopes": required},
+        "oauth": {**oauth, "requested_scopes": required, "signin_scopes": baseline},
     }
     apply_tokens(locked, tokens)
     locked.save(

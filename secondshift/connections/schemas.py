@@ -76,6 +76,8 @@ class ConnectionSchema(Schema):
     auth: Literal["oauth", "token", "app", SOURCE_AUTH, ""]
     scopes: list[str]
     requested_scopes: list[str]
+    # What the server granted at the last sign-in. A refresh beyond it warns.
+    signin_scopes: list[str]
     # Custom MCP servers: every tool the server offers, for the owner to choose.
     offered_tools: list[OfferedToolSchema]
     # Capability connections: whether each job's request waits for an owner.

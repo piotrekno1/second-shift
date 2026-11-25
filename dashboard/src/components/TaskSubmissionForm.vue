@@ -7,7 +7,7 @@ import AutoComplete from 'primevue/autocomplete'
 import AppIcon from './AppIcon.vue'
 import DocsLink from './DocsLink.vue'
 import { DocsPage } from '../utils/docs'
-import ProviderIcon from './ProviderIcon.vue'
+import TaskToolPicker from './TaskToolPicker.vue'
 import { countLabel, titleFromSlug } from '../utils/format'
 import InputText from 'primevue/inputtext'
 import Textarea from 'primevue/textarea'
@@ -17,6 +17,7 @@ import type { TaskCapability } from '../services/tasks'
 import type { SkillReference } from '../services/skills'
 import type { SkillInspection } from '../types'
 import ExternalSkillPicker from './ExternalSkillPicker.vue'
+import { applySuggestion, suggestedTools, type ToolSelection } from '../utils/taskTools'
 
 const props = defineProps<{
   repositoryId: number
@@ -41,7 +42,7 @@ const skill = ref('')
 const revision = ref('')
 const input = ref('')
 const notBefore = ref('')
-const selected = ref<Record<string, string[]>>({})
+const selected = ref<ToolSelection>({})
 const notifications = ref<string[]>([])
 const pullRequest = ref(false)
 const skillSuggestions = ref<string[]>([])
@@ -128,15 +129,34 @@ watch(
   },
   { immediate: true },
 )
-// Tools a checked skill names and a connection can give a task start selected.
-watch(inspection, (checked) => {
-  for (const need of checked?.needs ?? []) {
-    if (need.status !== 'ready' || !(need.binding in selected.value)) continue
-    selected.value[need.binding] = [...new Set([...selected.value[need.binding]!, ...need.tools])]
-  }
-})
+// Tools the skill needs start selected: what a checked GitHub skill names, or
+// what this repository's jobs request for the same skill. Nothing else does.
+const suggested = computed(() =>
+  suggestedTools(
+    toolConnections.value,
+    instructionSource.value === 'external' ? inspection.value : null,
+    app.jobs,
+    props.repositoryId,
+    instructionSource.value === 'skill' ? skill.value : '',
+  ),
+)
+watch(
+  suggested,
+  (next, previous) => {
+    selected.value = applySuggestion(selected.value, previous ?? {}, next)
+  },
+  { immediate: true },
+)
 const deliveryConnections = computed(() =>
   available.value.filter((connection) => connection.kind === 'notification'),
+)
+const deliverySummary = computed(() =>
+  [
+    ...(pullRequest.value ? ['Draft pull request'] : []),
+    ...deliveryConnections.value
+      .filter((connection) => notifications.value.includes(connection.binding_key))
+      .map((connection) => connection.display_name),
+  ].join(' · '),
 )
 
 function capabilities(kind: string): TaskCapability[] {
@@ -343,38 +363,32 @@ async function submit(): Promise<void> {
           </details>
           <details class="task-option">
             <summary>
-              <AppIcon name="chevron-right" /><span>Tools and delivery</span
-              ><span class="task-option-value"
-                >{{ toolCount ? countLabel(toolCount, 'tool') : 'Repository only'
-                }}<template v-if="notifications.length">
-                  · {{ countLabel(notifications.length, 'delivery', 'deliveries') }}</template
-                ><template v-if="pullRequest"> · Draft pull request</template></span
-              >
+              <AppIcon name="chevron-right" /><span>Tools</span
+              ><span class="task-option-value">{{
+                toolCount ? countLabel(toolCount, 'tool') : 'Repository only'
+              }}</span>
             </summary>
             <div class="task-access">
               <p>Repository tools are included. Add access only where this task needs it.</p>
-              <div
-                v-for="connection in toolConnections"
-                :key="connection.binding_key"
-                class="task-connection"
-              >
-                <div class="task-connection-heading">
-                  <ProviderIcon
-                    :provider="connection.provider"
-                    :fallback="connection.provider === 'github' ? 'github' : 'server-outline'"
-                  /><strong>{{ connection.display_name }}</strong
-                  ><span>{{ selected[connection.binding_key]?.length || 0 }} selected</span>
-                </div>
-                <div class="task-tool-grid">
-                  <label v-for="tool in connection.available_tools" :key="tool" class="task-choice">
-                    <input
-                      v-model="selected[connection.binding_key]"
-                      type="checkbox"
-                      :value="tool"
-                    /><span>{{ tool }}</span>
-                  </label>
-                </div>
-              </div>
+              <TaskToolPicker
+                v-if="toolConnections.length"
+                v-model="selected"
+                :connections="toolConnections"
+                :suggested="suggested"
+              />
+              <p class="task-access-note">
+                Only connected services that allow tasks without approval are listed.
+              </p>
+            </div>
+          </details>
+          <details v-if="allowsPullRequests || deliveryConnections.length" class="task-option">
+            <summary>
+              <AppIcon name="chevron-right" /><span>Delivery</span
+              ><span class="task-option-value" :class="{ chosen: deliverySummary }">{{
+                deliverySummary || 'Report in Runs only'
+              }}</span>
+            </summary>
+            <div class="task-access">
               <div v-if="allowsPullRequests" class="task-delivery">
                 <h3>Changes</h3>
                 <label class="task-choice task-pull-request">
@@ -407,10 +421,7 @@ async function submit(): Promise<void> {
                   /><span>{{ connection.display_name }}</span>
                 </label>
               </div>
-              <p class="task-access-note">
-                Only connected services that allow tasks without approval are listed. Reports are
-                always available in Runs.
-              </p>
+              <p class="task-access-note">Reports are always available in Runs.</p>
             </div>
           </details>
         </div>
@@ -680,31 +691,6 @@ async function submit(): Promise<void> {
   font-size: var(--text-xs);
   line-height: 1.6;
 }
-.task-connection {
-  margin-top: 12px;
-  padding: 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: var(--night-950);
-}
-.task-connection-heading {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
-  font-size: var(--text-xs);
-}
-.task-connection-heading .provider-icon {
-  font-size: 16px;
-}
-.task-connection-heading strong {
-  font-weight: 500;
-}
-.task-connection-heading > span:last-child {
-  margin-left: auto;
-  color: var(--subtle);
-  font-size: var(--text-xs);
-}
 .task-tool-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -742,8 +728,11 @@ async function submit(): Promise<void> {
   font-family: var(--font-mono);
   font-size: var(--text-xs);
 }
-.task-delivery {
+.task-delivery + .task-delivery {
   margin-top: 20px;
+}
+.task-option-value.chosen {
+  color: var(--ink);
 }
 .task-delivery h3 {
   margin: 0 0 8px;

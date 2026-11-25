@@ -13,8 +13,11 @@ token connects the same way.
    read-only URL if the vendor offers one.
 2. Choose **Sign in** if the server offers it. Tick only the scopes the job
    needs, and prefer read scopes. SecondShift refuses the sign-in if the
-   server grants more than you ticked. Without sign-in, use the narrowest
-   bearer token the vendor offers.
+   server grants less than you ticked. If it grants more, the connection
+   shows **Broader access than requested** with the extra scopes. If a later
+   token refresh grants more than the sign-in did, that turns amber until
+   you reconnect. Without sign-in, use the narrowest bearer token the vendor
+   offers.
 3. Sign in as an account that can see only what jobs should see. The
    credential sets the reach. Unselected tools do not limit it.
 4. Allow only the tools jobs need. Tools the server marks read-only start

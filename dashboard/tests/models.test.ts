@@ -8,6 +8,7 @@ import {
   modelRows,
   OTHER_MODEL,
   requestedRow,
+  runModelLabel,
 } from '../src/utils/models'
 
 function model(id: number, overrides: Partial<Connection> = {}): Connection {
@@ -200,4 +201,20 @@ test('the model list ends with a choice to type a full name', () => {
   const choices = modelChoices(login(1))
   assert.equal(choices.at(-1)?.value, OTHER_MODEL)
   assert.equal(choices[0].value, '')
+})
+
+test('run model labels name the subscription CLI and extra models', () => {
+  assert.equal(
+    runModelLabel({
+      agent_backend: 'claude_code',
+      models: ['claude-opus-5-5', 'claude-haiku-5-5'],
+    }),
+    'Claude Code · claude-opus-5-5 +1',
+  )
+  assert.equal(runModelLabel({ agent_backend: 'codex', models: [] }), 'Codex')
+  assert.equal(
+    runModelLabel({ agent_backend: 'pydantic', models: ['claude-sonnet-5-5'] }),
+    'claude-sonnet-5-5',
+  )
+  assert.equal(runModelLabel({ agent_backend: 'pydantic', models: [] }), '')
 })

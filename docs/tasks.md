@@ -50,8 +50,11 @@ as a regular committed file at that revision; writing a task needs no skill file
 
 ## Tools and permissions
 
-Repository tools are included. Under **Tools and delivery**, select any connected
-MCP or API tools the task needs. Only connected services that allow tasks without
+Repository tools are included. Under **Tools**, open a connection and select the
+MCP or API tools the task needs, or search across every connection. When the task
+uses a skill, the tools it needs start selected: those a GitHub skill names, or
+those this repository's jobs request for the same skill. Nothing else is selected
+for you. Only connected services that allow tasks without
 per-job approval are listed. Their allowed tools and repository restrictions
 still apply; a saved job's approval does not grant access to a one-off task.
 
@@ -59,7 +62,8 @@ If a service is missing, ask a workspace owner to check its connection and acces
 policy. Do not paste credentials into task instructions. See the
 [security model](security-model.md) for how access is controlled.
 
-You can also select a notification connection to send the finished report.
+Under **Delivery**, you can open a draft pull request with the changes, when the
+repository allows it, or select a notification connection to send the finished report.
 Reports remain available in **Runs** whether or not delivery is selected.
 Disconnecting a service or changing consent prevents subsequent tool calls and
 report deliveries that no longer have access.

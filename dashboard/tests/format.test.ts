@@ -284,6 +284,7 @@ function run(
     summary: '',
     plan_ready: true,
     commit_sha: 'abc',
+    agent_backend: 'pydantic',
     model: null,
     models: [],
     max_turns: 24,
