@@ -1,41 +1,22 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import AppIcon from './AppIcon.vue'
-import { errorMessage } from '../services/api'
-import { acknowledgeScopes } from '../services/connections'
-import { useAppStore } from '../stores/app'
 import type { Connection } from '../types'
 import { countLabel } from '../utils/format'
-import { additionalOAuthScopes, unacknowledgedOAuthScopes } from '../utils/oauthScopes'
+import { additionalOAuthScopes, grownOAuthScopes } from '../utils/oauthScopes'
 
-// One line on the connection. The scopes and what to do about them open on
-// request, since jobs can use only the selected tools either way.
-const props = defineProps<{ connection: Connection; canEdit: boolean }>()
-const app = useAppStore()
+// One line on the connection, with the scopes behind a click. Access granted
+// at sign-in was the owner's choice, so it is grey. Access a later refresh
+// added was nobody's, so it is amber until someone reconnects.
+const props = defineProps<{ connection: Connection }>()
 const extraScopes = computed(() => additionalOAuthScopes(props.connection))
-const unaccepted = computed(() => unacknowledgedOAuthScopes(props.connection))
+const grown = computed(() => grownOAuthScopes(props.connection))
 const open = ref(false)
-const saving = ref(false)
-const error = ref<string | null>(null)
 const panelId = computed(() => `scope-details-${props.connection.id}`)
-
-async function accept(): Promise<void> {
-  saving.value = true
-  error.value = null
-  try {
-    await acknowledgeScopes(props.connection.id)
-    await app.refresh()
-    open.value = false
-  } catch (failure) {
-    error.value = errorMessage(failure, 'Unable to save')
-  } finally {
-    saving.value = false
-  }
-}
 </script>
 
 <template>
-  <div v-if="extraScopes.length" class="scope-note" :class="{ attention: unaccepted.length }">
+  <div v-if="extraScopes.length" class="scope-note" :class="{ attention: grown.length }">
     <button
       type="button"
       class="scope-note-toggle"
@@ -43,15 +24,23 @@ async function accept(): Promise<void> {
       :aria-controls="panelId"
       @click="open = !open"
     >
-      <AppIcon :name="unaccepted.length ? 'shield-alert-outline' : 'shield-check-outline'" />
-      <span class="scope-note-title">Broader access than requested</span>
+      <AppIcon :name="grown.length ? 'shield-alert-outline' : 'shield-outline'" />
+      <span class="scope-note-title">{{
+        grown.length ? 'Granted more access since you connected' : 'Broader access than requested'
+      }}</span>
       <span class="scope-note-meta">{{
-        unaccepted.length ? countLabel(unaccepted.length, 'extra scope') : 'Accepted'
+        grown.length
+          ? countLabel(grown.length, 'new scope')
+          : countLabel(extraScopes.length, 'extra scope')
       }}</span>
       <AppIcon name="chevron-down" class="scope-note-chevron" />
     </button>
     <div v-if="open" :id="panelId" class="scope-note-details">
-      <p>
+      <p v-if="grown.length">
+        A token refresh added access nobody signed in for. Jobs still use only the tools you select,
+        but the stored token keeps every granted permission.
+      </p>
+      <p v-else>
         The server granted more than SecondShift asked for. Jobs still use only the tools you
         select, but the stored token keeps every granted permission.
       </p>
@@ -69,23 +58,14 @@ async function accept(): Promise<void> {
         <div>
           <dt>Additional</dt>
           <dd>
-            <code
-              v-for="scope in extraScopes"
-              :key="scope"
-              :class="{ new: unaccepted.includes(scope) }"
-              >{{ scope }}</code
+            <code v-for="scope in extraScopes" :key="scope" :class="{ new: grown.includes(scope) }"
+              >{{ scope
+              }}<span v-if="grown.includes(scope)" class="scope-new-label"> new</span></code
             >
           </dd>
         </div>
       </dl>
       <p>To narrow the token, revoke it with the provider and reconnect.</p>
-      <div v-if="canEdit && unaccepted.length" class="scope-note-actions">
-        <button type="button" class="scope-accept" :disabled="saving" @click="accept">
-          <AppIcon :name="saving ? 'loading' : 'check'" :spin="saving" />Accept this access
-        </button>
-        <span>It warns again if the server grants more.</span>
-      </div>
-      <p v-if="error" class="scope-note-error" role="alert">{{ error }}</p>
     </div>
   </div>
 </template>
@@ -190,35 +170,8 @@ code {
 code.new {
   border-color: color-mix(in srgb, var(--amber) 45%, transparent);
 }
-.scope-note-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 12px;
-  margin-top: 12px;
-  color: var(--subtle);
-}
-.scope-accept {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 32px;
-  padding: 4px 10px;
-  border: 1px solid var(--raised-border);
-  border-radius: var(--radius-sm);
-  background: var(--raised);
-  color: var(--ink);
-  font-family: var(--font-sans);
-  font-size: var(--text-xs);
-  cursor: pointer;
-}
-.scope-accept:disabled {
-  cursor: default;
-  opacity: 0.7;
-}
-.scope-note-error {
-  margin-top: 8px !important;
-  color: var(--danger) !important;
+.scope-new-label {
+  color: var(--amber);
 }
 @media (max-width: 700px) {
   .scope-note {

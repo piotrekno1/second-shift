@@ -7,8 +7,9 @@ export function additionalOAuthScopes(connection: Connection): string[] {
   return [...new Set(connection.scopes ?? [])].filter((scope) => !requested.has(scope)).sort()
 }
 
-/** Additional permissions an owner has not accepted yet. These still warn. */
-export function unacknowledgedOAuthScopes(connection: Connection): string[] {
-  const accepted = new Set(connection.acknowledged_scopes ?? [])
-  return additionalOAuthScopes(connection).filter((scope) => !accepted.has(scope))
+/** Permissions a token refresh granted beyond what the last sign-in did.
+ *  Nobody chose these, so they are the ones worth a look. */
+export function grownOAuthScopes(connection: Connection): string[] {
+  const signedIn = new Set(connection.signin_scopes ?? connection.scopes ?? [])
+  return additionalOAuthScopes(connection).filter((scope) => !signedIn.has(scope))
 }

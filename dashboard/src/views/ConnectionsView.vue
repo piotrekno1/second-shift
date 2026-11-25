@@ -1055,7 +1055,7 @@ onMounted(async () => {
                 "
                 :check="connection.last_check"
               />
-              <OAuthScopeWarning :connection="connection" :can-edit="canEdit" />
+              <OAuthScopeWarning :connection="connection" />
               <div v-if="confirmRevoke === connection.id" class="confirm-strip" role="alert">
                 <span v-if="connection.auth === 'source'"
                   >Turning off GitHub tools blocks jobs that name

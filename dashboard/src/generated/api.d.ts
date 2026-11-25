@@ -941,8 +941,8 @@ export interface components {
       scopes: string[]
       /** Requested Scopes */
       requested_scopes: string[]
-      /** Acknowledged Scopes */
-      acknowledged_scopes: string[]
+      /** Signin Scopes */
+      signin_scopes: string[]
       /** Offered Tools */
       offered_tools: components['schemas']['OfferedToolSchema'][]
       /** Require Approval */

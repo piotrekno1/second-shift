@@ -283,7 +283,7 @@ def test_extra_granted_scopes_connect_and_remain_visible(
     assert "rt-1" not in json.dumps(payload)
 
 
-def test_acknowledged_scopes_stop_warning_until_more_are_granted(
+def test_a_refresh_that_grants_more_than_sign_in_shows_what_grew(
     client: Client, fake: FakeServer, workspace: Workspace, owner: Any
 ) -> None:
     fake.grant_scope = "read mcp:admin"
@@ -291,36 +291,45 @@ def test_acknowledged_scopes_stop_warning_until_more_are_granted(
         owner, begin(fake, workspace, owner), "good-code", ""
     )
     client.force_login(owner)
-    assert client.get("/api/connections").json()[0]["acknowledged_scopes"] == []
-    response = client.post(f"/api/connections/{connection.pk}/scopes/acknowledge")
-    assert response.status_code == 200
-    assert response.json()["acknowledged_scopes"] == ["mcp:admin"]
-    # A refresh keeps the acknowledgement. A newly granted scope is not in it.
+    assert client.get("/api/connections").json()[0]["signin_scopes"] == [
+        "mcp:admin",
+        "read",
+    ]
     fake.grant_scope = "read mcp:admin mcp:raw-api"
     Connection.objects.filter(pk=connection.pk).update(expires_at=timezone.now())
     connection.refresh_from_db()
     fresh_connection(connection)
     payload = client.get("/api/connections").json()[0]
-    assert payload["acknowledged_scopes"] == ["mcp:admin"]
+    assert payload["signin_scopes"] == ["mcp:admin", "read"]
     assert payload["scopes"] == ["mcp:admin", "mcp:raw-api", "read"]
+    # Signing in again is a new decision, so it resets what counts as grown.
+    url = start_authorization(
+        workspace, owner, "mcp", "metrics", "", {"url": SERVER}, ["read"], connection
+    )
+    fake.challenge = parse_qs(urlsplit(url).query)["code_challenge"][0]
+    state = parse_qs(urlsplit(url).query)["state"][0]
+    complete_authorization(owner, state, "good-code", "")
+    payload = client.get("/api/connections").json()[0]
+    assert payload["signin_scopes"] == payload["scopes"]
 
 
-def test_acknowledging_scopes_needs_the_role(
-    client: Client, fake: FakeServer, workspace: Workspace, owner: Any
+def test_connections_from_before_the_baseline_take_it_at_the_next_refresh(
+    fake: FakeServer, workspace: Workspace, owner: Any
 ) -> None:
     fake.grant_scope = "read mcp:admin"
     connection = complete_authorization(
         owner, begin(fake, workspace, owner), "good-code", ""
     )
-    viewer = get_user_model().objects.create_user(username="oauth-member")
-    WorkspaceMembership.objects.create(
-        workspace=workspace, user=viewer, role=WorkspaceMembership.Role.MEMBER
+    oauth = {**connection.metadata["oauth"]}
+    del oauth["signin_scopes"]
+    Connection.objects.filter(pk=connection.pk).update(
+        metadata={**connection.metadata, "oauth": oauth}, expires_at=timezone.now()
     )
-    client.force_login(viewer)
-    response = client.post(f"/api/connections/{connection.pk}/scopes/acknowledge")
-    assert response.status_code == 403
+    fake.grant_scope = "read mcp:admin mcp:raw-api"
     connection.refresh_from_db()
-    assert "acknowledged_scopes" not in connection.metadata["oauth"]
+    fresh_connection(connection)
+    connection.refresh_from_db()
+    assert connection.metadata["oauth"]["signin_scopes"] == ["mcp:admin", "read"]
 
 
 @pytest.mark.parametrize("granted", ["read", "", "mcp:admin"])

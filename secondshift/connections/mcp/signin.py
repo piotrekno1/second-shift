@@ -164,7 +164,11 @@ def complete_authorization(
         raise SignInError(
             "scope", "The server did not grant the required access. Nothing was saved."
         )
-    oauth = {**oauth, "requested_scopes": list(authorization.scopes)}
+    oauth = {
+        **oauth,
+        "requested_scopes": list(authorization.scopes),
+        "signin_scopes": granted,
+    }
     connection = authorization.connection or Connection(
         workspace=authorization.workspace,
         provider=provider.key,

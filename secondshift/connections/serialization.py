@@ -1,7 +1,7 @@
 from secondshift.connections.execution import recent_login_runs
 from secondshift.connections.github import is_github_source, shows_attribution
 from secondshift.connections.mcp.base import SOURCE_AUTH
-from secondshift.connections.mcp.oauth import acknowledged_scopes, requested_scopes
+from secondshift.connections.mcp.oauth import requested_scopes, signin_scopes
 from secondshift.connections.models import AgentConnection, Connection
 from secondshift.connections.schemas import (
     ConnectionSchema,
@@ -72,7 +72,7 @@ def serialize_connection(
         if connection.kind == Connection.Kind.MCP
         and connection.auth_strategy == Connection.AuthStrategy.OAUTH
         else [],
-        acknowledged_scopes=acknowledged_scopes(connection)
+        signin_scopes=signin_scopes(connection)
         if connection.kind == Connection.Kind.MCP
         and connection.auth_strategy == Connection.AuthStrategy.OAUTH
         else [],
