@@ -57,7 +57,7 @@ def main() -> None:
             run.refresh_from_db()
             assert run.runner is not None and run.runner.name == expected, run.runner
         print(
-            "1 checks passed: agent reads its payload and lists workspace files without storage or database access, and leaves only through the egress proxy"
+            "1 checks passed: agent reads its payload and lists workspace files without storage or database access, leaves only through the egress proxy and has no route to the control plane"
         )
     finally:
         choose_execution(workspace, model=model)

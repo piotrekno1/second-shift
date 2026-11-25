@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 616" role="img" aria-labelledby="title desc">
   <title id="title">Where things run</title>
-  <desc id="desc">The control plane holds every secret and talks to GitHub, notification targets, MCP servers and APIs, and model providers. It uses one or more runners, and each run goes to one of them. A runner owns Docker on its host. It runs the command sandbox with no network, and for subscription runs an agent container on an internal network. The agent container reaches its provider with the login only through the egress proxy, which allows only provider hosts, and SecondShift tools through the gateway.</desc>
+  <desc id="desc">The control plane holds every secret and talks to GitHub, notification targets, MCP servers and APIs, and model providers. It uses one or more runners, and each run goes to one of them. A runner owns Docker on its host. It runs the command sandbox with no network, and for subscription runs an agent container on an internal network. The agent container reaches its provider with the login only through the egress proxy, which allows only provider hosts, and SecondShift tools through its runner, which relays them to the worker.</desc>
   <style>
     .card { fill: #171717; stroke: #292929; }
     .zone { fill: #1b1b1b; stroke: #2e2e2e; }
@@ -69,10 +69,10 @@
   <text class="p" x="68" y="340">Dashboard, REST, MCP</text>
   <rect class="box" x="232" y="292" width="168" height="64" rx="10"/>
   <text class="t" x="248" y="319">Worker</text>
-  <text class="p" x="248" y="340">Runs, built-in agent</text>
+  <text class="p" x="248" y="340">Runs, agents, tools</text>
   <rect class="box" x="412" y="292" width="168" height="64" rx="10"/>
   <text class="t" x="428" y="319">Gateway</text>
-  <text class="p" x="428" y="340">Models, MCP broker</text>
+  <text class="p" x="428" y="340">Model calls, budgets</text>
 
   <rect class="box" x="52" y="372" width="528" height="64" rx="10"/>
   <text class="t" x="68" y="399">Postgres and artifact storage</text>
@@ -120,8 +120,8 @@
   <path class="flow" d="M860 290v-64" marker-end="url(#ah)"/>
   <path class="flow" d="M860 178v-16" marker-end="url(#ah)"/>
   <text class="lblhi" x="852" y="238" text-anchor="end">login</text>
-  <path class="wire" d="M582 324h84" marker-start="url(#a)" marker-end="url(#a)"/>
-  <text class="lbl" x="624" y="316" text-anchor="middle">MCP</text>
+  <path class="wire" d="M602 324h64" marker-start="url(#a)" marker-end="url(#a)"/>
+  <text class="lbl" x="634" y="316" text-anchor="middle">tools</text>
   <path class="wire" d="M582 420h84" marker-end="url(#a)"/>
   <text class="lbl" x="624" y="412" text-anchor="middle">API</text>
 </svg>
