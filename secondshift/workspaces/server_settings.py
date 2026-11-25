@@ -75,10 +75,11 @@ def image_label(image: str) -> str:
     return f"{name} @ {digest[:12]}" if digest else image
 
 
-def environment_items() -> list[SettingValue]:
+def environment_items(runner_cards: bool = False) -> list[SettingValue]:
     """Which environment jobs get by default, then each one the runners offer.
     The runners own their images. When they all offer the same, the page
-    shows it once; otherwise it shows each runner's.
+    shows it once. Otherwise it shows each runner's, or, when the page shows a
+    card for each runner, leaves them to the cards.
     """
     offered = runner_environments()
     if not offered:
@@ -93,6 +94,15 @@ def environment_items() -> list[SettingValue]:
         ]
     if all(item.environments == offered[0].environments for item in offered):
         return runner_environment_items(offered[0].environments, "")
+    if runner_cards:
+        return [
+            SettingValue(
+                "Environments",
+                "Differ by runner",
+                "",
+                "Each runner above lists its environments and images.",
+            )
+        ]
     return [
         value
         for item in offered
@@ -145,9 +155,12 @@ def repository_groups() -> list[SettingGroup]:
     ]
 
 
-def setting_groups() -> list[SettingGroup]:
+def setting_groups(runner_cards: bool = False) -> list[SettingGroup]:
+    """The server's settings, isolation first. With runner_cards, the page
+    also shows a card for each runner."""
     retention = settings.RUN_RETENTION_DAYS
     return [
+        sandbox_group(runner_cards),
         SettingGroup(
             "Runs",
             [
@@ -174,23 +187,26 @@ def setting_groups() -> list[SettingGroup]:
             ],
         ),
         *repository_groups(),
-        SettingGroup(
-            "Sandbox",
-            [
-                SettingValue(
-                    "Isolation",
-                    sandbox_label(),
-                    AppEnv.RUNNER_RUNTIME,
-                    "Production requires gVisor and refuses to start without it.",
-                ),
-                SettingValue(
-                    "Network",
-                    "None",
-                    "",
-                    "Skills cannot reach the network. Model and approved MCP "
-                    "calls go through SecondShift.",
-                ),
-                *environment_items(),
-            ],
-        ),
     ]
+
+
+def sandbox_group(runner_cards: bool) -> SettingGroup:
+    return SettingGroup(
+        "Sandbox",
+        [
+            SettingValue(
+                "Isolation",
+                sandbox_label(),
+                AppEnv.RUNNER_RUNTIME,
+                "Production requires gVisor and refuses to start without it.",
+            ),
+            SettingValue(
+                "Network",
+                "None",
+                "",
+                "Skills cannot reach the network. Model and approved MCP "
+                "calls go through SecondShift.",
+            ),
+            *environment_items(runner_cards),
+        ],
+    )

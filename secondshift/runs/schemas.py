@@ -8,6 +8,7 @@ from secondshift.runner_protocol.agents import AgentBackend
 from secondshift.runs.constants import RunStart
 from secondshift.runs.models import Run, RunDelivery
 from secondshift.runs.reporting.queries import Period, RunSort
+from secondshift.workspaces.server_settings import Tone
 
 
 class RunFailureSchema(Schema):
@@ -220,3 +221,26 @@ class ScheduleSkillSchema(Schema):
 class ScheduledSkillSchema(Schema):
     number: int
     url: str
+
+
+class RunnerEnvironmentSchema(Schema):
+    name: str
+    # The image with a short digest. Empty until the runner lists its images.
+    image: str
+    # The variable that sets it on the runner.
+    env: str
+    default: bool
+
+
+class RunnerSettingsSchema(Schema):
+    """One runner on the settings page, for the people who run the server."""
+
+    name: str
+    state: str
+    health: str
+    tone: Tone
+    running: int
+    max_sessions: int | None
+    environments: list[RunnerEnvironmentSchema] | None
+    agents: bool | None
+    key_fingerprint: str

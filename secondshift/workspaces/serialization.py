@@ -1,6 +1,7 @@
 from django.http import HttpRequest
 
-from secondshift.runs.runner_settings import runner_group
+from secondshift.runs.runner_settings import RunnerView, runner_views
+from secondshift.runs.schemas import RunnerEnvironmentSchema, RunnerSettingsSchema
 from secondshift.workspaces.access import (
     Action,
     allows,
@@ -40,9 +41,29 @@ def serialize_setting(request: HttpRequest, item: SettingValue) -> SettingValueS
 
 
 def server_groups(request: HttpRequest) -> list[SettingGroup]:
+    # Operators see a card for each runner, so its environments go there.
+    return setting_groups(runner_cards=is_operator(request))
+
+
+def serialize_runner(runner: RunnerView) -> RunnerSettingsSchema:
+    return RunnerSettingsSchema(
+        **{
+            **vars(runner),
+            "environments": None
+            if runner.environments is None
+            else [
+                RunnerEnvironmentSchema(**vars(environment))
+                for environment in runner.environments
+            ],
+        }
+    )
+
+
+def serialize_runners(request: HttpRequest) -> list[RunnerSettingsSchema]:
     # Runner health and keys are for the people who run the server.
-    runners = [runner_group()] if is_operator(request) else []
-    return [*setting_groups(), *runners]
+    if not is_operator(request):
+        return []
+    return [serialize_runner(runner) for runner in runner_views()]
 
 
 def serialize_settings(
@@ -60,6 +81,7 @@ def serialize_settings(
             )
             for group in server_groups(request)
         ],
+        runners=serialize_runners(request),
         limits=serialize_limits(workspace_limit_views(workspace)) if workspace else [],
         can_edit_limits=allows(request, Action.CHANGE_RUN_LIMITS),
     )

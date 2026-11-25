@@ -1,24 +1,21 @@
 """The settings page's view of the registered runners, for the people who run
 the server.
 
-It shows what `secondshift runners list` shows, without URLs or tokens.
+It shows what `secondshift runners list` shows, without URLs or tokens, as one
+card per runner.
 """
 
+from dataclasses import dataclass
 from datetime import datetime
 
 from django.utils import timezone
 
+from secondshift.runner_protocol.environments import environment_variable
 from secondshift.runs import dao
 from secondshift.runs.models import Runner
 from secondshift.runs.runner_health import LOST_SECONDS
 from secondshift.runs.runners import UNREACHABLE_SECONDS, fingerprint
-from secondshift.workspaces.server_settings import SettingGroup, SettingValue, Tone
-
-AGENTS_LABELS = {
-    True: "Runs Claude Code and Codex.",
-    False: "No agent image, so Claude Code and Codex runs placed here fail.",
-    None: "Not known yet whether it runs Claude Code and Codex.",
-}
+from secondshift.workspaces.server_settings import Tone, image_label
 
 
 def minutes_since(moment: datetime) -> str:
@@ -47,48 +44,69 @@ def health_tone(runner: Runner) -> Tone:
     return Tone.DANGER if lost else Tone.ATTENTION
 
 
-def sessions_label(runner: Runner, unfinished: int) -> str:
-    runs = "1 run" if unfinished == 1 else f"{unfinished} runs"
-    if runner.max_sessions is None:
-        return f"{runs}, no limit."
-    return f"{runs} of {runner.max_sessions} at once."
+@dataclass(frozen=True)
+class RunnerEnvironmentView:
+    name: str
+    # The image with a short digest. Empty until the runner lists its images.
+    image: str
+    # The variable that sets it on the runner.
+    env: str
+    default: bool
 
 
-def runner_item(runner: Runner, unfinished: int) -> SettingValue:
-    offered = (
-        "not listed yet"
-        if runner.environments is None
-        else ", ".join(runner.environments) or "none"
+@dataclass(frozen=True)
+class RunnerView:
+    """One runner as the settings page shows it, without its URL or token."""
+
+    name: str
+    state: str
+    # How its health checks go, such as "answering".
+    health: str
+    tone: Tone
+    running: int
+    max_sessions: int | None
+    # None until the runner lists them.
+    environments: list[RunnerEnvironmentView] | None
+    # Whether it can run Claude Code and Codex. None until it says.
+    agents: bool | None
+    # Empty until its key is pinned.
+    key_fingerprint: str
+
+
+def runner_environment_views(runner: Runner) -> list[RunnerEnvironmentView] | None:
+    if runner.images is not None:
+        names = list(runner.images)
+    elif runner.environments is not None:
+        names = list(runner.environments)
+    else:
+        return None
+    images = runner.images or {}
+    return [
+        RunnerEnvironmentView(
+            name,
+            image_label(images[name]) if name in images else "",
+            environment_variable(name),
+            name == runner.default_environment,
+        )
+        for name in names
+    ]
+
+
+def runner_view(runner: Runner, unfinished: int) -> RunnerView:
+    return RunnerView(
+        name=runner.name,
+        state=runner.get_state_display(),
+        health=health_label(runner),
+        tone=health_tone(runner),
+        running=unfinished,
+        max_sessions=runner.max_sessions,
+        environments=runner_environment_views(runner),
+        agents=runner.agents,
+        key_fingerprint=fingerprint(runner) if runner.provisioning_key else "",
     )
-    return SettingValue(
-        runner.name,
-        f"{runner.get_state_display()} · {health_label(runner)}",
-        "",
-        " ".join(
-            [
-                sessions_label(runner, unfinished),
-                f"Environments: {offered}.",
-                AGENTS_LABELS[runner.agents],
-                f"Key {fingerprint(runner)}.",
-            ]
-        ),
-        health_tone(runner),
-    )
 
 
-def runner_group() -> SettingGroup:
+def runner_views() -> list[RunnerView]:
     runners = dao.all_runners()
     unfinished = dao.unfinished_run_counts([runner.pk for runner in runners])
-    return SettingGroup(
-        "Runners",
-        [runner_item(runner, unfinished.get(runner.pk, 0)) for runner in runners]
-        or [
-            SettingValue(
-                "Runners",
-                "None registered",
-                "",
-                "Set SECONDSHIFT_RUNNER_SERVICE_URL or add one with "
-                "secondshift runners add.",
-            )
-        ],
-    )
+    return [runner_view(runner, unfinished.get(runner.pk, 0)) for runner in runners]
