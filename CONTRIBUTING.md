@@ -91,7 +91,8 @@ beta, `v0.1.0rc1` for a release candidate, or `v0.1.0` for a stable release.
 
 1. Update `project.version` in `pyproject.toml`, run `uv lock`, and set the
    same version in `SECONDSHIFT_IMAGE` in
-   `deploy/production/compose.env.example`. Merge them into `main` with the
+   `deploy/production/compose.env.example` and
+   `deploy/runner/compose.env.example`. Merge them into `main` with the
    release notes. No other file names the version.
 2. Run the **Release smoke test** workflow on `main` from the Actions tab. It
    is the same test the release runs, so a problem shows up before you tag.
