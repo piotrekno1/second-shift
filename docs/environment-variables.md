@@ -84,7 +84,7 @@ application database to avoid dispatch write-lock conflicts.
 
 Other runners are not set by env vars. Register them with
 `secondshift runners add`, each with its own token. See
-[runners](production-deployment.md#runners).
+[runners](runners.md#how-runs-are-placed).
 
 Do not publish the gateway or runner ports. The web process needs the runner
 URL/token for GitHub imports. It does not need the model gateway endpoint.
@@ -102,12 +102,16 @@ Put these in `runner.env` unless the table names other services:
 | `SECONDSHIFT_RUNNER_DATABASE_URL` | Optional runner-only database. Defaults to SQLite in the runner work directory. Can use a separate PostgreSQL database/account. |
 | `SECONDSHIFT_RUNNER_WORK_ROOT` | Persistent runner workspace and session directory. The generated absolute path must be mounted at the identical path on the Docker host. |
 | `SECONDSHIFT_RUNNER_RUNTIME` | Sandbox OCI runtime, not the HTTP server. Use `runsc` in web, worker and runner for production. Gateway does not need it. |
-| `SECONDSHIFT_SANDBOX_<NAME>` | A sandbox image that jobs choose with `environment: <name>`, such as `SECONDSHIFT_SANDBOX_PYTHON_NODE` for `python_node`. One variable per sandbox. Runner only. Servers require an image pinned by digest. Generated `runner.env` files offer `python` and `python_node`. See [sandboxes](self-hosting.md#sandboxes). |
+| `SECONDSHIFT_SANDBOX_<NAME>` | A sandbox image that jobs choose with `environment: <name>`, such as `SECONDSHIFT_SANDBOX_PYTHON_NODE` for `python_node`. Set one variable per sandbox. Runner only. Servers require an image pinned by digest. Generated `runner.env` files offer `python` and `python_node`. See [sandboxes](runners.md#sandbox-images). |
 | `SECONDSHIFT_SANDBOX_DEFAULT` | Required. The sandbox for jobs that name no environment, such as `python`. Runner only. |
 | `SECONDSHIFT_RUNNER_AGENT_RELAY_PORT` | Runner only. The runner also listens on this port, and its agents send their tool calls there, through the egress proxy's forward, for the worker to collect. Set `SECONDSHIFT_AGENT_BROKER_URL` to that forward. Both Compose files set it, so agents never reach the control plane. Empty by default, and agents call the gateway, as with `secondshift up`. |
-| `SECONDSHIFT_RUNNER_SETUP_PROXY_ADDRESS` | Runner-only address of the setup proxy, which lets [setup commands](repository-configuration.md#setup-commands) reach package registries. Empty on a server turns setup off. On one machine the runner starts its own proxy. See [setup commands](self-hosting.md#setup-commands). |
+| `SECONDSHIFT_RUNNER_SETUP_PROXY_ADDRESS` | Runner-only address of the setup proxy, which lets [setup commands](repository-configuration.md#setup-commands) reach package registries. Empty on a server turns setup off. On one machine the runner starts its own proxy. See [setup commands](runners.md#setup-commands). |
 | `SECONDSHIFT_RUNNER_SETUP_NETWORK` | Runner-only internal Docker network for setup containers. Default `secondshift-setup`. The runner refuses a network that isn't internal. On one machine it creates the network. |
 | `SECONDSHIFT_RUNNER_SETUP_TIMEOUT_SECONDS` | Runner-only time limit for each setup command. Default `600`, at most `900`. |
+| `SECONDSHIFT_RUNNER_MEMORY` | Runner only. Memory for each command sandbox, with no extra swap. Default `2g`. See [Sandbox and compute](sandbox.md). |
+| `SECONDSHIFT_RUNNER_CPUS` | Runner only. CPUs for each command sandbox. Default `2`. |
+| `SECONDSHIFT_RUNNER_PIDS_LIMIT` | Runner only. Processes for each command sandbox. Default `1024`. |
+| `SECONDSHIFT_RUNNER_COMMAND_TIMEOUT_SECONDS` | Runner only. Time limit for each command in a sandbox. Default `300`. The image needs a `timeout` command. |
 | `SECONDSHIFT_RUNNER_SANDBOX_UID`, `SECONDSHIFT_RUNNER_SANDBOX_GID` | Identity inside command sandboxes. Image defaults `10001:10001`. Separate from the runner container's root user. |
 | `SECONDSHIFT_EXTERNAL_SKILLS_ENABLED` | Set in web and worker. `true` by default. Lets tasks and jobs run skills from other GitHub repositories. The control plane fetches them over HTTPS from `github.com`. Public repositories are fetched without credentials. Private ones use a GitHub connection in the workspace that can read them. Set `false` to allow only skills committed to a run's own repository. |
 

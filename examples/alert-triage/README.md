@@ -11,7 +11,7 @@ The alert itself, from the request that started the run, plus whichever of
 these the job can reach:
 
 - **Grafana**, through `mcp-grafana`, for Prometheus metrics, Loki logs, alert
-  rules and dashboards. Follow the [Grafana recipe](../../docs/mcp-recipes.md#example-grafana)
+  rules and dashboards. Follow the [Grafana recipe](../../docs/connections.md#example-grafana)
   to run the server, connect it with binding `grafana`, and point a Grafana
   contact point at the job.
 - **Sentry**, through the built-in Sentry connection with binding `sentry`,

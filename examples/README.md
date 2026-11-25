@@ -2,9 +2,11 @@
 
 Ready-made skills for recurring engineering work. Copy one into your
 repository, adapt it to your services and rules, and run it as a
-[repository job](../docs/engineering-tasks.md).
+[repository job](../docs/jobs.md).
 
-Each example has the skill, a sample `.secondshift.yaml` and setup steps.
+Each example has the skill, a sample `.secondshift.yaml` and setup steps. To
+run one on your code before copying it, open it in
+[Explore](../docs/explore.md), the dashboard's list of skills.
 Skills are grouped by the team that usually owns them. Many are useful to more
 than one team.
 
@@ -61,8 +63,8 @@ The skills work with any codebase and the tools an owner approves. They also
 run in a local coding agent. When history, logs or telemetry are missing, a
 skill reports the gap instead of treating it as a clean result.
 
-See [repository jobs](../docs/engineering-tasks.md) for setup details and
-[jobs that change service data](../docs/engineering-tasks.md#tasks-that-change-service-data).
+See [repository jobs](../docs/jobs.md) for setup details and
+[jobs that change service data](../docs/jobs.md#tasks-that-change-service-data).
 
 In this repository, repository health, release readiness, Django performance
 review, Django access review, code simplifier, docs drift, implicit state

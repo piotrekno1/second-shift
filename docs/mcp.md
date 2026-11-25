@@ -1,9 +1,9 @@
-# MCP server
+# Coding agents
 
 [README](../README.md) · [Security model](security-model.md) · [Repository configuration](repository-configuration.md)
 
-SecondShift serves an MCP server at `/mcp` for coding agents and other
-integrations. An agent can read jobs, runs and reports, start approved jobs,
+Let Claude Code, Codex or any other MCP client work with SecondShift.
+SecondShift serves an MCP server at `/mcp`. An agent can read jobs, runs and reports, start approved jobs,
 and check a `.secondshift.yaml` before it is committed. An agent can never
 grant access. Approvals, connections and secrets stay in the dashboard.
 
@@ -241,8 +241,8 @@ does not reset it. The dashboard is not limited by it. A request over the
 limit fails with "Too many requests." and a `Retry-After` header with the
 seconds to wait.
 
-Runs are already bounded by their own limits, the worker queue and the
-workspace token budget. The rate limit only stops runaway clients.
+Runs are already bounded by their own [run limits](spend.md#run-limits)
+and the worker queue. The rate limit only stops runaway clients.
 
 ## What is not exposed
 

@@ -137,7 +137,7 @@ and [MCP reference](docs/mcp.md). The HTTP routers are composed in
 - Follow [Production deployment](docs/production-deployment.md) for
   [production Compose](compose.production.yaml), PostgreSQL, gVisor, upgrades,
   and backups. Server templates live under `deploy/production/`.
-- See [Self-hosting](docs/self-hosting.md) for runner backends and
+- See [Server configuration](docs/server-configuration.md) for runner backends and
   [Environment variables](docs/environment-variables.md) for settings.
 - Use the [production end-to-end suite](scripts/production_e2e/README.md)
   to verify changes to deployment, production isolation, or egress.

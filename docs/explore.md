@@ -1,7 +1,9 @@
 # Explore skills
 
-Explore is a list of skills you can run once on your own code. If you like
-the result, you schedule it as a job.
+Explore is the list of skills in the dashboard. Run one once on your own
+code, and if you like the result, schedule it as a job. It has the examples
+from the [skill catalog](../examples/README.md) and skills other people
+published on GitHub, each pinned to a commit.
 
 <video src="https://github.com/user-attachments/assets/2e48124d-489f-449b-be66-25107697e9b0" poster="/media/ci-fixer-walkthrough.jpg" controls playsinline preload="metadata" width="100%"></video>
 

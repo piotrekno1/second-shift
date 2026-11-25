@@ -1,6 +1,6 @@
 # Architecture
 
-[README](../README.md) · [Security model](security-model.md) · [Self-hosting](self-hosting.md)
+[README](../README.md) · [Security model](security-model.md) · [Server configuration](server-configuration.md)
 
 SecondShift runs your repository skills without handing them the keys:
 * Credentials stay on the control plane. 
@@ -14,7 +14,7 @@ owns Docker and starts every container a run needs.
 A control plane can use several runners. Each run goes to one of them, chosen
 by the environment it needs and the sessions free, and stays there until it
 ends. The operator registers runners. A repository can never pick one. See
-[runners](production-deployment.md#runners).
+[runners](runners.md#how-runs-are-placed).
 
 ## How a run works
 

@@ -72,7 +72,7 @@ consolidated organization review unless the results have actually been combined.
 Reports contain sensitive access information. Configure any webhook delivery
 for the intended reviewers. Avoid broad Slack channels for account-level
 findings. The skill does not message people or open tickets itself. See
-[task setup](../../docs/engineering-tasks.md) and
+[task setup](../../docs/jobs.md) and
 [notification delivery](../../docs/repository-configuration.md#deliver-reports-to-a-webhook).
 
 ## Proposal status

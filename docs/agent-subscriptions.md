@@ -4,6 +4,8 @@ SecondShift can run a workspace's jobs through Claude Code or Codex, using a
 person's own subscription instead of a model API key. It needs an agent image.
 Without one, nothing changes.
 
+![Models with an API key that runs jobs, Dana's Claude Code login capped at 20 runs in 24 hours, and Lee's Codex login](screenshots/use/subscription-run-limit.png)
+
 ## Plan terms
 
 SecondShift runs the official Claude Code or Codex CLI, signed in with the

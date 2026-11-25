@@ -74,7 +74,7 @@ a relative symlink for agent discovery. The root manifest runs it every weekday
 with setup for the Python and dashboard dependencies. It picks up issues from
 the monthly code review.
 
-The root job runs in the `python_node` [sandbox](../../docs/self-hosting.md#sandboxes),
+The root job runs in the `python_node` [sandbox](../../docs/runners.md#sandbox-images),
 because a fix may touch the backend, the dashboard or both. The default sandbox
 image has no Node. The generated `runner.env` offers `python_node`, with Python
 3.13 and Node 24, the versions CI uses, plus git and make, which the tests and

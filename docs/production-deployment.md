@@ -70,8 +70,8 @@ Create the
 example). The same absolute directory is mounted inside the runner because the
 host Docker daemon mounts its sandbox workspaces.
 
-Optionally configure email and GitHub sign-in in `web.env` using the
-[environment reference](environment-variables.md). Without email, password
+Optionally configure [email](environment-variables.md#email) and
+[GitHub sign-in](environment-variables.md#github-sign-in) in `web.env`. Without email, password
 reset messages cannot be sent. Generate these files only once, and retain them
 for upgrades.
 
@@ -299,143 +299,8 @@ cache no longer has it.
 
 ## Runners
 
-The runner in this Compose file is registered as `default`, from
-`SECONDSHIFT_RUNNER_SERVICE_URL` and its token. Manage runners from the web
-container:
-
-```bash
-dc exec web python manage.py runners list
-dc exec web python manage.py runners drain default     # finish its runs, take no new ones
-dc exec web python manage.py runners activate default
-```
-
-`list` shows each runner's state, whether it answers, its pool, session limit,
-environments, whether it can run Claude Code and Codex, the fingerprint of its provisioning key and its address. Tokens
-are never shown.
-
-Staff see the same on the dashboard's Settings page, under Runners, without
-addresses. When there are several runners, a run's details name the one it ran
-on.
-
-Runs go to active runners in the `default` pool. A run goes to a runner that
-offers its environment and has a session free, preferring the one with the most
-free sessions. When every runner that could take it is full or draining, it
-waits. A subscription login stays on the runner it first ran on, since Codex
-keeps its refreshed tokens there, and moves only when that runner drains,
-stops answering or lacks the environment.
-
-The worker runs at most `SECONDSHIFT_RUN_CONCURRENCY` runs at once, two by
-default, whatever the runners can take. When you add a runner, raise it in
-`worker.env` to the sessions you want in use across all runners, and restart
-the worker.
-
-The worker checks each runner every minute:
-
-- After two minutes without an answer, a runner takes no new runs.
-- After ten, its runs fail with the reason that the runner stopped answering.
-  When it answers again, it is told to stop their sessions.
-- Draining and activating are your choice. A drained runner that comes back
-  stays drained.
-
-### Add a runner
-
-A runner on another host needs Docker and gVisor, like this one. It runs
-`compose.runner.yaml`: the runner, its own PostgreSQL, the agents' egress
-proxy and Caddy, which serves the runner over HTTPS. The control plane is its
-only client. Its agents can't reach this host's gateway, so they send their
-tool calls to their runner, and the worker collects and answers them.
-
-On the runner host, with a checkout of the same release, copy the template and
-set `RUNNER_DOMAIN` to the runner's hostname, `RUNNER_DATABASE_PASSWORD`
-and `RUNNER_ROOT`. Its DNS must point at the host, and ports 80 and 443 must be
-open for Caddy's certificate. Then generate its `runner.env`:
-
-```bash
-cp deploy/runner/compose.env.example deploy/runner/compose.env
-rc() { docker compose --env-file deploy/runner/compose.env -f compose.runner.yaml "$@"; }
-image=$(sed -n 's/^SECONDSHIFT_IMAGE=//p' deploy/runner/compose.env)
-docker run --rm --user "$(id -u):$(id -g)" \
-  -v "$PWD/deploy/runner:$PWD/deploy/runner" \
-  -w "$PWD/deploy/runner" "$image" \
-  python -m secondshift.config.container_env --runner --hostname runner-b.example.com
-```
-
-`runner.env` starts with the default sandbox images. Give it the same ones as
-this host's `runner.env`. If workspaces use Claude
-Code or Codex, build the agent image there with the command in
-[optional subscription agents](#optional-subscription-agents), using `rc` for
-`dc`, and set `AGENT_IMAGE` in that host's `compose.env`. Create `RUNNER_ROOT`
-and start it:
-
-```bash
-rc up -d --wait postgres
-rc run --rm --no-deps runner python manage.py migrate --noinput \
-  --settings=secondshift.config.settings.runner
-rc up -d --wait
-```
-
-Back on this host, register it. Take the token from
-`SECONDSHIFT_RUNNER_SERVICE_TOKEN` in the runner's `runner.env`. `add` asks for
-it, so it stays out of shell history:
-
-```bash
-dc exec web python manage.py runners add runner-b \
-  https://runner-b.example.com --max-sessions 4
-```
-
-Subscriptions are on when this host's `compose.env` sets `AGENT_IMAGE`. Each
-runner then runs the agent image its own configuration names. Every runner
-that takes subscription runs needs one, since placement doesn't check yet. A
-runner without it refuses their runs. `runners add` warns about a runner
-without it, and `runners list` shows `agents=no` for it.
-
-The agents on that host reach the internet and their runner only through its
-egress proxy, as on the first host. The relay takes only a running agent's own
-token, and the runner API is never served on its port.
-
-Use `--allow-http` only on a private network you trust, such as WireGuard: the
-token, repository files and run output cross it unencrypted. Each runner must
-have a token no other runner has, so one that is taken over can't call the
-others.
-
-`add` asks the runner for its environments and pins the public key that
-subscription logins are sealed to, and prints its fingerprint. Compare it with
-the runner's own:
-
-```bash
-dc exec runner python manage.py runner_key --settings=secondshift.config.settings.runner
-```
-
-On another host, run the same with `rc` in place of `dc`.
-
-From then on, logins are sealed only to that key. A runner that answers with
-another key gets no login.
-
-### Remove a runner
-
-Drain it and wait until `list` shows it has no runs, then:
-
-```bash
-dc exec web python manage.py runners remove runner-b
-```
-
-`remove` first asks the runner to delete every subscription login it may hold.
-If it can't confirm, the runner stays registered. `--force` removes it anyway,
-and then delete its `agent-auth` directory and its backups on that host.
-
-### When a runner's key changes
-
-A runner keeps its key in `agent-auth/provisioning-key.pem` in its runner
-directory. The backup below keeps it in `runner.tgz`. A runner whose directory
-was lost or restored without that archive makes a new key, and it gets no
-logins until you pin the new one:
-
-```bash
-dc exec web python manage.py runners trust-key default
-```
-
-Run it only when you know why the key changed. Otherwise check the runner's
-address first: logins would go to whatever answers there.
+This Compose file runs one runner, registered as `default`. To add runners on
+other hosts, drain one or remove one, see [Runners](runners.md).
 
 ## Update and back up
 
