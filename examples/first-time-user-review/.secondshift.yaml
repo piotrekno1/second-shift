@@ -1,0 +1,25 @@
+version: 1
+jobs:
+  first-time-user-review:
+    name: First-time user review
+    skill: .agents/skills/first-time-user-review/SKILL.md
+    # No schedule: run it before a release, or after a staging deploy.
+    # Each run compares its problems with the last run's.
+    history: 1
+    # One fresh sub-agent per user.
+    subagents: 5
+    requires:
+      mcps:
+        # Tool names from Playwright MCP. Use your browser server's own names.
+        - binding: browser
+          tools:
+            - browser_navigate
+            - browser_navigate_back
+            - browser_snapshot
+            - browser_click
+            - browser_type
+            - browser_press_key
+            - browser_resize
+            - browser_take_screenshot
+            - browser_console_messages
+            - browser_network_requests
