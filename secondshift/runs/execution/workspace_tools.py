@@ -18,6 +18,7 @@ from secondshift.runner_protocol.sandbox import (
     SANDBOX_WORKSPACE_DIR,
 )
 from secondshift.runner_protocol.sessions import CommandRequest, CommandResult
+from secondshift.runs.dao import add_command_event
 from secondshift.runs.execution.deadlines import (
     check_deadline,
 )
@@ -90,6 +91,7 @@ class WorkspaceToolDeps:
         *,
         cwd: str = ".",
         timeout_seconds: int = 120,
+        label: str = "",
     ) -> dict[str, Any]:
         if not tool_call_id:
             raise RuntimeError("The model tool call has no stable identifier.")
@@ -102,6 +104,7 @@ class WorkspaceToolDeps:
             argv,
             cwd,
             timeout_seconds,
+            label,
         )
         output, truncated = truncate_output(result.output, self.max_output_chars)
         return {
@@ -124,10 +127,14 @@ def execute_runner_command_step(
     argv: list[str],
     cwd: str,
     timeout_seconds: int,
+    label: str = "",
 ) -> CommandResult:
-    """Cross the authenticated runner boundary in one durable, idempotent step."""
+    """Cross the authenticated runner boundary in one durable, idempotent step.
+
+    The call goes on the run's timeline by its label, once per call.
+    """
     with runner_client_for(run_id) as client:
-        return client.execute(
+        result = client.execute(
             session_id,
             CommandRequest(
                 call_id=call_id,
@@ -136,6 +143,45 @@ def execute_runner_command_step(
                 timeout_seconds=timeout_seconds,
             ),
         )
+    if label:
+        record_command(run_id, call_id, label, result)
+    return result
+
+
+def record_command(
+    run_id: int, call_id: str, label: str, result: CommandResult
+) -> None:
+    """One timeline line for a workspace tool call: what it did, and how it
+    ended when that wasn't plainly. Never its output or file contents."""
+    if result.timed_out:
+        message, level = f"{label} · timed out", "warning"
+    elif result.exit_code:
+        message, level = f"{label} · exit {result.exit_code}", "info"
+    else:
+        message, level = label, "info"
+    add_command_event(
+        run_id,
+        call_id,
+        message,
+        level=level,
+        metadata={"exit_code": result.exit_code, "timed_out": result.timed_out},
+    )
+
+
+# Long enough to tell files apart, short enough for one timeline line.
+MAX_LABEL_PATH = 160
+
+
+def path_label(value: str) -> str:
+    value = value.strip() or "."
+    if len(value) <= MAX_LABEL_PATH:
+        return value
+    return "…" + value[-(MAX_LABEL_PATH - 1) :]
+
+
+def program_label(argv: list[str]) -> str:
+    """The program a command runs, without its arguments."""
+    return PurePosixPath(argv[0]).name[:60] or "a command"
 
 
 def workspace_path(value: str) -> str:
@@ -240,6 +286,7 @@ def list_files(
     return ctx.deps.execute(
         ctx.tool_call_id,
         ["find", readable_path(path), "-type", "f", "-print"],
+        label=f"Listed files in {path_label(path)}",
     )
 
 
@@ -253,13 +300,19 @@ def read_file(
     /skill. Give start_line and end_line to read only those lines of a long
     file."""
     if start_line is None and end_line is None:
-        return ctx.deps.execute(ctx.tool_call_id, ["cat", "--", readable_path(path)])
+        return ctx.deps.execute(
+            ctx.tool_call_id,
+            ["cat", "--", readable_path(path)],
+            label=f"Read {path_label(path)}",
+        )
     first = start_line or 1
     last = end_line or "$"
     if end_line is not None and end_line < first:
         raise ModelRetry("end_line must not be before start_line.")
     return ctx.deps.execute(
-        ctx.tool_call_id, ["sed", "-n", f"{first},{last}p", "--", readable_path(path)]
+        ctx.tool_call_id,
+        ["sed", "-n", f"{first},{last}p", "--", readable_path(path)],
+        label=f"Read {path_label(path)}, lines {first} to {end_line or 'end'}",
     )
 
 
@@ -275,6 +328,7 @@ def search_text(
     return ctx.deps.execute(
         ctx.tool_call_id,
         ["grep", "-R", "-n", "-F", "--", query, readable_path(path)],
+        label=f"Searched {path_label(path)}",
     )
 
 
@@ -293,6 +347,7 @@ def run_command(
         argv,
         cwd=command_folder(cwd),
         timeout_seconds=timeout_seconds,
+        label=f"Ran {program_label(argv)}",
     )
 
 
@@ -310,6 +365,7 @@ def run_shell(
         ["bash", "-c", command],
         cwd=command_folder(cwd),
         timeout_seconds=timeout_seconds,
+        label="Ran a shell command",
     )
 
 
@@ -341,7 +397,11 @@ def write_file(
         argv = ["sh", "-c", WRITE_SCRIPT.format(redirect), "sh", target, content]
     else:
         argv = ["sh", "-c", EMPTY_SCRIPT.format(redirect), "sh", target]
-    result = ctx.deps.execute(ctx.tool_call_id, argv)
+    result = ctx.deps.execute(
+        ctx.tool_call_id,
+        argv,
+        label=f"{'Appended to' if append else 'Wrote'} {path_label(target)}",
+    )
     if result["exit_code"] == 0 and not result["output"]:
         result["output"] = f"Wrote {len(content.encode()):,} bytes to {target}."
     return result
@@ -392,7 +452,7 @@ def edit_file(
         json.dumps(new_text, ensure_ascii=False),
         "all" if replace_all else "one",
     ]
-    return ctx.deps.execute(ctx.tool_call_id, argv)
+    return ctx.deps.execute(ctx.tool_call_id, argv, label=f"Edited {path_label(path)}")
 
 
 def prepare_tool(

@@ -153,6 +153,17 @@ def execute_cli_step(run_id: int, session_id: str, prompt: str) -> dict[str, Any
     if reason == AgentOutcome.RECONNECT_REQUIRED:
         reason = confirm_sign_in(run, connection)
     record_subagents(run, result.subagents)
+    # A count the CLI didn't report is left out, so the run keeps the last
+    # one its progress sent before the agent stopped.
+    counts = {
+        key: value
+        for key, value in (
+            ("usage", result.usage),
+            ("models", result.models),
+            ("turns", result.turns),
+        )
+        if value or (key == "turns" and value is not None)
+    }
     add_event(
         run.pk,
         "Agent execution finished.",
@@ -160,8 +171,7 @@ def execute_cli_step(run_id: int, session_id: str, prompt: str) -> dict[str, Any
             "backend": connection.backend,
             "reason": reason,
             "versions": result.versions,
-            "usage": result.usage,
-            "models": result.models,
+            **counts,
         },
     )
     details = {"backend": connection.backend, "reason": reason, "usage": result.usage}

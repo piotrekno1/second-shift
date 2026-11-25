@@ -217,9 +217,15 @@ refused before they started don't count. There is no limit by default.
   strict token cap. Cached input counts as a tenth toward the budget, as it
   does for model API runs.
 - Runs show CLI-reported token usage when available, including cached input.
-  Missing usage is shown as unavailable. These counts do not measure remaining
-  subscription allowance or dollar cost. Model API spend totals exclude them.
-- Run events record usage and the CLI version.
+  It updates every few seconds while the CLI works, and a run whose agent
+  stops before it reports keeps the last counts it sent. Claude Code runs also
+  show their turns against the run's maximum. Codex reports neither until it
+  finishes. Missing usage is shown as unavailable. These counts do not measure
+  remaining subscription allowance or dollar cost. Model API spend totals
+  exclude them.
+- Run events record usage and the CLI version. The timeline lists each tool
+  call: the file read, written or searched, or the program a command ran. It
+  never shows a command's arguments, a file's contents or a tool's output.
 - Raw CLI output and errors are discarded. A failed run keeps only a reason,
   such as an expired login or exhausted usage.
 

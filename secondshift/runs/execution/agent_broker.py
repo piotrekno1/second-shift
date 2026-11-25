@@ -10,6 +10,7 @@ from django.views.decorators.csrf import csrf_exempt
 from pydantic import ValidationError
 from pydantic_ai import ModelRetry, RunContext, RunUsage, Tool, ToolFailed
 
+from secondshift.agent.image.progress import PROGRESS_METHOD
 from secondshift.connections.agents import usable_agent_connection
 from secondshift.connections.dao import find_agent_connection
 from secondshift.connections.models import AgentConnection
@@ -17,6 +18,7 @@ from secondshift.runner_protocol.relay import MAX_CALL_BYTES
 from secondshift.runs.artifacts import run_payload
 from secondshift.runs.dao import active_lease, get_run, lock_lease
 from secondshift.runs.execution.access_needs import access_tool
+from secondshift.runs.execution.agent_progress import record_progress
 from secondshift.runs.execution.deadlines import check_deadline, run_deadline
 from secondshift.runs.execution.external_tools import external_tools
 from secondshift.runs.execution.hand_back import hand_back_tool
@@ -159,6 +161,10 @@ def mcp_request(lease: AgentLease, message: dict[str, Any]) -> dict[str, Any] | 
             "serverInfo": {"name": "secondshift-run", "version": "1.0"},
         }
     if method == "ping":
+        return {}
+    if method == PROGRESS_METHOD:
+        # The wrapper's counts, not the model's. They change no tool budget.
+        record_progress(run, message.get("params"))
         return {}
     if method == "tools/list":
         return {

@@ -49,6 +49,8 @@ class AgentOutput(Schema):
     # Each sub-agent's model requests and tool calls, in the order they started.
     subagents: list[dict[str, int]] = Field(default_factory=list, max_length=100)
     versions: dict[str, str] = Field(default_factory=dict)
+    # Model replies, sub-agents' included. Codex and older runners send none.
+    turns: int | None = Field(default=None, ge=0)
     # The models the CLI reported, the agent's own first. Older runners send none.
     models: list[Annotated[str, Field(pattern=f"^{MODEL_NAME.pattern}$")]] = Field(
         default_factory=list, max_length=MAX_MODELS

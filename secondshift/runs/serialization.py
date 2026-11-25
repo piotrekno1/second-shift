@@ -83,6 +83,8 @@ def serialize_run(run: Run) -> RunSchema:
     tokens = getattr(run, "model_tokens", None) or 0
     cached_tokens = getattr(run, "model_cache_read_tokens", None) or 0
     budget_tokens = getattr(run, "model_budget_tokens", None) or 0
+    requests = getattr(run, "model_requests", None) or 0
+    max_turns = run.plan.limit(RunLimit.MAX_TURNS) if api else None
     if not api:
         usage = getattr(run, "agent_usage", None) or {}
         # Codex input includes cached tokens. Claude reports cache input separately.
@@ -99,6 +101,12 @@ def serialize_run(run: Run) -> RunSchema:
         # The CLI may report no usage at all. Show that as unknown, not zero.
         tokens = input_tokens + output_tokens if usage else None
         budget_tokens = usage_budget(usage) if usage else None
+        # Claude Code's replies, counted by the wrapper. Codex reports none.
+        turns = getattr(run, "agent_turns", None)
+        if isinstance(turns, int) and turns >= 0:
+            requests = turns
+            if run.plan.execution.backend.limits_model_calls:
+                max_turns = run.plan.limit(RunLimit.MAX_TURNS)
     return RunSchema(
         id=run.id,
         job_id=run.job_id,
@@ -115,10 +123,10 @@ def serialize_run(run: Run) -> RunSchema:
         commit_sha=run.commit_sha,
         model=models[0] if models else None,
         models=models,
-        # Agent CLIs do not report model calls, so a turn count would read 0.
-        max_turns=run.plan.limit(RunLimit.MAX_TURNS) if api else None,
+        # Shown only when the turns are known. Codex reports none.
+        max_turns=max_turns,
         token_budget=run.plan.limit(RunLimit.TOKEN_BUDGET),
-        model_requests=getattr(run, "model_requests", None) or 0,
+        model_requests=requests,
         model_input_tokens=input_tokens,
         model_output_tokens=output_tokens,
         model_cache_read_tokens=cached_tokens,

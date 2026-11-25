@@ -51,6 +51,7 @@ def test_mcp_exposes_and_calls_only_frozen_tools(
         argv: list[str],
         cwd: str,
         timeout: int,
+        label: str = "",
     ) -> CommandResult:
         calls.append((call_id, argv))
         return CommandResult(call_id=call_id, exit_code=0, output="skill text")

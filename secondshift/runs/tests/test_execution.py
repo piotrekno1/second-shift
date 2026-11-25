@@ -107,7 +107,9 @@ def test_runner_call_is_stable_bounded_and_contains_no_runtime_configuration(
     assert len(result["output"]) == 80
     assert calls[0] == calls[1]
     assert calls[0][:2] == (7, "run-7")
-    assert calls[0][3:] == (["python", "-m", "pytest"], "src", 30)
+    assert calls[0][3:6] == (["python", "-m", "pytest"], "src", 30)
+    # The timeline names the program, never its arguments.
+    assert calls[0][6] == "Ran python"
     assert len(calls[0][2]) == 64
     assert not any(
         value in str(calls) for value in ("--mount", "--network", "--runtime", "secret")
@@ -124,6 +126,7 @@ def test_pydantic_agent_calls_the_runner_backed_tool(monkeypatch) -> None:
         argv: list[str],
         cwd: str,
         timeout_seconds: int,
+        label: str = "",
     ) -> CommandResult:
         requests.append(CommandRequest(call_id, tuple(argv), cwd, timeout_seconds))
         return CommandResult(call_id=call_id, exit_code=0, output="skill text")
