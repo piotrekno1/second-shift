@@ -1,9 +1,11 @@
 # Run one-off tasks
 
-[README](../README.md) · [Repository jobs](engineering-tasks.md) · [MCP reference](mcp.md)
+[README](../README.md) · [Repository jobs](jobs.md) · [MCP reference](mcp.md)
 
 Give a repository a task now and come back to its report later. Write instructions
 directly or reuse a committed skill. You do not need a job in `.secondshift.yaml`.
+
+![The New task dialog on a repository: a written task, with run settings, tools and delivery below](screenshots/use/new-task.png)
 
 For example, queue a documentation review before signing off, then open **Runs**
 the next morning to read the findings. When a report is ready, check it before
@@ -151,7 +153,7 @@ Repository availability and the submitter's current workspace permission are
 checked again before execution.
 
 Operators can configure the queue and concurrency limits in the
-[environment reference](environment-variables.md).
+[environment reference](environment-variables.md#background-work-and-internal-services).
 
 ## Follow, cancel, and review
 
@@ -211,7 +213,7 @@ running the task again.
 
 To repeat a one-off task, create a new task from the repository page. If you want
 to reuse its instructions regularly, commit a skill and configure a
-[repository job](engineering-tasks.md) for manual, cron, or webhook execution.
+[repository job](jobs.md) for manual, cron, or webhook execution.
 
 ## Dispatch from a coding agent through MCP
 

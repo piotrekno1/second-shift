@@ -1,11 +1,73 @@
-# Vendor MCP servers
+# Connections
 
-[README](../README.md) · [Repository configuration](repository-configuration.md) · [Security model](security-model.md)
+[README](../README.md) · [Repository configuration](repository-configuration.md#mcp-and-api-declarations) · [Services](services.md)
 
-Some vendors run an official MCP server. Connect one as a **Custom server**
-under **Connections** → **Add connection**. SecondShift has no built-in
-support for these vendors. Any MCP server that offers sign-in or a bearer
-token connects the same way.
+Jobs reach outside services only through connections. A workspace owner adds
+them under **Connections**, signs in or enters a credential, and chooses which
+tools jobs may use. The credential stays in the control plane. A broker makes
+every call for the agent, outside the sandbox.
+
+![The Connections page: two bindings waiting for approval above the workspace's connections](screenshots/control/connections.png)
+
+## Bindings
+
+A job never names a connection. It asks for a **binding**, a short name such
+as `errors` or `tickets`, and the tools it needs:
+
+```yaml
+requires:
+  mcps:
+    - binding: errors
+      tools: [search_issues, get_issue_details]
+```
+
+A connection serves one binding. Connect each name once and every job that
+asks for it is covered. Bindings that jobs ask for but nothing serves yet are
+listed under **To set up**, with what each job needs. The manifest side is in
+[MCP and API declarations](repository-configuration.md#mcp-and-api-declarations).
+
+Whether a job then needs an owner's approval is set on each connection. See
+[require approval for each job](services.md#require-approval-for-each-job).
+
+## What you can connect
+
+| Connection | Tool names | Sign-in | Scope |
+| --- | --- | --- | --- |
+| GitHub (built in) | `search_pull_requests`, `pull_request_read`, `search_issues`, `list_issues`, `issue_read`, `list_commits`, `get_commit`, `actions_list`, `actions_get`, `get_job_logs` | The repository's own GitHub connection, or a fine-grained personal access token | The job's own repository |
+| Sentry (built in) | `find_projects`, `search_issues`, `search_errors`, `search_traces`, `get_sentry_resource` | Auth token with read scopes | The organization or project chosen when connecting |
+| Custom MCP server | The server's own tool names | OAuth sign-in, or a bearer token | Whatever the credential can reach |
+| HTTP API | The `operationId` of each operation in its OpenAPI 3 spec | Bearer token, or a named header | Whatever the credential can reach |
+
+GitHub and Sentry offer only read tools that SecondShift allowlists. GitHub
+Actions tools can list and read workflows, runs, and jobs, and read job logs as
+text. Logs are capped at the last 300 lines. Triggering runs, artifacts, and
+log download links are not available. These tools need read-only Actions
+access, on the token or on the GitHub App. Issue tools search, list and read
+issues with their comments and labels. They need read-only Issues access, and
+they don't read sub-issues, which can live in another repository. For a
+custom MCP server, the owner chooses tools after connecting, and tools the
+server marks read-only start selected. For an HTTP API, GET operations start
+selected. The access review marks any requested tool that may change data.
+
+An operation without an `operationId` gets a name built from its method and
+path, such as `get_charges_chargeId`. The connection's edit form lists every
+name.
+
+Two more kinds of connection don't give jobs tools:
+
+- **Notifications.** A webhook receives a job's report after the run, as
+  JSON that Slack, Mattermost and Discord's `/slack` URLs show as a message.
+  The agent never calls it. See
+  [deliver reports to a webhook](repository-configuration.md#deliver-reports-to-a-webhook).
+- **Models.** API keys and subscriptions live on **Models**. See [Models](models.md).
+
+## Connect an HTTP API
+
+Choose **Add connection**, then **HTTP API**, and give the link to its OpenAPI 3
+spec in JSON or YAML, or paste the spec. Each operation becomes a tool named by
+its `operationId`. Confirm the base URL: requests and the credential go only
+there. Then enter a bearer token or a named header, and choose which
+operations jobs may use. GET operations start selected.
 
 ## Connect any MCP server
 

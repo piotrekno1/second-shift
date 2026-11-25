@@ -3,7 +3,7 @@ title: Try SecondShift locally
 description: Install SecondShift and run a repository skill on your machine.
 ---
 
-You’ll run the documentation drift check included in the SecondShift repository, then inspect its report. You need [uv](https://docs.astral.sh/uv/getting-started/installation/), Docker, Git, and a model provider API key or a Claude Code or Codex subscription. Start Docker before continuing.
+You’ll run the documentation drift skill included in the SecondShift repository, then inspect its report. You need [uv](https://docs.astral.sh/uv/getting-started/installation/), Docker, Git, and a model provider API key or a Claude Code or Codex subscription. Start Docker before continuing.
 
 ## Install and start
 
@@ -22,17 +22,65 @@ In a second terminal:
 git clone https://github.com/piotrekno1/second-shift.git
 ```
 
-## Run the check
+## Run the skill
 
 1. In **Repositories**, select **Add repository**, then **Local folder**, and choose the cloned directory.
 2. In **Models**, add an API key and choose a default model, or add a Claude Code or Codex subscription.
 3. Open **Documentation drift** in **Jobs** and select **Run now**.
 4. Open the finished run to see its report, activity, and model cost.
 
-## Try a skill from GitHub
+## Next steps
 
-To pick from skills we list, open **Explore**, choose one, and select **Try it on a repository**. See [Explore skills](/docs/explore/).
+- Try more skills in [Explore](/docs/explore/), or run a
+  [one-off task](/docs/tasks/), including a skill someone published on GitHub.
+- Add your own scheduled job with [Repository jobs](/docs/jobs/).
+- Before you share it with a team, read [Control](/docs/control/)
+  and [Deploy](/docs/production-deployment/).
 
-To try a skill someone else published, open your repository, select **New task**, then **Skill from GitHub**, and paste a link to a `SKILL.md`, such as one from [anthropics/skills](https://github.com/anthropics/skills). SecondShift pins it to a commit and mounts it read-only. If you like the result, select **Run again** or **Schedule this skill**. See [Try a skill from GitHub](/docs/tasks/#try-a-skill-from-github).
+Model usage may incur charges. Each run stops at its
+[limits](/docs/spend/#run-limits).
 
-Model usage may incur charges. For local sign-in and upgrade details, see [self-hosting](/docs/self-hosting/#local-trial). To hand over one-off work, see [Tasks](/docs/tasks/). To add your own scheduled job, continue with [Repository jobs](/docs/engineering-tasks/).
+## Local commands
+
+`secondshift up` opens your dashboard. With `--no-browser`, or when no browser
+is available, it prints a one-time sign-in link instead:
+
+```text
+SecondShift is running at http://127.0.0.1:8000
+Sign in with this link (valid for 15 minutes):
+  http://127.0.0.1:8000/sign-in/<one-time-token>/
+
+Keep this terminal open. Press Ctrl+C to stop.
+Logs: secondshift logs --follow
+```
+
+```bash
+secondshift status                  # Dashboard address and service health
+secondshift login                   # New one-time sign-in link
+secondshift logs                    # Recent service logs
+secondshift logs --follow           # Stream logs until Ctrl+C
+secondshift logs --service worker   # Logs for one service
+secondshift up --debug              # Also print logs in the terminal
+secondshift up --port 8080          # Use another dashboard port
+```
+
+Service logs live in `logs` inside the data folder printed at startup, by
+default `~/.secondshift`. Each service keeps up to four files of about 2 MiB.
+Sign-in links are not written to these logs.
+
+## Upgrade
+
+Run `uv tool upgrade secondshift`, then `secondshift up`. Read the
+[release notes](https://github.com/piotrekno1/second-shift/releases) first.
+
+Upgrading from beta 7 or earlier? Durable workflows now use their own SQLite
+file, `workflows.sqlite3`, in the data folder. To keep queued runs and their
+history, stop SecondShift and copy the database before you start the new
+version:
+
+```bash
+cd ~/.secondshift && sqlite3 secondshift.sqlite3 ".backup workflows.sqlite3"
+```
+
+Skip this if `workflows.sqlite3` already exists. See the
+[beta 8 release notes](https://github.com/piotrekno1/second-shift/blob/main/docs/releases/0.1.0b8.md).

@@ -67,7 +67,7 @@ The skill avoids comments when it cannot check for duplicates reliably.
 
 The summary separates verified changes, skipped tickets, partial failures, and
 unknown outcomes. Notification delivery can use a separately approved webhook.
-See [task setup](../../docs/engineering-tasks.md#tasks-that-change-service-data)
+See [task setup](../../docs/jobs.md#tasks-that-change-service-data)
 and [remaining risks](../../docs/security-model.md#remaining-risks).
 
 The canonical skill lives here with a root discovery symlink at

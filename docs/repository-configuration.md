@@ -1,20 +1,20 @@
 # Repository configuration
 
-[README](../README.md) · [Architecture](architecture.md) · [Security model](security-model.md) · [Self-hosting](self-hosting.md)
+[README](../README.md) · [Architecture](architecture.md) · [Security model](security-model.md) · [Server configuration](server-configuration.md)
 
 A root-level `.secondshift.yaml` declares what runs and when. The server
 controls models, credentials, sandbox settings, and runtime policy.
 
 A skill defines a task: it can analyze repository files, gather service data,
-or take actions through approved MCP tools and HTTP API operations. The review
-below is a simple first example. See [action tasks](engineering-tasks.md#tasks-that-change-service-data)
-for a workflow that changes connected service data.
+or take actions through approved MCP tools and HTTP API operations. See
+[tasks that change service data](jobs.md#tasks-that-change-service-data) for a
+workflow that changes connected service data.
 
 SecondShift reads only committed files. Runs use the synchronized Git
 revision. You can add a repository before it has a manifest. Its page shows
 what is missing, and the first committed `.secondshift.yaml` syncs on its own.
-A manifest that has never synced shows as a warning. One that breaks after a
-good sync shows as an error, and runs keep the last good sync.
+A manifest that has never synced shows as a warning. If it breaks after a good
+sync, it shows as an error and runs keep using the last good sync.
 
 A local repository follows the branch that was checked out when it was added.
 SecondShift reads the manifest and skills from that branch's newest commit, so
@@ -26,50 +26,8 @@ instead. Syncing grants access only through connections that do not require
 approval, and only for tools the owner allowed. Other requests wait for an
 owner.
 
-## Your first job
-
-**Begin with a manual run, check its results and tool activity, then enable a
-schedule if useful.** A proposed schedule is a starting point. Verify the
-skill's access and outcome before letting it run unattended.
-
-Create `.agents/skills/repository-review/SKILL.md`:
-
-```markdown
-# Repository review
-
-Read the README and inspect the source for correctness problems and outdated
-documentation. Run the documented tests if their dependencies are available.
-Do not install packages, use the network, or modify files.
-
-Report confirmed findings with file paths, line numbers, user impact, and a
-suggested fix. List the checks you ran and anything you could not verify.
-```
-
-Add `.secondshift.yaml`:
-
-```yaml
-version: 1
-
-jobs:
-  repository-review:
-    name: Weekly repository review
-    skill: .agents/skills/repository-review/SKILL.md
-    schedule: "0 9 * * 1"
-    timezone: Europe/Warsaw
-```
-
-Commit both files, add the repository in SecondShift, and connect a default
-model provider. Open the discovered job and choose **Run now** to try it. Enable
-the job when you want it to run on schedule.
-
-For a ready-made skill that needs only a model, see the
-[documentation drift example](../examples/docs-drift/README.md).
-
-The sandbox has no network access or provider credentials. Reading files and
-running standard-library tests work without installing packages. A job that
-needs other tools can name an [environment](#environments) the server defines,
-or install its dependencies with [setup commands](#setup-commands) if the
-server allows them.
+To write your first job, follow [Repository jobs](jobs.md#your-first-job).
+This page is the reference for every field.
 
 ## Manifest fields
 
@@ -162,9 +120,9 @@ Only the same job's reports are included: a job is its repository and key, so
 renaming the key starts with no history. Failed and canceled runs are left out.
 The reports are chosen when a run is created and are shown in its stored input.
 Together they are capped by the server's `SECONDSHIFT_RUN_HISTORY_MAX_CHARS`,
-newest first, so an older report may be cut or left out. One removed by
-retention is marked as no longer stored. Reports are marked as earlier output, not instructions,
-because they may quote untrusted text. Reading its own reports gives a job no
+newest first, so an older report may be cut or left out. A report that
+retention removed is marked as no longer stored. Reports are marked as earlier
+output, not instructions, because they may quote untrusted text. Reading its own reports gives a job no
 new access, so `history` needs no approval.
 
 The files those runs saved in `/outputs` come back too. They are mounted
@@ -408,7 +366,7 @@ Tools that sign with their own header names usually let you rename them. Set
 them to the names above.
 
 The [alert triage example](../examples/alert-triage/README.md) is a complete
-job started this way. The [Grafana recipe](mcp-recipes.md#example-grafana)
+job started this way. The [Grafana recipe](connections.md#example-grafana)
 sets Grafana up to call it.
 
 ### The request body
@@ -603,30 +561,9 @@ the same list.
 
 ### What a binding can connect to
 
-| Connection | Tool names | Sign-in | Scope |
-| --- | --- | --- | --- |
-| GitHub (built in) | `search_pull_requests`, `pull_request_read`, `search_issues`, `list_issues`, `issue_read`, `list_commits`, `get_commit`, `actions_list`, `actions_get`, `get_job_logs` | The repository's own GitHub connection, or a fine-grained personal access token | The job's own repository |
-| Sentry (built in) | `find_projects`, `search_issues`, `search_errors`, `search_traces`, `get_sentry_resource` | Auth token with read scopes | The organization or project chosen when connecting |
-| Custom MCP server | The server's own tool names | OAuth sign-in, or a bearer token | Whatever the credential can reach |
-| HTTP API | The `operationId` of each operation in its OpenAPI 3 spec | Bearer token, or a named header | Whatever the credential can reach |
-
-GitHub and Sentry offer only read tools that SecondShift allowlists. GitHub
-Actions tools can list and read workflows, runs, and jobs, and read job logs as
-text. Logs are capped at the last 300 lines. Triggering runs, artifacts, and
-log download links are not available. These tools need read-only Actions
-access, on the token or on the GitHub App. Issue tools search, list and read
-issues with their comments and labels. They need read-only Issues access, and
-they don't read sub-issues, which can live in another repository. For a
-custom MCP server, the owner chooses tools after connecting, and tools the
-server marks read-only start selected. For an HTTP API, GET operations start
-selected. The access review marks any requested tool that may change data.
-
-[Vendor MCP servers](mcp-recipes.md) has examples for vendors that run an
-official MCP server.
-
-An operation without an `operationId` gets a name built from its method and
-path, such as `get_charges_chargeId`. The connection's edit form lists every
-name.
+A binding can name a built-in GitHub or Sentry connection, a custom MCP
+server, or an HTTP API described by an OpenAPI spec. [Connections](connections.md#what-you-can-connect)
+lists each one's tool names, sign-in and scope.
 
 ### How calls run
 

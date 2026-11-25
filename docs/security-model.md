@@ -1,6 +1,6 @@
 # Security model
 
-[README](../README.md) · [Architecture](architecture.md) · [Self-hosting](self-hosting.md)
+[README](../README.md) · [Architecture](architecture.md) · [Control](control.md) · [Server configuration](server-configuration.md)
 
 This page describes what a run can reach, where each secret lives, and the
 risks that remain.
@@ -11,7 +11,9 @@ risks that remain.
 | --- | --- | --- |
 | Server operator | Yes | Runs the servers, sets the sandbox image, runtime and limits. |
 | Workspace owner | Yes | Connects services, chooses tools, approves jobs, decides who joins. |
-| Workspace admin | Partly | Runs and schedules approved jobs. Cannot add connections or approve access. |
+| Workspace admin | Partly | Runs and schedules approved jobs, changes run limits. Cannot add connections or approve access. |
+| Workspace member | Partly | Views jobs and runs. Can read trigger payloads stored with runs. |
+| API token | Partly | Acts as its creator, at most `run` access. Never takes owner actions. |
 | Repository content | No | Anyone who can merge to the repository controls it. |
 | Model output | No | Repository content and tool results can steer it. |
 | Tool results | No | They come from outside services. |
@@ -155,47 +157,19 @@ The owner or SecondShift sets each one. The repository sets none of them.
 | Built-in scoping | SecondShift, for GitHub and Sentry | The job's repository, or the chosen Sentry organization |
 | Broker checks | SecondShift, on every call | The run's frozen plan, the grant, and the tool's schema |
 
-To secure a job that uses a tool that changes data:
-
-1. Use the narrowest credential the service offers.
-2. Allow only the tools jobs need on the connection.
-3. Turn on **Require approval for each job** if merge rights alone should not
-   grant access.
-4. Restrict the arguments that pick a target, such as a channel, project or
-   recipient.
-5. Run the job manually and read the run's timeline before scheduling it.
+To secure a job that uses a tool that changes data, follow the steps in
+[Services](services.md): use the narrowest credential, allow only the tools
+jobs need, require approval, and restrict the arguments that pick a target.
 
 ### Tool restrictions
 
-An owner can narrow how one job calls an approved MCP tool or API operation. In
-the job's access review, choose **Add restriction** under the tool, then pick an
-argument and a rule.
-
-| Rule | Effect |
-| --- | --- |
-| Always this value | The broker always sends this value. The model does not see the argument. |
-| Only these values | The model must send one of these values. |
-| At most | The model must send a number no larger than this. |
-| Never sent | The model may not send the argument. Not offered for arguments the tool requires. |
-
-For example, a digest job that may use Slack's `post_message` can be limited to
-the `#alerts` and `#ops` channels.
-
-- Restrictions belong to one job's grant. Other jobs on the same connection are
-  not affected.
-- They apply to top-level arguments. For an HTTP API, those are the path and
-  query parameters, and the request body as a whole.
-- They are copied into each run's plan when the run starts. A change applies
-  from the next run.
-- The model sees the tool's schema with the restrictions applied. The broker
-  enforces them. A call that breaks one never reaches the service, and the run
-  fails with a **Tool restriction** error. The error names the argument, never
-  the value the model sent.
-- Built-in scoping still applies after restrictions, so a restriction cannot
-  widen it.
-- If the service changes a tool's schema and a restriction no longer fits, the
-  job is blocked until the owner updates the restriction.
-- `.secondshift.yaml` cannot set or change restrictions.
+An owner can narrow how one job calls an approved tool: always send a fixed
+value, allow only some values, cap a number, or refuse an argument. The model
+sees the tool's schema with the restrictions applied, and the broker enforces
+them. A call that breaks one never reaches the service, and the run fails with
+a **Tool restriction** error. Restrictions are copied into each run's plan when
+it starts, and `.secondshift.yaml` cannot set them. See
+[restrict arguments](services.md#restrict-arguments) for the rules.
 
 ## Remaining risks
 

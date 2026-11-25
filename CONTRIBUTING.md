@@ -65,6 +65,12 @@ The Markdown files in `docs/` are the source for the published guides. Restart
 the docs dev server after editing one of those files so it regenerates the pages.
 Run `npm --prefix docs run build` to check the production site.
 
+The dashboard screenshots in `docs/screenshots/control` and
+`docs/screenshots/use` come from `scripts/docs_screenshots/run.sh`. It seeds a
+throwaway database with the Acme workspace and photographs it in headless
+Chrome. Run it after a UI change those screenshots show, or pass part of a
+shot's name to retake only that one. Add new shots to `shots.json`.
+
 To use the optional local RustFS service, uncomment its block in `.env`
 (copied from `.env.example`):
 
@@ -286,7 +292,7 @@ for an owner email and password because the network can now reach it.
 
 Local mode is for one person on their own machine. It uses plain Docker and
 can read Git repositories from disk. For a shared server, see
-[self-hosting guide](docs/self-hosting.md).
+[Deploy](docs/production-deployment.md).
 
 ### Dependency integrity
 

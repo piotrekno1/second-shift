@@ -281,7 +281,7 @@ Each step is a separate PR that ships on its own:
    registry rows the worker's check fills in, and never ask a runner.
 6. **Health, drain and recovery** (#491). `failing_since`, the `runner` failure,
    failing runs on a lost runner, and stopping their sessions when it returns.
-7. **Docs** (#493). Update `architecture.md`, `self-hosting.md`,
+7. **Docs** (#493). Update `architecture.md`, `server-configuration.md`,
    `production-deployment.md` and `environment-variables.md`, and add
    `runner_key` so an operator can compare a runner's key fingerprint.
 8. **Subscription agents on another host** (#494, #495, #497). Relay the

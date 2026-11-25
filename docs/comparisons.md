@@ -22,4 +22,4 @@ tools runs unsandboxed wherever you run it.
 
 An agent can still misuse a write tool an owner approved. See the
 [remaining risks](security-model.md#remaining-risks). To try SecondShift, start
-with [your first job](repository-configuration.md#your-first-job).
+with [your first job](jobs.md#your-first-job).
