@@ -12,13 +12,15 @@ from django.db.models import (
     Exists,
     ExpressionWrapper,
     F,
+    IntegerField,
     OuterRef,
     Q,
     QuerySet,
     Subquery,
     Sum,
 )
-from django.db.models.functions import Coalesce, Now, TruncDate
+from django.db.models.fields.json import KT
+from django.db.models.functions import Cast, Coalesce, Now, TruncDate
 from django.utils import timezone
 
 from secondshift.agent.image.outcomes import CACHE_READ_DIVISOR
@@ -27,6 +29,7 @@ from secondshift.jobs.dao import active_jobs
 from secondshift.jobs.execution_plan import ExecutionPlan
 from secondshift.jobs.models import Job
 from secondshift.runner_protocol.agents import AgentBackend
+from secondshift.runs.constants import AGENT_PROGRESS, COMMAND_CALL
 from secondshift.runs.models import (
     AgentLease,
     LoginHome,
@@ -87,18 +90,25 @@ def update_run(run_id: int, **fields: Any) -> None:
 
 
 def with_model_usage(runs: QuerySet[Run]) -> QuerySet[Run]:
-    """Annotate each run with its model usage totals, and a login run's usage
-    and models."""
-    finished = RunEvent.objects.filter(
-        run_id=OuterRef("pk"),
-        metadata__backend__in=[
-            backend for backend in AgentBackend if not backend.uses_model_api
-        ],
-        metadata__has_key="usage",
-    ).order_by("-pk")
+    """Annotate each run with its model usage totals, and a login run's usage,
+    models and turns: from its result, or while it runs, from its progress."""
+
+    def latest(key: str) -> QuerySet[RunEvent]:
+        """The run's agent events that have the key, last first."""
+        return RunEvent.objects.filter(
+            run_id=OuterRef("pk"),
+            metadata__backend__in=[
+                backend for backend in AgentBackend if not backend.uses_model_api
+            ],
+            metadata__has_key=key,
+        ).order_by("-pk")
+
+    # A bare number is not JSON text to every database, so turns are cast.
+    turns = latest("turns").annotate(value=Cast(KT("metadata__turns"), IntegerField()))
     return runs.annotate(
-        agent_usage=Subquery(finished.values("metadata__usage")[:1]),
-        agent_models=Subquery(finished.values("metadata__models")[:1]),
+        agent_usage=Subquery(latest("usage").values("metadata__usage")[:1]),
+        agent_models=Subquery(latest("models").values("metadata__models")[:1]),
+        agent_turns=Subquery(turns.values("value")[:1], output_field=IntegerField()),
         model_tokens=Sum(
             F("model_usage__input_tokens")
             + F("model_usage__output_tokens")
@@ -462,6 +472,37 @@ def add_event(
     )
 
 
+def add_command_event(
+    run_id: int,
+    call_id: str,
+    message: str,
+    *,
+    level: str = "info",
+    metadata: dict[str, Any] | None = None,
+) -> None:
+    """Add a workspace tool call to the timeline once, however often its step
+    runs."""
+    RunEvent.objects.get_or_create(
+        run_id=run_id,
+        **{f"metadata__{COMMAND_CALL}": call_id},
+        defaults={
+            "message": message,
+            "level": level,
+            "metadata": {**(metadata or {}), COMMAND_CALL: call_id},
+        },
+    )
+
+
+def save_agent_progress(run_id: int, message: str, metadata: dict[str, Any]) -> None:
+    """Keep the run's one progress event up to date."""
+    metadata = {**metadata, AGENT_PROGRESS: True}
+    updated = RunEvent.objects.filter(
+        run_id=run_id, metadata__has_key=AGENT_PROGRESS
+    ).update(message=message, metadata=metadata)
+    if not updated:
+        RunEvent.objects.create(run_id=run_id, message=message, metadata=metadata)
+
+
 def has_scheduled_skip(job: Job, slot: str) -> bool:
     """Whether a run of this job already recorded an overlap skip for the slot."""
     return RunEvent.objects.filter(
@@ -515,8 +556,11 @@ def run_mcp_sessions(run_id: int) -> list[RunMCPSession]:
 
 
 def run_events(run: Run) -> QuerySet[RunEvent]:
-    """The run's timeline, oldest first."""
-    return run.events.order_by("created_at", "pk")
+    """The run's timeline, oldest first. A subscription agent's progress
+    shows in the run's usage instead."""
+    return run.events.exclude(metadata__has_key=AGENT_PROGRESS).order_by(
+        "created_at", "pk"
+    )
 
 
 def subagent_start(run_id: int, marker: str, call_id: str) -> RunEvent | None:

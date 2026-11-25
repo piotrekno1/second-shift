@@ -13,7 +13,7 @@ import os
 import subprocess
 import sys
 from collections.abc import Callable
-from typing import Any
+from typing import IO, Any
 
 from secondshift.agent.image.claude import command as claude
 from secondshift.agent.image.claude import events as claude_events
@@ -25,6 +25,7 @@ from secondshift.agent.image.outcomes import (
     Outcome,
     usage_budget,
 )
+from secondshift.agent.image.progress import Progress, snapshot
 
 MAX_CONFIG_BYTES = 512 * 1024
 MAX_EVENT_BYTES = 1024 * 1024
@@ -74,6 +75,11 @@ def failure_reason(error: str) -> str:
     return AgentOutcome.AGENT_FAILED
 
 
+def turns(config: AgentConfig, outcome: Outcome) -> int | None:
+    """Model replies so far, sub-agents' included. Codex reports none."""
+    return len(outcome.replies) if config["backend"] == "claude_code" else None
+
+
 def result(outcome: Outcome, exit_code: int) -> dict[str, Any]:
     if outcome.reason:
         reason = outcome.reason
@@ -94,6 +100,13 @@ def result(outcome: Outcome, exit_code: int) -> dict[str, Any]:
     }
 
 
+def progress_for(config: AgentConfig) -> Progress | None:
+    """Progress goes to the run's broker. A login check has none."""
+    if not config.get("broker_url") or not config.get("broker_token"):
+        return None
+    return Progress(config["broker_url"], config["broker_token"])
+
+
 def version(binary: str) -> str:
     try:
         found = subprocess.run(
@@ -102,6 +115,35 @@ def version(binary: str) -> str:
     except (OSError, subprocess.SubprocessError):
         return "unknown"
     return found.stdout.strip()[:100] or "unknown"
+
+
+def read_events(
+    stream: IO[bytes],
+    config: AgentConfig,
+    read: Read,
+    outcome: Outcome,
+    progress: Progress | None,
+) -> None:
+    """Read the CLI's events until it ends or a limit stops it."""
+    while line := stream.readline(MAX_EVENT_BYTES + 1):
+        if len(line) > MAX_EVENT_BYTES:
+            outcome.reason = AgentOutcome.AGENT_OUTPUT_LIMIT
+            return
+        try:
+            event = json.loads(line)
+        except ValueError:
+            continue
+        if isinstance(event, dict):
+            read(event, outcome)
+            if progress:
+                progress.update(
+                    snapshot(turns(config, outcome), outcome.usage, outcome.models)
+                )
+        if outcome.reason:
+            return
+        if usage_budget(outcome.usage) >= int(config["token_budget"]):
+            outcome.reason = AgentOutcome.TOKEN_BUDGET_EXHAUSTED
+            return
 
 
 def run(config: AgentConfig) -> dict[str, Any]:
@@ -119,35 +161,27 @@ def run(config: AgentConfig) -> dict[str, Any]:
         env={**os.environ, **env},
     )
     assert process.stdin is not None and process.stdout is not None
+    progress = progress_for(config)
     try:
         # A CLI that exits early closes its input. Its outcome says why.
         with contextlib.suppress(BrokenPipeError):
             process.stdin.write(config["prompt"].encode())
             process.stdin.close()
-        while line := process.stdout.readline(MAX_EVENT_BYTES + 1):
-            if len(line) > MAX_EVENT_BYTES:
-                outcome.reason = AgentOutcome.AGENT_OUTPUT_LIMIT
-                break
-            try:
-                event = json.loads(line)
-            except ValueError:
-                continue
-            if isinstance(event, dict):
-                read(event, outcome)
-            if outcome.reason:
-                break
-            if usage_budget(outcome.usage) >= int(config["token_budget"]):
-                outcome.reason = AgentOutcome.TOKEN_BUDGET_EXHAUSTED
-                break
+        read_events(process.stdout, config, read, outcome, progress)
         if not outcome.reason:
             # A CLI that hangs after its last event is killed below and fails.
             with contextlib.suppress(subprocess.TimeoutExpired):
                 process.wait(timeout=15)
     finally:
+        if progress:
+            progress.close()
         if process.poll() is None:
             process.kill()
         exit_code = process.wait()
-    return result(outcome, exit_code) | {"versions": {binary: version(binary)}}
+    return result(outcome, exit_code) | {
+        "versions": {binary: version(binary)},
+        "turns": turns(config, outcome),
+    }
 
 
 def main() -> None:

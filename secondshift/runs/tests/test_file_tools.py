@@ -33,6 +33,7 @@ def calls(monkeypatch: pytest.MonkeyPatch) -> list[tuple[list[str], str]]:
         argv: list[str],
         cwd: str,
         timeout: int,
+        label: str = "",
     ) -> CommandResult:
         sent.append((argv, cwd))
         return CommandResult(call_id=call_id, exit_code=0, output="")
