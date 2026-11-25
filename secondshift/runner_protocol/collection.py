@@ -38,3 +38,19 @@ class HashingReader:
         chunk = self.stream.read(size)
         self.digest.update(chunk)
         return chunk
+
+    # Storage backends probe these before saving. django-storages' S3 backend
+    # asks whether the file can seek, which reads `closed`. Seeking would skip
+    # bytes the hash must see, so the reader never seeks.
+    @property
+    def closed(self) -> bool:
+        return bool(getattr(self.stream, "closed", False))
+
+    def readable(self) -> bool:
+        return True
+
+    def seekable(self) -> bool:
+        return False
+
+    def close(self) -> None:
+        """The archive owns the stream, so closing the reader leaves it open."""
