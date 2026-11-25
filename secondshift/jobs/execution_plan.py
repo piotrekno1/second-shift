@@ -56,6 +56,8 @@ class ExecutionChoice(Frozen):
     connection_id: int | None = None
     credential_key: str | None = None
     owner_id: int | None = None
+    # The model the login's CLI runs. Empty means its default.
+    model: str = ""
 
 
 class PlanLimits(Frozen):

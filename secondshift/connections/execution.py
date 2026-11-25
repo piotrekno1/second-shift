@@ -115,7 +115,8 @@ def subscription_selection(
     product = product_name(backend)
     return ExecutionSelection(
         key=f"{AGENT_PREFIX}{connection.pk}",
-        label=f"{product} subscription · {connection.display_name}",
+        label=f"{product} subscription · {connection.display_name}"
+        + (f" · {connection.default_model}" if connection.default_model else ""),
         backend=backend,
         connection=connection,
         problem=subscription_problem(connection, workspace),

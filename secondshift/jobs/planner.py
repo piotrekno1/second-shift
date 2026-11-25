@@ -297,6 +297,7 @@ def compile_execution_plan(
             connection_id=connection.pk if connection else None,
             credential_key=str(connection.credential_key) if connection else None,
             owner_id=connection.owner_id if connection else None,
+            model=connection.default_model if connection else "",
         ),
         ready=ready,
         agent=agent,

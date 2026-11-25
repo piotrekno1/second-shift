@@ -31,7 +31,7 @@ def start(config: AgentConfig) -> tuple[list[str], dict[str, str]]:
         )
     home = codex_home()
     argv = [BINARY, "exec", "--skip-git-repo-check", "--ephemeral"]
-    argv += ["--strict-config", "--json", "-"]
+    argv += [*outcomes.model_options(config), "--strict-config", "--json", "-"]
     env = {"CODEX_HOME": str(home)}
     if config.get("broker_url"):
         env[BROKER_TOKEN_VAR] = config["broker_token"]

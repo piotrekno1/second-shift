@@ -162,6 +162,8 @@ def execute_agent(session_id: str, request: AgentInput) -> AgentOutput:
         "token_budget": request.token_budget,
         "subagents": request.subagents if request.backend.starts_subagents else 0,
     }
+    if request.model:
+        configuration["model"] = request.model
     with relaying(session_id, request.broker_token.get_secret_value()):
         return run_agent_container(
             agent_name(session_id),
@@ -182,6 +184,8 @@ def check_agent(request: AgentCheckInput) -> AgentOutput:
         "max_turns": 1,
         "token_budget": CHECK_TOKEN_BUDGET,
     }
+    if request.model:
+        configuration["model"] = request.model
     return run_agent_container(
         agent_name(name),
         agent_command(name, auth_path, image, prepare_egress(image)),

@@ -3,6 +3,7 @@ import { computed, nextTick, onMounted, reactive, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
+import Select from 'primevue/select'
 import Menu from 'primevue/menu'
 import type { MenuItem } from 'primevue/menuitem'
 import AppIcon from '../components/AppIcon.vue'
@@ -17,7 +18,14 @@ import { useAppStore } from '../stores/app'
 import type { Notice } from '../types'
 import { parseRunCap } from '../utils/agents'
 import { formatRelative } from '../utils/format'
-import { modelRows, requestedRow, SIGN_IN_REFUSED, type ModelRow } from '../utils/models'
+import {
+  modelRows,
+  requestedRow,
+  SIGN_IN_REFUSED,
+  OTHER_MODEL,
+  modelChoices,
+  type ModelRow,
+} from '../utils/models'
 import { Action } from '../utils/permissions'
 import { errorMessage } from '../services/api'
 
@@ -39,6 +47,11 @@ const confirming = ref<{ key: string; action: 'disconnect' | 'delete' } | null>(
 const limitKey = ref<string | null>(null)
 const limitDraft = ref('')
 const limitProblem = ref('')
+const modelKey = ref<string | null>(null)
+// A listed model's name, or OTHER_MODEL to type a full name into modelDraft.
+const modelChoice = ref('')
+const modelDraft = ref('')
+const modelProblem = ref('')
 
 const configuration = computed(() => agents.configuration)
 const rows = computed(() => modelRows(app.connections, agents.connections, configuration.value))
@@ -63,6 +76,7 @@ function toggle(form: OpenForm): void {
   openForm.value = isOpen(form) ? null : form
   confirming.value = null
   limitKey.value = null
+  modelKey.value = null
 }
 
 async function refresh(): Promise<void> {
@@ -159,6 +173,7 @@ async function confirm(row: ModelRow): Promise<void> {
 function openLimit(row: ModelRow): void {
   openForm.value = null
   confirming.value = null
+  modelKey.value = null
   limitKey.value = row.key
   limitDraft.value = row.login?.max_runs_per_day == null ? '' : String(row.login.max_runs_per_day)
   limitProblem.value = ''
@@ -174,6 +189,40 @@ async function saveLimit(row: ModelRow): Promise<void> {
     limitKey.value = null
   } catch (error) {
     limitProblem.value = errorMessage(error, 'Unable to save the limit.')
+  } finally {
+    busy.value = null
+  }
+}
+
+function openModel(row: ModelRow): void {
+  openForm.value = null
+  confirming.value = null
+  limitKey.value = null
+  modelKey.value = row.key
+  const current = row.login?.default_model ?? ''
+  const listed = row.login?.model_choices.some((choice) => choice.value === current)
+  modelChoice.value = listed ? current : OTHER_MODEL
+  modelDraft.value = listed ? '' : current
+  modelProblem.value = ''
+}
+
+function modelHelp(row: ModelRow): string {
+  const choice = modelChoices(row.login!).find((item) => item.value === modelChoice.value)
+  return `${choice?.description ?? ''} New runs and checks use it.`
+}
+
+async function saveModel(row: ModelRow): Promise<void> {
+  const model = modelChoice.value === OTHER_MODEL ? modelDraft.value.trim() : modelChoice.value
+  if (modelChoice.value === OTHER_MODEL && !model) {
+    modelProblem.value = 'Enter a model name, or choose one from the list.'
+    return
+  }
+  busy.value = row.key
+  try {
+    await agents.setModel(row.login!.id, model)
+    modelKey.value = null
+  } catch (error) {
+    modelProblem.value = errorMessage(error, 'Unable to save the model.')
   } finally {
     busy.value = null
   }
@@ -204,6 +253,7 @@ function menuItems(row: ModelRow): MenuItem[] {
   const ask = (action: 'disconnect' | 'delete') => () => {
     openForm.value = null
     limitKey.value = null
+    modelKey.value = null
     confirming.value = { key: row.key, action }
   }
   if (row.connection) {
@@ -233,8 +283,10 @@ function menuItems(row: ModelRow): MenuItem[] {
   } else if (row.login?.can_manage) {
     if (row.login.connected && app.can(Action.TestConnections))
       items.push({ label: 'Check', appIcon: 'send-outline', command: () => checkLogin(row) })
-    if (row.login.connected)
+    if (row.login.connected) {
+      items.push({ label: 'Model', appIcon: 'creation-outline', command: () => openModel(row) })
       items.push({ label: 'Run limit', appIcon: 'timer-sand', command: () => openLimit(row) })
+    }
     if (agents.enabled)
       items.push({
         label: 'Reconnect',
@@ -482,6 +534,46 @@ onMounted(async () => {
             <small v-if="limitProblem" role="alert">{{ limitProblem }}</small>
             <small v-else>Runs past the limit are refused. Leave it empty for no limit.</small>
           </form>
+          <form
+            v-if="modelKey === row.key && row.login"
+            class="confirm-strip run-limit login-model"
+            @submit.prevent="saveModel(row)"
+          >
+            <label :for="`agent-model-${row.login.id}`">Model</label>
+            <Select
+              v-model="modelChoice"
+              :input-id="`agent-model-${row.login.id}`"
+              class="login-model-select"
+              :options="modelChoices(row.login)"
+              option-label="label"
+              option-value="value"
+              :disabled="busy === row.key"
+              @change="modelProblem = ''"
+            />
+            <InputText
+              v-if="modelChoice === OTHER_MODEL"
+              v-model="modelDraft"
+              name="agent-model"
+              aria-label="Full model name"
+              autocomplete="off"
+              size="10"
+              spellcheck="false"
+              :placeholder="row.login.backend === 'claude_code' ? 'claude-opus-5-5' : 'Model name'"
+              :disabled="busy === row.key"
+              :aria-invalid="Boolean(modelProblem)"
+              @input="modelProblem = ''"
+            />
+            <Button
+              label="Cancel"
+              severity="secondary"
+              text
+              size="small"
+              @click="modelKey = null"
+            />
+            <Button type="submit" label="Save" size="small" :loading="busy === row.key" />
+            <small v-if="modelProblem" role="alert">{{ modelProblem }}</small>
+            <small v-else>{{ modelHelp(row) }}</small>
+          </form>
           <div v-if="confirming?.key === row.key" class="confirm-strip" role="alert">
             <span>{{ confirmText(row) }}</span>
             <Button
@@ -584,8 +676,9 @@ onMounted(async () => {
 .model-note summary {
   cursor: pointer;
 }
+/* Settings, not a destructive confirmation, so the border stays neutral. */
 .run-limit {
-  border-left: 1px solid var(--border);
+  border-color: var(--border);
 }
 .run-limit label {
   display: inline-flex;
@@ -601,5 +694,11 @@ onMounted(async () => {
 }
 .run-limit small[role='alert'] {
   color: var(--danger);
+}
+.login-model .login-model-select,
+.login-model .p-inputtext {
+  flex: 0 1 12em;
+  width: 12em;
+  min-width: 0;
 }
 </style>

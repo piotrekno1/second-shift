@@ -15,6 +15,8 @@ export const setAgentRunLimit = (id: number, maxRunsPerDay: number | null) =>
   apiPost<AgentConnection>(`/agent-connections/${id}/run-limit`, {
     max_runs_per_day: maxRunsPerDay,
   })
+export const setAgentModel = (id: number, model: string) =>
+  apiPost<AgentConnection>(`/agent-connections/${id}/model`, { model })
 export const checkAgent = (id: number) =>
   apiPost<AgentConnection>(`/agent-connections/${id}/check`, {})
 export const disconnectAgent = (id: number) => apiDelete(`/agent-connections/${id}`)

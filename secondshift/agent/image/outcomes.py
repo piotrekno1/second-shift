@@ -50,12 +50,15 @@ class AgentConfig(TypedDict):
     broker_token: NotRequired[str]
     # The most sub-agents the agent may start.
     subagents: NotRequired[int]
+    # The model the login's owner chose. Absent means the CLI's default.
+    model: NotRequired[str]
 
 
 class AgentOutcome(StrEnum):
     COMPLETED = "completed"
     RECONNECT_REQUIRED = "reconnect_required"
     QUOTA_EXHAUSTED = "quota_exhausted"
+    MODEL_UNAVAILABLE = "model_unavailable"
     TIMED_OUT = "timed_out"
     TOKEN_BUDGET_EXHAUSTED = "token_budget_exhausted"
     TURN_BUDGET_EXHAUSTED = "turn_budget_exhausted"
@@ -101,6 +104,20 @@ class Outcome:
             and len(self.models) < MAX_MODELS
         ):
             self.models.append(name)
+
+
+def model_options(config: AgentConfig) -> list[str]:
+    """The CLI's --model option, when the login's owner chose a model.
+
+    The runner checked the name already. Checking it again here keeps a name
+    that looks like an option from ever reaching the CLI's argv.
+    """
+    model = config.get("model")
+    if not model:
+        return []
+    if not MODEL_NAME.fullmatch(model):
+        raise ValueError("The model name is not valid.")
+    return ["--model", model]
 
 
 def numbers(values: dict[str, Any]) -> dict[str, int]:

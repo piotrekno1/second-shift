@@ -7,6 +7,7 @@ import {
   fetchAgentConfiguration,
   fetchAgentConnections,
   selectWorkspaceAgent,
+  setAgentModel,
   setAgentRunLimit,
   type AgentLoginInput,
 } from '../services/agents'
@@ -45,6 +46,12 @@ export const useAgentsStore = defineStore('agents', {
     },
     async setRunLimit(id: number, maxRunsPerDay: number | null): Promise<void> {
       const updated = await setAgentRunLimit(id, maxRunsPerDay)
+      this.connections = this.connections.map((item) => (item.id === id ? updated : item))
+      await useAppStore().refresh()
+    },
+    /** Runs planned from now on use it. A passed check proved the old one, so it is gone. */
+    async setModel(id: number, model: string): Promise<void> {
+      const updated = await setAgentModel(id, model)
       this.connections = this.connections.map((item) => (item.id === id ? updated : item))
       await useAppStore().refresh()
     },

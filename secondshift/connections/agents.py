@@ -3,6 +3,7 @@
 import json
 import logging
 import uuid
+from dataclasses import dataclass
 
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -10,7 +11,7 @@ from django.db import transaction
 from django.utils import timezone
 from pydantic import ValidationError
 
-from secondshift.agent.image.outcomes import AgentOutcome
+from secondshift.agent.image.outcomes import MODEL_NAME, AgentOutcome
 from secondshift.connections.dao import (
     count_cleanup_attempt,
     pending_cleanups,
@@ -34,6 +35,46 @@ logger = logging.getLogger(__name__)
 
 class AgentConnectionError(ValueError):
     pass
+
+
+@dataclass(frozen=True)
+class ModelChoice:
+    """A model a login's owner can pick by name. Any full model name works too."""
+
+    value: str
+    label: str
+    description: str
+
+
+def default_choice(product: str) -> ModelChoice:
+    return ModelChoice("", "Default", f"{product} picks the model.")
+
+
+# Claude Code turns each alias into the newest model of that family the plan
+# includes. Codex has no aliases, and its models vary by plan.
+MODEL_CHOICES: dict[str, tuple[ModelChoice, ...]] = {
+    AgentBackend.CLAUDE_CODE: (
+        default_choice("Claude Code"),
+        ModelChoice(
+            "opus",
+            "Opus",
+            "The newest Opus your plan includes. Most capable, and uses your "
+            "allowance fastest.",
+        ),
+        ModelChoice(
+            "sonnet",
+            "Sonnet",
+            "The newest Sonnet your plan includes. Balances capability and allowance.",
+        ),
+        ModelChoice(
+            "haiku",
+            "Haiku",
+            "The newest Haiku your plan includes. Fastest, and uses the least "
+            "allowance.",
+        ),
+    ),
+    AgentBackend.CODEX: (default_choice("Codex"),),
+}
 
 
 def validate_agent_auth(backend: str, value: str) -> str:
@@ -94,6 +135,24 @@ def save_agent_connection(
     connection.last_check = None
     connection.full_clean()
     connection.save()
+    return connection
+
+
+def set_agent_model(connection: AgentConnection, model: str) -> AgentConnection:
+    """Choose the model the login's runs use. Empty keeps the CLI's default."""
+    model = model.strip()
+    if model and not MODEL_NAME.fullmatch(model):
+        raise AgentConnectionError(
+            "Use a model name such as sonnet or claude-sonnet-5-5, "
+            "with letters, digits and . _ - : / only."
+        )
+    connection.default_model = model
+    update = ["default_model", "updated_at"]
+    if (connection.last_check or {}).get("ok"):
+        # A passed check proved another model. A refused sign-in still holds.
+        connection.last_check = None
+        update.append("last_check")
+    connection.save(update_fields=update)
     return connection
 
 
@@ -175,7 +234,7 @@ def retry_credential_cleanups() -> int:
 # What a check's outcome means for the login. Only a finished check and a
 # used-up allowance prove the sign-in works.
 CHECK_RESULTS: dict[str, tuple[bool, str]] = {
-    AgentOutcome.COMPLETED: (True, "Signed in. {product} answered a test message."),
+    AgentOutcome.COMPLETED: (True, "Signed in. {answered} answered a test message."),
     AgentOutcome.QUOTA_EXHAUSTED: (
         True,
         "Signed in, but the plan's usage allowance is used up for now.",
@@ -183,6 +242,11 @@ CHECK_RESULTS: dict[str, tuple[bool, str]] = {
     AgentOutcome.RECONNECT_REQUIRED: (
         False,
         "{product} refused the sign-in. Get a new login and reconnect.",
+    ),
+    AgentOutcome.MODEL_UNAVAILABLE: (
+        False,
+        "Signed in, but this plan cannot use {model}. Choose another model, "
+        "or leave it empty for {product}'s default.",
     ),
     AgentOutcome.TIMED_OUT: (
         False,
@@ -215,6 +279,7 @@ def check_agent_connection(connection: AgentConnection) -> AgentConnection:
                 backend=connection.backend,
                 credential_key=connection.credential_key.hex,
                 auth=client.encrypted_auth(connection.auth_data),
+                model=connection.default_model,
             )
         except ValidationError:
             raise AgentConnectionError(
@@ -228,10 +293,19 @@ def check_agent_connection(connection: AgentConnection) -> AgentConnection:
             ) from None
     reason = result.reason
     ok, message = CHECK_RESULTS.get(reason, CHECK_FAILED)
+    product = product_name(connection.backend)
+    chosen = connection.default_model or product
     connection.last_check = {
         "ok": ok,
         "reason": reason if reason in CHECK_RESULTS else AgentOutcome.AGENT_FAILED,
-        "message": message.format(product=product_name(connection.backend)),
+        "message": message.format(
+            product=product,
+            model=chosen,
+            # The model an alias or the default became, when the CLI says.
+            answered=result.models[0] if result.models else chosen,
+        ),
+        # Names only, as the CLI reported them. Codex reports none.
+        "models": result.models,
         "checked_at": timezone.now().isoformat(),
     }
     connection.save(update_fields=["last_check", "updated_at"])

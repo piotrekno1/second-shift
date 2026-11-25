@@ -63,14 +63,16 @@ def run_models(run: Run, api: bool) -> list[str]:
     """The models that ran, the agent's own first.
 
     The built-in agent and its sub-agents call only the plan's model. A login's
-    CLI picks its own, so its run keeps the ones the CLI reported. Older runs,
-    and Codex, which reports none, show none.
+    run keeps the ones its CLI reported. Codex reports none, so its run shows
+    the model chosen for the login, if any.
     """
     if api:
         model = run.plan.model.default_model if run.plan.model else ""
         return [model] if model else []
     models = getattr(run, "agent_models", None)
-    return [str(name) for name in models] if isinstance(models, list) else []
+    if isinstance(models, list) and models:
+        return [str(name) for name in models]
+    return [run.plan.execution.model] if run.plan.execution.model else []
 
 
 def serialize_run(run: Run) -> RunSchema:
