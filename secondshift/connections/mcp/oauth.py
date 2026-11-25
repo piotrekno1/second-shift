@@ -241,6 +241,31 @@ def requested_scopes(connection: Connection) -> list[str]:
     return list(connection.metadata.get("oauth", {}).get("requested_scopes", []))
 
 
+def additional_scopes(connection: Connection) -> list[str]:
+    """Scopes the server granted beyond what the connection asked for."""
+    requested = set(requested_scopes(connection))
+    return sorted(set(connection.scopes) - requested)
+
+
+def acknowledged_scopes(connection: Connection) -> list[str]:
+    """Additional scopes an owner has seen and accepted. A scope granted later
+    is not among them, so it warns again."""
+    return list(connection.metadata.get("oauth", {}).get("acknowledged_scopes", []))
+
+
+def acknowledge_additional_scopes(connection_id: int) -> Connection:
+    """Record that an owner accepts the connection's current additional scopes."""
+    with transaction.atomic():
+        locked = lock_connection(connection_id)
+        oauth = locked.metadata.get("oauth", {})
+        locked.metadata = {
+            **locked.metadata,
+            "oauth": {**oauth, "acknowledged_scopes": additional_scopes(locked)},
+        }
+        locked.save(update_fields=["metadata", "updated_at"])
+    return locked
+
+
 def apply_tokens(connection: Connection, tokens: dict[str, Any]) -> None:
     connection.access_token = str(tokens["access_token"])
     if tokens.get("refresh_token"):

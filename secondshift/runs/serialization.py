@@ -113,6 +113,7 @@ def serialize_run(run: Run) -> RunSchema:
         summary=run.summary,
         plan_ready=run.plan.ready,
         commit_sha=run.commit_sha,
+        agent_backend=run.plan.execution.backend,
         model=models[0] if models else None,
         models=models,
         # Agent CLIs do not report model calls, so a turn count would read 0.

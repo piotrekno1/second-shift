@@ -35,6 +35,7 @@ import {
   zoneName,
 } from '../utils/format'
 import { renderMarkdown } from '../utils/markdown'
+import { runModelLabel } from '../utils/models'
 import { runOutputLink } from '../utils/runOutputLink'
 import { runBlocker } from '../utils/readiness'
 import { startedByLabel } from '../utils/triggers'
@@ -109,6 +110,7 @@ const subtitle = computed(() =>
 const REPORT_COLLAPSED_PX = 640
 
 const stats = computed(() => (run.value ? runStats(run.value, now.value) : []))
+const modelLabel = computed(() => (run.value ? runModelLabel(run.value) : ''))
 const timelineZone = computed(() =>
   zoneName(run.value?.events[0]?.created_at ?? run.value?.created_at ?? new Date().toISOString()),
 )
@@ -427,7 +429,9 @@ onUnmounted(stopPolling)
             :title="stat.title"
             >{{ stat.text }}</span
           >
-          <span v-if="run.model" class="run-stat-quiet">{{ run.model }}</span>
+          <span v-if="modelLabel" class="run-stat-quiet" :title="run.models.join(', ')">{{
+            modelLabel
+          }}</span>
           <code class="run-stat-quiet" :title="run.commit_sha">{{
             run.commit_sha.slice(0, 7)
           }}</code>

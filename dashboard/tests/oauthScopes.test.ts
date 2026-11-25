@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { additionalOAuthScopes } from '../src/utils/oauthScopes'
+import { additionalOAuthScopes, unacknowledgedOAuthScopes } from '../src/utils/oauthScopes'
 import type { Connection } from '../src/types'
 
 function connection(values: Partial<Connection> = {}): Connection {
@@ -45,4 +45,14 @@ test('new refresh permissions appear and removed permissions disappear', () => {
 test('revoked and pasted-token connections do not show OAuth warnings', () => {
   assert.deepEqual(additionalOAuthScopes(connection({ status: 'revoked', scopes: ['write'] })), [])
   assert.deepEqual(additionalOAuthScopes(connection({ auth: 'token', scopes: ['write'] })), [])
+})
+
+test('accepted scopes stop warning until the server grants another', () => {
+  const item = connection({
+    scopes: ['grafana:read', 'mcp:admin'],
+    acknowledged_scopes: ['mcp:admin'],
+  })
+  assert.deepEqual(unacknowledgedOAuthScopes(item), [])
+  item.scopes = ['grafana:read', 'mcp:admin', 'mcp:raw-api']
+  assert.deepEqual(unacknowledgedOAuthScopes(item), ['mcp:raw-api'])
 })

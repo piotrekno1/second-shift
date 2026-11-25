@@ -1,4 +1,4 @@
-import type { AgentConfiguration, AgentConnection, Connection } from '../types'
+import type { AgentConfiguration, AgentConnection, Connection, Run } from '../types'
 import { runUsageLabel } from './agents'
 import { providerLabel } from './format'
 
@@ -134,4 +134,15 @@ export function requestedRow(query: Record<string, unknown>): string {
   if (typeof query.connection === 'string') return `model:${query.connection}`
   if (typeof query.login === 'string') return `agent:${query.login}`
   return ''
+}
+
+/**
+ * Who ran a run and on which model, for run lists: "Claude Code · claude-opus-5-5 +1",
+ * "claude-sonnet-5-5" for SecondShift's own agent, or "Codex" when the CLI named none.
+ */
+export function runModelLabel(run: Pick<Run, 'agent_backend' | 'models'>): string {
+  const agent = run.agent_backend === 'pydantic' ? '' : SUBSCRIPTION_NAMES[run.agent_backend]
+  const [first, ...rest] = run.models
+  const model = first ? `${first}${rest.length ? ` +${rest.length}` : ''}` : ''
+  return [agent, model].filter(Boolean).join(' · ')
 }

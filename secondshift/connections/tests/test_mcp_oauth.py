@@ -283,6 +283,46 @@ def test_extra_granted_scopes_connect_and_remain_visible(
     assert "rt-1" not in json.dumps(payload)
 
 
+def test_acknowledged_scopes_stop_warning_until_more_are_granted(
+    client: Client, fake: FakeServer, workspace: Workspace, owner: Any
+) -> None:
+    fake.grant_scope = "read mcp:admin"
+    connection = complete_authorization(
+        owner, begin(fake, workspace, owner), "good-code", ""
+    )
+    client.force_login(owner)
+    assert client.get("/api/connections").json()[0]["acknowledged_scopes"] == []
+    response = client.post(f"/api/connections/{connection.pk}/scopes/acknowledge")
+    assert response.status_code == 200
+    assert response.json()["acknowledged_scopes"] == ["mcp:admin"]
+    # A refresh keeps the acknowledgement. A newly granted scope is not in it.
+    fake.grant_scope = "read mcp:admin mcp:raw-api"
+    Connection.objects.filter(pk=connection.pk).update(expires_at=timezone.now())
+    connection.refresh_from_db()
+    fresh_connection(connection)
+    payload = client.get("/api/connections").json()[0]
+    assert payload["acknowledged_scopes"] == ["mcp:admin"]
+    assert payload["scopes"] == ["mcp:admin", "mcp:raw-api", "read"]
+
+
+def test_acknowledging_scopes_needs_the_role(
+    client: Client, fake: FakeServer, workspace: Workspace, owner: Any
+) -> None:
+    fake.grant_scope = "read mcp:admin"
+    connection = complete_authorization(
+        owner, begin(fake, workspace, owner), "good-code", ""
+    )
+    viewer = get_user_model().objects.create_user(username="oauth-member")
+    WorkspaceMembership.objects.create(
+        workspace=workspace, user=viewer, role=WorkspaceMembership.Role.MEMBER
+    )
+    client.force_login(viewer)
+    response = client.post(f"/api/connections/{connection.pk}/scopes/acknowledge")
+    assert response.status_code == 403
+    connection.refresh_from_db()
+    assert "acknowledged_scopes" not in connection.metadata["oauth"]
+
+
 @pytest.mark.parametrize("granted", ["read", "", "mcp:admin"])
 def test_missing_required_scopes_save_nothing(
     granted: str, fake: FakeServer, workspace: Workspace, owner: Any

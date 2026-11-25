@@ -6,6 +6,7 @@ import { useRouter } from 'vue-router'
 import StatusPill from './StatusPill.vue'
 import type { Run } from '../types'
 import { formatDate, formatRelative, runStats, utcTitle } from '../utils/format'
+import { runModelLabel } from '../utils/models'
 
 // One run in a list. Inside a job's own page the job column is redundant, so it can be hidden.
 // Compact rows are for summaries like the Overview: same columns and order, without usage and files.
@@ -16,6 +17,7 @@ const props = withDefaults(defineProps<{ run: Run; showJob?: boolean; compact?: 
 
 const router = useRouter()
 const stats = computed(() => runStats(props.run))
+const modelLabel = computed(() => runModelLabel(props.run))
 
 function openRun(event: Event): void {
   // Links inside the row keep their own behaviour.
@@ -75,14 +77,14 @@ function openRun(event: Event): void {
         <FailureLabel :label="run.failure.label" :canceled="run.status === 'canceled'" />
         <span class="failure-reason">{{ run.failure.reason }}</span>
       </div>
-      <small v-else-if="run.model || run.commit_sha" class="run-meta">
-        <template v-if="run.model">{{ run.model }}</template><template
-          v-if="run.model && run.commit_sha"
+      <small v-if="modelLabel || run.commit_sha" class="run-meta" :title="run.models.join(', ')">
+        <template v-if="modelLabel">{{ modelLabel }}</template><template
+          v-if="modelLabel && run.commit_sha"
         >
           · </template
         ><code v-if="run.commit_sha">{{ run.commit_sha.slice(0, 7) }}</code>
       </small>
-      <small v-else-if="!stats.length" class="run-meta">Waiting to start</small>
+      <small v-else-if="!stats.length && !run.failure" class="run-meta">Waiting to start</small>
     </div>
     <div v-if="!compact" class="run-row-actions">
       <RouterLink

@@ -17,7 +17,11 @@ from secondshift.connections.mcp.client import (
     create_mcp_connection,
     update_mcp_connection,
 )
-from secondshift.connections.mcp.oauth import inspect_server, requested_scopes
+from secondshift.connections.mcp.oauth import (
+    acknowledge_additional_scopes,
+    inspect_server,
+    requested_scopes,
+)
 from secondshift.connections.mcp.providers import MCP_PROVIDERS
 from secondshift.connections.mcp.signin import (
     SignInError,
@@ -36,6 +40,7 @@ from secondshift.connections.schemas import (
     MCPSignInSchema,
     MCPSignInStartSchema,
 )
+from secondshift.connections.serialization import serialize_connection
 from secondshift.connections.services import ConnectionConflict
 from secondshift.jobs.automatic_grants import approve_waiting_for
 from secondshift.workspaces.access import Action, require
@@ -123,6 +128,18 @@ def update_mcp(
     except ValidationError as error:
         raise HttpError(422, "The MCP connection configuration is invalid.") from error
     return apply_approval(connection, payload.require_approval)
+
+
+@router.post(
+    "/connections/{connection_id}/scopes/acknowledge",
+    response=ConnectionSchema,
+    auth=django_auth,
+)
+def acknowledge_scopes(request: HttpRequest, connection_id: int) -> ConnectionSchema:
+    """Accept the access a server granted beyond what was asked, so it stops
+    warning until the server grants more."""
+    connection = owned_connection(request, connection_id, Action.EDIT_CONNECTIONS)
+    return serialize_connection(acknowledge_additional_scopes(connection.pk))
 
 
 @router.post(

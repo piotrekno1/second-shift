@@ -68,6 +68,11 @@ export function updateAttribution(connectionId: number, attribution: boolean): P
   return apiPost<Connection>(`/connections/${connectionId}/attribution`, { attribution })
 }
 
+/** Accept the access a server granted beyond what was asked for. */
+export function acknowledgeScopes(connectionId: number): Promise<Connection> {
+  return apiPost<Connection>(`/connections/${connectionId}/scopes/acknowledge`)
+}
+
 export function revokeConnection(connectionId: number): Promise<Connection> {
   return apiPost<Connection>(`/connections/${connectionId}/revoke`)
 }

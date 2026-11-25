@@ -4,6 +4,7 @@ from typing import Literal
 from ninja import Schema
 from pydantic import Field
 
+from secondshift.runner_protocol.agents import AgentBackend
 from secondshift.runs.constants import RunStart
 from secondshift.runs.models import Run, RunDelivery
 from secondshift.runs.reporting.queries import Period, RunSort
@@ -35,6 +36,8 @@ class RunSchema(Schema):
     summary: str
     plan_ready: bool
     commit_sha: str
+    # Who ran the agent: SecondShift's own loop, or a subscription CLI.
+    agent_backend: AgentBackend
     # The model that ran the agent, and every model the run used.
     model: str | None
     models: list[str]
